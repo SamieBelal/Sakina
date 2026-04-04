@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../core/constants/app_strings.dart';
+import '../core/constants/app_colors.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.child, super.key});
@@ -14,26 +14,33 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex(context),
         onTap: (index) => _onTap(context, index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.surfaceLight,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textTertiaryLight,
+        selectedLabelStyle:
+            const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite_outline),
             activeIcon: Icon(Icons.favorite),
-            label: AppStrings.home,
+            label: 'Reflect',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.auto_awesome_outlined),
             activeIcon: Icon(Icons.auto_awesome),
-            label: AppStrings.names,
+            label: 'Duas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book_outlined),
             activeIcon: Icon(Icons.book),
-            label: AppStrings.journal,
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: AppStrings.settings,
+            label: 'Journal',
           ),
         ],
       ),
@@ -42,9 +49,9 @@ class AppShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/names')) return 1;
-    if (location.startsWith('/journal')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/reflect')) return 1;
+    if (location.startsWith('/duas')) return 2;
+    if (location.startsWith('/journal')) return 3;
     return 0;
   }
 
@@ -53,11 +60,11 @@ class AppShell extends StatelessWidget {
       case 0:
         context.go('/');
       case 1:
-        context.go('/names');
+        context.go('/reflect');
       case 2:
-        context.go('/journal');
+        context.go('/duas');
       case 3:
-        context.go('/settings');
+        context.go('/journal');
     }
   }
 }

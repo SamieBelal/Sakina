@@ -55,7 +55,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       onPressed: () async {
-                        await notifier.completeOnboarding();
+                        try {
+                          await notifier.completeOnboarding();
+                        } catch (_) {}
                         widget.onComplete();
                       },
                       icon: const Icon(
@@ -171,7 +173,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 OnboardingContinueButton(
                   label: AppStrings.paywallCta,
                   onPressed: () async {
-                    await notifier.completeOnboarding();
+                    try {
+                      await notifier.completeOnboarding();
+                    } catch (_) {}
                     widget.onComplete();
                   },
                 ),

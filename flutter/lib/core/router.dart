@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../features/progress/screens/progress_screen.dart';
+import '../features/reflect/screens/reflect_screen.dart';
+import '../features/duas/screens/duas_screen.dart';
 import '../features/feelings/screens/home_screen.dart';
-import '../features/feelings/screens/result_screen.dart';
-import '../features/names/screens/names_screen.dart';
-import '../features/journal/screens/journal_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
+import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../widgets/app_shell.dart';
 
@@ -14,13 +15,7 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>()
 GoRouter buildRouter({required bool onboardingCompleted}) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: onboardingCompleted ? '/' : '/onboarding',
-    redirect: (context, state) {
-      final isOnboarding = state.uri.path == '/onboarding';
-      if (!onboardingCompleted && !isOnboarding) return '/onboarding';
-      if (onboardingCompleted && isOnboarding) return '/';
-      return null;
-    },
+    initialLocation: '/',
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(
@@ -29,11 +24,11 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         builder: (context, state) => const OnboardingScreen(),
       ),
 
-      // Result screen (no bottom nav — full screen)
+      // Discovery quiz (full screen, no bottom nav)
       GoRoute(
-        path: '/result',
+        path: '/discovery-quiz',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const ResultScreen(),
+        builder: (context, state) => const DiscoveryQuizScreen(),
       ),
 
       // Main app with bottom navigation
@@ -43,15 +38,19 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) => const HomeScreen(),
+            builder: (context, state) => const ProgressScreen(),
           ),
           GoRoute(
-            path: '/names',
-            builder: (context, state) => const NamesScreen(),
+            path: '/reflect',
+            builder: (context, state) => const ReflectScreen(),
+          ),
+          GoRoute(
+            path: '/duas',
+            builder: (context, state) => const DuasScreen(),
           ),
           GoRoute(
             path: '/journal',
-            builder: (context, state) => const JournalScreen(),
+            builder: (context, state) => const HomeScreen(),
           ),
           GoRoute(
             path: '/settings',
