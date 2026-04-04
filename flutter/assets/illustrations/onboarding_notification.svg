@@ -1,0 +1,42 @@
+<svg width="240" height="200" viewBox="0 0 240 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Large soft background circle -->
+  <circle cx="120" cy="100" r="90" fill="#E8F5EE"/>
+
+  <!-- Sunrise glow behind bell -->
+  <circle cx="120" cy="102" r="40" fill="#C8985E" opacity="0.1"/>
+  <!-- Rays emanating — symmetrical -->
+  <line x1="120" y1="57" x2="120" y2="45" stroke="#C8985E" stroke-width="1.5" opacity="0.4" stroke-linecap="round"/>
+  <line x1="140" y1="62" x2="148" y2="53" stroke="#C8985E" stroke-width="1.2" opacity="0.35" stroke-linecap="round"/>
+  <line x1="100" y1="62" x2="92" y2="53" stroke="#C8985E" stroke-width="1.2" opacity="0.35" stroke-linecap="round"/>
+  <line x1="155" y1="77" x2="164" y2="72" stroke="#C8985E" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+  <line x1="85" y1="77" x2="76" y2="72" stroke="#C8985E" stroke-width="1" opacity="0.3" stroke-linecap="round"/>
+  <line x1="160" y1="97" x2="170" y2="95" stroke="#C8985E" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <line x1="80" y1="97" x2="70" y2="95" stroke="#C8985E" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+
+  <!-- Crescent -->
+  <path d="M148 67 C156 71, 160 81, 158 91 C156 101, 148 107, 140 107 C148 103, 154 95, 154 85 C154 75, 150 69, 148 67Z" fill="#C8985E" opacity="0.45"/>
+
+  <!-- Bell body -->
+  <path d="M102 107 C102 87, 108 75, 120 72 C132 75, 138 87, 138 107 L142 117 C142 121, 140 123, 136 123 L104 123 C100 123, 98 121, 98 117Z" fill="#1B6B4A" opacity="0.15"/>
+  <path d="M102 107 C102 87, 108 75, 120 72 C132 75, 138 87, 138 107 L142 117 C142 121, 140 123, 136 123 L104 123 C100 123, 98 121, 98 117Z" stroke="#1B6B4A" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Bell top nub -->
+  <circle cx="120" cy="72" r="3" fill="#1B6B4A"/>
+
+  <!-- Bell clapper -->
+  <path d="M114 123 C114 127, 116 131, 120 131 C124 131, 126 127, 126 123" stroke="#1B6B4A" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Notification dot -->
+  <circle cx="140" cy="81" r="6" fill="#C8985E"/>
+  <circle cx="140" cy="81" r="3" fill="white"/>
+
+  <!-- Small sparkles — symmetrical -->
+  <path d="M72 87 L73 84 L74 87 L77 88 L74 89 L73 92 L72 89 L69 88Z" fill="#C8985E" opacity="0.5"/>
+  <path d="M166 117 L167 114 L168 117 L171 118 L168 119 L167 122 L166 119 L163 118Z" fill="#C8985E" opacity="0.4"/>
+
+  <!-- Sound waves from bell — symmetrical -->
+  <path d="M92 97 C88 93, 88 87, 92 83" stroke="#1B6B4A" stroke-width="1.2" fill="none" opacity="0.3" stroke-linecap="round"/>
+  <path d="M86 101 C80 95, 80 85, 86 79" stroke="#1B6B4A" stroke-width="1" fill="none" opacity="0.2" stroke-linecap="round"/>
+  <path d="M148 97 C152 93, 152 87, 148 83" stroke="#1B6B4A" stroke-width="1.2" fill="none" opacity="0.3" stroke-linecap="round"/>
+  <path d="M154 101 C160 95, 160 85, 154 79" stroke="#1B6B4A" stroke-width="1" fill="none" opacity="0.2" stroke-linecap="round"/>
+</svg>

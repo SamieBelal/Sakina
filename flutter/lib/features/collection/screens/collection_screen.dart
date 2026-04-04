@@ -97,7 +97,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -210,11 +210,11 @@ class _CardTile extends StatelessWidget {
           color: discovered ? AppColors.surfaceLight : AppColors.surfaceAltLight,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           border: Border.all(
-            color: discovered ? tierColor.withOpacity(0.6) : AppColors.borderLight,
+            color: discovered ? tierColor.withValues(alpha: 0.6) : AppColors.borderLight,
             width: discovered ? 1.5 : 1,
           ),
           boxShadow: discovered
-              ? [BoxShadow(color: tierColor.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))]
               : null,
         ),
         child: Column(
@@ -231,7 +231,7 @@ class _CardTile extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: filled ? tierColor : tierColor.withOpacity(0.2),
+                      color: filled ? tierColor : tierColor.withValues(alpha: 0.2),
                     ),
                   );
                 }),
@@ -261,11 +261,11 @@ class _CardTile extends StatelessWidget {
                 style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700),
               ),
             ] else ...[
-              Icon(Icons.lock_outline, color: AppColors.textTertiaryLight.withOpacity(0.4), size: 24),
+              Icon(Icons.lock_outline, color: AppColors.textTertiaryLight.withValues(alpha: 0.4), size: 24),
               const SizedBox(height: 6),
               Text(
                 '???',
-                style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.textTertiaryLight.withOpacity(0.3)),
+                style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.textTertiaryLight.withValues(alpha: 0.3)),
               ),
             ],
           ],
@@ -307,9 +307,9 @@ class _CardDetailSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: tierColor.withOpacity(0.12),
+              color: tierColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: tierColor.withOpacity(0.3)),
+              border: Border.all(color: tierColor.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -319,7 +319,7 @@ class _CardDetailSheet extends StatelessWidget {
                   margin: const EdgeInsets.only(right: 3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i < tier.number ? tierColor : tierColor.withOpacity(0.2),
+                    color: i < tier.number ? tierColor : tierColor.withValues(alpha: 0.2),
                   ),
                 )),
                 const SizedBox(width: 4),
@@ -341,7 +341,7 @@ class _CardDetailSheet extends StatelessWidget {
           const SizedBox(height: 4),
           Text(card.english, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight)),
           const SizedBox(height: AppSpacing.lg),
-          Divider(color: AppColors.dividerLight),
+          const Divider(color: AppColors.dividerLight),
           const SizedBox(height: AppSpacing.md),
 
           // Tier 1: Meaning + lesson
@@ -357,7 +357,7 @@ class _CardDetailSheet extends StatelessWidget {
           // Tier 2: Hadith
           if (tier.number >= 2) ...[
             const SizedBox(height: AppSpacing.lg),
-            Divider(color: AppColors.dividerLight),
+            const Divider(color: AppColors.dividerLight),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
@@ -376,7 +376,7 @@ class _CardDetailSheet extends StatelessWidget {
           // Tier 3: Dua
           if (tier.number >= 3) ...[
             const SizedBox(height: AppSpacing.lg),
-            Divider(color: AppColors.dividerLight),
+            const Divider(color: AppColors.dividerLight),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [

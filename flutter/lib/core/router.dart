@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../features/auth/screens/sign_in_screen.dart';
 import '../features/progress/screens/progress_screen.dart';
 import '../features/reflect/screens/reflect_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
@@ -23,6 +24,13 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         path: '/onboarding',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // Sign in (full screen, no bottom nav)
+      GoRoute(
+        path: '/signin',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SignInScreen(),
       ),
 
       // Discovery quiz (full screen, no bottom nav)

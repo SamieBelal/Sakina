@@ -1,0 +1,44 @@
+<svg width="240" height="220" viewBox="0 0 240 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Large soft background circle -->
+  <circle cx="120" cy="110" r="100" fill="#E8F5EE"/>
+
+  <!-- Crescent — above the flow, near center -->
+  <path d="M116 64 C124 64, 130 72, 130 82 C130 92, 124 98, 116 98 C122 96, 126 88, 126 82 C126 74, 122 66, 116 64Z" fill="#C8985E" opacity="0.6"/>
+
+  <!-- Heart (emotion input) — centered at x=80, y=110 -->
+  <path d="M54 106 C54 94, 65 86, 74 94 C78 97, 80 101, 80 106 C80 101, 82 97, 86 94 C95 86, 106 94, 106 106 C106 122, 80 134, 80 134 C80 134, 54 122, 54 106Z" fill="#1B6B4A" opacity="0.85"/>
+
+  <!-- Connecting dashed arrow — centered at x=120, y=116 -->
+  <line x1="108" y1="116" x2="132" y2="116" stroke="#1B6B4A" stroke-width="2" stroke-dasharray="4 3"/>
+  <polygon points="132,111 142,116 132,121" fill="#1B6B4A"/>
+
+  <!-- Open Quran book — centered at x=164, y=113 -->
+  <!-- Left page -->
+  <path d="M142 96 C142 96, 160 92, 164 94 L164 132 C160 130, 142 134, 142 134Z" fill="#1B6B4A" opacity="0.12"/>
+  <path d="M142 96 C142 96, 160 92, 164 94 L164 132 C160 130, 142 134, 142 134Z" stroke="#1B6B4A" stroke-width="1.5" fill="none"/>
+  <!-- Right page -->
+  <path d="M186 96 C186 96, 168 92, 164 94 L164 132 C168 130, 186 134, 186 134Z" fill="#1B6B4A" opacity="0.12"/>
+  <path d="M186 96 C186 96, 168 92, 164 94 L164 132 C168 130, 186 134, 186 134Z" stroke="#1B6B4A" stroke-width="1.5" fill="none"/>
+  <!-- Book spine -->
+  <line x1="164" y1="94" x2="164" y2="132" stroke="#1B6B4A" stroke-width="1.5"/>
+  <!-- Text lines — left page -->
+  <line x1="148" y1="106" x2="160" y2="105" stroke="#1B6B4A" stroke-width="1" opacity="0.35"/>
+  <line x1="149" y1="112" x2="159" y2="111" stroke="#1B6B4A" stroke-width="1" opacity="0.35"/>
+  <line x1="150" y1="118" x2="158" y2="117" stroke="#1B6B4A" stroke-width="1" opacity="0.3"/>
+  <!-- Text lines — right page -->
+  <line x1="168" y1="105" x2="180" y2="106" stroke="#1B6B4A" stroke-width="1" opacity="0.35"/>
+  <line x1="169" y1="111" x2="179" y2="112" stroke="#1B6B4A" stroke-width="1" opacity="0.35"/>
+  <line x1="170" y1="117" x2="178" y2="118" stroke="#1B6B4A" stroke-width="1" opacity="0.3"/>
+
+  <!-- Sparkles — placed symmetrically around circle center (120, 110) -->
+  <!-- Top-left sparkle at offset (-56, -46) -->
+  <path d="M62 62 L64 56 L66 62 L72 64 L66 66 L64 72 L62 66 L56 64Z" fill="#C8985E"/>
+  <!-- Top-right sparkle at offset (+56, -46) — mirrored -->
+  <path d="M174 62 L176 56 L178 62 L184 64 L178 66 L176 72 L174 66 L168 64Z" fill="#C8985E" opacity="0.7"/>
+  <!-- Bottom-center sparkle at offset (0, +48) -->
+  <path d="M118 156 L119.5 152 L121 156 L125 157.5 L121 159 L119.5 163 L118 159 L114 157.5Z" fill="#C8985E" opacity="0.5"/>
+  <!-- Small accent at offset (-31, -40) -->
+  <path d="M87 68 L88 65 L89 68 L92 69 L89 70 L88 73 L87 70 L84 69Z" fill="#C8985E" opacity="0.45"/>
+  <!-- Small accent at offset (+31, -40) — mirrored -->
+  <path d="M149 68 L150 65 L151 68 L154 69 L151 70 L150 73 L149 70 L146 69Z" fill="#C8985E" opacity="0.45"/>
+</svg>

@@ -88,7 +88,7 @@ class FollowUpQuestion {
 // Constants
 // ---------------------------------------------------------------------------
 
-final String _claudeApiUrl = kIsWeb
+const String _claudeApiUrl = kIsWeb
     ? 'http://localhost:8787/v1/messages'
     : 'https://api.anthropic.com/v1/messages';
 const _reflectModel = 'claude-sonnet-4-20250514';

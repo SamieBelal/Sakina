@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -118,7 +117,6 @@ class _ShareCardWidget extends StatelessWidget {
   static const _emerald = Color(0xFF1B6B4A);
   static const _gold = Color(0xFFC8985E);
   static const _cream = Color(0xFFFBF7F2);
-  static const _warmWhite = Color(0xFFF5F0EB);
 
   /// Truncate story to first sentence or ~80 chars
   String get _shortStory {
@@ -150,7 +148,7 @@ class _ShareCardWidget extends StatelessWidget {
       child: Container(
         width: w,
         padding: EdgeInsets.symmetric(horizontal: pad, vertical: padV),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: _cream,
         ),
         child: Column(
@@ -161,7 +159,7 @@ class _ShareCardWidget extends StatelessWidget {
               'SAKINA',
               style: AppTypography.labelLarge.copyWith(
                 fontSize: brandSize,
-                color: _emerald.withOpacity(0.6),
+                color: _emerald.withValues(alpha: 0.6),
                 letterSpacing: 6,
               ),
             ),
@@ -206,7 +204,7 @@ class _ShareCardWidget extends StatelessWidget {
             ],
 
             // Divider
-            Container(width: preview ? 40 : 80, height: 1.5, color: _gold.withOpacity(0.3)),
+            Container(width: preview ? 40 : 80, height: 1.5, color: _gold.withValues(alpha: 0.3)),
             SizedBox(height: preview ? 16 : 36),
 
             // Dua — Arabic
@@ -227,7 +225,7 @@ class _ShareCardWidget extends StatelessWidget {
               '"$duaTranslation"',
               style: AppTypography.bodyLarge.copyWith(
                 fontSize: translationSize,
-                color: const Color(0xFF1A1A2E).withOpacity(0.8),
+                color: const Color(0xFF1A1A2E).withValues(alpha: 0.8),
                 height: 1.6,
               ),
               textAlign: TextAlign.center,
@@ -239,14 +237,14 @@ class _ShareCardWidget extends StatelessWidget {
               duaSource,
               style: AppTypography.bodySmall.copyWith(
                 fontSize: sourceSize,
-                color: _emerald.withOpacity(0.6),
+                color: _emerald.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: preview ? 20 : 48),
 
             // Bottom line
-            Container(width: preview ? 24 : 40, height: 1.5, color: _gold.withOpacity(0.3)),
+            Container(width: preview ? 24 : 40, height: 1.5, color: _gold.withValues(alpha: 0.3)),
           ],
         ),
       ),

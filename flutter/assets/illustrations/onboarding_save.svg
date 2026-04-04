@@ -1,0 +1,34 @@
+<svg width="240" height="220" viewBox="0 0 240 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Large soft background circle -->
+  <circle cx="120" cy="110" r="95" fill="#E8F5EE"/>
+
+  <!-- Dotted circle border around shield — centered at circle center -->
+  <circle cx="120" cy="110" r="65" fill="none" stroke="#1B6B4A" stroke-width="1" stroke-dasharray="4 6" opacity="0.25"/>
+
+  <!-- Shield shape — shifted down 4px to center at cy=110 -->
+  <path d="M120 59 L158 76 C158 76, 160 114, 148 136 C138 152, 120 162, 120 162 C120 162, 102 152, 92 136 C80 114, 82 76, 82 76Z" fill="#1B6B4A" opacity="0.1"/>
+  <path d="M120 59 L158 76 C158 76, 160 114, 148 136 C138 152, 120 162, 120 162 C120 162, 102 152, 92 136 C80 114, 82 76, 82 76Z" stroke="#1B6B4A" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Journal/book symbol inside shield -->
+  <path d="M104 94 C104 94, 118 91, 120 92 L120 129 C118 128, 104 131, 104 131Z" fill="none" stroke="#1B6B4A" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M136 94 C136 94, 122 91, 120 92 L120 129 C122 128, 136 131, 136 131Z" fill="none" stroke="#1B6B4A" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Book spine -->
+  <line x1="120" y1="92" x2="120" y2="129" stroke="#1B6B4A" stroke-width="1.5"/>
+  <!-- Page lines -->
+  <line x1="108" y1="101" x2="117" y2="100" stroke="#1B6B4A" stroke-width="0.8" opacity="0.35"/>
+  <line x1="109" y1="107" x2="116" y2="106" stroke="#1B6B4A" stroke-width="0.8" opacity="0.35"/>
+  <line x1="110" y1="113" x2="116" y2="112" stroke="#1B6B4A" stroke-width="0.8" opacity="0.3"/>
+  <line x1="123" y1="100" x2="132" y2="101" stroke="#1B6B4A" stroke-width="0.8" opacity="0.35"/>
+  <line x1="124" y1="106" x2="131" y2="107" stroke="#1B6B4A" stroke-width="0.8" opacity="0.35"/>
+  <line x1="124" y1="112" x2="130" y2="113" stroke="#1B6B4A" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Small check on shield top -->
+  <circle cx="120" cy="74" r="6" fill="white" stroke="#1B6B4A" stroke-width="1.5"/>
+  <path d="M117 74 L119 76.5 L124 71.5" stroke="#1B6B4A" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Sparkle accents — symmetrical around (120, 110) -->
+  <path d="M62 84 L63.5 80 L65 84 L69 85.5 L65 87 L63.5 91 L62 87 L58 85.5Z" fill="#C8985E" opacity="0.6"/>
+  <path d="M176 80 L177.5 76 L179 80 L183 81.5 L179 83 L177.5 87 L176 83 L172 81.5Z" fill="#C8985E" opacity="0.5"/>
+  <path d="M100 174 L101 171 L102 174 L105 175 L102 176 L101 179 L100 176 L97 175Z" fill="#C8985E" opacity="0.4"/>
+  <path d="M140 172 L141 169 L142 172 L145 173 L142 174 L141 177 L140 174 L137 173Z" fill="#C8985E" opacity="0.4"/>
+</svg>

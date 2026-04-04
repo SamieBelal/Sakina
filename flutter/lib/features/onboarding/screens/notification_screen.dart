@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -38,98 +39,93 @@ class NotificationScreen extends ConsumerWidget {
     ];
 
     return OnboardingPageWrapper(
-      progressSegment: 4,
+      progressSegment: 9,
       onBack: onBack,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.notifications_outlined,
-                    color: AppColors.primary,
-                    size: 32,
-                  ),
-                )
-                    .animate(onPlay: (c) => c.repeat())
-                    .scale(
-                      begin: const Offset(1.0, 1.0),
-                      end: const Offset(1.12, 1.12),
-                      duration: 750.ms,
-                    )
-                    .then()
-                    .scale(
-                      begin: const Offset(1.12, 1.12),
-                      end: const Offset(1.0, 1.0),
-                      duration: 750.ms,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.notificationTitle,
+                    style: AppTypography.displaySmall.copyWith(
+                      color: AppColors.textPrimaryLight,
                     ),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  AppStrings.notificationTitle,
-                  style: AppTypography.displaySmall.copyWith(
-                    color: AppColors.textPrimaryLight,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  AppStrings.notificationSubtitle,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondaryLight,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                ...benefits.asMap().entries.map((entry) {
-                  final delay = (entry.key * 100).ms;
-                  final (icon, text) = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryLight,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            icon,
-                            color: AppColors.primary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(
-                            text,
-                            style: AppTypography.bodyLarge.copyWith(
-                              color: AppColors.textPrimaryLight,
-                            ),
-                          ),
-                        ),
-                      ],
+                    textAlign: TextAlign.left,
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms)
+                      .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    AppStrings.notificationSubtitle,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                    textAlign: TextAlign.left,
+                  ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                  const SizedBox(height: AppSpacing.xl),
+                  Center(
+                    child: SvgPicture.asset(
+                      'assets/illustrations/onboarding_notification.svg',
+                      height: 180,
                     ),
                   )
                       .animate()
-                      .fadeIn(duration: 400.ms, delay: delay)
-                      .slideX(
-                        begin: 0.05,
-                        end: 0,
-                        duration: 400.ms,
-                        delay: delay,
-                      );
-                }),
-              ],
+                      .fadeIn(duration: 600.ms, delay: 300.ms)
+                      .slideY(
+                          begin: 0.05,
+                          end: 0,
+                          duration: 600.ms,
+                          delay: 300.ms),
+                  const SizedBox(height: AppSpacing.xl),
+                  ...benefits.asMap().entries.map((entry) {
+                    final delay = (500 + entry.key * 100).ms;
+                    final (icon, text) = entry.value;
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Text(
+                              text,
+                              style: AppTypography.bodyLarge.copyWith(
+                                color: AppColors.textPrimaryLight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: delay)
+                        .slideX(
+                          begin: 0.05,
+                          end: 0,
+                          duration: 400.ms,
+                          delay: delay,
+                        );
+                  }),
+                ],
+              ),
             ),
           ),
           OnboardingContinueButton(
@@ -156,14 +152,16 @@ class NotificationScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            AppStrings.notificationFooter,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textTertiaryLight,
+          Center(
+            child: Text(
+              AppStrings.notificationFooter,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textTertiaryLight,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
         ],
       ),
     );

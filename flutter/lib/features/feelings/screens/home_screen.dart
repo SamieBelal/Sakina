@@ -93,7 +93,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.favorite, color: AppColors.primary, size: 20),
+                      const Icon(Icons.favorite, color: AppColors.primary, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         '${state.savedDuaIds.length} saved from Browse',
@@ -127,7 +127,7 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.book_outlined,
             size: 64,
             color: AppColors.textTertiaryLight,
@@ -208,7 +208,7 @@ class HomeScreen extends ConsumerWidget {
                     HapticFeedback.lightImpact();
                     notifier.deleteReflection(r.id);
                   },
-                  child: Icon(
+                  child: const Icon(
                     Icons.close,
                     size: 16,
                     color: AppColors.textTertiaryLight,
@@ -315,7 +315,7 @@ class _ExpandableBuiltDuaState extends State<_ExpandableBuiltDua> {
                 HapticFeedback.lightImpact();
                 widget.notifier.removeSavedBuiltDua(widget.dua.id);
               },
-              child: Icon(
+              child: const Icon(
                 Icons.delete_outline,
                 size: 18,
                 color: AppColors.textTertiaryLight,
@@ -402,7 +402,7 @@ class _ExpandableRelatedDuaState extends State<_ExpandableRelatedDua> {
                 HapticFeedback.lightImpact();
                 widget.notifier.removeSavedRelatedDua(widget.dua.id);
               },
-              child: Icon(
+              child: const Icon(
                 Icons.favorite,
                 color: AppColors.primary,
                 size: 20,

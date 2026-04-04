@@ -44,6 +44,7 @@
 ///   Class 20 — An-Nur
 ///   Class 21 — Ar-Razzaq
 ///   Class 22 — Al-'Afuww
+library;
 
 class NameTeachingDua {
   final String arabic;
@@ -125,7 +126,7 @@ const List<NameTeaching> nameTeachings = [
       "feeling enslaved to people's opinions",
     ],
     coreTeaching:
-        "You only need one God. Your heart was not designed to bow in a thousand directions. Al-Wahid negates all other gods in number; Al-Ahad negates any likeness — there is no God but Him, and no God like Him. Ibn al-Qayyim said: \"For One, be one upon one\" — unify yourself for the singular path. When Bilal was chained and tortured, he said only \"Ahad, Ahad\" — knowing this one name alone was enough to find strength in Allah and be willing to die for Him. The slave in chains became freer than the master with the whip. Shirk is never rational: it is born from insecurity or desire. Every false god is just human insecurity, desire, or corruption dressed in divinity.",
+        'You only need one God. Your heart was not designed to bow in a thousand directions. Al-Wahid negates all other gods in number; Al-Ahad negates any likeness — there is no God but Him, and no God like Him. Ibn al-Qayyim said: "For One, be one upon one" — unify yourself for the singular path. When Bilal was chained and tortured, he said only "Ahad, Ahad" — knowing this one name alone was enough to find strength in Allah and be willing to die for Him. The slave in chains became freer than the master with the whip. Shirk is never rational: it is born from insecurity or desire. Every false god is just human insecurity, desire, or corruption dressed in divinity.',
     propheticStory:
         'When Bilal (\u0631\u0636\u064A \u0627\u0644\u0644\u0647 \u0639\u0646\u0647) was dragged across burning sand and rocks, he kept saying "Ahad, Ahad \u2014 One, One." When asked why he chose that word alone, he replied: "If I knew another name that would make them madder, I would have said it." We know all the names of Allah and are barely willing to live for Him, while Bilal knew one name and was willing to die for it.',
     dua: NameTeachingDua(
@@ -167,7 +168,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, place light in my heart, light on my tongue, and make me a light.',
       source:
-          "Bukhari \u2014 said by the Prophet \uFDFA on his way to prayer",
+          'Bukhari \u2014 said by the Prophet \uFDFA on his way to prayer',
     ),
   ),
 
@@ -198,7 +199,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, I seek refuge in Your pleasure from Your anger, and in Your pardon from Your punishment, and I seek refuge in You from You.',
       source:
-          "Muslim \u2014 said by the Prophet \uFDFA, the language of one who knows refuge is only found in the One he fears to disappoint",
+          'Muslim \u2014 said by the Prophet \uFDFA, the language of one who knows refuge is only found in the One he fears to disappoint',
     ),
   ),
 
@@ -220,7 +221,7 @@ const List<NameTeaching> nameTeachings = [
     coreTeaching:
         'Al-Ghafir forgives the initial sin. Al-Ghaffar forgives the repeated sins \u2014 every time you return, He meets you with forgiveness again. Al-Ghafoor is the all-encompassing forgiver whose quality of forgiveness is so vast it covers sins you did not even realize you committed. Allah says: "O My servant, if you brought Me an earth full of sins without associating a partner with Me, I would meet you with an earth full of forgiveness \u2014 and I would not mind." At-Tawwab actually turns towards you FIRST so that you can turn towards Him \u2014 He inspires repentance, sends reminders, opens pathways back. The Prophet \uFDFA said: "If you did not sin, Allah would replace you with a people who would sin and seek His forgiveness \u2014 because sometimes a sin that brings you closer to Allah is better than a good deed that fills you with arrogance."',
     propheticStory:
-        "A man who killed 99 people asked a worshipper if Allah would forgive him \u2014 the man said no, so he killed him too (100). Then a scholar said: \"Who can stand between you and the mercy of Allah? Go to a new land and live righteously.\" On the way, he died. Allah commanded: measure the distance between him and the two lands \u2014 then moved the earth itself to bring him nearer to His mercy. Allah inspired his repentance, sent the scholar, and shifted the ground \u2014 all so He could forgive him.",
+        'A man who killed 99 people asked a worshipper if Allah would forgive him \u2014 the man said no, so he killed him too (100). Then a scholar said: "Who can stand between you and the mercy of Allah? Go to a new land and live righteously." On the way, he died. Allah commanded: measure the distance between him and the two lands \u2014 then moved the earth itself to bring him nearer to His mercy. Allah inspired his repentance, sent the scholar, and shifted the ground \u2014 all so He could forgive him.',
     dua: NameTeachingDua(
       arabic:
           'رَبِّ اغْفِرْ لِي وَتُبْ عَلَيَّ إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ',
@@ -229,7 +230,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'My Lord, forgive me and accept my repentance. Indeed, You are At-Tawwab, Ar-Rahim.',
       source:
-          "Bukhari \u2014 the Prophet \uFDFA said this 100 times a day",
+          'Bukhari \u2014 the Prophet \uFDFA said this 100 times a day',
     ),
   ),
 
@@ -257,7 +258,7 @@ const List<NameTeaching> nameTeachings = [
       transliteration: 'Inna Rabbi qaribun mujib',
       translation: 'Indeed my Lord is close and responsive.',
       source:
-          "Quran 11:61 \u2014 words of the Prophet Salih (\u0639\u0644\u064A\u0647 \u0627\u0644\u0633\u0644\u0627\u0645)",
+          'Quran 11:61 \u2014 words of the Prophet Salih (\u0639\u0644\u064A\u0647 \u0627\u0644\u0633\u0644\u0627\u0645)',
     ),
   ),
 
@@ -315,7 +316,7 @@ const List<NameTeaching> nameTeachings = [
       arabic:
           'رَبَّنَا افْتَحْ بَيْنَنَا وَبَيْنَ قَوْمِنَا بِالْحَقِّ وَأَنتَ خَيْرُ الْفَاتِحِينَ',
       transliteration:
-          "Rabbana iftah baynana wa bayna qawmina bil-haqq wa anta khayrul-fatihin",
+          'Rabbana iftah baynana wa bayna qawmina bil-haqq wa anta khayrul-fatihin',
       translation:
           'Our Lord, decide between us and our people in truth, and You are the best of those who decide.',
       source:
@@ -431,7 +432,7 @@ const List<NameTeaching> nameTeachings = [
       'visiting or praying for a sick person',
     ],
     coreTeaching:
-        "The Prophet \uFDFA prayed: \"Take away the harm, Lord of people. Heal, for You are the Healer, and there is no healing except Your healing \u2014 a healing that leaves behind no trace of illness or affliction.\" The doctor can only treat, but only Allah can heal. Take the means and do not worship the means. The Healer even heals with the sickness itself \u2014 the Prophet \uFDFA said: \"Do not curse the fever, for it burns off your sins the way fire burns off filth from iron.\" Ibn al-Qayyim (\u0631\u062D\u0645\u0647 \u0627\u0644\u0644\u0647) said: \"I stayed in Mecca ill with no doctor or medicine. I treated myself with al-Fatiha and saw an astonishing effect.\" The Quran is healing and mercy walking next to your medication \u2014 not replacing it, but blessing it.",
+        'The Prophet \uFDFA prayed: "Take away the harm, Lord of people. Heal, for You are the Healer, and there is no healing except Your healing \u2014 a healing that leaves behind no trace of illness or affliction." The doctor can only treat, but only Allah can heal. Take the means and do not worship the means. The Healer even heals with the sickness itself \u2014 the Prophet \uFDFA said: "Do not curse the fever, for it burns off your sins the way fire burns off filth from iron." Ibn al-Qayyim (\u0631\u062D\u0645\u0647 \u0627\u0644\u0644\u0647) said: "I stayed in Mecca ill with no doctor or medicine. I treated myself with al-Fatiha and saw an astonishing effect." The Quran is healing and mercy walking next to your medication \u2014 not replacing it, but blessing it.',
     propheticStory:
         "Muhammad ibn Hatib says: 'I was a child when a pot of boiling liquid tipped and burnt my hand. My mother ran with me to the Prophet \uFDFA.' He prayed: 'Take away the harm, Lord of people. Heal, for You are the Healer, and there is no healing except Your healing.' Ibrahim (\u0639\u0644\u064A\u0647 \u0627\u0644\u0633\u0644\u0627\u0645) said: 'And when I fall ill, it is He who cures me' \u2014 attributing the illness to himself but reserving the cure exclusively for Allah. The Prophet \uFDFA also told us that on the Day of Judgment, Allah will say: 'O son of Adam, I was sick but you did not visit Me.' When the servant asks how, Allah says: 'Did you not know that My servant was sick and you did not visit him? Had you visited him, you would have found Me with him.' The Healer is with the ill.",
     dua: NameTeachingDua(
@@ -442,7 +443,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, Lord of people, remove the illness, heal \u2014 You are the Healer, there is no healing except Your healing, a healing that leaves no illness behind.',
       source:
-          "Bukhari and Muslim \u2014 dua for healing said by the Prophet \uFDFA",
+          'Bukhari and Muslim \u2014 dua for healing said by the Prophet \uFDFA',
     ),
   ),
 
@@ -523,7 +524,7 @@ const List<NameTeaching> nameTeachings = [
       'social isolation',
     ],
     coreTeaching:
-        "Al-Wadud is the One who is willing to love \u2014 but you have to be loyal in that love. When Allah loves you, it never stops at just feelings. The current of love runs from the throne of Ar-Rahman, through the angels of light, into the lives of people you may not have even met yet. Al-Wadud announces your name in the heavens for the simplest act of love on earth. If Al-Wadud loves the repentant sinner so much and rejoices for him, how much more does He love the striving worshipper?",
+        'Al-Wadud is the One who is willing to love \u2014 but you have to be loyal in that love. When Allah loves you, it never stops at just feelings. The current of love runs from the throne of Ar-Rahman, through the angels of light, into the lives of people you may not have even met yet. Al-Wadud announces your name in the heavens for the simplest act of love on earth. If Al-Wadud loves the repentant sinner so much and rejoices for him, how much more does He love the striving worshipper?',
     propheticStory:
         'The Prophet \uFDFA said: "When Allah loves a servant, He says to Jibreel: \'I love so-and-so, so love him.\' Then Jibreel loves him. Then Jibreel announces to the inhabitants of the heavens: \'Allah loves so-and-so, so love him.\' So the inhabitants of the heavens love him. Then acceptance is established for him on the earth." Your name can be echoing through the heavens because of one sincere moment of love.',
     dua: NameTeachingDua(
@@ -565,7 +566,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           "O Allah, You are Al-'Afuw, You love to pardon, so pardon me.",
       source:
-          "Al-Tirmidhi \u2014 taught by the Prophet \uFDFA to Aisha specifically for Laylat al-Qadr",
+          'Al-Tirmidhi \u2014 taught by the Prophet \uFDFA to Aisha specifically for Laylat al-Qadr',
     ),
   ),
 
@@ -623,7 +624,7 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Rabbana innaka jami'un-nasi li-yawmin la rayba fih, innallaha la yukhlifu'l-mi'ad",
       translation:
-          "Our Lord, surely You will gather the people for a Day about which there is no doubt. Indeed, Allah does not fail in His promise.",
+          'Our Lord, surely You will gather the people for a Day about which there is no doubt. Indeed, Allah does not fail in His promise.',
       source: 'Quran 3:9',
     ),
   ),
@@ -685,7 +686,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Ever-Living, O Self-Sustaining, in Your mercy I seek help. Rectify all my affairs and do not leave me to myself even for the blink of an eye.',
       source:
-          "Al-Hakim \u2014 taught by the Prophet \uFDFA to his daughter Fatima for morning and evening",
+          'Al-Hakim \u2014 taught by the Prophet \uFDFA to his daughter Fatima for morning and evening',
     ),
   ),
 
@@ -794,7 +795,7 @@ const List<NameTeaching> nameTeachings = [
       'witnessing tragedy',
     ],
     coreTeaching:
-        "As-Salam is not just the name for peace \u2014 He is peace Himself. Al-Quddus is utterly pure, free from every imperfection. The scholars say peace comes from three things: from knowing Him in His perfection, from trusting His perfect plan, and from remembering His perfect reward. Ibn al-Jawzi said Allah called Palestine al-Ard al-Muqaddasa, the Holy Land, because of its connection to As-Salam \u2014 the land of prophets and peace even in its most turbulent moments.",
+        'As-Salam is not just the name for peace \u2014 He is peace Himself. Al-Quddus is utterly pure, free from every imperfection. The scholars say peace comes from three things: from knowing Him in His perfection, from trusting His perfect plan, and from remembering His perfect reward. Ibn al-Jawzi said Allah called Palestine al-Ard al-Muqaddasa, the Holy Land, because of its connection to As-Salam \u2014 the land of prophets and peace even in its most turbulent moments.',
     propheticStory:
         "After every prayer, the Prophet \uFDFA would say three times: 'Astaghfirullah' \u2014 and then: 'Allahumma anta's-Salam wa minka's-salam, tabarakta ya Dhal Jalali wa'l-Ikram.' This dua acknowledges that true peace doesn't come from circumstances being resolved \u2014 it comes from turning toward the Source of peace Himself.",
     dua: NameTeachingDua(
@@ -805,7 +806,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, You are As-Salam and from You comes all peace. Blessed are You, O Possessor of Majesty and Honor.',
       source:
-          "Muslim \u2014 said by the Prophet \uFDFA after every obligatory prayer",
+          'Muslim \u2014 said by the Prophet \uFDFA after every obligatory prayer',
     ),
   ),
 
@@ -902,9 +903,9 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Anta al-Dhahiru fa-laysa fawqaka shay', wa anta al-Batinu fa-laysa dunaka shay'",
       translation:
-          "You are Al-Dhahir \u2014 there is nothing above You. You are Al-Batin \u2014 there is nothing closer to me than You.",
+          'You are Al-Dhahir \u2014 there is nothing above You. You are Al-Batin \u2014 there is nothing closer to me than You.',
       source:
-          "Sahih Muslim 2713 \u2014 part of the bedtime dua the Prophet \uFDFA taught, pairing Al-Dhahir and Al-Batin",
+          'Sahih Muslim 2713 \u2014 part of the bedtime dua the Prophet \uFDFA taught, pairing Al-Dhahir and Al-Batin',
     ),
   ),
 
@@ -923,7 +924,7 @@ const List<NameTeaching> nameTeachings = [
       'addicted to things',
       'filling emptiness with relationships',
       'shopping or spending to feel better',
-      "career not giving me what I thought it would",
+      'career not giving me what I thought it would',
       "feel like I'm missing something",
       'always wanting more',
       'restless despite blessings',
@@ -998,7 +999,7 @@ const List<NameTeaching> nameTeachings = [
       'being controlled or forced by someone',
       'trying to control or fix others',
       'feel like no one can help me',
-      "doctors have no answers",
+      'doctors have no answers',
       "anxiety or depression I can't explain",
     ],
     coreTeaching:
@@ -1022,7 +1023,7 @@ const List<NameTeaching> nameTeachings = [
     name: 'An-Nasir',
     arabic: 'النَّصِيرُ',
     emotionalContext: [
-      "feeling overpowered and helpless",
+      'feeling overpowered and helpless',
       "stuck and can't find a way out",
       'too proud to ask for help',
       "struggling with addiction I can't break",
@@ -1033,7 +1034,7 @@ const List<NameTeaching> nameTeachings = [
       'feel too weak to keep going',
       'overwhelmed by responsibility',
       "don't know where to turn",
-      "waiting for things to change but nothing moves",
+      'waiting for things to change but nothing moves',
     ],
     coreTeaching:
         "An-Nasir is the One who is perpetually, continuously helping. The problem this name addresses is one most of us carry without realizing it: self-sufficiency. We were raised to handle things ourselves, to not burden others, to grind through. But the Prophet \uFDFA taught us to ask Allah even for salt when it runs out. Not because Allah needs the small things \u2014 but because when even something as trivial as salt sends you to Allah first, your relationship with Him is ironclad. What's small? What's big? For Allah, everything is between the letters kaf and nun \u2014 He says 'Be' and it is. We've created categories that don't exist for Him. The scholars say this name especially helps against the two enemies always with us: the nafs (the inner child that wants instant gratification) and Shaytan. If you think your addiction is too big for Allah, you have belittled His power. That addiction is the same as needing milk. No difference. There are five conditions for the help of Allah to arrive: (1) A deep realization that you need Him \u2014 the moment you thought you had it handled at Hunayn, you started to lose. (2) Deep iman that the help is coming. (3) Preparation \u2014 trust in Allah never means passivity. Tie your camel. Apply for the job. Call the therapist. (4) Go help someone else \u2014 whoever removes a hardship from a believer, Allah removes theirs on the Day of Judgment. When you're in need, that's precisely the time to look around for who else needs help. (5) Patience \u2014 the help comes on Allah's timeline, not yours. The poet Rumi said: crying out loud and weeping are great resources. A nursing mother only waits to hear her child's cry. Allah created the child that is your wanting \u2014 so that you might cry out, so that milk might come.",
@@ -1082,7 +1083,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'My Lord, expand my chest for me and ease my affairs.',
       source:
-          "Quran 20:25-26 \u2014 the dua of Moses when given an overwhelming task, calling on Ar-Rabb specifically",
+          'Quran 20:25-26 \u2014 the dua of Moses when given an overwhelming task, calling on Ar-Rabb specifically',
     ),
   ),
 
@@ -1117,7 +1118,7 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Allahumma-kfini bihalалика 'an haramika wa aghнini bifadlika 'amman siwak",
       translation:
-          "O Allah, suffice me with what You have made lawful, sparing me from what You have made unlawful, and enrich me with Your bounty so that I need no one but You.",
+          'O Allah, suffice me with what You have made lawful, sparing me from what You have made unlawful, and enrich me with Your bounty so that I need no one but You.',
       source:
           "Jami' at-Tirmidhi 3563 \u2014 a supplication for provision that removes dependence on people",
     ),
@@ -1156,7 +1157,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'There is no god but You, glory be to You; indeed I have been of the wrongdoers.',
       source:
-          "Quran 21:87 \u2014 the dua of Yunus (AS) from the belly of the whale. The Prophet \uFDFA said no Muslim calls with this dua except that Allah responds.",
+          'Quran 21:87 \u2014 the dua of Yunus (AS) from the belly of the whale. The Prophet \uFDFA said no Muslim calls with this dua except that Allah responds.',
     ),
   ),
 
@@ -1193,7 +1194,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, You are Peace and from You comes peace. Blessed are You, O Possessor of majesty and honour.',
       source:
-          "Sahih Muslim 591 \u2014 recited by the Prophet \uFDFA after every obligatory prayer",
+          'Sahih Muslim 591 \u2014 recited by the Prophet \uFDFA after every obligatory prayer',
     ),
   ),
 
@@ -1367,7 +1368,7 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Ya Shakuru ushkur li sa'yi wa la takhdhulni",
       translation:
-          "O Most Appreciative, appreciate my striving and do not abandon me.",
+          'O Most Appreciative, appreciate my striving and do not abandon me.',
       source:
           "Supplication calling on Al-Shakur \u2014 used when feeling unseen, unappreciated, or like one's efforts are too small to matter",
     ),
@@ -1390,7 +1391,7 @@ const List<NameTeaching> nameTeachings = [
       'trying to control outcomes',
       'exhausted from carrying it all alone',
       'feel like I have to figure everything out myself',
-      "trust issues \u2014 people have let me down",
+      'trust issues \u2014 people have let me down',
       'afraid to rely on anyone',
       'feel like my effort is never enough',
     ],
@@ -1426,7 +1427,7 @@ const List<NameTeaching> nameTeachings = [
       'not feeling close to Allah',
       'seeking love and validation from people',
       "feel like I have to earn Allah's love",
-      "spiritually dry \u2014 going through the motions",
+      'spiritually dry \u2014 going through the motions',
       "can't feel Allah's presence",
     ],
     coreTeaching:
@@ -1439,7 +1440,7 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Allahumma inni as'aluka hubbaka wa hubba man yuhibbuk",
       translation:
-          "O Allah, I ask You for Your love and the love of those who love You.",
+          'O Allah, I ask You for Your love and the love of those who love You.',
       source:
           "Jami' at-Tirmidhi 3490 \u2014 part of a longer dua the Prophet \uFDFA taught Mu'adh ibn Jabal",
     ),
@@ -1478,7 +1479,7 @@ const List<NameTeaching> nameTeachings = [
       translation:
           'O Allah, forgive me and accept my repentance. Indeed You are At-Tawwab, the Most Merciful.',
       source:
-          "From the sunnah \u2014 the Prophet \uFDFA would say this and similar phrases over 100 times in a single gathering",
+          'From the sunnah \u2014 the Prophet \uFDFA would say this and similar phrases over 100 times in a single gathering',
     ),
   ),
 
@@ -1550,9 +1551,9 @@ const List<NameTeaching> nameTeachings = [
       transliteration:
           "Ya Qabiду ya Basitu ibsut 'alayna min rahmatik",
       translation:
-          "O Constrictor, O Expander \u2014 spread over us from Your mercy.",
+          'O Constrictor, O Expander \u2014 spread over us from Your mercy.',
       source:
-          "Supplication calling on Al-Qabid and Al-Basit together \u2014 used in moments of constriction to remember that both states are from Allah and both carry His mercy",
+          'Supplication calling on Al-Qabid and Al-Basit together \u2014 used in moments of constriction to remember that both states are from Allah and both carry His mercy',
     ),
   ),
 
@@ -1652,7 +1653,7 @@ const List<NameTeaching> nameTeachings = [
       'taking blessings for granted',
     ],
     coreTeaching:
-        "Al-Wahhab is the Bestower of Gifts \u2014 the One who gives repeatedly and lavishly, expecting nothing in return. In Arabic, a single gift is just a gift. But wahab is one who gives over and over, or gives something so enormous that no return is possible. The foundation of faith is hub \u2014 love. And you cannot love Allah until you realize He loves you first. The disbeliever gets stuck at the blessing: imprisoned by what they received, never moving beyond it to the One who gave it. The believer uses every blessing as a window to see Al-Wahhab behind it. Every gift in your life \u2014 your spouse, your children, your job, the sunlight, the breath in your lungs \u2014 none of it was deserved. It was a hiba, a pure gift, with nothing asked in return. When you see blessings this way, entitlement dissolves into indebtedness, and indebtedness becomes love. This name is also the cure for jealousy: when you see someone blessed, instead of envy, you realize the same Al-Wahhab who gave them is the same One who can give you. You are simply next in line.",
+        'Al-Wahhab is the Bestower of Gifts \u2014 the One who gives repeatedly and lavishly, expecting nothing in return. In Arabic, a single gift is just a gift. But wahab is one who gives over and over, or gives something so enormous that no return is possible. The foundation of faith is hub \u2014 love. And you cannot love Allah until you realize He loves you first. The disbeliever gets stuck at the blessing: imprisoned by what they received, never moving beyond it to the One who gave it. The believer uses every blessing as a window to see Al-Wahhab behind it. Every gift in your life \u2014 your spouse, your children, your job, the sunlight, the breath in your lungs \u2014 none of it was deserved. It was a hiba, a pure gift, with nothing asked in return. When you see blessings this way, entitlement dissolves into indebtedness, and indebtedness becomes love. This name is also the cure for jealousy: when you see someone blessed, instead of envy, you realize the same Al-Wahhab who gave them is the same One who can give you. You are simply next in line.',
     propheticStory:
         "The Prophet Zakariah (\u0639\u0644\u064A\u0647 \u0627\u0644\u0633\u0644\u0627\u0645) was 70 years old, his wife well beyond childbearing age, and he desperately wanted a child \u2014 not for legacy alone, but for companionship. He was a prophet of Allah, yet he said: 'O Allah, do not leave me alone.' Then he walked into Maryam's chamber and saw fruit out of season before her. He asked where it came from. She said simply: 'It is from Allah \u2014 He provides for whom He wills, without reckoning.' In that moment, Zakariah saw what was possible. He stopped looking at his means. He called upon Allah with the name Al-Wahhab: 'Rabbi hab li \u2014 O Lord, just bestow it upon me.' When the angel came with the news of Yahya, Zakariah asked: 'How?' Allah's answer: 'I said so.' The means did not need to exist. Al-Wahhab simply wills it. Ibrahim too used this name. Suleiman used it \u2014 asking for forgiveness and in the same breath, a kingdom unlike any the world had seen. These prophets didn't wait to deserve it. They knew who they were asking.",
     dua: NameTeachingDua(
@@ -1700,14 +1701,14 @@ List<NameTeaching> getRelevantTeachings(String userText) {
     MapEntry(['divided', 'distracted', 'scatter', 'validation', 'approval'], 1),                   // Al-Wahid
     MapEntry(['guidance', 'confused', 'direction', 'doubt', 'dark', 'lost faith'], 2),             // Al-Hadi
     MapEntry(['purpose', 'meaning', 'lord', 'belonging', 'nobody cares', 'enslaved'], 3),           // Ar-Rabb
-    MapEntry(["allah absent from my life", "can't see allah anywhere", 'spiritually disconnected', 'only focused on appearances', 'heart feels dirty', 'hidden resentment', "can't find meaning in daily life", 'mundane has no connection to god', 'is god really there', "feel like allah doesn't see me", 'hollow inside externally fine'], 26), // Al-Dhahir/Al-Batin
+    MapEntry(['allah absent from my life', "can't see allah anywhere", 'spiritually disconnected', 'only focused on appearances', 'heart feels dirty', 'hidden resentment', "can't find meaning in daily life", 'mundane has no connection to god', 'is god really there', "feel like allah doesn't see me", 'hollow inside externally fine'], 26), // Al-Dhahir/Al-Batin
     MapEntry(['feel empty', 'void inside', 'still not satisfied', 'chasing the next thing', 'filling emptiness', 'looking for completion', 'restless despite blessings', 'always wanting more', 'shopping to feel better', 'career not fulfilling', 'missing something'], 27), // Al-Ghani
     MapEntry(['chasing approval from people', 'compromising deen for status', 'give up values to get ahead', 'seeking honor from boss', 'disrespected', 'sacrificing prayers for career', 'islam holding me back', 'worried what people think', 'people-pleasing', 'feel humiliated', 'giving up identity for acceptance', 'career pressure to fit in', 'selling out', 'am i sacrificing allah'], 28), // Al-Mu'izz/Al-Mudhil
     MapEntry(['broken heart', 'broken', 'fix me', 'something is wrong', "can't be fixed", 'no one can help', "doctors don't know", 'feel shattered', 'emotionally broken', 'financially broke', 'need to be mended', 'being forced', 'someone controlling me'], 29), // Al-Jabbar
     MapEntry(['overpowered', 'helpless', 'stuck', "can't break", 'addiction', 'doing it alone', 'people let me down', 'no way out', 'too weak', 'overwhelmed', 'self-sufficient', "can't find a way"], 30), // An-Nasir
-    MapEntry(["scared about the future", 'big transition', 'between jobs', "waiting and don't know what's next", 'no one looking out for me', 'feel abandoned in hard season', 'have to figure it all out myself', "can't see how it will work out", 'feel on my own', 'everything changed and not ready', 'who is taking care of me', 'going through transition'], 31), // Ar-Rabb
+    MapEntry(['scared about the future', 'big transition', 'between jobs', "waiting and don't know what's next", 'no one looking out for me', 'feel abandoned in hard season', 'have to figure it all out myself', "can't see how it will work out", 'feel on my own', 'everything changed and not ready', 'who is taking care of me', 'going through transition'], 31), // Ar-Rabb
     MapEntry(['anxious about money', 'worried about provision', 'scared about finances', 'feel like i have to figure out finances alone', "scared i won't have enough", "jealous of others' wealth", 'boss controls my future', 'scarcity mindset', "can't trust things will work out", 'grinding but not enough', "feel like i'm providing for everyone", 'slave to the means'], 32), // Ar-Razzaq
-    MapEntry(["far from allah", 'feel distant', "allah doesn't hear", 'dua unanswered', 'stopped making dua', 'sins pushed me away', "don't feel worthy to ask", 'feel alone with my problems', 'nobody understands'], 33), // Al-Qarib/Al-Mujib
+    MapEntry(['far from allah', 'feel distant', "allah doesn't hear", 'dua unanswered', 'stopped making dua', 'sins pushed me away', "don't feel worthy to ask", 'feel alone with my problems', 'nobody understands'], 33), // Al-Qarib/Al-Mujib
     MapEntry(['no peace', 'restless', 'hollow', 'nothing satisfies', 'searching for peace', 'empty inside', 'addicted', 'substance', 'shop', 'shopping', 'grind', 'marriage complete me', 'jealousy', 'arrogance', 'hatred'], 34), // As-Salam
     MapEntry(['feel spiritually empty', 'heart is dark', 'spiritually dead', "can't find clarity", 'feel disconnected from allah', 'heart feels hard', 'walking in the dark', "don't feel the light", 'lost my sense of purpose', 'confused about my path', "don't feel ramadan", 'spiritually hollow'], 35), // An-Nur
     MapEntry(['stuck on sin', "can't forgive myself", 'stopped praying', 'shame holding', 'too sinful', 'broken relationship', 'grudge', 'let go', 'past mistakes', 'cringe', "can't move on"], 36), // Al-'Afuww

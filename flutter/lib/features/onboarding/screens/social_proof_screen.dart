@@ -22,7 +22,7 @@ class SocialProofScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return OnboardingPageWrapper(
-      progressSegment: 3,
+      progressSegment: 8,
       onBack: onBack,
       child: Column(
         children: [
@@ -112,6 +112,16 @@ class SocialProofScreen extends ConsumerWidget {
                   )
                       .animate()
                       .fadeIn(duration: 400.ms, delay: 400.ms)
+                      .slideY(begin: 0.05, end: 0, duration: 400.ms),
+                  const SizedBox(height: AppSpacing.md),
+                  const TestimonialCard(
+                    quote: AppStrings.socialProofTestimonial2,
+                    author: AppStrings.socialProofTestimonial2Author,
+                    location: AppStrings.socialProofTestimonial2Location,
+                    initials: 'Y',
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms, delay: 600.ms)
                       .slideY(begin: 0.05, end: 0, duration: 400.ms),
                   const SizedBox(height: AppSpacing.md),
                 ],

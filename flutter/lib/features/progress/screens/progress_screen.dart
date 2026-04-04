@@ -57,9 +57,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     _wasLoading = state.checkinLoading;
 
     if (!state.loaded) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.backgroundLight,
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
@@ -158,7 +158,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -197,7 +197,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.toll, size: 13, color: AppColors.secondary),
+                const Icon(Icons.toll, size: 13, color: AppColors.secondary),
                 const SizedBox(width: 4),
                 Text(
                   '${state.tokenBalance}',
@@ -368,7 +368,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     } else {
       borderColor = AppColors.borderLight;
       bgColor = Colors.transparent;
-      icon = _rewardIcon(reward, AppColors.textTertiaryLight.withOpacity(0.5));
+      icon = _rewardIcon(reward, AppColors.textTertiaryLight.withValues(alpha: 0.5));
     }
 
     Widget circle = Container(
@@ -421,7 +421,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       case 'card':
         return const Icon(Icons.style, size: 15, color: Color(0xFF7C3AED));
       case 'star':
-        return Icon(Icons.star_rounded, size: 16, color: AppColors.secondary);
+        return const Icon(Icons.star_rounded, size: 16, color: AppColors.secondary);
       case 'token':
         return Icon(Icons.toll, size: 15, color: color);
       default:
@@ -502,7 +502,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -544,7 +544,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),
-          Divider(color: AppColors.dividerLight, indent: 40, endIndent: 40),
+          const Divider(color: AppColors.dividerLight, indent: 40, endIndent: 40),
           const SizedBox(height: AppSpacing.lg),
           Text(
             question.question,
@@ -634,7 +634,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.3),
+          color: AppColors.primary.withValues(alpha: 0.3),
           width: 2,
         ),
       ),
@@ -1110,7 +1110,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.toll, size: 14, color: AppColors.secondary),
+                  const Icon(Icons.toll, size: 14, color: AppColors.secondary),
                   const SizedBox(width: 4),
                   Text(
                     '+${tokenRewardDeeperReflection + tokenRewardQuestComplete} tokens earned',
@@ -1155,7 +1155,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1295,12 +1295,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            tierColor.withOpacity(0.12),
+            tierColor.withValues(alpha: 0.12),
             AppColors.streakBackground,
           ],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tierColor.withOpacity(0.3)),
+        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -1335,7 +1335,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: tierColor.withOpacity(0.15),
+                color: tierColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1352,7 +1352,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     )
         .animate()
         .fadeIn(duration: 600.ms)
-        .shimmer(duration: 1200.ms, color: tierColor.withOpacity(0.15));
+        .shimmer(duration: 1200.ms, color: tierColor.withValues(alpha: 0.15));
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1481,8 +1481,8 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              _tierColor.withOpacity(0.2),
-                              _tierColor.withOpacity(0.05),
+                              _tierColor.withValues(alpha: 0.2),
+                              _tierColor.withValues(alpha: 0.05),
                               Colors.transparent,
                             ],
                           ),
@@ -1506,7 +1506,7 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _tierColor.withOpacity(0.4 - (i * 0.08)),
+                            color: _tierColor.withValues(alpha: 0.4 - (i * 0.08)),
                             width: 2,
                           ),
                         ),
@@ -1529,7 +1529,7 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                             height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: _tierColor.withOpacity(0.3), width: 1.5),
+                              border: Border.all(color: _tierColor.withValues(alpha: 0.3), width: 1.5),
                             ),
                           )
                               .animate(onPlay: (c) => c.repeat())
@@ -1542,9 +1542,9 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
-                              colors: [Colors.white, _tierColor.withOpacity(0.9), _tierColor.withOpacity(0.0)],
+                              colors: [Colors.white, _tierColor.withValues(alpha: 0.9), _tierColor.withValues(alpha: 0.0)],
                             ),
-                            boxShadow: [BoxShadow(color: _tierColor.withOpacity(0.6), blurRadius: 40, spreadRadius: 15)],
+                            boxShadow: [BoxShadow(color: _tierColor.withValues(alpha: 0.6), blurRadius: 40, spreadRadius: 15)],
                           ),
                         )
                             .animate(onPlay: (c) => c.repeat(reverse: true))
@@ -1565,9 +1565,9 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             decoration: BoxDecoration(
-                              color: _tierColor.withOpacity(0.15),
+                              color: _tierColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: _tierColor.withOpacity(0.4)),
+                              border: Border.all(color: _tierColor.withValues(alpha: 0.4)),
                             ),
                             child: Text(
                               _tierLabel.toUpperCase(),
@@ -1586,8 +1586,8 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                             fontSize: 80,
                             color: Colors.white,
                             shadows: [
-                              Shadow(color: _tierColor.withOpacity(0.6), blurRadius: 30),
-                              Shadow(color: _tierColor.withOpacity(0.3), blurRadius: 60),
+                              Shadow(color: _tierColor.withValues(alpha: 0.6), blurRadius: 30),
+                              Shadow(color: _tierColor.withValues(alpha: 0.3), blurRadius: 60),
                             ],
                           ),
                           textDirection: TextDirection.rtl,
@@ -1599,7 +1599,7 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                         const SizedBox(height: 12),
                         Text(
                           widget.nameEnglish,
-                          style: AppTypography.headlineLarge.copyWith(color: Colors.white.withOpacity(0.9), fontSize: 24),
+                          style: AppTypography.headlineLarge.copyWith(color: Colors.white.withValues(alpha: 0.9), fontSize: 24),
                           textAlign: TextAlign.center,
                         )
                             .animate()
@@ -1609,7 +1609,7 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                         if (widget.nameEnglishMeaning.isNotEmpty)
                           Text(
                             widget.nameEnglishMeaning,
-                            style: AppTypography.bodyLarge.copyWith(color: _tierColor.withOpacity(0.8)),
+                            style: AppTypography.bodyLarge.copyWith(color: _tierColor.withValues(alpha: 0.8)),
                             textAlign: TextAlign.center,
                           ).animate().fadeIn(delay: 500.ms, duration: 500.ms),
                       ],
@@ -1644,11 +1644,11 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                           )
                               .animate()
                               .fadeIn(duration: 400.ms)
-                              .shimmer(delay: 200.ms, duration: 1500.ms, color: _tierColor.withOpacity(0.3)),
+                              .shimmer(delay: 200.ms, duration: 1500.ms, color: _tierColor.withValues(alpha: 0.3)),
                         const SizedBox(height: 24),
                         Text(
                           widget.teaching,
-                          style: AppTypography.bodyMedium.copyWith(color: Colors.white.withOpacity(0.7), height: 1.6),
+                          style: AppTypography.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.7), height: 1.6),
                           textAlign: TextAlign.center,
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
@@ -1663,12 +1663,12 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                               borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
                             ),
                             child: Text(
                               'Continue',
-                              style: AppTypography.labelLarge.copyWith(color: Colors.white.withOpacity(0.9)),
+                              style: AppTypography.labelLarge.copyWith(color: Colors.white.withValues(alpha: 0.9)),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -1691,7 +1691,7 @@ class _NameRevealOverlayState extends State<_NameRevealOverlay>
                         height: 4 + (i % 3) * 2.0,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _tierColor.withOpacity(0.6 - (i * 0.04)),
+                          color: _tierColor.withValues(alpha: 0.6 - (i * 0.04)),
                         ),
                       )
                           .animate()

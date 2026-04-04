@@ -1,0 +1,42 @@
+<svg width="240" height="200" viewBox="0 0 240 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Large soft background circle -->
+  <circle cx="120" cy="100" r="85" fill="#E8F5EE"/>
+
+  <!-- Open journal/book -->
+  <!-- Left page -->
+  <path d="M70 65 C70 65, 105 60, 118 62 L118 140 C105 138, 70 143, 70 143Z" fill="white" stroke="#1B6B4A" stroke-width="1.8" stroke-linejoin="round"/>
+  <!-- Right page -->
+  <path d="M170 65 C170 65, 135 60, 122 62 L122 140 C135 138, 170 143, 170 143Z" fill="white" stroke="#1B6B4A" stroke-width="1.8" stroke-linejoin="round"/>
+  <!-- Book spine -->
+  <path d="M118 62 C118 62, 120 60, 122 62 L122 140 C122 140, 120 142, 118 140Z" fill="#1B6B4A" opacity="0.1" stroke="#1B6B4A" stroke-width="1.5"/>
+
+  <!-- Text lines on left page -->
+  <line x1="80" y1="78" x2="112" y2="76" stroke="#1B6B4A" stroke-width="1" opacity="0.25"/>
+  <line x1="82" y1="86" x2="110" y2="84" stroke="#1B6B4A" stroke-width="1" opacity="0.25"/>
+  <line x1="83" y1="94" x2="108" y2="92" stroke="#1B6B4A" stroke-width="1" opacity="0.25"/>
+  <line x1="84" y1="102" x2="107" y2="100" stroke="#1B6B4A" stroke-width="1" opacity="0.2"/>
+  <line x1="85" y1="110" x2="106" y2="108" stroke="#1B6B4A" stroke-width="1" opacity="0.15"/>
+
+  <!-- Arabic-style text on right page -->
+  <line x1="128" y1="76" x2="162" y2="78" stroke="#C8985E" stroke-width="1.2" opacity="0.4"/>
+  <line x1="130" y1="84" x2="160" y2="86" stroke="#C8985E" stroke-width="1.2" opacity="0.35"/>
+  <line x1="131" y1="92" x2="158" y2="94" stroke="#C8985E" stroke-width="1.2" opacity="0.3"/>
+
+  <!-- Light/sparkles emanating from pages -->
+  <!-- Central light burst -->
+  <line x1="120" y1="56" x2="120" y2="38" stroke="#C8985E" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+  <line x1="108" y1="52" x2="100" y2="38" stroke="#C8985E" stroke-width="1.2" opacity="0.35" stroke-linecap="round"/>
+  <line x1="132" y1="52" x2="140" y2="38" stroke="#C8985E" stroke-width="1.2" opacity="0.35" stroke-linecap="round"/>
+  <line x1="98" y1="58" x2="86" y2="48" stroke="#C8985E" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+  <line x1="142" y1="58" x2="154" y2="48" stroke="#C8985E" stroke-width="1" opacity="0.25" stroke-linecap="round"/>
+
+  <!-- Sparkle stars -->
+  <path d="M120 30 L121.5 25 L123 30 L128 31.5 L123 33 L121.5 38 L120 33 L115 31.5Z" fill="#C8985E"/>
+  <path d="M92 42 L93 39 L94 42 L97 43 L94 44 L93 47 L92 44 L89 43Z" fill="#C8985E" opacity="0.6"/>
+  <path d="M150 40 L151 37 L152 40 L155 41 L152 42 L151 45 L150 42 L147 41Z" fill="#C8985E" opacity="0.6"/>
+  <path d="M60 90 L61 88 L62 90 L64 91 L62 92 L61 94 L60 92 L58 91Z" fill="#C8985E" opacity="0.35"/>
+  <path d="M178 88 L179 86 L180 88 L182 89 L180 90 L179 92 L178 90 L176 89Z" fill="#C8985E" opacity="0.35"/>
+
+  <!-- Small heart on left page -->
+  <path d="M90 118 C90 115, 93 113, 95 115 C97 113, 100 115, 100 118 C100 123, 95 126, 95 126 C95 126, 90 123, 90 118Z" fill="#1B6B4A" opacity="0.2"/>
+</svg>

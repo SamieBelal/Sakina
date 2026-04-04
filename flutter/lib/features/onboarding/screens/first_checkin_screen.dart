@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -15,13 +16,11 @@ class FirstCheckinScreen extends ConsumerStatefulWidget {
   const FirstCheckinScreen({
     required this.onNext,
     required this.onBack,
-    required this.onComplete,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
-  final VoidCallback onComplete;
 
   @override
   ConsumerState<FirstCheckinScreen> createState() => _FirstCheckinScreenState();
@@ -58,7 +57,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
     final notifier = ref.read(onboardingProvider.notifier);
 
     return OnboardingPageWrapper(
-      progressSegment: 5,
+      progressSegment: 10,
       onBack: widget.onBack,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
@@ -78,61 +77,44 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
 
     return Column(
       key: const ValueKey('input'),
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Sparkle icon in primaryLight circle with pulse animation
-        Container(
-          width: 56,
-          height: 56,
-          decoration: const BoxDecoration(
-            color: AppColors.primaryLight,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.auto_awesome,
-            color: AppColors.primary,
-            size: 28,
-          ),
-        )
-            .animate(onPlay: (c) => c.repeat())
-            .scale(
-              begin: const Offset(1.0, 1.0),
-              end: const Offset(1.12, 1.12),
-              duration: 750.ms,
-            )
-            .then()
-            .scale(
-              begin: const Offset(1.12, 1.12),
-              end: const Offset(1.0, 1.0),
-              duration: 750.ms,
-            ),
-        const SizedBox(height: AppSpacing.lg),
         Text(
           AppStrings.checkinTitle,
           style: AppTypography.displaySmall.copyWith(
             color: AppColors.textPrimaryLight,
           ),
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.left,
         )
             .animate()
-            .fadeIn(duration: 300.ms, delay: 100.ms)
-            .slideY(begin: 0.03, end: 0, duration: 300.ms, delay: 100.ms),
+            .fadeIn(duration: 500.ms)
+            .slideY(begin: 0.05, end: 0, duration: 500.ms),
         const SizedBox(height: AppSpacing.sm),
         Text(
           AppStrings.checkinSubtitle,
           style: AppTypography.bodyMedium.copyWith(
             color: AppColors.textSecondaryLight,
           ),
-          textAlign: TextAlign.center,
-        ).animate().fadeIn(duration: 300.ms, delay: 200.ms),
-        const SizedBox(height: AppSpacing.xl),
+          textAlign: TextAlign.left,
+        ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+        const SizedBox(height: AppSpacing.lg),
+        Center(
+          child: SvgPicture.asset(
+            'assets/illustrations/onboarding_checkin.svg',
+            height: 180,
+          ),
+        )
+            .animate()
+            .fadeIn(duration: 600.ms, delay: 300.ms)
+            .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
+        const SizedBox(height: AppSpacing.lg),
         _FocusAwareTextField(
           controller: _controller,
           onChanged: (value) => notifier.setDemoFeelingInput(value),
         )
             .animate()
-            .fadeIn(duration: 400.ms, delay: 300.ms)
-            .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 300.ms),
+            .fadeIn(duration: 400.ms, delay: 500.ms)
+            .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 500.ms),
         const SizedBox(height: AppSpacing.md),
         Wrap(
           spacing: AppSpacing.sm,
@@ -140,8 +122,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
           children: _chips.asMap().entries.map((entry) {
             final index = entry.key;
             final chip = entry.value;
-            final isSelected =
-                currentInput.isNotEmpty && currentInput == chip;
+            final isSelected = currentInput.isNotEmpty && currentInput == chip;
 
             return GestureDetector(
               onTap: () {
@@ -161,9 +142,8 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
                       : AppColors.surfaceAltLight,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.borderLight,
+                    color:
+                        isSelected ? AppColors.primary : AppColors.borderLight,
                   ),
                 ),
                 child: Text(
@@ -173,9 +153,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
                   ),
                 ),
               ),
-            )
-                .animate()
-                .fadeIn(duration: 300.ms, delay: (400 + index * 60).ms);
+            ).animate().fadeIn(duration: 300.ms, delay: (600 + index * 60).ms);
           }).toList(),
         ),
         const Spacer(),
@@ -216,7 +194,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
           const SizedBox(height: AppSpacing.xl),
           // Decorative Arabic text at low opacity
           Opacity(
-            opacity: 0.15,
+            opacity: 0.75,
             child: Text(
               '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650',
               style: AppTypography.nameOfAllahDisplay.copyWith(
@@ -304,25 +282,8 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           OnboardingContinueButton(
-            label: AppStrings.checkinUnlockCta,
+            label: AppStrings.continueButton,
             onPressed: widget.onNext,
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: TextButton(
-                onPressed: () async {
-                  await notifier.completeOnboarding();
-                  widget.onComplete();
-                },
-                child: Text(
-                  AppStrings.checkinSkip,
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textTertiaryLight,
-                  ),
-                ),
-              ),
-            ),
           ),
         ],
       ),

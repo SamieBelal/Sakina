@@ -1,5 +1,6 @@
 /// Validates Names of Allah returned by Claude against the canonical 99 Names list.
 /// Prevents hallucinated or non-standard names from appearing in the app.
+library;
 
 import 'package:sakina/core/constants/allah_names.dart';
 

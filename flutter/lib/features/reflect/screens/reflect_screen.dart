@@ -125,7 +125,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 hintText: 'What are you carrying today...',
-                hintStyle: TextStyle(color: AppColors.textTertiaryLight),
+                hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryLight),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
                   borderSide: BorderSide.none,
@@ -169,8 +169,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-                  disabledForegroundColor: Colors.white.withOpacity(0.6),
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                  disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.circular(AppSpacing.buttonRadius),
@@ -190,7 +190,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 ),
                 child: Text(
                   state.error!,
-                  style: TextStyle(color: AppColors.error),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
                 ),
               ),
             ],
@@ -346,7 +346,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -504,7 +504,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     Text(
                       'A Name for your heart',
                       style: AppTypography.labelMedium.copyWith(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -529,7 +529,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       Text(
                         'Also makes dua for:',
                         style: AppTypography.bodySmall.copyWith(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -545,7 +545,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -609,7 +609,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -663,7 +663,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 },
                 child: Text(
                   'Start over',
-                  style: TextStyle(color: AppColors.textSecondaryLight),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
                 ),
               ),
             ],
@@ -693,7 +693,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -747,7 +747,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 },
                 child: Text(
                   'Start over',
-                  style: TextStyle(color: AppColors.textSecondaryLight),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
                 ),
               ),
             ],
@@ -777,7 +777,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -803,7 +803,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Divider(color: AppColors.dividerLight),
+                    const Divider(color: AppColors.dividerLight),
                     const SizedBox(height: 16),
                     Text(
                       result.duaTransliteration,
@@ -832,6 +832,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       children: [
                         IconButton(
                           onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             HapticFeedback.lightImpact();
                             try {
                               await shareReflectionCard(
@@ -846,15 +847,13 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                                 story: result.story,
                               );
                             } catch (e) {
-                              print('[SHARE ERROR] $e');
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                              debugPrint('[SHARE ERROR] $e');
+                              messenger.showSnackBar(
                                   SnackBar(content: Text('Share failed: $e')),
                                 );
-                              }
                             }
                           },
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.share_outlined,
                             color: AppColors.primary,
                           ),

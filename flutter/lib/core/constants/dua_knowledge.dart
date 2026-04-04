@@ -1,6 +1,7 @@
 /// Knowledge base for dua construction, drawn from:
 /// - Yaqeen Institute: "Prophetic Prayers for Relief and Protection"
 /// - Yaqeen Institute: "Calling Upon Allah Through His 99 Names" (Omar Suleiman Ramadan Series)
+library;
 
 // ─── Etiquettes of dua (adab al-du'a) ────────────────────────────────────────
 
@@ -296,7 +297,7 @@ const List<NameGuidance> nameGuidance = [
     episode: 11,
     callFor: ['unanswered duas', 'feeling unheard', 'desperation', 'urgent need'],
     invocationStyle: "Ya Mujeeb, ajib du'a'i wa-la tukhyib raja'i",
-    samplePhrase: "Ya Mujeeb, ajibni kama ajabt Yunus fi dhulumati al-bahr",
+    samplePhrase: 'Ya Mujeeb, ajibni kama ajabt Yunus fi dhulumati al-bahr',
   ),
   NameGuidance(
     name: 'Al-Qareeb',
@@ -356,7 +357,7 @@ class SalawatFormulas {
   static const SalawatFormula closing = SalawatFormula(
     arabic: 'وَصَلِّ اللَّهُمَّ عَلَى نَبِيِّنَا مُحَمَّدٍ وَعَلَى آلِهِ وَصَحْبِهِ وَالْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
     transliteration: "Wa salli Allahumma 'ala nabiyyina Muhammadin wa 'ala alihi wa sahbihi wal-hamdu lillahi rabbi al-'alameen",
-    translation: "And send blessings, O Allah, upon our Prophet Muhammad and upon his family and companions, and all praise belongs to Allah, Lord of all the worlds.",
+    translation: 'And send blessings, O Allah, upon our Prophet Muhammad and upon his family and companions, and all praise belongs to Allah, Lord of all the worlds.',
   );
 }
 
@@ -390,7 +391,7 @@ const List<HamdOpening> hamdOpenings = [
   HamdOpening(
     theme: 'guidance',
     arabic: 'الْحَمْدُ لِلَّهِ الَّذِي هَدَانَا لِهَذَا وَمَا كُنَّا لِنَهْتَدِيَ لَوْلَا أَنْ هَدَانَا اللَّهُ',
-    transliteration: "Al-hamdu lillahi alladhi hadana li-hadha wa-ma kunna li-nahtadiya lawla an hadana Allah",
+    transliteration: 'Al-hamdu lillahi alladhi hadana li-hadha wa-ma kunna li-nahtadiya lawla an hadana Allah',
     translation: 'All praise belongs to Allah who guided us to this, and we would not have been guided had Allah not guided us.',
   ),
 ];

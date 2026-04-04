@@ -185,7 +185,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios,
+            const Icon(Icons.arrow_forward_ios,
                 size: 16, color: AppColors.textTertiaryLight),
           ],
         ),
@@ -455,7 +455,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                     .copyWith(color: AppColors.textPrimaryLight),
               ),
               const SizedBox(height: 12),
-              ...result.names.map((n) => _nameCard(n)),
+              ...result.names.map(_nameCard),
               const SizedBox(height: 24),
             ],
             Text(
@@ -464,7 +464,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                   .copyWith(color: AppColors.textPrimaryLight),
             ),
             const SizedBox(height: 12),
-            ...result.duas.map((d) => _foundDuaCard(d)),
+            ...result.duas.map(_foundDuaCard),
             const SizedBox(height: 24),
             Center(
               child: TextButton(
@@ -507,7 +507,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           Text(
             name.nameArabic,
             style: AppTypography.quranArabic.copyWith(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 22,
             ),
             textDirection: TextDirection.rtl,
@@ -516,7 +516,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           Text(
             name.why,
             style: AppTypography.bodyMedium
-                .copyWith(color: Colors.white.withOpacity(0.85)),
+                .copyWith(color: Colors.white.withValues(alpha: 0.85)),
           ),
         ],
       ),
@@ -663,8 +663,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   }
 
   Widget _stepArrow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4),
       child: Icon(Icons.chevron_right,
           size: 16, color: AppColors.textTertiaryLight),
     );
@@ -841,7 +841,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.primary,
-                  disabledBackgroundColor: Colors.white.withOpacity(0.8),
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.8),
                   disabledForegroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius:
@@ -1052,7 +1052,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       filled: true,
       fillColor: AppColors.surfaceLight,
       hintText: hint,
-      hintStyle: TextStyle(color: AppColors.textTertiaryLight),
+      hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryLight),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
         borderSide: BorderSide.none,
@@ -1072,8 +1072,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     return ElevatedButton.styleFrom(
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
-      disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
-      disabledForegroundColor: Colors.white.withOpacity(0.6),
+      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+      disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
       ),
@@ -1125,7 +1125,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         color: AppColors.errorBackground,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(message, style: TextStyle(color: AppColors.error)),
+      child: Text(message, style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
     );
   }
 }

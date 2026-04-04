@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
+import '../core/theme/app_typography.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({required this.child, super.key});
@@ -18,9 +19,8 @@ class AppShell extends StatelessWidget {
         backgroundColor: AppColors.surfaceLight,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textTertiaryLight,
-        selectedLabelStyle:
-            const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        selectedLabelStyle: AppTypography.labelMedium,
+        unselectedLabelStyle: AppTypography.bodySmall,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

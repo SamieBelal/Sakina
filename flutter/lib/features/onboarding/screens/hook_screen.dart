@@ -1,15 +1,21 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 
 class HookScreen extends StatelessWidget {
-  const HookScreen({required this.onNext, super.key});
+  const HookScreen({
+    required this.onNext,
+    this.onSignIn,
+    super.key,
+  });
 
   final VoidCallback onNext;
+  final VoidCallback? onSignIn;
 
   static const _archImageUrl =
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCJUu2iTbgfM1X8LZzN3Z91Z4Rx_c5_ppJ8yye3sE29zUljg2EX3k-C26Rg_2SG-l3tbV83sK7YZdSY4q9fQRXw5OCOHRxrDepaCV_gJCAcDlEJDAiDnY9zJvHRKR0GeH1MucXnwMdxYOnS41yFDMiAufYjAexqSR0WM2nS7deraReoPn72b5IRzxZHBiVcw-ePri-B9ht5neXNt9IUPjOF6ZYk61pJjxFzHjS1C6sfAHsBFeVB1GWOXbEsWW4qg8vHPlpAS6P-qQKz';
@@ -67,10 +73,11 @@ class HookScreen extends StatelessWidget {
                 // Title
                 Text(
                   AppStrings.appName,
-                  style: AppTypography.displayLarge.copyWith(
+                  style: GoogleFonts.outfit(
+                    fontSize: 38,
+                    fontWeight: FontWeight.w600,
                     color: Colors.white,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 36,
+                    letterSpacing: 1.0,
                   ),
                 ).animate().fadeIn(duration: 600.ms),
                 const SizedBox(height: AppSpacing.lg),
@@ -139,7 +146,7 @@ class HookScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 // Login link
                 TextButton(
-                  onPressed: () {}, // TODO: Navigate to login
+                  onPressed: onSignIn,
                   child: Text(
                     AppStrings.hookLoginLink,
                     style: AppTypography.labelMedium.copyWith(

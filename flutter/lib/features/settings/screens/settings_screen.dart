@@ -94,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Reset',
-                style: TextStyle(color: AppColors.error)),
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
           ),
         ],
       ),
@@ -125,7 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child:
-                Text('Clear All', style: TextStyle(color: AppColors.error)),
+                Text('Clear All', style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
           ),
         ],
       ),
@@ -487,7 +487,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             if (showChevron && onTap != null)
-              Icon(Icons.chevron_right_rounded,
+              const Icon(Icons.chevron_right_rounded,
                   size: 20, color: AppColors.textTertiaryLight),
           ],
         ),
@@ -529,7 +529,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(
+    return const Divider(
       height: 1,
       thickness: 0.5,
       color: AppColors.dividerLight,

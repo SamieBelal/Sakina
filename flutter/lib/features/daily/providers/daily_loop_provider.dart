@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
@@ -316,7 +317,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           }
         }
       } catch (e) {
-        print('[CARD COLLECTION ERROR] $e');
+        debugPrint('[CARD COLLECTION ERROR] $e');
       }
 
       // Award XP and mark streak
@@ -388,7 +389,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     try {
       final contextText =
           "I answered '${state.checkinAnswer}' to '${state.todaysQuestion?.question}'. "
-          "The Name shown was ${state.checkinName}.";
+          'The Name shown was ${state.checkinName}.';
 
       final result = await reflectWithClaude(contextText);
 

@@ -1,6 +1,7 @@
 /// "Which Names of Allah are your anchors?" quiz
 /// 6 scenario-based questions. Each answer scores 1 point toward specific Names.
 /// Top 3 scored Names become the user's spiritual anchors.
+library;
 
 class QuizOption {
   final String text;

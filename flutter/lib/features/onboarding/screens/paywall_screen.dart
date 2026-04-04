@@ -7,7 +7,6 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
-import '../widgets/feature_row.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
@@ -26,23 +25,29 @@ enum _PlanType { annual, weekly }
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   _PlanType _selectedPlan = _PlanType.annual;
 
-  static const _features = [
-    (Icons.all_inclusive, AppStrings.paywallFeatureUnlimited),
-    (Icons.menu_book, AppStrings.paywallFeatureTafsir),
-    (Icons.headphones, AppStrings.paywallFeatureAudio),
-    (Icons.ac_unit, AppStrings.paywallFeatureStreak),
-    (Icons.history, AppStrings.paywallFeatureHistory),
-    (Icons.block, AppStrings.paywallFeatureAdFree),
+  static const _benefits = [
+    AppStrings.paywallBenefit1,
+    AppStrings.paywallBenefit2,
+    AppStrings.paywallBenefit3,
+    AppStrings.paywallBenefit4,
   ];
+
+  void _handleComplete() {
+    final notifier = ref.read(onboardingProvider.notifier);
+    () async {
+      try {
+        await notifier.completeOnboarding();
+      } catch (_) {}
+      widget.onComplete();
+    }();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final notifier = ref.read(onboardingProvider.notifier);
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.pagePadding,
           ),
@@ -52,46 +57,27 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  onPressed: () async {
-                    try {
-                      await notifier.completeOnboarding();
-                    } catch (_) {}
-                    widget.onComplete();
-                  },
+                  onPressed: _handleComplete,
                   icon: const Icon(
                     Icons.close,
                     color: AppColors.textSecondaryLight,
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              // Premium badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
+
+              // Decorative Arabic calligraphy
+              Text(
+                '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650',
+                style: AppTypography.displaySmall.copyWith(
+                  color: AppColors.secondary.withAlpha(191),
+                  fontFamily: 'Amiri',
+                  fontSize: 28,
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryLight,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 14, color: AppColors.secondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      AppStrings.paywallBadge,
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.secondary,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
+                textDirection: TextDirection.rtl,
               ),
-              const SizedBox(height: AppSpacing.md),
-              // Heading
+              const SizedBox(height: AppSpacing.sm),
+
+              // Headline
               Text(
                 AppStrings.paywallTitle,
                 style: AppTypography.displaySmall.copyWith(
@@ -99,11 +85,42 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              // Feature rows with stagger animation
-              ...List.generate(_features.length, (i) {
-                final (icon, label) = _features[i];
-                return FeatureRow(icon: icon, label: label)
+              const SizedBox(height: AppSpacing.xs),
+
+              // Subtitle
+              Text(
+                AppStrings.paywallSubtitle,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const Spacer(flex: 2),
+
+              // 4 compact benefit rows
+              ...List.generate(_benefits.length, (i) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          _benefits[i],
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
                     .animate()
                     .fadeIn(
                       delay: Duration(milliseconds: 80 * i),
@@ -116,29 +133,40 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       duration: 400.ms,
                     );
               }),
-              const SizedBox(height: AppSpacing.lg),
-              // Social proof — above pricing for conversion impact
-              Text(
-                AppStrings.paywallSocialProof,
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondaryLight,
-                ),
-                textAlign: TextAlign.center,
+              const SizedBox(height: AppSpacing.sm),
+
+              // Social proof
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.star_rounded,
+                    color: AppColors.streakAmber,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    AppStrings.paywallSocialProof,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              // Pricing options — IntrinsicHeight keeps cards equal
+              const SizedBox(height: AppSpacing.md),
+
+              // Compact pricing row
               IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
                       child: _PricingOption(
+                        label: AppStrings.paywallAnnualLabel,
                         price: AppStrings.paywallAnnualPrice,
                         period: AppStrings.paywallAnnualPeriod,
-                        label: AppStrings.paywallAnnualLabel,
                         badge: AppStrings.paywallAnnualBadge,
-                        subPrice: AppStrings.paywallAnnualPerMonth,
-                        savings: AppStrings.paywallAnnualSavings,
+                        subPrice: AppStrings.paywallAnnualPerWeek,
                         selected: _selectedPlan == _PlanType.annual,
                         onTap: () =>
                             setState(() => _selectedPlan = _PlanType.annual),
@@ -147,9 +175,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: _PricingOption(
+                        label: AppStrings.paywallWeeklyLabel,
                         price: AppStrings.paywallWeeklyPrice,
                         period: AppStrings.paywallWeeklyPeriod,
-                        label: AppStrings.paywallWeeklyLabel,
                         selected: _selectedPlan == _PlanType.weekly,
                         onTap: () =>
                             setState(() => _selectedPlan = _PlanType.weekly),
@@ -158,52 +186,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              // Trial timeline
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              const SizedBox(height: AppSpacing.sm),
+
+              // Trial terms — updates based on selected plan
+              Text(
+                _selectedPlan == _PlanType.annual
+                    ? AppStrings.paywallTrialTermsAnnual
+                    : AppStrings.paywallTrialTermsWeekly,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                  fontSize: 12,
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const _TimelineDot(color: AppColors.primary),
-                        Expanded(child: Container(height: 1, color: AppColors.primary.withAlpha(50))),
-                        const _TimelineDot(color: AppColors.streakAmber),
-                        Expanded(child: Container(height: 1, color: AppColors.primary.withAlpha(50))),
-                        const _TimelineDot(color: AppColors.textTertiaryLight),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _TimelineLabel(label: 'Today', sublabel: AppStrings.paywallTrialStep1),
-                        _TimelineLabel(label: 'Day 3', sublabel: AppStrings.paywallTrialStep2),
-                        _TimelineLabel(label: 'Day 4', sublabel: AppStrings.paywallTrialStep3),
-                      ],
-                    ),
-                  ],
-                ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              // CTA button — inline, not sticky
+
+              const Spacer(flex: 3),
+
+              // CTA button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
                     HapticFeedback.mediumImpact();
-                    () async {
-                      try {
-                        await notifier.completeOnboarding();
-                      } catch (_) {}
-                      widget.onComplete();
-                    }();
+                    _handleComplete();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -222,70 +228,54 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
+
               // Legal links
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () {},
-                    child: Text(
-                      AppStrings.paywallRestore,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiaryLight,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    ' \u00B7 ',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () {},
-                    child: Text(
-                      AppStrings.paywallTerms,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiaryLight,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    ' \u00B7 ',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () {},
-                    child: Text(
-                      AppStrings.paywallPrivacy,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiaryLight,
-                      ),
-                    ),
-                  ),
+                  const _LegalLink(label: AppStrings.paywallRestore),
+                  _dot(),
+                  const _LegalLink(label: AppStrings.paywallTerms),
+                  _dot(),
+                  const _LegalLink(label: AppStrings.paywallPrivacy),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.sm),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dot() {
+    return Text(
+      ' \u00B7 ',
+      style: AppTypography.bodySmall.copyWith(
+        color: AppColors.textTertiaryLight,
+      ),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      onPressed: () {},
+      child: Text(
+        label,
+        style: AppTypography.bodySmall.copyWith(
+          color: AppColors.textTertiaryLight,
         ),
       ),
     );
@@ -294,22 +284,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
 class _PricingOption extends StatelessWidget {
   const _PricingOption({
+    required this.label,
     required this.price,
     required this.period,
-    required this.label,
     required this.selected,
     required this.onTap,
     this.badge,
     this.subPrice,
-    this.savings,
   });
 
+  final String label;
   final String price;
   final String period;
-  final String label;
   final String? badge;
   final String? subPrice;
-  final String? savings;
   final bool selected;
   final VoidCallback onTap;
 
@@ -321,7 +309,7 @@ class _PricingOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
-          vertical: AppSpacing.lg,
+          vertical: AppSpacing.md,
         ),
         decoration: BoxDecoration(
           color: selected ? AppColors.primaryLight : AppColors.surfaceLight,
@@ -351,7 +339,7 @@ class _PricingOption extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
             ],
             Text(
               price,
@@ -366,87 +354,17 @@ class _PricingOption extends StatelessWidget {
               ),
             ),
             if (subPrice != null)
-              Text(
-                subPrice!,
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-            if (savings != null) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  savings!,
+                  subPrice!,
                   style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textOnPrimary,
-                    fontSize: 9,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
-            ],
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TimelineDot extends StatelessWidget {
-  const _TimelineDot({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _TimelineLabel extends StatelessWidget {
-  const _TimelineLabel({required this.label, required this.sublabel});
-  final String label;
-  final String sublabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 80,
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            sublabel,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontSize: 10,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
       ),
     );
   }

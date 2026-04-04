@@ -21,24 +21,30 @@ abstract final class AppTheme {
         errorContainer: AppColors.errorBackground,
         outline: AppColors.borderLight,
       ),
-      textTheme: GoogleFonts.dmSansTextTheme().copyWith(
-        displayLarge: GoogleFonts.dmSerifDisplay(
+      textTheme: GoogleFonts.outfitTextTheme().copyWith(
+        displayLarge: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w800,
         ),
-        displayMedium: GoogleFonts.dmSerifDisplay(
+        displayMedium: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w800,
         ),
-        displaySmall: GoogleFonts.dmSerifDisplay(
+        displaySmall: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w700,
         ),
-        headlineLarge: GoogleFonts.dmSerifDisplay(
+        headlineLarge: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w700,
         ),
-        headlineMedium: GoogleFonts.dmSerifDisplay(
+        headlineMedium: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w700,
         ),
-        headlineSmall: GoogleFonts.dmSerifDisplay(
+        headlineSmall: GoogleFonts.outfit(
           color: AppColors.textPrimaryLight,
+          fontWeight: FontWeight.w700,
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -46,8 +52,9 @@ abstract final class AppTheme {
         foregroundColor: AppColors.textPrimaryLight,
         elevation: 0,
         scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.dmSerifDisplay(
+        titleTextStyle: GoogleFonts.outfit(
           fontSize: 20,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimaryLight,
         ),
       ),
@@ -68,9 +75,9 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
           ),
-          textStyle: GoogleFonts.dmSans(
+          textStyle: GoogleFonts.outfit(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -90,7 +97,7 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        hintStyle: GoogleFonts.dmSans(color: AppColors.textTertiaryLight),
+        hintStyle: GoogleFonts.outfit(color: AppColors.textTertiaryLight),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.dividerLight,
@@ -102,11 +109,11 @@ abstract final class AppTheme {
         unselectedItemColor: AppColors.textTertiaryLight,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: GoogleFonts.dmSans(
+        selectedLabelStyle: GoogleFonts.outfit(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
-        unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 12),
+        unselectedLabelStyle: GoogleFonts.outfit(fontSize: 12),
       ),
     );
   }
@@ -127,26 +134,32 @@ abstract final class AppTheme {
         error: AppColors.errorDark,
         outline: AppColors.borderDark,
       ),
-      textTheme: GoogleFonts.dmSansTextTheme(
+      textTheme: GoogleFonts.outfitTextTheme(
         ThemeData.dark().textTheme,
       ).copyWith(
-        displayLarge: GoogleFonts.dmSerifDisplay(
+        displayLarge: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w800,
         ),
-        displayMedium: GoogleFonts.dmSerifDisplay(
+        displayMedium: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w800,
         ),
-        displaySmall: GoogleFonts.dmSerifDisplay(
+        displaySmall: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w700,
         ),
-        headlineLarge: GoogleFonts.dmSerifDisplay(
+        headlineLarge: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w700,
         ),
-        headlineMedium: GoogleFonts.dmSerifDisplay(
+        headlineMedium: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w700,
         ),
-        headlineSmall: GoogleFonts.dmSerifDisplay(
+        headlineSmall: GoogleFonts.outfit(
           color: AppColors.textPrimaryDark,
+          fontWeight: FontWeight.w700,
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -154,8 +167,9 @@ abstract final class AppTheme {
         foregroundColor: AppColors.textPrimaryDark,
         elevation: 0,
         scrolledUnderElevation: 0,
-        titleTextStyle: GoogleFonts.dmSerifDisplay(
+        titleTextStyle: GoogleFonts.outfit(
           fontSize: 20,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimaryDark,
         ),
       ),
@@ -176,9 +190,9 @@ abstract final class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
           ),
-          textStyle: GoogleFonts.dmSans(
+          textStyle: GoogleFonts.outfit(
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -198,7 +212,7 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
           borderSide: const BorderSide(color: AppColors.primaryDarkMode, width: 1.5),
         ),
-        hintStyle: GoogleFonts.dmSans(color: AppColors.textSecondaryDark),
+        hintStyle: GoogleFonts.outfit(color: AppColors.textSecondaryDark),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.borderDark,
@@ -210,11 +224,11 @@ abstract final class AppTheme {
         unselectedItemColor: AppColors.textSecondaryDark,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: GoogleFonts.dmSans(
+        selectedLabelStyle: GoogleFonts.outfit(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
-        unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 12),
+        unselectedLabelStyle: GoogleFonts.outfit(fontSize: 12),
       ),
     );
   }
