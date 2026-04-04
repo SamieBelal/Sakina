@@ -130,8 +130,7 @@ class HookScreen extends StatelessWidget {
                         AppStrings.hookCta,
                         style: AppTypography.labelLarge.copyWith(
                           color: AppColors.primaryDark,
-                          letterSpacing: 1.5,
-                          fontSize: 14,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -145,7 +144,6 @@ class HookScreen extends StatelessWidget {
                     AppStrings.hookLoginLink,
                     style: AppTypography.labelMedium.copyWith(
                       color: Colors.white.withAlpha(150),
-                      letterSpacing: 1.0,
                     ),
                   ),
                 ).animate().fadeIn(duration: 600.ms, delay: 1000.ms),

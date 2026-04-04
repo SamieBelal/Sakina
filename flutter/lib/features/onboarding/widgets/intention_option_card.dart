@@ -10,6 +10,8 @@ class IntentionOptionCard extends StatefulWidget {
     required this.subtitle,
     required this.isSelected,
     required this.onTap,
+    this.icon,
+    this.iconColor,
     super.key,
   });
 
@@ -17,6 +19,8 @@ class IntentionOptionCard extends StatefulWidget {
   final String subtitle;
   final bool isSelected;
   final VoidCallback onTap;
+  final IconData? icon;
+  final Color? iconColor;
 
   @override
   State<IntentionOptionCard> createState() => _IntentionOptionCardState();
@@ -47,9 +51,9 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
 
   Future<void> _handleTap() async {
     HapticFeedback.selectionClick();
+    widget.onTap();
     await _bounceController.forward();
     await _bounceController.reverse();
-    widget.onTap();
   }
 
   @override
@@ -61,7 +65,7 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: double.infinity,
-          height: 80,
+          constraints: const BoxConstraints(minHeight: 72),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           decoration: BoxDecoration(
             color: widget.isSelected
@@ -72,10 +76,38 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
               color: widget.isSelected
                   ? AppColors.primary
                   : AppColors.borderLight,
+              width: widget.isSelected ? 1.5 : 1.0,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
+              if (widget.icon != null) ...[
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.isSelected
+                        ? AppColors.secondaryLight
+                        : AppColors.primaryLight,
+                  ),
+                  child: Icon(
+                    widget.icon!,
+                    color: widget.isSelected
+                        ? AppColors.secondary
+                        : AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+              ],
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -97,24 +129,7 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
                   ],
                 ),
               ),
-              AnimatedScale(
-                scale: widget.isSelected ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check,
-                    color: AppColors.textOnPrimary,
-                    size: 16,
-                  ),
-                ),
-              ),
+              const SizedBox(width: AppSpacing.sm),
             ],
           ),
         ),

@@ -18,8 +18,8 @@ abstract final class AppStrings {
   static const sakinaTagline = 'Peace for your soul';
   static const hookSubtitle1 = 'Tell me how you feel.';
   static const hookSubtitle2 = 'I\'ll show you what Allah says.';
-  static const hookCta = 'GET STARTED';
-  static const hookLoginLink = 'I ALREADY HAVE AN ACCOUNT';
+  static const hookCta = 'Get Started';
+  static const hookLoginLink = 'I Already Have an Account';
   static const hookDemoFeeling = 'I feel anxious and overwhelmed';
   static const hookReflectButton = 'Reflect';
 
@@ -38,31 +38,34 @@ abstract final class AppStrings {
   static const intentionCurious = 'Just Curious';
   static const intentionCuriousDesc = 'Explore what Sakina offers';
 
+  // Screen 2: Intention affirmations
+  static const affirmSpiritualGrowth = 'A beautiful intention';
+  static const affirmDifficultTime = 'You\'re in the right place';
+  static const affirmBuildHabit = 'Consistency is everything';
+  static const affirmCurious = 'Let\'s explore together';
+
   // Screen 3: Struggles
   static const strugglesTitle = 'What do you struggle with most?';
   static const strugglesSubtitle = 'Select all that apply';
-  static const struggleAnxiety = 'Anxiety';
-  static const struggleSadness = 'Sadness';
-  static const struggleAnger = 'Anger';
-  static const struggleLoneliness = 'Loneliness';
-  static const struggleMotivation = 'Motivation';
-  static const struggleGratitude = 'Gratitude';
-  static const struggleGrief = 'Grief';
-  static const struggleOverwhelm = 'Overwhelm';
+  static const struggleAnxiety = '\u{1F630} Anxiety';
+  static const struggleSadness = '\u{1F622} Sadness';
+  static const struggleAnger = '\u{1F624} Anger';
+  static const struggleLoneliness = '\u{1FAC2} Loneliness';
+  static const struggleMotivation = '\u{1F4AB} Motivation';
+  static const struggleGratitude = '\u{1F932} Gratitude';
+  static const struggleGrief = '\u{1F494} Grief';
+  static const struggleOverwhelm = '\u{1F629} Overwhelm';
 
   // Screen 4: Social Proof
-  static const socialProofTitle = 'Join a growing community';
-  static const socialProofUserCount = '12,847';
-  static const socialProofUserCountLabel = 'reflections shared';
+  static const socialProofTitle = 'Sakina was made for\nhearts like yours';
+  static const socialProofUserCount = '10,000';
+  static const socialProofUserCountLabel = 'Muslims finding peace';
   static const socialProofRating = '4.9';
+  static const socialProofRatingLabel = 'on the App Store';
   static const socialProofTestimonial1 =
       'I opened Sakina during a panic attack and the verse it showed me brought me to tears. It was exactly what I needed to hear.';
   static const socialProofTestimonial1Author = 'Amira, 24';
   static const socialProofTestimonial1Location = 'London';
-  static const socialProofTestimonial2 =
-      'I use it every morning after Fajr. It\'s become my favorite part of my routine — a moment of reflection before the day begins.';
-  static const socialProofTestimonial2Author = 'Omar, 31';
-  static const socialProofTestimonial2Location = 'Toronto';
 
   // Screen 5: Notifications
   static const notificationTitle = 'Stay connected to your practice';
@@ -73,6 +76,7 @@ abstract final class AppStrings {
   static const notificationBenefit3 = 'New content notifications';
   static const notificationCta = 'Enable Notifications';
   static const notificationSkip = 'Not now';
+  static const notificationFooter = 'You can change this anytime in Settings';
 
   // Screen 6: First Check-in
   static const checkinTitle = 'Let\'s try it';
@@ -113,8 +117,14 @@ abstract final class AppStrings {
   static const paywallWeeklyPrice = '\$4.99';
   static const paywallWeeklyPeriod = '/week';
   static const paywallWeeklyLabel = 'Weekly';
+  static const paywallAnnualPerMonth = 'Just \$4.17/month';
+  static const paywallAnnualSavings = 'Save 80%';
   static const paywallTrialInfo =
       'Start with a 3-day free trial. Cancel anytime.';
+  static const paywallTrialStep1 = 'Full access begins';
+  static const paywallTrialStep2 = 'Trial reminder';
+  static const paywallTrialStep3 = 'Subscription starts';
+  static const paywallSocialProof = 'Join 10,000+ Muslims on their spiritual journey';
   static const paywallCta = 'Start Free Trial';
   static const paywallRestore = 'Restore Purchase';
   static const paywallTerms = 'Terms';

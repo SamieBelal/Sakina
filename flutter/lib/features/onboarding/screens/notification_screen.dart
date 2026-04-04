@@ -32,9 +32,9 @@ class NotificationScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final benefits = [
-      AppStrings.notificationBenefit1,
-      AppStrings.notificationBenefit2,
-      AppStrings.notificationBenefit3,
+      (Icons.wb_sunny_outlined, AppStrings.notificationBenefit1),
+      (Icons.local_fire_department, AppStrings.notificationBenefit2),
+      (Icons.auto_stories, AppStrings.notificationBenefit3),
     ];
 
     return OnboardingPageWrapper(
@@ -62,12 +62,12 @@ class NotificationScreen extends ConsumerWidget {
                     .animate(onPlay: (c) => c.repeat())
                     .scale(
                       begin: const Offset(1.0, 1.0),
-                      end: const Offset(1.06, 1.06),
+                      end: const Offset(1.12, 1.12),
                       duration: 750.ms,
                     )
                     .then()
                     .scale(
-                      begin: const Offset(1.06, 1.06),
+                      begin: const Offset(1.12, 1.12),
                       end: const Offset(1.0, 1.0),
                       duration: 750.ms,
                     ),
@@ -90,6 +90,7 @@ class NotificationScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl),
                 ...benefits.asMap().entries.map((entry) {
                   final delay = (entry.key * 100).ms;
+                  final (icon, text) = entry.value;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: Row(
@@ -101,8 +102,8 @@ class NotificationScreen extends ConsumerWidget {
                             color: AppColors.primaryLight,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.check,
+                          child: Icon(
+                            icon,
                             color: AppColors.primary,
                             size: 20,
                           ),
@@ -110,7 +111,7 @@ class NotificationScreen extends ConsumerWidget {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            entry.value,
+                            text,
                             style: AppTypography.bodyLarge.copyWith(
                               color: AppColors.textPrimaryLight,
                             ),
@@ -137,6 +138,14 @@ class NotificationScreen extends ConsumerWidget {
           ),
           Center(
             child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: onNext,
               child: Text(
                 AppStrings.notificationSkip,
@@ -146,7 +155,15 @@ class NotificationScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            AppStrings.notificationFooter,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textTertiaryLight,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );

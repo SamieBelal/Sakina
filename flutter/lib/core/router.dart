@@ -16,7 +16,7 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>()
 GoRouter buildRouter({required bool onboardingCompleted}) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/',
+    initialLocation: onboardingCompleted ? '/' : '/onboarding',
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(

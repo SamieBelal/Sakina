@@ -25,7 +25,7 @@ class OnboardingProgressBar extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
-              height: 4,
+              height: 3,
               decoration: BoxDecoration(
                 color: isActive ? AppColors.primary : AppColors.borderLight,
                 borderRadius: BorderRadius.circular(2),

@@ -24,20 +24,37 @@ class IntentionScreen extends ConsumerWidget {
     (
       title: AppStrings.intentionSpiritualGrowth,
       subtitle: AppStrings.intentionSpiritualGrowthDesc,
+      icon: Icons.auto_awesome,
     ),
     (
       title: AppStrings.intentionDifficultTime,
       subtitle: AppStrings.intentionDifficultTimeDesc,
+      icon: Icons.favorite_border,
     ),
     (
       title: AppStrings.intentionCurious,
       subtitle: AppStrings.intentionCuriousDesc,
+      icon: Icons.explore_outlined,
     ),
     (
       title: AppStrings.intentionBuildHabit,
       subtitle: AppStrings.intentionBuildHabitDesc,
+      icon: Icons.calendar_today_outlined,
     ),
   ];
+
+  static String _affirmationForIntention(String intention) {
+    if (intention == AppStrings.intentionSpiritualGrowth) {
+      return AppStrings.affirmSpiritualGrowth;
+    } else if (intention == AppStrings.intentionDifficultTime) {
+      return AppStrings.affirmDifficultTime;
+    } else if (intention == AppStrings.intentionBuildHabit) {
+      return AppStrings.affirmBuildHabit;
+    } else if (intention == AppStrings.intentionCurious) {
+      return AppStrings.affirmCurious;
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,6 +85,7 @@ class IntentionScreen extends ConsumerWidget {
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: IntentionOptionCard(
+                icon: option.icon,
                 title: option.title,
                 subtitle: option.subtitle,
                 isSelected: state.intention == option.title,
@@ -83,6 +101,25 @@ class IntentionScreen extends ConsumerWidget {
                 )
                 .slideX(begin: 0.05, end: 0);
           }),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: state.intention != null
+                ? Column(
+                    key: ValueKey(state.intention),
+                    children: [
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        _affirmationForIntention(state.intention!),
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.primary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
           const Spacer(),
           OnboardingContinueButton(
             label: AppStrings.continueButton,

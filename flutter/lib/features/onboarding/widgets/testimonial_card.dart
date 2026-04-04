@@ -9,12 +9,14 @@ class TestimonialCard extends StatelessWidget {
     required this.quote,
     required this.author,
     required this.location,
+    this.initials,
     super.key,
   });
 
   final String quote;
   final String author;
   final String location;
+  final String? initials;
 
   @override
   Widget build(BuildContext context) {
@@ -50,16 +52,39 @@ class TestimonialCard extends StatelessWidget {
           Text(
             quote,
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
+              color: AppColors.textPrimaryLight,
               fontStyle: FontStyle.italic,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            '$author \u00b7 $location',
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textTertiaryLight,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryLight,
+                ),
+                child: Center(
+                  child: Text(
+                    initials ?? author[0],
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '$author \u00b7 $location',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.textTertiaryLight,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
