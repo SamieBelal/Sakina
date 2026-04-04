@@ -1,22 +1,24 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   XpState? _xpState;
   StreakState? _streakState;
   List<String> _anchorNames = [];
@@ -37,10 +39,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final anchorsJson = prefs.getString('anchor_names');
     List<String> anchors = [];
     if (anchorsJson != null) {
-      final decoded = json.decode(anchorsJson);
-      if (decoded is List) {
-        anchors = decoded.cast<String>();
-      }
+      try {
+        final decoded = json.decode(anchorsJson);
+        if (decoded is List) {
+          anchors = decoded.map((item) {
+            if (item is String) return item;
+            if (item is Map) return item['name']?.toString() ?? '';
+            return item.toString();
+          }).where((s) => s.isNotEmpty).toList();
+        }
+      } catch (_) {}
     }
 
     if (!mounted) return;
@@ -50,6 +58,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _anchorNames = anchors;
       _loading = false;
     });
+  }
+
+  Future<void> _clearCardCollection() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('sakina_card_collection');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Card collection cleared.')),
+      );
+    }
+  }
+
+  Future<void> _resetDailyLoop() async {
+    await ref.read(dailyLoopProvider.notifier).resetToday();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Daily loop reset. Go back to Home to start fresh.')),
+      );
+    }
   }
 
   Future<void> _resetOnboarding() async {
@@ -380,6 +407,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildSectionLabel('Danger Zone'),
         const SizedBox(height: AppSpacing.sm),
         _buildSettingsCard([
+          _buildSettingsRow(
+            icon: Icons.replay_rounded,
+            label: 'Reset Daily Loop',
+            onTap: _resetDailyLoop,
+            isDestructive: true,
+          ),
+          _buildDivider(),
+          _buildSettingsRow(
+            icon: Icons.style_outlined,
+            label: 'Clear Card Collection',
+            onTap: _clearCardCollection,
+            isDestructive: true,
+          ),
+          _buildDivider(),
           _buildSettingsRow(
             icon: Icons.refresh_rounded,
             label: 'Reset Onboarding',

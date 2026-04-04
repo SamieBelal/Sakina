@@ -28,6 +28,11 @@ class AppShell extends StatelessWidget {
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.style_outlined),
+            activeIcon: Icon(Icons.style),
+            label: 'Collection',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.favorite_outline),
             activeIcon: Icon(Icons.favorite),
             label: 'Reflect',
@@ -49,9 +54,10 @@ class AppShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/reflect')) return 1;
-    if (location.startsWith('/duas')) return 2;
-    if (location.startsWith('/journal')) return 3;
+    if (location.startsWith('/collection')) return 1;
+    if (location.startsWith('/reflect')) return 2;
+    if (location.startsWith('/duas')) return 3;
+    if (location.startsWith('/journal')) return 4;
     return 0;
   }
 
@@ -60,10 +66,12 @@ class AppShell extends StatelessWidget {
       case 0:
         context.go('/');
       case 1:
-        context.go('/reflect');
+        context.go('/collection');
       case 2:
-        context.go('/duas');
+        context.go('/reflect');
       case 3:
+        context.go('/duas');
+      case 4:
         context.go('/journal');
     }
   }

@@ -5,6 +5,7 @@ import '../features/reflect/screens/reflect_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
 import '../features/feelings/screens/home_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
+import '../features/collection/screens/collection_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../widgets/app_shell.dart';
@@ -43,6 +44,10 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
           GoRoute(
             path: '/reflect',
             builder: (context, state) => const ReflectScreen(),
+          ),
+          GoRoute(
+            path: '/collection',
+            builder: (context, state) => const CollectionScreen(),
           ),
           GoRoute(
             path: '/duas',

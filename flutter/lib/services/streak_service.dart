@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/daily_rewards_service.dart';
 
 class StreakState {
   final int currentStreak;
@@ -44,9 +45,18 @@ Future<StreakState> getStreak() async {
     if (lastActive == today) {
       todayActive = true;
     } else if (_daysBetween(lastActive, today) > 1) {
-      // Streak broken — reset
-      currentStreak = 0;
-      await prefs.setInt(_currentStreakKey, 0);
+      // Try streak freeze before resetting
+      final frozeUsed = await consumeStreakFreeze();
+      if (frozeUsed) {
+        // Freeze consumed — pretend yesterday was active
+        final y = DateTime.now().subtract(const Duration(days: 1));
+        final yesterday = '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
+        await prefs.setString(_lastActiveKey, yesterday);
+      } else {
+        // Streak broken — reset
+        currentStreak = 0;
+        await prefs.setInt(_currentStreakKey, 0);
+      }
     }
   }
 
@@ -73,7 +83,10 @@ Future<StreakState> markActiveToday() async {
 
   // Check if streak continues (yesterday) or resets
   if (lastActive != null && _daysBetween(lastActive, today) > 1) {
-    currentStreak = 0;
+    final frozeUsed = await consumeStreakFreeze();
+    if (!frozeUsed) {
+      currentStreak = 0;
+    }
   }
 
   currentStreak += 1;

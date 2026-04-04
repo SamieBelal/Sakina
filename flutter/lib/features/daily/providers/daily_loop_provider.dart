@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,11 +48,19 @@ class DailyLoopState {
   final BrowseDua? questDua;
   final String? questReason;
 
-  // Streak & XP
+  // Streak, XP & Tokens
   final int streakCount;
   final int xpTotal;
+  final int tokenBalance;
   final String levelTitle;
   final String levelTitleArabic;
+
+  // Card collection
+  final CardEngageResult? cardEngageResult;
+  final CollectibleName? engagedCard;
+
+  // Daily reward
+  final DailyRewardClaimResult? rewardClaimResult;
 
   // Error
   final String? error;
@@ -75,8 +86,12 @@ class DailyLoopState {
     this.reflectLoading = false,
     this.questDua,
     this.questReason,
+    this.cardEngageResult,
+    this.engagedCard,
+    this.rewardClaimResult,
     this.streakCount = 0,
     this.xpTotal = 0,
+    this.tokenBalance = 0,
     this.levelTitle = 'Seeker',
     this.levelTitleArabic = 'طَالِب',
     this.error,
@@ -103,8 +118,12 @@ class DailyLoopState {
     bool? reflectLoading,
     BrowseDua? questDua,
     String? questReason,
+    CardEngageResult? cardEngageResult,
+    CollectibleName? engagedCard,
+    DailyRewardClaimResult? rewardClaimResult,
     int? streakCount,
     int? xpTotal,
+    int? tokenBalance,
     String? levelTitle,
     String? levelTitleArabic,
     String? error,
@@ -132,8 +151,12 @@ class DailyLoopState {
       reflectLoading: reflectLoading ?? this.reflectLoading,
       questDua: questDua ?? this.questDua,
       questReason: questReason ?? this.questReason,
+      cardEngageResult: cardEngageResult ?? this.cardEngageResult,
+      engagedCard: engagedCard ?? this.engagedCard,
+      rewardClaimResult: rewardClaimResult ?? this.rewardClaimResult,
       streakCount: streakCount ?? this.streakCount,
       xpTotal: xpTotal ?? this.xpTotal,
+      tokenBalance: tokenBalance ?? this.tokenBalance,
       levelTitle: levelTitle ?? this.levelTitle,
       levelTitleArabic: levelTitleArabic ?? this.levelTitleArabic,
       error: error,
@@ -159,9 +182,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
   Future<void> _initialize() async {
     try {
-      // Load streak and XP
+      // Load streak, XP, and tokens
       final streakState = await getStreak();
       final xpState = await getXp();
+      final tokenState = await getTokens();
 
       // Today's question
       final question = getTodaysDailyQuestion();
@@ -182,6 +206,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         todaysQuestion: question,
         streakCount: streakState.currentStreak,
         xpTotal: xpState.totalXp,
+        tokenBalance: tokenState.balance,
         levelTitle: xpState.title,
         levelTitleArabic: xpState.titleArabic,
         questDua: questDua,
@@ -230,6 +255,20 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(checkinLoading: true, error: null);
 
     try {
+      // First daily check-in is free; subsequent ones cost a token
+      if (state.checkinDone) {
+        final spendResult = await spendTokens(tokenCostReflection);
+        if (!spendResult.success) {
+          state = state.copyWith(
+            checkinLoading: false,
+            tokenBalance: spendResult.newBalance,
+            error: 'Not enough tokens. Earn more through daily rewards and quests.',
+          );
+          return;
+        }
+        state = state.copyWith(tokenBalance: spendResult.newBalance);
+      }
+
       final result = await getDailyResponse(question.question, answer);
 
       state = state.copyWith(
@@ -243,6 +282,42 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         checkinDone: true,
         checkinLoading: false,
       );
+
+      // Engage card collection (discover or tier up)
+      try {
+        final rewardsState = await getDailyRewards();
+        CollectibleName? collectible;
+
+        if (rewardsState.guaranteedTierUpFlag) {
+          // Guaranteed tier-up: pick an upgradeable card
+          final collection = await getCardCollection();
+          collectible = pickUpgradeableCard(collection);
+          await clearGuaranteedTierUp();
+        } else {
+          collectible = findCollectibleByName(result.name);
+          if (collectible == null && result.nameArabic.isNotEmpty) {
+            for (final n in allCollectibleNames) {
+              if (n.arabic.replaceAll(RegExp(r'\s'), '') ==
+                  result.nameArabic.replaceAll(RegExp(r'\s'), '')) {
+                collectible = n;
+                break;
+              }
+            }
+          }
+        }
+
+        if (collectible != null) {
+          final engageResult = await engageCard(collectible.id);
+          if (engageResult.tierChanged) {
+            state = state.copyWith(
+              cardEngageResult: engageResult,
+              engagedCard: collectible,
+            );
+          }
+        }
+      } catch (e) {
+        print('[CARD COLLECTION ERROR] $e');
+      }
 
       // Award XP and mark streak
       try {
@@ -258,6 +333,16 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         // Non-critical — don't fail the check-in
       }
 
+      // Claim daily reward
+      try {
+        final claimResult = await claimDailyReward();
+        if (!claimResult.alreadyClaimed && claimResult.tokensAwarded > 0) {
+          final tokenResult = await earnTokens(claimResult.tokensAwarded);
+          state = state.copyWith(tokenBalance: tokenResult.balance);
+        }
+        state = state.copyWith(rewardClaimResult: claimResult);
+      } catch (_) {}
+
       await _persistTodayState();
     } catch (e) {
       state = state.copyWith(
@@ -267,12 +352,34 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     }
   }
 
+  /// Reset today's daily loop so the user can redo it.
+  Future<void> resetToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_todayKey);
+    state = const DailyLoopState();
+    await _initialize();
+  }
+
+  void clearCardEngageResult() {
+    // Can't null out with copyWith, so we leave it — UI checks tierChanged
+  }
+
   // ---------------------------------------------------------------------------
   // Step 2: Deeper reflect
   // ---------------------------------------------------------------------------
 
   Future<void> startDeeper() async {
+    // Spend token for deeper reflection
+    final spendResult = await spendTokens(tokenCostReflection);
+    if (!spendResult.success) {
+      state = state.copyWith(
+        tokenBalance: spendResult.newBalance,
+        error: 'Not enough tokens. Earn more through daily rewards and quests.',
+      );
+      return;
+    }
     state = state.copyWith(
+      tokenBalance: spendResult.newBalance,
       currentStep: DailyLoopStep.deeper,
       reflectLoading: true,
       error: null,
@@ -299,6 +406,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           levelTitle: xpResult.state.title,
           levelTitleArabic: xpResult.state.titleArabic,
         );
+      } catch (_) {}
+
+      // Award tokens for completing deeper reflection
+      try {
+        final tokenResult = await earnTokens(tokenRewardDeeperReflection);
+        state = state.copyWith(tokenBalance: tokenResult.balance);
       } catch (_) {}
     } catch (e) {
       state = state.copyWith(
@@ -354,6 +467,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         levelTitle: xpResult.state.title,
         levelTitleArabic: xpResult.state.titleArabic,
       );
+    } catch (_) {}
+
+    // Award tokens for quest completion
+    try {
+      final tokenResult = await earnTokens(tokenRewardQuestComplete);
+      state = state.copyWith(tokenBalance: tokenResult.balance);
     } catch (_) {}
 
     await _persistTodayState();

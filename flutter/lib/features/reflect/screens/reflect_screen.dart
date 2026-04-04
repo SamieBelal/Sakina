@@ -7,6 +7,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/widgets/share_card.dart';
 
 class ReflectScreen extends ConsumerStatefulWidget {
   const ReflectScreen({super.key});
@@ -830,9 +831,28 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () {
+                          onPressed: () async {
                             HapticFeedback.lightImpact();
-                            // Share functionality
+                            try {
+                              await shareReflectionCard(
+                                context: context,
+                                nameArabic: result.nameArabic,
+                                nameEnglish: result.name,
+                                duaArabic: result.duaArabic,
+                                duaTransliteration: result.duaTransliteration,
+                                duaTranslation: result.duaTranslation,
+                                duaSource: result.duaSource,
+                                reframe: result.reframe,
+                                story: result.story,
+                              );
+                            } catch (e) {
+                              print('[SHARE ERROR] $e');
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Share failed: $e')),
+                                );
+                              }
+                            }
                           },
                           icon: Icon(
                             Icons.share_outlined,
@@ -845,22 +865,11 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                             HapticFeedback.lightImpact();
                             notifier.reset();
                           },
-                          child: const Text('Start Over'),
+                          child: const Text('New Reflection'),
                         ),
                       ],
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  notifier.reset();
-                },
-                child: Text(
-                  'Start over',
-                  style: TextStyle(color: AppColors.textSecondaryLight),
                 ),
               ),
             ],
