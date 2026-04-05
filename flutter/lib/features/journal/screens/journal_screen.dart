@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
-import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -14,7 +13,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 // Entry type for unified feed
 // ---------------------------------------------------------------------------
 
-enum _EntryType { reflection, builtDua, savedDua }
+enum _EntryType { reflection, builtDua }
 
 class _JournalEntry {
   final _EntryType type;
@@ -63,9 +62,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
     final reflections = reflectState.savedReflections;
     final builtDuas = duasState.savedBuiltDuas;
-    final savedIds = duasState.savedDuaIds;
-    final savedBrowse =
-        browseDuas.where((d) => savedIds.contains(d.id)).toList();
 
     // Build merged feed
     final allEntries = <_JournalEntry>[
@@ -81,8 +77,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           )),
     ]..sort((a, b) => b.date.compareTo(a.date));
 
-    final totalCount =
-        reflections.length + builtDuas.length + savedBrowse.length;
+    final totalCount = reflections.length + builtDuas.length;
 
     // Most connected name
     String? topName;
@@ -108,9 +103,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               child: TabBarView(
                 controller: _tab,
                 children: [
-                  _buildAllFeed(allEntries, savedBrowse),
+                  _buildAllFeed(allEntries),
                   _buildReflectionsTab(reflections),
-                  _buildDuasTab(builtDuas, savedBrowse),
+                  _buildDuasTab(builtDuas),
                 ],
               ),
             ),
@@ -229,27 +224,17 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── All feed ────────────────────────────────────────────────────────────────
 
-  Widget _buildAllFeed(
-      List<_JournalEntry> entries, List<BrowseDua> savedBrowse) {
-    if (entries.isEmpty && savedBrowse.isEmpty) {
+  Widget _buildAllFeed(List<_JournalEntry> entries) {
+    if (entries.isEmpty) {
       return _buildEmptyState();
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: [
-        ...entries.asMap().entries.map((e) =>
-            _animatedCard(e.key, _buildEntryCard(e.value))),
-        if (savedBrowse.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _sectionLabel('Saved Duas'),
-          const SizedBox(height: 8),
-          ...savedBrowse.asMap().entries.map((e) =>
-              _animatedCard(entries.length + e.key,
-                  _buildSavedBrowseCard(e.value))),
-        ],
-      ],
+      children: entries.asMap().entries
+          .map((e) => _animatedCard(e.key, _buildEntryCard(e.value)))
+          .toList(),
     );
   }
 
@@ -279,36 +264,22 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Duas tab ────────────────────────────────────────────────────────────────
 
-  Widget _buildDuasTab(
-      List<SavedBuiltDua> builtDuas, List<BrowseDua> savedBrowse) {
-    if (builtDuas.isEmpty && savedBrowse.isEmpty) {
+  Widget _buildDuasTab(List<SavedBuiltDua> builtDuas) {
+    if (builtDuas.isEmpty) {
       return _buildEmptyState(
         icon: Icons.brightness_3_outlined,
-        message: 'No saved duas yet',
-        sub: 'Build a personal dua or heart a dua from the library.',
-        actionLabel: 'Browse Duas',
+        message: 'No personal duas yet',
+        sub: 'Build a dua for your specific need and it will be saved here.',
+        actionLabel: 'Build a Dua',
         onAction: () => context.go('/duas'),
       );
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: [
-        if (builtDuas.isNotEmpty) ...[
-          _sectionLabel('Personal Duas'),
-          const SizedBox(height: 8),
-          ...builtDuas.asMap().entries.map((e) =>
-              _animatedCard(e.key, _buildBuiltDuaCard(e.value))),
-        ],
-        if (savedBrowse.isNotEmpty) ...[
-          if (builtDuas.isNotEmpty) const SizedBox(height: 8),
-          _sectionLabel('Saved from Library'),
-          const SizedBox(height: 8),
-          ...savedBrowse.asMap().entries.map((e) =>
-              _animatedCard(builtDuas.length + e.key,
-                  _buildSavedBrowseCard(e.value))),
-        ],
-      ],
+      children: builtDuas.asMap().entries
+          .map((e) => _animatedCard(e.key, _buildBuiltDuaCard(e.value)))
+          .toList(),
     );
   }
 
@@ -320,8 +291,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         return _buildReflectionCard(entry.data as SavedReflection);
       case _EntryType.builtDua:
         return _buildBuiltDuaCard(entry.data as SavedBuiltDua);
-      case _EntryType.savedDua:
-        return _buildSavedBrowseCard(entry.data as BrowseDua);
     }
   }
 
@@ -491,78 +460,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
-  // ── Saved browse dua card ───────────────────────────────────────────────────
-
-  Widget _buildSavedBrowseCard(BrowseDua d) {
-    return _ExpandableCard(
-      key: ValueKey('browse_${d.id}'),
-      topLeft: _typeChip('From Library', const Color(0xFF6B4E9B)),
-      topRight: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          ref.read(duasProvider.notifier).toggleSavedDua(d.id);
-        },
-        child: const Icon(Icons.favorite,
-            color: AppColors.primary, size: 18),
-      ),
-      summary: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Text(d.title, style: AppTypography.labelLarge),
-          const SizedBox(height: 8),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 18),
-            textDirection: TextDirection.rtl,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-      expanded: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 12),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 22),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            d.transliteration,
-            style: AppTypography.bodyMedium.copyWith(
-              fontStyle: FontStyle.italic,
-              color: AppColors.textSecondaryLight,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            d.translation,
-            style: AppTypography.bodyMedium
-                .copyWith(color: AppColors.textPrimaryLight, height: 1.5),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            d.source,
-            style: AppTypography.bodySmall
-                .copyWith(color: AppColors.textTertiaryLight),
-          ),
-          if (d.whenToRecite != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              d.whenToRecite!,
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.primary),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   // ── Empty state ─────────────────────────────────────────────────────────────
 
   Widget _buildEmptyState({
@@ -641,17 +538,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         .animate()
         .fadeIn(delay: (index * 50).ms, duration: 300.ms)
         .slideY(begin: 0.05, end: 0, delay: (index * 50).ms, duration: 300.ms);
-  }
-
-  Widget _sectionLabel(String label) {
-    return Text(
-      label.toUpperCase(),
-      style: AppTypography.labelSmall.copyWith(
-        color: AppColors.textTertiaryLight,
-        letterSpacing: 1.5,
-        fontSize: 10,
-      ),
-    );
   }
 
   Widget _typeChip(String label, Color color) {
