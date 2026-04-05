@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Tab enum
 // ---------------------------------------------------------------------------
 
-enum DuasTab { browse, build }
+enum DuasTab { build }
 
 // ---------------------------------------------------------------------------
 // Saved dua model
