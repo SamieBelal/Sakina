@@ -1040,4 +1040,64 @@ const List<BrowseDua> browseDuas = [
     whenToRecite: 'Recite regularly for your parents, especially after prayers.',
     emotionTags: ['family', 'parents', 'mercy', 'gratitude'],
   ),
+  BrowseDua(
+    id: 'family-4',
+    category: 'family',
+    title: 'For Wealth, Children, and Forgiveness',
+    arabic:
+        'اللَّهُمَّ أَكْثِرْ مَالَهُ وَوَلَدَهُ وَأَطِلْ حَيَاتَهُ وَاغْفِرْ لَهُ',
+    transliteration:
+        "Allahumma akthir malahu wa waladahu wa atil hayatahu waghfir lah",
+    translation:
+        'O Allah, increase his wealth, increase his children, extend his life, and forgive him his sins.',
+    source: 'Sahih al-Bukhari 6334',
+    whenToRecite: 'Recite as a dua for someone you love — the dua of the Prophet ﷺ for Anas ibn Malik (RA).',
+    emotionTags: ['family', 'wealth', 'forgiveness', 'blessing'],
+  ),
+
+  // ── Guidance (new) ────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'guidance-4',
+    category: 'guidance',
+    title: 'Take Me Before a Fitna That Leads Me Astray',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَسْأَلُكَ فِعْلَ الْخَيْرَاتِ وَتَرْكَ الْمُنْكَرَاتِ وَحُبَّ الْمَسَاكِينِ وَأَنْ تَغْفِرَ لِي وَتَرْحَمَنِي وَإِذَا أَرَدْتَ فِتْنَةً فِي النَّاسِ فَاقْبِضْنِي إِلَيْكَ غَيْرَ مَفْتُونٍ',
+    transliteration:
+        "Allahumma inni as'aluka fi'lal-khayrati wa tarkal-munkarat wa hubbal-masakin wa an taghfira li wa tarhamani wa idha aradta finnatан fin-nasi faqbidni ilayka ghayra maftun",
+    translation:
+        'O Allah, I ask You for the ability to do good deeds, to leave off evil, to love the poor, to forgive me and have mercy on me. And if You intend a trial for the people, then take me to You without being tried.',
+    source: "Jami' at-Tirmidhi 3233",
+    whenToRecite: 'Recite when fearing corruption of faith in times of widespread tribulation.',
+    emotionTags: ['guidance', 'faith', 'protection', 'fitna'],
+  ),
+
+  // ── General (new) ─────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'general-7',
+    category: 'general',
+    title: 'Let Me Live and Die at the Best Time',
+    arabic:
+        'اللَّهُمَّ أَحْيِنِي مَا كَانَتِ الْحَيَاةُ خَيْرًا لِي وَتَوَفَّنِي إِذَا كَانَتِ الْوَفَاةُ خَيْرًا لِي',
+    transliteration:
+        "Allahumma ahyini ma kanatil-hayatu khayran li wa tawaffani idha kanatil-wafatu khayran li",
+    translation:
+        'O Allah, keep me alive as long as life is better for me, and let me die when death is better for me.',
+    source: 'Sahih al-Bukhari 5671',
+    whenToRecite: 'Recite when reflecting on life, death, and surrendering your timeline to Allah.',
+    emotionTags: ['general', 'tawakkul', 'death', 'acceptance'],
+  ),
+  BrowseDua(
+    id: 'general-8',
+    category: 'general',
+    title: 'Protection from the Fire and the Grave',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ وَمِنْ عَذَابِ النَّارِ وَمِنْ فِتْنَةِ الْمَحْيَا وَالْمَمَاتِ وَمِنْ فِتْنَةِ الْمَسِيحِ الدَّجَّالِ',
+    transliteration:
+        "Allahumma inni a'udhu bika min 'adhabil-qabri wa min 'adhabin-nar wa min fitnatil-mahya wal-mamat wa min fitnatil-masihid-dajjal",
+    translation:
+        'O Allah, I seek refuge in You from the punishment of the grave, from the punishment of the Fire, from the trials of life and death, and from the trial of the False Messiah.',
+    source: 'Sahih al-Bukhari 1377',
+    whenToRecite: 'Recite in the final tashahhud of every prayer — the Prophet ﷺ commanded this.',
+    emotionTags: ['general', 'protection', 'afterlife', 'prayer'],
+  ),
 ];
