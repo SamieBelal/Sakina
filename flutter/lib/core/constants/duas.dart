@@ -1086,6 +1086,66 @@ const List<BrowseDua> browseDuas = [
     whenToRecite: 'Recite when reflecting on life, death, and surrendering your timeline to Allah.',
     emotionTags: ['general', 'tawakkul', 'death', 'acceptance'],
   ),
+  // ── Forgiveness (new) ─────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'forgiveness-7',
+    category: 'forgiveness',
+    title: 'O Lord of Muhammad, Forgive Me',
+    arabic:
+        'اللَّهُمَّ رَبَّ مُحَمَّدٍ اغْفِرْ لِي ذَنْبِي وَأَذْهِبْ غَيْظَ قَلْبِي وَأَعِذْنِي مِنْ مُضِلَّاتِ الْفِتَنِ',
+    transliteration:
+        "Allahumma rabba Muhammadin ighfir li dhanbi wa adhhib ghayza qalbi wa a'idhni min mudillati al-fitan",
+    translation:
+        'O Allah, Lord of Muhammad, forgive my sin, remove the anger from my heart, and protect me from the trials that lead astray.',
+    source: 'Mustadrak al-Hakim 1/527',
+    whenToRecite: 'Recite when feeling angry, burdened by sin, or fearful of going astray.',
+    emotionTags: ['forgiveness', 'anger', 'protection', 'fitna'],
+  ),
+  BrowseDua(
+    id: 'forgiveness-8',
+    category: 'forgiveness',
+    title: 'Forgive Us and Our Brothers in Faith',
+    arabic:
+        'رَبَّنَا اغْفِرْ لَنَا وَلِإِخْوَانِنَا الَّذِينَ سَبَقُونَا بِالْإِيمَانِ وَلَا تَجْعَلْ فِي قُلُوبِنَا غِلًّا لِّلَّذِينَ آمَنُوا رَبَّنَا إِنَّكَ رَءُوفٌ رَّحِيمٌ',
+    transliteration:
+        "Rabbana ighfir lana wa li-ikhwaninal-ladhina sabaquna bil-iman wa la taj'al fi qulubina ghillan lil-ladhina amanu Rabbana innaka Ra'ufur-Rahim",
+    translation:
+        'Our Lord, forgive us and our brothers who preceded us in faith, and put not in our hearts any resentment toward those who have believed. Our Lord, indeed You are Kind and Merciful.',
+    source: 'Quran 59:10',
+    whenToRecite: 'Recite when seeking forgiveness for yourself and the believers who came before you.',
+    emotionTags: ['forgiveness', 'community', 'mercy', 'unity'],
+  ),
+
+  // ── General (new) ─────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'general-9',
+    category: 'general',
+    title: 'Best Dhikr of the Day of Arafah',
+    arabic:
+        'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ',
+    transliteration:
+        "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir",
+    translation:
+        'There is no god but Allah alone, with no partner. To Him belongs the dominion, to Him all praise is due, and He is able to do all things.',
+    source: "Jami' at-Tirmidhi 3585",
+    whenToRecite: 'The best dhikr on the Day of Arafah and the best that the Prophet ﷺ and all prophets before him said.',
+    emotionTags: ['general', 'gratitude', 'tawhid', 'arafah'],
+  ),
+  BrowseDua(
+    id: 'general-10',
+    category: 'general',
+    title: 'Free Me from the Fire and Expand My Provision',
+    arabic:
+        'اللَّهُمَّ أَعْتِقْ رَقَبَتِي مِنَ النَّارِ وَأَوْسِعْ لِي مِنَ الرِّزْقِ الْحَلَالِ وَاصْرِفْ عَنِّي فَسَقَةَ الْجِنِّ وَالْإِنْسِ',
+    transliteration:
+        "Allahumma a'tiq raqabati minan-nar wa awsi' li minar-rizqil-halal wasrif 'anni fasaqatal-jinni wal-ins",
+    translation:
+        'O Allah, free me from the Fire, expand my lawful provision for me, and turn away from me the wickedness of the jinn and mankind.',
+    source: 'Mustadrak al-Hakim 1/530',
+    whenToRecite: 'Recite especially in the last ten nights of Ramadan and on the Day of Arafah.',
+    emotionTags: ['general', 'protection', 'wealth', 'arafah'],
+  ),
+
   BrowseDua(
     id: 'general-8',
     category: 'general',
