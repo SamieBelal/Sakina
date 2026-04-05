@@ -528,17 +528,97 @@ class FindDuasResponse {
   const FindDuasResponse({required this.names, required this.duas});
 }
 
+// Semantic intent → category/tag mappings so natural language queries work
+const _semanticMap = <String, List<String>>{
+  // Family / marriage
+  'wife': ['family', 'marriage'],
+  'husband': ['family', 'marriage'],
+  'spouse': ['family', 'marriage'],
+  'marry': ['family', 'marriage'],
+  'marriage': ['family', 'marriage'],
+  'nikah': ['family', 'marriage'],
+  'children': ['family', 'children'],
+  'child': ['family', 'children'],
+  'kids': ['family', 'children'],
+  'baby': ['family', 'children'],
+  'pregnant': ['family', 'children'],
+  'parents': ['family', 'parents'],
+  'mother': ['family', 'parents'],
+  'father': ['family', 'parents'],
+  // Wealth / provision
+  'money': ['wealth', 'provision'],
+  'rich': ['wealth', 'provision'],
+  'debt': ['wealth', 'debt'],
+  'poor': ['wealth', 'poverty'],
+  'job': ['wealth', 'provision'],
+  'work': ['wealth', 'provision'],
+  'income': ['wealth', 'provision'],
+  'rizq': ['wealth', 'provision'],
+  'halal': ['wealth', 'halal'],
+  // Anxiety / stress
+  'anxious': ['anxiety', 'worry'],
+  'anxiety': ['anxiety'],
+  'stress': ['anxiety', 'worry'],
+  'worried': ['anxiety', 'worry'],
+  'fear': ['anxiety', 'protection'],
+  'scared': ['anxiety', 'protection'],
+  'overwhelmed': ['anxiety'],
+  'depressed': ['anxiety', 'grief'],
+  'sad': ['grief'],
+  'grief': ['grief'],
+  'loss': ['grief'],
+  // Forgiveness
+  'forgive': ['forgiveness', 'repentance'],
+  'sin': ['forgiveness', 'repentance'],
+  'repent': ['forgiveness', 'repentance'],
+  'guilt': ['forgiveness'],
+  'tawbah': ['forgiveness'],
+  // Guidance
+  'guidance': ['guidance'],
+  'decision': ['guidance', 'istikhara'],
+  'istikhara': ['guidance', 'istikhara'],
+  'confused': ['guidance'],
+  'lost': ['guidance'],
+  'direction': ['guidance'],
+  // Gratitude / morning / evening
+  'grateful': ['gratitude'],
+  'thankful': ['gratitude'],
+  'morning': ['morning'],
+  'waking': ['morning'],
+  'evening': ['evening'],
+  'night': ['evening', 'sleep'],
+  'sleep': ['sleep'],
+  // Protection
+  'protect': ['protection'],
+  'evil': ['protection'],
+  'safe': ['protection'],
+  // Hope
+  'hope': ['hope'],
+  'trust': ['hope', 'tawakkul'],
+  'patience': ['hope', 'grief'],
+  // Travel
+  'travel': ['travel'],
+  'journey': ['travel'],
+  'trip': ['travel'],
+};
+
 /// Search the local browseDuas list for duas matching the user's need.
-/// Uses keyword + emotion tag matching — no AI call needed.
+/// Uses semantic intent mapping + keyword + emotion tag matching.
 /// Returns up to 5 best matches sorted by relevance score.
 List<FindDuasDuaEntry> _searchLocalDuas(String need) {
   final query = need.toLowerCase();
-  final queryWords = query
-      .split(RegExp(r'\s+'))
-      .where((w) => w.length > 2)
-      .toList();
+  final queryWords = query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
 
-  // Score each dua by how many query words appear in its fields
+  // Expand query words to inferred categories/tags via semantic map
+  final inferredTags = <String>{};
+  for (final word in queryWords) {
+    for (final key in _semanticMap.keys) {
+      if (word.contains(key) || key.contains(word)) {
+        inferredTags.addAll(_semanticMap[key]!);
+      }
+    }
+  }
+
   final scored = <(int, BrowseDua)>[];
   for (final dua in browseDuas) {
     int score = 0;
@@ -551,14 +631,22 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
       ...(dua.emotionTags ?? []),
     ].join(' ').toLowerCase();
 
+    // Direct keyword match in dua text
     for (final word in queryWords) {
-      if (searchable.contains(word)) score += 2;
+      if (word.length > 2 && searchable.contains(word)) score += 2;
     }
-    // Bonus: exact category match
-    if (dua.category == query.trim()) score += 5;
-    // Bonus: emotion tag match
+
+    // Inferred tag matches category
+    if (inferredTags.contains(dua.category)) score += 6;
+
+    // Inferred tag matches emotion tags
     for (final tag in (dua.emotionTags ?? [])) {
-      if (query.contains(tag)) score += 3;
+      if (inferredTags.contains(tag)) score += 4;
+    }
+
+    // Exact category match from query word
+    for (final word in queryWords) {
+      if (dua.category == word) score += 8;
     }
 
     if (score > 0) scored.add((score, dua));
