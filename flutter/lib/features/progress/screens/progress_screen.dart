@@ -14,6 +14,7 @@ import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -113,7 +114,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               _buildRewardCalendar(),
               const SizedBox(height: AppSpacing.lg),
 
-              // 5. Today's Name of Allah
+              // 5. Daily Quest Strip
+              _DailyQuestStrip(),
+              const SizedBox(height: AppSpacing.lg),
+
+              // 6. Today's Name of Allah
               _buildTodaysNameCard(todaysName),
               const SizedBox(height: AppSpacing.lg),
 
@@ -1268,6 +1273,37 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.push('/quests');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDE9FE),
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.emoji_events_rounded,
+                            color: Color(0xFF7C3AED), size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Quests',
+                          style: AppTypography.labelMedium.copyWith(
+                              color: const Color(0xFF7C3AED)),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -1529,3 +1565,99 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 }
 
 // (NameRevealOverlay lives in features/daily/widgets/name_reveal_overlay.dart)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Quest Strip — compact 3-dot progress shown on home screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DailyQuestStrip extends ConsumerWidget {
+  const _DailyQuestStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quests = ref.watch(questsProvider);
+    if (!quests.loaded || quests.daily.isEmpty) return const SizedBox.shrink();
+
+    final daily = quests.daily;
+    final completedCount = quests.dailyCompletedCount;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.push('/quests');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(color: AppColors.borderLight),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.emoji_events_rounded,
+              color: AppColors.secondary,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Daily Quests',
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$completedCount of ${daily.length} completed',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 3 dots
+            Row(
+              children: List.generate(daily.length, (i) {
+                final done = quests.isCompleted(daily[i].id);
+                return Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(left: 6),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: done ? AppColors.primary : Colors.transparent,
+                    border: Border.all(
+                      color: done ? AppColors.primary : AppColors.borderLight,
+                      width: 1.5,
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiaryLight,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0);
+  }
+}

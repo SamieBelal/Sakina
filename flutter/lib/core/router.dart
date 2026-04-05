@@ -5,6 +5,7 @@ import '../features/progress/screens/progress_screen.dart';
 import '../features/reflect/screens/reflect_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
 import '../features/feelings/screens/home_screen.dart';
+import '../features/quests/screens/quests_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
@@ -64,6 +65,10 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
           GoRoute(
             path: '/journal',
             builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/quests',
+            builder: (context, state) => const QuestsScreen(),
           ),
           GoRoute(
             path: '/settings',

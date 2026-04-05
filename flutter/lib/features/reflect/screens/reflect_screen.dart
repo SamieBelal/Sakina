@@ -7,7 +7,9 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/share_card.dart';
+import 'package:sakina/widgets/token_gate_sheet.dart';
 
 class ReflectScreen extends ConsumerStatefulWidget {
   const ReflectScreen({super.key});
@@ -62,6 +64,19 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(reflectProvider);
     final notifier = ref.read(reflectProvider.notifier);
+
+    // Show token gate sheet when the free limit is hit
+    ref.listen<ReflectState>(reflectProvider, (prev, next) {
+      if (next.needsToken && !(prev?.needsToken ?? false)) {
+        showTokenGateSheet(
+          context,
+          featureName: 'Reflect',
+          cost: tokenCostReflection,
+        ).then((approved) {
+          if (approved) notifier.submitWithToken();
+        });
+      }
+    });
 
     // Manage ripple animation based on state
     if (state.screenState == ReflectScreenState.loading) {

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
+import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -69,6 +70,8 @@ class ReflectState {
   final int currentFollowUpIndex;
   final Set<String> selectedEmotions;
   final List<SavedReflection> savedReflections;
+  /// True when the user has hit the free daily limit and must spend a token.
+  final bool needsToken;
 
   const ReflectState({
     this.screenState = ReflectScreenState.input,
@@ -81,6 +84,7 @@ class ReflectState {
     this.currentFollowUpIndex = 0,
     this.selectedEmotions = const {},
     this.savedReflections = const [],
+    this.needsToken = false,
   });
 
   ReflectState copyWith({
@@ -94,6 +98,7 @@ class ReflectState {
     int? currentFollowUpIndex,
     Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
+    bool? needsToken,
     bool clearResult = false,
     bool clearError = false,
   }) {
@@ -108,6 +113,7 @@ class ReflectState {
       currentFollowUpIndex: currentFollowUpIndex ?? this.currentFollowUpIndex,
       selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
+      needsToken: needsToken ?? this.needsToken,
     );
   }
 }
@@ -135,8 +141,25 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     state = state.copyWith(selectedEmotions: updated);
   }
 
-  /// Submit user text. Gets follow-up questions first; if none, reflects directly.
+  /// Called by the UI after the user approves spending a token.
+  /// Clears the needsToken flag and proceeds with submission.
+  Future<void> submitWithToken() async {
+    state = state.copyWith(needsToken: false);
+    await _doSubmit();
+  }
+
+  /// Submit user text. Checks daily usage first; sets needsToken if limit hit.
   Future<void> submit() async {
+    final isFree = await canReflectFree();
+    if (!isFree) {
+      state = state.copyWith(needsToken: true);
+      return;
+    }
+    await incrementReflectUsage();
+    await _doSubmit();
+  }
+
+  Future<void> _doSubmit() async {
     try {
       state = state.copyWith(screenState: ReflectScreenState.loading, clearError: true);
 

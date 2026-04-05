@@ -8,6 +8,8 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/token_gate_sheet.dart';
 
 class DuasScreen extends ConsumerStatefulWidget {
   const DuasScreen({super.key});
@@ -62,6 +64,19 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(duasProvider);
     final notifier = ref.read(duasProvider.notifier);
+
+    // Show token gate sheet when build-a-dua hits free limit
+    ref.listen<DuasState>(duasProvider, (prev, next) {
+      if (next.buildNeedsToken && !(prev?.buildNeedsToken ?? false)) {
+        showTokenGateSheet(
+          context,
+          featureName: 'Build a Dua',
+          cost: tokenCostBuiltDua,
+        ).then((approved) {
+          if (approved) notifier.submitBuildWithToken();
+        });
+      }
+    });
 
     if (state.findLoading || state.buildLoading) {
       _startRipple();

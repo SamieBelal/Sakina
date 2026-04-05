@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,6 +107,8 @@ class DuasState {
   final String? error;
   final List<SavedBuiltDua> savedBuiltDuas;
   final List<SavedRelatedDua> savedRelatedDuas;
+  /// True when build-a-dua hits the free daily limit and needs a token.
+  final bool buildNeedsToken;
 
   const DuasState({
     this.activeTab,
@@ -121,6 +124,7 @@ class DuasState {
     this.error,
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
+    this.buildNeedsToken = false,
   });
 
   DuasState copyWith({
@@ -137,6 +141,7 @@ class DuasState {
     String? Function()? error,
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
+    bool? buildNeedsToken,
   }) {
     return DuasState(
       activeTab: activeTab != null ? activeTab() : this.activeTab,
@@ -152,6 +157,7 @@ class DuasState {
       error: error != null ? error() : this.error,
       savedBuiltDuas: savedBuiltDuas ?? this.savedBuiltDuas,
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
+      buildNeedsToken: buildNeedsToken ?? this.buildNeedsToken,
     );
   }
 }
@@ -237,6 +243,21 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   Future<void> submitBuild() async {
     if (state.buildNeed.trim().isEmpty) return;
+    final isFree = await canBuildDuaFree();
+    if (!isFree) {
+      state = state.copyWith(buildNeedsToken: true);
+      return;
+    }
+    await incrementBuiltDuaUsage();
+    await _doBuild();
+  }
+
+  Future<void> submitBuildWithToken() async {
+    state = state.copyWith(buildNeedsToken: false);
+    await _doBuild();
+  }
+
+  Future<void> _doBuild() async {
     state = state.copyWith(
       buildLoading: true,
       error: () => null,

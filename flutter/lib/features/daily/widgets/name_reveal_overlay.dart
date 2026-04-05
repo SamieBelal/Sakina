@@ -391,6 +391,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                             overflow: TextOverflow.ellipsis,
                           ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
                           const SizedBox(height: 20),
+
                           GestureDetector(
                             onTap: _handleContinue,
                             child: Container(
@@ -459,3 +460,4 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
     );
   }
 }
+
