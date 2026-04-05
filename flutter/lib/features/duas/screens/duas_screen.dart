@@ -75,7 +75,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
     return Scaffold(
       backgroundColor:
-          isAmeen ? AppColors.primary : AppColors.backgroundLight,
+          isAmeen ? AppColors.primary : const Color(0xFFFBF7F2),
       body: _buildBody(state, notifier),
     );
   }
@@ -101,50 +101,100 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            const SizedBox(height: 32),
-            Text(
-              'Duas',
-              style: AppTypography.displayLarge
-                  .copyWith(color: AppColors.textPrimaryLight),
+            // Arabic watermark
+            Positioned(
+              right: -8,
+              top: 60,
+              child: Text(
+                'بِسْمِ اللَّهِ',
+                style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 72,
+                  color: AppColors.secondary.withValues(alpha: 0.10),
+                  height: 1,
+                ),
+                textDirection: TextDirection.rtl,
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Discover, find, and build your duas',
-              style: AppTypography.bodyLarge
-                  .copyWith(color: AppColors.textSecondaryLight),
-            ),
-            const SizedBox(height: 24),
-            _landingCard(
-              icon: Icons.book_outlined,
-              title: 'Browse Duas',
-              subtitle: '~100 authentic duas by category',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                notifier.setActiveTab(DuasTab.browse);
-              },
-            ),
-            const SizedBox(height: 12),
-            _landingCard(
-              icon: Icons.search,
-              title: 'Find a Dua',
-              subtitle: 'Describe your need, get authentic duas',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                notifier.setActiveTab(DuasTab.find);
-              },
-            ),
-            const SizedBox(height: 12),
-            _landingCard(
-              icon: Icons.auto_fix_high,
-              title: 'Build a Dua',
-              subtitle: 'AI constructs a personal dua for you',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                notifier.setActiveTab(DuasTab.build);
-              },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 32),
+                // Hero crescent icon
+                Center(
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EBD9),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.secondary.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.brightness_3,
+                      color: AppColors.secondary,
+                      size: 30,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Duas',
+                  style: AppTypography.displayLarge
+                      .copyWith(color: AppColors.textPrimaryLight),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Discover, find, and build your duas',
+                  style: AppTypography.bodyLarge
+                      .copyWith(color: AppColors.textSecondaryLight),
+                ),
+                const SizedBox(height: 12),
+                // Gold divider
+                Container(
+                  width: 48,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _landingCard(
+                  icon: Icons.menu_book_rounded,
+                  title: 'Browse Duas',
+                  subtitle: '~100 authentic duas by category',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    notifier.setActiveTab(DuasTab.browse);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _landingCard(
+                  icon: Icons.travel_explore,
+                  title: 'Find a Dua',
+                  subtitle: 'Describe your need, get authentic duas',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    notifier.setActiveTab(DuasTab.find);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _landingCard(
+                  icon: Icons.auto_awesome,
+                  title: 'Build a Dua',
+                  subtitle: 'AI constructs a personal dua for you',
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    notifier.setActiveTab(DuasTab.build);
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -163,13 +213,28 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-          border: Border.all(color: AppColors.borderLight),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.25)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.primary, size: 28),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5EBD9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.secondary, size: 24),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -185,8 +250,16 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios,
-                size: 16, color: AppColors.textTertiaryLight),
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5EBD9),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_forward_ios,
+                  size: 12, color: AppColors.secondary),
+            ),
           ],
         ),
       ),
@@ -207,23 +280,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 0,
             ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    notifier.setActiveTab(null);
-                  },
-                  child: const Icon(Icons.arrow_back_ios, size: 20),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Browse Duas',
-                  style: AppTypography.headlineLarge
-                      .copyWith(color: AppColors.textPrimaryLight),
-                ),
-              ],
-            ),
+            child: _tabHeader('Browse Duas', notifier),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -247,9 +304,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                             horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppColors.primary
-                              : AppColors.surfaceAltLight,
+                              ? AppColors.secondary
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.secondary
+                                : AppColors.borderLight,
+                          ),
                         ),
                         child: Text(
                           cat[0].toUpperCase() + cat.substring(1),
@@ -292,16 +354,26 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         border: Border.all(color: AppColors.borderLight),
       ),
       child: Stack(
         children: [
+          // Gold book icon top-left
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Icon(
+              Icons.menu_book_rounded,
+              size: 14,
+              color: AppColors.secondary.withValues(alpha: 0.5),
+            ),
+          ),
           Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
-              tilePadding: const EdgeInsets.fromLTRB(16, 8, 48, 0),
+              tilePadding: const EdgeInsets.fromLTRB(36, 8, 48, 0),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +390,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 ],
               ),
               children: [
-                const Divider(),
+                Divider(color: AppColors.secondary.withValues(alpha: 0.15)),
                 const SizedBox(height: 8),
                 Text(
                   dua.transliteration,
@@ -495,13 +567,25 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       decoration: BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.secondary.withValues(alpha: 0.6),
+            width: 2,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            name.name,
-            style: AppTypography.labelLarge.copyWith(color: Colors.white),
+          Row(
+            children: [
+              const Icon(Icons.star_rounded, color: AppColors.secondary, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                name.name,
+                style: AppTypography.labelLarge.copyWith(color: Colors.white),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -528,51 +612,65 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         border: Border.all(color: AppColors.borderLight),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text(dua.title, style: AppTypography.labelLarge),
-              const SizedBox(height: 8),
-              Text(
-                dua.arabic,
-                style: AppTypography.quranArabic,
-                textDirection: TextDirection.rtl,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-            ],
+      child: Stack(
+        children: [
+          // Gold crescent icon top-left
+          Positioned(
+            top: 14,
+            left: 12,
+            child: Icon(
+              Icons.brightness_3,
+              size: 13,
+              color: AppColors.secondary.withValues(alpha: 0.55),
+            ),
           ),
-          children: [
-            const Divider(),
-            const SizedBox(height: 8),
-            Text(
-              dua.transliteration,
-              style: AppTypography.bodyMedium.copyWith(
-                fontStyle: FontStyle.italic,
-                color: AppColors.textSecondaryLight,
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.fromLTRB(34, 0, 16, 0),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Text(dua.title, style: AppTypography.labelLarge),
+                  const SizedBox(height: 8),
+                  Text(
+                    dua.arabic,
+                    style: AppTypography.quranArabic,
+                    textDirection: TextDirection.rtl,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                ],
               ),
+              children: [
+                Divider(color: AppColors.secondary.withValues(alpha: 0.15)),
+                const SizedBox(height: 8),
+                Text(
+                  dua.transliteration,
+                  style: AppTypography.bodyMedium.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(dua.translation, style: AppTypography.bodyMedium),
+                const SizedBox(height: 8),
+                Text(
+                  dua.source,
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textTertiaryLight),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(dua.translation, style: AppTypography.bodyMedium),
-            const SizedBox(height: 8),
-            Text(
-              dua.source,
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.textTertiaryLight),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -607,16 +705,17 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               style: AppTypography.bodyMedium
                   .copyWith(color: AppColors.textSecondaryLight),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+            // Elegant stepped indicator
             Row(
               children: [
-                _stepPreviewPill('Praise'),
-                _stepArrow(),
-                _stepPreviewPill('Salawat'),
-                _stepArrow(),
-                _stepPreviewPill('Ask'),
-                _stepArrow(),
-                _stepPreviewPill('Close'),
+                _elegantStepPill('1', 'Praise'),
+                _goldStepLine(),
+                _elegantStepPill('2', 'Salawat'),
+                _goldStepLine(),
+                _elegantStepPill('3', 'Ask'),
+                _goldStepLine(),
+                _elegantStepPill('4', 'Close'),
               ],
             ),
             const SizedBox(height: 24),
@@ -637,7 +736,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                         HapticFeedback.lightImpact();
                         notifier.submitBuild();
                       },
-                style: _primaryButtonStyle(),
+                style: state.buildNeed.trim().isEmpty
+                    ? _primaryButtonStyle()
+                    : _primaryButtonStyleGold(),
                 child: const Text('Build My Dua'),
               ),
             ),
@@ -651,22 +752,47 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _stepPreviewPill(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceAltLight,
-        borderRadius: BorderRadius.circular(12),
+  Widget _elegantStepPill(String number, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5EBD9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.secondary.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Text(
+              number,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.secondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              fontSize: 10,
+            ),
+          ),
+        ],
       ),
-      child: Text(label, style: AppTypography.bodySmall),
     );
   }
 
-  Widget _stepArrow() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4),
-      child: Icon(Icons.chevron_right,
-          size: 16, color: AppColors.textTertiaryLight),
+  Widget _goldStepLine() {
+    return Container(
+      width: 16,
+      height: 1.5,
+      margin: const EdgeInsets.only(bottom: 16),
+      color: AppColors.secondary.withValues(alpha: 0.35),
     );
   }
 
@@ -694,6 +820,16 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     final section = state.buildResult!.breakdown[state.buildCurrentSection];
     final isLast = state.buildCurrentSection == 3;
 
+    final sectionIcons = [
+      Icons.volunteer_activism,
+      Icons.favorite_rounded,
+      Icons.record_voice_over_rounded,
+      Icons.spa_rounded,
+    ];
+    final sectionIcon = state.buildCurrentSection < sectionIcons.length
+        ? sectionIcons[state.buildCurrentSection]
+        : Icons.auto_awesome;
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.pagePadding),
@@ -703,7 +839,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             const SizedBox(height: 16),
             _tabHeader('Build a Dua', notifier),
             const SizedBox(height: 24),
-            // Progress dots
+            // Gold progress dots
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(4, (i) {
@@ -715,31 +851,71 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: filled
-                        ? AppColors.primary
+                        ? AppColors.secondary
                         : AppColors.borderLight,
                   ),
                 );
               }),
             ),
             const SizedBox(height: 24),
-            Text(
-              section.label,
-              style: AppTypography.labelMedium
-                  .copyWith(color: AppColors.primary),
+            // Section label with gold dot + icon
+            Row(
+              children: [
+                const Text(
+                  '●',
+                  style: TextStyle(
+                    color: AppColors.secondary,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(sectionIcon, color: AppColors.secondary, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  section.label,
+                  style: AppTypography.labelMedium
+                      .copyWith(color: AppColors.secondary),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
+            // Arabic card with gold shimmer border + left accent bar
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
               ),
-              child: Text(
-                section.arabic,
-                style: AppTypography.quranArabic.copyWith(color: Colors.white),
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
+              child: Row(
+                children: [
+                  // Gold left accent bar
+                  Container(
+                    width: 5,
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppSpacing.cardRadius),
+                        bottomLeft: Radius.circular(AppSpacing.cardRadius),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        section.arabic,
+                        style: AppTypography.quranArabic
+                            .copyWith(color: Colors.white),
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -807,16 +983,41 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         child: Column(
           children: [
             const SizedBox(height: 48),
-            Text(
-              '\u0622\u0645\u064a\u0646',
-              style: AppTypography.nameOfAllahDisplay
-                  .copyWith(color: Colors.white, fontSize: 64),
-              textDirection: TextDirection.rtl,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ameen',
-              style: AppTypography.displayLarge.copyWith(color: Colors.white),
+            // Radial gold glow behind آمين
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.18),
+                        AppColors.secondary.withValues(alpha: 0.0),
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    Text(
+                      '\u0622\u0645\u064a\u0646',
+                      style: AppTypography.nameOfAllahDisplay
+                          .copyWith(color: Colors.white, fontSize: 64),
+                      textDirection: TextDirection.rtl,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ameen',
+                      style: AppTypography.displayLarge
+                          .copyWith(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             // Save built dua button
@@ -875,6 +1076,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                           children: [
                             Row(
                               children: [
+                                const Icon(Icons.star_rounded,
+                                    size: 14, color: AppColors.secondary),
+                                const SizedBox(width: 6),
                                 Text(n.name,
                                     style: AppTypography.labelLarge),
                                 const SizedBox(width: 8),
@@ -920,76 +1124,84 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                   const SizedBox(height: 12),
                   ...result.relatedDuas.map((d) => Container(
                         margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.backgroundLight,
+                          color: const Color(0xFFFBF7F2),
                           borderRadius:
                               BorderRadius.circular(AppSpacing.cardRadius),
+                          border: Border(
+                            left: BorderSide(
+                              color: AppColors.secondary,
+                              width: 3,
+                            ),
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    notifier.toggleSaveRelatedDua(d);
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                        right: 12, top: 4),
-                                    child: Icon(
-                                      notifier.isRelatedDuaSaved(d)
-                                          ? Icons.favorite
-                                          : Icons.favorite_outline,
-                                      color: notifier.isRelatedDuaSaved(d)
-                                          ? AppColors.primary
-                                          : AppColors.textTertiaryLight,
-                                      size: 20,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      notifier.toggleSaveRelatedDua(d);
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                          right: 12, top: 4),
+                                      child: Icon(
+                                        notifier.isRelatedDuaSaved(d)
+                                            ? Icons.favorite
+                                            : Icons.favorite_outline,
+                                        color: notifier.isRelatedDuaSaved(d)
+                                            ? AppColors.primary
+                                            : AppColors.textTertiaryLight,
+                                        size: 20,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    d.arabic,
-                                    style: AppTypography.quranArabic
-                                        .copyWith(fontSize: 20),
-                                    textDirection: TextDirection.rtl,
-                                    textAlign: TextAlign.right,
+                                  Expanded(
+                                    child: Text(
+                                      d.arabic,
+                                      style: AppTypography.quranArabic
+                                          .copyWith(fontSize: 20),
+                                      textDirection: TextDirection.rtl,
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  d.transliteration,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textSecondaryLight,
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: Text(
-                                d.transliteration,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  color: AppColors.textSecondaryLight,
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(d.translation,
+                                    style: AppTypography.bodyMedium),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  d.source,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.textTertiaryLight,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              width: double.infinity,
-                              child: Text(d.translation,
-                                  style: AppTypography.bodyMedium),
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              width: double.infinity,
-                              child: Text(
-                                d.source,
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.textTertiaryLight,
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       )),
                 ],
@@ -1035,9 +1247,21 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             HapticFeedback.lightImpact();
             notifier.setActiveTab(null);
           },
-          child: const Icon(Icons.arrow_back_ios, size: 20),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5EBD9),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.secondary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Icon(Icons.arrow_back_ios,
+                size: 16, color: AppColors.secondary),
+          ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         Text(
           title,
           style: AppTypography.headlineLarge
@@ -1050,20 +1274,24 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       filled: true,
-      fillColor: AppColors.surfaceLight,
+      fillColor: Colors.white,
       hintText: hint,
-      hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryLight),
+      hintStyle: AppTypography.bodyMedium
+          .copyWith(color: AppColors.textTertiaryLight),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: AppColors.borderLight),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: AppColors.borderLight),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: AppColors.secondary.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
     );
   }
@@ -1080,39 +1308,57 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     );
   }
 
+  ButtonStyle _primaryButtonStyleGold() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+        side: const BorderSide(color: AppColors.secondary, width: 1.5),
+      ),
+    );
+  }
+
   Widget _rippleWidget() {
     return SizedBox(
       width: 200,
       height: 200,
       child: Stack(
         alignment: Alignment.center,
-        children: List.generate(3, (index) {
-          return AnimatedBuilder(
-            animation: _rippleControllers[index],
-            builder: (context, child) {
-              final value = _rippleControllers[index].value;
-              final scale = 0.3 + (2.2 - 0.3) * value;
-              final opacity = (0.6 - 0.6 * value).clamp(0.0, 1.0);
-              return Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 2,
+        children: [
+          ...List.generate(3, (index) {
+            return AnimatedBuilder(
+              animation: _rippleControllers[index],
+              builder: (context, child) {
+                final value = _rippleControllers[index].value;
+                final scale = 0.3 + (2.2 - 0.3) * value;
+                final opacity = (0.6 - 0.6 * value).clamp(0.0, 1.0);
+                return Transform.scale(
+                  scale: scale,
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.secondary,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          );
-        }),
+                );
+              },
+            );
+          }),
+          const Icon(
+            Icons.auto_awesome,
+            color: AppColors.secondary,
+            size: 28,
+          ),
+        ],
       ),
     );
   }
@@ -1125,7 +1371,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         color: AppColors.errorBackground,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(message, style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
+      child: Text(message,
+          style: AppTypography.bodyMedium
+              .copyWith(color: AppColors.error)),
     );
   }
 }

@@ -526,7 +526,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
     // Completed
     if (state.currentStep == DailyLoopStep.completed) {
-      return _buildCompletedCard(state);
+      return _buildCompletedCard(context, state);
     }
 
     // Quest
@@ -1114,7 +1114,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   // ── Completed ──────────────────────────────────────────────────────────────
 
-  Widget _buildCompletedCard(DailyLoopState state) {
+  Widget _buildCompletedCard(BuildContext context, DailyLoopState state) {
     return _cardShell(
       child: Column(
         children: [
@@ -1199,6 +1199,74 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.go('/reflect');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_stories_rounded,
+                            color: AppColors.primary, size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Reflect More',
+                          style: AppTypography.labelMedium.copyWith(
+                              color: AppColors.primary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.go('/duas');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryLight,
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.favorite_rounded,
+                            color: AppColors.secondary, size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Build a Dua',
+                          style: AppTypography.labelMedium.copyWith(
+                              color: AppColors.secondary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1349,7 +1417,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           nameArabic: state.checkinNameArabic ?? '',
           nameEnglish: state.checkinName ?? '',
           nameEnglishMeaning: engagedCard?.english ?? '',
-          teaching: engagedCard?.lesson ?? state.checkinTeaching ?? '',
+          teaching: engagedCard?.lesson ?? '',
           card: engagedCard,
           engageResult: engageResult,
         ),

@@ -387,7 +387,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                 height: 1.5,
                                 fontSize: 13),
                             textAlign: TextAlign.center,
-                            maxLines: 3,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
                           const SizedBox(height: 20),

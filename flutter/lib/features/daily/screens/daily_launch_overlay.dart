@@ -552,7 +552,7 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
               nameArabic: state.checkinNameArabic ?? '',
               nameEnglish: state.checkinName ?? '',
               nameEnglishMeaning: state.engagedCard?.english ?? '',
-              teaching: state.engagedCard?.lesson ?? state.checkinTeaching ?? '',
+              teaching: state.engagedCard?.lesson ?? '',
               card: state.engagedCard,
               engageResult: state.cardEngageResult,
               onContinue: () {
