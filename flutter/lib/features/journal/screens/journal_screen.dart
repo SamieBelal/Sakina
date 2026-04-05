@@ -111,7 +111,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           children: [
             _buildHeader(totalCount, topName, reflections.length),
             _buildStatsStrip(totalCount, reflections.length, builtDuas.length),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.lg), // Increased: 12→24 for breathing room
             _buildTabs(),
             Expanded(
               child: IndexedStack(
@@ -134,40 +134,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   Widget _buildHeader(int total, String? topName, int reflectionCount) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, 20, AppSpacing.pagePadding, 0),
+          AppSpacing.pagePadding, AppSpacing.pagePadding, AppSpacing.pagePadding, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Journal',
-                        style: AppTypography.headlineLarge
-                            .copyWith(color: AppColors.textPrimaryLight)),
-                    const SizedBox(height: 4),
-                    Text(
-                      total == 0
-                          ? 'Your spiritual diary'
-                          : '$total saved entries',
-                      style: AppTypography.bodyMedium
-                          .copyWith(color: AppColors.textSecondaryLight),
-                    ),
-                  ],
-                ),
-              ),
-              // Arabic watermark icon
+              Text('Journal',
+                  style: AppTypography.displayLarge
+                      .copyWith(color: AppColors.textPrimaryLight)),
+              const SizedBox(height: 4),
               Text(
-                'يَا اللَّه',
-                style: TextStyle(
-                  fontFamily: 'Amiri',
-                  fontSize: 28,
-                  color: AppColors.secondary.withValues(alpha: 0.25),
-                  height: 1,
-                ),
-                textDirection: TextDirection.rtl,
+                total == 0
+                    ? 'Your spiritual diary'
+                    : '$total saved entries',
+                style: AppTypography.bodyMedium
+                    .copyWith(color: AppColors.textSecondaryLight),
               ),
             ],
           ),
@@ -199,7 +182,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg), // Increased: 16→24 for hierarchy
         ],
       ),
     ).animate().fadeIn(duration: 300.ms);
@@ -722,11 +705,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     VoidCallback? onAction,
   }) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      child: Transform.translate(
+        offset: const Offset(0, 40), // Move down for better visual centering
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
             Container(
               width: 72,
               height: 72,
@@ -778,6 +763,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             ],
           ],
         ),
+      ),
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }

@@ -46,15 +46,15 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                   children: [
                     Text(
                       'Collection',
-                      style: AppTypography.displayMedium.copyWith(
+                      style: AppTypography.displayLarge.copyWith(
                         color: AppColors.textPrimaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.lg), // Increased: sm→lg for hierarchy
                     _buildProgressSummary(collection),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg), // Increased: md→lg
                     _buildTierFilters(collection),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.xl), // Increased: lg→xl before grid
                   ],
                 ),
               ),
@@ -64,8 +64,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 16, // Increased for breathing room
+                  crossAxisSpacing: 16, // Increased for breathing room
                   childAspectRatio: 0.72,
                 ),
                 delegate: SliverChildBuilderDelegate(

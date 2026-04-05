@@ -19,7 +19,7 @@ abstract final class AppColors {
   static const textTertiaryLight = Color(0xFF9CA3AF);
   static const textOnPrimary = Color(0xFFFFFFFF);
 
-  static const streakAmber = Color(0xFFF59E0B);
+  static const streakAmber = Color(0xFFE8A154); // Softened: warmer, less neon (was F59E0B)
   static const streakBackground = Color(0xFFFEF3C7);
 
   static const error = Color(0xFFDC2626);

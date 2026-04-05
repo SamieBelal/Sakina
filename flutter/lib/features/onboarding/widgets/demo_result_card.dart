@@ -150,6 +150,13 @@ class DemoResultCard extends StatelessWidget {
             style: AppTypography.nameOfAllahDisplay.copyWith(
               color: AppColors.secondary,
               fontSize: 40,
+              shadows: [
+                Shadow(
+                  offset: const Offset(0, 1),
+                  blurRadius: 2,
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                ),
+              ],
             ),
             textDirection: TextDirection.rtl,
           ),
@@ -179,6 +186,13 @@ class DemoResultCard extends StatelessWidget {
             style: AppTypography.quranArabic.copyWith(
               color: AppColors.textPrimaryLight,
               fontSize: 22,
+              shadows: [
+                Shadow(
+                  offset: const Offset(0, 1),
+                  blurRadius: 2,
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                ),
+              ],
             ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,

@@ -116,7 +116,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 32),
             Text(
               'Reflect',
               style: AppTypography.displayLarge.copyWith(

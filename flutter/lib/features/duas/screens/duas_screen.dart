@@ -110,7 +110,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
             _tabHeader('Build a Dua', notifier),
             const SizedBox(height: 8),
             Text(
@@ -249,7 +248,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
             _tabHeader('Build a Dua', notifier),
             const SizedBox(height: 24),
             // Gold progress dots
@@ -258,9 +256,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               children: List.generate(4, (i) {
                 final filled = i <= state.buildCurrentSection;
                 return Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 14,
+                  height: 14,
+                  margin: const EdgeInsets.symmetric(horizontal: 8), // Increased spacing: 8px → 16px between circles
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: filled

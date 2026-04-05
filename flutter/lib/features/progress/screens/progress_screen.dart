@@ -18,6 +18,7 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/widgets/primary_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressScreen extends ConsumerStatefulWidget {
@@ -100,32 +101,32 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             children: [
               // 1. Top Bar
               _buildTopBar(state),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl for breathing room
 
               // 2. Streak + XP Strip
               _buildStreakXpStrip(state),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
 
               // 3. Daily Practice Card (Hero) — moved above rewards
               _buildDailyPracticeCard(state, notifier),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
 
               // 4. Daily Reward Calendar — collapsed bar when claimed
               _buildRewardCalendar(),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
 
               // 5. Daily Quest Strip
               _DailyQuestStrip(),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
 
               // 6. Today's Name of Allah
               _buildTodaysNameCard(todaysName),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
 
               // 6. Discovery Quiz CTA
               if (_showDiscoveryQuiz) ...[
                 _buildDiscoveryQuizCta(),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
               ],
 
               const SizedBox(height: AppSpacing.xxl),
@@ -581,21 +582,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ── Card Shell ─────────────────────────────────────────────────────────────
 
   Widget _cardShell({required Widget child}) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      child: PrimaryCard(
+        padding: const EdgeInsets.all(28),
+        child: child,
       ),
-      child: child,
     );
   }
 
@@ -1392,47 +1384,75 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildDiscoveryQuizCta() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Discover your anchor Names',
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        GoRouter.of(context).push('/discovery-quiz');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: AppColors.secondaryLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(
+            color: AppColors.secondary.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.auto_awesome,
+                color: AppColors.secondary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Title
+            Text(
+              'Discover Your Anchor Names',
               style: AppTypography.headlineMedium.copyWith(
                 color: AppColors.textPrimaryLight,
               ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              GoRouter.of(context).push('/discovery-quiz');
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
+            const SizedBox(height: 8),
+            // Subtitle
+            Text(
+              'Take a quick quiz to find the Names that speak to your soul',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondaryLight,
               ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            // Button
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
               ),
               child: Text(
-                'Start Quiz',
+                'Take the Quiz',
                 style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textOnPrimary,
+                  color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ).animate().fadeIn(duration: 500.ms, delay: 300.ms);
   }

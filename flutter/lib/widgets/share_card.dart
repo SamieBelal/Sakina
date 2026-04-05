@@ -171,6 +171,13 @@ class _ShareCardWidget extends StatelessWidget {
               style: AppTypography.nameOfAllahDisplay.copyWith(
                 fontSize: arabicSize,
                 color: _gold,
+                shadows: [
+                  Shadow(
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                    color: _gold.withValues(alpha: 0.1),
+                  ),
+                ],
               ),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,
@@ -214,6 +221,13 @@ class _ShareCardWidget extends StatelessWidget {
                 fontSize: duaArabicSize,
                 color: const Color(0xFF1A1A2E),
                 height: 2.0,
+                shadows: [
+                  Shadow(
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                    color: _gold.withValues(alpha: 0.1),
+                  ),
+                ],
               ),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.center,

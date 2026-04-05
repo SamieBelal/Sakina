@@ -198,7 +198,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: AppSpacing.md),
         Text(
           'Guest',
-          style: AppTypography.headlineLarge.copyWith(
+          style: AppTypography.displayLarge.copyWith(
             color: AppColors.textPrimaryLight,
           ),
         ),
@@ -447,7 +447,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSectionLabel(String text) {
     return Text(
       text,
-      style: AppTypography.labelMedium.copyWith(
+      style: AppTypography.bodySmall.copyWith(
         color: AppColors.textSecondaryLight,
         letterSpacing: 0.5,
       ),

@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppTypography {
-  // English display/headings — Outfit ExtraBold/Bold
+  // English display/headings — Outfit Bold
+  // STANDARDIZED: All main screen titles use displayLarge (34pt) for consistency
   static TextStyle displayLarge = GoogleFonts.outfit(
-    fontSize: 32,
-    fontWeight: FontWeight.w800,
+    fontSize: 34,
+    fontWeight: FontWeight.w700,
     height: 1.2,
+    letterSpacing: -0.68, // -0.02em for elegance
   );
 
   static TextStyle displayMedium = GoogleFonts.outfit(
     fontSize: 28,
-    fontWeight: FontWeight.w800,
+    fontWeight: FontWeight.w700,
     height: 1.25,
   );
 
@@ -22,14 +24,14 @@ abstract final class AppTypography {
   );
 
   static TextStyle headlineLarge = GoogleFonts.outfit(
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
+    fontSize: 24,
+    fontWeight: FontWeight.w600,
     height: 1.3,
   );
 
   static TextStyle headlineMedium = GoogleFonts.outfit(
     fontSize: 20,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w600,
     height: 1.3,
   );
 
