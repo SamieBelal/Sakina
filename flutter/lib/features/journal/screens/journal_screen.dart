@@ -100,12 +100,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             _buildHeader(totalCount, topName, reflections.length),
             _buildTabs(),
             Expanded(
-              child: TabBarView(
-                controller: _tab,
+              child: IndexedStack(
+                index: _tab.index,
                 children: [
-                  KeyedSubtree(key: const PageStorageKey('all'), child: _buildAllFeed(allEntries)),
-                  KeyedSubtree(key: const PageStorageKey('reflections'), child: _buildReflectionsTab(reflections)),
-                  KeyedSubtree(key: const PageStorageKey('duas'), child: _buildDuasTab(builtDuas)),
+                  _buildAllFeed(allEntries),
+                  _buildReflectionsTab(reflections),
+                  _buildDuasTab(builtDuas),
                 ],
               ),
             ),
