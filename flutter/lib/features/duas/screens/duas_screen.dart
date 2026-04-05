@@ -517,7 +517,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         children: [
           _rippleWidget(),
           const SizedBox(height: 32),
-          Text('Finding duas...', style: AppTypography.headlineMedium),
+          Text('Searching duas...', style: AppTypography.headlineMedium),
         ],
       ),
     );

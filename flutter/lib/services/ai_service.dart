@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/dua_knowledge.dart';
+import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
 import 'package:sakina/services/validate_names.dart';
 
@@ -527,113 +528,141 @@ class FindDuasResponse {
   const FindDuasResponse({required this.names, required this.duas});
 }
 
-Future<FindDuasResponse> findDuas(String need) async {
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
-    return const FindDuasResponse(
-      names: [
-        FindDuasNameEntry(
-          name: 'Al-Mujeeb',
-          nameArabic: 'الْمُجِيبُ',
-          why: 'The One who responds to every call — call on Him by this Name.',
-        ),
-      ],
-      duas: [
-        FindDuasDuaEntry(
-          title: 'The Dua of Need',
-          arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ',
-          transliteration: "Allahumma inni as'aluk",
-          translation: 'O Allah, I ask You.',
-          source: 'General',
-        ),
-      ],
+/// Search the local browseDuas list for duas matching the user's need.
+/// Uses keyword + emotion tag matching — no AI call needed.
+/// Returns up to 5 best matches sorted by relevance score.
+List<FindDuasDuaEntry> _searchLocalDuas(String need) {
+  final query = need.toLowerCase();
+  final queryWords = query
+      .split(RegExp(r'\s+'))
+      .where((w) => w.length > 2)
+      .toList();
+
+  // Score each dua by how many query words appear in its fields
+  final scored = <(int, BrowseDua)>[];
+  for (final dua in browseDuas) {
+    int score = 0;
+    final searchable = [
+      dua.title,
+      dua.translation,
+      dua.transliteration,
+      dua.category,
+      dua.whenToRecite ?? '',
+      ...(dua.emotionTags ?? []),
+    ].join(' ').toLowerCase();
+
+    for (final word in queryWords) {
+      if (searchable.contains(word)) score += 2;
+    }
+    // Bonus: exact category match
+    if (dua.category == query.trim()) score += 5;
+    // Bonus: emotion tag match
+    for (final tag in (dua.emotionTags ?? [])) {
+      if (query.contains(tag)) score += 3;
+    }
+
+    if (score > 0) scored.add((score, dua));
+  }
+
+  scored.sort((a, b) => b.$1.compareTo(a.$1));
+
+  return scored.take(5).map((pair) {
+    final d = pair.$2;
+    return FindDuasDuaEntry(
+      title: d.title,
+      arabic: d.arabic,
+      transliteration: d.transliteration,
+      translation: d.translation,
+      source: d.source,
     );
-  }
+  }).toList();
+}
 
-  final teachings = getRelevantTeachings(need);
-  final teachingContext = teachings.take(5).map((t) =>
-    '${t.name} (${t.arabic}): ${t.emotionalContext.take(3).join(', ')} — ${t.coreTeaching}\n'
-    'Dua: ${t.dua.arabic} | ${t.dua.transliteration} | ${t.dua.translation} | ${t.dua.source}'
-  ).join('\n\n');
+Future<FindDuasResponse> findDuas(String need) async {
+  // 1. Search local duas — always fast, free, verified
+  final localDuas = _searchLocalDuas(need);
 
-  final canonicalList = buildCanonicalNamesPromptList();
+  // 2. Get Names of Allah via Claude (lightweight call, names only)
+  final names = await _findNamesForNeed(need);
 
-  final response = await _callClaude(
-    model: _followUpModel,
-    systemPrompt: 'You are an Islamic learning tool. A person has described what they want to make dua for. Based on the Names of Allah below, identify the 2-3 most fitting Names to call upon for this need, and provide 3-4 relevant duas they can recite.\n\n'
-        'Available Names and their duas:\n$teachingContext\n\n'
-        'IMPORTANT — Canonical Names of Allah (you MUST only use Names from this list, exact spelling):\n$canonicalList\n\n'
-        'Instructions:\n'
-        '- Choose 2-3 Names most relevant to their need — only from the canonical list above\n'
-        '- For each Name, write one sentence explaining why this Name is appropriate to call upon (specific to their need, not generic)\n'
-        '- Provide 3-4 duas — use the exact duas from the Names above where appropriate, and supplement with authentic Quranic/hadith duas if needed\n'
-        '- All duas must be authentic — from Quran or hadith only\n\n'
-        'Respond with EXACTLY:\n'
-        '##NAMES##\n'
-        'Each name on its own line as: English · Arabic · [one sentence why]\n'
-        '##DUAS##\n'
-        'Each dua as: Title | Arabic | Transliteration | Translation | Source\n'
-        '(one dua per line)',
-    userMessage: need,
-    maxTokens: 800,
-  );
-
-  if (response == null) {
-    return const FindDuasResponse(names: [], duas: []);
-  }
-
-  final text = _extractTextFromResponse(response);
-  if (text == null) {
-    return const FindDuasResponse(names: [], duas: []);
-  }
-
-  // Parse names
-  final namesRaw = _parseSection(text, '##NAMES##') ?? '';
-  final duasMarkerIdx = namesRaw.indexOf('##DUAS##');
-  final namesBlock = duasMarkerIdx != -1 ? namesRaw.substring(0, duasMarkerIdx) : namesRaw;
-  final parsedNameMaps = namesBlock
-      .split('\n')
-      .where((l) => l.trim().isNotEmpty && l.contains('·'))
-      .map((line) {
-        final parts = line.split('·').map((s) => s.trim()).toList();
-        final whyMatch = RegExp(r'\[(.+)\]').firstMatch(parts.length > 2 ? parts[2] : '');
-        return {
-          'name': (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
-          'nameArabic': parts.length > 1 ? parts[1].trim() : '',
-          'why': whyMatch != null ? whyMatch.group(1)! : (parts.length > 2 ? parts[2].trim() : ''),
-        };
-      })
-      .where((n) => (n['name'] as String).isNotEmpty)
-      .toList();
-
-  final validatedNames = filterValidNames(parsedNameMaps);
-  final names = validatedNames
-      .map((m) => FindDuasNameEntry(
-            name: m['name'] as String,
-            nameArabic: m['nameArabic'] as String,
-            why: m['why'] as String? ?? '',
-          ))
-      .toList();
-
-  // Parse duas
-  final duasRaw = _parseSection(text, '##DUAS##') ?? '';
-  final duas = duasRaw
-      .split('\n')
-      .where((l) => l.trim().isNotEmpty && l.contains('|'))
-      .map((line) {
-        final parts = line.split('|').map((s) => s.trim()).toList();
-        return FindDuasDuaEntry(
-          title: (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
-          arabic: parts.length > 1 ? parts[1] : '',
-          transliteration: parts.length > 2 ? parts[2] : '',
-          translation: parts.length > 3 ? parts[3] : '',
-          source: parts.length > 4 ? parts[4] : '',
-        );
-      })
-      .where((d) => d.title.isNotEmpty && d.arabic.isNotEmpty)
-      .toList();
+  // 3. If no local results found, fall back to a general set
+  final duas = localDuas.isNotEmpty
+      ? localDuas
+      : browseDuas.take(3).map((d) => FindDuasDuaEntry(
+            title: d.title,
+            arabic: d.arabic,
+            transliteration: d.transliteration,
+            translation: d.translation,
+            source: d.source,
+          )).toList();
 
   return FindDuasResponse(names: names, duas: duas);
+}
+
+Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
+  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  if (apiKey == null || apiKey.isEmpty) {
+    return const [
+      FindDuasNameEntry(
+        name: 'Al-Mujeeb',
+        nameArabic: 'الْمُجِيبُ',
+        why: 'The One who responds to every call — call on Him by this Name.',
+      ),
+    ];
+  }
+
+  try {
+    final teachings = getRelevantTeachings(need);
+    final teachingContext = teachings.take(5).map((t) =>
+      '${t.name} (${t.arabic}): ${t.emotionalContext.take(3).join(', ')} — ${t.coreTeaching}'
+    ).join('\n');
+
+    final canonicalList = buildCanonicalNamesPromptList();
+
+    final response = await _callClaude(
+      model: _followUpModel,
+      systemPrompt:
+          'You are an Islamic learning tool. A person has described what they want to make dua for. '
+          'Identify the 2-3 most fitting Names of Allah to call upon for this need.\n\n'
+          'Available Names and context:\n$teachingContext\n\n'
+          'IMPORTANT — only use Names from this canonical list (exact spelling):\n$canonicalList\n\n'
+          'Respond with EXACTLY this format (one name per line):\n'
+          'English · Arabic · [one sentence why this Name fits their specific need]',
+      userMessage: need,
+      maxTokens: 300,
+    );
+
+    if (response == null) return [];
+
+    final text = _extractTextFromResponse(response);
+    if (text == null) return [];
+
+    final parsedNameMaps = text
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty && l.contains('·'))
+        .map((line) {
+          final parts = line.split('·').map((s) => s.trim()).toList();
+          final whyMatch = RegExp(r'\[(.+)\]').firstMatch(parts.length > 2 ? parts[2] : '');
+          return {
+            'name': (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
+            'nameArabic': parts.length > 1 ? parts[1].trim() : '',
+            'why': whyMatch != null ? whyMatch.group(1)! : (parts.length > 2 ? parts[2].trim() : ''),
+          };
+        })
+        .where((n) => (n['name'] as String).isNotEmpty)
+        .toList();
+
+    final validatedNames = filterValidNames(parsedNameMaps);
+    return validatedNames
+        .map((m) => FindDuasNameEntry(
+              name: m['name'] as String,
+              nameArabic: m['nameArabic'] as String,
+              why: m['why'] as String? ?? '',
+            ))
+        .toList();
+  } catch (_) {
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
