@@ -131,7 +131,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Journal',
-                        style: AppTypography.displayLarge
+                        style: AppTypography.headlineLarge
                             .copyWith(color: AppColors.textPrimaryLight)),
                     const SizedBox(height: 4),
                     Text(
