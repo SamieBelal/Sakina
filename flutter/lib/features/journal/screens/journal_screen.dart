@@ -6,8 +6,21 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/xp_service.dart';
+
+// ---------------------------------------------------------------------------
+// Stats provider
+// ---------------------------------------------------------------------------
+
+final _journalStatsProvider = FutureProvider<({XpState xp, StreakState streak})>((ref) async {
+  final xp = await getXp();
+  final streak = await getStreak();
+  return (xp: xp, streak: streak);
+});
 
 // ---------------------------------------------------------------------------
 // Entry type for unified feed
@@ -98,6 +111,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(totalCount, topName, reflections.length),
+            _buildStatsStrip(totalCount, reflections.length, builtDuas.length),
+            const SizedBox(height: 12),
             _buildTabs(),
             Expanded(
               child: IndexedStack(
@@ -189,6 +204,165 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ],
       ),
     ).animate().fadeIn(duration: 300.ms);
+  }
+
+  // ── Stats strip ─────────────────────────────────────────────────────────────
+
+  Widget _buildStatsStrip(int total, int reflections, int builtDuas) {
+    final statsAsync = ref.watch(_journalStatsProvider);
+    final tokens = ref.watch(tokenProvider).balance;
+
+    // Compute days active this week from saved reflections
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final reflectionDates = ref.watch(reflectProvider).savedReflections
+        .map((r) => DateTime.parse(r.date))
+        .toSet();
+    final activeDays = List.generate(7, (i) {
+      final day = weekStart.add(Duration(days: i));
+      return reflectionDates.any((d) =>
+          d.year == day.year && d.month == day.month && d.day == day.day);
+    });
+
+    return statsAsync.when(
+      loading: () => const SizedBox(height: 72),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (stats) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row of stat tiles
+            Row(
+              children: [
+                _statTile(
+                  icon: '🔥',
+                  value: '${stats.streak.currentStreak}',
+                  label: 'Day streak',
+                  color: const Color(0xFFF59E0B),
+                  bgColor: const Color(0xFFFEF3C7),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '✨',
+                  value: stats.xp.title,
+                  label: '${stats.xp.totalXp} XP',
+                  color: AppColors.primary,
+                  bgColor: const Color(0xFFE8F5EE),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '🪙',
+                  value: '$tokens',
+                  label: 'Tokens',
+                  color: AppColors.secondary,
+                  bgColor: const Color(0xFFF5EBD9),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '📖',
+                  value: '$total',
+                  label: 'Entries',
+                  color: const Color(0xFF6B4E9B),
+                  bgColor: const Color(0xFFF3EEFF),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Week activity dots
+            Row(
+              children: [
+                ...List.generate(7, (i) {
+                  final labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                  final isToday = i == now.weekday - 1;
+                  final active = activeDays[i];
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: active
+                                ? AppColors.primary
+                                : isToday
+                                    ? AppColors.primary.withValues(alpha: 0.15)
+                                    : const Color(0xFFE5E0D8),
+                            border: isToday
+                                ? Border.all(color: AppColors.primary, width: 1.5)
+                                : null,
+                          ),
+                          child: active
+                              ? const Icon(Icons.check, size: 14, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          labels[i],
+                          style: AppTypography.bodySmall.copyWith(
+                            fontSize: 10,
+                            color: isToday
+                                ? AppColors.primary
+                                : AppColors.textTertiaryLight,
+                            fontWeight: isToday
+                                ? FontWeight.w700
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _statTile({
+    required String icon,
+    required String value,
+    required String label,
+    required Color color,
+    required Color bgColor,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTypography.labelLarge.copyWith(
+                color: color,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              label,
+              style: AppTypography.bodySmall.copyWith(
+                color: color.withValues(alpha: 0.7),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Tabs ────────────────────────────────────────────────────────────────────
