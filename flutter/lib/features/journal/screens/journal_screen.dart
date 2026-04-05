@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -208,14 +207,45 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Stats strip ─────────────────────────────────────────────────────────────
 
+  // Keyword → theme bucket mapping
+  static const _themeBuckets = <String, List<String>>{
+    'Anxiety & Worry': ['anxious', 'anxiety', 'stressed', 'stress', 'worry', 'worried', 'nervous', 'fear', 'scared', 'overwhelmed', 'panic'],
+    'Relationships': ['family', 'friend', 'friends', 'wife', 'husband', 'mother', 'father', 'parents', 'sister', 'brother', 'relationship', 'people', 'nosy', 'marriage'],
+    'Work & Career': ['job', 'work', 'career', 'business', 'money', 'salary', 'boss', 'interview', 'study', 'school', 'exam', 'university'],
+    'Sadness & Grief': ['sad', 'sadness', 'grief', 'loss', 'lost', 'cry', 'crying', 'depressed', 'depression', 'lonely', 'alone', 'hurt'],
+    'Gratitude': ['grateful', 'gratitude', 'thankful', 'blessed', 'blessing', 'alhamdulillah', 'happy', 'joy', 'peace'],
+    'Guidance': ['confused', 'decision', 'istikhara', 'guidance', 'direction', 'know', 'should', 'proceed', 'unsure', 'doubt'],
+  };
+
+  String? _topTheme(List<SavedReflection> reflections) {
+    if (reflections.length < 3) return null;
+    final counts = <String, int>{};
+    for (final r in reflections) {
+      final text = r.userText.toLowerCase();
+      for (final entry in _themeBuckets.entries) {
+        for (final kw in entry.value) {
+          if (text.contains(kw)) {
+            counts[entry.key] = (counts[entry.key] ?? 0) + 1;
+            break;
+          }
+        }
+      }
+    }
+    if (counts.isEmpty) return null;
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
   Widget _buildStatsStrip(int total, int reflections, int builtDuas) {
     final statsAsync = ref.watch(_journalStatsProvider);
-    final tokens = ref.watch(tokenProvider).balance;
+    final savedReflections = ref.watch(reflectProvider).savedReflections;
 
-    // Compute days active this week from saved reflections
+    // Unique Names encountered
+    final uniqueNames = savedReflections.map((r) => r.name).toSet().length;
+
+    // Days active this week
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final reflectionDates = ref.watch(reflectProvider).savedReflections
+    final reflectionDates = savedReflections
         .map((r) => DateTime.parse(r.date))
         .toSet();
     final activeDays = List.generate(7, (i) {
@@ -224,8 +254,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           d.year == day.year && d.month == day.month && d.day == day.day);
     });
 
+    final topTheme = _topTheme(savedReflections);
+
     return statsAsync.when(
-      loading: () => const SizedBox(height: 72),
+      loading: () => const SizedBox(height: 120),
       error: (_, __) => const SizedBox.shrink(),
       data: (stats) => Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -233,91 +265,138 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row of stat tiles
+            // ── 4 stat tiles ──
             Row(
               children: [
                 _statTile(
-                  icon: '🔥',
-                  value: '${stats.streak.currentStreak}',
-                  label: 'Day streak',
-                  color: const Color(0xFFF59E0B),
-                  bgColor: const Color(0xFFFEF3C7),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '✨',
-                  value: stats.xp.title,
-                  label: '${stats.xp.totalXp} XP',
+                  icon: '📖',
+                  value: '$reflections',
+                  label: 'Reflections',
                   color: AppColors.primary,
                   bgColor: const Color(0xFFE8F5EE),
                 ),
                 const SizedBox(width: 10),
                 _statTile(
-                  icon: '🪙',
-                  value: '$tokens',
-                  label: 'Tokens',
+                  icon: '🤲',
+                  value: '$builtDuas',
+                  label: 'Personal duas',
                   color: AppColors.secondary,
                   bgColor: const Color(0xFFF5EBD9),
                 ),
                 const SizedBox(width: 10),
                 _statTile(
-                  icon: '📖',
-                  value: '$total',
-                  label: 'Entries',
+                  icon: '✨',
+                  value: '$uniqueNames',
+                  label: 'Names met',
                   color: const Color(0xFF6B4E9B),
                   bgColor: const Color(0xFFF3EEFF),
                 ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '⭐',
+                  value: '${stats.xp.totalXp}',
+                  label: 'Total XP',
+                  color: const Color(0xFFF59E0B),
+                  bgColor: const Color(0xFFFEF3C7),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            // Week activity dots
-            Row(
-              children: [
-                ...List.generate(7, (i) {
-                  final labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                  final isToday = i == now.weekday - 1;
-                  final active = activeDays[i];
-                  return Expanded(
-                    child: Column(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: active
-                                ? AppColors.primary
-                                : isToday
-                                    ? AppColors.primary.withValues(alpha: 0.15)
-                                    : const Color(0xFFE5E0D8),
-                            border: isToday
-                                ? Border.all(color: AppColors.primary, width: 1.5)
-                                : null,
-                          ),
-                          child: active
-                              ? const Icon(Icons.check, size: 14, color: Colors.white)
-                              : null,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          labels[i],
-                          style: AppTypography.bodySmall.copyWith(
-                            fontSize: 10,
-                            color: isToday
-                                ? AppColors.primary
-                                : AppColors.textTertiaryLight,
-                            fontWeight: isToday
-                                ? FontWeight.w700
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ],
+            const SizedBox(height: 14),
+
+            // ── Week activity dots ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'This week',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
-                  );
-                }),
-              ],
+                  ),
+                  const SizedBox(width: 12),
+                  ...List.generate(7, (i) {
+                    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    final isToday = i == now.weekday - 1;
+                    final active = activeDays[i];
+                    return Expanded(
+                      child: Column(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: active
+                                  ? AppColors.primary
+                                  : isToday
+                                      ? AppColors.primary.withValues(alpha: 0.12)
+                                      : const Color(0xFFF0EBE3),
+                              border: isToday && !active
+                                  ? Border.all(color: AppColors.primary, width: 1.5)
+                                  : null,
+                            ),
+                            child: active
+                                ? const Icon(Icons.check, size: 13, color: Colors.white)
+                                : Center(
+                                    child: Text(
+                                      dayLabels[i],
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: isToday
+                                            ? AppColors.primary
+                                            : AppColors.textTertiaryLight,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
             ),
+
+            // ── Theme insight card (3+ reflections) ──
+            if (topTheme != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5EBD9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome,
+                        color: AppColors.secondary, size: 16),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You often bring $topTheme to Allah',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
