@@ -103,9 +103,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
               child: TabBarView(
                 controller: _tab,
                 children: [
-                  _buildAllFeed(allEntries),
-                  _buildReflectionsTab(reflections),
-                  _buildDuasTab(builtDuas),
+                  KeyedSubtree(key: const PageStorageKey('all'), child: _buildAllFeed(allEntries)),
+                  KeyedSubtree(key: const PageStorageKey('reflections'), child: _buildReflectionsTab(reflections)),
+                  KeyedSubtree(key: const PageStorageKey('duas'), child: _buildDuasTab(builtDuas)),
                 ],
               ),
             ),
@@ -299,7 +299,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   Widget _buildReflectionCard(SavedReflection r) {
     final date = DateTime.parse(r.date);
     return _ExpandableCard(
-      key: ValueKey('ref_${r.id}'),
       topLeft: _typeChip('Reflection', AppColors.primary),
       topRight: _dateLabel(date),
       summary: Column(
@@ -395,7 +394,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   Widget _buildBuiltDuaCard(SavedBuiltDua d) {
     final date = DateTime.parse(d.savedAt);
     return _ExpandableCard(
-      key: ValueKey('built_${d.id}'),
       topLeft: _typeChip('Personal Dua', AppColors.secondary),
       topRight: _dateLabel(date),
       summary: Column(
@@ -590,7 +588,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
 class _ExpandableCard extends StatefulWidget {
   const _ExpandableCard({
-    super.key,
     required this.topLeft,
     required this.topRight,
     required this.summary,
