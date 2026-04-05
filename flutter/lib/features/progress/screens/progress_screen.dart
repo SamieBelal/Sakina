@@ -7,10 +7,14 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
+import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,11 +30,31 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _showDiscoveryQuiz = true;
   bool _revealDone = false;
   bool _wasLoading = false;
+  bool _rewardCalendarExpanded = false;
+
 
   @override
   void initState() {
     super.initState();
     _checkDiscoveryQuiz();
+    _maybeShowDailyLaunch();
+  }
+
+  Future<void> _maybeShowDailyLaunch() async {
+    final should = await shouldShowDailyLaunch();
+    if (!should || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).push(
+        PageRouteBuilder(
+          opaque: true,
+          pageBuilder: (_, __, ___) => const DailyLaunchOverlay(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+    });
   }
 
   Future<void> _checkDiscoveryQuiz() async {
@@ -81,19 +105,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               _buildStreakXpStrip(state),
               const SizedBox(height: AppSpacing.lg),
 
-              // 2.5. Daily Reward Calendar
-              _buildRewardCalendar(),
-              const SizedBox(height: AppSpacing.lg),
-
-              // 3. Daily Practice Card (Hero)
+              // 3. Daily Practice Card (Hero) — moved above rewards
               _buildDailyPracticeCard(state, notifier),
               const SizedBox(height: AppSpacing.lg),
 
-              // 4. Today's Name of Allah
+              // 4. Daily Reward Calendar — collapsed bar when claimed
+              _buildRewardCalendar(),
+              const SizedBox(height: AppSpacing.lg),
+
+              // 5. Today's Name of Allah
               _buildTodaysNameCard(todaysName),
               const SizedBox(height: AppSpacing.lg),
 
-              // 5. Discovery Quiz CTA
+              // 6. Discovery Quiz CTA
               if (_showDiscoveryQuiz) ...[
                 _buildDiscoveryQuizCta(),
                 const SizedBox(height: AppSpacing.lg),
@@ -235,111 +259,169 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildRewardCalendar() {
     final rewards = ref.watch(dailyRewardsProvider);
+    final claimed = rewards.claimedToday;
 
-    return _cardShell(
-      child: Column(
-        children: [
-          // Header
-          Row(
+    // When claimed: show a slim collapsed bar, tap to expand full calendar
+    if (claimed && !_rewardCalendarExpanded) {
+      final nextDay = rewards.currentDay < 7 ? rewards.currentDay + 1 : null;
+      final nextReward = nextDay != null ? rewardSchedule[nextDay - 1] : null;
+
+      return GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          setState(() => _rewardCalendarExpanded = true);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
             children: [
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'Daily Rewards',
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryLight,
+                'Day ${rewards.currentDay}/7 claimed',
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Day ${rewards.claimedToday ? rewards.currentDay : rewards.nextClaimDay}/7',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
+              if (nextReward != null)
+                Text(
+                  'Tomorrow: ${nextReward.label}',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiaryLight,
                   ),
                 ),
-              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textTertiaryLight, size: 18),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+        ),
+      ).animate().fadeIn(duration: 400.ms, delay: 100.ms);
+    }
 
-          // 7-day circles
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final day = i + 1;
-              final reward = rewardSchedule[i];
-              final isClaimed = day <= rewards.currentDay && rewards.claimedToday
-                  ? true
-                  : day < rewards.currentDay;
-              final isCurrent = !rewards.claimedToday && day == rewards.nextClaimDay;
-              final isSpecial = reward.type != RewardType.tokens;
-
-              return _buildRewardDay(
-                day: day,
-                reward: reward,
-                claimed: isClaimed || (day == rewards.currentDay && rewards.claimedToday),
-                current: isCurrent,
-                special: isSpecial,
-              );
-            }),
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Bottom text
-          if (rewards.claimedToday && rewards.currentDay < 7)
-            Text(
-              'Come back tomorrow for ${rewardSchedule[rewards.currentDay].label}',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textTertiaryLight,
-              ),
-              textAlign: TextAlign.center,
-            )
-          else if (rewards.claimedToday && rewards.currentDay == 7)
-            Text(
-              'Cycle complete! Resets tomorrow.',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            )
-          else
-            Text(
-              'Check in to claim today\'s reward',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-          // Streak freeze indicator
-          if (rewards.streakFreezeOwned) ...[
-            const SizedBox(height: AppSpacing.sm),
+    // Full calendar (unclaimed or manually expanded)
+    return GestureDetector(
+      onTap: claimed
+          ? () {
+              HapticFeedback.lightImpact();
+              setState(() => _rewardCalendarExpanded = false);
+            }
+          : null,
+      child: _cardShell(
+        child: Column(
+          children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.ac_unit, color: Color(0xFF60A5FA), size: 14),
-                const SizedBox(width: 4),
                 Text(
-                  'Streak Freeze active',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: const Color(0xFF60A5FA),
+                  'Daily Rewards',
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
                   ),
                 ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Day ${claimed ? rewards.currentDay : rewards.nextClaimDay}/7',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (claimed) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.keyboard_arrow_up_rounded,
+                      color: AppColors.textTertiaryLight, size: 18),
+                ],
               ],
             ),
+            const SizedBox(height: AppSpacing.lg),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (i) {
+                final day = i + 1;
+                final reward = rewardSchedule[i];
+                final isClaimed = day <= rewards.currentDay && claimed
+                    ? true
+                    : day < rewards.currentDay;
+                final isCurrent =
+                    !claimed && day == rewards.nextClaimDay;
+                final isSpecial = reward.type != RewardType.tokens;
+
+                return _buildRewardDay(
+                  day: day,
+                  reward: reward,
+                  claimed: isClaimed ||
+                      (day == rewards.currentDay && claimed),
+                  current: isCurrent,
+                  special: isSpecial,
+                );
+              }),
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            if (claimed && rewards.currentDay < 7)
+              Text(
+                'Come back tomorrow for ${rewardSchedule[rewards.currentDay].label}',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
+                textAlign: TextAlign.center,
+              )
+            else if (claimed && rewards.currentDay == 7)
+              Text(
+                'Cycle complete! Resets tomorrow.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              )
+            else
+              Text(
+                'Check in to claim today\'s reward',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+            if (rewards.streakFreezeOwned) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.ac_unit,
+                      color: Color(0xFF60A5FA), size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Streak Freeze active',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: const Color(0xFF60A5FA),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    )
-        .animate()
-        .fadeIn(duration: 400.ms, delay: 100.ms)
-        .slideY(begin: 0.05, end: 0);
+    ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.05, end: 0);
   }
 
   Widget _buildRewardDay({
@@ -515,55 +597,107 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ── Not Started ────────────────────────────────────────────────────────────
 
   Widget _buildCheckinCard(DailyLoopState state, DailyLoopNotifier notifier) {
-    final question = state.todaysQuestion;
-    if (question == null) return const SizedBox.shrink();
+    final idx = state.checkinQuestionIndex;
+    final answers = state.checkinAnswers;
+    final CheckInQuestion question = switch (idx) {
+      0 => q1,
+      1 => getQ2(answers.isNotEmpty ? answers[0] : ''),
+      2 => getQ3(
+          answers.isNotEmpty ? answers[0] : '',
+          answers.length > 1 ? answers[1] : '',
+        ),
+      _ => q4,
+    };
 
     return _cardShell(
       child: Column(
         children: [
-          _buildProgressRing(0),
+          // 4-dot progress indicator
+          _buildCheckinProgress(idx),
           const SizedBox(height: AppSpacing.lg),
-          // Arabic calligraphy — hero element
-          Text(
-            'محاسبة',
-            style: AppTypography.nameOfAllahDisplay.copyWith(
-              color: AppColors.secondary,
-              fontSize: 40,
+          // Calligraphy header only on Q1
+          if (idx == 0) ...[
+            Text(
+              'محاسبة',
+              style: AppTypography.nameOfAllahDisplay.copyWith(
+                color: AppColors.secondary,
+                fontSize: 40,
+              ),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
             ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'MUḤĀSABAH',
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textTertiaryLight,
-              letterSpacing: 3,
-              fontSize: 11,
+            const SizedBox(height: 4),
+            Text(
+              'MUḤĀSABAH',
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.textTertiaryLight,
+                letterSpacing: 3,
+                fontSize: 11,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          const Divider(color: AppColors.dividerLight, indent: 40, endIndent: 40),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            question.question,
-            style: AppTypography.headlineMedium.copyWith(
-              color: AppColors.textPrimaryLight,
+            const SizedBox(height: AppSpacing.lg),
+            const Divider(color: AppColors.dividerLight, indent: 40, endIndent: 40),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.05, 0),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                child: child,
+              ),
             ),
-            textAlign: TextAlign.center,
+            child: Column(
+              key: ValueKey(idx),
+              children: [
+                Text(
+                  question.question,
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                ...question.options.map((option) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _buildOptionButton(option, notifier),
+                    )),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          ...question.options.map((option) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _buildOptionButton(option, notifier),
-              )),
         ],
       ),
     )
         .animate()
         .fadeIn(duration: 500.ms, delay: 100.ms)
         .slideY(begin: 0.08, end: 0);
+  }
+
+  Widget _buildCheckinProgress(int currentIndex) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(4, (i) {
+        final filled = i <= currentIndex;
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? AppColors.primary : Colors.transparent,
+            border: Border.all(
+              color: filled ? AppColors.primary : AppColors.borderLight,
+              width: 1.5,
+            ),
+          ),
+        );
+      }),
+    );
   }
 
   Widget _buildOptionButton(String text, DailyLoopNotifier notifier) {
@@ -681,46 +815,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // Teaching
+          // Teaching — clamped so Go Deeper stays visible
           if (state.checkinTeaching != null)
             Text(
               state.checkinTeaching!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondaryLight,
               ),
             ),
           const SizedBox(height: AppSpacing.lg),
-
-          // Dua section
-          if (state.checkinDuaArabic != null) ...[
-            Text(
-              state.checkinDuaArabic!,
-              style: AppTypography.quranArabic.copyWith(
-                color: AppColors.secondary,
-                fontSize: 22,
-              ),
-              textDirection: TextDirection.rtl,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          if (state.checkinDuaTransliteration != null) ...[
-            Text(
-              state.checkinDuaTransliteration!,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-          ],
-          if (state.checkinDuaTranslation != null)
-            Text(
-              state.checkinDuaTranslation!,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-          const SizedBox(height: AppSpacing.xl),
 
           // Go Deeper button
           GestureDetector(
@@ -775,6 +880,30 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final result = state.reflectResult!;
     final step = state.reflectStep;
 
+    // Each step: scrollable text block + pinned action button below
+    final (Widget content, String buttonLabel, VoidCallback onButton) = switch (step) {
+      0 => (
+          _deeperNameContent(result),
+          'See Reflection',
+          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+        ),
+      1 => (
+          _deeperTextContent(result.reframe),
+          'Read the Story',
+          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+        ),
+      2 => (
+          _deeperTextContent(result.story),
+          'See the Dua',
+          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+        ),
+      _ => (
+          _deeperDuaContent(result),
+          'Continue to Quest',
+          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+        ),
+    };
+
     return _cardShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,118 +911,73 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           Center(child: _buildProgressRing(2)),
           const SizedBox(height: AppSpacing.lg),
 
-          if (step == 0) _buildDeeperStepName(result, notifier),
-          if (step == 1) _buildDeeperStepReflection(result, notifier),
-          if (step == 2) _buildDeeperStepStory(result, notifier),
-          if (step == 3) _buildDeeperStepDua(result, notifier),
+          // Scrollable content — max 280px so button always shows
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 280),
+            child: SingleChildScrollView(
+              child: content,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          _buildActionButton(buttonLabel, onButton),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms);
   }
 
-  Widget _buildDeeperStepName(
-    ReflectResponse result,
-    DailyLoopNotifier notifier,
-  ) {
+  Widget _deeperNameContent(ReflectResponse result) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      ),
+      child: Column(
+        children: [
+          Text(
+            result.nameArabic,
+            style: AppTypography.nameOfAllahDisplay.copyWith(
+              color: AppColors.primary,
+              fontSize: 40,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            result.name,
+            style: AppTypography.headlineMedium.copyWith(color: AppColors.primary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deeperTextContent(String text) {
+    return Text(
+      text,
+      style: AppTypography.bodyMedium.copyWith(
+        color: AppColors.textSecondaryLight,
+        height: 1.7,
+      ),
+    );
+  }
+
+  Widget _deeperDuaContent(ReflectResponse result) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        SizedBox(
           width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          child: Text(
+            result.duaArabic,
+            style: AppTypography.quranArabic.copyWith(color: AppColors.secondary),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
           ),
-          child: Column(
-            children: [
-              Text(
-                result.nameArabic,
-                style: AppTypography.nameOfAllahDisplay.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 40,
-                ),
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                result.name,
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.primary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _buildActionButton('See Reflection', () {
-          HapticFeedback.lightImpact();
-          notifier.advanceReflectStep();
-        }),
-      ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
-  }
-
-  Widget _buildDeeperStepReflection(
-    ReflectResponse result,
-    DailyLoopNotifier notifier,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          result.reframe,
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondaryLight,
-            height: 1.7,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        _buildActionButton('Read the Story', () {
-          HapticFeedback.lightImpact();
-          notifier.advanceReflectStep();
-        }),
-      ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
-  }
-
-  Widget _buildDeeperStepStory(
-    ReflectResponse result,
-    DailyLoopNotifier notifier,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          result.story,
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondaryLight,
-            height: 1.7,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        _buildActionButton('See the Dua', () {
-          HapticFeedback.lightImpact();
-          notifier.advanceReflectStep();
-        }),
-      ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
-  }
-
-  Widget _buildDeeperStepDua(
-    ReflectResponse result,
-    DailyLoopNotifier notifier,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          result.duaArabic,
-          style: AppTypography.quranArabic.copyWith(
-            color: AppColors.secondary,
-          ),
-          textDirection: TextDirection.rtl,
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -906,24 +990,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         const SizedBox(height: AppSpacing.sm),
         Text(
           result.duaTranslation,
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondaryLight,
-          ),
+          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           result.duaSource,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textTertiaryLight,
-          ),
+          style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
         ),
-        const SizedBox(height: AppSpacing.xl),
-        _buildActionButton('Continue to Quest', () {
-          HapticFeedback.lightImpact();
-          notifier.advanceReflectStep();
-        }),
       ],
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
+    );
   }
 
   // ── Quest ──────────────────────────────────────────────────────────────────
@@ -961,12 +1036,16 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  dua.arabic,
-                  style: AppTypography.quranArabic.copyWith(
-                    color: AppColors.secondary,
+                SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    dua.arabic,
+                    style: AppTypography.quranArabic.copyWith(
+                      color: AppColors.secondary,
+                    ),
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
                   ),
-                  textDirection: TextDirection.rtl,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
@@ -1266,7 +1345,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: false,
-        pageBuilder: (_, __, ___) => _NameRevealOverlay(
+        pageBuilder: (_, __, ___) => NameRevealOverlay(
           nameArabic: state.checkinNameArabic ?? '',
           nameEnglish: state.checkinName ?? '',
           nameEnglishMeaning: engagedCard?.english ?? '',
@@ -1381,331 +1460,4 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Full-Screen Name Reveal Overlay — V1 "Orb → Burst → Calligraphy"
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _NameRevealOverlay extends StatefulWidget {
-  const _NameRevealOverlay({
-    required this.nameArabic,
-    required this.nameEnglish,
-    required this.nameEnglishMeaning,
-    required this.teaching,
-    this.card,
-    this.engageResult,
-  });
-
-  final String nameArabic;
-  final String nameEnglish;
-  final String nameEnglishMeaning;
-  final String teaching;
-  final CollectibleName? card;
-  final CardEngageResult? engageResult;
-
-  @override
-  State<_NameRevealOverlay> createState() => _NameRevealOverlayState();
-}
-
-class _NameRevealOverlayState extends State<_NameRevealOverlay>
-    with TickerProviderStateMixin {
-  int _phase = 0; // 0=orb, 1=burst, 2=name, 3=details
-
-  @override
-  void initState() {
-    super.initState();
-    _runSequence();
-  }
-
-  Future<void> _runSequence() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() => _phase = 1);
-
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    setState(() => _phase = 2);
-
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-    HapticFeedback.lightImpact();
-    setState(() => _phase = 3);
-  }
-
-  Color get _tierColor => widget.engageResult != null
-      ? Color(widget.engageResult!.tier.colorValue)
-      : AppColors.secondary;
-
-  String get _tierLabel => widget.engageResult?.tier.label ?? '';
-  bool get _isNewCard => widget.engageResult?.isNew ?? false;
-  bool get _isTierUp => widget.engageResult != null && !widget.engageResult!.isNew && widget.engageResult!.tierChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: GestureDetector(
-        onTap: _phase >= 3 ? () => Navigator.of(context).pop() : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: _phase >= 1
-                  ? [
-                      const Color(0xFF0A0A12),
-                      Color.lerp(const Color(0xFF0A0A12), _tierColor, 0.15)!,
-                      const Color(0xFF0A0A12),
-                    ]
-                  : [
-                      const Color(0xFF0A0A12),
-                      const Color(0xFF0A0A12),
-                      const Color(0xFF0A0A12),
-                    ],
-            ),
-          ),
-          child: SafeArea(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // ── Background glow ──
-                if (_phase >= 1)
-                  Positioned.fill(
-                    child: Center(
-                      child: Container(
-                        width: 350,
-                        height: 350,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              _tierColor.withValues(alpha: 0.2),
-                              _tierColor.withValues(alpha: 0.05),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(begin: 0.0, end: 1.0, duration: 600.ms, curve: Curves.easeOut)
-                          .then()
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scaleXY(begin: 1.0, end: 1.15, duration: 2000.ms),
-                    ),
-                  ),
-
-                // ── Radiating rings (phase 1) ──
-                if (_phase == 1)
-                  ...List.generate(4, (i) {
-                    return Center(
-                      child: Container(
-                        width: 100 + (i * 60),
-                        height: 100 + (i * 60),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _tierColor.withValues(alpha: 0.4 - (i * 0.08)),
-                            width: 2,
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(begin: 0.3, end: 1.5, duration: 800.ms, delay: (i * 80).ms, curve: Curves.easeOut)
-                          .fadeOut(duration: 800.ms, delay: (i * 80).ms),
-                    );
-                  }),
-
-                // ── Phase 0: Pulsing orb ──
-                if (_phase == 0)
-                  Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ...List.generate(3, (i) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _tierColor.withValues(alpha: 0.3), width: 1.5),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat())
-                              .scaleXY(begin: 0.5, end: 2.0, duration: 1500.ms, delay: (i * 300).ms)
-                              .fadeOut(duration: 1500.ms, delay: (i * 300).ms);
-                        }),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [Colors.white, _tierColor.withValues(alpha: 0.9), _tierColor.withValues(alpha: 0.0)],
-                            ),
-                            boxShadow: [BoxShadow(color: _tierColor.withValues(alpha: 0.6), blurRadius: 40, spreadRadius: 15)],
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat(reverse: true))
-                            .scaleXY(begin: 0.8, end: 1.3, duration: 800.ms),
-                      ],
-                    ),
-                  ),
-
-                // ── Phase 2+: Arabic Name ──
-                if (_phase >= 2)
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.25,
-                    left: 24,
-                    right: 24,
-                    child: Column(
-                      children: [
-                        if (_tierLabel.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _tierColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: _tierColor.withValues(alpha: 0.4)),
-                            ),
-                            child: Text(
-                              _tierLabel.toUpperCase(),
-                              style: AppTypography.labelSmall.copyWith(
-                                color: _tierColor, fontWeight: FontWeight.w700, letterSpacing: 3, fontSize: 11,
-                              ),
-                            ),
-                          )
-                              .animate()
-                              .fadeIn(duration: 400.ms)
-                              .slideY(begin: -0.5, end: 0, duration: 400.ms),
-                        const SizedBox(height: 24),
-                        Text(
-                          widget.nameArabic,
-                          style: AppTypography.nameOfAllahDisplay.copyWith(
-                            fontSize: 80,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(color: _tierColor.withValues(alpha: 0.6), blurRadius: 30),
-                              Shadow(color: _tierColor.withValues(alpha: 0.3), blurRadius: 60),
-                            ],
-                          ),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                        )
-                            .animate()
-                            .fadeIn(duration: 800.ms)
-                            .scaleXY(begin: 0.3, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.nameEnglish,
-                          style: AppTypography.headlineLarge.copyWith(color: Colors.white.withValues(alpha: 0.9), fontSize: 24),
-                          textAlign: TextAlign.center,
-                        )
-                            .animate()
-                            .fadeIn(delay: 300.ms, duration: 500.ms)
-                            .slideY(begin: 0.3, end: 0, delay: 300.ms, duration: 500.ms),
-                        const SizedBox(height: 6),
-                        if (widget.nameEnglishMeaning.isNotEmpty)
-                          Text(
-                            widget.nameEnglishMeaning,
-                            style: AppTypography.bodyLarge.copyWith(color: _tierColor.withValues(alpha: 0.8)),
-                            textAlign: TextAlign.center,
-                          ).animate().fadeIn(delay: 500.ms, duration: 500.ms),
-                      ],
-                    ),
-                  ),
-
-                // ── Phase 3: Details + continue ──
-                if (_phase >= 3)
-                  Positioned(
-                    bottom: 40,
-                    left: 32,
-                    right: 32,
-                    child: Column(
-                      children: [
-                        if (_isNewCard || _isTierUp)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.auto_awesome, color: _tierColor, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isNewCard
-                                    ? 'NEW CARD'
-                                    : _tierLabel == 'Gold'
-                                        ? 'FULLY EVOLVED'
-                                        : 'TIER ${widget.engageResult?.newTier ?? 2} UNLOCKED',
-                                style: AppTypography.labelMedium.copyWith(
-                                  color: _tierColor, fontWeight: FontWeight.w700, letterSpacing: 2,
-                                ),
-                              ),
-                            ],
-                          )
-                              .animate()
-                              .fadeIn(duration: 400.ms)
-                              .shimmer(delay: 200.ms, duration: 1500.ms, color: _tierColor.withValues(alpha: 0.3)),
-                        const SizedBox(height: 24),
-                        Text(
-                          widget.teaching,
-                          style: AppTypography.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.7), height: 1.6),
-                          textAlign: TextAlign.center,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
-                        const SizedBox(height: 32),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.of(context).pop();
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                            ),
-                            child: Text(
-                              'Continue',
-                              style: AppTypography.labelLarge.copyWith(color: Colors.white.withValues(alpha: 0.9)),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
-                      ],
-                    ),
-                  ),
-
-                // ── Floating particles (phase 2+) ──
-                if (_phase >= 2)
-                  ...List.generate(12, (i) {
-                    final isLeft = i % 2 == 0;
-                    final startX = isLeft ? -0.5 : 0.5;
-                    return Positioned(
-                      top: 100 + (i * 50.0),
-                      left: isLeft ? 20 + (i * 15.0) : null,
-                      right: isLeft ? null : 20 + (i * 12.0),
-                      child: Container(
-                        width: 4 + (i % 3) * 2.0,
-                        height: 4 + (i % 3) * 2.0,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _tierColor.withValues(alpha: 0.6 - (i * 0.04)),
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(delay: (i * 100).ms, duration: 400.ms)
-                          .slideY(begin: 0.5, end: -2.0, delay: (i * 100).ms, duration: 2500.ms)
-                          .slideX(begin: startX, end: 0, delay: (i * 100).ms, duration: 2500.ms)
-                          .fadeOut(delay: (1500 + i * 100).ms, duration: 800.ms),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// (NameRevealOverlay lives in features/daily/widgets/name_reveal_overlay.dart)

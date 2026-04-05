@@ -7,6 +7,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/widgets/share_card.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -291,12 +292,14 @@ class _CardDetailSheet extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(28),
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       decoration: BoxDecoration(
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle
@@ -406,8 +409,40 @@ class _CardDetailSheet extends StatelessWidget {
             ),
           ],
 
+          // Share button
+          if (card.hasTier3Content) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  shareReflectionCard(
+                    context: context,
+                    nameArabic: card.arabic,
+                    nameEnglish: '${card.transliteration} — ${card.english}',
+                    duaArabic: card.duaArabic,
+                    duaTransliteration: card.duaTransliteration,
+                    duaTranslation: card.duaTranslation,
+                    duaSource: '',
+                    story: card.lesson,
+                  );
+                },
+                icon: const Icon(Icons.share_outlined, size: 18),
+                label: const Text('Share this Name'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+
           const SizedBox(height: AppSpacing.lg),
         ],
+      ),
       ),
     ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0, duration: 300.ms);
   }

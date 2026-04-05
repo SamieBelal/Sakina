@@ -104,13 +104,20 @@ String buildSystemPrompt({
   List<String>? anchorNames,
   List<ReflectContextEntry>? recentEntries,
   String? teachingContext,
+  String? forceName,
 }) {
   final avoidClause = (avoidNames != null && avoidNames.isNotEmpty)
       ? '\n\nIMPORTANT: The user has recently been shown these Names: ${avoidNames.join(", ")}. '
           'Do NOT repeat any of them. Pick a DIFFERENT Name that still fits their feeling.'
       : '';
 
-  final anchorClause = (anchorNames != null && anchorNames.isNotEmpty)
+  final forceClause = forceName != null
+      ? '\n\nCRITICAL: You MUST use "$forceName" as the Name of Allah in your response. '
+          'Do not pick a different Name. The user was already shown this Name — now write the '
+          'reframe, story, and dua specifically for "$forceName".'
+      : '';
+
+  final anchorClause = (anchorNames != null && anchorNames.isNotEmpty && forceName == null)
       ? '\n\nThe user has marked these Names as personal anchors: ${anchorNames.join(", ")}. '
           'When relevant, prefer returning one of these anchor Names — but only if it genuinely '
           'fits the feeling. Do not force an anchor Name when a different Name is clearly more appropriate.'
@@ -135,7 +142,7 @@ String buildSystemPrompt({
 ## Canonical Names of Allah
 You MUST pick from this exact list. Do NOT invent or modify Names.
 $canonicalList
-$avoidClause$anchorClause$historyClause$teachingClause
+$avoidClause$forceClause$anchorClause$historyClause$teachingClause
 
 ## Response Format
 Respond with EXACTLY these markers, each on its own line, followed by the content:
@@ -390,6 +397,7 @@ Example:
 Future<ReflectResponse> reflectWithClaude(
   String userText, {
   ReflectContext? context,
+  String? forceName,
 }) async {
   // Off-topic detection
   if (isOffTopic(userText)) {
@@ -423,6 +431,7 @@ Future<ReflectResponse> reflectWithClaude(
     anchorNames: context?.anchorNames,
     recentEntries: context?.recentEntries,
     teachingContext: teachingContext,
+    forceName: forceName,
   );
 
   final response = await _callClaude(
@@ -931,7 +940,14 @@ class DailyReflectResponse {
   });
 }
 
-Future<DailyReflectResponse> getDailyResponse(String question, String answer) async {
+/// [answers] — list of 4 answers: [q1, q2, q3, q4]
+/// [historyContext] — optional string from buildHistoryContext(), may be empty
+/// [recentNames] — names shown in the last N sessions to avoid repeating
+Future<DailyReflectResponse> getDailyResponse(
+  List<String> answers, {
+  String historyContext = '',
+  List<String> recentNames = const [],
+}) async {
   final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
     return const DailyReflectResponse(
@@ -950,7 +966,8 @@ Future<DailyReflectResponse> getDailyResponse(String question, String answer) as
     );
   }
 
-  final teachings = getRelevantTeachings('$question $answer');
+  final combined = answers.join(' ');
+  final teachings = getRelevantTeachings(combined);
   final teachingContext = teachings
       .take(4)
       .map((t) =>
@@ -963,21 +980,43 @@ Future<DailyReflectResponse> getDailyResponse(String question, String answer) as
 
   final dailyCanonicalList = buildCanonicalNamesPromptList();
 
+  final avoidClause = recentNames.isNotEmpty
+      ? 'IMPORTANT — Do NOT return any of these Names shown recently: ${recentNames.join(", ")}. '
+        'The user needs variety. Pick a genuinely different Name that still fits their answers.\n\n'
+      : '';
+
+  final historySection = historyContext.isNotEmpty
+      ? 'PAST CHECK-INS (most recent first):\n$historyContext\n\n'
+        'Use this history to:\n'
+        '- Reference patterns you notice (e.g. recurring anxiety, repeated disconnection).\n'
+        '- In your teaching paragraph, briefly acknowledge what you notice across sessions '
+        '(one sentence max), then speak to today.\n\n'
+      : '';
+
+  final answersFormatted = [
+    'How they feel: ${answers.isNotEmpty ? answers[0] : ""}',
+    'Where it is coming from: ${answers.length > 1 ? answers[1] : ""}',
+    'How it feels deeper down: ${answers.length > 2 ? answers[2] : ""}',
+    'What they need from Allah: ${answers.length > 3 ? answers[3] : ""}',
+  ].join('\n');
+
   final response = await _callClaude(
     model: _followUpModel,
     systemPrompt:
-        'You are an Islamic learning tool. A person has answered a daily orientation question. '
-        'Based on their answer, identify the single most fitting Name of Allah from the list below '
-        'and write a short, grounded teaching.\n\n'
+        'You are an Islamic learning tool. A person has completed a 4-question daily check-in. '
+        'Based on their answers, identify the single most fitting Name of Allah and write a '
+        'grounded, direct teaching.\n\n'
+        '$avoidClause'
+        '$historySection'
         '$teachingContext\n\n'
         'IMPORTANT — You MUST only use a Name from this canonical list of the 99 Names:\n'
         '$dailyCanonicalList\n\n'
         '---\n\n'
         'Instructions:\n'
         '1. Choose the single most relevant Name — it MUST be from the canonical list above.\n'
-        '2. Write ONE paragraph (3-5 sentences) explaining what this Name means and how it speaks '
-        'directly to what they have shared. Be direct and substantive — teach, not comfort. '
-        'No terms of endearment.\n'
+        '2. Write ONE paragraph (3-5 sentences). Speak directly to what they shared across '
+        'all 4 answers. If they have checked in before, you may acknowledge a pattern in one '
+        'sentence. Be substantive — teach, do not merely comfort. No terms of endearment.\n'
         '3. Use the exact dua provided for that Name.\n\n'
         'Respond with EXACTLY these markers:\n'
         '##NAME## (English · Arabic)\n'
@@ -985,8 +1024,8 @@ Future<DailyReflectResponse> getDailyResponse(String question, String answer) as
         '##DUA_ARABIC##\n'
         '##DUA_TRANSLITERATION##\n'
         '##DUA_TRANSLATION##',
-    userMessage: 'Question: $question\nAnswer: $answer',
-    maxTokens: 600,
+    userMessage: answersFormatted,
+    maxTokens: 650,
   );
 
   if (response == null) {

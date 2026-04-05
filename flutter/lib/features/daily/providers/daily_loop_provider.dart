@@ -2,10 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -29,9 +31,11 @@ class DailyLoopState {
   final bool deeperDone;
   final bool questDone;
 
-  // Step 1: Check-in
-  final DailyQuestion? todaysQuestion;
-  final String? checkinAnswer;
+  // Step 1: Check-in (4-question adaptive flow)
+  final int checkinQuestionIndex; // 0-3, which of the 4 questions we're on
+  final List<String> checkinAnswers; // accumulates as user answers
+  final DailyQuestion? todaysQuestion; // kept for legacy compat, unused
+  final String? checkinAnswer; // final combined summary for display
   final String? checkinName;
   final String? checkinNameArabic;
   final String? checkinTeaching;
@@ -73,6 +77,8 @@ class DailyLoopState {
     this.checkinDone = false,
     this.deeperDone = false,
     this.questDone = false,
+    this.checkinQuestionIndex = 0,
+    this.checkinAnswers = const [],
     this.todaysQuestion,
     this.checkinAnswer,
     this.checkinName,
@@ -105,6 +111,8 @@ class DailyLoopState {
     bool? checkinDone,
     bool? deeperDone,
     bool? questDone,
+    int? checkinQuestionIndex,
+    List<String>? checkinAnswers,
     DailyQuestion? todaysQuestion,
     String? checkinAnswer,
     String? checkinName,
@@ -136,6 +144,8 @@ class DailyLoopState {
       checkinDone: checkinDone ?? this.checkinDone,
       deeperDone: deeperDone ?? this.deeperDone,
       questDone: questDone ?? this.questDone,
+      checkinQuestionIndex: checkinQuestionIndex ?? this.checkinQuestionIndex,
+      checkinAnswers: checkinAnswers ?? this.checkinAnswers,
       todaysQuestion: todaysQuestion ?? this.todaysQuestion,
       checkinAnswer: checkinAnswer ?? this.checkinAnswer,
       checkinName: checkinName ?? this.checkinName,
@@ -249,11 +259,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // Step 1: Check-in
   // ---------------------------------------------------------------------------
 
+  /// Called when the user taps an answer on any of the 4 check-in questions.
+  /// Advances the question index until all 4 are answered, then calls the AI.
   Future<void> answerCheckin(String answer) async {
-    final question = state.todaysQuestion;
-    if (question == null) return;
+    final currentIndex = state.checkinQuestionIndex;
+    final updatedAnswers = [...state.checkinAnswers, answer];
 
-    state = state.copyWith(checkinLoading: true, error: null);
+    // Not on the last question yet — just advance
+    if (currentIndex < 3) {
+      state = state.copyWith(
+        checkinAnswers: updatedAnswers,
+        checkinQuestionIndex: currentIndex + 1,
+      );
+      return;
+    }
+
+    // All 4 answered — call the AI
+    state = state.copyWith(
+      checkinAnswers: updatedAnswers,
+      checkinLoading: true,
+      error: null,
+    );
 
     try {
       // First daily check-in is free; subsequent ones cost a token
@@ -270,27 +296,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         state = state.copyWith(tokenBalance: spendResult.newBalance);
       }
 
-      final result = await getDailyResponse(question.question, answer);
+      // Load history for context
+      final history = await getCheckinHistory();
+      final historyContext = buildHistoryContext(history);
+      // Extract recent names to avoid repeating them
+      final recentNames = history.take(5).map((r) => r.nameReturned).where((n) => n.isNotEmpty).toList();
 
-      state = state.copyWith(
-        checkinAnswer: answer,
-        checkinName: result.name,
-        checkinNameArabic: result.nameArabic,
-        checkinTeaching: result.teaching,
-        checkinDuaArabic: result.duaArabic,
-        checkinDuaTransliteration: result.duaTransliteration,
-        checkinDuaTranslation: result.duaTranslation,
-        checkinDone: true,
-        checkinLoading: false,
+      final result = await getDailyResponse(
+        updatedAnswers,
+        historyContext: historyContext,
+        recentNames: recentNames,
       );
 
-      // Engage card collection (discover or tier up)
+      // Engage card collection BEFORE setting checkinDone so the gacha
+      // reveal receives the card result in the same state update.
+      CardEngageResult? cardEngageResult;
+      CollectibleName? engagedCard;
       try {
         final rewardsState = await getDailyRewards();
         CollectibleName? collectible;
 
         if (rewardsState.guaranteedTierUpFlag) {
-          // Guaranteed tier-up: pick an upgradeable card
           final collection = await getCardCollection();
           collectible = pickUpgradeableCard(collection);
           await clearGuaranteedTierUp();
@@ -310,14 +336,45 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         if (collectible != null) {
           final engageResult = await engageCard(collectible.id);
           if (engageResult.tierChanged) {
-            state = state.copyWith(
-              cardEngageResult: engageResult,
-              engagedCard: collectible,
-            );
+            cardEngageResult = engageResult;
+            engagedCard = collectible;
           }
         }
       } catch (e) {
         debugPrint('[CARD COLLECTION ERROR] $e');
+      }
+
+      // Single state update — widget sees checkinDone + card data together
+      state = state.copyWith(
+        checkinAnswer: answer,
+        checkinName: result.name,
+        checkinNameArabic: result.nameArabic,
+        checkinTeaching: result.teaching,
+        checkinDuaArabic: result.duaArabic,
+        checkinDuaTransliteration: result.duaTransliteration,
+        checkinDuaTranslation: result.duaTranslation,
+        checkinDone: true,
+        checkinLoading: false,
+        cardEngageResult: cardEngageResult,
+        engagedCard: engagedCard,
+      );
+
+      // Save check-in to history
+      try {
+        final today = DateTime.now();
+        final dateStr =
+            '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+        await saveCheckinRecord(CheckInRecord(
+          date: dateStr,
+          q1: updatedAnswers.isNotEmpty ? updatedAnswers[0] : '',
+          q2: updatedAnswers.length > 1 ? updatedAnswers[1] : '',
+          q3: updatedAnswers.length > 2 ? updatedAnswers[2] : '',
+          q4: updatedAnswers.length > 3 ? updatedAnswers[3] : '',
+          nameReturned: result.name,
+          nameArabic: result.nameArabic,
+        ));
+      } catch (e) {
+        debugPrint('[HISTORY SAVE ERROR] $e');
       }
 
       // Award XP and mark streak
@@ -383,20 +440,24 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       tokenBalance: spendResult.newBalance,
       currentStep: DailyLoopStep.deeper,
       reflectLoading: true,
+      reflectStep: 1, // skip step 0 (name display) — user just saw it in gacha
       error: null,
     );
 
     try {
-      final contextText =
-          "I answered '${state.checkinAnswer}' to '${state.todaysQuestion?.question}'. "
-          'The Name shown was ${state.checkinName}.';
+      final contextText = state.checkinAnswers.isNotEmpty
+          ? state.checkinAnswers.join(' / ')
+          : "I answered '${state.checkinAnswer}'.";
 
-      final result = await reflectWithClaude(contextText);
+      final result = await reflectWithClaude(
+        contextText,
+        forceName: state.checkinName,
+      );
 
       state = state.copyWith(
         reflectResult: result,
         reflectLoading: false,
-        reflectStep: 0,
+        reflectStep: 1, // skip step 0 (name display) — user saw the name in gacha
       );
 
       // Award XP for starting deeper reflection
@@ -423,7 +484,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   Future<void> advanceReflectStep() async {
-    final current = state.reflectStep;
+    final current = state.reflectStep.clamp(1, 3); // step 0 is skipped
 
     if (current == 3) {
       // Completing the dua step — finish deeper
@@ -513,6 +574,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         'deeperDone': state.deeperDone,
         'questDone': state.questDone,
         'currentStep': state.currentStep.index,
+        'checkinQuestionIndex': state.checkinQuestionIndex,
+        'checkinAnswers': state.checkinAnswers,
         'checkinAnswer': state.checkinAnswer,
         'checkinName': state.checkinName,
         'checkinNameArabic': state.checkinNameArabic,
@@ -540,12 +603,18 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       final deeperDone = data['deeperDone'] as bool? ?? false;
       final questDone = data['questDone'] as bool? ?? false;
       final stepIndex = data['currentStep'] as int? ?? 0;
+      final savedAnswers = (data['checkinAnswers'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [];
 
       state = state.copyWith(
         checkinDone: checkinDone,
         deeperDone: deeperDone,
         questDone: questDone,
         currentStep: DailyLoopStep.values[stepIndex],
+        checkinQuestionIndex: data['checkinQuestionIndex'] as int? ?? 0,
+        checkinAnswers: savedAnswers,
         checkinAnswer: data['checkinAnswer'] as String?,
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,

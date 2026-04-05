@@ -8,6 +8,8 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 
@@ -60,21 +62,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-  Future<void> _clearCardCollection() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('sakina_card_collection');
+
+  Future<void> _resetDailyLoop() async {
+    await ref.read(dailyLoopProvider.notifier).resetToday();
+    await resetDailyLaunchGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Card collection cleared.')),
+        const SnackBar(content: Text('Daily loop reset. Go back to Home to start fresh.')),
       );
     }
   }
 
-  Future<void> _resetDailyLoop() async {
+  Future<void> _resetCardCollection() async {
+    await clearCardCollection();
     await ref.read(dailyLoopProvider.notifier).resetToday();
+    await resetDailyLaunchGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Daily loop reset. Go back to Home to start fresh.')),
+        const SnackBar(content: Text('Card collection wiped. Every check-in will now discover a new card.')),
       );
     }
   }
@@ -417,7 +422,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildSettingsRow(
             icon: Icons.style_outlined,
             label: 'Clear Card Collection',
-            onTap: _clearCardCollection,
+            onTap: _resetCardCollection,
             isDestructive: true,
           ),
           _buildDivider(),
