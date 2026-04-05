@@ -7,7 +7,6 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
-import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
 
@@ -102,8 +101,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     switch (state.activeTab!) {
       case DuasTab.browse:
         return _buildBrowseTab(state, notifier);
-      case DuasTab.find:
-        return _buildFindTab(state, notifier);
       case DuasTab.build:
         return _buildBuildTab(state, notifier);
     }
@@ -184,20 +181,10 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 _landingCard(
                   icon: Icons.menu_book_rounded,
                   title: 'Browse Duas',
-                  subtitle: '77 authentic duas across 15 categories',
+                  subtitle: 'Search 77 authentic duas across 15 categories',
                   onTap: () {
                     HapticFeedback.lightImpact();
                     notifier.setActiveTab(DuasTab.browse);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _landingCard(
-                  icon: Icons.travel_explore,
-                  title: 'Find a Dua',
-                  subtitle: 'Describe your need, get authentic duas',
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    notifier.setActiveTab(DuasTab.find);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -288,26 +275,75 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
   Widget _buildBrowseTab(DuasState state, DuasNotifier notifier) {
     final filteredDuas = notifier.filteredBrowseDuas;
+    final allCategories = ['all', ...duaCategories];
 
     return SafeArea(
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 0,
+                AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _tabHeader('Browse Duas', notifier),
+                const SizedBox(height: 12),
+                // Search bar
+                TextField(
+                  controller: _findController,
+                  onChanged: notifier.setBrowseQuery,
+                  decoration: InputDecoration(
+                    hintText: 'Search duas...',
+                    hintStyle: AppTypography.bodyMedium
+                        .copyWith(color: AppColors.textTertiaryLight),
+                    prefixIcon: const Icon(Icons.search,
+                        color: AppColors.secondary, size: 20),
+                    suffixIcon: state.browseQuery.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _findController.clear();
+                              notifier.setBrowseQuery('');
+                            },
+                            child: const Icon(Icons.close,
+                                color: AppColors.textTertiaryLight, size: 18),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: AppColors.secondary.withValues(alpha: 0.3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                          color: AppColors.secondary.withValues(alpha: 0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: AppColors.secondary, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: _tabHeader('Browse Duas', notifier),
           ),
-          const SizedBox(height: 16),
+          // Category chips
           SizedBox(
             height: 40,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.pagePadding),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
               child: Row(
-                children: duaCategories.map((cat) {
+                children: allCategories.map((cat) {
                   final selected = cat == state.selectedCategory;
+                  final label =
+                      cat == 'all' ? 'All' : cat[0].toUpperCase() + cat.substring(1);
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
@@ -319,9 +355,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.secondary
-                              : Colors.white,
+                          color: selected ? AppColors.secondary : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: selected
@@ -330,13 +364,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                           ),
                         ),
                         child: Text(
-                          cat[0].toUpperCase() + cat.substring(1),
+                          label,
                           style: AppTypography.bodyMedium.copyWith(
                             color: selected
                                 ? Colors.white
                                 : AppColors.textSecondaryLight,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
@@ -346,17 +381,46 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.pagePadding),
-              itemCount: filteredDuas.length,
-              itemBuilder: (context, index) {
-                return _browseDuaCard(
-                    filteredDuas[index], state, notifier);
-              },
+          const SizedBox(height: 12),
+          // Result count
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${filteredDuas.length} dua${filteredDuas.length == 1 ? '' : 's'}',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textTertiaryLight),
+              ),
             ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: filteredDuas.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off,
+                            size: 48,
+                            color: AppColors.secondary.withValues(alpha: 0.3)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No duas found',
+                          style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.textSecondaryLight),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.pagePadding),
+                    itemCount: filteredDuas.length,
+                    itemBuilder: (context, index) {
+                      return _browseDuaCard(filteredDuas[index], state, notifier);
+                    },
+                  ),
           ),
         ],
       ),
@@ -447,308 +511,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 color: isSaved ? AppColors.primary : AppColors.textTertiaryLight,
                 size: 22,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // FIND TAB
-  // ===========================================================================
-
-  Widget _buildFindTab(DuasState state, DuasNotifier notifier) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Persistent header + search bar ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _tabHeader('Find a Dua', notifier),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _findController,
-                        onChanged: notifier.setFindNeed,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) {
-                          if (state.findNeed.trim().isNotEmpty) {
-                            HapticFeedback.lightImpact();
-                            notifier.submitFind();
-                          }
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'What do you need a dua for...',
-                          hintStyle: AppTypography.bodyMedium
-                              .copyWith(color: AppColors.textTertiaryLight),
-                          prefixIcon: const Icon(Icons.search,
-                              color: AppColors.secondary, size: 20),
-                          suffixIcon: _findController.text.isNotEmpty
-                              ? GestureDetector(
-                                  onTap: () {
-                                    _findController.clear();
-                                    notifier.setFindNeed('');
-                                    notifier.resetFind();
-                                  },
-                                  child: const Icon(Icons.close,
-                                      color: AppColors.textTertiaryLight,
-                                      size: 18),
-                                )
-                              : null,
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                                color: AppColors.secondary
-                                    .withValues(alpha: 0.3)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                                color: AppColors.secondary
-                                    .withValues(alpha: 0.3)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: AppColors.secondary, width: 1.5),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: state.findNeed.trim().isEmpty
-                          ? null
-                          : () {
-                              HapticFeedback.lightImpact();
-                              notifier.submitFind();
-                            },
-                      child: Container(
-                        height: 48,
-                        width: 48,
-                        decoration: BoxDecoration(
-                          color: state.findNeed.trim().isEmpty
-                              ? AppColors.secondary.withValues(alpha: 0.3)
-                              : AppColors.secondary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.arrow_forward,
-                            color: Colors.white, size: 20),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // ── Body: empty state / loading / results ──
-          Expanded(
-            child: state.findLoading
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _rippleWidget(),
-                        const SizedBox(height: 32),
-                        Text('Searching duas...',
-                            style: AppTypography.headlineMedium),
-                      ],
-                    ),
-                  )
-                : state.findResult != null
-                    ? _buildFindResults(state, notifier)
-                    : _buildFindEmptyState(state),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 300.ms);
-  }
-
-  Widget _buildFindEmptyState(DuasState state) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      child: Column(
-        children: [
-          const SizedBox(height: 40),
-          Icon(Icons.travel_explore,
-              size: 56, color: AppColors.secondary.withValues(alpha: 0.4)),
-          const SizedBox(height: 16),
-          Text(
-            'Describe your need above',
-            style: AppTypography.headlineMedium
-                .copyWith(color: AppColors.textSecondaryLight),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'e.g. "I need patience", "looking for a spouse", "feeling anxious"',
-            style: AppTypography.bodyMedium
-                .copyWith(color: AppColors.textTertiaryLight),
-            textAlign: TextAlign.center,
-          ),
-          if (state.error != null) ...[
-            const SizedBox(height: 24),
-            _errorBox(state.error!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFindResults(DuasState state, DuasNotifier notifier) {
-    final result = state.findResult!;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (result.names.isNotEmpty) ...[
-            Text(
-              'Names to Call Upon',
-              style: AppTypography.headlineMedium
-                  .copyWith(color: AppColors.textPrimaryLight),
-            ),
-            const SizedBox(height: 12),
-            ...result.names.map(_nameCard),
-            const SizedBox(height: 24),
-          ],
-          Text(
-            'Duas to Recite',
-            style: AppTypography.headlineMedium
-                .copyWith(color: AppColors.textPrimaryLight),
-          ),
-          const SizedBox(height: 12),
-          ...result.duas.map(_foundDuaCard),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _nameCard(FindDuasNameEntry name) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.secondary.withValues(alpha: 0.6),
-            width: 2,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.star_rounded, color: AppColors.secondary, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                name.name,
-                style: AppTypography.labelLarge.copyWith(color: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            name.nameArabic,
-            style: AppTypography.quranArabic.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 22,
-            ),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            name.why,
-            style: AppTypography.bodyMedium
-                .copyWith(color: Colors.white.withValues(alpha: 0.85)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _foundDuaCard(FindDuasDuaEntry dua) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Stack(
-        children: [
-          // Gold crescent icon top-left
-          Positioned(
-            top: 14,
-            left: 12,
-            child: Icon(
-              Icons.brightness_3,
-              size: 13,
-              color: AppColors.secondary.withValues(alpha: 0.55),
-            ),
-          ),
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.fromLTRB(34, 0, 16, 0),
-              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Text(dua.title, style: AppTypography.labelLarge),
-                  const SizedBox(height: 8),
-                  Text(
-                    dua.arabic,
-                    style: AppTypography.quranArabic,
-                    textDirection: TextDirection.rtl,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                ],
-              ),
-              children: [
-                Divider(color: AppColors.secondary.withValues(alpha: 0.15)),
-                const SizedBox(height: 8),
-                Text(
-                  dua.transliteration,
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.textSecondaryLight,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(dua.translation, style: AppTypography.bodyMedium),
-                const SizedBox(height: 8),
-                Text(
-                  dua.source,
-                  style: AppTypography.bodySmall
-                      .copyWith(color: AppColors.textTertiaryLight),
-                ),
-              ],
             ),
           ),
         ],

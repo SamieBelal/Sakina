@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Tab enum
 // ---------------------------------------------------------------------------
 
-enum DuasTab { browse, find, build }
+enum DuasTab { browse, build }
 
 // ---------------------------------------------------------------------------
 // Saved dua model
@@ -96,6 +96,7 @@ class SavedRelatedDua {
 class DuasState {
   final DuasTab? activeTab;
   final String selectedCategory;
+  final String browseQuery;
   final Set<String> savedDuaIds;
   final String findNeed;
   final FindDuasResponse? findResult;
@@ -112,7 +113,8 @@ class DuasState {
 
   const DuasState({
     this.activeTab,
-    this.selectedCategory = 'anxiety',
+    this.selectedCategory = 'all',
+    this.browseQuery = '',
     this.savedDuaIds = const {},
     this.findNeed = '',
     this.findResult,
@@ -130,6 +132,7 @@ class DuasState {
   DuasState copyWith({
     DuasTab? Function()? activeTab,
     String? selectedCategory,
+    String? browseQuery,
     Set<String>? savedDuaIds,
     String? findNeed,
     FindDuasResponse? Function()? findResult,
@@ -146,6 +149,7 @@ class DuasState {
     return DuasState(
       activeTab: activeTab != null ? activeTab() : this.activeTab,
       selectedCategory: selectedCategory ?? this.selectedCategory,
+      browseQuery: browseQuery ?? this.browseQuery,
       savedDuaIds: savedDuaIds ?? this.savedDuaIds,
       findNeed: findNeed ?? this.findNeed,
       findResult: findResult != null ? findResult() : this.findResult,
@@ -195,10 +199,21 @@ class DuasNotifier extends StateNotifier<DuasState> {
     await prefs.setStringList('saved_browse_dua_ids', updated.toList());
   }
 
+  void setBrowseQuery(String query) {
+    state = state.copyWith(browseQuery: query);
+  }
+
   List<BrowseDua> get filteredBrowseDuas {
-    return browseDuas
-        .where((d) => d.category == state.selectedCategory)
-        .toList();
+    final query = state.browseQuery.trim().toLowerCase();
+    return browseDuas.where((d) {
+      final categoryMatch = state.selectedCategory == 'all' ||
+          d.category == state.selectedCategory;
+      if (!categoryMatch) return false;
+      if (query.isEmpty) return true;
+      return d.title.toLowerCase().contains(query) ||
+          d.translation.toLowerCase().contains(query) ||
+          d.transliteration.toLowerCase().contains(query);
+    }).toList();
   }
 
   // ── Find ────────────────────────────────────────────────────
