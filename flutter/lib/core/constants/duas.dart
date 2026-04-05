@@ -35,6 +35,9 @@ const List<String> duaCategories = [
   'travel',
   'food',
   'general',
+  'wealth',
+  'family',
+  'guidance',
 ];
 
 const List<BrowseDua> browseDuas = [
@@ -796,8 +799,245 @@ const List<BrowseDua> browseDuas = [
     translation:
         'O Allah, make the best of my life its last part, the best of my deeds their final ones, and the best of my days the day I meet You.',
     source: 'Hisnul Muslim 246',
-    whenToRecite:
-        'Recite when reflecting on your life and legacy.',
+    whenToRecite: 'Recite when reflecting on your life and legacy.',
     emotionTags: ['general', 'hope', 'aspiration'],
+  ),
+
+  // ── Anxiety (new) ─────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'anxiety-6',
+    category: 'anxiety',
+    title: 'Make the Quran the Spring of My Heart',
+    arabic:
+        'اللَّهُمَّ إِنِّي عَبْدُكَ، ابْنُ عَبْدِكَ، ابْنُ أَمَتِكَ، نَاصِيَتِي بِيَدِكَ، مَاضٍ فِيَّ حُكْمُكَ، عَدْلٌ فِيَّ قَضَاؤُكَ، أَسْأَلُكَ بِكُلِّ اسْمٍ هُوَ لَكَ سَمَّيْتَ بِهِ نَفْسَكَ، أَوْ أَنْزَلْتَهُ فِي كِتَابِكَ، أَوْ عَلَّمْتَهُ أَحَدًا مِنْ خَلْقِكَ، أَوِ اسْتَأْثَرْتَ بِهِ فِي عِلْمِ الْغَيْبِ عِنْدَكَ، أَنْ تَجْعَلَ الْقُرْآنَ رَبِيعَ قَلْبِي، وَنُورَ صَدْرِي، وَجَلَاءَ حُزْنِي، وَذَهَابَ هَمِّي',
+    transliteration:
+        "Allahumma inni 'abduka, ibnu 'abdika, ibnu amatika, nasiyati biyadika, madin fiyya hukmuka, 'adlun fiyya qada'uka, as'aluka bikulli ismin huwa laka sammayta bihi nafsaka, aw anzaltahu fi kitabika, aw 'allamtahu ahadan min khalqika, awi asta'tharta bihi fi 'ilmil-ghaybi 'indaka, an taj'alal-Qur'ana rabi'a qalbi, wa nura sadri, wa jala'a huzni, wa dhahaba hammi",
+    translation:
+        'O Allah, I am Your slave, son of Your slave, son of Your maidservant. My forelock is in Your hand. Your command over me is forever executed and Your decree over me is just. I ask You by every name belonging to You which You have named Yourself, or revealed in Your Book, or taught to any of Your creation, or have preserved in the knowledge of the unseen with You, that You make the Quran the spring of my heart, the light of my chest, and the banisher of my sadness and the reliever of my anxiety.',
+    source: 'Musnad Ahmad 3528',
+    whenToRecite: 'Recite when overwhelmed by grief, stress, or anxiety.',
+    emotionTags: ['anxiety', 'grief', 'peace', 'quran'],
+  ),
+  BrowseDua(
+    id: 'anxiety-7',
+    category: 'anxiety',
+    title: 'Relief from Worries and Debt',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَأَعُوذُ بِكَ مِنَ الْعَجْزِ وَالْكَسَلِ، وَأَعُوذُ بِكَ مِنَ الْجُبْنِ وَالْبُخْلِ، وَأَعُوذُ بِكَ مِنْ غَلَبَةِ الدَّيْنِ وَقَهْرِ الرِّجَالِ',
+    transliteration:
+        "Allahumma inni a'udhu bika minal-hammi wal-hazan, wa a'udhu bika minal-'ajzi wal-kasal, wa a'udhu bika minal-jubni wal-bukhl, wa a'udhu bika min ghalabatid-dayni wa qahrir-rijal",
+    translation:
+        'O Allah, I seek refuge in You from anxiety and grief, and I seek refuge in You from inability and laziness, and I seek refuge in You from cowardice and miserliness, and I seek refuge in You from being overwhelmed by debt and overpowered by men.',
+    source: 'Sunan Abi Dawud 1555',
+    whenToRecite: 'Recite when facing financial stress, anxiety, or feeling powerless.',
+    emotionTags: ['anxiety', 'grief', 'debt', 'worry'],
+  ),
+  BrowseDua(
+    id: 'anxiety-8',
+    category: 'anxiety',
+    title: 'No Ease Except What You Make Easy',
+    arabic:
+        'اللَّهُمَّ لَا سَهْلَ إِلَّا مَا جَعَلْتَهُ سَهْلًا، وَأَنْتَ تَجْعَلُ الْحَزْنَ إِذَا شِئْتَ سَهْلًا',
+    transliteration:
+        "Allahumma la sahla illa ma ja'altahu sahlan, wa anta taj'alul-hazna idha shi'ta sahlan",
+    translation:
+        'O Allah, there is no ease except what You make easy, and You make grief easy if You will.',
+    source: 'Sahih Ibn Hibban 2427',
+    whenToRecite: 'Recite when facing a difficult situation or feeling overwhelmed.',
+    emotionTags: ['anxiety', 'difficulty', 'trust'],
+  ),
+
+  // ── Grief (new) ───────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'grief-4',
+    category: 'grief',
+    title: 'Reward Me in My Calamity',
+    arabic:
+        'اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَأَخْلِفْ لِي خَيْرًا مِنْهَا',
+    transliteration:
+        "Allahumma'jurni fi musibati wa akhlif li khayran minha",
+    translation:
+        'O Allah, reward me in my calamity and replace it with something better.',
+    source: 'Sahih Muslim 918',
+    whenToRecite: 'Recite upon any loss or calamity.',
+    emotionTags: ['grief', 'loss', 'patience', 'hope'],
+  ),
+
+  // ── Forgiveness (new) ─────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'forgiveness-6',
+    category: 'forgiveness',
+    title: 'Dua of Adam (AS)',
+    arabic:
+        'رَبَّنَا ظَلَمْنَا أَنفُسَنَا وَإِن لَّمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ',
+    transliteration:
+        "Rabbana zalamna anfusana wa illam taghfir lana wa tarhamna lanakunanna minal-khosirin",
+    translation:
+        'Our Lord, we have wronged ourselves, and if You do not forgive us and have mercy upon us, we will surely be among the losers.',
+    source: 'Quran 7:23',
+    whenToRecite: 'Recite when seeking forgiveness after wrongdoing. The dua Allah taught Adam (AS) after his sin.',
+    emotionTags: ['forgiveness', 'repentance', 'guilt'],
+  ),
+
+  // ── General (new) ─────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'general-5',
+    category: 'general',
+    title: 'Dua of Ibrahim (AS) for His Descendants',
+    arabic:
+        'رَبَّنَا تَقَبَّلْ مِنَّا ۖ إِنَّكَ أَنتَ السَّمِيعُ الْعَلِيمُ',
+    transliteration:
+        "Rabbana taqabbal minna innaka antas-Sami'ul-'Alim",
+    translation:
+        'Our Lord, accept from us. Indeed You are the Hearing, the Knowing.',
+    source: 'Quran 2:127',
+    whenToRecite: 'Recite after completing any act of worship or good deed.',
+    emotionTags: ['general', 'acceptance', 'worship'],
+  ),
+  BrowseDua(
+    id: 'general-6',
+    category: 'general',
+    title: 'For Righteous Provision Through Halal',
+    arabic:
+        'اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ',
+    transliteration:
+        "Allahumma ikfini bi-halalika 'an haramika wa aghnini bi-fadlika 'amman siwak",
+    translation:
+        'O Allah, suffice me with what You have made lawful, sparing me from what You have made unlawful, and make me independent of all others besides You through Your bounty.',
+    source: "Jami' at-Tirmidhi 3563",
+    whenToRecite: 'Recite when seeking sustenance or facing financial difficulty.',
+    emotionTags: ['general', 'wealth', 'halal', 'trust'],
+  ),
+
+  // ── Wealth ────────────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'wealth-1',
+    category: 'wealth',
+    title: 'Contentment and Blessing in Provision',
+    arabic:
+        'اللَّهُمَّ قَنِّعْنِي بِمَا رَزَقْتَنِي وَبَارِكْ لِي فِيهِ وَاخْلُفْ عَلَيَّ كُلَّ غَائِبَةٍ لِي بِخَيْرٍ',
+    transliteration:
+        "Allahumma qanni'ni bima razaqtani wa barik li fihi wakhluf 'alayya kulla gha'ibatin li bikhair",
+    translation:
+        'O Allah, make me content with what You have provided me, bless me in it, and replace everything I have missed with something better.',
+    source: 'Mustadrak al-Hakim 1/544',
+    whenToRecite: 'Recite when feeling envious of others or lacking contentment with your provision.',
+    emotionTags: ['wealth', 'contentment', 'gratitude', 'barakah'],
+  ),
+  BrowseDua(
+    id: 'wealth-2',
+    category: 'wealth',
+    title: 'Protection from Debt',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْكُفْرِ وَالْفَقْرِ وَأَعُوذُ بِكَ مِنْ عَذَابِ الْقَبْرِ',
+    transliteration:
+        "Allahumma inni a'udhu bika minal-kufri wal-faqri wa a'udhu bika min 'adhabil-qabr",
+    translation:
+        'O Allah, I seek refuge in You from disbelief and poverty, and I seek refuge in You from the punishment of the grave.',
+    source: 'Sunan Abi Dawud 5090',
+    whenToRecite: 'Recite morning and evening as protection from financial hardship.',
+    emotionTags: ['wealth', 'protection', 'poverty'],
+  ),
+  BrowseDua(
+    id: 'wealth-3',
+    category: 'wealth',
+    title: 'For Barakah in Wealth',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا وَرِزْقًا طَيِّبًا وَعَمَلًا مُتَقَبَّلًا',
+    transliteration:
+        "Allahumma inni as'aluka 'ilman nafi'an wa rizqan tayyiban wa 'amalan mutaqabbalan",
+    translation:
+        'O Allah, I ask You for beneficial knowledge, good lawful provision, and accepted deeds.',
+    source: 'Sunan Ibn Majah 925',
+    whenToRecite: 'Recite after Fajr prayer.',
+    emotionTags: ['wealth', 'knowledge', 'worship', 'morning'],
+  ),
+
+  // ── Guidance / Istikhara ─────────────────────────────────────────────────
+  BrowseDua(
+    id: 'guidance-1',
+    category: 'guidance',
+    title: 'Dua of Istikhara',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَسْتَخِيرُكَ بِعِلْمِكَ وَأَسْتَقْدِرُكَ بِقُدْرَتِكَ وَأَسْأَلُكَ مِنْ فَضْلِكَ الْعَظِيمِ، فَإِنَّكَ تَقْدِرُ وَلَا أَقْدِرُ، وَتَعْلَمُ وَلَا أَعْلَمُ، وَأَنْتَ عَلَّامُ الْغُيُوبِ. اللَّهُمَّ إِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ خَيْرٌ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي فَاقْدُرْهُ لِي وَيَسِّرْهُ لِي ثُمَّ بَارِكْ لِي فِيهِ، وَإِنْ كُنْتَ تَعْلَمُ أَنَّ هَذَا الْأَمْرَ شَرٌّ لِي فِي دِينِي وَمَعَاشِي وَعَاقِبَةِ أَمْرِي فَاصْرِفْهُ عَنِّي وَاصْرِفْنِي عَنْهُ وَاقْدُرْ لِي الْخَيْرَ حَيْثُ كَانَ ثُمَّ أَرْضِنِي بِهِ',
+    transliteration:
+        "Allahumma inni astakhiruka bi'ilmika wa astaqdiruka biqudratika wa as'aluka min fadlikal-'azim, fa-innaka taqdiru wa la aqdiru, wa ta'lamu wa la a'lamu, wa anta 'allamul-ghuyub. Allahumma in kunta ta'lamu anna hadhal-amra khayrun li fi dini wa ma'ashi wa 'aqibati amri faqdurhu li wa yassirhu li thumma barik li fihi, wa in kunta ta'lamu anna hadhal-amra sharrun li fi dini wa ma'ashi wa 'aqibati amri fasrifhu 'anni wasrifni 'anhu waqdur liyal-khayra haythu kana thumma ardini bih",
+    translation:
+        'O Allah, I seek Your guidance by Your knowledge, and I seek ability by Your power, and I ask You of Your great bounty. You have power and I have none. You know and I know not. You are the Knower of hidden things. O Allah, if You know that this matter is good for me in my religion, livelihood and in the outcome of my affairs, then ordain it for me, make it easy for me, then bless me in it. And if You know that this matter is bad for me in my religion, livelihood and in the outcome of my affairs, then turn it away from me and turn me away from it, and ordain for me the good wherever it may be, and then make me content with it.',
+    source: 'Sahih al-Bukhari 1166',
+    whenToRecite: 'Recite after two rak\'ahs of voluntary prayer when facing an important decision.',
+    emotionTags: ['guidance', 'decision', 'trust', 'tawakkul'],
+  ),
+  BrowseDua(
+    id: 'guidance-2',
+    category: 'guidance',
+    title: 'For Guidance on the Right Path',
+    arabic:
+        'اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى',
+    transliteration:
+        "Allahumma inni as'alukal-huda wat-tuqa wal-'afafa wal-ghina",
+    translation:
+        'O Allah, I ask You for guidance, righteousness, chastity, and self-sufficiency.',
+    source: 'Sahih Muslim 2721',
+    whenToRecite: 'Recite regularly, especially when uncertain about a path in life.',
+    emotionTags: ['guidance', 'taqwa', 'contentment'],
+  ),
+  BrowseDua(
+    id: 'guidance-3',
+    category: 'guidance',
+    title: 'For a Straight Heart',
+    arabic:
+        'يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ',
+    transliteration:
+        "Ya Muqallibal-qulubi thabbit qalbi 'ala dinik",
+    translation:
+        'O Turner of hearts, keep my heart firm upon Your religion.',
+    source: "Jami' at-Tirmidhi 3522",
+    whenToRecite: 'Recite frequently — the Prophet ﷺ said this dua often.',
+    emotionTags: ['guidance', 'faith', 'steadfastness'],
+  ),
+
+  // ── Family ────────────────────────────────────────────────────────────────
+  BrowseDua(
+    id: 'family-1',
+    category: 'family',
+    title: 'For a Righteous Spouse and Children',
+    arabic:
+        'رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا',
+    transliteration:
+        "Rabbana hab lana min azwajina wa dhurriyyatina qurrata a'yunin waj'alna lilmuttaqina imama",
+    translation:
+        'Our Lord, grant us from among our wives and offspring comfort to our eyes and make us a leader for the righteous.',
+    source: 'Quran 25:74',
+    whenToRecite: 'Recite when making dua for your family, spouse, or children.',
+    emotionTags: ['family', 'marriage', 'children', 'hope'],
+  ),
+  BrowseDua(
+    id: 'family-2',
+    category: 'family',
+    title: 'For Righteous Children',
+    arabic:
+        'رَبِّ هَبْ لِي مِن لَّدُنكَ ذُرِّيَّةً طَيِّبَةً ۖ إِنَّكَ سَمِيعُ الدُّعَاءِ',
+    transliteration:
+        "Rabbi hab li min ladunka dhurriyyatan tayyibah innaka sami'ud-du'a",
+    translation:
+        'My Lord, grant me from Yourself a good offspring. Indeed, You are the Hearer of supplication.',
+    source: 'Quran 3:38',
+    whenToRecite: 'Recite when making dua for children — this was the dua of Zakariya (AS).',
+    emotionTags: ['family', 'children', 'hope', 'zakariya'],
+  ),
+  BrowseDua(
+    id: 'family-3',
+    category: 'family',
+    title: 'For Parents',
+    arabic:
+        'رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا',
+    transliteration:
+        "Rabbir-hamhuma kama rabbayani saghira",
+    translation:
+        'My Lord, have mercy upon them as they brought me up when I was small.',
+    source: 'Quran 17:24',
+    whenToRecite: 'Recite regularly for your parents, especially after prayers.',
+    emotionTags: ['family', 'parents', 'mercy', 'gratitude'],
   ),
 ];

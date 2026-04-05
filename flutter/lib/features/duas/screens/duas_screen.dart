@@ -183,7 +183,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 _landingCard(
                   icon: Icons.menu_book_rounded,
                   title: 'Browse Duas',
-                  subtitle: '~100 authentic duas by category',
+                  subtitle: '69 authentic duas across 15 categories',
                   onTap: () {
                     HapticFeedback.lightImpact();
                     notifier.setActiveTab(DuasTab.browse);
