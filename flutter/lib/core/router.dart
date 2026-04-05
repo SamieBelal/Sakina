@@ -49,31 +49,45 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) => const ProgressScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ProgressScreen(),
+            ),
           ),
           GoRoute(
             path: '/reflect',
-            builder: (context, state) => const ReflectScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ReflectScreen(),
+            ),
           ),
           GoRoute(
             path: '/collection',
-            builder: (context, state) => const CollectionScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: CollectionScreen(),
+            ),
           ),
           GoRoute(
             path: '/duas',
-            builder: (context, state) => const DuasScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: DuasScreen(),
+            ),
           ),
           GoRoute(
             path: '/journal',
-            builder: (context, state) => const JournalScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: JournalScreen(),
+            ),
           ),
           GoRoute(
             path: '/quests',
-            builder: (context, state) => const QuestsScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: QuestsScreen(),
+            ),
           ),
           GoRoute(
             path: '/settings',
-            builder: (context, state) => const SettingsScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SettingsScreen(),
+            ),
           ),
         ],
       ),

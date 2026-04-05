@@ -45,12 +45,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _goToPage(int page) {
+    final current = ref.read(onboardingProvider).currentPage;
     ref.read(onboardingProvider.notifier).setPage(page);
-    _pageController.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+
+    // Jump instantly when crossing multiple pages to avoid flickering through
+    // intermediate screens. Keep smooth animation for adjacent page transitions.
+    if ((page - current).abs() > 1) {
+      _pageController.jumpToPage(page);
+    } else {
+      _pageController.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _next() {
