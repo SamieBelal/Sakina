@@ -77,6 +77,7 @@ class QuestsScreen extends ConsumerWidget {
                 (ctx, i) => _QuestCard(
                   quest: state.daily[i],
                   completed: state.isCompleted(state.daily[i].id),
+                  progress: state.getProgress(state.daily[i].id),
                   delay: i * 60,
                 ),
                 childCount: state.daily.length,
@@ -90,6 +91,7 @@ class QuestsScreen extends ConsumerWidget {
                 (ctx, i) => _QuestCard(
                   quest: state.weekly[i],
                   completed: state.isCompleted(state.weekly[i].id),
+                  progress: state.getProgress(state.weekly[i].id),
                   delay: (state.daily.length + i) * 60,
                 ),
                 childCount: state.weekly.length,
@@ -103,6 +105,7 @@ class QuestsScreen extends ConsumerWidget {
                 (ctx, i) => _QuestCard(
                   quest: state.monthly[i],
                   completed: state.isCompleted(state.monthly[i].id),
+                  progress: state.getProgress(state.monthly[i].id),
                   delay: (state.daily.length + state.weekly.length + i) * 60,
                 ),
                 childCount: state.monthly.length,
@@ -255,11 +258,13 @@ class _QuestCard extends StatelessWidget {
     required this.quest,
     required this.completed,
     this.delay = 0,
+    this.progress = 0,
   });
 
   final Quest quest;
   final bool completed;
   final int delay;
+  final int progress;
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +311,7 @@ class _QuestCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  completed ? Icons.check_rounded : _iconData(quest.iconName),
+                  completed ? Icons.check_rounded : quest.icon,
                   color: completed
                       ? AppColors.textTertiaryLight
                       : _iconColor(quest.cadence),
@@ -341,6 +346,14 @@ class _QuestCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (quest.target > 0 && !completed) ...[
+                      const SizedBox(height: 8),
+                      _QuestProgressBar(
+                        current: progress,
+                        target: quest.target,
+                        color: _iconColor(quest.cadence),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -444,6 +457,53 @@ class _RewardBadge extends StatelessWidget {
           style: AppTypography.labelSmall.copyWith(
             color: effectiveColor,
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quest progress bar for threshold quests
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuestProgressBar extends StatelessWidget {
+  const _QuestProgressBar({
+    required this.current,
+    required this.target,
+    required this.color,
+  });
+
+  final int current;
+  final int target;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = current.clamp(0, target);
+    final progress = target > 0 ? clamped / target : 0.0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.borderLight,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$clamped / $target',
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textSecondaryLight,
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
           ),
         ),
       ],

@@ -10,8 +10,11 @@ import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
+import 'package:sakina/services/streak_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point — push as a full-screen opaque route
@@ -542,11 +545,17 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
     // Fire the reveal exactly once when checkinDone becomes true and loading finishes.
     if (state.checkinDone && !state.checkinLoading && !_revealShown) {
       _revealShown = true;
+      // Wire quest: update monthly streak
+      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+      // Check achievements (delayed to avoid during gacha reveal)
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) checkAchievements(ref);
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).push(
           PageRouteBuilder(
-            opaque: false,
+            opaque: true,
             barrierDismissible: false,
             pageBuilder: (_, __, ___) => NameRevealOverlay(
               nameArabic: state.checkinNameArabic ?? '',

@@ -11,34 +11,34 @@ import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
+import '../widgets/achievement_toast.dart';
 import '../widgets/app_shell.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter buildRouter({required bool onboardingCompleted}) {
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: onboardingCompleted ? '/' : '/onboarding',
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(
         path: '/onboarding',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const OnboardingScreen(),
       ),
 
       // Sign in (full screen, no bottom nav)
       GoRoute(
         path: '/signin',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const SignInScreen(),
       ),
 
       // Discovery quiz (full screen, no bottom nav)
       GoRoute(
         path: '/discovery-quiz',
-        parentNavigatorKey: _rootNavigatorKey,
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const DiscoveryQuizScreen(),
       ),
 

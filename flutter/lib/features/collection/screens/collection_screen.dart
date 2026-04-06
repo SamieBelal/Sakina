@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/share_card.dart';
 
@@ -18,10 +19,17 @@ class CollectionScreen extends ConsumerStatefulWidget {
 
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   CardTier? _filterTier;
+  bool _questFired = false;
 
   @override
   Widget build(BuildContext context) {
     final collection = ref.watch(cardCollectionProvider);
+    if (!_questFired) {
+      _questFired = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(questsProvider.notifier).onCollectionVisited();
+      });
+    }
 
     final filtered = _filterTier == null
         ? allCollectibleNames
@@ -179,6 +187,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   void _showCardDetail(BuildContext context, CollectibleName card, CardTier tier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
+    ref.read(questsProvider.notifier).onNameExplored();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

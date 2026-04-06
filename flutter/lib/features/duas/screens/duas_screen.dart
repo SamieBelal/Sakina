@@ -6,6 +6,8 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
 
@@ -24,6 +26,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(questsProvider.notifier).onDuasBrowsed();
+    });
     _rippleControllers = List.generate(3, (index) {
       return AnimationController(
         vsync: this,
@@ -441,6 +446,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                     : () {
                         HapticFeedback.lightImpact();
                         notifier.saveCurrentBuiltDua();
+                        ref.read(questsProvider.notifier).onBuiltDuaCompleted();
+                        ref.read(questsProvider.notifier).onDuaSaved();
+                        checkAchievements(ref);
                       },
                 icon: Icon(
                   notifier.isBuiltDuaSaved()

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
+import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -19,6 +21,8 @@ import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/primary_card.dart';
+import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/achievement_checker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressScreen extends ConsumerStatefulWidget {
@@ -33,6 +37,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _revealDone = false;
   bool _wasLoading = false;
   bool _rewardCalendarExpanded = false;
+  bool _levelUpShown = false;
 
 
   @override
@@ -76,11 +81,46 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     // Detect transition from loading → checkin done to trigger full-screen reveal
     if (_wasLoading && !state.checkinLoading && state.checkinDone && state.checkinName != null && !_revealDone) {
       _revealDone = true;
+      // Wire quest: update monthly streak
+      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+      // Check achievements (delayed to avoid during gacha)
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) checkAchievements(ref);
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showFullScreenReveal(state);
       });
     }
     _wasLoading = state.checkinLoading;
+
+    // Detect level-up event and show overlay
+    if (state.leveledUp == true && !_levelUpShown) {
+      _levelUpShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => LevelUpOverlay(
+              levelNumber: state.newLevelNumber ?? state.levelNumber,
+              title: state.newLevelTitle ?? state.levelTitle,
+              titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
+              onContinue: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                notifier.clearLevelUp();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      });
+    }
+    if (state.leveledUp != true) {
+      _levelUpShown = false;
+    }
 
     if (!state.loaded) {
       return const Scaffold(
@@ -99,13 +139,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Top Bar
-              _buildTopBar(state),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl for breathing room
-
-              // 2. Streak + XP Strip
-              _buildStreakXpStrip(state),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
+              // 1. Home Header with Level Bar
+              _buildHomeHeader(state),
+              const SizedBox(height: AppSpacing.xl),
 
               // 3. Daily Practice Card (Hero) — moved above rewards
               _buildDailyPracticeCard(state, notifier),
@@ -138,125 +174,203 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 1. Top Bar
+  // 1. Home Header with Level Bar
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildTopBar(DailyLoopState state) {
-    return Row(
+  Widget _buildHomeHeader(DailyLoopState state) {
+    final xpState = _calculateXpProgress(state.xpTotal);
+    final double xpProgress = xpState.xpForNextLevel > 0
+        ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
+        : 1.0;
+    final bool isMaxLevel = xpState.xpForNextLevel == 0;
+
+    return Column(
       children: [
-        Expanded(
-          child: Text(
-            '${state.greeting}, ready to reflect?',
-            style: AppTypography.bodyLarge.copyWith(
-              color: AppColors.textSecondaryLight,
+        // Top row: rank avatar + greeting + stat pills + settings
+        Row(
+          children: [
+            // Rank "avatar" — Arabic calligraphy in a circle
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primaryLight,
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+              ),
+              child: Center(
+                child: Text(
+                  state.levelTitleArabic,
+                  style: AppTypography.nameOfAllahDisplay.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 20,
+                  ),
+                  textDirection: TextDirection.rtl,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+
+            // Greeting + rank title
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${state.greeting}!',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    state.levelTitle,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Streak pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.streakBackground,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 16),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${state.streakCount}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.streakAmber,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Token pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.toll, size: 14, color: AppColors.secondary),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${state.tokenBalance}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Settings gear
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/settings');
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceAltLight,
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Icon(
+                  Icons.settings_outlined,
+                  size: 18,
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ),
+          ],
         ),
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            context.push('/settings');
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surfaceAltLight,
-              border: Border.all(color: AppColors.borderLight),
-            ),
-            child: const Icon(
-              Icons.settings_outlined,
-              size: 20,
-              color: AppColors.textSecondaryLight,
-            ),
+        const SizedBox(height: 12),
+
+        // Level + XP progress bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            children: [
+              // Level pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Lv ${state.levelNumber}',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Progress bar
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: xpProgress,
+                        minHeight: 8,
+                        backgroundColor: AppColors.borderLight,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // XP label
+              Text(
+                isMaxLevel
+                    ? '${state.xpTotal} XP'
+                    : '${xpState.xpIntoCurrentLevel}/${xpState.xpForNextLevel}',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 2. Streak + XP Strip
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Widget _buildStreakXpStrip(DailyLoopState state) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.local_fire_department,
-            color: AppColors.streakAmber,
-            size: 22,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${state.streakCount}',
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'days',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const Spacer(),
-          // Token balance
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.secondaryLight,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.toll, size: 13, color: AppColors.secondary),
-                const SizedBox(width: 4),
-                Text(
-                  '${state.tokenBalance}',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${state.xpTotal} XP',
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
+    ).animate().fadeIn(duration: 400.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -520,6 +634,241 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // 3. Daily Practice Card
   // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2.5. Today's Spiritual Tasks
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildSpiritualTasks(DailyLoopState state, DailyLoopNotifier notifier) {
+    final tasks = [
+      (
+        icon: Icons.favorite_rounded,
+        label: 'Check-in',
+        subtitle: 'How are you feeling today?',
+        reward: '+5 XP',
+        done: state.checkinDone,
+        isCurrent: !state.checkinDone,
+        color: AppColors.primary,
+        bgColor: AppColors.primaryLight,
+        onGo: () {
+          // Scroll to the practice card — it handles the check-in flow
+        },
+      ),
+      (
+        icon: Icons.auto_stories_rounded,
+        label: 'Deeper Reflection',
+        subtitle: 'Go deeper with a Name of Allah',
+        reward: '+25 XP',
+        done: state.deeperDone,
+        isCurrent: state.checkinDone && !state.deeperDone,
+        color: const Color(0xFF6B4E9B),
+        bgColor: const Color(0xFFF3EEFF),
+        onGo: () {
+          if (state.checkinDone && state.currentStep == DailyLoopStep.checkin) {
+            notifier.startDeeper();
+          }
+        },
+      ),
+      (
+        icon: Icons.brightness_3_rounded,
+        label: 'Dua Quest',
+        subtitle: 'Recite today\'s dua',
+        reward: '+10 XP',
+        done: state.questDone,
+        isCurrent: state.deeperDone && !state.questDone,
+        color: AppColors.secondary,
+        bgColor: AppColors.secondaryLight,
+        onGo: () {},
+      ),
+    ];
+
+    final completedCount = tasks.where((t) => t.done).length;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Text(
+                "Today's Spiritual Tasks",
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: completedCount == 3
+                      ? AppColors.primaryLight
+                      : AppColors.surfaceAltLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$completedCount / 3',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: completedCount == 3
+                        ? AppColors.primary
+                        : AppColors.textSecondaryLight,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Task rows
+          ...tasks.asMap().entries.map((entry) {
+            final i = entry.key;
+            final t = entry.value;
+            final isLast = i == tasks.length - 1;
+
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    // Status icon
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: t.done ? t.bgColor : t.isCurrent ? t.bgColor : const Color(0xFFF0EBE3),
+                        border: t.isCurrent && !t.done
+                            ? Border.all(color: t.color, width: 2)
+                            : null,
+                      ),
+                      child: Center(
+                        child: t.done
+                            ? Icon(Icons.check_rounded, size: 18, color: t.color)
+                            : Icon(t.icon, size: 18, color: t.done || t.isCurrent ? t.color : AppColors.textTertiaryLight),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Task info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.label,
+                            style: AppTypography.labelMedium.copyWith(
+                              color: t.done
+                                  ? AppColors.textTertiaryLight
+                                  : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w600,
+                              decoration: t.done ? TextDecoration.lineThrough : null,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            t.done ? 'Completed' : t.subtitle,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textTertiaryLight,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Reward badge or GO button
+                    if (t.done)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: t.bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_rounded, size: 12, color: t.color),
+                            const SizedBox(width: 4),
+                            Text(
+                              t.reward,
+                              style: AppTypography.labelSmall.copyWith(
+                                color: t.color,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (t.isCurrent)
+                      GestureDetector(
+                        onTap: t.onGo,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: t.color,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            'GO',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0EBE3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          t.reward,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textTertiaryLight,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (!isLast) ...[
+                  // Connector line
+                  Padding(
+                    padding: const EdgeInsets.only(left: 19),
+                    child: Container(
+                      width: 2,
+                      height: 12,
+                      color: t.done ? t.color.withValues(alpha: 0.3) : AppColors.borderLight,
+                    ),
+                  ),
+                ],
+              ],
+            );
+          }),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0);
+  }
 
   Widget _buildDailyPracticeCard(
     DailyLoopState state,
@@ -897,7 +1246,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       _ => (
           _deeperDuaContent(result),
           'Continue to Quest',
-          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+          () {
+            HapticFeedback.lightImpact();
+            notifier.advanceReflectStep();
+            ref.read(questsProvider.notifier).onReflectCompleted();
+          },
         ),
     };
 
@@ -1086,6 +1439,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             onTap: () {
               HapticFeedback.lightImpact();
               notifier.completeQuest();
+              checkAchievements(ref);
             },
             child: Container(
               width: double.infinity,
@@ -1112,36 +1466,46 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ── Completed ──────────────────────────────────────────────────────────────
 
   Widget _buildCompletedCard(BuildContext context, DailyLoopState state) {
-    return _cardShell(
-      child: Column(
-        children: [
-          _buildProgressRing(3),
-          const SizedBox(height: AppSpacing.xl),
+    // Compute XP progress for the level bar
+    final xpState = _calculateXpProgress(state.xpTotal);
+    final double xpProgress = xpState.xpForNextLevel > 0
+        ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
+        : 1.0;
+    final bool isMaxLevel = xpState.xpForNextLevel == 0;
 
-          // Checkmark circle
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primaryLight,
-            ),
-            child: const Icon(
-              Icons.check_rounded,
-              color: AppColors.primary,
-              size: 32,
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withValues(alpha: 0.35),
+            blurRadius: 28,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
           ),
+          BoxShadow(
+            color: AppColors.secondary.withValues(alpha: 0.15),
+            blurRadius: 60,
+            spreadRadius: 8,
+            offset: Offset.zero,
+          ),
+        ],
+      ),
+      child: _cardShell(
+        child: Column(
+          children: [
+          _buildProgressRing(3),
           const SizedBox(height: AppSpacing.lg),
 
+          // ── Completion label ─────────────────────────────────────────────
           Text(
             'Muḥāsabah Complete',
-            style: AppTypography.headlineLarge.copyWith(
+            style: AppTypography.headlineMedium.copyWith(
               color: AppColors.textPrimaryLight,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             "You've reflected, gone deeper, and completed your dua quest today.",
             style: AppTypography.bodyMedium.copyWith(
@@ -1149,59 +1513,90 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
 
-          // Streak flame
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.local_fire_department,
-                color: AppColors.streakAmber,
-                size: 24,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${state.streakCount} day streak',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textPrimaryLight,
-                ),
-              ),
-            ],
+          // ── Rank hero ───────────────────────────────────────────────────
+          Text(
+            state.levelTitleArabic,
+            style: AppTypography.nameOfAllahDisplay.copyWith(
+              color: AppColors.primary,
+              fontSize: 52,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
+          )
+              .animate()
+              .fadeIn(duration: 500.ms)
+              .scaleXY(begin: 0.85, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack),
+          const SizedBox(height: 4),
+          Text(
+            state.levelTitle.toUpperCase(),
+            style: AppTypography.labelMedium.copyWith(
+              color: AppColors.primary,
+              letterSpacing: 2.5,
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
+          const SizedBox(height: AppSpacing.md),
+
+          // ── XP progress bar ─────────────────────────────────────────────
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: xpProgress,
+              minHeight: 6,
+              backgroundColor: AppColors.borderLight,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isMaxLevel
+                ? 'Max rank reached'
+                : '${xpState.xpIntoCurrentLevel} / ${xpState.xpForNextLevel} XP to ${_nextLevelTitle(state.xpTotal)}',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textTertiaryLight,
+              fontSize: 11,
+            ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // XP + Tokens summary
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${state.xpTotal} XP',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+          // ── Stat banner (streak · XP · tokens) ──────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Icon(Icons.toll, size: 14, color: AppColors.secondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    '+${tokenRewardDeeperReflection + tokenRewardQuestComplete} tokens earned',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  _completedStat(
+                    icon: const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 18),
+                    value: '${state.streakCount}',
+                    label: 'streak',
+                  ),
+                  VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
+                  _completedStat(
+                    icon: const Icon(Icons.bolt, color: AppColors.primary, size: 18),
+                    value: '${state.xpTotal}',
+                    label: 'XP',
+                  ),
+                  VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
+                  _completedStat(
+                    icon: const Icon(Icons.toll, color: AppColors.secondary, size: 18),
+                    value: '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
+                    label: 'tokens',
                   ),
                 ],
               ),
-            ],
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // Action buttons
+          // ── Action buttons ───────────────────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -1220,15 +1615,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.auto_stories_rounded,
-                            color: AppColors.primary, size: 20),
+                        const Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: 20),
                         const SizedBox(height: 4),
-                        Text(
-                          'Reflect More',
-                          style: AppTypography.labelMedium.copyWith(
-                              color: AppColors.primary),
-                          textAlign: TextAlign.center,
-                        ),
+                        Text('Reflect More',
+                            style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                            textAlign: TextAlign.center),
                       ],
                     ),
                   ),
@@ -1251,15 +1642,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.favorite_rounded,
-                            color: AppColors.secondary, size: 20),
+                        const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 20),
                         const SizedBox(height: 4),
-                        Text(
-                          'Build a Dua',
-                          style: AppTypography.labelMedium.copyWith(
-                              color: AppColors.secondary),
-                          textAlign: TextAlign.center,
-                        ),
+                        Text('Build a Dua',
+                            style: AppTypography.labelMedium.copyWith(color: AppColors.secondary),
+                            textAlign: TextAlign.center),
                       ],
                     ),
                   ),
@@ -1282,15 +1669,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.emoji_events_rounded,
-                            color: Color(0xFF7C3AED), size: 20),
+                        const Icon(Icons.emoji_events_rounded, color: Color(0xFF7C3AED), size: 20),
                         const SizedBox(height: 4),
-                        Text(
-                          'Quests',
-                          style: AppTypography.labelMedium.copyWith(
-                              color: const Color(0xFF7C3AED)),
-                          textAlign: TextAlign.center,
-                        ),
+                        Text('Quests',
+                            style: AppTypography.labelMedium.copyWith(color: const Color(0xFF7C3AED)),
+                            textAlign: TextAlign.center),
                       ],
                     ),
                   ),
@@ -1302,16 +1685,63 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
           Text(
             'Come back tomorrow',
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+          ),
+        ],
+      ),
+    ))
+        .animate()
+        .fadeIn(duration: 600.ms, delay: 100.ms)
+        .slideY(begin: 0.08, end: 0);
+  }
+
+  Widget _completedStat({required Widget icon, required String value, required String label}) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            label,
             style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textTertiaryLight,
+              color: AppColors.textSecondaryLight,
+              fontSize: 11,
             ),
           ),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 600.ms, delay: 100.ms)
-        .slideY(begin: 0.08, end: 0);
+    );
+  }
+
+  ({int xpIntoCurrentLevel, int xpForNextLevel}) _calculateXpProgress(int total) {
+    XpLevel current = xpLevels.first;
+    for (final level in xpLevels) {
+      if (total >= level.minXp) current = level;
+    }
+    final int into = total - current.minXp;
+    final int forNext = current.level < xpLevels.length
+        ? xpLevels[current.level].minXp - current.minXp
+        : 0;
+    return (xpIntoCurrentLevel: into, xpForNextLevel: forNext);
+  }
+
+  String _nextLevelTitle(int total) {
+    XpLevel current = xpLevels.first;
+    for (final level in xpLevels) {
+      if (total >= level.minXp) current = level;
+    }
+    if (current.level < xpLevels.length) {
+      return xpLevels[current.level].title;
+    }
+    return '';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1467,7 +1897,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
     Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder(
-        opaque: false,
+        opaque: true,
         barrierDismissible: false,
         pageBuilder: (_, __, ___) => NameRevealOverlay(
           nameArabic: state.checkinNameArabic ?? '',

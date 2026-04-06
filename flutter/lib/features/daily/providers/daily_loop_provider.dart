@@ -59,6 +59,13 @@ class DailyLoopState {
   final int tokenBalance;
   final String levelTitle;
   final String levelTitleArabic;
+  final int levelNumber;
+
+  // Level-up event (consumed by UI to show overlay)
+  final bool leveledUp;
+  final String? newLevelTitle;
+  final String? newLevelTitleArabic;
+  final int? newLevelNumber;
 
   // Card collection
   final CardEngageResult? cardEngageResult;
@@ -101,6 +108,11 @@ class DailyLoopState {
     this.tokenBalance = 0,
     this.levelTitle = 'Seeker',
     this.levelTitleArabic = 'طَالِب',
+    this.levelNumber = 1,
+    this.leveledUp = false,
+    this.newLevelTitle,
+    this.newLevelTitleArabic,
+    this.newLevelNumber,
     this.error,
   });
 
@@ -135,6 +147,11 @@ class DailyLoopState {
     int? tokenBalance,
     String? levelTitle,
     String? levelTitleArabic,
+    int? levelNumber,
+    bool? leveledUp,
+    String? newLevelTitle,
+    String? newLevelTitleArabic,
+    int? newLevelNumber,
     String? error,
   }) {
     return DailyLoopState(
@@ -170,6 +187,11 @@ class DailyLoopState {
       tokenBalance: tokenBalance ?? this.tokenBalance,
       levelTitle: levelTitle ?? this.levelTitle,
       levelTitleArabic: levelTitleArabic ?? this.levelTitleArabic,
+      levelNumber: levelNumber ?? this.levelNumber,
+      leveledUp: leveledUp ?? this.leveledUp,
+      newLevelTitle: newLevelTitle ?? this.newLevelTitle,
+      newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
+      newLevelNumber: newLevelNumber ?? this.newLevelNumber,
       error: error,
     );
   }
@@ -220,6 +242,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         tokenBalance: tokenState.balance,
         levelTitle: xpState.title,
         levelTitleArabic: xpState.titleArabic,
+        levelNumber: xpState.level,
         questDua: questDua,
       );
 
@@ -385,7 +408,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           xpTotal: xpResult.newTotal,
           levelTitle: xpResult.state.title,
           levelTitleArabic: xpResult.state.titleArabic,
+          levelNumber: xpResult.state.level,
           streakCount: streakResult.currentStreak,
+          leveledUp: xpResult.leveledUp,
+          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {
         // Non-critical — don't fail the check-in
@@ -420,6 +448,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
   void clearCardEngageResult() {
     // Can't null out with copyWith, so we leave it — UI checks tierChanged
+  }
+
+  void clearLevelUp() {
+    state = state.copyWith(leveledUp: false);
   }
 
   // ---------------------------------------------------------------------------
@@ -467,6 +499,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           xpTotal: xpResult.newTotal,
           levelTitle: xpResult.state.title,
           levelTitleArabic: xpResult.state.titleArabic,
+          levelNumber: xpResult.state.level,
+          leveledUp: xpResult.leveledUp,
+          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {}
 
@@ -507,6 +544,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           xpTotal: xpResult.newTotal,
           levelTitle: xpResult.state.title,
           levelTitleArabic: xpResult.state.titleArabic,
+          levelNumber: xpResult.state.level,
+          leveledUp: xpResult.leveledUp,
+          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {}
     }
@@ -528,6 +570,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         xpTotal: xpResult.newTotal,
         levelTitle: xpResult.state.title,
         levelTitleArabic: xpResult.state.titleArabic,
+        levelNumber: xpResult.state.level,
+        leveledUp: xpResult.leveledUp,
+        newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+        newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+        newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
       );
     } catch (_) {}
 

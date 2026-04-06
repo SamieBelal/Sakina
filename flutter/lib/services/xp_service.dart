@@ -47,11 +47,16 @@ class XpAwardResult {
 }
 
 const List<XpLevel> xpLevels = [
-  XpLevel(level: 1, title: 'Seeker', titleArabic: 'طَالِب', minXp: 0),
-  XpLevel(level: 2, title: 'Reflector', titleArabic: 'مُتَفَكِّر', minXp: 50),
-  XpLevel(level: 3, title: 'Devoted', titleArabic: 'مُخْلِص', minXp: 150),
-  XpLevel(level: 4, title: 'Enlightened', titleArabic: 'مُنَوَّر', minXp: 350),
-  XpLevel(level: 5, title: 'Sage', titleArabic: 'حَكِيم', minXp: 700),
+  XpLevel(level: 1,  title: 'Seeker',         titleArabic: 'طَالِب',      minXp: 0),
+  XpLevel(level: 2,  title: 'Repentant',       titleArabic: 'تَائِب',      minXp: 50),
+  XpLevel(level: 3,  title: 'Grateful',        titleArabic: 'شَاكِر',      minXp: 150),
+  XpLevel(level: 4,  title: 'Patient',         titleArabic: 'صَابِر',      minXp: 300),
+  XpLevel(level: 5,  title: 'Devoted',         titleArabic: 'مُخْلِص',     minXp: 500),
+  XpLevel(level: 6,  title: 'Rememberer',      titleArabic: 'ذَاكِر',      minXp: 750),
+  XpLevel(level: 7,  title: 'Humble',          titleArabic: 'خَاشِع',      minXp: 1050),
+  XpLevel(level: 8,  title: 'Trusting',        titleArabic: 'مُتَوَكِّل',  minXp: 1400),
+  XpLevel(level: 9,  title: 'Beloved',         titleArabic: 'مَحْبُوب',    minXp: 1800),
+  XpLevel(level: 10, title: 'Friend of Allah', titleArabic: 'وَلِيّ',      minXp: 2250),
 ];
 
 // XP Awards

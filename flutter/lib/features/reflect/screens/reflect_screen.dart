@@ -8,6 +8,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
 
@@ -22,6 +23,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     with TickerProviderStateMixin {
   late final List<AnimationController> _rippleControllers;
   final TextEditingController _textController = TextEditingController();
+  bool _achievementChecked = false;
 
   @override
   void initState() {
@@ -77,6 +79,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         });
       }
     });
+
+    // Check achievements when reflection result appears
+    if (state.screenState == ReflectScreenState.result && !_achievementChecked) {
+      _achievementChecked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        checkAchievements(ref);
+      });
+    }
 
     // Manage ripple animation based on state
     if (state.screenState == ReflectScreenState.loading) {

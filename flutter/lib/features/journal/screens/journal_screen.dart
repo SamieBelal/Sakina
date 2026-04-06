@@ -7,25 +7,23 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
-import 'package:sakina/services/streak_service.dart';
-import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/achievements_service.dart';
 
 // ---------------------------------------------------------------------------
-// Stats provider
+// Achievements provider
 // ---------------------------------------------------------------------------
 
-final _journalStatsProvider = FutureProvider<({XpState xp, StreakState streak})>((ref) async {
-  final xp = await getXp();
-  final streak = await getStreak();
-  return (xp: xp, streak: streak);
+final _achievementsProvider = FutureProvider<Set<String>>((ref) async {
+  return getUnlockedAchievements();
 });
 
 // ---------------------------------------------------------------------------
 // Entry type for unified feed
 // ---------------------------------------------------------------------------
 
-enum _EntryType { reflection, builtDua }
+enum _EntryType { reflection, builtDua, savedDua }
 
 class _JournalEntry {
   final _EntryType type;
@@ -55,9 +53,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   late final TabController _tab;
 
   @override
+  bool _questFired = false;
+
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
     _tab.addListener(() => setState(() {}));
   }
 
@@ -69,11 +69,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!_questFired) {
+      _questFired = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(questsProvider.notifier).onJournalVisited();
+      });
+    }
     final reflectState = ref.watch(reflectProvider);
     final duasState = ref.watch(duasProvider);
 
     final reflections = reflectState.savedReflections;
     final builtDuas = duasState.savedBuiltDuas;
+    final savedDuas = duasState.savedRelatedDuas;
 
     // Build merged feed
     final allEntries = <_JournalEntry>[
@@ -87,21 +94,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             date: DateTime.parse(d.savedAt),
             data: d,
           )),
+      ...savedDuas.map((d) => _JournalEntry(
+            type: _EntryType.savedDua,
+            date: DateTime.now(), // no saved date on related duas
+            data: d,
+          )),
     ]..sort((a, b) => b.date.compareTo(a.date));
 
-    final totalCount = reflections.length + builtDuas.length;
-
-    // Most connected name
-    String? topName;
-    if (reflections.isNotEmpty) {
-      final freq = <String, int>{};
-      for (final r in reflections) {
-        freq[r.name] = (freq[r.name] ?? 0) + 1;
-      }
-      topName = freq.entries
-          .reduce((a, b) => a.value >= b.value ? a : b)
-          .key;
-    }
+    final totalCount = reflections.length + builtDuas.length + savedDuas.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
@@ -109,9 +109,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(totalCount, topName, reflections.length),
-            _buildStatsStrip(totalCount, reflections.length, builtDuas.length),
-            const SizedBox(height: AppSpacing.lg), // Increased: 12→24 for breathing room
+            _buildHeader(totalCount),
+            if (totalCount > 0) ...[
+              const SizedBox(height: 12),
+              _buildInlineStats(reflections, builtDuas.length + savedDuas.length),
+            ],
+            const SizedBox(height: 16),
             _buildTabs(),
             Expanded(
               child: IndexedStack(
@@ -119,7 +122,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                 children: [
                   _buildAllFeed(allEntries),
                   _buildReflectionsTab(reflections),
-                  _buildDuasTab(builtDuas),
+                  _buildDuasTab(builtDuas, savedDuas),
+                  _buildAchievementsTab(),
                 ],
               ),
             ),
@@ -131,64 +135,93 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(int total, String? topName, int reflectionCount) {
+  Widget _buildHeader(int total) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding, AppSpacing.pagePadding, AppSpacing.pagePadding, 0),
+          AppSpacing.pagePadding, 32, AppSpacing.pagePadding, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Journal',
-                  style: AppTypography.displayLarge
-                      .copyWith(color: AppColors.textPrimaryLight)),
-              const SizedBox(height: 4),
-              Text(
-                total == 0
-                    ? 'Your spiritual diary'
-                    : '$total saved entries',
-                style: AppTypography.bodyMedium
-                    .copyWith(color: AppColors.textSecondaryLight),
-              ),
-            ],
+          Text('Journal',
+              style: AppTypography.displayLarge
+                  .copyWith(color: AppColors.textPrimaryLight)),
+          const SizedBox(height: 4),
+          Text(
+            total == 0 ? 'Your spiritual diary' : '$total entries',
+            style: AppTypography.bodyMedium
+                .copyWith(color: AppColors.textSecondaryLight),
           ),
-          if (topName != null && reflectionCount >= 3) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5EBD9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome,
-                      color: AppColors.secondary, size: 14),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Most connected with $topName this month',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg), // Increased: 16→24 for hierarchy
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms);
+    );
   }
 
-  // ── Stats strip ─────────────────────────────────────────────────────────────
+  // ── Week strip ─────────────────────────────────────────────────────────────
+
+  Widget _buildWeekStrip(List<SavedReflection> reflections) {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final reflectionDates = reflections
+        .map((r) => DateTime.parse(r.date))
+        .toSet();
+    final activeDays = List.generate(7, (i) {
+      final day = weekStart.add(Duration(days: i));
+      return reflectionDates.any((d) =>
+          d.year == day.year && d.month == day.month && d.day == day.day);
+    });
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(7, (i) {
+            final isToday = i == now.weekday - 1;
+            final active = activeDays[i];
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active
+                    ? AppColors.primary
+                    : isToday
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : const Color(0xFFF0EBE3),
+                border: isToday && !active
+                    ? Border.all(color: AppColors.primary, width: 1.5)
+                    : null,
+              ),
+              child: active
+                  ? const Icon(Icons.check, size: 13, color: Colors.white)
+                  : Center(
+                      child: Text(
+                        dayLabels[i],
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isToday
+                              ? AppColors.primary
+                              : AppColors.textTertiaryLight,
+                        ),
+                      ),
+                    ),
+            );
+          }),
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  // ── Inline stats ───────────────────────────────────────────────────────────
 
   // Keyword → theme bucket mapping
   static const _themeBuckets = <String, List<String>>{
@@ -218,211 +251,65 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
-  Widget _buildStatsStrip(int total, int reflections, int builtDuas) {
-    final statsAsync = ref.watch(_journalStatsProvider);
-    final savedReflections = ref.watch(reflectProvider).savedReflections;
+  Widget _buildInlineStats(List<SavedReflection> reflections, int duasCount) {
+    final topTheme = _topTheme(reflections);
 
-    // Unique Names encountered
-    final uniqueNames = savedReflections.map((r) => r.name).toSet().length;
-
-    // Days active this week
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final reflectionDates = savedReflections
-        .map((r) => DateTime.parse(r.date))
-        .toSet();
-    final activeDays = List.generate(7, (i) {
-      final day = weekStart.add(Duration(days: i));
-      return reflectionDates.any((d) =>
-          d.year == day.year && d.month == day.month && d.day == day.day);
-    });
-
-    final topTheme = _topTheme(savedReflections);
-
-    return statsAsync.when(
-      loading: () => const SizedBox(height: 120),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (stats) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── 4 stat tiles ──
-            Row(
-              children: [
-                _statTile(
-                  icon: '📖',
-                  value: '$reflections',
-                  label: 'Reflections',
-                  color: AppColors.primary,
-                  bgColor: const Color(0xFFE8F5EE),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '🤲',
-                  value: '$builtDuas',
-                  label: 'Personal duas',
-                  color: AppColors.secondary,
-                  bgColor: const Color(0xFFF5EBD9),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '✨',
-                  value: '$uniqueNames',
-                  label: 'Names met',
-                  color: const Color(0xFF6B4E9B),
-                  bgColor: const Color(0xFFF3EEFF),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '⭐',
-                  value: '${stats.xp.totalXp}',
-                  label: 'Total XP',
-                  color: const Color(0xFFF59E0B),
-                  bgColor: const Color(0xFFFEF3C7),
-                ),
-              ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _inlineChip(
+            icon: Icons.auto_stories_rounded,
+            label: '${reflections.length} reflections',
+            color: AppColors.primary,
+            bgColor: const Color(0xFFE8F5EE),
+          ),
+          _inlineChip(
+            icon: Icons.auto_awesome,
+            label: '$duasCount duas',
+            color: AppColors.secondary,
+            bgColor: const Color(0xFFF5EBD9),
+          ),
+          if (topTheme != null)
+            _inlineChip(
+              icon: Icons.insights_rounded,
+              label: topTheme,
+              color: AppColors.secondary,
+              bgColor: const Color(0xFFF5EBD9),
             ),
-            const SizedBox(height: 14),
-
-            // ── Week activity dots ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    'This week',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondaryLight,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ...List.generate(7, (i) {
-                    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                    final isToday = i == now.weekday - 1;
-                    final active = activeDays[i];
-                    return Expanded(
-                      child: Column(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: active
-                                  ? AppColors.primary
-                                  : isToday
-                                      ? AppColors.primary.withValues(alpha: 0.12)
-                                      : const Color(0xFFF0EBE3),
-                              border: isToday && !active
-                                  ? Border.all(color: AppColors.primary, width: 1.5)
-                                  : null,
-                            ),
-                            child: active
-                                ? const Icon(Icons.check, size: 13, color: Colors.white)
-                                : Center(
-                                    child: Text(
-                                      dayLabels[i],
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600,
-                                        color: isToday
-                                            ? AppColors.primary
-                                            : AppColors.textTertiaryLight,
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-            // ── Theme insight card (3+ reflections) ──
-            if (topTheme != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5EBD9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        color: AppColors.secondary, size: 16),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'You often bring $topTheme to Allah',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
+        ],
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    ).animate().fadeIn(duration: 400.ms, delay: 100.ms);
   }
 
-  Widget _statTile({
-    required String icon,
-    required String value,
+  Widget _inlineChip({
+    required IconData icon,
     required String label,
     required Color color,
     required Color bgColor,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: AppTypography.labelLarge.copyWith(
-                color: color,
-                fontSize: 13,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTypography.bodySmall.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
-            Text(
-              label,
-              style: AppTypography.bodySmall.copyWith(
-                color: color.withValues(alpha: 0.7),
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -430,7 +317,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   // ── Tabs ────────────────────────────────────────────────────────────────────
 
   Widget _buildTabs() {
-    const labels = ['All', 'Reflections', 'Duas'];
+    const labels = ['All', 'Reflections', 'Duas', 'Badges'];
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
       height: 40,
@@ -500,22 +387,115 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Duas tab ────────────────────────────────────────────────────────────────
 
-  Widget _buildDuasTab(List<SavedBuiltDua> builtDuas) {
-    if (builtDuas.isEmpty) {
+  Widget _buildDuasTab(List<SavedBuiltDua> builtDuas, List<SavedRelatedDua> savedDuas) {
+    if (builtDuas.isEmpty && savedDuas.isEmpty) {
       return _buildEmptyState(
         icon: Icons.brightness_3_outlined,
-        message: 'No personal duas yet',
-        sub: 'Build a dua for your specific need and it will be saved here.',
+        message: 'No duas saved yet',
+        sub: 'Build a dua or save one from your reflections.',
         actionLabel: 'Build a Dua',
         onAction: () => context.go('/duas'),
       );
     }
+    final allDuaWidgets = <Widget>[
+      ...builtDuas.map((d) => _buildBuiltDuaCard(d)),
+      ...savedDuas.map((d) => _buildSavedDuaCard(d)),
+    ];
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: builtDuas.asMap().entries
-          .map((e) => _animatedCard(e.key, _buildBuiltDuaCard(e.value)))
+      children: allDuaWidgets.asMap().entries
+          .map((e) => _animatedCard(e.key, e.value))
           .toList(),
+    );
+  }
+
+  // ── Achievements tab ────────────────────────────────────────────────────────
+
+  Widget _buildAchievementsTab() {
+    final asyncUnlocked = ref.watch(_achievementsProvider);
+
+    return asyncUnlocked.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (_, __) => const Center(child: Text('Could not load achievements')),
+      data: (unlocked) {
+        final categories = AchievementCategory.values;
+        final categoryLabels = {
+          AchievementCategory.collection: 'Collection',
+          AchievementCategory.reflection: 'Reflection',
+          AchievementCategory.dua: 'Dua',
+          AchievementCategory.streak: 'Streak',
+          AchievementCategory.growth: 'Growth',
+        };
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
+          children: [
+            // Summary
+            Center(
+              child: Text(
+                '${unlocked.length} / ${allAchievements.length} unlocked',
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: allAchievements.isNotEmpty
+                    ? unlocked.length / allAchievements.length
+                    : 0,
+                minHeight: 6,
+                backgroundColor: AppColors.borderLight,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Grouped by category
+            ...categories.expand((cat) {
+              final achievements = allAchievements.where((a) => a.category == cat).toList();
+              if (achievements.isEmpty) return <Widget>[];
+
+              return [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10, top: 8),
+                  child: Text(
+                    categoryLabels[cat] ?? '',
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      letterSpacing: 1.5,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                ...achievements.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final a = entry.value;
+                  final isUnlocked = unlocked.contains(a.id);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _AchievementCard(
+                      achievement: a,
+                      unlocked: isUnlocked,
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(delay: (i * 40).ms, duration: 300.ms)
+                      .slideY(begin: 0.04, end: 0, delay: (i * 40).ms, duration: 300.ms);
+                }),
+              ];
+            }),
+          ],
+        );
+      },
     );
   }
 
@@ -527,6 +507,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         return _buildReflectionCard(entry.data as SavedReflection);
       case _EntryType.builtDua:
         return _buildBuiltDuaCard(entry.data as SavedBuiltDua);
+      case _EntryType.savedDua:
+        return _buildSavedDuaCard(entry.data as SavedRelatedDua);
     }
   }
 
@@ -694,6 +676,78 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
+  // ── Saved dua card ──────────────────────────────────────────────────────────
+
+  Widget _buildSavedDuaCard(SavedRelatedDua d) {
+    return _ExpandableCard(
+      topLeft: _typeChip('Saved Dua', AppColors.secondary),
+      topRight: Text(
+        d.source,
+        style: AppTypography.bodySmall
+            .copyWith(color: AppColors.textTertiaryLight),
+      ),
+      summary: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 6),
+          Text(
+            d.title,
+            style: AppTypography.labelLarge
+                .copyWith(color: AppColors.textPrimaryLight),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            d.arabic,
+            style: AppTypography.quranArabic.copyWith(fontSize: 18),
+            textDirection: TextDirection.rtl,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+      expanded: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 12),
+          Text(
+            d.arabic,
+            style: AppTypography.quranArabic.copyWith(fontSize: 22),
+            textDirection: TextDirection.rtl,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            d.transliteration,
+            style: AppTypography.bodyMedium.copyWith(
+              fontStyle: FontStyle.italic,
+              color: AppColors.textSecondaryLight,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            d.translation,
+            style: AppTypography.bodyMedium
+                .copyWith(color: AppColors.textPrimaryLight, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id);
+            },
+            child: Text(
+              'Remove',
+              style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Empty state ─────────────────────────────────────────────────────────────
 
   Widget _buildEmptyState({
@@ -824,6 +878,104 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 // ---------------------------------------------------------------------------
 // Reusable expandable card
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Achievement card
+// ---------------------------------------------------------------------------
+
+class _AchievementCard extends StatelessWidget {
+  const _AchievementCard({
+    required this.achievement,
+    required this.unlocked,
+  });
+
+  final Achievement achievement;
+  final bool unlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: unlocked ? 1.0 : 0.45,
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: unlocked ? AppColors.surfaceLight : AppColors.surfaceAltLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(
+            color: unlocked
+                ? achievement.color.withValues(alpha: 0.3)
+                : AppColors.borderLight,
+          ),
+          boxShadow: unlocked
+              ? [
+                  BoxShadow(
+                    color: achievement.color.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            // Badge icon
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: unlocked
+                    ? achievement.color.withValues(alpha: 0.12)
+                    : AppColors.borderLight,
+              ),
+              child: Icon(
+                unlocked ? achievement.icon : Icons.lock_outline_rounded,
+                color: unlocked ? achievement.color : AppColors.textTertiaryLight,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    achievement.title,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: unlocked
+                          ? AppColors.textPrimaryLight
+                          : AppColors.textTertiaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    achievement.description,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Unlocked indicator
+            if (unlocked)
+              Icon(
+                Icons.check_circle_rounded,
+                color: achievement.color,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ExpandableCard extends StatefulWidget {
   const _ExpandableCard({

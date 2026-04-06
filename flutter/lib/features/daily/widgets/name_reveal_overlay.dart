@@ -96,7 +96,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF0A0A12),
       body: GestureDetector(
         onTap: _phase >= 3 ? _handleContinue : null,
         child: AnimatedContainer(
