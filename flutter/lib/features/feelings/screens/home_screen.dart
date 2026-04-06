@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -127,12 +128,11 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Column(
         children: [
-          const Icon(
-            Icons.book_outlined,
-            size: 64,
-            color: AppColors.textTertiaryLight,
+          SvgPicture.asset(
+            'assets/illustrations/main_screens/journal_empty_state.svg',
+            height: 200,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
             'Your journal is empty',
             style: AppTypography.headlineMedium.copyWith(

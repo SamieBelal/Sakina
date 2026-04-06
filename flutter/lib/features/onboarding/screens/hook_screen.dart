@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
@@ -22,7 +23,9 @@ class HookScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
     final archWidth = screenWidth * 0.6;
     final archHeight = archWidth * 1.25;
 
@@ -67,7 +70,13 @@ class HookScreen extends StatelessWidget {
           ),
           // Main content
           SafeArea(
-            child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints:
+                      BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
               children: [
                 const SizedBox(height: AppSpacing.xl),
                 // Title
@@ -95,7 +104,7 @@ class HookScreen extends StatelessWidget {
                       duration: 800.ms,
                       delay: 200.ms,
                     ),
-                const SizedBox(height: AppSpacing.xxl),
+                SizedBox(height: screenHeight < 700 ? AppSpacing.lg : AppSpacing.xxl),
                 // Hook text
                 Text(
                   AppStrings.hookSubtitle1,
@@ -123,7 +132,10 @@ class HookScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: onNext,
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        onNext();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: AppColors.primaryDark,
@@ -146,7 +158,12 @@ class HookScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 // Login link
                 TextButton(
-                  onPressed: onSignIn,
+                  onPressed: onSignIn != null
+                      ? () {
+                          HapticFeedback.lightImpact();
+                          onSignIn!();
+                        }
+                      : null,
                   child: Text(
                     AppStrings.hookLoginLink,
                     style: AppTypography.labelMedium.copyWith(
@@ -156,6 +173,10 @@ class HookScreen extends StatelessWidget {
                 ).animate().fadeIn(duration: 600.ms, delay: 1000.ms),
                 const SizedBox(height: AppSpacing.lg),
               ],
+            ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

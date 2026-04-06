@@ -53,7 +53,12 @@ class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
             children: [
               const Spacer(flex: 3),
               // Decorative Arabic at low opacity
@@ -130,6 +135,10 @@ class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
               }),
               const Spacer(flex: 4),
             ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

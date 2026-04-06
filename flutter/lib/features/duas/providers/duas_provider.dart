@@ -293,8 +293,11 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   void nextBuildSection() {
     if (state.buildCurrentSection < 4) {
+      final next = state.buildCurrentSection + 1;
+      final breakdownLen = state.buildResult?.breakdown.length ?? 0;
+      // If next index exceeds available sections, jump straight to Ameen (4)
       state = state.copyWith(
-        buildCurrentSection: state.buildCurrentSection + 1,
+        buildCurrentSection: next < breakdownLen ? next : 4,
       );
     }
   }

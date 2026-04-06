@@ -19,6 +19,7 @@ Future<void> shareReflectionCard({
   required String duaSource,
   String? story,
   String? reframe,
+  Rect? sharePositionOrigin,
 }) async {
   if (kIsWeb) {
     // Show preview on web
@@ -85,6 +86,7 @@ Future<void> shareReflectionCard({
     await Share.shareXFiles(
       [XFile(file.path)],
       text: 'Reflecting on $nameEnglish — from Sakina',
+      sharePositionOrigin: sharePositionOrigin,
     );
   } finally {
     overlay.remove();

@@ -19,7 +19,7 @@ class OnboardingContinueButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
         opacity: enabled ? 1.0 : 0.5,

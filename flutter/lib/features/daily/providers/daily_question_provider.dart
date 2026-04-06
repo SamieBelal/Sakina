@@ -104,7 +104,7 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
 
     try {
       final questionText = state.question?.question ?? '';
-      final response = await getDailyResponse(questionText, answer);
+      final response = await getDailyResponse([questionText, answer]);
 
       await awardXp(5);
       await markActiveToday();

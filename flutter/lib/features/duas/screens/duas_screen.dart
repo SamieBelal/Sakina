@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -22,6 +24,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     with TickerProviderStateMixin {
   late final List<AnimationController> _rippleControllers;
   final TextEditingController _buildController = TextEditingController();
+  final ScrollController _buildScrollController = ScrollController();
+  final GlobalKey _textFieldKey = GlobalKey();
 
   @override
   void initState() {
@@ -58,6 +62,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       c.dispose();
     }
     _buildController.dispose();
+    _buildScrollController.dispose();
     super.dispose();
   }
 
@@ -87,9 +92,13 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
     final isAmeen = state.buildCurrentSection == 4 && state.buildResult != null;
 
-    return Scaffold(
-      backgroundColor: isAmeen ? AppColors.primary : const Color(0xFFFBF7F2),
-      body: _buildBuildTab(state, notifier),
+    return GestureDetector(
+      onTap: () => dismissKeyboard(context),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: isAmeen ? AppColors.primary : const Color(0xFFFBF7F2),
+        body: _buildBuildTab(state, notifier),
+      ),
     );
   }
 
@@ -111,7 +120,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   Widget _buildBuildInput(DuasState state, DuasNotifier notifier) {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
+        controller: _buildScrollController,
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding, 32, AppSpacing.pagePadding, AppSpacing.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -122,7 +133,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               style: AppTypography.bodyMedium
                   .copyWith(color: AppColors.textSecondaryLight),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            // Header illustration
+            Center(
+              child: SvgPicture.asset(
+                'assets/illustrations/main_screens/duas_header.svg',
+                height: 140,
+              ),
+            ),
+            const SizedBox(height: 24),
             // Elegant stepped indicator
             Row(
               children: [
@@ -136,11 +155,29 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               ],
             ),
             const SizedBox(height: 24),
-            TextField(
-              controller: _buildController,
-              maxLines: 3,
-              onChanged: notifier.setBuildNeed,
-              decoration: _inputDecoration('What do you need a dua for...'),
+            Focus(
+              onFocusChange: (hasFocus) {
+                if (hasFocus) {
+                  Future.delayed(const Duration(milliseconds: 400), () {
+                    final keyContext = _textFieldKey.currentContext;
+                    if (keyContext != null) {
+                      Scrollable.ensureVisible(
+                        keyContext,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+                      );
+                    }
+                  });
+                }
+              },
+              child: TextField(
+                key: _textFieldKey,
+                controller: _buildController,
+                maxLines: 3,
+                onChanged: notifier.setBuildNeed,
+                decoration: _inputDecoration('What do you need a dua for...'),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(

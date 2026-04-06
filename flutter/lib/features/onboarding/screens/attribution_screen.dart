@@ -38,7 +38,12 @@ class AttributionScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 6,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -79,6 +84,10 @@ class AttributionScreen extends ConsumerWidget {
             enabled: state.attribution.isNotEmpty,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

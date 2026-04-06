@@ -48,7 +48,12 @@ class FamiliarityScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 4,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -90,6 +95,10 @@ class FamiliarityScreen extends ConsumerWidget {
             enabled: state.familiarity != null,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../core/utils/keyboard.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -28,6 +29,8 @@ class FirstCheckinScreen extends ConsumerStatefulWidget {
 
 class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
   late final TextEditingController _controller;
+  final _scrollController = ScrollController();
+  final _textFieldKey = GlobalKey();
 
   static const _chips = [
     AppStrings.chipAnxious,
@@ -48,6 +51,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -56,16 +60,23 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
     final state = ref.watch(onboardingProvider);
     final notifier = ref.read(onboardingProvider.notifier);
 
-    return OnboardingPageWrapper(
-      progressSegment: 10,
-      onBack: widget.onBack,
-      child: AnimatedSwitcher(
+    return GestureDetector(
+      onTap: () => dismissKeyboard(context),
+      behavior: HitTestBehavior.translucent,
+      child: OnboardingPageWrapper(
+        progressSegment: 10,
+        onBack: () {
+          dismissKeyboard(context);
+          widget.onBack();
+        },
+        child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         child: state.isLoadingDemoResult
             ? _buildLoading()
             : state.demoCheckinCompleted
                 ? _buildResult(state, notifier)
                 : _buildInput(state, notifier),
+        ),
       ),
     );
   }
@@ -75,94 +86,128 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
         state.demoFeelingInput != null && state.demoFeelingInput!.isNotEmpty;
     final currentInput = state.demoFeelingInput ?? '';
 
-    return Column(
+    return LayoutBuilder(
       key: const ValueKey('input'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppStrings.checkinTitle,
-          style: AppTypography.displaySmall.copyWith(
-            color: AppColors.textPrimaryLight,
-          ),
-          textAlign: TextAlign.left,
-        )
-            .animate()
-            .fadeIn(duration: 500.ms)
-            .slideY(begin: 0.05, end: 0, duration: 500.ms),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          AppStrings.checkinSubtitle,
-          style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textSecondaryLight,
-          ),
-          textAlign: TextAlign.left,
-        ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-        const SizedBox(height: AppSpacing.lg),
-        Center(
-          child: SvgPicture.asset(
-            'assets/illustrations/onboarding_checkin.svg',
-            height: 180,
-          ),
-        )
-            .animate()
-            .fadeIn(duration: 600.ms, delay: 300.ms)
-            .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
-        const SizedBox(height: AppSpacing.lg),
-        _FocusAwareTextField(
-          controller: _controller,
-          onChanged: (value) => notifier.setDemoFeelingInput(value),
-        )
-            .animate()
-            .fadeIn(duration: 400.ms, delay: 500.ms)
-            .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 500.ms),
-        const SizedBox(height: AppSpacing.md),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: _chips.asMap().entries.map((entry) {
-            final index = entry.key;
-            final chip = entry.value;
-            final isSelected = currentInput.isNotEmpty && currentInput == chip;
-
-            return GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                _controller.text = chip;
-                notifier.setDemoFeelingInput(chip);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primaryLight
-                      : AppColors.surfaceAltLight,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color:
-                        isSelected ? AppColors.primary : AppColors.borderLight,
-                  ),
-                ),
-                child: Text(
-                  chip,
-                  style: AppTypography.bodyMedium.copyWith(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          controller: _scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.checkinTitle,
+                  style: AppTypography.displaySmall.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
+                  textAlign: TextAlign.left,
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  AppStrings.checkinSubtitle,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                  textAlign: TextAlign.left,
+                ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                const SizedBox(height: AppSpacing.lg),
+                Center(
+                  child: SvgPicture.asset(
+                    'assets/illustrations/onboarding_checkin.svg',
+                    height: (MediaQuery.sizeOf(context).height * 0.19)
+                        .clamp(120, 180),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms, delay: 300.ms)
+                    .slideY(
+                        begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
+                const SizedBox(height: AppSpacing.lg),
+                _FocusAwareTextField(
+                  key: _textFieldKey,
+                  controller: _controller,
+                  onChanged: (value) => notifier.setDemoFeelingInput(value),
+                  onFocused: () {
+                    // Delay to let the keyboard animate in
+                    Future.delayed(const Duration(milliseconds: 400), () {
+                      final ctx = _textFieldKey.currentContext;
+                      if (ctx != null) {
+                        Scrollable.ensureVisible(
+                          ctx,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          alignmentPolicy:
+                              ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+                        );
+                      }
+                    });
+                  },
+                )
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: 500.ms)
+                    .slideY(
+                        begin: 0.02, end: 0, duration: 400.ms, delay: 500.ms),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: _chips.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final chip = entry.value;
+                    final isSelected =
+                        currentInput.isNotEmpty && currentInput == chip;
+
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _controller.text = chip;
+                        notifier.setDemoFeelingInput(chip);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primaryLight
+                              : AppColors.surfaceAltLight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.borderLight,
+                          ),
+                        ),
+                        child: Text(
+                          chip,
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(
+                        duration: 300.ms, delay: (600 + index * 60).ms);
+                  }).toList(),
                 ),
-              ),
-            ).animate().fadeIn(duration: 300.ms, delay: (600 + index * 60).ms);
-          }).toList(),
-        ),
-        const Spacer(),
-        OnboardingContinueButton(
-          label: AppStrings.checkinReflectButton,
-          onPressed: () => notifier.completeDemoCheckin(),
-          enabled: hasInput,
-        ),
-      ],
+                const SizedBox(height: AppSpacing.xl),
+                OnboardingContinueButton(
+                  label: AppStrings.checkinReflectButton,
+                  onPressed: () => notifier.completeDemoCheckin(),
+                  enabled: hasInput,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -293,12 +338,15 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
 
 class _FocusAwareTextField extends StatefulWidget {
   const _FocusAwareTextField({
+    super.key,
     required this.controller,
     required this.onChanged,
+    this.onFocused,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onFocused;
 
   @override
   State<_FocusAwareTextField> createState() => _FocusAwareTextFieldState();
@@ -310,7 +358,12 @@ class _FocusAwareTextFieldState extends State<_FocusAwareTextField> {
   @override
   Widget build(BuildContext context) {
     return Focus(
-      onFocusChange: (focused) => setState(() => _hasFocus = focused),
+      onFocusChange: (focused) {
+        setState(() => _hasFocus = focused);
+        if (focused) {
+          widget.onFocused?.call();
+        }
+      },
       child: TextField(
         controller: widget.controller,
         maxLines: 3,

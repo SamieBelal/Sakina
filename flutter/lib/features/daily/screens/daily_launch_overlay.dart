@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
@@ -244,9 +245,9 @@ class _StreakGreetingStep extends ConsumerWidget {
 
   String _timeGreeting() {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning. Allah is with you.';
-    if (h < 17) return 'Good afternoon. Take a moment to reflect.';
-    return 'Good evening. End the day with remembrance.';
+    if (h < 12) return 'Assalamu Alaykum. Allah is with you.';
+    if (h < 17) return 'Assalamu Alaykum. Take a moment to reflect.';
+    return 'Assalamu Alaykum. End the day with remembrance.';
   }
 }
 
@@ -306,7 +307,7 @@ class _RewardClaimStep extends ConsumerWidget {
                 .scaleXY(begin: 0.92, end: 1.0, duration: 400.ms, delay: 200.ms),
             const SizedBox(height: 40),
             claimLoading
-                ? const CircularProgressIndicator(color: AppColors.primary)
+                ? const SakinaLoader()
                 : _PrimaryButton(label: 'Claim Reward', onTap: onClaim)
                     .animate()
                     .fadeIn(duration: 400.ms, delay: 350.ms),

@@ -225,11 +225,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Greeting
       final hour = DateTime.now().hour;
-      final greeting = hour < 12
-          ? 'Good morning'
-          : hour < 17
-              ? 'Good afternoon'
-              : 'Good evening';
+      const greeting = 'Assalamu Alaykum';
 
       // Pick quest dua
       final questDua = _pickQuestDua(hour);
@@ -265,16 +261,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       category = 'general';
     }
 
-    final candidates =
-        browseDuas.where((d) => d.category == category).toList();
+    final candidates = browseDuas.where((d) => d.category == category).toList();
     if (candidates.isEmpty) {
       return browseDuas.first;
     }
 
     // Rotate by day-of-year
-    final dayOfYear = DateTime.now()
-        .difference(DateTime(DateTime.now().year, 1, 1))
-        .inDays;
+    final dayOfYear =
+        DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
     return candidates[dayOfYear % candidates.length];
   }
 
@@ -312,7 +306,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           state = state.copyWith(
             checkinLoading: false,
             tokenBalance: spendResult.newBalance,
-            error: 'Not enough tokens. Earn more through daily rewards and quests.',
+            error:
+                'Not enough tokens. Earn more through daily rewards and quests.',
           );
           return;
         }
@@ -323,7 +318,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       final history = await getCheckinHistory();
       final historyContext = buildHistoryContext(history);
       // Extract recent names to avoid repeating them
-      final recentNames = history.take(5).map((r) => r.nameReturned).where((n) => n.isNotEmpty).toList();
+      final recentNames = history
+          .take(5)
+          .map((r) => r.nameReturned)
+          .where((n) => n.isNotEmpty)
+          .toList();
 
       final result = await getDailyResponse(
         updatedAnswers,
@@ -412,7 +411,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           streakCount: streakResult.currentStreak,
           leveledUp: xpResult.leveledUp,
           newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelTitleArabic:
+              xpResult.leveledUp ? xpResult.state.titleArabic : null,
           newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {
@@ -489,7 +489,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       state = state.copyWith(
         reflectResult: result,
         reflectLoading: false,
-        reflectStep: 1, // skip step 0 (name display) — user saw the name in gacha
+        reflectStep:
+            1, // skip step 0 (name display) — user saw the name in gacha
       );
 
       // Award XP for starting deeper reflection
@@ -502,7 +503,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           levelNumber: xpResult.state.level,
           leveledUp: xpResult.leveledUp,
           newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelTitleArabic:
+              xpResult.leveledUp ? xpResult.state.titleArabic : null,
           newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {}
@@ -547,7 +549,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           levelNumber: xpResult.state.level,
           leveledUp: xpResult.leveledUp,
           newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelTitleArabic:
+              xpResult.leveledUp ? xpResult.state.titleArabic : null,
           newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
         );
       } catch (_) {}
@@ -573,7 +576,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         levelNumber: xpResult.state.level,
         leveledUp: xpResult.leveledUp,
         newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-        newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+        newLevelTitleArabic:
+            xpResult.leveledUp ? xpResult.state.titleArabic : null,
         newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
       );
     } catch (_) {}
@@ -667,8 +671,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         checkinNameArabic: data['checkinNameArabic'] as String?,
         checkinTeaching: data['checkinTeaching'] as String?,
         checkinDuaArabic: data['checkinDuaArabic'] as String?,
-        checkinDuaTransliteration:
-            data['checkinDuaTransliteration'] as String?,
+        checkinDuaTransliteration: data['checkinDuaTransliteration'] as String?,
         checkinDuaTranslation: data['checkinDuaTranslation'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,
       );

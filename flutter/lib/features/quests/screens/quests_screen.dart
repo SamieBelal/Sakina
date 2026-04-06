@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 
 class QuestsScreen extends ConsumerWidget {
   const QuestsScreen({super.key});
@@ -16,10 +17,7 @@ class QuestsScreen extends ConsumerWidget {
     final tokenState = ref.watch(tokenProvider);
 
     if (!state.loaded) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
+      return SakinaLoader.fullScreen();
     }
 
     return Scaffold(

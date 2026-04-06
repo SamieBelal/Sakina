@@ -46,7 +46,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding, AppSpacing.pagePadding,
+                  AppSpacing.pagePadding, 32,
                   AppSpacing.pagePadding, 0,
                 ),
                 child: Column(

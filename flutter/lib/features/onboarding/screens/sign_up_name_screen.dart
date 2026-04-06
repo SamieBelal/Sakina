@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/keyboard.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -51,10 +52,21 @@ class _SignUpNameScreenState extends ConsumerState<SignUpNameScreen> {
   Widget build(BuildContext context) {
     final isValid = _controller.text.trim().isNotEmpty;
 
-    return OnboardingPageWrapper(
-      progressSegment: 12,
-      onBack: widget.onBack,
-      child: Column(
+    return GestureDetector(
+      onTap: () => dismissKeyboard(context),
+      behavior: HitTestBehavior.translucent,
+      child: OnboardingPageWrapper(
+        progressSegment: 12,
+        onBack: () {
+          dismissKeyboard(context);
+          widget.onBack();
+        },
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -99,7 +111,12 @@ class _SignUpNameScreenState extends ConsumerState<SignUpNameScreen> {
             enabled: isValid,
           ),
           const SizedBox(height: AppSpacing.md),
-        ],
+          ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

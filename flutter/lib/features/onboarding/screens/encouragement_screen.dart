@@ -57,12 +57,17 @@ class EncouragementScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 7,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         children: [
           const Spacer(flex: 2),
           SvgPicture.asset(
             'assets/illustrations/onboarding_encouragement.svg',
-            height: 220,
+            height: (MediaQuery.sizeOf(context).height * 0.24).clamp(140, 220),
           )
               .animate()
               .fadeIn(duration: 600.ms)
@@ -93,25 +98,16 @@ class EncouragementScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
           ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
-          const SizedBox(height: AppSpacing.xxl),
-          // Decorative Arabic bismillah
-          Opacity(
-            opacity: 0.75,
-            child: Text(
-              AppStrings.encouragementBismillah,
-              style: AppTypography.nameOfAllahDisplay.copyWith(
-                color: AppColors.secondary,
-                fontSize: 36,
-              ),
-              textDirection: TextDirection.rtl,
-            ),
-          ).animate().fadeIn(duration: 800.ms, delay: 600.ms),
           const Spacer(flex: 3),
           OnboardingContinueButton(
             label: AppStrings.continueButton,
             onPressed: onNext,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
@@ -10,6 +11,19 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
+import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
+
+// ---------------------------------------------------------------------------
+// Stats provider
+// ---------------------------------------------------------------------------
+
+final _journalStatsProvider = FutureProvider<({XpState xp, StreakState streak})>((ref) async {
+  final xp = await getXp();
+  final streak = await getStreak();
+  return (xp: xp, streak: streak);
+});
 
 // ---------------------------------------------------------------------------
 // Achievements provider
@@ -51,10 +65,9 @@ class JournalScreen extends ConsumerStatefulWidget {
 class _JournalScreenState extends ConsumerState<JournalScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
-
-  @override
   bool _questFired = false;
 
+  @override
   void initState() {
     super.initState();
     _tab = TabController(length: 4, vsync: this);
@@ -252,36 +265,223 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   }
 
   Widget _buildInlineStats(List<SavedReflection> reflections, int duasCount) {
+    final statsAsync = ref.watch(_journalStatsProvider);
+
+    // Unique Names encountered
+    final uniqueNames = reflections.map((r) => r.name).toSet().length;
+
+    // Days active this week
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final reflectionDates = reflections
+        .map((r) => DateTime.parse(r.date))
+        .toSet();
+    final activeDays = List.generate(7, (i) {
+      final day = weekStart.add(Duration(days: i));
+      return reflectionDates.any((d) =>
+          d.year == day.year && d.month == day.month && d.day == day.day);
+    });
+
     final topTheme = _topTheme(reflections);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _inlineChip(
-            icon: Icons.auto_stories_rounded,
-            label: '${reflections.length} reflections',
-            color: AppColors.primary,
-            bgColor: const Color(0xFFE8F5EE),
-          ),
-          _inlineChip(
-            icon: Icons.auto_awesome,
-            label: '$duasCount duas',
-            color: AppColors.secondary,
-            bgColor: const Color(0xFFF5EBD9),
-          ),
-          if (topTheme != null)
-            _inlineChip(
-              icon: Icons.insights_rounded,
-              label: topTheme,
-              color: AppColors.secondary,
-              bgColor: const Color(0xFFF5EBD9),
-            ),
-        ],
+    return statsAsync.when(
+      loading: () => const SizedBox(
+        height: 120,
+        child: Center(child: SakinaLoader()),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms);
+      error: (_, __) => const SizedBox.shrink(),
+      data: (stats) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── 4 stat tiles ──
+            Row(
+              children: [
+                _statTile(
+                  icon: '📖',
+                  value: '${reflections.length}',
+                  label: 'Reflections',
+                  color: AppColors.primary,
+                  bgColor: const Color(0xFFE8F5EE),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '🤲',
+                  value: '$duasCount',
+                  label: 'Personal duas',
+                  color: AppColors.secondary,
+                  bgColor: const Color(0xFFF5EBD9),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '✨',
+                  value: '$uniqueNames',
+                  label: 'Names met',
+                  color: const Color(0xFF6B4E9B),
+                  bgColor: const Color(0xFFF3EEFF),
+                ),
+                const SizedBox(width: 10),
+                _statTile(
+                  icon: '⭐',
+                  value: '${stats.xp.totalXp}',
+                  label: 'Total XP',
+                  color: const Color(0xFFF59E0B),
+                  bgColor: const Color(0xFFFEF3C7),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Week activity dots ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'This week',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ...List.generate(7, (i) {
+                    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    final isToday = i == now.weekday - 1;
+                    final active = activeDays[i];
+                    return Expanded(
+                      child: Column(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: active
+                                  ? AppColors.primary
+                                  : isToday
+                                      ? AppColors.primary.withValues(alpha: 0.12)
+                                      : const Color(0xFFF0EBE3),
+                              border: isToday && !active
+                                  ? Border.all(color: AppColors.primary, width: 1.5)
+                                  : null,
+                            ),
+                            child: active
+                                ? const Icon(Icons.check, size: 13, color: Colors.white)
+                                : Center(
+                                    child: Text(
+                                      dayLabels[i],
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: isToday
+                                            ? AppColors.primary
+                                            : AppColors.textTertiaryLight,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+
+            // ── Theme insight card (3+ reflections) ──
+            if (topTheme != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5EBD9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome,
+                        color: AppColors.secondary, size: 16),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'You often turn to Allah with $topTheme',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _statTile({
+    required String icon,
+    required String value,
+    required String label,
+    required Color color,
+    required Color bgColor,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 94,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              icon,
+              style: const TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTypography.headlineMedium.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.bodySmall.copyWith(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _inlineChip({
@@ -417,7 +617,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
     return asyncUnlocked.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: SakinaLoader(),
       ),
       error: (_, __) => const Center(child: Text('Could not load achievements')),
       data: (unlocked) {
@@ -758,28 +958,19 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     String? actionLabel,
     VoidCallback? onAction,
   }) {
-    return Center(
-      child: Transform.translate(
-        offset: const Offset(0, 40), // Move down for better visual centering
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5EBD9),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.3),
-                    width: 1.5),
-              ),
-              child: Icon(icon,
-                  color: AppColors.secondary.withValues(alpha: 0.7), size: 32),
+    return Align(
+      alignment: const Alignment(0, -0.4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/illustrations/main_screens/journal_empty_state.svg',
+              height: 200,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
               message,
               style: AppTypography.headlineMedium
@@ -817,7 +1008,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             ],
           ],
         ),
-      ),
       ),
     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }

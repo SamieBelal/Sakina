@@ -75,11 +75,16 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     return OnboardingPageWrapper(
       progressSegment: 11,
       onBack: widget.onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         children: [
           SvgPicture.asset(
             'assets/illustrations/onboarding_save.svg',
-            height: 170,
+            height: (MediaQuery.sizeOf(context).height * 0.18).clamp(110, 170),
           )
               .animate()
               .fadeIn(duration: 600.ms)
@@ -187,6 +192,10 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
           ),
           const Spacer(),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

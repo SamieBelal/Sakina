@@ -12,6 +12,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -153,8 +154,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
         child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Center(child: SakinaLoader())
             : SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.pagePadding,

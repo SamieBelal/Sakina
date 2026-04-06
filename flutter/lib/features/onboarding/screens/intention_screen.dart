@@ -63,7 +63,12 @@ class IntentionScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 1,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -104,11 +109,12 @@ class IntentionScreen extends ConsumerWidget {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: state.intention != null
-                ? Column(
+                ? SizedBox(
                     key: ValueKey(state.intention),
-                    children: [
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
+                    width: double.infinity,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.lg),
+                      child: Text(
                         _affirmationForIntention(state.intention!),
                         style: AppTypography.bodyMedium.copyWith(
                           color: AppColors.primary,
@@ -116,7 +122,7 @@ class IntentionScreen extends ConsumerWidget {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ],
+                    ),
                   )
                 : const SizedBox.shrink(),
           ),
@@ -127,6 +133,10 @@ class IntentionScreen extends ConsumerWidget {
             enabled: state.intention != null,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

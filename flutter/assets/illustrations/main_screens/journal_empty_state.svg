@@ -1,0 +1,60 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Open journal book -->
+  <g id="journal">
+    <!-- Left page -->
+    <path d="M40 60 L40 180 L115 170 L115 50 Z" fill="#FBF7F2" stroke="#C8985E" stroke-width="2" stroke-linejoin="round"/>
+
+    <!-- Right page -->
+    <path d="M125 50 L125 170 L200 180 L200 60 Z" fill="#FBF7F2" stroke="#C8985E" stroke-width="2" stroke-linejoin="round"/>
+
+    <!-- Book spine -->
+    <path d="M115 50 L125 50 L125 170 L115 170 Z" fill="#1B6B4A" stroke="#1B6B4A" stroke-width="1"/>
+
+    <!-- Decorative lines on left page -->
+    <line x1="55" y1="75" x2="100" y2="73" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+    <line x1="55" y1="90" x2="100" y2="88" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+    <line x1="55" y1="105" x2="95" y2="103" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+
+    <!-- Decorative lines on right page -->
+    <line x1="140" y1="73" x2="185" y2="75" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+    <line x1="140" y1="88" x2="185" y2="90" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+    <line x1="145" y1="103" x2="185" y2="105" stroke="#1A1A2E" stroke-width="1" opacity="0.15" stroke-linecap="round"/>
+
+    <!-- Islamic geometric pattern - subtle octagon on left page -->
+    <circle cx="77" cy="135" r="18" fill="none" stroke="#C8985E" stroke-width="1" opacity="0.2"/>
+    <path d="M77 117 L90 124 L90 146 L77 153 L64 146 L64 124 Z" fill="none" stroke="#C8985E" stroke-width="1" opacity="0.2"/>
+
+    <!-- Islamic geometric pattern - subtle star on right page -->
+    <path d="M163 130 L166 137 L173 137 L167 142 L170 149 L163 144 L156 149 L159 142 L153 137 L160 137 Z" fill="none" stroke="#C8985E" stroke-width="1" opacity="0.2"/>
+  </g>
+
+  <!-- Quill pen -->
+  <g id="pen">
+    <!-- Pen body -->
+    <path d="M175 30 L185 65 Q183 67 180 67 Q177 67 175 65 Z" fill="#1B6B4A" stroke="#1B6B4A" stroke-width="1"/>
+    <!-- Pen nib -->
+    <path d="M177.5 65 L182.5 65 L180 72 Z" fill="#1A1A2E"/>
+    <!-- Feather detail -->
+    <path d="M175 30 Q170 35 170 45" stroke="#E8F5EE" stroke-width="1" opacity="0.6" fill="none"/>
+    <path d="M185 30 Q190 35 190 45" stroke="#E8F5EE" stroke-width="1" opacity="0.6" fill="none"/>
+  </g>
+
+  <!-- Decorative corner flourishes -->
+  <g id="flourishes" opacity="0.15">
+    <!-- Top left -->
+    <path d="M25 25 Q30 25 30 30" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M25 25 Q25 30 30 30" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- Top right -->
+    <path d="M215 25 Q210 25 210 30" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M215 25 Q215 30 210 30" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- Bottom left -->
+    <path d="M25 215 Q30 215 30 210" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M25 215 Q25 210 30 210" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- Bottom right -->
+    <path d="M215 215 Q210 215 210 210" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M215 215 Q215 210 210 210" stroke="#C8985E" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

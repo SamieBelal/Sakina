@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/keyboard.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -53,10 +54,21 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return OnboardingPageWrapper(
-      progressSegment: 13,
-      onBack: widget.onBack,
-      child: Column(
+    return GestureDetector(
+      onTap: () => dismissKeyboard(context),
+      behavior: HitTestBehavior.translucent,
+      child: OnboardingPageWrapper(
+        progressSegment: 13,
+        onBack: () {
+          dismissKeyboard(context);
+          widget.onBack();
+        },
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -101,7 +113,12 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
             enabled: _isValidEmail,
           ),
           const SizedBox(height: AppSpacing.md),
-        ],
+          ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

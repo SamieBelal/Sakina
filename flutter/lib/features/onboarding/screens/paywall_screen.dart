@@ -51,7 +51,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.pagePadding,
           ),
-          child: Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
             children: [
               // Close button
               Align(
@@ -243,6 +249,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

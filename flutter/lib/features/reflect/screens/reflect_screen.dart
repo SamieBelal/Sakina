@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -9,6 +11,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
 
@@ -81,7 +84,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     });
 
     // Check achievements when reflection result appears
-    if (state.screenState == ReflectScreenState.result && !_achievementChecked) {
+    if (state.screenState == ReflectScreenState.result &&
+        !_achievementChecked) {
       _achievementChecked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         checkAchievements(ref);
@@ -95,9 +99,13 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       _stopRippleAnimation();
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: _buildBody(state, notifier),
+    return GestureDetector(
+      onTap: () => dismissKeyboard(context),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: _buildBody(state, notifier),
+      ),
     );
   }
 
@@ -122,7 +130,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
   Widget _buildInputState(ReflectState state, ReflectNotifier notifier) {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 32,
+            AppSpacing.pagePadding, AppSpacing.pagePadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -149,7 +158,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 hintText: 'What are you carrying today...',
-                hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textTertiaryLight),
+                hintStyle: AppTypography.bodyMedium
+                    .copyWith(color: AppColors.textTertiaryLight),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
                   borderSide: BorderSide.none,
@@ -177,7 +187,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 'Hopeful',
                 'Lonely',
                 'Overwhelmed',
-              ].map((emotion) => _buildEmotionChip(emotion, state, notifier)).toList(),
+              ]
+                  .map((emotion) => _buildEmotionChip(emotion, state, notifier))
+                  .toList(),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -193,7 +205,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                  disabledBackgroundColor:
+                      AppColors.primary.withValues(alpha: 0.4),
                   disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(
                     borderRadius:
@@ -214,7 +227,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 ),
                 child: Text(
                   state.error!,
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+                  style:
+                      AppTypography.bodyMedium.copyWith(color: AppColors.error),
                 ),
               ),
             ],
@@ -224,7 +238,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     );
   }
 
-  Widget _buildEmotionChip(String emotion, ReflectState state, ReflectNotifier notifier) {
+  Widget _buildEmotionChip(
+      String emotion, ReflectState state, ReflectNotifier notifier) {
     final isSelected = state.selectedEmotions.contains(emotion);
     return GestureDetector(
       onTap: () {
@@ -235,7 +250,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryLight : AppColors.surfaceAltLight,
+          color:
+              isSelected ? AppColors.primaryLight : AppColors.surfaceAltLight,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.primary : Colors.transparent,
@@ -245,7 +261,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         child: Text(
           emotion,
           style: AppTypography.bodyMedium.copyWith(
-            color: isSelected ? AppColors.primary : AppColors.textSecondaryLight,
+            color:
+                isSelected ? AppColors.primary : AppColors.textSecondaryLight,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -261,39 +278,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: List.generate(3, (index) {
-                return AnimatedBuilder(
-                  animation: _rippleControllers[index],
-                  builder: (context, child) {
-                    final value = _rippleControllers[index].value;
-                    final scale = 0.3 + (2.2 - 0.3) * value;
-                    final opacity = (0.6 - 0.6 * value).clamp(0.0, 1.0);
-                    return Transform.scale(
-                      scale: scale,
-                      child: Opacity(
-                        opacity: opacity,
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ),
+          const SakinaLoader(
+            color: AppColors.secondary,
+            variant: SakinaLoaderVariant.breathingStar,
           ),
           const SizedBox(height: 32),
           Text(
@@ -443,7 +430,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     ],
                   ],
                 ),
-              ).animate(key: ValueKey(currentIndex))
+              )
+                  .animate(key: ValueKey(currentIndex))
                   .fadeIn(duration: 300.ms)
                   .slideY(begin: 0.03, end: 0, duration: 300.ms),
             ],
@@ -509,13 +497,17 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
 
   Widget _buildNameStep(ReflectState state, ReflectNotifier notifier) {
     final result = state.result!;
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(32),
@@ -596,8 +588,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           backgroundColor: Colors.white,
                           foregroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.buttonRadius),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.buttonRadius),
                           ),
                         ),
                         child: const Text('See Reflection'),
@@ -606,25 +598,29 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   ],
                 ),
               ),
-            ],
-          )
-              .animate()
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.05, end: 0),
-        ),
+                  ],
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildReflectionStep(ReflectState state, ReflectNotifier notifier) {
     final result = state.result!;
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -669,8 +665,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.buttonRadius),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.buttonRadius),
                           ),
                         ),
                         child: const Text('Read the Story'),
@@ -687,28 +683,33 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 },
                 child: Text(
                   'Start over',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textSecondaryLight),
                 ),
               ),
-            ],
-          )
-              .animate()
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.05, end: 0),
-        ),
+                  ],
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStoryStep(ReflectState state, ReflectNotifier notifier) {
     final result = state.result!;
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -753,8 +754,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.buttonRadius),
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.buttonRadius),
                           ),
                         ),
                         child: const Text('See the Dua'),
@@ -771,28 +772,33 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 },
                 child: Text(
                   'Start over',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.textSecondaryLight),
                 ),
               ),
-            ],
-          )
-              .animate()
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.05, end: 0),
-        ),
+                  ],
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDuaStep(ReflectState state, ReflectNotifier notifier) {
     final result = state.result!;
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 32),
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -854,10 +860,12 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        IconButton(
+                        Builder(builder: (btnContext) => IconButton(
                           onPressed: () async {
                             final messenger = ScaffoldMessenger.of(context);
                             HapticFeedback.lightImpact();
+                            final box = btnContext.findRenderObject() as RenderBox;
+                            final origin = box.localToGlobal(Offset.zero) & box.size;
                             try {
                               await shareReflectionCard(
                                 context: context,
@@ -869,19 +877,20 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                                 duaSource: result.duaSource,
                                 reframe: result.reframe,
                                 story: result.story,
+                                sharePositionOrigin: origin,
                               );
                             } catch (e) {
                               debugPrint('[SHARE ERROR] $e');
                               messenger.showSnackBar(
-                                  SnackBar(content: Text('Share failed: $e')),
-                                );
+                                SnackBar(content: Text('Share failed: $e')),
+                              );
                             }
                           },
                           icon: const Icon(
                             Icons.share_outlined,
                             color: AppColors.primary,
                           ),
-                        ),
+                        )),
                         const Spacer(),
                         TextButton(
                           onPressed: () {
@@ -895,12 +904,12 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   ],
                 ),
               ),
-            ],
-          )
-              .animate()
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.05, end: 0),
-        ),
+                  ],
+                ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -915,11 +924,11 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              '\u{1F932}',
-              style: TextStyle(fontSize: 64),
+            SvgPicture.asset(
+              'assets/illustrations/main_screens/reflect_offtopic.svg',
+              height: 160,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             Text(
               'This space is for your heart',
               style: AppTypography.headlineMedium,

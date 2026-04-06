@@ -54,7 +54,12 @@ class QuranConnectionScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 5,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -96,6 +101,10 @@ class QuranConnectionScreen extends ConsumerWidget {
             enabled: state.quranConnection != null,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

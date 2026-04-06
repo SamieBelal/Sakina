@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
@@ -19,6 +19,7 @@ import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -123,12 +124,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     }
 
     if (!state.loaded) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      );
+      return SakinaLoader.fullScreen();
     }
 
     return Scaffold(
@@ -1161,12 +1157,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // Teaching — clamped so Go Deeper stays visible
+          // Teaching
           if (state.checkinTeaching != null)
             Text(
               state.checkinTeaching!,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondaryLight,
               ),
@@ -1494,6 +1488,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       child: _cardShell(
         child: Column(
           children: [
+          // Celebration illustration
+          SvgPicture.asset(
+            'assets/illustrations/main_screens/daily_complete.svg',
+            height: 180,
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _buildProgressRing(3),
           const SizedBox(height: AppSpacing.lg),
 

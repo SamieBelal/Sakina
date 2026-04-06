@@ -29,7 +29,12 @@ class ValuePropScreen extends StatelessWidget {
     return OnboardingPageWrapper(
       progressSegment: 3,
       onBack: onBack,
-      child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -54,7 +59,7 @@ class ValuePropScreen extends StatelessWidget {
           Center(
             child: SvgPicture.asset(
               'assets/illustrations/onboarding_value_prop.svg',
-              height: 220,
+              height: (MediaQuery.sizeOf(context).height * 0.24).clamp(140, 220),
             ),
           )
               .animate()
@@ -110,6 +115,10 @@ class ValuePropScreen extends StatelessWidget {
             onPressed: onNext,
           ),
         ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
