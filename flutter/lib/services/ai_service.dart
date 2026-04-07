@@ -257,13 +257,13 @@ bool isOffTopic(String text) {
   // Too short to be meaningful
   if (lower.length < 3) return true;
 
-  // Patterns that indicate non-emotional input
+  // Patterns that indicate non-emotional input.
+  // Be conservative — it's better to let a borderline input through to Claude
+  // than to block a genuine emotional expression.
   final offTopicPatterns = [
-    RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*$', caseSensitive: false),
+    RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$', caseSensitive: false),
     RegExp(r'^(test|testing|asdf|aaa|123)\s*$', caseSensitive: false),
-    RegExp(r'^(what|who|where|when|how|why)\s+(is|are|was|were|do|does|did|can|could|will|would|should)\b',
-        caseSensitive: false),
-    RegExp(r'(weather|stock|price|score|recipe|code|program|translate)', caseSensitive: false),
+    RegExp(r'^(what is|who is|where is|when is|how do i|how to)\s+\w', caseSensitive: false),
     RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)', caseSensitive: false),
   ];
 
@@ -400,8 +400,10 @@ Future<ReflectResponse> reflectWithClaude(
   ReflectContext? context,
   String? forceName,
 }) async {
-  // Off-topic detection
-  if (isOffTopic(userText)) {
+  // Off-topic detection — only check the raw user text (first line),
+  // not the combined text which includes AI-generated follow-up questions.
+  final rawUserText = userText.split('\n').first.trim();
+  if (isOffTopic(rawUserText)) {
     final demo = getDemoResponse();
     return ReflectResponse(
       name: demo.name,
@@ -909,9 +911,10 @@ Future<BuiltDuaResponse> buildDua(String need) async {
         'List each Name of Allah you invoked, one per line as: English · Arabic · one sentence on why this Name fits this need\n'
         '##RELATED_DUAS##\n'
         '3 authentic duas from Quran or hadith related to this need, each on one line as:\n'
-        'Title | Arabic | Transliteration | Translation | Source',
+        'Title | Arabic | Transliteration | Translation | Source\n'
+        'IMPORTANT: Include the COMPLETE dua text — do NOT truncate or abbreviate. Give the full Arabic, full transliteration, and full translation for each dua.',
     userMessage: 'I want to make dua for: $need',
-    maxTokens: 2500,
+    maxTokens: 3500,
   );
 
   if (response == null) {
@@ -1042,18 +1045,10 @@ Future<BuiltDuaResponse> buildDua(String need) async {
 class DailyReflectResponse {
   final String name;
   final String nameArabic;
-  final String teaching;
-  final String duaArabic;
-  final String duaTransliteration;
-  final String duaTranslation;
 
   const DailyReflectResponse({
     required this.name,
     required this.nameArabic,
-    required this.teaching,
-    required this.duaArabic,
-    required this.duaTransliteration,
-    required this.duaTranslation,
   });
 }
 
@@ -1070,30 +1065,8 @@ Future<DailyReflectResponse> getDailyResponse(
     return const DailyReflectResponse(
       name: 'Al-Wakeel',
       nameArabic: 'الْوَكِيلُ',
-      teaching:
-          'Allah, Al-Wakeel — the Disposer of Affairs, the Ultimate Trustee — '
-          'holds what you cannot hold. When you entrust a matter to Him, it is '
-          'not neglected; it is handled by the One whose planning never fails. '
-          'Tawakkul is not passivity — it is acting with your hands while '
-          'anchoring your heart in the only One who controls outcomes.',
-      duaArabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
-      duaTransliteration: 'Hasbunallahu wa ni\'mal-Wakeel',
-      duaTranslation:
-          'Sufficient for us is Allah, and He is the best Disposer of affairs.',
     );
   }
-
-  final combined = answers.join(' ');
-  final teachings = getRelevantTeachings(combined);
-  final teachingContext = teachings
-      .take(4)
-      .map((t) =>
-          '**${t.name} (${t.arabic})**\n'
-          'Core teaching: ${t.coreTeaching}\n'
-          'Dua: ${t.dua.arabic}\n'
-          'Transliteration: ${t.dua.transliteration}\n'
-          'Translation: ${t.dua.translation}')
-      .join('\n\n---\n\n');
 
   final dailyCanonicalList = buildCanonicalNamesPromptList();
 
@@ -1104,10 +1077,7 @@ Future<DailyReflectResponse> getDailyResponse(
 
   final historySection = historyContext.isNotEmpty
       ? 'PAST CHECK-INS (most recent first):\n$historyContext\n\n'
-        'Use this history to:\n'
-        '- Reference patterns you notice (e.g. recurring anxiety, repeated disconnection).\n'
-        '- In your teaching paragraph, briefly acknowledge what you notice across sessions '
-        '(one sentence max), then speak to today.\n\n'
+        'Use this history to avoid repeating the same Name.\n\n'
       : '';
 
   final answersFormatted = [
@@ -1121,44 +1091,23 @@ Future<DailyReflectResponse> getDailyResponse(
     model: _followUpModel,
     systemPrompt:
         'You are an Islamic learning tool. A person has completed a 4-question daily check-in. '
-        'Based on their answers, identify the single most fitting Name of Allah and write a '
-        'grounded, direct teaching.\n\n'
+        'Based on their answers, identify the single most fitting Name of Allah.\n\n'
         '$avoidClause'
         '$historySection'
-        '$teachingContext\n\n'
         'IMPORTANT — You MUST only use a Name from this canonical list of the 99 Names:\n'
         '$dailyCanonicalList\n\n'
         '---\n\n'
-        'Instructions:\n'
-        '1. Choose the single most relevant Name — it MUST be from the canonical list above.\n'
-        '2. Write ONE paragraph (3-5 sentences). Speak directly to what they shared across '
-        'all 4 answers. If they have checked in before, you may acknowledge a pattern in one '
-        'sentence. Be substantive — teach, do not merely comfort. No terms of endearment.\n'
-        '3. Use the exact dua provided for that Name.\n\n'
-        'Respond with EXACTLY these markers:\n'
-        '##NAME## (English · Arabic)\n'
-        '##TEACHING## (one paragraph)\n'
-        '##DUA_ARABIC##\n'
-        '##DUA_TRANSLITERATION##\n'
-        '##DUA_TRANSLATION##',
+        'Respond with EXACTLY this marker, nothing else:\n'
+        '##NAME## (English · Arabic)\n\n'
+        'Example: ##NAME## Al-Lateef · اللَّطِيفُ',
     userMessage: answersFormatted,
-    maxTokens: 650,
+    maxTokens: 100,
   );
 
   if (response == null) {
     return const DailyReflectResponse(
       name: 'Al-Wakeel',
       nameArabic: 'الْوَكِيلُ',
-      teaching:
-          'Allah, Al-Wakeel — the Disposer of Affairs, the Ultimate Trustee — '
-          'holds what you cannot hold. When you entrust a matter to Him, it is '
-          'not neglected; it is handled by the One whose planning never fails. '
-          'Tawakkul is not passivity — it is acting with your hands while '
-          'anchoring your heart in the only One who controls outcomes.',
-      duaArabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
-      duaTransliteration: 'Hasbunallahu wa ni\'mal-Wakeel',
-      duaTranslation:
-          'Sufficient for us is Allah, and He is the best Disposer of affairs.',
     );
   }
 
@@ -1167,13 +1116,6 @@ Future<DailyReflectResponse> getDailyResponse(
     return const DailyReflectResponse(
       name: 'Al-Wakeel',
       nameArabic: 'الْوَكِيلُ',
-      teaching:
-          'Allah, Al-Wakeel — the Disposer of Affairs, the Ultimate Trustee — '
-          'holds what you cannot hold.',
-      duaArabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
-      duaTransliteration: 'Hasbunallahu wa ni\'mal-Wakeel',
-      duaTranslation:
-          'Sufficient for us is Allah, and He is the best Disposer of affairs.',
     );
   }
 
@@ -1193,9 +1135,5 @@ Future<DailyReflectResponse> getDailyResponse(
   return DailyReflectResponse(
     name: canonical?.name ?? parsedName,
     nameArabic: canonical?.nameArabic ?? parsedNameArabic,
-    teaching: _parseSection(text, '##TEACHING##') ?? '',
-    duaArabic: _parseSection(text, '##DUA_ARABIC##') ?? '',
-    duaTransliteration: _parseSection(text, '##DUA_TRANSLITERATION##') ?? '',
-    duaTranslation: _parseSection(text, '##DUA_TRANSLATION##') ?? '',
   );
 }

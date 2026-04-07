@@ -84,7 +84,11 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
       !widget.engageResult!.isNew &&
       widget.engageResult!.tierChanged;
 
+  bool _continued = false;
+
   void _handleContinue() {
+    if (_continued) return;
+    _continued = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();

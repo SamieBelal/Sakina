@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,6 +111,8 @@ class DuasState {
   final List<SavedRelatedDua> savedRelatedDuas;
   /// True when build-a-dua hits the free daily limit and needs a token.
   final bool buildNeedsToken;
+  /// Progress theater value (0.0 – 1.0) shown during dua generation.
+  final double buildProgress;
 
   const DuasState({
     this.activeTab,
@@ -127,6 +130,7 @@ class DuasState {
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
     this.buildNeedsToken = false,
+    this.buildProgress = 0.0,
   });
 
   DuasState copyWith({
@@ -145,6 +149,7 @@ class DuasState {
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
     bool? buildNeedsToken,
+    double? buildProgress,
   }) {
     return DuasState(
       activeTab: activeTab != null ? activeTab() : this.activeTab,
@@ -162,6 +167,7 @@ class DuasState {
       savedBuiltDuas: savedBuiltDuas ?? this.savedBuiltDuas,
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
       buildNeedsToken: buildNeedsToken ?? this.buildNeedsToken,
+      buildProgress: buildProgress ?? this.buildProgress,
     );
   }
 }
@@ -173,6 +179,14 @@ class DuasState {
 class DuasNotifier extends StateNotifier<DuasState> {
   DuasNotifier() : super(const DuasState()) {
     loadSavedDuas();
+  }
+
+  Timer? _progressTimer;
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
   }
 
   // ── Navigation ──────────────────────────────────────────────
@@ -272,20 +286,75 @@ class DuasNotifier extends StateNotifier<DuasState> {
     await _doBuild();
   }
 
+  bool _isDuaOffTopic(String text) {
+    final lower = text.toLowerCase().trim();
+    if (lower.length < 5) return true;
+    // Greetings / nonsense
+    final offTopicPatterns = [
+      RegExp(r"^(hi|hello|hey|salam|assalam|salaam|yo|sup|whats up|what's up)\s*[!.?]*\s*$", caseSensitive: false),
+      RegExp(r'^(test|testing|asdf|aaa|123|lol|haha)\s*$', caseSensitive: false),
+      RegExp(r'^(what is|who is|where is|how do i|how to)\s+\w', caseSensitive: false),
+      RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)', caseSensitive: false),
+    ];
+    // Harmful intent
+    final harmfulPatterns = [
+      RegExp(r'(curse|destroy|punish|harm|kill|hurt|damage|ruin|death to|die)\s', caseSensitive: false),
+      RegExp(r'(against|upon).*(enemy|enemies|person|people|someone)', caseSensitive: false),
+    ];
+    if (offTopicPatterns.any((p) => p.hasMatch(lower))) return true;
+    if (harmfulPatterns.any((p) => p.hasMatch(lower))) return true;
+    return false;
+  }
+
   Future<void> _doBuild() async {
+    // Check for off-topic or harmful input
+    if (_isDuaOffTopic(state.buildNeed)) {
+      state = state.copyWith(
+        error: () => 'Please describe a specific need or intention for your dua. This space is for sincere supplication.',
+      );
+      return;
+    }
+
     state = state.copyWith(
       buildLoading: true,
+      buildProgress: 0.0,
       error: () => null,
       buildResult: () => null,
       buildCurrentSection: 0,
     );
+
+    // Start progress theater — eases out so it decelerates naturally.
+    // Approaches ~95% asymptotically over time, never freezes at a fixed value.
+    _progressTimer?.cancel();
+    const tickInterval = Duration(milliseconds: 100);
+    var elapsed = 0;
+
+    _progressTimer = Timer.periodic(tickInterval, (timer) {
+      elapsed += tickInterval.inMilliseconds;
+      // Asymptotic curve: fast start, gradual slowdown
+      // Reaches ~50% at 3s, ~75% at 6s, ~90% at 12s, ~95% at 20s
+      final progress = 1.0 - (1.0 / (1.0 + elapsed / 4000.0));
+      if (mounted) {
+        state = state.copyWith(buildProgress: progress.clamp(0.0, 0.98));
+      }
+    });
+
     try {
       final result = await buildDua(state.buildNeed);
+      _progressTimer?.cancel();
+      // Jump to 100%
+      state = state.copyWith(buildProgress: 1.0);
+      // Brief pause at 100% before showing result
+      await Future.delayed(const Duration(milliseconds: 400));
       state = state.copyWith(buildResult: () => result, buildLoading: false);
-      await awardXp(15); // built dua completed
+      await awardXp(15);
     } catch (e) {
+      _progressTimer?.cancel();
       state = state.copyWith(
         buildLoading: false,
+        buildProgress: 0.0,
+        buildResult: () => null,
+        buildCurrentSection: 0,
         error: () => 'Something went wrong. Please try again.',
       );
     }
@@ -299,6 +368,12 @@ class DuasNotifier extends StateNotifier<DuasState> {
       state = state.copyWith(
         buildCurrentSection: next < breakdownLen ? next : 4,
       );
+    }
+  }
+
+  void previousBuildSection() {
+    if (state.buildCurrentSection > 0) {
+      state = state.copyWith(buildCurrentSection: state.buildCurrentSection - 1);
     }
   }
 

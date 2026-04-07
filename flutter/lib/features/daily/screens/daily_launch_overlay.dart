@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
@@ -54,11 +55,15 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
 
   void _advance() {
     HapticFeedback.lightImpact();
-    // Skip reward step only if we confirmed it's already claimed (via _rewardClaimed flag)
     if (_step == 0 && _rewardClaimed) {
-      setState(() => _step = 2);
+      // Reward already claimed — dismiss overlay
+      _dismiss();
+    } else if (_step == 0) {
+      // Show reward claim step
+      setState(() => _step = 1);
     } else {
-      setState(() => _step = _step + 1);
+      // After reward claim — dismiss overlay (Muhasabah is on its own screen now)
+      _dismiss();
     }
   }
 
@@ -554,27 +559,33 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).push(
-          PageRouteBuilder(
-            opaque: true,
-            barrierDismissible: false,
-            pageBuilder: (_, __, ___) => NameRevealOverlay(
-              nameArabic: state.checkinNameArabic ?? '',
-              nameEnglish: state.checkinName ?? '',
-              nameEnglishMeaning: state.engagedCard?.english ?? '',
-              teaching: state.engagedCard?.lesson ?? '',
-              card: state.engagedCard,
-              engageResult: state.cardEngageResult,
-              onContinue: () {
-                Navigator.of(context, rootNavigator: true).pop();
-                widget.onDismiss();
-              },
+        // Only show gacha overlay for new cards or tier upgrades
+        if (state.cardEngageResult != null && state.cardEngageResult!.tierChanged) {
+          Navigator.of(context, rootNavigator: true).push(
+            PageRouteBuilder(
+              opaque: true,
+              barrierDismissible: false,
+              pageBuilder: (_, __, ___) => NameRevealOverlay(
+                nameArabic: state.checkinNameArabic ?? '',
+                nameEnglish: state.checkinName ?? '',
+                nameEnglishMeaning: state.engagedCard?.english ?? '',
+                teaching: state.engagedCard?.lesson ?? '',
+                card: state.engagedCard,
+                engageResult: state.cardEngageResult,
+                onContinue: () {
+                  Navigator.of(context, rootNavigator: true).pop();
+                  widget.onDismiss();
+                },
+              ),
+              transitionsBuilder: (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
+              transitionDuration: const Duration(milliseconds: 300),
             ),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
+          );
+        } else {
+          // No new card / tier change — skip overlay, go straight to home
+          widget.onDismiss();
+        }
       });
     }
 
@@ -618,38 +629,7 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
           const SizedBox(height: 32),
 
           if (state.checkinLoading)
-            Column(
-              children: [
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: List.generate(3, (i) {
-                      return Container(
-                        width: 60.0 - (i * 12),
-                        height: 60.0 - (i * 12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                      )
-                          .animate(onPlay: (c) => c.repeat())
-                          .scaleXY(begin: 0.8, end: 1.4, duration: 1400.ms, delay: (i * 200).ms)
-                          .fadeOut(duration: 1400.ms, delay: (i * 200).ms);
-                    }),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Finding the right Name...',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
-                ),
-              ],
-            ).animate().fadeIn(duration: 300.ms)
+            const ReflectLoading().animate().fadeIn(duration: 300.ms)
           else
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),

@@ -106,11 +106,13 @@ class CardEngageResult {
   final bool isNew;
   final int newTier; // 1, 2, or 3
   final bool tierChanged; // true if tier went up this engagement
+  final bool isDuplicate; // true if card was already at max tier or cooldown not met
 
   const CardEngageResult({
     required this.isNew,
     required this.newTier,
     required this.tierChanged,
+    this.isDuplicate = false,
   });
 
   CardTier get tier => CardTierX.fromNumber(newTier);
@@ -863,9 +865,9 @@ const Set<int> _completedCardIds = {
 Future<CardCollectionState> getCardCollection() async {
   final prefs = await SharedPreferences.getInstance();
 
-  // One-time reset to re-seed collection with all completed cards.
+  // One-time reset to re-seed collection as empty (undiscovered).
   // Bump the version string to force a re-seed after content updates.
-  const seedVersion = 'sakina_card_seed_v4';
+  const seedVersion = 'sakina_card_seed_v5';
   if (!prefs.containsKey(seedVersion)) {
     await prefs.remove(_collectionKey);
     await prefs.setBool(seedVersion, true);
@@ -873,21 +875,16 @@ Future<CardCollectionState> getCardCollection() async {
 
   final raw = prefs.getString(_collectionKey);
   if (raw == null) {
-    // Seed collection with all completed cards at Gold tier.
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    final seedIds = _completedCardIds;
-    final seedDates = {for (final id in seedIds) id: today};
-    final seedTiers = {for (final id in seedIds) id: 3}; // Gold
-    // Persist so this only runs once.
+    // Start with empty collection — cards are discovered through daily check-ins.
     await prefs.setString(_collectionKey, jsonEncode({
-      'ids': seedIds.toList(),
-      'dates': seedDates.map((k, v) => MapEntry(k.toString(), v)),
-      'tiers': seedTiers.map((k, v) => MapEntry(k.toString(), v)),
+      'ids': <int>[],
+      'dates': <String, String>{},
+      'tiers': <String, int>{},
     }));
     return CardCollectionState(
-      discoveredIds: seedIds,
-      discoveryDates: seedDates,
-      tiers: seedTiers,
+      discoveredIds: {},
+      discoveryDates: {},
+      tiers: {},
     );
   }
 
@@ -970,9 +967,11 @@ Future<CardEngageResult> engageCard(int cardId) async {
       tierUpDates[cardId] = todayStr;
       tierChanged = true;
     }
-    // else: cooldown not met — no tier change, silent engagement
+    // else: cooldown not met — duplicate engagement
   }
-  // tier 3 (Gold) is max — no change
+  // tier 3 (Gold) is max — duplicate engagement
+
+  final isDuplicate = !isNew && !tierChanged;
 
   tiers[cardId] = newTier;
 
@@ -986,7 +985,7 @@ Future<CardEngageResult> engageCard(int cardId) async {
     }),
   );
 
-  return CardEngageResult(isNew: isNew, newTier: newTier, tierChanged: tierChanged);
+  return CardEngageResult(isNew: isNew, newTier: newTier, tierChanged: tierChanged, isDuplicate: isDuplicate);
 }
 
 /// Wipes the entire card collection (debug / stress-test use only).

@@ -1,0 +1,788 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/constants/checkin_questions.dart';
+import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
+import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/widgets/primary_card.dart';
+import 'package:sakina/widgets/reflect_loading.dart';
+
+/// Full-screen Muhasabah experience — check-in → deeper → completion.
+/// Lives at /muhasabah route. Reads from dailyLoopProvider.
+class MuhasabahScreen extends ConsumerStatefulWidget {
+  const MuhasabahScreen({super.key});
+
+  @override
+  ConsumerState<MuhasabahScreen> createState() => _MuhasabahScreenState();
+}
+
+class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
+  bool _revealShown = false;
+  bool _levelUpShown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(dailyLoopProvider);
+    final notifier = ref.read(dailyLoopProvider.notifier);
+
+    // Level up overlay
+    if (state.leveledUp == true && !_levelUpShown) {
+      _levelUpShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => LevelUpOverlay(
+              levelNumber: state.newLevelNumber ?? state.levelNumber,
+              title: state.newLevelTitle ?? state.levelTitle,
+              titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
+              onContinue: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                notifier.clearLevelUp();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      });
+    }
+    if (state.leveledUp != true) _levelUpShown = false;
+
+    // Reset reveal flag when state resets (e.g. Seek Another Name)
+    if (!state.checkinDone) {
+      _revealShown = false;
+    }
+
+    // Gacha reveal after check-in
+    if (state.checkinDone && !state.checkinLoading && !_revealShown &&
+        state.cardEngageResult != null && state.cardEngageResult!.tierChanged) {
+      _revealShown = true;
+      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) checkAchievements(ref);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => NameRevealOverlay(
+              nameArabic: state.checkinNameArabic ?? '',
+              nameEnglish: state.checkinName ?? '',
+              nameEnglishMeaning: state.engagedCard?.english ?? '',
+              teaching: state.engagedCard?.lesson ?? '',
+              card: state.engagedCard,
+              engageResult: state.cardEngageResult,
+              onContinue: () {
+                Navigator.of(context, rootNavigator: true).pop();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      });
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      body: SafeArea(
+        child: _buildContent(state, notifier),
+      ),
+    );
+  }
+
+  Widget _buildContent(DailyLoopState state, DailyLoopNotifier notifier) {
+    if (state.checkinLoading || state.reflectLoading) {
+      return const ReflectLoading();
+    }
+    if (state.currentStep == DailyLoopStep.completed) {
+      return _buildCompleted(state);
+    }
+    if (state.currentStep == DailyLoopStep.deeper && state.reflectResult != null) {
+      return _buildDeeper(state, notifier);
+    }
+    if (state.checkinDone && state.checkinName != null) {
+      return _buildCheckinResult(state, notifier);
+    }
+    return _buildCheckin(state, notifier);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHECK-IN (4 questions)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCheckin(DailyLoopState state, DailyLoopNotifier notifier) {
+    final idx = state.checkinQuestionIndex;
+    final answers = state.checkinAnswers;
+    final question = switch (idx) {
+      0 => q1,
+      1 => getQ2(answers.isNotEmpty ? answers[0] : ''),
+      2 => getQ3(
+          answers.isNotEmpty ? answers[0] : '',
+          answers.length > 1 ? answers[1] : '',
+        ),
+      _ => q4,
+    };
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: KeyedSubtree(
+        key: ValueKey(idx),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Sparkles
+                _sparkleRow(),
+                const SizedBox(height: 24),
+                // Progress dots
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(4, (i) {
+                    final filled = i <= idx;
+                    return Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: filled ? AppColors.primary : Colors.transparent,
+                        border: Border.all(
+                          color: filled ? AppColors.primary : AppColors.borderLight,
+                          width: 1.5,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 32),
+                // Question
+                Text(
+                  question.question,
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                // Options
+                ...question.options.map((option) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      notifier.answerCheckin(option);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Text(
+                        option,
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.textPrimaryLight,
+                        ),
+                      ),
+                    ),
+                  ),
+                )),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHECK-IN RESULT (Name card + Go Deeper)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCheckinResult(DailyLoopState state, DailyLoopNotifier notifier) {
+    // Try engagedCard first, fall back to looking up by name
+    final card = state.engagedCard ?? findCollectibleByName(state.checkinName ?? '');
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.pagePadding),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+          Text(
+            'Your Reflection',
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.textSecondaryLight,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // Name card — onboarding style
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              border: Border.all(color: AppColors.borderLight, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  state.checkinNameArabic ?? '',
+                  style: AppTypography.nameOfAllahDisplay.copyWith(
+                    color: AppColors.secondary,
+                    fontSize: 40,
+                  ),
+                  textDirection: TextDirection.rtl,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  state.checkinName ?? '',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: AppColors.textPrimaryLight,
+                  ),
+                ),
+                if (card != null) ...[
+                  Text(
+                    card.english,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  if (card.lesson.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(height: 1, color: AppColors.dividerLight),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      card.lesson,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondaryLight,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+          const SizedBox(height: AppSpacing.lg),
+          _sparkleRow(),
+          const SizedBox(height: AppSpacing.lg),
+          // Go Deeper button
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              notifier.startDeeper();
+            },
+            child: Container(
+              width: double.infinity,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(100),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                'Go Deeper',
+                style: AppTypography.labelLarge.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DEEPER REFLECTION (step-by-step)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildDeeper(DailyLoopState state, DailyLoopNotifier notifier) {
+    final result = state.reflectResult!;
+    final step = state.reflectStep;
+
+    final (String headerLabel, Widget content, String buttonLabel, bool isAmeen) = switch (step) {
+      0 => ('A Name for your heart', _nameContent(result), 'See Reflection', false),
+      1 => ('Reflection', _textContent(result.reframe), 'Read the Story', false),
+      2 => ('A Prophetic Story', _textContent(result.story), 'See the Dua', false),
+      _ => ('Dua', _duaContent(result), 'Ameen', true),
+    };
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: KeyedSubtree(
+        key: ValueKey(step),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.pagePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              Center(child: _sparkleRow()),
+              const SizedBox(height: 16),
+              // Card container
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with gold accent bar
+                    Row(
+                      children: [
+                        Container(
+                          width: 3, height: 16,
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
+                        const SizedBox(width: 8),
+                        Text(
+                          headerLabel,
+                          style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    // Content
+                    content.animate().fadeIn(duration: 600.ms, delay: 300.ms),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              // Button
+              if (isAmeen)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    notifier.advanceReflectStep();
+                    ref.read(questsProvider.notifier).onReflectCompleted();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'Ameen',
+                      style: AppTypography.headlineMedium.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
+              else
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    notifier.advanceReflectStep();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                    ),
+                    child: Text(
+                      buttonLabel,
+                      style: AppTypography.labelLarge.copyWith(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+              // Back button
+              if (step > 0) ...[
+                const SizedBox(height: 16),
+                _backButton(notifier),
+              ],
+            ],
+          ),
+        ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+      ),
+    );
+  }
+
+  Widget _nameContent(ReflectResponse result) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+      ),
+      child: Column(
+        children: [
+          Text(
+            result.nameArabic,
+            style: AppTypography.nameOfAllahDisplay.copyWith(
+              color: AppColors.primary, fontSize: 40,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(duration: 800.ms).scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            result.name,
+            style: AppTypography.headlineMedium.copyWith(color: AppColors.primary),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+        ],
+      ),
+    );
+  }
+
+  Widget _textContent(String text) {
+    return Text(
+      text,
+      style: AppTypography.bodyLarge.copyWith(
+        color: AppColors.textPrimaryLight,
+        height: 1.6,
+      ),
+    );
+  }
+
+  Widget _duaContent(ReflectResponse result) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            result.duaArabic,
+            style: AppTypography.quranArabic,
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
+          ),
+        ).animate().fadeIn(duration: 800.ms, delay: 200.ms)
+            .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+        const SizedBox(height: AppSpacing.md),
+        const Divider(color: AppColors.dividerLight),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          result.duaTransliteration,
+          style: AppTypography.bodyMedium.copyWith(
+            fontStyle: FontStyle.italic,
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          result.duaTranslation,
+          style: AppTypography.bodyLarge.copyWith(
+            color: AppColors.textPrimaryLight, height: 1.6,
+          ),
+        ),
+        if (result.duaSource.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            result.duaSource,
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _backButton(DailyLoopNotifier notifier) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          // Go back one step
+          final current = ref.read(dailyLoopProvider).reflectStep;
+          if (current > 1) {
+            notifier.setReflectStep(current - 1);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAltLight,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.arrow_back_ios_rounded, size: 14, color: AppColors.textSecondaryLight),
+              const SizedBox(width: 4),
+              Text('Back', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight)),
+            ],
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPLETED
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildCompleted(DailyLoopState state) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.pagePadding),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          _sparkleRow(),
+          const SizedBox(height: 16),
+          // Completion card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                SvgPicture.asset(
+                  'assets/illustrations/main_screens/daily_complete.svg',
+                  height: 140,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Muḥāsabah Complete',
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "You've reflected, gone deeper, and connected with Allah today.",
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                // Seek Another Name — primary CTA
+          GestureDetector(
+            onTap: () async {
+              HapticFeedback.mediumImpact();
+              final notifier = ref.read(dailyLoopProvider.notifier);
+              try {
+                await spendTokens(tokenCostReflection);
+                await notifier.resetToday();
+                // Stay on this screen — it will rebuild with fresh check-in
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Not enough tokens ($tokenCostReflection needed)'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(100),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Seek Another Name', style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.toll, size: 10, color: Colors.white),
+                        const SizedBox(width: 2),
+                        Text('$tokenCostReflection', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
+          const SizedBox(height: 12),
+          // Secondary buttons
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.go('/reflect');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 16),
+                        const SizedBox(width: 6),
+                        Text('Reflect More', style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.go('/duas');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryLight,
+                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 16),
+                        const SizedBox(width: 6),
+                        Text('Build a Dua', style: AppTypography.labelSmall.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
+          const SizedBox(height: 24),
+          // Return home
+          GestureDetector(
+            onTap: () => context.go('/'),
+            child: Text(
+              'Return to Home',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textTertiaryLight,
+              ),
+            ),
+                ).animate().fadeIn(duration: 300.ms, delay: 700.ms),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _sparkleRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) {
+        return Icon(
+          Icons.auto_awesome,
+          color: AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
+          size: i == 2 ? 20 : 14,
+        )
+            .animate()
+            .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut, duration: 600.ms, delay: (i * 80).ms)
+            .fadeIn(duration: 400.ms, delay: (i * 80).ms);
+      }),
+    );
+  }
+}

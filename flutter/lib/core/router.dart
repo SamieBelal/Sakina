@@ -9,6 +9,7 @@ import '../features/journal/screens/journal_screen.dart';
 import '../features/quests/screens/quests_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
+import '../features/daily/screens/muhasabah_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../widgets/achievement_toast.dart';
@@ -40,6 +41,13 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         path: '/discovery-quiz',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const DiscoveryQuizScreen(),
+      ),
+
+      // Muhasabah (full screen, no bottom nav)
+      GoRoute(
+        path: '/muhasabah',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MuhasabahScreen(),
       ),
 
       // Main app with bottom navigation

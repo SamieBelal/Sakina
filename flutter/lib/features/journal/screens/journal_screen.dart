@@ -13,6 +13,8 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
+import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 
 // ---------------------------------------------------------------------------
@@ -66,6 +68,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tab;
   bool _questFired = false;
+  int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
 
   @override
   void initState() {
@@ -157,13 +160,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         children: [
           Text('Journal',
               style: AppTypography.displayLarge
-                  .copyWith(color: AppColors.textPrimaryLight)),
+                  .copyWith(color: AppColors.textPrimaryLight))
+              .animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0, duration: 500.ms),
           const SizedBox(height: 4),
           Text(
             total == 0 ? 'Your spiritual diary' : '$total entries',
             style: AppTypography.bodyMedium
                 .copyWith(color: AppColors.textSecondaryLight),
-          ),
+          ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
         ],
       ),
     );
@@ -297,104 +301,26 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── 4 stat tiles ──
-            Row(
-              children: [
-                _statTile(
-                  icon: '📖',
-                  value: '${reflections.length}',
-                  label: 'Reflections',
-                  color: AppColors.primary,
-                  bgColor: const Color(0xFFE8F5EE),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '🤲',
-                  value: '$duasCount',
-                  label: 'Personal duas',
-                  color: AppColors.secondary,
-                  bgColor: const Color(0xFFF5EBD9),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '✨',
-                  value: '$uniqueNames',
-                  label: 'Names met',
-                  color: const Color(0xFF6B4E9B),
-                  bgColor: const Color(0xFFF3EEFF),
-                ),
-                const SizedBox(width: 10),
-                _statTile(
-                  icon: '⭐',
-                  value: '${stats.xp.totalXp}',
-                  label: 'Total XP',
-                  color: const Color(0xFFF59E0B),
-                  bgColor: const Color(0xFFFEF3C7),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // ── Week activity dots ──
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                 border: Border.all(color: AppColors.borderLight),
               ),
-              child: Row(
-                children: [
-                  Text(
-                    'This week',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondaryLight,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ...List.generate(7, (i) {
-                    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                    final isToday = i == now.weekday - 1;
-                    final active = activeDays[i];
-                    return Expanded(
-                      child: Column(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: active
-                                  ? AppColors.primary
-                                  : isToday
-                                      ? AppColors.primary.withValues(alpha: 0.12)
-                                      : const Color(0xFFF0EBE3),
-                              border: isToday && !active
-                                  ? Border.all(color: AppColors.primary, width: 1.5)
-                                  : null,
-                            ),
-                            child: active
-                                ? const Icon(Icons.check, size: 13, color: Colors.white)
-                                : Center(
-                                    child: Text(
-                                      dayLabels[i],
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600,
-                                        color: isToday
-                                            ? AppColors.primary
-                                            : AppColors.textTertiaryLight,
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
+              child: IntrinsicHeight(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _statItem(Icons.auto_stories_rounded, '${reflections.length}', 'Reflections', AppColors.primary),
+                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
+                    _statItem(Icons.auto_awesome, '$duasCount', 'Duas', AppColors.secondary),
+                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
+                    _statItem(Icons.star_rounded, '$uniqueNames', 'Names', AppColors.secondary),
+                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
+                    _statItem(Icons.local_fire_department, '${stats.streak.longestStreak}', 'Best streak', AppColors.streakAmber),
+                  ],
+                ),
               ),
             ),
 
@@ -434,52 +360,28 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     ).animate().fadeIn(duration: 400.ms);
   }
 
-  Widget _statTile({
-    required String icon,
-    required String value,
-    required String label,
-    required Color color,
-    required Color bgColor,
-  }) {
+  Widget _statItem(IconData icon, String value, String label, Color color) {
     return Expanded(
-      child: Container(
-        height: 94,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              icon,
-              style: const TextStyle(fontSize: 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: AppTypography.headlineMedium.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
+          ),
+          Text(
+            label,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              fontSize: 10,
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.bodySmall.copyWith(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -597,16 +499,64 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         onAction: () => context.go('/duas'),
       );
     }
-    final allDuaWidgets = <Widget>[
-      ...builtDuas.map((d) => _buildBuiltDuaCard(d)),
-      ...savedDuas.map((d) => _buildSavedDuaCard(d)),
-    ];
+
+    final List<Widget> duaWidgets;
+    switch (_duaFilter) {
+      case 1:
+        duaWidgets = builtDuas.map((d) => _buildBuiltDuaCard(d)).toList();
+      case 2:
+        duaWidgets = savedDuas.map((d) => _buildSavedDuaCard(d)).toList();
+      default:
+        duaWidgets = [
+          ...builtDuas.map((d) => _buildBuiltDuaCard(d)),
+          ...savedDuas.map((d) => _buildSavedDuaCard(d)),
+        ];
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: allDuaWidgets.asMap().entries
-          .map((e) => _animatedCard(e.key, e.value))
-          .toList(),
+      children: [
+        // Filter chips
+        Row(
+          children: [
+            _duaFilterChip('All', 0),
+            const SizedBox(width: 8),
+            _duaFilterChip('Built', 1),
+            const SizedBox(width: 8),
+            _duaFilterChip('Saved', 2),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...duaWidgets.asMap().entries
+            .map((e) => _animatedCard(e.key, e.value))
+            .toList(),
+      ],
+    );
+  }
+
+  Widget _duaFilterChip(String label, int index) {
+    final selected = _duaFilter == index;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _duaFilter = index);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.secondary : AppColors.surfaceAltLight,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.labelSmall.copyWith(
+            color: selected ? Colors.white : AppColors.textSecondaryLight,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
     );
   }
 
@@ -717,6 +667,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   Widget _buildReflectionCard(SavedReflection r) {
     final date = DateTime.parse(r.date);
     return _ExpandableCard(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => ReflectionDetailPage(
+            reflection: r,
+            onRemove: () => ref.read(reflectProvider.notifier).deleteReflection(r.id),
+          )),
+        );
+      },
       topLeft: _typeChip('Reflection', AppColors.primary),
       topRight: _dateLabel(date),
       summary: Column(
@@ -791,16 +750,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             ),
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ref.read(reflectProvider.notifier).deleteReflection(r.id);
-            },
-            child: Text(
-              'Remove',
-              style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiaryLight),
-            ),
+          _removeButton(() {
+            ref.read(reflectProvider.notifier).deleteReflection(r.id);
+          }
           ),
         ],
       ),
@@ -812,6 +764,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   Widget _buildBuiltDuaCard(SavedBuiltDua d) {
     final date = DateTime.parse(d.savedAt);
     return _ExpandableCard(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => DuaDetailPage.fromBuiltDua(d,
+            onRemove: () => ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id),
+          )),
+        );
+      },
       topLeft: _typeChip('Personal Dua', AppColors.secondary),
       topRight: _dateLabel(date),
       summary: Column(
@@ -822,14 +782,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             d.need,
             style: AppTypography.labelLarge
                 .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 18),
-            textDirection: TextDirection.rtl,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -839,12 +791,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 22),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 10),
+          const Divider(color: AppColors.dividerLight),
+          const SizedBox(height: 12),
           Text(
             d.transliteration,
             style: AppTypography.bodyMedium.copyWith(
@@ -860,17 +808,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                 .copyWith(color: AppColors.textPrimaryLight, height: 1.5),
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id);
-            },
-            child: Text(
-              'Remove',
-              style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiaryLight),
-            ),
-          ),
+          _removeButton(() {
+            ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id);
+          }),
         ],
       ),
     );
@@ -880,6 +820,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   Widget _buildSavedDuaCard(SavedRelatedDua d) {
     return _ExpandableCard(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => DuaDetailPage.fromRelatedDua(d,
+            onRemove: () => ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id),
+          )),
+        );
+      },
       topLeft: _typeChip('Saved Dua', AppColors.secondary),
       topRight: Text(
         d.source,
@@ -894,14 +842,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             d.title,
             style: AppTypography.labelLarge
                 .copyWith(color: AppColors.textPrimaryLight),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 18),
-            textDirection: TextDirection.rtl,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -911,12 +851,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
-          Text(
-            d.arabic,
-            style: AppTypography.quranArabic.copyWith(fontSize: 22),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 10),
+          const Divider(color: AppColors.dividerLight),
+          const SizedBox(height: 12),
           Text(
             d.transliteration,
             style: AppTypography.bodyMedium.copyWith(
@@ -932,17 +868,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                 .copyWith(color: AppColors.textPrimaryLight, height: 1.5),
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id);
-            },
-            child: Text(
-              'Remove',
-              style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiaryLight),
-            ),
-          ),
+          _removeButton(() {
+            ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id);
+          }),
         ],
       ),
     );
@@ -1035,6 +963,35 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           fontSize: 9,
           fontWeight: FontWeight.w700,
           letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _removeButton(VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAltLight,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.textTertiaryLight),
+            const SizedBox(width: 4),
+            Text(
+              'Remove',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textTertiaryLight,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1173,12 +1130,14 @@ class _ExpandableCard extends StatefulWidget {
     required this.topRight,
     required this.summary,
     required this.expanded,
+    this.onTap,
   });
 
   final Widget topLeft;
   final Widget topRight;
   final Widget summary;
   final Widget expanded;
+  final VoidCallback? onTap;
 
   @override
   State<_ExpandableCard> createState() => _ExpandableCardState();
@@ -1190,13 +1149,12 @@ class _ExpandableCardState extends State<_ExpandableCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: widget.onTap ?? () {
         HapticFeedback.selectionClick();
         setState(() => _open = !_open);
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
@@ -1209,42 +1167,87 @@ class _ExpandableCardState extends State<_ExpandableCard> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top row: type chip + date/action
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                widget.topLeft,
-                widget.topRight,
-              ],
-            ),
-            // Summary (always visible)
-            widget.summary,
-            // Expand toggle hint
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AnimatedRotation(
-                  turns: _open ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: AppColors.textTertiaryLight,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Gold accent bar
+              Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(AppSpacing.cardRadius),
+                    bottomLeft: Radius.circular(AppSpacing.cardRadius),
                   ),
                 ),
-              ],
-            ),
-            // Expanded content
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: _open ? widget.expanded : const SizedBox.shrink(),
-            ),
-          ],
+              ),
+              // Content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top row: type chip + date/action
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          widget.topLeft,
+                          widget.topRight,
+                        ],
+                      ),
+                      // Summary (always visible)
+                      widget.summary,
+                      const SizedBox(height: 8),
+                      if (widget.onTap != null)
+                        // Navigate hint
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'View full',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textTertiaryLight,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: AppColors.textTertiaryLight,
+                            ),
+                          ],
+                        )
+                      else ...[
+                        // Expand toggle hint
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            AnimatedRotation(
+                              turns: _open ? 0.5 : 0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: AppColors.textTertiaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Expanded content
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                          child: _open ? widget.expanded : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

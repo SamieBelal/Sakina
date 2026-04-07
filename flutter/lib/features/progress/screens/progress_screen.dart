@@ -19,6 +19,7 @@ import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/primary_card.dart';
@@ -135,31 +136,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Home Header with Level Bar
-              _buildHomeHeader(state),
+              // 1. Greeting row (outside card)
+              _buildGreetingRow(state),
+              const SizedBox(height: AppSpacing.md),
+
+              // 2. Unified dashboard card
+              _buildDashboardCard(state, todaysName),
               const SizedBox(height: AppSpacing.xl),
-
-              // 3. Daily Practice Card (Hero) — moved above rewards
-              _buildDailyPracticeCard(state, notifier),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
-
-              // 4. Daily Reward Calendar — collapsed bar when claimed
-              _buildRewardCalendar(),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
-
-              // 5. Daily Quest Strip
-              _DailyQuestStrip(),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
-
-              // 6. Today's Name of Allah
-              _buildTodaysNameCard(todaysName),
-              const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
-
-              // 6. Discovery Quiz CTA
-              if (_showDiscoveryQuiz) ...[
-                _buildDiscoveryQuizCta(),
-                const SizedBox(height: AppSpacing.xl), // Increased: lg→xl
-              ],
 
               const SizedBox(height: AppSpacing.xxl),
             ],
@@ -367,6 +350,717 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         ),
       ],
     ).animate().fadeIn(duration: 400.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Greeting Row (simple, outside the card)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildGreetingRow(DailyLoopState state) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '${state.greeting}!',
+            style: AppTypography.displayLarge.copyWith(
+              color: AppColors.textPrimaryLight,
+            ),
+          ),
+        ),
+        // Settings gear
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.push('/settings');
+          },
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceAltLight,
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: const Icon(
+              Icons.settings_outlined,
+              size: 18,
+              color: AppColors.textSecondaryLight,
+            ),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Unified Dashboard Card
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildDashboardCard(DailyLoopState state, AllahName todaysName) {
+    final xpState = _calculateXpProgress(state.xpTotal);
+    final double xpProgress = xpState.xpForNextLevel > 0
+        ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
+        : 1.0;
+    final bool isMaxLevel = xpState.xpForNextLevel == 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Single row: Avatar + Lvl/Title + XP bar + pills
+          Row(
+            children: [
+              // Rank avatar
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryLight,
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    state.levelTitleArabic,
+                    style: AppTypography.nameOfAllahDisplay.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Lvl + Title stacked
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Lv ${state.levelNumber}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      state.levelTitle,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Streak pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.streakBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 12),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${state.streakCount}',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.streakAmber,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Token pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.toll, size: 12, color: AppColors.secondary),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${state.tokenBalance}',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              // Quests pill
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.push('/quests');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDE9FE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.emoji_events_rounded, size: 12, color: Color(0xFF7C3AED)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // XP bar — full width including under avatar
+          Padding(
+            padding: EdgeInsets.zero,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: xpProgress,
+                minHeight: 3,
+                backgroundColor: AppColors.borderLight,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Divider
+          Container(height: 1, color: AppColors.dividerLight),
+          const SizedBox(height: 14),
+
+          // Today's Name (hero section)
+          // Gold sparkles
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(5, (i) {
+              return Icon(
+                Icons.auto_awesome,
+                color: AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
+                size: i == 2 ? 18 : 12,
+              )
+                  .animate()
+                  .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut, duration: 600.ms, delay: (i * 80).ms)
+                  .fadeIn(duration: 400.ms, delay: (i * 80).ms);
+            }),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Today's Name",
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.secondary,
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            todaysName.arabic,
+            style: AppTypography.nameOfAllahDisplay.copyWith(
+              color: AppColors.secondary,
+              fontSize: 48,
+            ),
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
+          )
+              .animate()
+              .fadeIn(duration: 800.ms, delay: 200.ms)
+              .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+          const SizedBox(height: 6),
+          Text(
+            '${todaysName.transliteration} — ${todaysName.english}',
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.textPrimaryLight,
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+          const SizedBox(height: 6),
+          Text(
+            todaysName.lesson,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
+
+          // Muhasabah row
+          const SizedBox(height: 16),
+          Container(height: 1, color: AppColors.dividerLight),
+          const SizedBox(height: 14),
+          _buildMuhasabahRow(state),
+
+          // Discover Anchor Names (if not done)
+          if (_showDiscoveryQuiz) ...[
+            const SizedBox(height: 16),
+            Container(height: 1, color: AppColors.dividerLight),
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                GoRouter.of(context).push('/discovery-quiz');
+              },
+              child: Row(
+                children: [
+                  Icon(Icons.star_outline_rounded, color: AppColors.secondary, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Discover Your Anchor Names',
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.textPrimaryLight,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Find the Names that speak to your soul',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondaryLight,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiaryLight),
+                ],
+              ),
+            ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
+          ],
+
+          // Daily Rewards
+          const SizedBox(height: 14),
+          Container(height: 1, color: AppColors.dividerLight),
+          const SizedBox(height: 14),
+          _buildRewardCalendar(),
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Inline Daily Rewards (inside dashboard card)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  bool _rewardsExpanded = false;
+
+  Widget _buildInlineRewards() {
+    final rewards = ref.watch(dailyRewardsProvider);
+    final claimed = rewards.claimedToday;
+    final currentDay = rewards.currentDay;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _rewardsExpanded = !_rewardsExpanded);
+      },
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                claimed ? Icons.card_giftcard : Icons.card_giftcard_outlined,
+                color: claimed ? AppColors.primary : AppColors.secondary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      claimed ? 'Day $currentDay/7 claimed' : 'Claim today\'s reward',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: claimed ? AppColors.primary : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    // 7 day dots
+                    const SizedBox(height: 6),
+                    Row(
+                      children: List.generate(7, (i) {
+                        final done = i < currentDay;
+                        final isToday = i == currentDay - (claimed ? 1 : 0);
+                        return Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(right: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: done
+                                ? AppColors.primary
+                                : isToday && !claimed
+                                    ? AppColors.secondary
+                                    : AppColors.borderLight,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+              AnimatedRotation(
+                turns: _rewardsExpanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: AppColors.textTertiaryLight,
+                ),
+              ),
+            ],
+          ),
+          // Expanded reward schedule
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _rewardsExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Column(
+                      children: List.generate(7, (i) {
+                        final reward = rewardSchedule[i];
+                        final done = i < currentDay;
+                        final isToday = i == currentDay - (claimed ? 1 : 0);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: done
+                                      ? AppColors.primaryLight
+                                      : isToday && !claimed
+                                          ? AppColors.secondaryLight
+                                          : AppColors.surfaceAltLight,
+                                ),
+                                child: Icon(
+                                  done ? Icons.check : Icons.circle_outlined,
+                                  size: 12,
+                                  color: done
+                                      ? AppColors.primary
+                                      : isToday && !claimed
+                                          ? AppColors.secondary
+                                          : AppColors.textTertiaryLight,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Day ${i + 1}',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: done ? AppColors.textPrimaryLight : AppColors.textSecondaryLight,
+                                  fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                reward.label,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: done ? AppColors.primary : AppColors.textTertiaryLight,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms, delay: 400.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Muhasabah Row (inside dashboard card)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildMuhasabahRow(DailyLoopState state) {
+    final completed = state.currentStep == DailyLoopStep.completed;
+    final inProgress = state.checkinDone || state.currentStep != DailyLoopStep.checkin;
+
+    if (completed) {
+      return GestureDetector(
+        onTap: () async {
+          HapticFeedback.mediumImpact();
+          // Deduct tokens and reset for a new roll
+          final notifier = ref.read(dailyLoopProvider.notifier);
+          try {
+            await spendTokens(tokenCostReflection);
+            await notifier.resetToday();
+            if (mounted) context.push('/muhasabah');
+          } catch (_) {
+            // Not enough tokens — show a snackbar
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Not enough tokens ($tokenCostReflection needed)'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+        child: Row(
+          children: [
+            Icon(Icons.explore_outlined, color: AppColors.secondary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Discover a New Name',
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Begin another Muḥāsabah',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Token cost indicator
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.toll, size: 12, color: AppColors.secondary),
+                  const SizedBox(width: 3),
+                  Text(
+                    '$tokenCostReflection',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
+    }
+
+    // Not started or in progress
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        context.push('/muhasabah');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    inProgress ? 'Continue Muḥāsabah' : 'Begin Muḥāsabah',
+                    style: AppTypography.labelMedium.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Daily spiritual check-in',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 14),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // (Legacy) Muhasabah CTA — kept for reference
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildMuhasabahCta(DailyLoopState state) {
+    final completed = state.currentStep == DailyLoopStep.completed;
+
+    if (completed) {
+      // Compact "completed" banner
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Muḥāsabah Complete',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Come back tomorrow for a new reflection',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Run again
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/muhasabah');
+              },
+              child: Text(
+                'View',
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ).animate().fadeIn(duration: 400.ms);
+    }
+
+    // Not started or in progress — big CTA button
+    final inProgress = state.checkinDone || state.currentStep != DailyLoopStep.checkin;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        context.push('/muhasabah');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/illustrations/main_screens/daily_complete.svg',
+              height: 40,
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  inProgress ? 'Continue Muḥāsabah' : 'Begin Muḥāsabah',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Daily spiritual check-in',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 500.ms, delay: 200.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1069,36 +1763,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ── Loading ────────────────────────────────────────────────────────────────
 
   Widget _buildLoadingCard(DailyLoopState state) {
-    final message = state.checkinLoading
-        ? 'Finding the right Name...'
-        : 'Preparing your reflection...';
-
     return _cardShell(
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                _buildRippleRing(60, 0.ms),
-                _buildRippleRing(45, 200.ms),
-                _buildRippleRing(30, 400.ms),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            message,
-            style: AppTypography.bodyLarge.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-        ],
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+        child: ReflectLoading(),
       ),
     ).animate().fadeIn(duration: 400.ms);
   }
@@ -1126,92 +1794,123 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     DailyLoopState state,
     DailyLoopNotifier notifier,
   ) {
-    return _cardShell(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _buildProgressRing(1)),
-          const SizedBox(height: AppSpacing.lg),
-
-          // New card discovered banner
-          if (state.cardEngageResult != null && state.cardEngageResult!.tierChanged && state.engagedCard != null) ...[
-            _buildNewCardBanner(state.engagedCard!, state.cardEngageResult!),
-            const SizedBox(height: AppSpacing.md),
-          ],
-
-          // Name pill
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(20),
+    final card = state.engagedCard;
+    return Column(
+      children: [
+        Text(
+          'Your Reflection',
+          style: AppTypography.labelLarge.copyWith(
+            color: AppColors.textSecondaryLight,
+          ),
+        ).animate().fadeIn(duration: 400.ms),
+        const SizedBox(height: AppSpacing.md),
+        // Result card — onboarding DemoResultCard style
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            border: Border.all(color: AppColors.borderLight, width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-              child: Text(
-                '${state.checkinName} ${state.checkinNameArabic ?? ''}',
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Name of Allah — Arabic
+              Text(
+                state.checkinNameArabic ?? '',
+                style: AppTypography.nameOfAllahDisplay.copyWith(
+                  color: AppColors.secondary,
+                  fontSize: 40,
+                  shadows: [
+                    Shadow(
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                    ),
+                  ],
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              // Transliteration
+              Text(
+                state.checkinName ?? '',
                 style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textOnPrimary,
+                  color: AppColors.textPrimaryLight,
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Teaching
-          if (state.checkinTeaching != null)
-            Text(
-              state.checkinTeaching!,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Go Deeper button
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              notifier.startDeeper();
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-              ),
-              child: Text(
-                'Go Deeper',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textOnPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // Skip to Quest
-          Center(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                notifier.skipToQuest();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'Skip to Dua Quest',
-                  style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.textTertiaryLight,
+              // English meaning
+              if (card != null)
+                Text(
+                  card.english,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondaryLight,
                   ),
                 ),
+              if (card != null && card.lesson.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Container(height: 1, color: AppColors.dividerLight),
+                const SizedBox(height: AppSpacing.lg),
+                // Lesson / teaching
+                Text(
+                  card.lesson,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+        )
+            .animate()
+            .fadeIn(duration: 600.ms)
+            .slideY(begin: 0.05, end: 0, duration: 600.ms),
+        const SizedBox(height: AppSpacing.lg),
+        // Sparkles
+        _buildDeeperSparkleRow(),
+        const SizedBox(height: AppSpacing.lg),
+        // Go Deeper button
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            notifier.startDeeper();
+          },
+          child: Container(
+            width: double.infinity,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(100),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              'Go Deeper',
+              style: AppTypography.labelLarge.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0);
+        ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
+      ],
+    ).animate().fadeIn(duration: 600.ms);
   }
 
   // ── Deeper Reflect ─────────────────────────────────────────────────────────
@@ -1220,54 +1919,144 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final result = state.reflectResult!;
     final step = state.reflectStep;
 
-    // Each step: scrollable text block + pinned action button below
-    final (Widget content, String buttonLabel, VoidCallback onButton) = switch (step) {
+    // Step labels and headers
+    final (String headerLabel, Widget content, String buttonLabel, VoidCallback onButton) = switch (step) {
       0 => (
+          'A Name for your heart',
           _deeperNameContent(result),
           'See Reflection',
-          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
         ),
       1 => (
+          'Reflection',
           _deeperTextContent(result.reframe),
           'Read the Story',
-          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
         ),
       2 => (
+          'A Prophetic Story',
           _deeperTextContent(result.story),
           'See the Dua',
-          () { HapticFeedback.lightImpact(); notifier.advanceReflectStep(); },
+          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
         ),
       _ => (
+          'Dua',
           _deeperDuaContent(result),
-          'Continue to Quest',
+          'Ameen',
           () {
-            HapticFeedback.lightImpact();
+            HapticFeedback.mediumImpact();
             notifier.advanceReflectStep();
             ref.read(questsProvider.notifier).onReflectCompleted();
           },
         ),
     };
 
-    return _cardShell(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(child: _buildProgressRing(2)),
-          const SizedBox(height: AppSpacing.lg),
+    final isDuaStep = step >= 3;
 
-          // Scrollable content — max 280px so button always shows
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 280),
-            child: SingleChildScrollView(
-              child: content,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: KeyedSubtree(
+        key: ValueKey(step),
+        child: Column(
+          children: [
+            // Gold sparkles
+            _buildDeeperSparkleRow(),
+            const SizedBox(height: 16),
+            _cardShell(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with gold accent bar
+                  Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
+                      const SizedBox(width: 8),
+                      Text(
+                        headerLabel,
+                        style: AppTypography.labelMedium.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Scrollable content
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: SingleChildScrollView(
+                      child: content,
+                    ),
+                  ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // Button — "Ameen" gets special pill style
+                  if (isDuaStep)
+                    GestureDetector(
+                      onTap: onButton,
+                      child: Container(
+                        width: double.infinity,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(100),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          buttonLabel,
+                          style: AppTypography.headlineMedium.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
+                  else
+                    _buildActionButton(buttonLabel, onButton)
+                        .animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          _buildActionButton(buttonLabel, onButton),
-        ],
+          ],
+        ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    );
+  }
+
+  Widget _buildDeeperSparkleRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (i) {
+        return Icon(
+          Icons.auto_awesome,
+          color: AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
+          size: i == 2 ? 20 : 14,
+        )
+            .animate()
+            .scale(
+              begin: const Offset(0, 0),
+              end: const Offset(1, 1),
+              curve: Curves.elasticOut,
+              duration: 600.ms,
+              delay: (i * 80).ms,
+            )
+            .fadeIn(duration: 400.ms, delay: (i * 80).ms);
+      }),
+    );
   }
 
   Widget _deeperNameContent(ReflectResponse result) {
@@ -1288,13 +2077,16 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
-          ),
+          )
+              .animate()
+              .fadeIn(duration: 800.ms)
+              .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
           const SizedBox(height: AppSpacing.sm),
           Text(
             result.name,
             style: AppTypography.headlineMedium.copyWith(color: AppColors.primary),
             textAlign: TextAlign.center,
-          ),
+          ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
         ],
       ),
     );
@@ -1303,9 +2095,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   Widget _deeperTextContent(String text) {
     return Text(
       text,
-      style: AppTypography.bodyMedium.copyWith(
-        color: AppColors.textSecondaryLight,
-        height: 1.7,
+      style: AppTypography.bodyLarge.copyWith(
+        color: AppColors.textPrimaryLight,
+        height: 1.6,
       ),
     );
   }
@@ -1318,11 +2110,16 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           width: double.infinity,
           child: Text(
             result.duaArabic,
-            style: AppTypography.quranArabic.copyWith(color: AppColors.secondary),
+            style: AppTypography.quranArabic,
             textDirection: TextDirection.rtl,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.center,
           ),
-        ),
+        )
+            .animate()
+            .fadeIn(duration: 800.ms, delay: 200.ms)
+            .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+        const SizedBox(height: AppSpacing.md),
+        const Divider(color: AppColors.dividerLight),
         const SizedBox(height: AppSpacing.md),
         Text(
           result.duaTransliteration,
@@ -1330,17 +2127,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             color: AppColors.textSecondaryLight,
             fontStyle: FontStyle.italic,
           ),
-        ),
+        ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
         const SizedBox(height: AppSpacing.sm),
         Text(
           result.duaTranslation,
-          style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
-        ),
+          style: AppTypography.bodyLarge.copyWith(
+            color: AppColors.textPrimaryLight,
+            height: 1.6,
+          ),
+        ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
         const SizedBox(height: AppSpacing.xs),
         Text(
           result.duaSource,
           style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
-        ),
+        ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
       ],
     );
   }
@@ -1467,229 +2267,227 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         : 1.0;
     final bool isMaxLevel = xpState.xpForNextLevel == 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.35),
-            blurRadius: 28,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.15),
-            blurRadius: 60,
-            spreadRadius: 8,
-            offset: Offset.zero,
-          ),
-        ],
-      ),
-      child: _cardShell(
-        child: Column(
-          children: [
-          // Celebration illustration
-          SvgPicture.asset(
-            'assets/illustrations/main_screens/daily_complete.svg',
-            height: 180,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildProgressRing(3),
-          const SizedBox(height: AppSpacing.lg),
-
-          // ── Completion label ─────────────────────────────────────────────
-          Text(
-            'Muḥāsabah Complete',
-            style: AppTypography.headlineMedium.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            "You've reflected, gone deeper, and completed your dua quest today.",
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Rank hero ───────────────────────────────────────────────────
-          Text(
-            state.levelTitleArabic,
-            style: AppTypography.nameOfAllahDisplay.copyWith(
-              color: AppColors.primary,
-              fontSize: 52,
-            ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          )
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .scaleXY(begin: 0.85, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack),
-          const SizedBox(height: 4),
-          Text(
-            state.levelTitle.toUpperCase(),
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.primary,
-              letterSpacing: 2.5,
-            ),
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(delay: 150.ms, duration: 400.ms),
-          const SizedBox(height: AppSpacing.md),
-
-          // ── XP progress bar ─────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: xpProgress,
-              minHeight: 6,
-              backgroundColor: AppColors.borderLight,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            isMaxLevel
-                ? 'Max rank reached'
-                : '${xpState.xpIntoCurrentLevel} / ${xpState.xpForNextLevel} XP to ${_nextLevelTitle(state.xpTotal)}',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textTertiaryLight,
-              fontSize: 11,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // ── Stat banner (streak · XP · tokens) ──────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _completedStat(
-                    icon: const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 18),
-                    value: '${state.streakCount}',
-                    label: 'streak',
-                  ),
-                  VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
-                  _completedStat(
-                    icon: const Icon(Icons.bolt, color: AppColors.primary, size: 18),
-                    value: '${state.xpTotal}',
-                    label: 'XP',
-                  ),
-                  VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
-                  _completedStat(
-                    icon: const Icon(Icons.toll, color: AppColors.secondary, size: 18),
-                    value: '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
-                    label: 'tokens',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // ── Action buttons ───────────────────────────────────────────────
-          Row(
+    return Column(
+      children: [
+        _cardShell(
+          child: Column(
             children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    context.go('/reflect');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: 20),
-                        const SizedBox(height: 4),
-                        Text('Reflect More',
-                            style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
-                            textAlign: TextAlign.center),
-                      ],
-                    ),
-                  ),
-                ),
+            // Celebration illustration
+            SvgPicture.asset(
+              'assets/illustrations/main_screens/daily_complete.svg',
+              height: 140,
+            ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
+            const SizedBox(height: AppSpacing.md),
+            // ── Completion label ─────────────────────────────────────────────
+            Text(
+              'Muḥāsabah Complete',
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textPrimaryLight,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    context.go('/duas');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryLight,
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 20),
-                        const SizedBox(height: 4),
-                        Text('Build a Dua',
-                            style: AppTypography.labelMedium.copyWith(color: AppColors.secondary),
-                            textAlign: TextAlign.center),
-                      ],
-                    ),
-                  ),
-                ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+            const SizedBox(height: 4),
+            Text(
+              "You've reflected, gone deeper, and connected with Allah today.",
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondaryLight,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    context.push('/quests');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDE9FE),
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                      border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.emoji_events_rounded, color: Color(0xFF7C3AED), size: 20),
-                        const SizedBox(height: 4),
-                        Text('Quests',
-                            style: AppTypography.labelMedium.copyWith(color: const Color(0xFF7C3AED)),
-                            textAlign: TextAlign.center),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+            const SizedBox(height: AppSpacing.md),
 
-          Text(
-            'Come back tomorrow',
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
-          ),
-        ],
+            // ── Rank hero ───────────────────────────────────────────────────
+            Text(
+              state.levelTitleArabic,
+              style: AppTypography.nameOfAllahDisplay.copyWith(
+                color: AppColors.primary,
+                fontSize: 44,
+              ),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+            )
+                .animate()
+                .fadeIn(duration: 800.ms, delay: 500.ms)
+                .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, delay: 500.ms, curve: Curves.easeOutBack),
+            const SizedBox(height: 2),
+            Text(
+              state.levelTitle.toUpperCase(),
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.primary,
+                letterSpacing: 2.5,
+              ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
+            const SizedBox(height: AppSpacing.sm),
+
+            // ── XP progress bar ─────────────────────────────────────────────
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: xpProgress,
+                minHeight: 6,
+                backgroundColor: AppColors.borderLight,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
+            const SizedBox(height: 4),
+            Text(
+              isMaxLevel
+                  ? 'Max rank reached'
+                  : '${xpState.xpIntoCurrentLevel} / ${xpState.xpForNextLevel} XP to ${_nextLevelTitle(state.xpTotal)}',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textTertiaryLight,
+                fontSize: 11,
+              ),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 400.ms, delay: 750.ms),
+            const SizedBox(height: AppSpacing.sm),
+
+            // ── Stat banner (streak · XP · tokens) ──────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _completedStat(
+                      icon: const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 18),
+                      value: '${state.streakCount}',
+                      label: 'streak',
+                    ),
+                    VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
+                    _completedStat(
+                      icon: const Icon(Icons.bolt, color: AppColors.primary, size: 18),
+                      value: '${state.xpTotal}',
+                      label: 'XP',
+                    ),
+                    VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
+                    _completedStat(
+                      icon: const Icon(Icons.toll, color: AppColors.secondary, size: 18),
+                      value: '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
+                      label: 'tokens',
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(duration: 400.ms, delay: 800.ms),
+            const SizedBox(height: AppSpacing.lg),
+
+            // ── Primary CTA — Reflect More ────────────────────────────────
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                context.go('/reflect');
+              },
+              child: Container(
+                width: double.infinity,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(100),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Reflect More',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(duration: 500.ms, delay: 900.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 900.ms),
+            const SizedBox(height: 12),
+
+            // ── Secondary actions ─────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      context.go('/duas');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryLight,
+                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 18),
+                          const SizedBox(height: 4),
+                          Text('Build a Dua',
+                              style: AppTypography.labelSmall.copyWith(color: AppColors.secondary),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      context.push('/quests');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEDE9FE),
+                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.emoji_events_rounded, color: Color(0xFF7C3AED), size: 18),
+                          const SizedBox(height: 4),
+                          Text('Quests',
+                              style: AppTypography.labelSmall.copyWith(color: const Color(0xFF7C3AED)),
+                              textAlign: TextAlign.center),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
+          ],
+        ),
       ),
-    ))
+      const SizedBox(height: 12),
+      Text(
+        'Every step brings you closer to Allah',
+        style: AppTypography.bodySmall.copyWith(
+          color: AppColors.secondary,
+          fontStyle: FontStyle.italic,
+        ),
+        textAlign: TextAlign.center,
+      ).animate().fadeIn(duration: 400.ms, delay: 1100.ms),
+    ],
+    )
         .animate()
         .fadeIn(duration: 600.ms, delay: 100.ms)
         .slideY(begin: 0.08, end: 0);

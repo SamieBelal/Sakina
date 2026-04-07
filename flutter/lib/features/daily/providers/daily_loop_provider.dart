@@ -38,10 +38,6 @@ class DailyLoopState {
   final String? checkinAnswer; // final combined summary for display
   final String? checkinName;
   final String? checkinNameArabic;
-  final String? checkinTeaching;
-  final String? checkinDuaArabic;
-  final String? checkinDuaTransliteration;
-  final String? checkinDuaTranslation;
   final bool checkinLoading;
 
   // Step 2: Deeper reflect
@@ -90,10 +86,6 @@ class DailyLoopState {
     this.checkinAnswer,
     this.checkinName,
     this.checkinNameArabic,
-    this.checkinTeaching,
-    this.checkinDuaArabic,
-    this.checkinDuaTransliteration,
-    this.checkinDuaTranslation,
     this.checkinLoading = false,
     this.reflectResult,
     this.reflectStep = 0,
@@ -129,10 +121,6 @@ class DailyLoopState {
     String? checkinAnswer,
     String? checkinName,
     String? checkinNameArabic,
-    String? checkinTeaching,
-    String? checkinDuaArabic,
-    String? checkinDuaTransliteration,
-    String? checkinDuaTranslation,
     bool? checkinLoading,
     ReflectResponse? reflectResult,
     int? reflectStep,
@@ -167,12 +155,6 @@ class DailyLoopState {
       checkinAnswer: checkinAnswer ?? this.checkinAnswer,
       checkinName: checkinName ?? this.checkinName,
       checkinNameArabic: checkinNameArabic ?? this.checkinNameArabic,
-      checkinTeaching: checkinTeaching ?? this.checkinTeaching,
-      checkinDuaArabic: checkinDuaArabic ?? this.checkinDuaArabic,
-      checkinDuaTransliteration:
-          checkinDuaTransliteration ?? this.checkinDuaTransliteration,
-      checkinDuaTranslation:
-          checkinDuaTranslation ?? this.checkinDuaTranslation,
       checkinLoading: checkinLoading ?? this.checkinLoading,
       reflectResult: reflectResult ?? this.reflectResult,
       reflectStep: reflectStep ?? this.reflectStep,
@@ -355,26 +337,40 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           }
         }
 
+        debugPrint('[CARD] Looking for: "${result.name}" / "${result.nameArabic}"');
+        debugPrint('[CARD] Found collectible: ${collectible?.transliteration ?? "NULL"} (id: ${collectible?.id})');
         if (collectible != null) {
+          engagedCard = collectible; // Always set for check-in result display
           final engageResult = await engageCard(collectible.id);
+          debugPrint('[CARD] Engage result: isNew=${engageResult.isNew}, tierChanged=${engageResult.tierChanged}, newTier=${engageResult.newTier}, isDuplicate=${engageResult.isDuplicate}');
           if (engageResult.tierChanged) {
+            // New card or tier upgrade — show gacha overlay
             cardEngageResult = engageResult;
-            engagedCard = collectible;
+          } else if (engageResult.isDuplicate) {
+            // Already maxed or cooldown not met — award bonus tokens
+            try {
+              await earnTokens(1);
+            } catch (_) {}
           }
         }
-      } catch (e) {
+      } catch (e, st) {
         debugPrint('[CARD COLLECTION ERROR] $e');
+        debugPrint('[CARD COLLECTION STACK] $st');
       }
+
+      // Clean AI name — strip Arabic chars and " — meaning" suffix
+      // Only split on em-dash/en-dash surrounded by spaces, not hyphens in "Al-Lateef"
+      final cleanName = result.name
+          .replaceAll(RegExp(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+'), '')
+          .split(RegExp(r'\s+[—–]\s+'))
+          .first
+          .trim();
 
       // Single state update — widget sees checkinDone + card data together
       state = state.copyWith(
         checkinAnswer: answer,
-        checkinName: result.name,
+        checkinName: cleanName.isNotEmpty ? cleanName : result.name,
         checkinNameArabic: result.nameArabic,
-        checkinTeaching: result.teaching,
-        checkinDuaArabic: result.duaArabic,
-        checkinDuaTransliteration: result.duaTransliteration,
-        checkinDuaTranslation: result.duaTranslation,
         checkinDone: true,
         checkinLoading: false,
         cardEngageResult: cardEngageResult,
@@ -522,15 +518,42 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     }
   }
 
+  void setReflectStep(int step) {
+    state = state.copyWith(reflectStep: step);
+  }
+
   Future<void> advanceReflectStep() async {
     final current = state.reflectStep.clamp(1, 3); // step 0 is skipped
 
     if (current == 3) {
-      // Completing the dua step — finish deeper
+      // Completing the dua step — finish Muhasabah (skip quest)
       state = state.copyWith(
         deeperDone: true,
-        currentStep: DailyLoopStep.quest,
+        questDone: true,
+        currentStep: DailyLoopStep.completed,
       );
+
+      // Award quest XP + tokens here since we skip the quest step
+      try {
+        final xpResult = await awardXp(10);
+        state = state.copyWith(
+          xpTotal: xpResult.newTotal,
+          levelTitle: xpResult.state.title,
+          levelTitleArabic: xpResult.state.titleArabic,
+          levelNumber: xpResult.state.level,
+          leveledUp: xpResult.leveledUp,
+          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+          newLevelTitleArabic:
+              xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
+        );
+      } catch (_) {}
+
+      try {
+        final tokenResult = await earnTokens(tokenRewardQuestComplete);
+        state = state.copyWith(tokenBalance: tokenResult.balance);
+      } catch (_) {}
+
       await _persistTodayState();
       return;
     }
@@ -630,10 +653,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         'checkinAnswer': state.checkinAnswer,
         'checkinName': state.checkinName,
         'checkinNameArabic': state.checkinNameArabic,
-        'checkinTeaching': state.checkinTeaching,
-        'checkinDuaArabic': state.checkinDuaArabic,
-        'checkinDuaTransliteration': state.checkinDuaTransliteration,
-        'checkinDuaTranslation': state.checkinDuaTranslation,
         'reflectStep': state.reflectStep,
       };
       await prefs.setString(_todayKey, jsonEncode(data));
@@ -669,10 +688,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         checkinAnswer: data['checkinAnswer'] as String?,
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,
-        checkinTeaching: data['checkinTeaching'] as String?,
-        checkinDuaArabic: data['checkinDuaArabic'] as String?,
-        checkinDuaTransliteration: data['checkinDuaTransliteration'] as String?,
-        checkinDuaTranslation: data['checkinDuaTranslation'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,
       );
     } catch (_) {

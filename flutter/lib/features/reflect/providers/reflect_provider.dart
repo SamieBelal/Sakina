@@ -26,6 +26,13 @@ class SavedReflection {
   final String name;
   final String nameArabic;
   final String reframePreview;
+  final String reframe;
+  final String story;
+  final String duaArabic;
+  final String duaTransliteration;
+  final String duaTranslation;
+  final String duaSource;
+  final List<Map<String, String>> relatedNames;
 
   const SavedReflection({
     required this.id,
@@ -34,6 +41,13 @@ class SavedReflection {
     required this.name,
     required this.nameArabic,
     required this.reframePreview,
+    this.reframe = '',
+    this.story = '',
+    this.duaArabic = '',
+    this.duaTransliteration = '',
+    this.duaTranslation = '',
+    this.duaSource = '',
+    this.relatedNames = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +57,13 @@ class SavedReflection {
     'name': name,
     'nameArabic': nameArabic,
     'reframePreview': reframePreview,
+    'reframe': reframe,
+    'story': story,
+    'duaArabic': duaArabic,
+    'duaTransliteration': duaTransliteration,
+    'duaTranslation': duaTranslation,
+    'duaSource': duaSource,
+    'relatedNames': relatedNames,
   };
 
   factory SavedReflection.fromJson(Map<String, dynamic> json) => SavedReflection(
@@ -52,6 +73,15 @@ class SavedReflection {
     name: json['name'] as String,
     nameArabic: json['nameArabic'] as String,
     reframePreview: json['reframePreview'] as String,
+    reframe: json['reframe'] as String? ?? '',
+    story: json['story'] as String? ?? '',
+    duaArabic: json['duaArabic'] as String? ?? '',
+    duaTransliteration: json['duaTransliteration'] as String? ?? '',
+    duaTranslation: json['duaTranslation'] as String? ?? '',
+    duaSource: json['duaSource'] as String? ?? '',
+    relatedNames: (json['relatedNames'] as List<dynamic>?)
+        ?.map((e) => Map<String, String>.from(e as Map))
+        .toList() ?? [],
   );
 }
 
@@ -221,6 +251,19 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     }
   }
 
+  /// Go back one result step: dua → story → reflection → name.
+  void previousStep() {
+    const prevStep = {
+      ReflectStep.reflection: ReflectStep.name,
+      ReflectStep.story: ReflectStep.reflection,
+      ReflectStep.dua: ReflectStep.story,
+    };
+    final prev = prevStep[state.currentStep];
+    if (prev != null) {
+      state = state.copyWith(currentStep: prev);
+    }
+  }
+
   /// Delete a saved reflection.
   Future<void> deleteReflection(String id) async {
     final updated = state.savedReflections.where((r) => r.id != id).toList();
@@ -299,6 +342,15 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       name: response.name,
       nameArabic: response.nameArabic,
       reframePreview: preview,
+      reframe: response.reframe,
+      story: response.story,
+      duaArabic: response.duaArabic,
+      duaTransliteration: response.duaTransliteration,
+      duaTranslation: response.duaTranslation,
+      duaSource: response.duaSource,
+      relatedNames: response.relatedNames
+          .map((r) => {'name': r.name, 'nameArabic': r.nameArabic})
+          .toList(),
     );
 
     final updated = [reflection, ...state.savedReflections];
