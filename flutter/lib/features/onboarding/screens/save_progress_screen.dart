@@ -73,7 +73,7 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     );
 
     return OnboardingPageWrapper(
-      progressSegment: 11,
+      progressSegment: 15,
       onBack: widget.onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

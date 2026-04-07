@@ -244,6 +244,61 @@ abstract final class AppStrings {
   static const signInForgotPassword = 'Forgot password?';
   static const signInBackToOnboarding = 'Back to onboarding';
 
+  // ── Feature Preview Screens (Onboarding) ──
+
+  // Feature: Build a Dua
+  static const featureDuaHeadline = 'Craft your own\npersonal dua';
+  static const featureDuaSubtitle =
+      'Describe what you need — we\'ll build a dua following prophetic etiquette.';
+  static const featureDuaStep1 = 'Open with praise';
+  static const featureDuaStep2 = 'Send salawāt';
+  static const featureDuaStep3 = 'Make your ask';
+  static const featureDuaStep4 = 'Close with salām';
+  static const featureDuaSampleArabic = 'يَا رَبِّ ٱرْزُقْنِي ٱلسَّكِينَة';
+  static const featureDuaSampleTranslation =
+      'O my Lord, grant me tranquility';
+
+  // Feature: Collect 99 Names
+  static const featureNamesHeadline = 'Collect the\n99 Names of Allah';
+  static const featureNamesSubtitle =
+      'Each reflection reveals a Name. Unlock deeper wisdom as you grow.';
+  static const featureNamesTierBronze = 'Meaning & Lesson';
+  static const featureNamesTierSilver = 'Prophetic Teaching';
+  static const featureNamesTierGold = 'Personal Dua';
+  static const featureNamesSampleName1 = 'ٱلسَّلَام';
+  static const featureNamesSampleName2 = 'ٱلرَّحْمَن';
+  static const featureNamesSampleName3 = 'ٱلْوَدُود';
+  static const featureNamesSampleTranslit1 = 'As-Salām';
+  static const featureNamesSampleTranslit2 = 'Ar-Raḥmān';
+  static const featureNamesSampleTranslit3 = 'Al-Wadūd';
+  static const featureNamesSampleMeaning1 = 'The Source of Peace';
+  static const featureNamesSampleMeaning2 = 'The Most Merciful';
+  static const featureNamesSampleMeaning3 = 'The Most Loving';
+
+  // Feature: Quests & Ranks
+  static const featureQuestsHeadline = 'Rise through\nthe ranks';
+  static const featureQuestsSubtitle =
+      'Complete daily quests, earn XP, and journey from Seeker to Friend of Allah.';
+  static const featureQuestsSample1 = 'Complete a reflection';
+  static const featureQuestsSample2 = 'Build a personal dua';
+  static const featureQuestsSample3 = 'Discover a new Name';
+  static const featureQuestsRankStart = 'Seeker';
+  static const featureQuestsRankStartArabic = 'طَالِب';
+  static const featureQuestsRankEnd = 'Friend of Allah';
+  static const featureQuestsRankEndArabic = 'وَلِيّ';
+
+  // Feature: Journal
+  static const featureJournalHeadline = 'Your spiritual\njournal';
+  static const featureJournalSubtitle =
+      'Every reflection, dua, and discovery — saved in one beautiful place.';
+  static const featureJournalItem1Title = 'Reflection';
+  static const featureJournalItem1Preview =
+      '"I felt overwhelmed today..."';
+  static const featureJournalItem2Title = 'Built Dua';
+  static const featureJournalItem2Preview = 'For patience during hardship';
+  static const featureJournalItem3Title = 'Name Discovered';
+  static const featureJournalItem3Preview = 'As-Sabūr · The Most Patient';
+
   // Shared
   static const continueButton = 'Continue';
 }
