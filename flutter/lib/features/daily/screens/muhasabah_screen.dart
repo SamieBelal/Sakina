@@ -32,6 +32,7 @@ class MuhasabahScreen extends ConsumerStatefulWidget {
 class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   bool _revealShown = false;
   bool _levelUpShown = false;
+  bool _discoverTriggered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +66,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     }
     if (state.leveledUp != true) _levelUpShown = false;
 
-    // Reset reveal flag when state resets (e.g. Seek Another Name)
+    // Reset flags when state resets (e.g. Seek Another Name)
     if (!state.checkinDone) {
       _revealShown = false;
+      _discoverTriggered = false;
     }
 
     // Gacha reveal after check-in
@@ -85,8 +87,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             opaque: true,
             barrierDismissible: false,
             pageBuilder: (_, __, ___) => NameRevealOverlay(
-              nameArabic: state.checkinNameArabic ?? '',
-              nameEnglish: state.checkinName ?? '',
+              nameArabic: state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+              nameEnglish: state.engagedCard?.transliteration ?? state.checkinName ?? '',
               nameEnglishMeaning: state.engagedCard?.english ?? '',
               teaching: state.engagedCard?.lesson ?? '',
               card: state.engagedCard,
@@ -124,7 +126,14 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (state.checkinDone && state.checkinName != null) {
       return _buildCheckinResult(state, notifier);
     }
-    return _buildCheckin(state, notifier);
+    // Auto-trigger discover — skip questions, go straight to gacha
+    if (!_discoverTriggered) {
+      _discoverTriggered = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifier.discoverName();
+      });
+    }
+    return const ReflectLoading();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -258,7 +267,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             child: Column(
               children: [
                 Text(
-                  state.checkinNameArabic ?? '',
+                  card?.arabic ?? state.checkinNameArabic ?? '',
                   style: AppTypography.nameOfAllahDisplay.copyWith(
                     color: AppColors.secondary,
                     fontSize: 40,
@@ -267,7 +276,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  state.checkinName ?? '',
+                  card?.transliteration ?? state.checkinName ?? '',
                   style: AppTypography.labelLarge.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
@@ -690,60 +699,41 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               ),
             ),
           ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-          const SizedBox(height: 12),
-          // Secondary buttons
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    context.go('/reflect');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 16),
-                        const SizedBox(width: 6),
-                        Text('Reflect More', style: AppTypography.labelSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
+          const SizedBox(height: AppSpacing.lg),
+          // Action chips — horizontal scrollable row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            child: Row(
+              children: [
+                _completedChip(
+                  icon: Icons.grid_view_rounded,
+                  label: 'Collection',
+                  onTap: () => context.go('/collection'),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    context.go('/duas');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryLight,
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                      border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 16),
-                        const SizedBox(width: 6),
-                        Text('Build a Dua', style: AppTypography.labelSmall.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                _completedChip(
+                  icon: Icons.bolt,
+                  label: 'Quests',
+                  iconColor: AppColors.streakAmber,
+                  onTap: () => context.go('/quests'),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                _completedChip(
+                  icon: Icons.favorite_rounded,
+                  label: 'Reflect',
+                  iconColor: AppColors.primary,
+                  onTap: () => context.go('/reflect'),
+                ),
+                const SizedBox(width: 10),
+                _completedChip(
+                  icon: Icons.auto_awesome,
+                  label: 'Duas',
+                  iconColor: AppColors.secondary,
+                  onTap: () => context.go('/duas'),
+                ),
+              ],
+            ),
           ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
           const SizedBox(height: 24),
           // Return home
@@ -769,6 +759,42 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // Helpers
   // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _completedChip({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: iconColor ?? AppColors.textSecondaryLight),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _sparkleRow() {
     return Row(

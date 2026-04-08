@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -17,12 +18,44 @@ class CollectionScreen extends ConsumerStatefulWidget {
   ConsumerState<CollectionScreen> createState() => _CollectionScreenState();
 }
 
+enum _Filter { all, newCards, bronze, silver, gold }
+
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
-  CardTier? _filterTier;
+  _Filter _filter = _Filter.all;
   bool _questFired = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Reload from disk on first mount so newly engaged cards appear.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(cardCollectionProvider.notifier).reload();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload and auto-show new cards if any exist.
+    ref.read(cardCollectionProvider.notifier).reload().then((_) {
+      if (!mounted) return;
+      final col = ref.read(cardCollectionProvider);
+      final hasUnseen = col.discoveredIds.any((id) => col.isUnseen(id));
+      if (hasUnseen) {
+        setState(() => _filter = _Filter.newCards);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Reload collection from disk whenever daily loop engages a card.
+    ref.listen(dailyLoopProvider.select((s) => s.engagedCard), (prev, next) {
+      if (next != null && next != prev) {
+        ref.read(cardCollectionProvider.notifier).reload();
+      }
+    });
+
     final collection = ref.watch(cardCollectionProvider);
     if (!_questFired) {
       _questFired = true;
@@ -31,12 +64,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       });
     }
 
-    final filtered = _filterTier == null
-        ? allCollectibleNames
-        : allCollectibleNames.where((n) {
-            final tier = collection.cardTierFor(n.id);
-            return tier == _filterTier;
-          }).toList();
+    final filtered = switch (_filter) {
+      _Filter.all => allCollectibleNames,
+      _Filter.newCards => allCollectibleNames.where((n) => collection.isUnseen(n.id)).toList(),
+      _Filter.bronze => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.bronze).toList(),
+      _Filter.silver => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.silver).toList(),
+      _Filter.gold => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.gold).toList(),
+    };
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -57,12 +91,15 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       style: AppTypography.displayLarge.copyWith(
                         color: AppColors.textPrimaryLight,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg), // Increased: sm→lg for hierarchy
+                    )
+                        .animate()
+                        .fadeIn(duration: 500.ms)
+                        .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                    const SizedBox(height: AppSpacing.lg),
                     _buildProgressSummary(collection),
-                    const SizedBox(height: AppSpacing.lg), // Increased: md→lg
+                    const SizedBox(height: AppSpacing.lg),
                     _buildTierFilters(collection),
-                    const SizedBox(height: AppSpacing.xl), // Increased: lg→xl before grid
+                    const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
               ),
@@ -72,8 +109,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  mainAxisSpacing: 16, // Increased for breathing room
-                  crossAxisSpacing: 16, // Increased for breathing room
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
                   childAspectRatio: 0.72,
                 ),
                 delegate: SliverChildBuilderDelegate(
@@ -83,6 +120,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                     return _CardTile(
                       card: card,
                       tier: tier,
+                      unseen: collection.isUnseen(card.id),
                       onTap: tier != null
                           ? () => _showCardDetail(context, card, tier, collection)
                           : null,
@@ -127,34 +165,44 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 200.ms)
+        .slideY(begin: 0.05, end: 0, duration: 400.ms, delay: 200.ms);
   }
 
   Widget _buildTierFilters(CardCollectionState collection) {
+    final unseenCount = collection.discoveredIds.where((id) => collection.isUnseen(id)).length;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _tierChip(null, 'All', collection.totalDiscovered, collection.totalCards),
+          _filterChip(_Filter.all, 'All', '${collection.totalDiscovered}/${collection.totalCards}'),
           const SizedBox(width: 8),
-          _tierChip(CardTier.bronze, 'Bronze', collection.totalBronze, null),
+          if (unseenCount > 0) ...[
+            _filterChip(_Filter.newCards, 'New', '$unseenCount', dotColor: AppColors.primary),
+            const SizedBox(width: 8),
+          ],
+          _filterChip(_Filter.bronze, 'Bronze', '${collection.totalBronze}', dotColor: const Color(0xFFCD7F32)),
           const SizedBox(width: 8),
-          _tierChip(CardTier.silver, 'Silver', collection.totalSilver, null),
+          _filterChip(_Filter.silver, 'Silver', '${collection.totalSilver}', dotColor: const Color(0xFFA8A9AD)),
           const SizedBox(width: 8),
-          _tierChip(CardTier.gold, 'Gold', collection.totalGold, null),
+          _filterChip(_Filter.gold, 'Gold', '${collection.totalGold}', dotColor: const Color(0xFFC8985E)),
         ],
       ),
-    );
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 400.ms);
   }
 
-  Widget _tierChip(CardTier? tier, String label, int count, int? total) {
-    final isSelected = _filterTier == tier;
-    final displayCount = total != null ? '$count/$total' : '$count';
+  Widget _filterChip(_Filter filter, String label, String count, {Color? dotColor}) {
+    final isSelected = _filter == filter;
 
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        setState(() => _filterTier = tier);
+        setState(() => _filter = filter);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -166,15 +214,15 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (tier != null) ...[
+            if (dotColor != null) ...[
               Container(
                 width: 8, height: 8,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: Color(tier.colorValue)),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
               ),
               const SizedBox(width: 6),
             ],
             Text(
-              '$label $displayCount',
+              '$label $count',
               style: AppTypography.labelSmall.copyWith(
                 color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondaryLight,
               ),
@@ -188,6 +236,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   void _showCardDetail(BuildContext context, CollectibleName card, CardTier tier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
+    ref.read(cardCollectionProvider.notifier).markSeen(card.id);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -202,10 +251,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CardTile extends StatelessWidget {
-  const _CardTile({required this.card, required this.tier, this.onTap});
+  const _CardTile({required this.card, required this.tier, this.unseen = false, this.onTap});
 
   final CollectibleName card;
   final CardTier? tier;
+  final bool unseen;
   final VoidCallback? onTap;
 
   @override
@@ -213,75 +263,85 @@ class _CardTile extends StatelessWidget {
     final discovered = tier != null;
     final tierColor = tier != null ? Color(tier!.colorValue) : AppColors.borderLight;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: discovered ? AppColors.surfaceLight : AppColors.surfaceAltLight,
-          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-          border: Border.all(
-            color: discovered ? tierColor.withValues(alpha: 0.6) : AppColors.borderLight,
-            width: discovered ? 1.5 : 1,
-          ),
-          boxShadow: discovered
-              ? [BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))]
-              : null,
+    Widget tile = Container(
+      decoration: BoxDecoration(
+        color: discovered ? AppColors.surfaceLight : AppColors.surfaceAltLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(
+          color: discovered
+              ? (unseen ? tierColor : tierColor.withValues(alpha: 0.6))
+              : AppColors.borderLight,
+          width: unseen ? 2.0 : (discovered ? 1.5 : 1),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (discovered) ...[
-              // Tier indicator dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (i) {
-                  final filled = i < tier!.number;
-                  return Container(
-                    width: 5, height: 5,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: filled ? tierColor : tierColor.withValues(alpha: 0.2),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                card.arabic,
-                style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.secondary),
-                textDirection: TextDirection.rtl,
+        boxShadow: discovered
+            ? [BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))]
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (discovered) ...[
+            // Tier indicator dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(3, (i) {
+                final filled = i < tier!.number;
+                return Container(
+                  width: 5, height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: filled ? tierColor : tierColor.withValues(alpha: 0.2),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              card.arabic,
+              style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.secondary),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                card.transliteration,
+                style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight, fontSize: 9),
                 textAlign: TextAlign.center,
                 maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  card.transliteration,
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight, fontSize: 9),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                tier!.label,
-                style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700),
-              ),
-            ] else ...[
-              Icon(Icons.lock_outline, color: AppColors.textTertiaryLight.withValues(alpha: 0.4), size: 24),
-              const SizedBox(height: 6),
-              Text(
-                '???',
-                style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.textTertiaryLight.withValues(alpha: 0.3)),
-              ),
-            ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              tier!.label,
+              style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700),
+            ),
+          ] else ...[
+            Icon(Icons.lock_outline, color: AppColors.textTertiaryLight.withValues(alpha: 0.4), size: 24),
+            const SizedBox(height: 6),
+            Text(
+              '???',
+              style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.textTertiaryLight.withValues(alpha: 0.3)),
+            ),
           ],
-        ),
+        ],
       ),
     );
+
+    if (unseen) {
+      tile = tile
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 1800.ms,
+            color: tierColor.withValues(alpha: 0.3),
+          );
+    }
+
+    return GestureDetector(onTap: onTap, child: tile);
   }
 }
 
@@ -338,7 +398,7 @@ class _CardDetailSheet extends StatelessWidget {
                 Text(tier.label, style: AppTypography.labelSmall.copyWith(color: tierColor, fontWeight: FontWeight.w700)),
               ],
             ),
-          ),
+          ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
           const SizedBox(height: AppSpacing.lg),
 
           // Arabic
@@ -347,11 +407,24 @@ class _CardDetailSheet extends StatelessWidget {
             style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 52, color: AppColors.secondary),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
-          ),
+          )
+              .animate()
+              .fadeIn(duration: 800.ms)
+              .scaleXY(
+                begin: 0.85,
+                end: 1.0,
+                duration: 800.ms,
+                curve: Curves.easeOutBack,
+              ),
           const SizedBox(height: AppSpacing.sm),
-          Text(card.transliteration, style: AppTypography.headlineMedium.copyWith(color: AppColors.textPrimaryLight)),
+          Text(card.transliteration, style: AppTypography.headlineMedium.copyWith(color: AppColors.textPrimaryLight))
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 300.ms)
+              .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
           const SizedBox(height: 4),
-          Text(card.english, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight)),
+          Text(card.english, style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight))
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 400.ms),
           const SizedBox(height: AppSpacing.lg),
           const Divider(color: AppColors.dividerLight),
           const SizedBox(height: AppSpacing.md),

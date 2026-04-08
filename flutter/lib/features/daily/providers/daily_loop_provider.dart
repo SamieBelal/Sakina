@@ -255,7 +255,89 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   // ---------------------------------------------------------------------------
-  // Step 1: Check-in
+  // Discover a Name — skip questions, straight to gacha
+  // ---------------------------------------------------------------------------
+
+  /// Instantly picks a name (smart priority: undiscovered → lowest tier) and
+  /// engages it. No AI call, no questions. The UI shows the gacha animation.
+  Future<void> discoverName() async {
+    state = state.copyWith(checkinLoading: true, error: null);
+
+    try {
+      // First daily discover is free; subsequent ones cost a token
+      if (state.checkinDone) {
+        final spendResult = await spendTokens(tokenCostReflection);
+        if (!spendResult.success) {
+          state = state.copyWith(
+            checkinLoading: false,
+            tokenBalance: spendResult.newBalance,
+            error: 'Not enough tokens. Earn more through daily rewards and quests.',
+          );
+          return;
+        }
+        state = state.copyWith(tokenBalance: spendResult.newBalance);
+      }
+
+      final collection = await getCardCollection();
+      final card = pickNextCard(collection);
+      final engageResult = await engageCard(card.id);
+
+      CardEngageResult? cardResult;
+      if (engageResult.tierChanged) {
+        cardResult = engageResult;
+      } else if (engageResult.isDuplicate) {
+        try { await earnTokens(1); } catch (_) {}
+      }
+
+      state = state.copyWith(
+        checkinName: card.transliteration,
+        checkinNameArabic: card.arabic,
+        checkinDone: true,
+        checkinLoading: false,
+        cardEngageResult: cardResult,
+        engagedCard: card,
+      );
+
+      // Save to history
+      try {
+        final today = DateTime.now();
+        final dateStr =
+            '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+        await saveCheckinRecord(CheckInRecord(
+          date: dateStr,
+          q1: 'discover',
+          q2: '',
+          q3: '',
+          q4: '',
+          nameReturned: card.transliteration,
+          nameArabic: card.arabic,
+        ));
+      } catch (_) {}
+
+      // Award XP and mark streak
+      try {
+        final xpResult = await awardXp(5);
+        final streakResult = await markActiveToday();
+        state = state.copyWith(
+          xpTotal: xpResult.newTotal,
+          levelTitle: xpResult.state.title,
+          levelTitleArabic: xpResult.state.titleArabic,
+          levelNumber: xpResult.state.level,
+          streakCount: streakResult.currentStreak,
+          leveledUp: xpResult.leveledUp,
+          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
+          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
+          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
+        );
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('[DISCOVER NAME ERROR] $e');
+      state = state.copyWith(checkinLoading: false, error: 'Something went wrong. Try again.');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 1: Check-in (legacy — used by deeper reflection)
   // ---------------------------------------------------------------------------
 
   /// Called when the user taps an answer on any of the 4 check-in questions.
@@ -299,10 +381,20 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       // Load history for context
       final history = await getCheckinHistory();
       final historyContext = buildHistoryContext(history);
-      // Extract recent names to avoid repeating them
+      // Extract recent names to avoid repeating them (last 10 sessions)
       final recentNames = history
-          .take(5)
+          .take(10)
           .map((r) => r.nameReturned)
+          .where((n) => n.isNotEmpty)
+          .toList();
+
+      // Also pass all discovered names so AI prioritizes undiscovered ones
+      final collection = await getCardCollection();
+      final discoveredNames = collection.discoveredIds
+          .map((id) {
+            final card = allCollectibleNames.where((n) => n.id == id).firstOrNull;
+            return card?.transliteration ?? '';
+          })
           .where((n) => n.isNotEmpty)
           .toList();
 
@@ -310,6 +402,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         updatedAnswers,
         historyContext: historyContext,
         recentNames: recentNames,
+        discoveredNames: discoveredNames,
       );
 
       // Engage card collection BEFORE setting checkinDone so the gacha

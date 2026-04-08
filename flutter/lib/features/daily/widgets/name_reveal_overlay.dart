@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -54,6 +55,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
   @override
   void initState() {
     super.initState();
+    debugPrint('[REVEAL] nameArabic="${widget.nameArabic}" nameEnglish="${widget.nameEnglish}" card.arabic="${widget.card?.arabic}"');
     _runSequence();
   }
 
@@ -278,10 +280,13 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                   duration: 400.ms),
                         const SizedBox(height: 24),
                         Text(
-                          widget.nameArabic,
+                          widget.nameArabic.isNotEmpty
+                              ? widget.nameArabic
+                              : widget.card?.arabic ?? '',
                           style: AppTypography.nameOfAllahDisplay.copyWith(
                             fontSize: 80,
                             color: Colors.white,
+                            fontFamilyFallback: const ['Arial', 'Tahoma'],
                             shadows: [
                               Shadow(
                                   color:

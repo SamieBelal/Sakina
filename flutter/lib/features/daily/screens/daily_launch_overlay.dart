@@ -566,8 +566,8 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
               opaque: true,
               barrierDismissible: false,
               pageBuilder: (_, __, ___) => NameRevealOverlay(
-                nameArabic: state.checkinNameArabic ?? '',
-                nameEnglish: state.checkinName ?? '',
+                nameArabic: state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+                nameEnglish: state.engagedCard?.transliteration ?? state.checkinName ?? '',
                 nameEnglishMeaning: state.engagedCard?.english ?? '',
                 teaching: state.engagedCard?.lesson ?? '',
                 card: state.engagedCard,

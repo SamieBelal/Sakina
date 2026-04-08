@@ -1059,6 +1059,7 @@ Future<DailyReflectResponse> getDailyResponse(
   List<String> answers, {
   String historyContext = '',
   List<String> recentNames = const [],
+  List<String> discoveredNames = const [],
 }) async {
   final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
@@ -1073,6 +1074,12 @@ Future<DailyReflectResponse> getDailyResponse(
   final avoidClause = recentNames.isNotEmpty
       ? 'IMPORTANT — Do NOT return any of these Names shown recently: ${recentNames.join(", ")}. '
         'The user needs variety. Pick a genuinely different Name that still fits their answers.\n\n'
+      : '';
+
+  final discoveryClause = discoveredNames.isNotEmpty
+      ? 'The user has already discovered these Names: ${discoveredNames.join(", ")}. '
+        'STRONGLY PREFER a Name they have NOT yet discovered, as long as it still fits their emotional state. '
+        'Only return an already-discovered Name if no undiscovered Name is a good fit.\n\n'
       : '';
 
   final historySection = historyContext.isNotEmpty
@@ -1093,13 +1100,14 @@ Future<DailyReflectResponse> getDailyResponse(
         'You are an Islamic learning tool. A person has completed a 4-question daily check-in. '
         'Based on their answers, identify the single most fitting Name of Allah.\n\n'
         '$avoidClause'
+        '$discoveryClause'
         '$historySection'
         'IMPORTANT — You MUST only use a Name from this canonical list of the 99 Names:\n'
         '$dailyCanonicalList\n\n'
         '---\n\n'
         'Respond with EXACTLY this marker, nothing else:\n'
         '##NAME## (English · Arabic)\n\n'
-        'Example: ##NAME## Al-Lateef · اللَّطِيفُ',
+        'Example: ##NAME## As-Saboor · ٱلصَّبُورُ',
     userMessage: answersFormatted,
     maxTokens: 100,
   );

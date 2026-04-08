@@ -812,22 +812,63 @@ CollectibleName? pickUpgradeableCard(CardCollectionState collection) {
   return upgradeable[math.Random().nextInt(upgradeable.length)];
 }
 
+/// Smart name picker for the gacha flow:
+/// 1. Undiscovered names first (random)
+/// 2. Lowest-tier discovered names next (bronze before silver)
+/// 3. All maxed — random gold card (duplicate)
+CollectibleName pickNextCard(CardCollectionState collection) {
+  final rand = math.Random();
+
+  // Priority 1: undiscovered names
+  final undiscovered = allCollectibleNames
+      .where((n) => !collection.isDiscovered(n.id))
+      .toList();
+  if (undiscovered.isNotEmpty) {
+    return undiscovered[rand.nextInt(undiscovered.length)];
+  }
+
+  // Priority 2: bronze cards (can tier to silver)
+  final bronze = allCollectibleNames
+      .where((n) => collection.tierFor(n.id) == 1)
+      .toList();
+  if (bronze.isNotEmpty) {
+    return bronze[rand.nextInt(bronze.length)];
+  }
+
+  // Priority 3: silver cards (can tier to gold)
+  final silver = allCollectibleNames
+      .where((n) => collection.tierFor(n.id) == 2)
+      .toList();
+  if (silver.isNotEmpty) {
+    return silver[rand.nextInt(silver.length)];
+  }
+
+  // All gold — random card (duplicate engagement)
+  return allCollectibleNames[rand.nextInt(allCollectibleNames.length)];
+}
+
 // ---------------------------------------------------------------------------
 // Collection persistence
 // ---------------------------------------------------------------------------
 
 const String _collectionKey = 'sakina_card_collection';
+const String _seenKey = 'sakina_card_seen';
 
 class CardCollectionState {
   final Set<int> discoveredIds;
   final Map<int, String> discoveryDates;
   final Map<int, int> tiers; // card id → tier (1, 2, or 3)
+  final Set<int>? _seenIds; // cards the user has tapped to view
 
   const CardCollectionState({
     this.discoveredIds = const {},
     this.discoveryDates = const {},
     this.tiers = const {},
-  });
+    Set<int>? seenIds,
+  }) : _seenIds = seenIds;
+
+  Set<int> get seenIds => _seenIds ?? const {};
+  bool isUnseen(int id) => discoveredIds.contains(id) && !seenIds.contains(id);
 
   int get totalDiscovered => discoveredIds.length;
   int get totalCards => allCollectibleNames.length;
@@ -897,15 +938,14 @@ Future<CardCollectionState> getCardCollection() async {
           ?.map((k, v) => MapEntry(int.parse(k), v as int)) ??
       {};
 
-  return CardCollectionState(discoveredIds: ids, discoveryDates: dates, tiers: tiers);
+  final seenRaw = prefs.getStringList(_seenKey);
+  final seenIds = seenRaw?.map(int.parse).toSet() ?? {};
+
+  return CardCollectionState(discoveredIds: ids, discoveryDates: dates, tiers: tiers, seenIds: seenIds);
 }
 
 /// Engage with a card — discover it or upgrade its tier.
-// Minimum days between tier upgrades.
-// Bronze (tier 1) → Silver (tier 2): 3 days
-// Silver (tier 2) → Gold  (tier 3): 7 days
-const _tierUpCooldownDays = {1: 3, 2: 7};
-
+/// Each re-encounter tiers up immediately (no cooldown).
 Future<CardEngageResult> engageCard(int cardId) async {
   final prefs = await SharedPreferences.getInstance();
   final raw = prefs.getString(_collectionKey);
@@ -949,29 +989,21 @@ Future<CardEngageResult> engageCard(int cardId) async {
     newTier = 1;
     tierChanged = true;
   } else if (currentTier < 3) {
-    // Check cooldown before allowing tier-up
-    final lastUpStr = tierUpDates[cardId];
-    final cooldownDays = _tierUpCooldownDays[currentTier] ?? 3;
-    bool cooldownPassed = true;
-
-    if (lastUpStr != null) {
-      try {
-        final lastUp = DateTime.parse(lastUpStr);
-        final daysSince = today.difference(lastUp).inDays;
-        cooldownPassed = daysSince >= cooldownDays;
-      } catch (_) {}
-    }
-
-    if (cooldownPassed) {
-      newTier = currentTier + 1;
-      tierUpDates[cardId] = todayStr;
-      tierChanged = true;
-    }
-    // else: cooldown not met — duplicate engagement
+    // Re-encounter — tier up immediately
+    newTier = currentTier + 1;
+    tierUpDates[cardId] = todayStr;
+    tierChanged = true;
   }
   // tier 3 (Gold) is max — duplicate engagement
 
   final isDuplicate = !isNew && !tierChanged;
+
+  // Mark card as unseen when newly discovered or tiered up so the glow shows.
+  if (tierChanged) {
+    final seenList = prefs.getStringList(_seenKey) ?? [];
+    seenList.remove(cardId.toString());
+    await prefs.setStringList(_seenKey, seenList);
+  }
 
   tiers[cardId] = newTier;
 
@@ -986,6 +1018,17 @@ Future<CardEngageResult> engageCard(int cardId) async {
   );
 
   return CardEngageResult(isNew: isNew, newTier: newTier, tierChanged: tierChanged, isDuplicate: isDuplicate);
+}
+
+/// Mark a card as seen (user tapped to view detail).
+Future<void> markCardSeen(int cardId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final existing = prefs.getStringList(_seenKey) ?? [];
+  final idStr = cardId.toString();
+  if (!existing.contains(idStr)) {
+    existing.add(idStr);
+    await prefs.setStringList(_seenKey, existing);
+  }
 }
 
 /// Wipes the entire card collection (debug / stress-test use only).
