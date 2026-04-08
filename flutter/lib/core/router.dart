@@ -14,6 +14,9 @@ import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../widgets/achievement_toast.dart';
 import '../widgets/app_shell.dart';
+import '../features/collection/widgets/silver_card_preview.dart';
+import '../features/collection/widgets/gold_card_preview.dart';
+import '../features/collection/widgets/bronze_card_preview.dart';
 
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -48,6 +51,23 @@ GoRouter buildRouter({required bool onboardingCompleted}) {
         path: '/muhasabah',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const MuhasabahScreen(),
+      ),
+
+      // DEBUG: Card design previews (temporary)
+      GoRoute(
+        path: '/silver-preview',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const SilverCardPreviewScreen(),
+      ),
+      GoRoute(
+        path: '/gold-preview',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const GoldCardPreviewScreen(),
+      ),
+      GoRoute(
+        path: '/bronze-preview',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const BronzeCardPreviewScreen(),
       ),
 
       // Main app with bottom navigation
