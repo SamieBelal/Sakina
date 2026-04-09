@@ -4,9 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
+const String _reflectionsKey = 'saved_reflections';
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -83,6 +88,65 @@ class SavedReflection {
     relatedNames: (json['relatedNames'] as List<dynamic>?)
         ?.map((e) => Map<String, String>.from(e as Map))
         .toList() ?? [],
+  );
+
+  /// Convert to Supabase row format.
+  Map<String, dynamic> toSupabaseRow(String userId) => {
+    'id': id,
+    'user_id': userId,
+    'saved_at': date,
+    'user_text': userText,
+    'name': name,
+    'name_arabic': nameArabic,
+    'reframe_preview': reframePreview,
+    'reframe': reframe,
+    'story': story,
+    'dua_arabic': duaArabic,
+    'dua_transliteration': duaTransliteration,
+    'dua_translation': duaTranslation,
+    'dua_source': duaSource,
+    'related_names': relatedNames,
+  };
+
+  /// Create from a Supabase row.
+  factory SavedReflection.fromSupabaseRow(Map<String, dynamic> row) =>
+      SavedReflection(
+        id: row['id'] as String? ?? _uuid.v4(),
+        date: row['saved_at'] as String? ?? '',
+        userText: row['user_text'] as String? ?? '',
+        name: row['name'] as String? ?? '',
+        nameArabic: row['name_arabic'] as String? ?? '',
+        reframePreview: row['reframe_preview'] as String? ?? '',
+        reframe: row['reframe'] as String? ?? '',
+        story: row['story'] as String? ?? '',
+        duaArabic: row['dua_arabic'] as String? ?? '',
+        duaTransliteration: row['dua_transliteration'] as String? ?? '',
+        duaTranslation: row['dua_translation'] as String? ?? '',
+        duaSource: row['dua_source'] as String? ?? '',
+        relatedNames: (row['related_names'] as List<dynamic>?)
+            ?.map((e) => Map<String, String>.from(e as Map))
+            .toList() ?? [],
+      );
+}
+
+// ---------------------------------------------------------------------------
+// Supabase sync
+// ---------------------------------------------------------------------------
+
+/// Sync saved reflections from Supabase into local cache.
+Future<void> syncReflectionsFromSupabase() async {
+  await supabaseSyncService.syncList(
+    table: 'user_reflections',
+    cacheKey: _reflectionsKey,
+    orderBy: 'saved_at',
+    toRows: (localItems, userId) => localItems
+        .map((e) => SavedReflection.fromJson(e as Map<String, dynamic>)
+            .toSupabaseRow(userId))
+        .toList(),
+    fromRows: (remoteRows) => remoteRows
+        .map((r) => SavedReflection.fromSupabaseRow(r).toJson())
+        .toList()
+        .cast<Map<String, dynamic>>(),
   );
 }
 
@@ -270,6 +334,12 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     final updated = state.savedReflections.where((r) => r.id != id).toList();
     state = state.copyWith(savedReflections: updated);
     await _persistReflections(updated);
+
+    // Delete from Supabase
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.deleteRow('user_reflections', 'id', id);
+    }
   }
 
   /// Reset to input state (preserves saved reflections).
@@ -344,8 +414,9 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
         ? '${response.reframe.substring(0, 150)}...'
         : response.reframe;
 
+    final reflectionId = _uuid.v4();
     final reflection = SavedReflection(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: reflectionId,
       date: DateTime.now().toIso8601String(),
       userText: state.userText,
       name: response.name,
@@ -365,12 +436,24 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     final updated = [reflection, ...state.savedReflections];
     state = state.copyWith(savedReflections: updated);
     await _persistReflections(updated);
+
+    // Write to Supabase
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.insertRow(
+        'user_reflections',
+        reflection.toSupabaseRow(userId),
+      );
+    }
   }
 
   Future<void> _loadSavedReflections() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final json = prefs.getString('saved_reflections');
+      final json = await supabaseSyncService.migrateLegacyStringCache(
+        prefs,
+        _reflectionsKey,
+      );
       if (json != null) {
         final list = (jsonDecode(json) as List)
             .map((e) => SavedReflection.fromJson(e as Map<String, dynamic>))
@@ -383,7 +466,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   Future<void> _persistReflections(List<SavedReflection> reflections) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'saved_reflections',
+      supabaseSyncService.scopedKey(_reflectionsKey),
       jsonEncode(reflections.map((r) => r.toJson()).toList()),
     );
   }

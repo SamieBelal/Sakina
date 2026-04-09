@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _historyKey = 'sakina_checkin_history';
 const int _maxHistory = 14;
@@ -46,6 +47,34 @@ class CheckInRecord {
         nameReturned: j['nameReturned'] as String? ?? '',
         nameArabic: j['nameArabic'] as String? ?? '',
       );
+
+  /// Convert to Supabase row format.
+  Map<String, dynamic> toSupabaseRow(String userId) => {
+        'user_id': userId,
+        'checked_in_at': date,
+        'q1': q1,
+        'q2': q2,
+        'q3': q3,
+        'q4': q4.isEmpty ? null : q4,
+        'name_returned': nameReturned,
+        'name_arabic': nameArabic,
+      };
+
+  /// Create from a Supabase row.
+  factory CheckInRecord.fromSupabaseRow(Map<String, dynamic> row) {
+    final checkedInAt = row['checked_in_at'] as String? ?? '';
+    // checked_in_at may be a full timestamp or just a date — extract date part
+    final date = checkedInAt.length >= 10 ? checkedInAt.substring(0, 10) : checkedInAt;
+    return CheckInRecord(
+      date: date,
+      q1: row['q1'] as String? ?? '',
+      q2: row['q2'] as String? ?? '',
+      q3: row['q3'] as String? ?? '',
+      q4: row['q4'] as String? ?? '',
+      nameReturned: row['name_returned'] as String? ?? '',
+      nameArabic: row['name_arabic'] as String? ?? '',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -54,7 +83,7 @@ class CheckInRecord {
 
 Future<List<CheckInRecord>> getCheckinHistory() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_historyKey);
+  final raw = await supabaseSyncService.migrateLegacyStringCache(prefs, _historyKey);
   if (raw == null) return [];
   final list = jsonDecode(raw) as List<dynamic>;
   return list
@@ -73,7 +102,37 @@ Future<void> saveCheckinRecord(CheckInRecord record) async {
   history.insert(0, record);
   final capped = history.take(_maxHistory).toList();
 
-  await prefs.setString(_historyKey, jsonEncode(capped.map((r) => r.toJson()).toList()));
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_historyKey),
+    jsonEncode(capped.map((r) => r.toJson()).toList()),
+  );
+
+  // Write to Supabase
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.insertRow(
+      'user_checkin_history',
+      record.toSupabaseRow(userId),
+    );
+  }
+}
+
+/// Sync check-in history from Supabase into local cache.
+/// Called from app_session on auth state change.
+Future<void> syncCheckinHistoryFromSupabase() async {
+  await supabaseSyncService.syncList(
+    table: 'user_checkin_history',
+    cacheKey: _historyKey,
+    orderBy: 'checked_in_at',
+    toRows: (localItems, userId) => localItems
+        .map((e) => CheckInRecord.fromJson(e as Map<String, dynamic>)
+            .toSupabaseRow(userId))
+        .toList(),
+    fromRows: (remoteRows) => remoteRows
+        .map((r) => CheckInRecord.fromSupabaseRow(r).toJson())
+        .toList()
+        .cast<Map<String, dynamic>>(),
+  );
 }
 
 /// Returns the last [n] records as a concise prompt-ready string.

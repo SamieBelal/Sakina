@@ -5,11 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/supabase_sync_service.dart';
 import '../services/auth_service.dart';
+import '../services/card_collection_service.dart';
+import '../services/checkin_history_service.dart';
 import '../services/daily_rewards_service.dart';
 import '../services/streak_service.dart';
 import '../services/token_service.dart';
 import '../services/xp_service.dart';
+import '../features/duas/providers/duas_provider.dart';
+import '../features/reflect/providers/reflect_provider.dart';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
@@ -28,10 +33,16 @@ class AppSessionNotifier extends ChangeNotifier {
         _hydrateEconomyCache =
             hydrateEconomyCache ??
             (() => Future.wait([
+                  // Wave 1: Economy
                   syncXpCacheFromSupabase(),
                   syncTokenCacheFromSupabase(),
                   syncStreakCacheFromSupabase(),
                   syncDailyRewardsCacheFromSupabase(),
+                  // Wave 2: Core loop data
+                  syncCheckinHistoryFromSupabase(),
+                  syncReflectionsFromSupabase(),
+                  syncBuiltDuasFromSupabase(),
+                  syncCardCollectionFromSupabase(),
                 ]).then((_) => null)),
         _hasCompletedOnboarding =
             hasCompletedOnboarding ??
@@ -126,10 +137,24 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// Called on sign-out or account deletion to clear local cache.
-  Future<void> clearSession() async {
+  /// [userId] must be captured BEFORE signOut() — after sign-out the auth
+  /// user is null and scoped keys can't be resolved.
+  Future<void> clearSession({String? userId}) async {
     _hasOnboarded = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('onboarding_completed');
+
+    // Clear user-scoped SharedPreferences keys to prevent cross-user data bleed.
+    final uid = userId ?? supabaseSyncService.currentUserId;
+    if (uid != null) {
+      final allKeys = prefs.getKeys();
+      final scopedSuffix = ':$uid';
+      for (final key in allKeys) {
+        if (key.endsWith(scopedSuffix)) {
+          await prefs.remove(key);
+        }
+      }
+    }
     // Don't call notifyListeners() — the auth stream's signedOut event will do that
   }
 

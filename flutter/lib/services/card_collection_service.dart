@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 // ---------------------------------------------------------------------------
 // Card Tiers — evolving system (Bronze → Silver → Gold)
@@ -835,6 +836,16 @@ CollectibleName pickNextCard(CardCollectionState collection) {
 }
 
 // ---------------------------------------------------------------------------
+// Tier enum helpers
+// ---------------------------------------------------------------------------
+
+String tierToEnum(int t) =>
+    const {1: 'bronze', 2: 'silver', 3: 'gold'}[t] ?? 'bronze';
+
+int enumToTier(String e) =>
+    const {'bronze': 1, 'silver': 2, 'gold': 3}[e] ?? 1;
+
+// ---------------------------------------------------------------------------
 // Collection persistence
 // ---------------------------------------------------------------------------
 
@@ -913,23 +924,22 @@ const Set<int> _completedCardIds = {
 
 Future<CardCollectionState> getCardCollection() async {
   final prefs = await SharedPreferences.getInstance();
+  final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
 
-  // One-time reset to re-seed collection as empty (undiscovered).
-  // Bump the version string to force a re-seed after content updates.
   const seedVersion = 'sakina_card_seed_v5';
-  if (!prefs.containsKey(seedVersion)) {
-    await prefs.remove(_collectionKey);
-    await prefs.setBool(seedVersion, true);
+  final scopedSeedVersion = supabaseSyncService.scopedKey(seedVersion);
+  if (supabaseSyncService.currentUserId == null &&
+      !prefs.containsKey(scopedSeedVersion)) {
+    if (prefs.containsKey(seedVersion)) {
+      await prefs.setBool(scopedSeedVersion, true);
+    } else {
+      await prefs.remove(scopedCollectionKey);
+      await prefs.setBool(scopedSeedVersion, true);
+    }
   }
 
-  final raw = prefs.getString(_collectionKey);
+  final raw = await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
   if (raw == null) {
-    // Start with empty collection — cards are discovered through daily check-ins.
-    await prefs.setString(_collectionKey, jsonEncode({
-      'ids': <int>[],
-      'dates': <String, String>{},
-      'tiers': <String, int>{},
-    }));
     return CardCollectionState(
       discoveredIds: {},
       discoveryDates: {},
@@ -946,15 +956,15 @@ Future<CardCollectionState> getCardCollection() async {
           ?.map((k, v) => MapEntry(int.parse(k), v as int)) ??
       {};
 
-  final seenRaw = prefs.getStringList(_seenKey) ?? [];
+  final seenRaw =
+      await supabaseSyncService.migrateLegacyStringListCache(prefs, _seenKey) ??
+      [];
   // Migration: old format was plain IDs ("5"), new format is "5:1", "5:2" etc.
-  // Convert old plain IDs to composite keys for all tiers of that card.
   final seenIds = <String>{};
   for (final entry in seenRaw) {
     if (entry.contains(':')) {
       seenIds.add(entry);
     } else {
-      // Old format — mark all tiers of this card as seen
       final cardId = int.tryParse(entry);
       if (cardId != null) {
         final maxTier = tiers[cardId] ?? 0;
@@ -972,7 +982,9 @@ Future<CardCollectionState> getCardCollection() async {
 /// Each re-encounter tiers up immediately (no cooldown).
 Future<CardEngageResult> engageCard(int cardId) async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_collectionKey);
+  final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
+  final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
+  final raw = prefs.getString(scopedCollectionKey);
 
   Set<int> ids;
   Map<int, String> dates;      // date card was first discovered
@@ -1024,15 +1036,15 @@ Future<CardEngageResult> engageCard(int cardId) async {
 
   // Mark the new tier as unseen so the glow shows on the new tile.
   if (tierChanged) {
-    final seenList = prefs.getStringList(_seenKey) ?? [];
+    final seenList = prefs.getStringList(scopedSeenKey) ?? [];
     seenList.remove('$cardId:$newTier');
-    await prefs.setStringList(_seenKey, seenList);
+    await prefs.setStringList(scopedSeenKey, seenList);
   }
 
   tiers[cardId] = newTier;
 
   await prefs.setString(
-    _collectionKey,
+    scopedCollectionKey,
     jsonEncode({
       'ids': ids.toList(),
       'dates': dates.map((k, v) => MapEntry(k.toString(), v)),
@@ -1041,31 +1053,125 @@ Future<CardEngageResult> engageCard(int cardId) async {
     }),
   );
 
+  // Upsert to Supabase
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null && tierChanged) {
+    await supabaseSyncService.upsertRow('user_card_collection', userId, {
+      'name_id': cardId,
+      'tier': tierToEnum(newTier),
+      'discovered_at': dates[cardId] ?? todayStr,
+      'last_engaged_at': todayStr,
+    });
+  }
+
   return CardEngageResult(isNew: isNew, newTier: newTier, tierChanged: tierChanged, isDuplicate: isDuplicate);
 }
 
 /// Mark a card as seen (user tapped to view detail).
 Future<void> markCardSeen(int cardId, {int? tierNumber}) async {
   final prefs = await SharedPreferences.getInstance();
-  final existing = prefs.getStringList(_seenKey) ?? [];
+  final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
+  final existing = prefs.getStringList(scopedSeenKey) ?? [];
   final key = tierNumber != null ? '$cardId:$tierNumber' : '$cardId';
   if (!existing.contains(key)) {
     existing.add(key);
-    await prefs.setStringList(_seenKey, existing);
+    await prefs.setStringList(scopedSeenKey, existing);
   }
 }
 
 /// Wipes the entire card collection (debug / stress-test use only).
-/// Writes an empty collection so the seed logic doesn't re-populate on next load.
 Future<void> clearCardCollection() async {
   final prefs = await SharedPreferences.getInstance();
+  final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
   // Write empty collection — prevents seed logic from re-running
-  await prefs.setString(_collectionKey, jsonEncode({
+  await prefs.setString(scopedCollectionKey, jsonEncode({
     'ids': <int>[],
     'dates': <String, String>{},
     'tiers': <String, int>{},
     'tierUpDates': <String, String>{},
   }));
-  // Mark seed version as done so getCardCollection doesn't wipe our empty collection
-  await prefs.setBool('sakina_card_seed_v4', true);
+  await prefs.setBool(supabaseSyncService.scopedKey('sakina_card_seed_v5'), true);
+
+  // Delete from Supabase
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    try {
+      await supabaseSyncService.deleteRow('user_card_collection', 'user_id', userId);
+    } catch (_) {}
+  }
+}
+
+/// Sync card collection from Supabase into local cache.
+Future<void> syncCardCollectionFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
+  // Ensure legacy keys are migrated
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
+  await supabaseSyncService.migrateLegacyStringListCache(prefs, _seenKey);
+
+  final rows = await supabaseSyncService.fetchRows(
+    'user_card_collection',
+    userId,
+    orderBy: 'discovered_at',
+    ascending: true,
+  );
+
+  if (rows.isEmpty) {
+    // Seed Supabase from local if we have discovered cards
+    final localRaw = prefs.getString(scopedCollectionKey);
+    if (localRaw != null) {
+      final data = jsonDecode(localRaw) as Map<String, dynamic>;
+      final ids = (data['ids'] as List<dynamic>?)?.cast<int>() ?? [];
+      if (ids.isNotEmpty) {
+        final dates = (data['dates'] as Map<String, dynamic>?) ?? {};
+        final tiers = (data['tiers'] as Map<String, dynamic>?) ?? {};
+        final tierUpDates = (data['tierUpDates'] as Map<String, dynamic>?) ?? {};
+
+        final supabaseRows = ids.map((id) {
+          final idStr = id.toString();
+          final tierInt = (tiers[idStr] as int?) ?? 1;
+          return {
+            'user_id': userId,
+            'name_id': id,
+            'tier': tierToEnum(tierInt),
+            'discovered_at': dates[idStr] as String? ?? DateTime.now().toIso8601String().substring(0, 10),
+            'last_engaged_at': tierUpDates[idStr] as String? ?? DateTime.now().toIso8601String().substring(0, 10),
+          };
+        }).toList();
+
+        await supabaseSyncService.batchInsertRows(
+          'user_card_collection',
+          supabaseRows,
+        );
+      }
+    }
+    return;
+  }
+
+  // Build local blob from Supabase rows
+  final ids = <int>{};
+  final dates = <int, String>{};
+  final tiers = <int, int>{};
+  final tierUpDates = <int, String>{};
+
+  for (final row in rows) {
+    final nameId = row['name_id'] as int;
+    ids.add(nameId);
+    dates[nameId] = (row['discovered_at'] as String? ?? '').substring(0, 10);
+    tiers[nameId] = enumToTier(row['tier'] as String? ?? 'bronze');
+    tierUpDates[nameId] = (row['last_engaged_at'] as String? ?? '').substring(0, 10);
+  }
+
+  await prefs.setString(
+    scopedCollectionKey,
+    jsonEncode({
+      'ids': ids.toList(),
+      'dates': dates.map((k, v) => MapEntry(k.toString(), v)),
+      'tiers': tiers.map((k, v) => MapEntry(k.toString(), v)),
+      'tierUpDates': tierUpDates.map((k, v) => MapEntry(k.toString(), v)),
+    }),
+  );
 }

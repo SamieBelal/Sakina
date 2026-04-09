@@ -6,8 +6,15 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
+const String _builtDuasKey = 'saved_built_duas';
+const String _relatedDuasKey = 'saved_related_duas';
+const String _browseDuaIdsKey = 'saved_browse_dua_ids';
 
 // ---------------------------------------------------------------------------
 // Tab enum
@@ -53,6 +60,26 @@ class SavedBuiltDua {
     transliteration: json['transliteration'] as String,
     translation: json['translation'] as String,
   );
+
+  Map<String, dynamic> toSupabaseRow(String userId) => {
+    'id': id,
+    'user_id': userId,
+    'saved_at': savedAt,
+    'need': need,
+    'arabic': arabic,
+    'transliteration': transliteration,
+    'translation': translation,
+  };
+
+  factory SavedBuiltDua.fromSupabaseRow(Map<String, dynamic> row) =>
+      SavedBuiltDua(
+        id: row['id'] as String? ?? _uuid.v4(),
+        savedAt: row['saved_at'] as String? ?? '',
+        need: row['need'] as String? ?? '',
+        arabic: row['arabic'] as String? ?? '',
+        transliteration: row['transliteration'] as String? ?? '',
+        translation: row['translation'] as String? ?? '',
+      );
 }
 
 class SavedRelatedDua {
@@ -88,6 +115,32 @@ class SavedRelatedDua {
     transliteration: json['transliteration'] as String,
     translation: json['translation'] as String,
     source: json['source'] as String,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Supabase sync
+// ---------------------------------------------------------------------------
+
+/// Sync saved built duas from Supabase into local cache.
+Future<void> syncBuiltDuasFromSupabase() async {
+  // Also migrate the local-only keys so they're user-scoped
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _relatedDuasKey);
+  await supabaseSyncService.migrateLegacyStringListCache(prefs, _browseDuaIdsKey);
+
+  await supabaseSyncService.syncList(
+    table: 'user_built_duas',
+    cacheKey: _builtDuasKey,
+    orderBy: 'saved_at',
+    toRows: (localItems, userId) => localItems
+        .map((e) => SavedBuiltDua.fromJson(e as Map<String, dynamic>)
+            .toSupabaseRow(userId))
+        .toList(),
+    fromRows: (remoteRows) => remoteRows
+        .map((r) => SavedBuiltDua.fromSupabaseRow(r).toJson())
+        .toList()
+        .cast<Map<String, dynamic>>(),
   );
 }
 
@@ -211,7 +264,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
     }
     state = state.copyWith(savedDuaIds: updated);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('saved_browse_dua_ids', updated.toList());
+    await prefs.setStringList(
+      supabaseSyncService.scopedKey(_browseDuaIdsKey),
+      updated.toList(),
+    );
   }
 
   void setBrowseQuery(String query) {
@@ -402,8 +458,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
       return; // silently skip — UI should show upgrade prompt
     }
 
+    final duaId = _uuid.v4();
     final dua = SavedBuiltDua(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: duaId,
       savedAt: DateTime.now().toIso8601String(),
       need: state.buildNeed,
       arabic: result.arabic,
@@ -414,12 +471,26 @@ class DuasNotifier extends StateNotifier<DuasState> {
     final updated = [...state.savedBuiltDuas, dua];
     state = state.copyWith(savedBuiltDuas: updated);
     await _persistBuiltDuas(updated);
+
+    // Write to Supabase
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.insertRow(
+        'user_built_duas',
+        dua.toSupabaseRow(userId),
+      );
+    }
   }
 
   Future<void> removeSavedBuiltDua(String id) async {
     final updated = state.savedBuiltDuas.where((d) => d.id != id).toList();
     state = state.copyWith(savedBuiltDuas: updated);
     await _persistBuiltDuas(updated);
+
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.deleteRow('user_built_duas', 'id', id);
+    }
   }
 
   bool isBuiltDuaSaved() {
@@ -470,9 +541,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
   Future<void> loadSavedDuas() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final builtJson = prefs.getString('saved_built_duas');
-      final relatedJson = prefs.getString('saved_related_duas');
-      final browseIds = prefs.getStringList('saved_browse_dua_ids');
+      final builtJson = await supabaseSyncService.migrateLegacyStringCache(prefs, _builtDuasKey);
+      final relatedJson = await supabaseSyncService.migrateLegacyStringCache(prefs, _relatedDuasKey);
+      final browseIds = await supabaseSyncService.migrateLegacyStringListCache(prefs, _browseDuaIdsKey);
 
       if (builtJson != null) {
         final list = (jsonDecode(builtJson) as List)
@@ -497,7 +568,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
   Future<void> _persistBuiltDuas(List<SavedBuiltDua> duas) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'saved_built_duas',
+      supabaseSyncService.scopedKey(_builtDuasKey),
       jsonEncode(duas.map((d) => d.toJson()).toList()),
     );
   }
@@ -505,7 +576,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
   Future<void> _persistRelatedDuas(List<SavedRelatedDua> duas) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'saved_related_duas',
+      supabaseSyncService.scopedKey(_relatedDuasKey),
       jsonEncode(duas.map((d) => d.toJson()).toList()),
     );
   }
