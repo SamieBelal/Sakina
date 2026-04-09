@@ -621,6 +621,23 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Dismiss button
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.4),
+                  ),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, color: _goldBright.withValues(alpha: 0.8), size: 22),
+                ),
+              ),
+            ),
           ],
         ),
       ),

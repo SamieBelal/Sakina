@@ -27,6 +27,7 @@ enum _Filter { all, newCards, bronze, silver, gold }
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   _Filter _filter = _Filter.all;
   bool _questFired = false;
+  NavigatorState? _sheetNavigator;
 
   @override
   void initState() {
@@ -35,6 +36,15 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(cardCollectionProvider.notifier).reload();
     });
+  }
+
+  @override
+  void deactivate() {
+    if (_sheetNavigator != null && _sheetNavigator!.canPop()) {
+      _sheetNavigator!.pop();
+      _sheetNavigator = null;
+    }
+    super.deactivate();
   }
 
   @override
@@ -108,6 +118,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                     Row(
                       children: [
                         GestureDetector(
+                          onTap: () => context.push('/bronze-preview'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFCD7F32).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('Bronze Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFCD7F32))),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
                           onTap: () => context.push('/silver-preview'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -128,18 +150,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text('Gold Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFC8985E))),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => context.push('/bronze-preview'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFCD7F32).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text('Bronze Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFCD7F32))),
                           ),
                         ),
                       ],
@@ -282,12 +292,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
     ref.read(cardCollectionProvider.notifier).markSeen(card.id);
+    _sheetNavigator = Navigator.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useRootNavigator: false,
       builder: (_) => _CardDetailSheet(card: card, tier: tier),
-    );
+    ).whenComplete(() => _sheetNavigator = null);
   }
 }
 
@@ -977,6 +989,23 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
 
                   const SizedBox(height: AppSpacing.lg),
                 ],
+              ),
+            ),
+
+            // Dismiss button
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.4),
+                  ),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, color: _silverBright.withValues(alpha: 0.8), size: 22),
+                ),
               ),
             ),
           ],

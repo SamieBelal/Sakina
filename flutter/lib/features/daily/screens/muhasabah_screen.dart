@@ -699,42 +699,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               ),
             ),
           ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-          const SizedBox(height: AppSpacing.lg),
-          // Action chips — horizontal scrollable row
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            child: Row(
-              children: [
-                _completedChip(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Collection',
-                  onTap: () => context.go('/collection'),
-                ),
-                const SizedBox(width: 10),
-                _completedChip(
-                  icon: Icons.bolt,
-                  label: 'Quests',
-                  iconColor: AppColors.streakAmber,
-                  onTap: () => context.go('/quests'),
-                ),
-                const SizedBox(width: 10),
-                _completedChip(
-                  icon: Icons.favorite_rounded,
-                  label: 'Reflect',
-                  iconColor: AppColors.primary,
-                  onTap: () => context.go('/reflect'),
-                ),
-                const SizedBox(width: 10),
-                _completedChip(
-                  icon: Icons.auto_awesome,
-                  label: 'Duas',
-                  iconColor: AppColors.secondary,
-                  onTap: () => context.go('/duas'),
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
           const SizedBox(height: 24),
           // Return home
           GestureDetector(
@@ -745,7 +709,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 color: AppColors.textTertiaryLight,
               ),
             ),
-                ).animate().fadeIn(duration: 300.ms, delay: 700.ms),
+                ).animate().fadeIn(duration: 300.ms, delay: 600.ms),
                 const SizedBox(height: 16),
               ],
             ),
