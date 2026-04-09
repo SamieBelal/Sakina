@@ -23,11 +23,8 @@ class AppSessionNotifier extends ChangeNotifier {
   late final StreamSubscription<AuthState> _subscription;
   bool _hasOnboarded;
 
-  bool _guestMode = false;
-
-  bool get isAuthenticated => _guestMode || Supabase.instance.client.auth.currentUser != null;
+  bool get isAuthenticated => Supabase.instance.client.auth.currentUser != null;
   bool get hasOnboarded => _hasOnboarded;
-  bool get isGuest => _guestMode;
 
   void _onAuthChange(AuthState data) {
     switch (data.event) {
@@ -67,15 +64,6 @@ class AppSessionNotifier extends ChangeNotifier {
       await prefs.setBool('onboarding_completed', true);
       notifyListeners();
     }
-  }
-
-  /// Continue without signing in — skips auth guard temporarily.
-  Future<void> continueAsGuest() async {
-    _guestMode = true;
-    _hasOnboarded = true;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_completed', true);
-    notifyListeners();
   }
 
   /// Called when a new user finishes onboarding (paywall dismiss).

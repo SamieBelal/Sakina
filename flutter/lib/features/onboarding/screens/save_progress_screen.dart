@@ -6,9 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
@@ -187,23 +185,6 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
             label: AppStrings.signUpChoiceEmail,
             onPressed: _isLoading ? null : widget.onNext,
             enabled: !_isLoading,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // Skip for now (guest mode)
-          TextButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    await ref.read(appSessionProvider).continueAsGuest();
-                    if (!context.mounted) return;
-                    context.go('/');
-                  },
-            child: Text(
-              'Skip for now',
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.textTertiaryLight,
-              ),
-            ),
           ),
           const Spacer(),
         ],

@@ -216,7 +216,6 @@ abstract final class AppStrings {
   static const signUpChoiceApple = 'Sign in with Apple';
   static const signUpChoiceGoogle = 'Sign in with Google';
   static const signUpChoiceEmail = 'Continue with Email';
-  static const signUpChoiceSkip = 'Would you like to sign in later? Skip';
   static const signUpChoiceOrDivider = 'or';
 
   // Screen 13: Name

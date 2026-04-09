@@ -8,6 +8,7 @@ import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'services/auth_service.dart';
+// import 'services/purchase_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,12 @@ Future<void> main() async {
       anonKey: supabaseAnonKey,
     );
   }
+
+  // Temporarily disabled until RevenueCat is set up.
+  // await PurchaseService().initialize(
+  //   appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
+  //   googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
+  // );
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),

@@ -18,6 +18,8 @@ import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
+import 'package:sakina/widgets/subpage_header.dart';
+import 'package:sakina/widgets/summary_metric_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -58,11 +60,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       try {
         final decoded = json.decode(anchorsJson);
         if (decoded is List) {
-          anchors = decoded.map((item) {
-            if (item is String) return item;
-            if (item is Map) return item['name']?.toString() ?? '';
-            return item.toString();
-          }).where((s) => s.isNotEmpty).toList();
+          anchors = decoded
+              .map((item) {
+                if (item is String) return item;
+                if (item is Map) return item['name']?.toString() ?? '';
+                return item.toString();
+              })
+              .where((s) => s.isNotEmpty)
+              .toList();
         }
       } catch (_) {}
     }
@@ -80,35 +85,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-
   Future<void> _resetDailyLoop() async {
+    final confirmed = await _confirmDangerAction(
+      title: 'Reset Daily Loop',
+      message:
+          'This will clear today\'s daily loop progress so you can start fresh from Home. This cannot be undone.',
+      confirmLabel: 'Reset',
+    );
+    if (confirmed != true) return;
+
     await ref.read(dailyLoopProvider.notifier).resetToday();
     await resetDailyLaunchGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Daily loop reset. Go back to Home to start fresh.')),
+        const SnackBar(
+            content: Text('Daily loop reset. Go back to Home to start fresh.')),
       );
     }
   }
 
   Future<void> _resetCardCollection() async {
+    final confirmed = await _confirmDangerAction(
+      title: 'Clear Card Collection',
+      message:
+          'This will wipe your entire card collection and reset today\'s loop so new cards can be discovered again. This cannot be undone.',
+      confirmLabel: 'Clear Collection',
+    );
+    if (confirmed != true) return;
+
     await clearCardCollection();
     await ref.read(dailyLoopProvider.notifier).resetToday();
     await resetDailyLaunchGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Card collection wiped. Every check-in will now discover a new card.')),
+        const SnackBar(
+            content: Text(
+                'Card collection wiped. Every check-in will now discover a new card.')),
       );
     }
   }
 
-  Future<void> _resetOnboarding() async {
-    final confirmed = await showDialog<bool>(
+  Future<bool?> _confirmDangerAction({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset Onboarding'),
-        content: const Text(
-            'This will reset your onboarding progress. You will see the onboarding screens again next time you open the app.'),
+        title: Text(title),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -116,20 +142,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Reset',
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
+            child: Text(
+              confirmLabel,
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+            ),
           ),
         ],
       ),
     );
-    if (confirmed == true) {
-      await ref.read(appSessionProvider).clearSession();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Onboarding reset')),
-        );
-      }
-    }
   }
 
   Future<void> _deleteAccount() async {
@@ -193,9 +213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: isValid
-                      ? () => Navigator.pop(ctx, true)
-                      : null,
+                  onPressed: isValid ? () => Navigator.pop(ctx, true) : null,
                   child: Text(
                     'Delete My Account',
                     style: AppTypography.bodyMedium.copyWith(
@@ -241,16 +259,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: _loading
             ? const Center(child: SakinaLoader())
             : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.pagePadding,
-                  vertical: AppSpacing.lg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.pagePadding,
+                  AppSpacing.lg,
+                  AppSpacing.pagePadding,
+                  AppSpacing.xxl,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildHeader(),
+                    const SubpageHeader(
+                      title: 'Settings',
+                      subtitle:
+                          'Profile, titles, preferences, and account controls.',
+                    ),
                     const SizedBox(height: AppSpacing.xl),
+                    _buildProfileCard(),
+                    const SizedBox(height: AppSpacing.lg),
                     _buildStatsRow(),
                     const SizedBox(height: AppSpacing.xl),
                     _buildTitleSelector(),
@@ -284,90 +309,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return user.email ?? '';
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceAltLight,
-            shape: BoxShape.circle,
+  Widget _buildProfileCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 20,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 24,
+            offset: Offset(0, 12),
           ),
-          child: const Icon(
-            Icons.person,
-            size: 40,
-            color: AppColors.textSecondaryLight,
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceAltLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              size: 32,
+              color: AppColors.textSecondaryLight,
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          _displayName,
-          style: AppTypography.displayLarge.copyWith(
-            color: AppColors.textPrimaryLight,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _displayName,
+                  style: AppTypography.displayMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _subtitle,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          _subtitle,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondaryLight,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildStatsRow() {
     final streak = _streakState?.currentStreak ?? 0;
     final xp = _xpState?.totalXp ?? 0;
-    final level = _displayTitle;
 
     return Row(
       children: [
-        Expanded(child: _buildStatCard('🔥', '$streak', 'Day Streak')),
+        Expanded(
+          child: SummaryMetricCard(
+            icon: Icons.local_fire_department_rounded,
+            iconColor: AppColors.streakAmber,
+            label: 'Day Streak',
+            value: '$streak',
+          ),
+        ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _buildStatCard('✦', '$xp', 'Total XP')),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: _buildStatCard('◈', level, 'Level')),
+        Expanded(
+          child: SummaryMetricCard(
+            icon: Icons.auto_awesome_rounded,
+            iconColor: AppColors.secondary,
+            label: 'Total XP',
+            value: '$xp',
+          ),
+        ),
       ],
-    );
-  }
-
-  Widget _buildStatCard(String icon, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.md,
-        horizontal: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border.all(color: AppColors.borderLight, width: 0.5),
-      ),
-      child: Column(
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 20)),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
@@ -422,7 +448,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               textDirection: TextDirection.rtl,
             ),
             const SizedBox(width: 8),
-            Icon(Icons.edit_outlined, size: 16, color: AppColors.textTertiaryLight),
+            const Icon(
+              Icons.edit_outlined,
+              size: 16,
+              color: AppColors.textTertiaryLight,
+            ),
           ],
         ),
       ),
@@ -430,13 +460,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showTitlePicker() {
-    final currentLevel = _xpState?.level ?? 1;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetCtx) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
         decoration: const BoxDecoration(
           color: AppColors.surfaceLight,
@@ -446,7 +476,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.borderLight,
                 borderRadius: BorderRadius.circular(2),
@@ -470,7 +501,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               isUnlocked: true,
               onTap: () async {
                 await setAutoTitle();
+                if (!sheetCtx.mounted) return;
                 Navigator.of(sheetCtx).pop();
+                if (!mounted) return;
                 await _loadData();
               },
             ),
@@ -484,41 +517,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // Level milestone titles
                   ...xpLevels.where((l) => l.unlocksTitle).map((level) {
                     final isUnlocked = _unlockedTitles.contains(level.title);
-                    final isSelected = !_isAutoTitle && _displayTitle == level.title;
+                    final isSelected =
+                        !_isAutoTitle && _displayTitle == level.title;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _titleOption(
                         title: level.title,
                         titleArabic: level.titleArabic,
-                        subtitle: isUnlocked ? null : 'Reach Level ${level.level}',
+                        subtitle:
+                            isUnlocked ? null : 'Reach Level ${level.level}',
                         isSelected: isSelected,
                         isUnlocked: isUnlocked,
-                        onTap: isUnlocked ? () async {
-                          await selectTitle(level.title);
-                          Navigator.of(sheetCtx).pop();
-                          await _loadData();
-                        } : null,
+                        onTap: isUnlocked
+                            ? () async {
+                                await selectTitle(level.title);
+                                if (!sheetCtx.mounted) return;
+                                Navigator.of(sheetCtx).pop();
+                                if (!mounted) return;
+                                await _loadData();
+                              }
+                            : null,
                       ),
                     );
                   }),
 
                   // Streak milestone titles
-                  ...streakMilestones.where((m) => m.titleUnlock != null).map((milestone) {
-                    final isUnlocked = _unlockedTitles.contains(milestone.titleUnlock!);
-                    final isSelected = !_isAutoTitle && _displayTitle == milestone.titleUnlock;
+                  ...streakMilestones
+                      .where((m) => m.titleUnlock != null)
+                      .map((milestone) {
+                    final isUnlocked =
+                        _unlockedTitles.contains(milestone.titleUnlock!);
+                    final isSelected =
+                        !_isAutoTitle && _displayTitle == milestone.titleUnlock;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _titleOption(
                         title: milestone.titleUnlock!,
                         titleArabic: milestone.titleUnlockArabic,
-                        subtitle: isUnlocked ? null : '${milestone.days}-day streak',
+                        subtitle:
+                            isUnlocked ? null : '${milestone.days}-day streak',
                         isSelected: isSelected,
                         isUnlocked: isUnlocked,
-                        onTap: isUnlocked ? () async {
-                          await selectTitle(milestone.titleUnlock!);
-                          Navigator.of(sheetCtx).pop();
-                          await _loadData();
-                        } : null,
+                        onTap: isUnlocked
+                            ? () async {
+                                await selectTitle(milestone.titleUnlock!);
+                                if (!sheetCtx.mounted) return;
+                                Navigator.of(sheetCtx).pop();
+                                if (!mounted) return;
+                                await _loadData();
+                              }
+                            : null,
                       ),
                     );
                   }),
@@ -544,7 +592,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryLight : (isUnlocked ? AppColors.surfaceLight : AppColors.surfaceAltLight),
+          color: isSelected
+              ? AppColors.primaryLight
+              : (isUnlocked
+                  ? AppColors.surfaceLight
+                  : AppColors.surfaceAltLight),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.borderLight,
@@ -560,8 +612,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(
                     title,
                     style: AppTypography.labelMedium.copyWith(
-                      color: isUnlocked ? AppColors.textPrimaryLight : AppColors.textTertiaryLight,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isUnlocked
+                          ? AppColors.textPrimaryLight
+                          : AppColors.textTertiaryLight,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
                     ),
                   ),
                   if (subtitle != null)
@@ -580,17 +635,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 titleArabic,
                 style: AppTypography.nameOfAllahDisplay.copyWith(
                   fontSize: 20,
-                  color: isUnlocked ? AppColors.primary : AppColors.textTertiaryLight.withValues(alpha: 0.5),
+                  color: isUnlocked
+                      ? AppColors.primary
+                      : AppColors.textTertiaryLight.withValues(alpha: 0.5),
                 ),
                 textDirection: TextDirection.rtl,
               ),
             if (isSelected) ...[
               const SizedBox(width: 8),
-              Icon(Icons.check_circle, size: 20, color: AppColors.primary),
+              const Icon(
+                Icons.check_circle,
+                size: 20,
+                color: AppColors.primary,
+              ),
             ],
             if (!isUnlocked) ...[
               const SizedBox(width: 8),
-              Icon(Icons.lock_outline, size: 16, color: AppColors.textTertiaryLight),
+              const Icon(
+                Icons.lock_outline,
+                size: 16,
+                color: AppColors.textTertiaryLight,
+              ),
             ],
           ],
         ),
@@ -621,7 +686,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 Text(
-                  'Take the quiz to discover your anchor Names',
+                  'Take the quiz to discover your anchor names.',
                   style: AppTypography.bodyMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -632,7 +697,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // TODO: navigate to quiz
+                      context.push('/discovery-quiz');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -641,8 +706,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         borderRadius:
                             BorderRadius.circular(AppSpacing.buttonRadius),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.md),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     ),
                     child: Text('Take the Quiz',
                         style: AppTypography.labelLarge
@@ -698,46 +763,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: AppSpacing.sm),
         _buildSettingsCard([
           _buildSettingsRow(
-              icon: Icons.logout_rounded,
-              label: 'Sign Out',
-              onTap: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Sign Out'),
-                    content: const Text(
-                        'Are you sure you want to sign out?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: Text('Sign Out',
-                            style: AppTypography.bodyMedium
-                                .copyWith(color: AppColors.error)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true) {
-                  try {
-                    ref.read(onboardingProvider.notifier).reset();
-                    await ref.read(appSessionProvider).clearSession();
-                    await ref.read(authServiceProvider).signOut();
-                  } catch (_) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Could not sign out. Please try again.'),
-                      ),
-                    );
-                  }
+            icon: Icons.logout_rounded,
+            label: 'Sign Out',
+            onTap: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text('Sign Out',
+                          style: AppTypography.bodyMedium
+                              .copyWith(color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                try {
+                  ref.read(onboardingProvider.notifier).reset();
+                  await ref.read(appSessionProvider).clearSession();
+                  await ref.read(authServiceProvider).signOut();
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Could not sign out. Please try again.'),
+                    ),
+                  );
                 }
-              },
-              isDestructive: true,
-            ),
+              }
+            },
+            isDestructive: true,
+          ),
         ]),
         const SizedBox(height: AppSpacing.lg),
 
@@ -803,13 +867,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           _buildDivider(),
           _buildSettingsRow(
-            icon: Icons.refresh_rounded,
-            label: 'Reset Onboarding',
-            onTap: _resetOnboarding,
-            isDestructive: true,
-          ),
-          _buildDivider(),
-          _buildSettingsRow(
             icon: Icons.delete_forever_rounded,
             label: 'Delete Account',
             onTap: _deleteAccount,
@@ -849,8 +906,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     bool showChevron = true,
     bool isDestructive = false,
   }) {
-    final color =
-        isDestructive ? AppColors.error : AppColors.textPrimaryLight;
+    final color = isDestructive ? AppColors.error : AppColors.textPrimaryLight;
 
     return InkWell(
       onTap: onTap,
@@ -902,7 +958,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../widgets/onboarding_autofocus_text_field.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
@@ -48,12 +49,19 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
 
   void _submit() {
     if (!_isValidEmail) return;
-    ref.read(onboardingProvider.notifier).setSignUpEmail(_controller.text.trim());
+    dismissKeyboard(context);
+    ref
+        .read(onboardingProvider.notifier)
+        .setSignUpEmail(_controller.text.trim());
     widget.onNext();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isActive = ref.watch(
+      onboardingProvider.select((state) => state.currentPage == 16),
+    );
+
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
@@ -69,51 +77,52 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
                 child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.signUpEmailTitle,
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          )
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .slideY(begin: 0.03, end: 0),
-          const Spacer(),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              hintText: AppStrings.signUpEmailHint,
-              hintStyle: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textTertiaryLight,
-              ),
-              border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.borderLight),
-              ),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.borderLight),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.primary, width: 2),
-              ),
-            ),
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          OnboardingContinueButton(
-            label: AppStrings.continueButton,
-            onPressed: _submit,
-            enabled: _isValidEmail,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.signUpEmailTitle,
+                      style: AppTypography.displaySmall.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(duration: 500.ms)
+                        .slideY(begin: 0.03, end: 0),
+                    const Spacer(),
+                    OnboardingAutofocusTextField(
+                      controller: _controller,
+                      shouldRequestFocus: isActive,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        hintText: AppStrings.signUpEmailHint,
+                        hintStyle: AppTypography.bodyLarge.copyWith(
+                          color: AppColors.textTertiaryLight,
+                        ),
+                        border: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.borderLight),
+                        ),
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.borderLight),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide:
+                              BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
+                      style: AppTypography.displaySmall.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    OnboardingContinueButton(
+                      label: AppStrings.continueButton,
+                      onPressed: _submit,
+                      enabled: _isValidEmail,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                 ),
               ),
             ),

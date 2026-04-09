@@ -9,6 +9,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../widgets/onboarding_autofocus_text_field.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
@@ -73,7 +74,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong. Please try again.')),
+        const SnackBar(
+            content: Text('Something went wrong. Please try again.')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -82,6 +84,10 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isActive = ref.watch(
+      onboardingProvider.select((state) => state.currentPage == 17),
+    );
+
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
@@ -97,58 +103,59 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
                 child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.signUpPasswordTitle,
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          )
-              .animate()
-              .fadeIn(duration: 500.ms)
-              .slideY(begin: 0.03, end: 0),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            AppStrings.signUpPasswordSubtitle,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-          const Spacer(),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            obscureText: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              hintText: AppStrings.signUpPasswordHint,
-              hintStyle: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textTertiaryLight,
-              ),
-              border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.borderLight),
-              ),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.borderLight),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.primary, width: 2),
-              ),
-            ),
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          OnboardingContinueButton(
-            label: AppStrings.signUpPasswordCta,
-            onPressed: _submit,
-            enabled: _isValid,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.signUpPasswordTitle,
+                      style: AppTypography.displaySmall.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(duration: 500.ms)
+                        .slideY(begin: 0.03, end: 0),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      AppStrings.signUpPasswordSubtitle,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
+                    ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
+                    const Spacer(),
+                    OnboardingAutofocusTextField(
+                      controller: _controller,
+                      shouldRequestFocus: isActive,
+                      obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        hintText: AppStrings.signUpPasswordHint,
+                        hintStyle: AppTypography.bodyLarge.copyWith(
+                          color: AppColors.textTertiaryLight,
+                        ),
+                        border: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.borderLight),
+                        ),
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.borderLight),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide:
+                              BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
+                      style: AppTypography.displaySmall.copyWith(
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    OnboardingContinueButton(
+                      label: AppStrings.signUpPasswordCta,
+                      onPressed: _submit,
+                      enabled: _isValid,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
                 ),
               ),
             ),

@@ -9,9 +9,10 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/token_service.dart';
-import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/widgets/subpage_header.dart';
+import 'package:sakina/widgets/summary_metric_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Store pricing
@@ -41,7 +42,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       await ref.read(tierUpScrollProvider.notifier).earn(count);
       // Refresh token balance in daily loop state
       final tokenState = await getTokens();
-      ref.read(dailyLoopProvider.notifier).refreshTokenBalance(tokenState.balance);
+      ref
+          .read(dailyLoopProvider.notifier)
+          .refreshTokenBalance(tokenState.balance);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -82,7 +85,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         }
       }
       final tokenState = await getTokens();
-      ref.read(dailyLoopProvider.notifier).refreshTokenBalance(tokenState.balance);
+      ref
+          .read(dailyLoopProvider.notifier)
+          .refreshTokenBalance(tokenState.balance);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -94,7 +99,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Not enough tokens ($tokenCostStreakFreeze needed)'),
             backgroundColor: AppColors.error,
           ),
@@ -121,7 +126,8 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Token pack not available yet. Please try again later.'),
+              content:
+                  Text('Token pack not available yet. Please try again later.'),
               backgroundColor: AppColors.error,
             ),
           );
@@ -134,7 +140,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       if (success) {
         await earnTokens(50);
         final tokenState = await getTokens();
-        ref.read(dailyLoopProvider.notifier).refreshTokenBalance(tokenState.balance);
+        ref
+            .read(dailyLoopProvider.notifier)
+            .refreshTokenBalance(tokenState.balance);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -158,157 +166,139 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundLight,
-        elevation: 0,
-        title: Text(
-          'Store',
-          style: AppTypography.headlineLarge.copyWith(color: AppColors.textPrimaryLight),
-        ),
-        centerTitle: false,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Balance cards
-            Row(
-              children: [
-                Expanded(child: _balanceCard(
-                  icon: Icons.toll,
-                  color: AppColors.secondary,
-                  label: 'Tokens',
-                  value: '$tokenBalance',
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: _balanceCard(
-                  icon: Icons.receipt_long,
-                  color: const Color(0xFF3B82F6),
-                  label: 'Scrolls',
-                  value: '$scrollBalance',
-                )),
-              ],
-            ).animate().fadeIn(duration: 400.ms),
-            const SizedBox(height: 28),
-
-            // Buy Tokens section (real money)
-            Text(
-              'Buy Tokens',
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Use tokens for extra reflections, duas, and to buy scrolls.',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight),
-            ),
-            const SizedBox(height: 12),
-            _iapItem(
-              icon: Icons.toll,
-              iconColor: AppColors.secondary,
-              title: '50 Tokens',
-              price: '\$0.99',
-              onTap: _purchasing ? null : _buyTokensIAP,
-            ).animate().fadeIn(duration: 400.ms, delay: 50.ms),
-            const SizedBox(height: 28),
-
-            // Tier Up Scrolls section
-            Text(
-              'Tier Up Scrolls',
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Upgrade your cards from Bronze to Silver or Silver to Gold.',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight),
-            ),
-            const SizedBox(height: 12),
-            _storeItem(
-              icon: Icons.receipt_long,
-              iconColor: const Color(0xFF3B82F6),
-              title: '1 Scroll',
-              cost: '$tokenCostPerScroll Tokens',
-              onTap: _purchasing ? null : () => _buyScrolls(1),
-            ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-            const SizedBox(height: 8),
-            _storeItem(
-              icon: Icons.receipt_long,
-              iconColor: const Color(0xFF3B82F6),
-              title: '5 Scrolls',
-              cost: '${tokenCostPerScroll * 5} Tokens',
-              badge: 'Popular',
-              onTap: _purchasing ? null : () => _buyScrolls(5),
-            ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-            const SizedBox(height: 8),
-            _storeItem(
-              icon: Icons.receipt_long,
-              iconColor: const Color(0xFF3B82F6),
-              title: '10 Scrolls',
-              cost: '${tokenCostPerScroll * 10} Tokens',
-              onTap: _purchasing ? null : () => _buyScrolls(10),
-            ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
-            const SizedBox(height: 28),
-
-            // Streak Freeze section
-            Text(
-              'Streak Freeze',
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Protect your streak if you miss a day.',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight),
-            ),
-            const SizedBox(height: 12),
-            _storeItem(
-              icon: Icons.ac_unit,
-              iconColor: const Color(0xFF60A5FA),
-              title: 'Streak Freeze',
-              cost: '$tokenCostStreakFreeze Tokens',
-              onTap: _purchasing ? null : _buyStreakFreeze,
-            ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-
-            const SizedBox(height: AppSpacing.xxxl),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _balanceCard({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 10),
-          Column(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.lg,
+            AppSpacing.pagePadding,
+            AppSpacing.xxxl,
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: AppTypography.headlineMedium.copyWith(color: AppColors.textPrimaryLight, fontWeight: FontWeight.w700)),
-              Text(label, style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight)),
+              const SubpageHeader(
+                title: 'Store',
+                subtitle:
+                    'Tokens, scrolls, and small boosts for your daily rhythm.',
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              // Balance cards
+              Row(
+                children: [
+                  Expanded(
+                    child: SummaryMetricCard(
+                      icon: Icons.toll_rounded,
+                      iconColor: AppColors.secondary,
+                      label: 'Tokens',
+                      value: '$tokenBalance',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SummaryMetricCard(
+                      icon: Icons.receipt_long_rounded,
+                      iconColor: const Color(0xFF3B82F6),
+                      label: 'Scrolls',
+                      value: '$scrollBalance',
+                    ),
+                  ),
+                ],
+              ).animate().fadeIn(duration: 400.ms),
+              const SizedBox(height: 28),
+
+              // Buy Tokens section (real money)
+              Text(
+                'Buy Tokens',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Use tokens for extra reflections, duas, and to buy scrolls.',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textSecondaryLight),
+              ),
+              const SizedBox(height: 12),
+              _iapItem(
+                icon: Icons.toll,
+                iconColor: AppColors.secondary,
+                title: '50 Tokens',
+                price: '\$0.99',
+                onTap: _purchasing ? null : _buyTokensIAP,
+              ).animate().fadeIn(duration: 400.ms, delay: 50.ms),
+              const SizedBox(height: 28),
+
+              // Tier Up Scrolls section
+              Text(
+                'Tier Up Scrolls',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Upgrade your cards from Bronze to Silver or Silver to Gold.',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textSecondaryLight),
+              ),
+              const SizedBox(height: 12),
+              _storeItem(
+                icon: Icons.receipt_long,
+                iconColor: const Color(0xFF3B82F6),
+                title: '1 Scroll',
+                cost: '$tokenCostPerScroll Tokens',
+                onTap: _purchasing ? null : () => _buyScrolls(1),
+              ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+              const SizedBox(height: 8),
+              _storeItem(
+                icon: Icons.receipt_long,
+                iconColor: const Color(0xFF3B82F6),
+                title: '5 Scrolls',
+                cost: '${tokenCostPerScroll * 5} Tokens',
+                badge: 'Popular',
+                onTap: _purchasing ? null : () => _buyScrolls(5),
+              ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+              const SizedBox(height: 8),
+              _storeItem(
+                icon: Icons.receipt_long,
+                iconColor: const Color(0xFF3B82F6),
+                title: '10 Scrolls',
+                cost: '${tokenCostPerScroll * 10} Tokens',
+                onTap: _purchasing ? null : () => _buyScrolls(10),
+              ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
+              const SizedBox(height: 28),
+
+              // Streak Freeze section
+              Text(
+                'Streak Freeze',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Protect your streak if you miss a day.',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.textSecondaryLight),
+              ),
+              const SizedBox(height: 12),
+              _storeItem(
+                icon: Icons.ac_unit,
+                iconColor: const Color(0xFF60A5FA),
+                title: 'Streak Freeze',
+                cost: '$tokenCostStreakFreeze Tokens',
+                onTap: _purchasing ? null : _buyStreakFreeze,
+              ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
+
+              const SizedBox(height: AppSpacing.xxxl),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -347,16 +337,22 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(title, style: AppTypography.labelMedium.copyWith(color: AppColors.textPrimaryLight, fontWeight: FontWeight.w600)),
+                      Text(title,
+                          style: AppTypography.labelMedium.copyWith(
+                              color: AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w600)),
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(badge, style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 9)),
+                          child: Text(badge,
+                              style: AppTypography.labelSmall
+                                  .copyWith(color: Colors.white, fontSize: 9)),
                         ),
                       ],
                     ],
@@ -364,9 +360,16 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Icon(Icons.toll, size: 12, color: AppColors.secondary),
+                      const Icon(
+                        Icons.toll,
+                        size: 12,
+                        color: AppColors.secondary,
+                      ),
                       const SizedBox(width: 3),
-                      Text(cost, style: AppTypography.bodySmall.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w600)),
+                      Text(cost,
+                          style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],
@@ -378,7 +381,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text('Buy', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+              child: Text('Buy',
+                  style: AppTypography.labelSmall.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -414,7 +419,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(title, style: AppTypography.labelMedium.copyWith(color: AppColors.textPrimaryLight, fontWeight: FontWeight.w600)),
+              child: Text(title,
+                  style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600)),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -422,7 +430,9 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(price, style: AppTypography.labelSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+              child: Text(price,
+                  style: AppTypography.labelSmall.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
             ),
           ],
         ),

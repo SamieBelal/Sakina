@@ -2,11 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/share_card.dart';
+import 'ornate_card_shimmer.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Bronze Ornate Tile (grid card)
@@ -18,11 +18,13 @@ class BronzeOrnateTile extends StatelessWidget {
     required this.arabic,
     required this.transliteration,
     this.unseen = false,
+    this.shimmer,
   });
 
   final String arabic;
   final String transliteration;
   final bool unseen;
+  final OrnateCardShimmer? shimmer;
 
   // Bronze palette
   static const _bgDark = Color(0xFF2A1F1A);
@@ -36,16 +38,18 @@ class BronzeOrnateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget tile = AspectRatio(
+    final bool isShimmering = shimmer?.enabled ?? unseen;
+
+    final Widget tile = AspectRatio(
       aspectRatio: 0.72,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: _glowColor.withValues(alpha: unseen ? 0.35 : 0.15),
-              blurRadius: unseen ? 18 : 10,
-              spreadRadius: unseen ? 2 : 0,
+              color: _glowColor.withValues(alpha: isShimmering ? 0.35 : 0.15),
+              blurRadius: isShimmering ? 18 : 10,
+              spreadRadius: isShimmering ? 2 : 0,
             ),
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.55),
@@ -79,7 +83,9 @@ class BronzeOrnateTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: _bgInner,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: _bronzeDim.withValues(alpha: 0.2), width: 0.5),
+                          border: Border.all(
+                              color: _bronzeDim.withValues(alpha: 0.2),
+                              width: 0.5),
                         ),
                       ),
                     );
@@ -146,7 +152,8 @@ class BronzeOrnateTile extends StatelessWidget {
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: _glowColor.withValues(alpha: 0.15),
+                                        color:
+                                            _glowColor.withValues(alpha: 0.15),
                                         blurRadius: 10,
                                         spreadRadius: 2,
                                       ),
@@ -162,7 +169,8 @@ class BronzeOrnateTile extends StatelessWidget {
                                   shape: BoxShape.circle,
                                   gradient: RadialGradient(
                                     colors: [
-                                      _rubyRed.withValues(alpha: unseen ? 0.15 : 0.08),
+                                      _rubyRed.withValues(
+                                          alpha: isShimmering ? 0.15 : 0.08),
                                       _rubyRed.withValues(alpha: 0.0),
                                     ],
                                   ),
@@ -188,12 +196,19 @@ class BronzeOrnateTile extends StatelessWidget {
                                   fit: BoxFit.scaleDown,
                                   child: Text(
                                     arabic,
-                                    style: AppTypography.nameOfAllahDisplay.copyWith(
+                                    style: AppTypography.nameOfAllahDisplay
+                                        .copyWith(
                                       fontSize: 17,
                                       color: _bronzeBright,
                                       shadows: [
-                                        Shadow(color: _glowColor.withValues(alpha: 0.5), blurRadius: 10),
-                                        Shadow(color: _glowColor.withValues(alpha: 0.2), blurRadius: 20),
+                                        Shadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.5),
+                                            blurRadius: 10),
+                                        Shadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.2),
+                                            blurRadius: 20),
                                       ],
                                     ),
                                     textDirection: TextDirection.rtl,
@@ -213,14 +228,22 @@ class BronzeOrnateTile extends StatelessWidget {
                           children: List.generate(3, (i) {
                             final filled = i < 1;
                             return Container(
-                              width: 4, height: 4,
+                              width: 4,
+                              height: 4,
                               margin: const EdgeInsets.symmetric(horizontal: 2),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: filled ? _bronzeBright : _bronzeDim.withValues(alpha: 0.3),
-                                boxShadow: filled ? [
-                                  BoxShadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 4),
-                                ] : null,
+                                color: filled
+                                    ? _bronzeBright
+                                    : _bronzeDim.withValues(alpha: 0.3),
+                                boxShadow: filled
+                                    ? [
+                                        BoxShadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.4),
+                                            blurRadius: 4),
+                                      ]
+                                    : null,
                               ),
                             );
                           }),
@@ -255,16 +278,12 @@ class BronzeOrnateTile extends StatelessWidget {
       ),
     );
 
-    if (unseen) {
-      tile = tile
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .shimmer(
-            duration: 2200.ms,
-            color: _glowColor.withValues(alpha: 0.2),
-          );
-    }
-
-    return tile;
+    return applyOrnateCardShimmer(
+      child: tile,
+      color: _glowColor.withValues(alpha: 0.2),
+      legacyEnabled: unseen,
+      shimmer: shimmer,
+    );
   }
 }
 
@@ -302,12 +321,19 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(12),
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: _glowColor.withValues(alpha: 0.18), blurRadius: 28, spreadRadius: 2),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 16, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: _glowColor.withValues(alpha: 0.18),
+              blurRadius: 28,
+              spreadRadius: 2),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 16,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: ClipRRect(
@@ -354,7 +380,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                 children: [
                   // Handle
                   Container(
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: _bronzeDim.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
@@ -376,9 +403,14 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                             width: 100,
                             height: 100,
                             decoration: BoxDecoration(
-                              border: Border.all(color: _bronzeCore.withValues(alpha: 0.4), width: 2),
+                              border: Border.all(
+                                  color: _bronzeCore.withValues(alpha: 0.4),
+                                  width: 2),
                               boxShadow: [
-                                BoxShadow(color: _glowColor.withValues(alpha: 0.15), blurRadius: 14, spreadRadius: 3),
+                                BoxShadow(
+                                    color: _glowColor.withValues(alpha: 0.15),
+                                    blurRadius: 14,
+                                    spreadRadius: 3),
                               ],
                             ),
                           ),
@@ -403,9 +435,14 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                           height: 90,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: _bronzeCore.withValues(alpha: 0.5), width: 2),
+                            border: Border.all(
+                                color: _bronzeCore.withValues(alpha: 0.5),
+                                width: 2),
                             boxShadow: [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.2), blurRadius: 16, spreadRadius: 3),
+                              BoxShadow(
+                                  color: _glowColor.withValues(alpha: 0.2),
+                                  blurRadius: 16,
+                                  spreadRadius: 3),
                             ],
                           ),
                         ),
@@ -423,8 +460,12 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                                 fontSize: 36,
                                 color: _bronzeBright,
                                 shadows: [
-                                  Shadow(color: _glowColor.withValues(alpha: 0.6), blurRadius: 14),
-                                  Shadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 28),
+                                  Shadow(
+                                      color: _glowColor.withValues(alpha: 0.6),
+                                      blurRadius: 14),
+                                  Shadow(
+                                      color: _glowColor.withValues(alpha: 0.3),
+                                      blurRadius: 28),
                                 ],
                               ),
                               textDirection: TextDirection.rtl,
@@ -434,34 +475,47 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 800.ms)
-                      .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+                  ).animate().fadeIn(duration: 800.ms).scaleXY(
+                      begin: 0.85,
+                      end: 1.0,
+                      duration: 800.ms,
+                      curve: Curves.easeOutBack),
                   const SizedBox(height: 16),
 
                   // Tier badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _bronzeCore.withValues(alpha: 0.3)),
+                      border:
+                          Border.all(color: _bronzeCore.withValues(alpha: 0.3)),
                       color: _bronzeDim.withValues(alpha: 0.12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ...List.generate(3, (i) => Container(
-                          width: 5, height: 5,
-                          margin: const EdgeInsets.only(right: 3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i < tier.number ? _bronzeBright : _bronzeDim.withValues(alpha: 0.3),
-                            boxShadow: i < tier.number ? [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 3),
-                            ] : null,
-                          ),
-                        )),
+                        ...List.generate(
+                            3,
+                            (i) => Container(
+                                  width: 5,
+                                  height: 5,
+                                  margin: const EdgeInsets.only(right: 3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: i < tier.number
+                                        ? _bronzeBright
+                                        : _bronzeDim.withValues(alpha: 0.3),
+                                    boxShadow: i < tier.number
+                                        ? [
+                                            BoxShadow(
+                                                color: _glowColor.withValues(
+                                                    alpha: 0.4),
+                                                blurRadius: 3),
+                                          ]
+                                        : null,
+                                  ),
+                                )),
                         const SizedBox(width: 6),
                         Text(
                           tier.label.toUpperCase(),
@@ -477,12 +531,19 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                   ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                   const SizedBox(height: 16),
 
-                  Text(card.transliteration, style: AppTypography.headlineMedium.copyWith(color: _bronzeBright))
-                      .animate().fadeIn(duration: 500.ms, delay: 300.ms)
-                      .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
+                  Text(card.transliteration,
+                          style: AppTypography.headlineMedium
+                              .copyWith(color: _bronzeBright))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 300.ms)
+                      .slideY(
+                          begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
                   const SizedBox(height: 4),
-                  Text(card.english, style: AppTypography.bodyMedium.copyWith(color: _bronzeBright.withValues(alpha: 0.7)))
-                      .animate().fadeIn(duration: 500.ms, delay: 400.ms),
+                  Text(card.english,
+                          style: AppTypography.bodyMedium.copyWith(
+                              color: _bronzeBright.withValues(alpha: 0.7)))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 400.ms),
                   const SizedBox(height: 24),
 
                   // Ornate divider
@@ -506,11 +567,14 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: _bgDark.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _bronzeDim.withValues(alpha: 0.15)),
+                      border:
+                          Border.all(color: _bronzeDim.withValues(alpha: 0.15)),
                     ),
                     child: Text(
                       card.meaning,
-                      style: AppTypography.bodyMedium.copyWith(color: _bronzeBright.withValues(alpha: 0.9), height: 1.7),
+                      style: AppTypography.bodyMedium.copyWith(
+                          color: _bronzeBright.withValues(alpha: 0.9),
+                          height: 1.7),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -523,7 +587,9 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1B3D2A),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1B6B4A).withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF1B6B4A).withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       card.lesson,
@@ -554,12 +620,15 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 3, height: 16,
+                          width: 3,
+                          height: 16,
                           decoration: BoxDecoration(
                             color: _bronzeBright,
                             borderRadius: BorderRadius.circular(2),
                             boxShadow: [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 4),
+                              BoxShadow(
+                                  color: _glowColor.withValues(alpha: 0.3),
+                                  blurRadius: 4),
                             ],
                           ),
                         ),
@@ -581,7 +650,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _bgDark.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _bronzeDim.withValues(alpha: 0.15)),
+                        border: Border.all(
+                            color: _bronzeDim.withValues(alpha: 0.15)),
                       ),
                       child: card.hasTier2Content
                           ? Text(
@@ -620,12 +690,15 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 3, height: 16,
+                          width: 3,
+                          height: 16,
                           decoration: BoxDecoration(
                             color: _bronzeBright,
                             borderRadius: BorderRadius.circular(2),
                             boxShadow: [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 4),
+                              BoxShadow(
+                                  color: _glowColor.withValues(alpha: 0.3),
+                                  blurRadius: 4),
                             ],
                           ),
                         ),
@@ -649,7 +722,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: _bgDark.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _bronzeDim.withValues(alpha: 0.15)),
+                          border: Border.all(
+                              color: _bronzeDim.withValues(alpha: 0.15)),
                         ),
                         child: Text(
                           card.duaArabic,
@@ -670,7 +744,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: _bgDark.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _bronzeDim.withValues(alpha: 0.1)),
+                          border: Border.all(
+                              color: _bronzeDim.withValues(alpha: 0.1)),
                         ),
                         child: Text(
                           card.duaTransliteration,
@@ -690,7 +765,9 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF1B3D2A),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF1B6B4A).withValues(alpha: 0.3)),
+                          border: Border.all(
+                              color: const Color(0xFF1B6B4A)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           card.duaTranslation,
@@ -719,15 +796,22 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                               duaSource: '',
                             );
                           },
-                          icon: Icon(Icons.share_rounded, size: 18, color: _bronzeBright),
+                          icon: const Icon(
+                            Icons.share_rounded,
+                            size: 18,
+                            color: _bronzeBright,
+                          ),
                           label: Text(
                             'Share Reflection',
-                            style: AppTypography.labelMedium.copyWith(color: _bronzeBright),
+                            style: AppTypography.labelMedium
+                                .copyWith(color: _bronzeBright),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: _bronzeCore.withValues(alpha: 0.4)),
+                            side: BorderSide(
+                                color: _bronzeCore.withValues(alpha: 0.4)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
@@ -738,7 +822,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: _bgDark.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _bronzeDim.withValues(alpha: 0.15)),
+                          border: Border.all(
+                              color: _bronzeDim.withValues(alpha: 0.15)),
                         ),
                         child: Text(
                           'Coming soon...',
@@ -765,7 +850,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                             backgroundColor: _bronzeCore,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       )
@@ -774,7 +860,8 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                         tier.number < 2
                             ? 'Earn a Tier Up Scroll to unlock the Prophetic Teaching'
                             : 'Earn a Tier Up Scroll to unlock the Dua',
-                        style: AppTypography.bodySmall.copyWith(color: _bronzeDim),
+                        style:
+                            AppTypography.bodySmall.copyWith(color: _bronzeDim),
                         textAlign: TextAlign.center,
                       ),
                   ],
@@ -791,37 +878,46 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.black.withValues(alpha: 0.4),
                   ),
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: _bronzeBright.withValues(alpha: 0.8), size: 22),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: _bronzeBright.withValues(alpha: 0.8), size: 22),
                 ),
               ),
             ),
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0, duration: 300.ms);
+    )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.05, end: 0, duration: 300.ms);
   }
 
   List<Widget> _buildDiamondStuds(double radius) {
     return [
       Positioned(
-        top: 75 - radius + 2, left: 75 - 3,
+        top: 75 - radius + 2,
+        left: 75 - 3,
         child: _rubyStud(),
       ),
       Positioned(
-        bottom: 75 - radius + 2, left: 75 - 3,
+        bottom: 75 - radius + 2,
+        left: 75 - 3,
         child: _rubyStud(),
       ),
       Positioned(
-        left: 75 - radius + 2, top: 75 - 3,
+        left: 75 - radius + 2,
+        top: 75 - 3,
         child: _rubyStud(),
       ),
       Positioned(
-        right: 75 - radius + 2, top: 75 - 3,
+        right: 75 - radius + 2,
+        top: 75 - 3,
         child: _rubyStud(),
       ),
     ];
@@ -829,12 +925,15 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
 
   Widget _rubyStud() {
     return Container(
-      width: 6, height: 6,
+      width: 6,
+      height: 6,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: const Color(0xFFCC3333).withValues(alpha: 0.7),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFE85555).withValues(alpha: 0.4), blurRadius: 4),
+          BoxShadow(
+              color: const Color(0xFFE85555).withValues(alpha: 0.4),
+              blurRadius: 4),
         ],
       ),
     );
@@ -877,8 +976,10 @@ class _BronzePatternPainter extends CustomPainter {
 
         // Small cross at center
         final crossSize = r * 0.3;
-        canvas.drawLine(Offset(cx - crossSize, cy), Offset(cx + crossSize, cy), paint);
-        canvas.drawLine(Offset(cx, cy - crossSize), Offset(cx, cy + crossSize), paint);
+        canvas.drawLine(
+            Offset(cx - crossSize, cy), Offset(cx + crossSize, cy), paint);
+        canvas.drawLine(
+            Offset(cx, cy - crossSize), Offset(cx, cy + crossSize), paint);
       }
     }
   }
@@ -927,7 +1028,7 @@ class _BronzeOrnateBorderPainter extends CustomPainter {
     const studR = 3.5;
     const offset = inset + 5;
     // Four corners
-    canvas.drawCircle(Offset(offset, offset), studR, studPaint);
+    canvas.drawCircle(const Offset(offset, offset), studR, studPaint);
     canvas.drawCircle(Offset(w - offset, offset), studR, studPaint);
     canvas.drawCircle(Offset(offset, h - offset), studR, studPaint);
     canvas.drawCircle(Offset(w - offset, h - offset), studR, studPaint);
@@ -937,10 +1038,11 @@ class _BronzeOrnateBorderPainter extends CustomPainter {
       ..color = borderColor.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
-    canvas.drawCircle(Offset(offset, offset), studR - 1, innerRingPaint);
+    canvas.drawCircle(const Offset(offset, offset), studR - 1, innerRingPaint);
     canvas.drawCircle(Offset(w - offset, offset), studR - 1, innerRingPaint);
     canvas.drawCircle(Offset(offset, h - offset), studR - 1, innerRingPaint);
-    canvas.drawCircle(Offset(w - offset, h - offset), studR - 1, innerRingPaint);
+    canvas.drawCircle(
+        Offset(w - offset, h - offset), studR - 1, innerRingPaint);
 
     // Mid-edge ruby accents
     final rubyPaint = Paint()
@@ -956,7 +1058,8 @@ class _BronzeOrnateBorderPainter extends CustomPainter {
     _drawDiamond(canvas, rubyPaint, w - inset, h / 2, rs);
   }
 
-  void _drawDiamond(Canvas canvas, Paint paint, double cx, double cy, double s) {
+  void _drawDiamond(
+      Canvas canvas, Paint paint, double cx, double cy, double s) {
     final path = Path()
       ..moveTo(cx, cy - s)
       ..lineTo(cx + s, cy)
@@ -1009,7 +1112,7 @@ class _BronzeOrnateDetailBorderPainter extends CustomPainter {
 
     const studR = 4.0;
     const sOffset = inset + 6;
-    canvas.drawCircle(Offset(sOffset, sOffset), studR, studPaint);
+    canvas.drawCircle(const Offset(sOffset, sOffset), studR, studPaint);
     canvas.drawCircle(Offset(w - sOffset, sOffset), studR, studPaint);
     canvas.drawCircle(Offset(sOffset, h - sOffset), studR, studPaint);
     canvas.drawCircle(Offset(w - sOffset, h - sOffset), studR, studPaint);
@@ -1019,7 +1122,7 @@ class _BronzeOrnateDetailBorderPainter extends CustomPainter {
       ..color = borderColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
-    canvas.drawCircle(Offset(sOffset, sOffset), studR - 1.2, ringPaint);
+    canvas.drawCircle(const Offset(sOffset, sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(w - sOffset, sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(sOffset, h - sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(w - sOffset, h - sOffset), studR - 1.2, ringPaint);
@@ -1033,7 +1136,8 @@ class _BronzeOrnateDetailBorderPainter extends CustomPainter {
     _drawDiamond(canvas, rubyPaint, w / 2, h - inset, ds);
   }
 
-  void _drawDiamond(Canvas canvas, Paint paint, double cx, double cy, double s) {
+  void _drawDiamond(
+      Canvas canvas, Paint paint, double cx, double cy, double s) {
     final path = Path()
       ..moveTo(cx, cy - s)
       ..lineTo(cx + s, cy)
@@ -1079,14 +1183,24 @@ class _BronzeOrnateDividerPainter extends CustomPainter {
       ..lineTo(centerX, cy + ds)
       ..lineTo(centerX - ds, cy)
       ..close();
-    canvas.drawPath(diamond, Paint()..color = accentColor..style = PaintingStyle.fill);
+    canvas.drawPath(
+        diamond,
+        Paint()
+          ..color = accentColor
+          ..style = PaintingStyle.fill);
 
     // Ruby center dot
-    canvas.drawCircle(Offset(centerX, cy), 1.8, Paint()..color = rubyColor..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(centerX, cy),
+        1.8,
+        Paint()
+          ..color = rubyColor
+          ..style = PaintingStyle.fill);
 
     // Lines
     canvas.drawLine(Offset(16, cy), Offset(centerX - ds - 6, cy), linePaint);
-    canvas.drawLine(Offset(centerX + ds + 6, cy), Offset(size.width - 16, cy), linePaint);
+    canvas.drawLine(
+        Offset(centerX + ds + 6, cy), Offset(size.width - 16, cy), linePaint);
 
     // End studs (bronze circles instead of dots)
     final studPaint = Paint()

@@ -2,11 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/share_card.dart';
+
+import 'ornate_card_shimmer.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Gold palette (shared across tile + detail)
@@ -19,30 +20,37 @@ const _goldCore = Color(0xFFC8985E);
 const _goldDim = Color(0xFF8B7340);
 const _glowColor = Color(0xFFE8C56D);
 const _gemBlue = Color(0xFF5B8DD9);
-const _gemGlow = Color(0xFF7EB3F7);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Gold Ornate Tile
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class GoldOrnateTile extends StatelessWidget {
-  const GoldOrnateTile({super.key, required this.card, this.unseen = false});
+  const GoldOrnateTile({
+    super.key,
+    required this.card,
+    this.unseen = false,
+    this.shimmer,
+  });
 
   final CollectibleName card;
   final bool unseen;
+  final OrnateCardShimmer? shimmer;
 
   @override
   Widget build(BuildContext context) {
-    Widget tile = AspectRatio(
+    final bool isShimmering = shimmer?.enabled ?? unseen;
+
+    final Widget tile = AspectRatio(
       aspectRatio: 0.72,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: _glowColor.withValues(alpha: unseen ? 0.45 : 0.2),
-              blurRadius: unseen ? 22 : 12,
-              spreadRadius: unseen ? 3 : 0,
+              color: _glowColor.withValues(alpha: isShimmering ? 0.45 : 0.2),
+              blurRadius: isShimmering ? 22 : 12,
+              spreadRadius: isShimmering ? 3 : 0,
             ),
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.6),
@@ -110,7 +118,8 @@ class GoldOrnateTile extends StatelessWidget {
                                   shape: BoxShape.circle,
                                   gradient: RadialGradient(
                                     colors: [
-                                      _glowColor.withValues(alpha: unseen ? 0.3 : 0.15),
+                                      _glowColor.withValues(
+                                          alpha: isShimmering ? 0.3 : 0.15),
                                       _glowColor.withValues(alpha: 0.05),
                                       _glowColor.withValues(alpha: 0.0),
                                     ],
@@ -120,7 +129,8 @@ class GoldOrnateTile extends StatelessWidget {
                               ),
                               // Diamond-shaped frame around medallion
                               CustomPaint(
-                                size: Size(medallionSize + 8, medallionSize + 8),
+                                size:
+                                    Size(medallionSize + 8, medallionSize + 8),
                                 painter: _DiamondFramePainter(
                                   color: _goldCore.withValues(alpha: 0.5),
                                   gemColor: _gemBlue.withValues(alpha: 0.6),
@@ -151,15 +161,23 @@ class GoldOrnateTile extends StatelessWidget {
                                 child: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
                                     child: Text(
                                       card.arabic,
-                                      style: AppTypography.nameOfAllahDisplay.copyWith(
+                                      style: AppTypography.nameOfAllahDisplay
+                                          .copyWith(
                                         fontSize: 18,
                                         color: _goldBright,
                                         shadows: [
-                                          Shadow(color: _glowColor.withValues(alpha: 0.7), blurRadius: 14),
-                                          Shadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 28),
+                                          Shadow(
+                                              color: _glowColor.withValues(
+                                                  alpha: 0.7),
+                                              blurRadius: 14),
+                                          Shadow(
+                                              color: _glowColor.withValues(
+                                                  alpha: 0.3),
+                                              blurRadius: 28),
                                         ],
                                       ),
                                       textDirection: TextDirection.rtl,
@@ -179,13 +197,16 @@ class GoldOrnateTile extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(3, (i) {
                             return Container(
-                              width: 4, height: 4,
+                              width: 4,
+                              height: 4,
                               margin: const EdgeInsets.symmetric(horizontal: 2),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: _goldBright,
                                 boxShadow: [
-                                  BoxShadow(color: _glowColor.withValues(alpha: 0.5), blurRadius: 4),
+                                  BoxShadow(
+                                      color: _glowColor.withValues(alpha: 0.5),
+                                      blurRadius: 4),
                                 ],
                               ),
                             );
@@ -221,16 +242,12 @@ class GoldOrnateTile extends StatelessWidget {
       ),
     );
 
-    if (unseen) {
-      tile = tile
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .shimmer(
-            duration: 2200.ms,
-            color: _glowColor.withValues(alpha: 0.2),
-          );
-    }
-
-    return tile;
+    return applyOrnateCardShimmer(
+      child: tile,
+      color: _glowColor.withValues(alpha: 0.2),
+      legacyEnabled: unseen,
+      shimmer: shimmer,
+    );
   }
 }
 
@@ -239,7 +256,8 @@ class GoldOrnateTile extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class GoldOrnateDetailSheet extends StatelessWidget {
-  const GoldOrnateDetailSheet({super.key, required this.card, required this.tier});
+  const GoldOrnateDetailSheet(
+      {super.key, required this.card, required this.tier});
 
   final CollectibleName card;
   final CardTier tier;
@@ -248,12 +266,19 @@ class GoldOrnateDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(12),
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: _glowColor.withValues(alpha: 0.2), blurRadius: 32, spreadRadius: 3),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 18, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: _glowColor.withValues(alpha: 0.2),
+              blurRadius: 32,
+              spreadRadius: 3),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 18,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: ClipRRect(
@@ -300,7 +325,8 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                 children: [
                   // Handle
                   Container(
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: _goldDim.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
@@ -314,10 +340,16 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                     height: 130,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: _goldCore.withValues(alpha: 0.6), width: 2.5),
+                      border: Border.all(
+                          color: _goldCore.withValues(alpha: 0.6), width: 2.5),
                       boxShadow: [
-                        BoxShadow(color: _glowColor.withValues(alpha: 0.25), blurRadius: 28, spreadRadius: 5),
-                        BoxShadow(color: _goldCore.withValues(alpha: 0.15), blurRadius: 16),
+                        BoxShadow(
+                            color: _glowColor.withValues(alpha: 0.25),
+                            blurRadius: 28,
+                            spreadRadius: 5),
+                        BoxShadow(
+                            color: _goldCore.withValues(alpha: 0.15),
+                            blurRadius: 16),
                       ],
                     ),
                     child: Stack(
@@ -355,8 +387,12 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                                 fontSize: 40,
                                 color: _goldBright,
                                 shadows: [
-                                  Shadow(color: _glowColor.withValues(alpha: 0.8), blurRadius: 18),
-                                  Shadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 36),
+                                  Shadow(
+                                      color: _glowColor.withValues(alpha: 0.8),
+                                      blurRadius: 18),
+                                  Shadow(
+                                      color: _glowColor.withValues(alpha: 0.4),
+                                      blurRadius: 36),
                                 ],
                               ),
                               textDirection: TextDirection.rtl,
@@ -366,34 +402,47 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 800.ms)
-                      .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+                  ).animate().fadeIn(duration: 800.ms).scaleXY(
+                      begin: 0.85,
+                      end: 1.0,
+                      duration: 800.ms,
+                      curve: Curves.easeOutBack),
                   const SizedBox(height: 16),
 
                   // Tier badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _goldCore.withValues(alpha: 0.35)),
+                      border:
+                          Border.all(color: _goldCore.withValues(alpha: 0.35)),
                       color: _goldDim.withValues(alpha: 0.15),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ...List.generate(3, (i) => Container(
-                          width: 5, height: 5,
-                          margin: const EdgeInsets.only(right: 3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i < tier.number ? _goldBright : _goldDim.withValues(alpha: 0.3),
-                            boxShadow: i < tier.number ? [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 3),
-                            ] : null,
-                          ),
-                        )),
+                        ...List.generate(
+                            3,
+                            (i) => Container(
+                                  width: 5,
+                                  height: 5,
+                                  margin: const EdgeInsets.only(right: 3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: i < tier.number
+                                        ? _goldBright
+                                        : _goldDim.withValues(alpha: 0.3),
+                                    boxShadow: i < tier.number
+                                        ? [
+                                            BoxShadow(
+                                                color: _glowColor.withValues(
+                                                    alpha: 0.4),
+                                                blurRadius: 3),
+                                          ]
+                                        : null,
+                                  ),
+                                )),
                         const SizedBox(width: 6),
                         Text(
                           'GOLD',
@@ -409,12 +458,19 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                   ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                   const SizedBox(height: 16),
 
-                  Text(card.transliteration, style: AppTypography.headlineMedium.copyWith(color: _goldBright))
-                      .animate().fadeIn(duration: 500.ms, delay: 300.ms)
-                      .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
+                  Text(card.transliteration,
+                          style: AppTypography.headlineMedium
+                              .copyWith(color: _goldBright))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 300.ms)
+                      .slideY(
+                          begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
                   const SizedBox(height: 4),
-                  Text(card.english, style: AppTypography.bodyMedium.copyWith(color: _goldBright.withValues(alpha: 0.7)))
-                      .animate().fadeIn(duration: 500.ms, delay: 400.ms),
+                  Text(card.english,
+                          style: AppTypography.bodyMedium.copyWith(
+                              color: _goldBright.withValues(alpha: 0.7)))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 400.ms),
                   const SizedBox(height: 24),
 
                   // Ornate divider
@@ -428,11 +484,14 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: _bgDark.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _goldDim.withValues(alpha: 0.15)),
+                      border:
+                          Border.all(color: _goldDim.withValues(alpha: 0.15)),
                     ),
                     child: Text(
                       card.meaning,
-                      style: AppTypography.bodyMedium.copyWith(color: _goldBright.withValues(alpha: 0.9), height: 1.7),
+                      style: AppTypography.bodyMedium.copyWith(
+                          color: _goldBright.withValues(alpha: 0.9),
+                          height: 1.7),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -445,7 +504,9 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1B3D2A),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1B6B4A).withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF1B6B4A).withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       card.lesson,
@@ -469,7 +530,8 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _bgDark.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _goldDim.withValues(alpha: 0.15)),
+                        border:
+                            Border.all(color: _goldDim.withValues(alpha: 0.15)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,12 +539,16 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                           Row(
                             children: [
                               Container(
-                                width: 3, height: 16,
+                                width: 3,
+                                height: 16,
                                 decoration: BoxDecoration(
                                   color: _goldBright,
                                   borderRadius: BorderRadius.circular(2),
                                   boxShadow: [
-                                    BoxShadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 4),
+                                    BoxShadow(
+                                        color:
+                                            _glowColor.withValues(alpha: 0.4),
+                                        blurRadius: 4),
                                   ],
                                 ),
                               ),
@@ -531,19 +597,23 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _bgDark.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _goldDim.withValues(alpha: 0.15)),
+                        border:
+                            Border.all(color: _goldDim.withValues(alpha: 0.15)),
                       ),
                       child: Column(
                         children: [
                           Row(
                             children: [
                               Container(
-                                width: 8, height: 8,
+                                width: 8,
+                                height: 8,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: _gemBlue,
                                   boxShadow: [
-                                    BoxShadow(color: _gemBlue.withValues(alpha: 0.5), blurRadius: 6),
+                                    BoxShadow(
+                                        color: _gemBlue.withValues(alpha: 0.5),
+                                        blurRadius: 6),
                                   ],
                                 ),
                               ),
@@ -565,7 +635,9 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                               color: _goldBright,
                               fontSize: 22,
                               shadows: [
-                                Shadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 10),
+                                Shadow(
+                                    color: _glowColor.withValues(alpha: 0.4),
+                                    blurRadius: 10),
                               ],
                             ),
                             textDirection: TextDirection.rtl,
@@ -574,13 +646,16 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             card.duaTransliteration,
-                            style: AppTypography.bodyMedium.copyWith(color: _goldBright.withValues(alpha: 0.8), fontStyle: FontStyle.italic),
+                            style: AppTypography.bodyMedium.copyWith(
+                                color: _goldBright.withValues(alpha: 0.8),
+                                fontStyle: FontStyle.italic),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             card.duaTranslation,
-                            style: AppTypography.bodyMedium.copyWith(color: _goldBright.withValues(alpha: 0.75)),
+                            style: AppTypography.bodyMedium.copyWith(
+                                color: _goldBright.withValues(alpha: 0.75)),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -616,13 +691,22 @@ class GoldOrnateDetailSheet extends StatelessWidget {
                             duaSource: '',
                           );
                         },
-                        icon: Icon(Icons.share_outlined, size: 18, color: _goldBright),
-                        label: Text('Share this Name', style: TextStyle(color: _goldBright)),
+                        icon: const Icon(
+                          Icons.share_outlined,
+                          size: 18,
+                          color: _goldBright,
+                        ),
+                        label: const Text(
+                          'Share this Name',
+                          style: TextStyle(color: _goldBright),
+                        ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: _goldCore.withValues(alpha: 0.4)),
+                          side: BorderSide(
+                              color: _goldCore.withValues(alpha: 0.4)),
                           backgroundColor: _bgDark.withValues(alpha: 0.7),
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -640,19 +724,24 @@ class GoldOrnateDetailSheet extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.black.withValues(alpha: 0.4),
                   ),
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: _goldBright.withValues(alpha: 0.8), size: 22),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: _goldBright.withValues(alpha: 0.8), size: 22),
                 ),
               ),
             ),
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0, duration: 300.ms);
+    )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.05, end: 0, duration: 300.ms);
   }
 
   Widget _buildOrnateDivider() {
@@ -725,7 +814,8 @@ class _GoldArabesquePatternPainter extends CustomPainter {
           final py = cy + sin(angle) * r * 1.1;
           final petalPath = Path();
           final pr = r * 0.25;
-          petalPath.addOval(Rect.fromCircle(center: Offset(px, py), radius: pr));
+          petalPath
+              .addOval(Rect.fromCircle(center: Offset(px, py), radius: pr));
           canvas.drawPath(petalPath, petalPaint);
         }
 
@@ -733,7 +823,9 @@ class _GoldArabesquePatternPainter extends CustomPainter {
         canvas.drawCircle(
           Offset(cx, cy),
           1.5 * scale,
-          Paint()..color = color..style = PaintingStyle.fill,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.fill,
         );
       }
     }
@@ -783,7 +875,8 @@ class _GoldOrnateBorderPainter extends CustomPainter {
 
     const innerInset = 6.5;
     final innerRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
+      Rect.fromLTWH(
+          innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(7),
     );
     canvas.drawRRect(innerRect, innerPaint);
@@ -793,10 +886,14 @@ class _GoldOrnateBorderPainter extends CustomPainter {
       ..color = flourishColor
       ..style = PaintingStyle.fill;
 
-    _drawGoldCorner(canvas, flourishPaint, inset + 1, inset + 1, 12, false, false);
-    _drawGoldCorner(canvas, flourishPaint, w - inset - 1, inset + 1, 12, true, false);
-    _drawGoldCorner(canvas, flourishPaint, inset + 1, h - inset - 1, 12, false, true);
-    _drawGoldCorner(canvas, flourishPaint, w - inset - 1, h - inset - 1, 12, true, true);
+    _drawGoldCorner(
+        canvas, flourishPaint, inset + 1, inset + 1, 12, false, false);
+    _drawGoldCorner(
+        canvas, flourishPaint, w - inset - 1, inset + 1, 12, true, false);
+    _drawGoldCorner(
+        canvas, flourishPaint, inset + 1, h - inset - 1, 12, false, true);
+    _drawGoldCorner(
+        canvas, flourishPaint, w - inset - 1, h - inset - 1, 12, true, true);
 
     // Blue gem accents at mid-edges
     final gemPaint = Paint()
@@ -821,7 +918,8 @@ class _GoldOrnateBorderPainter extends CustomPainter {
     canvas.drawCircle(Offset(w - inset, h / 2), 1.8, gemPaint);
   }
 
-  void _drawGoldCorner(Canvas canvas, Paint paint, double x, double y, double size, bool flipX, bool flipY) {
+  void _drawGoldCorner(Canvas canvas, Paint paint, double x, double y,
+      double size, bool flipX, bool flipY) {
     final dx = flipX ? -1.0 : 1.0;
     final dy = flipY ? -1.0 : 1.0;
 
@@ -850,7 +948,12 @@ class _GoldOrnateBorderPainter extends CustomPainter {
     );
     // Small curl at end
     final hCurlEnd = Offset(x + size * dx * 0.7, y);
-    canvas.drawCircle(hCurlEnd, 1.2, Paint()..color = paint.color..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        hCurlEnd,
+        1.2,
+        Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill);
 
     // Vertical flourish
     canvas.drawLine(
@@ -859,7 +962,12 @@ class _GoldOrnateBorderPainter extends CustomPainter {
       linePaint,
     );
     final vCurlEnd = Offset(x, y + size * dy * 0.7);
-    canvas.drawCircle(vCurlEnd, 1.2, Paint()..color = paint.color..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        vCurlEnd,
+        1.2,
+        Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.fill);
   }
 
   @override
@@ -901,7 +1009,12 @@ class _DiamondFramePainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     const gs = 2.0;
-    for (final point in [Offset(cx, cy - r), Offset(cx + r, cy), Offset(cx, cy + r), Offset(cx - r, cy)]) {
+    for (final point in [
+      Offset(cx, cy - r),
+      Offset(cx + r, cy),
+      Offset(cx, cy + r),
+      Offset(cx - r, cy)
+    ]) {
       canvas.drawCircle(point, gs, gemPaint);
     }
   }
@@ -950,7 +1063,8 @@ class _GoldOrnateDetailBorderPainter extends CustomPainter {
 
     const innerInset = 10.0;
     final innerRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
+      Rect.fromLTWH(
+          innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(12),
     );
     canvas.drawRRect(innerRect, innerPaint);
@@ -963,14 +1077,25 @@ class _GoldOrnateDetailBorderPainter extends CustomPainter {
     // Diamond + gem at top
     const ds = 4.0;
     _drawDiamond(canvas, accentPaint, w / 2, inset, ds);
-    canvas.drawCircle(Offset(w / 2, inset), 2, Paint()..color = gemColor..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(w / 2, inset),
+        2,
+        Paint()
+          ..color = gemColor
+          ..style = PaintingStyle.fill);
 
     // Diamond + gem at bottom
     _drawDiamond(canvas, accentPaint, w / 2, h - inset, ds);
-    canvas.drawCircle(Offset(w / 2, h - inset), 2, Paint()..color = gemColor..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(w / 2, h - inset),
+        2,
+        Paint()
+          ..color = gemColor
+          ..style = PaintingStyle.fill);
   }
 
-  void _drawDiamond(Canvas canvas, Paint paint, double cx, double cy, double size) {
+  void _drawDiamond(
+      Canvas canvas, Paint paint, double cx, double cy, double size) {
     final path = Path()
       ..moveTo(cx, cy - size)
       ..lineTo(cx + size, cy)
@@ -1016,14 +1141,24 @@ class _GoldOrnateDividerPainter extends CustomPainter {
       ..lineTo(centerX, cy + ds)
       ..lineTo(centerX - ds, cy)
       ..close();
-    canvas.drawPath(diamond, Paint()..color = accentColor..style = PaintingStyle.fill);
+    canvas.drawPath(
+        diamond,
+        Paint()
+          ..color = accentColor
+          ..style = PaintingStyle.fill);
 
     // Blue gem in center of diamond
-    canvas.drawCircle(Offset(centerX, cy), 2, Paint()..color = gemColor..style = PaintingStyle.fill);
+    canvas.drawCircle(
+        Offset(centerX, cy),
+        2,
+        Paint()
+          ..color = gemColor
+          ..style = PaintingStyle.fill);
 
     // Lines
     canvas.drawLine(Offset(16, cy), Offset(centerX - ds - 6, cy), linePaint);
-    canvas.drawLine(Offset(centerX + ds + 6, cy), Offset(size.width - 16, cy), linePaint);
+    canvas.drawLine(
+        Offset(centerX + ds + 6, cy), Offset(size.width - 16, cy), linePaint);
 
     // End flourishes
     final dotPaint = Paint()
@@ -1041,7 +1176,11 @@ class _GoldOrnateDividerPainter extends CustomPainter {
         ..lineTo(px, cy + sds)
         ..lineTo(px - sds, cy)
         ..close();
-      canvas.drawPath(sm, Paint()..color = lineColor..style = PaintingStyle.fill);
+      canvas.drawPath(
+          sm,
+          Paint()
+            ..color = lineColor
+            ..style = PaintingStyle.fill);
     }
   }
 
