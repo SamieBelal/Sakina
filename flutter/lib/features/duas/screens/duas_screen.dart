@@ -328,14 +328,16 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     final isLast = state.buildCurrentSection >= breakdown.length - 1;
     final currentStep = state.buildCurrentSection;
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      child: KeyedSubtree(
-        key: ValueKey(currentStep),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.pagePadding),
-            child: Column(
+    return Stack(
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: KeyedSubtree(
+            key: ValueKey(currentStep),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
@@ -485,43 +487,38 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                     HapticFeedback.mediumImpact();
                     notifier.nextBuildSection();
                   }).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-                const SizedBox(height: 16),
-                // Back button
-                if (currentStep > 0)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        notifier.previousBuildSection();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceAltLight,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.arrow_back_ios_rounded, size: 14, color: AppColors.textSecondaryLight),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Back',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ).animate().fadeIn(duration: 300.ms, delay: 400.ms),
               ],
             ),
           ),
         ),
       ),
+    ),
+        if (currentStep > 0)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 16,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                notifier.previousBuildSection();
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceLight,
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  size: 18,
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ).animate().fadeIn(duration: 300.ms, delay: 400.ms),
+          ),
+      ],
     );
   }
 

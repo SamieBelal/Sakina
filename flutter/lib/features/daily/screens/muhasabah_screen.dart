@@ -109,7 +109,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: _buildContent(state, notifier),
+        child: Center(
+          child: SingleChildScrollView(
+            child: _buildContent(state, notifier),
+          ),
+        ),
       ),
     );
   }

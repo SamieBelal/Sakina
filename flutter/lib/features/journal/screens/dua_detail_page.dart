@@ -55,38 +55,42 @@ class DuaDetailPage extends StatelessWidget {
             // Top bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                    color: AppColors.textSecondaryLight,
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Dua',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.textSecondaryLight,
+                  Center(
+                    child: Text(
+                      'Dua',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  if (onRemove != null)
-                    IconButton(
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        onRemove!();
-                        Navigator.of(context).pop();
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                      color: AppColors.textTertiaryLight,
-                    ),
-                  Builder(builder: (btnContext) => IconButton(
-                    onPressed: () async {
-                      HapticFeedback.mediumImpact();
-                      final box = btnContext.findRenderObject() as RenderBox;
-                      final origin = box.localToGlobal(Offset.zero) & box.size;
-                      try {
-                        await shareReflectionCard(
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                        color: AppColors.textSecondaryLight,
+                      ),
+                      const Spacer(),
+                      if (onRemove != null)
+                        IconButton(
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            onRemove!();
+                            Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                          color: AppColors.textTertiaryLight,
+                        ),
+                      Builder(builder: (btnContext) => IconButton(
+                        onPressed: () async {
+                          HapticFeedback.mediumImpact();
+                          final box = btnContext.findRenderObject() as RenderBox;
+                          final origin = box.localToGlobal(Offset.zero) & box.size;
+                          try {
+                            await shareReflectionCard(
                           context: context,
                           nameArabic: '',
                           nameEnglish: title,
@@ -101,8 +105,10 @@ class DuaDetailPage extends StatelessWidget {
                       }
                     },
                     icon: const Icon(Icons.share_outlined, size: 20),
-                    color: AppColors.textSecondaryLight,
-                  )),
+                        color: AppColors.textSecondaryLight,
+                      )),
+                    ],
+                  ),
                 ],
               ),
             ),

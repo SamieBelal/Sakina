@@ -595,23 +595,17 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           notifier.previousStep();
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: AppColors.surfaceAltLight,
-            borderRadius: BorderRadius.circular(20),
+            shape: BoxShape.circle,
+            color: AppColors.surfaceLight,
+            border: Border.all(color: AppColors.borderLight),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.arrow_back_ios_rounded, size: 14, color: AppColors.textSecondaryLight),
-              const SizedBox(width: 4),
-              Text(
-                'Back',
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textSecondaryLight,
-                ),
-              ),
-            ],
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            size: 18,
+            color: AppColors.textSecondaryLight,
           ),
         ),
       ),
@@ -634,12 +628,43 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         stepWidget = _buildDuaStep(state, notifier);
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      child: KeyedSubtree(
-        key: ValueKey(state.currentStep),
-        child: stepWidget,
-      ),
+    final showBack = state.currentStep != ReflectStep.name;
+
+    return Stack(
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: KeyedSubtree(
+            key: ValueKey(state.currentStep),
+            child: stepWidget,
+          ),
+        ),
+        if (showBack)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 16,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                notifier.previousStep();
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceLight,
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  size: 18,
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ).animate().fadeIn(duration: 300.ms, delay: 400.ms),
+          ),
+      ],
     );
   }
 
@@ -882,8 +907,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildBackButton(notifier),
                   ],
                 ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
@@ -976,8 +999,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildBackButton(notifier),
                   ],
                 ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
@@ -1195,8 +1216,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 ),
                 textAlign: TextAlign.center,
               ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
-              const SizedBox(height: 16),
-              _buildBackButton(notifier),
                   ],
                 ),
                   ],

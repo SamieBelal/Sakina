@@ -318,27 +318,33 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               duration: 600.ms,
                               curve: Curves.easeOutBack,
                             ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
 
                         // Arabic calligraphy — the hero
-                        Text(
-                          widget.titleArabic,
-                          style: AppTypography.nameOfAllahDisplay.copyWith(
-                            fontSize: 72,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                color: AppColors.secondary.withValues(alpha: 0.6),
-                                blurRadius: 30,
+                        SizedBox(
+                          height: 100,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.titleArabic,
+                              style: AppTypography.nameOfAllahDisplay.copyWith(
+                                fontSize: 72,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: AppColors.secondary.withValues(alpha: 0.6),
+                                    blurRadius: 30,
+                                  ),
+                                  Shadow(
+                                    color: AppColors.secondary.withValues(alpha: 0.3),
+                                    blurRadius: 60,
+                                  ),
+                                ],
                               ),
-                              Shadow(
-                                color: AppColors.secondary.withValues(alpha: 0.3),
-                                blurRadius: 60,
-                              ),
-                            ],
+                              textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
                         )
                             .animate()
                             .fadeIn(delay: 400.ms, duration: 800.ms)
@@ -349,7 +355,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               duration: 700.ms,
                               curve: Curves.easeOutBack,
                             ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
 
                         // English title pill
                         Container(

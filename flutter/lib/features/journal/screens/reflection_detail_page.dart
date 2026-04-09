@@ -25,21 +25,25 @@ class ReflectionDetailPage extends StatelessWidget {
             // Top bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                    color: AppColors.textSecondaryLight,
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Reflection',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.textSecondaryLight,
+                  Center(
+                    child: Text(
+                      'Reflection',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                        color: AppColors.textSecondaryLight,
+                      ),
+                      const Spacer(),
                   if (onRemove != null)
                     IconButton(
                       onPressed: () {
@@ -75,6 +79,8 @@ class ReflectionDetailPage extends StatelessWidget {
                     icon: const Icon(Icons.share_outlined, size: 20),
                     color: AppColors.textSecondaryLight,
                   )),
+                    ],
+                  ),
                 ],
               ),
             ),

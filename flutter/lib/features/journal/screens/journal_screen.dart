@@ -686,7 +686,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return _ExpandableCard(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.of(context).push(
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(builder: (_) => ReflectionDetailPage(
             reflection: r,
             onRemove: () => ref.read(reflectProvider.notifier).deleteReflection(r.id),
@@ -783,7 +783,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return _ExpandableCard(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.of(context).push(
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(builder: (_) => DuaDetailPage.fromBuiltDua(d,
             onRemove: () => ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id),
           )),
@@ -839,7 +839,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return _ExpandableCard(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.of(context).push(
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(builder: (_) => DuaDetailPage.fromRelatedDua(d,
             onRemove: () => ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id),
           )),
