@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Reward types
 // ---------------------------------------------------------------------------
 
-enum RewardType { tokens, streakFreeze, guaranteedTierUp, tokensPlusTitle }
+enum RewardType { tokens, streakFreeze, tierUpScroll, tokensPlusTitle }
 
 class DayReward {
   final int day;
@@ -30,7 +30,7 @@ const List<DayReward> rewardSchedule = [
   DayReward(day: 3, type: RewardType.tokens, tokenAmount: 4, label: '4 Tokens', icon: 'token'),
   DayReward(day: 4, type: RewardType.streakFreeze, label: 'Streak Freeze', icon: 'freeze'),
   DayReward(day: 5, type: RewardType.tokens, tokenAmount: 5, label: '5 Tokens', icon: 'token'),
-  DayReward(day: 6, type: RewardType.guaranteedTierUp, label: 'Tier Up', icon: 'card'),
+  DayReward(day: 6, type: RewardType.tierUpScroll, label: '5 Scrolls', icon: 'scroll'),
   DayReward(day: 7, type: RewardType.tokensPlusTitle, tokenAmount: 8, label: '8 + Title', icon: 'star'),
 ];
 
@@ -48,9 +48,6 @@ class DailyRewardsState {
   /// Whether user owns an unused streak freeze
   final bool streakFreezeOwned;
 
-  /// Next check-in will force a Rare+ card
-  final bool guaranteedTierUpFlag;
-
   /// Whether today's reward has already been claimed
   final bool claimedToday;
 
@@ -58,7 +55,6 @@ class DailyRewardsState {
     this.currentDay = 0,
     this.lastClaimDate,
     this.streakFreezeOwned = false,
-    this.guaranteedTierUpFlag = false,
     this.claimedToday = false,
   });
 
@@ -66,14 +62,12 @@ class DailyRewardsState {
     int? currentDay,
     String? lastClaimDate,
     bool? streakFreezeOwned,
-    bool? guaranteedTierUpFlag,
     bool? claimedToday,
   }) {
     return DailyRewardsState(
       currentDay: currentDay ?? this.currentDay,
       lastClaimDate: lastClaimDate ?? this.lastClaimDate,
       streakFreezeOwned: streakFreezeOwned ?? this.streakFreezeOwned,
-      guaranteedTierUpFlag: guaranteedTierUpFlag ?? this.guaranteedTierUpFlag,
       claimedToday: claimedToday ?? this.claimedToday,
     );
   }
@@ -93,7 +87,7 @@ class DailyRewardClaimResult {
   final int day;
   final int tokensAwarded;
   final bool earnedStreakFreeze;
-  final bool earnedGuaranteedRare;
+  final bool earnedTierUpScroll;
   final bool earnedProfileTitle;
   final bool alreadyClaimed;
 
@@ -101,7 +95,7 @@ class DailyRewardClaimResult {
     required this.day,
     this.tokensAwarded = 0,
     this.earnedStreakFreeze = false,
-    this.earnedGuaranteedRare = false,
+    this.earnedTierUpScroll = false,
     this.earnedProfileTitle = false,
     this.alreadyClaimed = false,
   });
@@ -135,19 +129,17 @@ Future<DailyRewardsState> getDailyRewards() async {
   final lastClaim = data['lastClaimDate'] as String?;
   final currentDay = data['currentDay'] as int? ?? 0;
   final freezeOwned = data['streakFreezeOwned'] as bool? ?? false;
-  final rareFlag = data['guaranteedTierUpFlag'] as bool? ?? false;
 
   final today = _today();
   final yesterday = _yesterday();
 
   // Check if calendar should reset
   if (lastClaim != null && lastClaim != today && lastClaim != yesterday) {
-    // Missed more than a day — reset calendar (but keep freeze/rare if owned)
+    // Missed more than a day — reset calendar (but keep freeze if owned)
     return DailyRewardsState(
       currentDay: 0,
       lastClaimDate: lastClaim,
       streakFreezeOwned: freezeOwned,
-      guaranteedTierUpFlag: rareFlag,
       claimedToday: false,
     );
   }
@@ -156,7 +148,6 @@ Future<DailyRewardsState> getDailyRewards() async {
     currentDay: currentDay,
     lastClaimDate: lastClaim,
     streakFreezeOwned: freezeOwned,
-    guaranteedTierUpFlag: rareFlag,
     claimedToday: lastClaim == today,
   );
 }
@@ -169,7 +160,6 @@ Future<void> _persist(DailyRewardsState state) async {
       'currentDay': state.currentDay,
       'lastClaimDate': state.lastClaimDate,
       'streakFreezeOwned': state.streakFreezeOwned,
-      'guaranteedTierUpFlag': state.guaranteedTierUpFlag,
     }),
   );
 }
@@ -195,13 +185,12 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     currentDay: nextDay,
     lastClaimDate: today,
     streakFreezeOwned: state.streakFreezeOwned,
-    guaranteedTierUpFlag: state.guaranteedTierUpFlag,
     claimedToday: true,
   );
 
   // Apply reward-specific state changes
   bool earnedFreeze = false;
-  bool earnedRare = false;
+  bool earnedScroll = false;
   bool earnedTitle = false;
 
   switch (reward.type) {
@@ -209,9 +198,8 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       newState = newState.copyWith(streakFreezeOwned: true);
       earnedFreeze = true;
       break;
-    case RewardType.guaranteedTierUp:
-      newState = newState.copyWith(guaranteedTierUpFlag: true);
-      earnedRare = true;
+    case RewardType.tierUpScroll:
+      earnedScroll = true;
       break;
     case RewardType.tokensPlusTitle:
       earnedTitle = true;
@@ -226,7 +214,7 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     day: nextDay,
     tokensAwarded: reward.tokenAmount,
     earnedStreakFreeze: earnedFreeze,
-    earnedGuaranteedRare: earnedRare,
+    earnedTierUpScroll: earnedScroll,
     earnedProfileTitle: earnedTitle,
   );
 }
@@ -240,10 +228,3 @@ Future<bool> consumeStreakFreeze() async {
   return true;
 }
 
-Future<void> clearGuaranteedTierUp() async {
-  final state = await getDailyRewards();
-  if (!state.guaranteedTierUpFlag) return;
-
-  final newState = state.copyWith(guaranteedTierUpFlag: false);
-  await _persist(newState);
-}

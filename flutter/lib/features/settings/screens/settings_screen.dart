@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -11,6 +12,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/core/app_session.dart';
@@ -29,6 +31,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   XpState? _xpState;
   StreakState? _streakState;
   List<String> _anchorNames = [];
+  List<String> _unlockedTitles = [];
+  String _displayTitle = 'Seeker';
+  String _displayTitleArabic = 'طَالِب';
+  bool _isAutoTitle = true;
   bool _notificationsEnabled = true;
   bool _loading = true;
 
@@ -41,6 +47,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _loadData() async {
     final xp = await getXp();
     final streak = await getStreak();
+    await initializeUnlockedTitles(xp.level);
+    final displayTitle = await getDisplayTitle(xp.level);
+    final unlockedTitles = await getUnlockedTitles();
 
     final prefs = await SharedPreferences.getInstance();
     final anchorsJson = prefs.getString('anchor_names');
@@ -63,6 +72,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _xpState = xp;
       _streakState = streak;
       _anchorNames = anchors;
+      _unlockedTitles = unlockedTitles;
+      _displayTitle = displayTitle.title;
+      _displayTitleArabic = displayTitle.titleArabic;
+      _isAutoTitle = displayTitle.isAuto;
       _loading = false;
     });
   }
@@ -240,6 +253,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     _buildStatsRow(),
                     const SizedBox(height: AppSpacing.xl),
+                    _buildTitleSelector(),
+                    const SizedBox(height: AppSpacing.xl),
                     _buildAnchorNamesSection(),
                     const SizedBox(height: AppSpacing.xl),
                     _buildSettingsList(),
@@ -306,7 +321,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildStatsRow() {
     final streak = _streakState?.currentStreak ?? 0;
     final xp = _xpState?.totalXp ?? 0;
-    final level = _xpState?.title ?? 'Seeker';
+    final level = _displayTitle;
 
     return Row(
       children: [
@@ -352,6 +367,233 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTitleSelector() {
+    return GestureDetector(
+      onTap: _showTitlePicker,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(color: AppColors.borderLight, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Title',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _displayTitle,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (_isAutoTitle)
+                    Text(
+                      'Auto (follows rank)',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiaryLight,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Text(
+              _displayTitleArabic,
+              style: AppTypography.nameOfAllahDisplay.copyWith(
+                fontSize: 28,
+                color: AppColors.primary,
+              ),
+              textDirection: TextDirection.rtl,
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.edit_outlined, size: 16, color: AppColors.textTertiaryLight),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTitlePicker() {
+    final currentLevel = _xpState?.level ?? 1;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Choose Your Title',
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Auto option
+            _titleOption(
+              title: 'Auto (Current Rank)',
+              subtitle: 'Follows your level',
+              isSelected: _isAutoTitle,
+              isUnlocked: true,
+              onTap: () async {
+                await setAutoTitle();
+                Navigator.of(sheetCtx).pop();
+                await _loadData();
+              },
+            ),
+            const Divider(height: 24),
+
+            // Title list — level titles + streak titles
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  // Level milestone titles
+                  ...xpLevels.where((l) => l.unlocksTitle).map((level) {
+                    final isUnlocked = _unlockedTitles.contains(level.title);
+                    final isSelected = !_isAutoTitle && _displayTitle == level.title;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _titleOption(
+                        title: level.title,
+                        titleArabic: level.titleArabic,
+                        subtitle: isUnlocked ? null : 'Reach Level ${level.level}',
+                        isSelected: isSelected,
+                        isUnlocked: isUnlocked,
+                        onTap: isUnlocked ? () async {
+                          await selectTitle(level.title);
+                          Navigator.of(sheetCtx).pop();
+                          await _loadData();
+                        } : null,
+                      ),
+                    );
+                  }),
+
+                  // Streak milestone titles
+                  ...streakMilestones.where((m) => m.titleUnlock != null).map((milestone) {
+                    final isUnlocked = _unlockedTitles.contains(milestone.titleUnlock!);
+                    final isSelected = !_isAutoTitle && _displayTitle == milestone.titleUnlock;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _titleOption(
+                        title: milestone.titleUnlock!,
+                        titleArabic: milestone.titleUnlockArabic,
+                        subtitle: isUnlocked ? null : '${milestone.days}-day streak',
+                        isSelected: isSelected,
+                        isUnlocked: isUnlocked,
+                        onTap: isUnlocked ? () async {
+                          await selectTitle(milestone.titleUnlock!);
+                          Navigator.of(sheetCtx).pop();
+                          await _loadData();
+                        } : null,
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _titleOption({
+    required String title,
+    String? titleArabic,
+    String? subtitle,
+    required bool isSelected,
+    required bool isUnlocked,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryLight : (isUnlocked ? AppColors.surfaceLight : AppColors.surfaceAltLight),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.borderLight,
+            width: isSelected ? 1.5 : 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: isUnlocked ? AppColors.textPrimaryLight : AppColors.textTertiaryLight,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiaryLight,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (titleArabic != null)
+              Text(
+                titleArabic,
+                style: AppTypography.nameOfAllahDisplay.copyWith(
+                  fontSize: 20,
+                  color: isUnlocked ? AppColors.primary : AppColors.textTertiaryLight.withValues(alpha: 0.5),
+                ),
+                textDirection: TextDirection.rtl,
+              ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.check_circle, size: 20, color: AppColors.primary),
+            ],
+            if (!isUnlocked) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.lock_outline, size: 16, color: AppColors.textTertiaryLight),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -441,6 +683,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Store
+        _buildSettingsCard([
+          _buildSettingsRow(
+            icon: Icons.storefront_rounded,
+            label: 'Store',
+            onTap: () => context.push('/store'),
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.lg),
+
         // Account
         _buildSectionLabel('Account'),
         const SizedBox(height: AppSpacing.sm),

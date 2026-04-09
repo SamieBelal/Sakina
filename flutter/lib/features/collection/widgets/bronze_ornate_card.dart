@@ -36,7 +36,7 @@ class BronzeOrnateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
+    Widget tile = AspectRatio(
       aspectRatio: 0.72,
       child: Container(
         decoration: BoxDecoration(
@@ -254,6 +254,17 @@ class BronzeOrnateTile extends StatelessWidget {
         ),
       ),
     );
+
+    if (unseen) {
+      tile = tile
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 2200.ms,
+            color: _glowColor.withValues(alpha: 0.2),
+          );
+    }
+
+    return tile;
   }
 }
 
@@ -266,10 +277,18 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
     super.key,
     required this.card,
     required this.tier,
+    this.canUpgrade = false,
+    this.onUpgrade,
+    this.scrollCost = 0,
+    this.isMaxTier = true,
   });
 
   final CollectibleName card;
   final CardTier tier;
+  final bool canUpgrade;
+  final VoidCallback? onUpgrade;
+  final int scrollCost;
+  final bool isMaxTier;
 
   static const _bgDark = Color(0xFF2A1F1A);
   static const _bgMid = Color(0xFF382A22);
@@ -732,16 +751,32 @@ class BronzeOrnateDetailSheet extends StatelessWidget {
                     ],
                   ],
 
-                  // Upgrade hint
-                  if (tier.number < 3) ...[
+                  // Upgrade (only on max tier cards)
+                  if (isMaxTier && tier.number < 3) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      tier.number < 2
-                          ? 'Encounter this Name again to unlock the Prophetic Teaching'
-                          : 'Encounter this Name again to unlock the Dua',
-                      style: AppTypography.bodySmall.copyWith(color: _bronzeDim),
-                      textAlign: TextAlign.center,
-                    ),
+                    if (onUpgrade != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: onUpgrade,
+                          icon: const Icon(Icons.receipt_long, size: 18),
+                          label: Text('Upgrade ($scrollCost Scrolls)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _bronzeCore,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        tier.number < 2
+                            ? 'Earn a Tier Up Scroll to unlock the Prophetic Teaching'
+                            : 'Earn a Tier Up Scroll to unlock the Dua',
+                        style: AppTypography.bodySmall.copyWith(color: _bronzeDim),
+                        textAlign: TextAlign.center,
+                      ),
                   ],
 
                   const SizedBox(height: AppSpacing.lg),

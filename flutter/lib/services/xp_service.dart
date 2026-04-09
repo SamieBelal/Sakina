@@ -5,12 +5,18 @@ class XpLevel {
   final String title;
   final String titleArabic;
   final int minXp;
+  final int tokenReward;
+  final int scrollReward;
+  final bool unlocksTitle;
 
   const XpLevel({
     required this.level,
     required this.title,
     required this.titleArabic,
     required this.minXp,
+    this.tokenReward = 5,
+    this.scrollReward = 0,
+    this.unlocksTitle = false,
   });
 }
 
@@ -32,31 +38,73 @@ class XpState {
   });
 }
 
+class LevelUpRewards {
+  final int tokensAwarded;
+  final int scrollsAwarded;
+  final bool titleUnlocked;
+  final String? unlockedTitle;
+  final String? unlockedTitleArabic;
+
+  const LevelUpRewards({
+    required this.tokensAwarded,
+    required this.scrollsAwarded,
+    required this.titleUnlocked,
+    this.unlockedTitle,
+    this.unlockedTitleArabic,
+  });
+}
+
 class XpAwardResult {
   final int gained;
   final int newTotal;
   final bool leveledUp;
   final XpState state;
+  final LevelUpRewards? rewards;
 
   const XpAwardResult({
     required this.gained,
     required this.newTotal,
     required this.leveledUp,
     required this.state,
+    this.rewards,
   });
 }
 
 const List<XpLevel> xpLevels = [
-  XpLevel(level: 1,  title: 'Seeker',         titleArabic: 'طَالِب',      minXp: 0),
-  XpLevel(level: 2,  title: 'Repentant',       titleArabic: 'تَائِب',      minXp: 50),
-  XpLevel(level: 3,  title: 'Grateful',        titleArabic: 'شَاكِر',      minXp: 150),
-  XpLevel(level: 4,  title: 'Patient',         titleArabic: 'صَابِر',      minXp: 300),
-  XpLevel(level: 5,  title: 'Devoted',         titleArabic: 'مُخْلِص',     minXp: 500),
-  XpLevel(level: 6,  title: 'Rememberer',      titleArabic: 'ذَاكِر',      minXp: 750),
-  XpLevel(level: 7,  title: 'Humble',          titleArabic: 'خَاشِع',      minXp: 1050),
-  XpLevel(level: 8,  title: 'Trusting',        titleArabic: 'مُتَوَكِّل',  minXp: 1400),
-  XpLevel(level: 9,  title: 'Beloved',         titleArabic: 'مَحْبُوب',    minXp: 1800),
-  XpLevel(level: 10, title: 'Friend of Allah', titleArabic: 'وَلِيّ',      minXp: 2250),
+  // Levels 1-5: first week (fast)
+  XpLevel(level: 1,  title: 'Seeker',           titleArabic: 'طَالِب',       minXp: 0,     tokenReward: 5,  scrollReward: 0,  unlocksTitle: true),
+  XpLevel(level: 2,  title: 'Listener',         titleArabic: 'مُسْتَمِع',    minXp: 30,    tokenReward: 5,  scrollReward: 0),
+  XpLevel(level: 3,  title: 'Repentant',        titleArabic: 'تَائِب',       minXp: 70,    tokenReward: 5,  scrollReward: 0),
+  XpLevel(level: 4,  title: 'Hopeful',          titleArabic: 'رَاجٍ',        minXp: 120,   tokenReward: 5,  scrollReward: 0),
+  XpLevel(level: 5,  title: 'Grateful',         titleArabic: 'شَاكِر',       minXp: 180,   tokenReward: 5,  scrollReward: 2,  unlocksTitle: true),
+
+  // Levels 6-10: 1-2 weeks per level
+  XpLevel(level: 6,  title: 'Patient',          titleArabic: 'صَابِر',       minXp: 250,   tokenReward: 6,  scrollReward: 0),
+  XpLevel(level: 7,  title: 'Mindful',          titleArabic: 'مُتَأَمِّل',   minXp: 350,   tokenReward: 6,  scrollReward: 0),
+  XpLevel(level: 8,  title: 'Devoted',          titleArabic: 'مُخْلِص',      minXp: 470,   tokenReward: 7,  scrollReward: 0),
+  XpLevel(level: 9,  title: 'Rememberer',       titleArabic: 'ذَاكِر',       minXp: 620,   tokenReward: 7,  scrollReward: 0),
+  XpLevel(level: 10, title: 'Humble',           titleArabic: 'خَاشِع',       minXp: 800,   tokenReward: 8,  scrollReward: 5,  unlocksTitle: true),
+
+  // Levels 11-15: 2-3 weeks per level
+  XpLevel(level: 11, title: 'Steadfast',        titleArabic: 'ثَابِت',       minXp: 1000,  tokenReward: 8,  scrollReward: 0),
+  XpLevel(level: 12, title: 'Reflective',       titleArabic: 'مُتَفَكِّر',   minXp: 1250,  tokenReward: 9,  scrollReward: 0),
+  XpLevel(level: 13, title: 'Trusting',         titleArabic: 'مُتَوَكِّل',   minXp: 1550,  tokenReward: 9,  scrollReward: 0),
+  XpLevel(level: 14, title: 'Generous',         titleArabic: 'كَرِيم',       minXp: 1900,  tokenReward: 10, scrollReward: 0),
+  XpLevel(level: 15, title: 'Contented',        titleArabic: 'رَاضٍ',        minXp: 2300,  tokenReward: 10, scrollReward: 3,  unlocksTitle: true),
+
+  // Levels 16-20: monthly per level
+  XpLevel(level: 16, title: 'Yearning',         titleArabic: 'مُشْتَاق',     minXp: 2750,  tokenReward: 11, scrollReward: 0),
+  XpLevel(level: 17, title: 'Awakened',         titleArabic: 'مُتَيَقِّظ',   minXp: 3300,  tokenReward: 11, scrollReward: 0),
+  XpLevel(level: 18, title: 'Purified',         titleArabic: 'مُزَكَّى',     minXp: 3950,  tokenReward: 12, scrollReward: 0),
+  XpLevel(level: 19, title: 'Luminous',         titleArabic: 'مُنِير',       minXp: 4700,  tokenReward: 12, scrollReward: 0),
+  XpLevel(level: 20, title: 'Beloved',          titleArabic: 'مَحْبُوب',     minXp: 5550,  tokenReward: 13, scrollReward: 7,  unlocksTitle: true),
+
+  // Levels 21-25: months per level
+  XpLevel(level: 21, title: 'Guided',           titleArabic: 'مَهْدِيّ',     minXp: 6500,  tokenReward: 13, scrollReward: 0),
+  XpLevel(level: 22, title: 'Surrendered',      titleArabic: 'مُسْتَسْلِم',  minXp: 7600,  tokenReward: 14, scrollReward: 0),
+  XpLevel(level: 23, title: 'Radiant',          titleArabic: 'مُتَأَلِّق',   minXp: 8900,  tokenReward: 14, scrollReward: 0),
+  XpLevel(level: 24, title: 'Intimate',         titleArabic: 'قَرِيب',       minXp: 10400, tokenReward: 15, scrollReward: 0),
+  XpLevel(level: 25, title: 'Friend of Allah',  titleArabic: 'وَلِيّ',       minXp: 12000, tokenReward: 15, scrollReward: 10, unlocksTitle: true),
 ];
 
 // XP Awards
@@ -69,7 +117,7 @@ const int xpBuiltDuaCompleted = 15;
 
 const String _xpKey = 'sakina_total_xp';
 
-XpState _calculateState(int total) {
+XpState calculateXpState(int total) {
   XpLevel current = xpLevels.first;
   for (final level in xpLevels) {
     if (total >= level.minXp) {
@@ -85,7 +133,6 @@ XpState _calculateState(int total) {
   if (current.level < xpLevels.length) {
     xpForNextLevel = xpLevels[current.level].minXp - current.minXp;
   } else {
-    // Max level — no next level
     xpForNextLevel = 0;
   }
 
@@ -99,24 +146,46 @@ XpState _calculateState(int total) {
   );
 }
 
+String nextLevelTitle(int totalXp) {
+  final state = calculateXpState(totalXp);
+  if (state.level < xpLevels.length) {
+    return xpLevels[state.level].title;
+  }
+  return '';
+}
+
 Future<XpState> getXp() async {
   final prefs = await SharedPreferences.getInstance();
   final total = prefs.getInt(_xpKey) ?? 0;
-  return _calculateState(total);
+  return calculateXpState(total);
 }
 
 Future<XpAwardResult> awardXp(int amount) async {
   final prefs = await SharedPreferences.getInstance();
   final oldTotal = prefs.getInt(_xpKey) ?? 0;
-  final oldState = _calculateState(oldTotal);
+  final oldState = calculateXpState(oldTotal);
   final newTotal = oldTotal + amount;
   await prefs.setInt(_xpKey, newTotal);
-  final newState = _calculateState(newTotal);
+  final newState = calculateXpState(newTotal);
+
+  final didLevel = newState.level > oldState.level;
+  LevelUpRewards? rewards;
+  if (didLevel) {
+    final newLevel = xpLevels[newState.level - 1];
+    rewards = LevelUpRewards(
+      tokensAwarded: newLevel.tokenReward,
+      scrollsAwarded: newLevel.scrollReward,
+      titleUnlocked: newLevel.unlocksTitle,
+      unlockedTitle: newLevel.unlocksTitle ? newLevel.title : null,
+      unlockedTitleArabic: newLevel.unlocksTitle ? newLevel.titleArabic : null,
+    );
+  }
 
   return XpAwardResult(
     gained: amount,
     newTotal: newTotal,
-    leveledUp: newState.level > oldState.level,
+    leveledUp: didLevel,
     state: newState,
+    rewards: rewards,
   );
 }

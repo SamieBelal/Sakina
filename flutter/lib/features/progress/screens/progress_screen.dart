@@ -17,6 +17,7 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
@@ -229,26 +230,55 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
             const SizedBox(width: 6),
 
-            // Token pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.secondaryLight,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.toll, size: 14, color: AppColors.secondary),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${state.tokenBalance}',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w700,
+            // Token pill (tappable → store)
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/store');
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.toll, size: 14, color: AppColors.secondary),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${state.tokenBalance}',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // Store icon
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.push('/store');
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceAltLight,
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  size: 18,
+                  color: AppColors.textSecondaryLight,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -358,6 +388,28 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
           ),
         ),
+        // Store
+        GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            context.push('/store');
+          },
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceAltLight,
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: const Icon(
+              Icons.storefront_rounded,
+              size: 18,
+              color: AppColors.textSecondaryLight,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
         // Settings gear
         GestureDetector(
           onTap: () {
@@ -516,19 +568,33 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              // Quests pill
+              // Scroll pill (tappable → store)
               GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  context.push('/quests');
+                  context.push('/store');
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEDE9FE),
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.emoji_events_rounded, size: 12, color: Color(0xFF7C3AED)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.receipt_long, size: 12, color: Color(0xFF3B82F6)),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${ref.watch(tierUpScrollProvider).balance}',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: const Color(0xFF3B82F6),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -619,6 +685,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           Container(height: 1, color: AppColors.dividerLight),
           const SizedBox(height: 14),
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               HapticFeedback.lightImpact();
               GoRouter.of(context).push('/quests');
@@ -659,6 +726,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             Container(height: 1, color: AppColors.dividerLight),
             const SizedBox(height: 14),
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () {
                 HapticFeedback.lightImpact();
                 GoRouter.of(context).push('/discovery-quiz');
@@ -872,6 +940,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             }
           }
         },
+        behavior: HitTestBehavior.opaque,
         child: Row(
           children: [
             Icon(Icons.explore_outlined, color: AppColors.secondary, size: 20),
@@ -1335,8 +1404,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     switch (reward.icon) {
       case 'freeze':
         return const Icon(Icons.ac_unit, size: 15, color: Color(0xFF60A5FA));
-      case 'card':
-        return const Icon(Icons.style, size: 15, color: Color(0xFF7C3AED));
+      case 'scroll':
+        return const Icon(Icons.receipt_long, size: 15, color: Color(0xFF3B82F6));
       case 'star':
         return const Icon(Icons.star_rounded, size: 16, color: AppColors.secondary);
       case 'token':
@@ -2545,26 +2614,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   ({int xpIntoCurrentLevel, int xpForNextLevel}) _calculateXpProgress(int total) {
-    XpLevel current = xpLevels.first;
-    for (final level in xpLevels) {
-      if (total >= level.minXp) current = level;
-    }
-    final int into = total - current.minXp;
-    final int forNext = current.level < xpLevels.length
-        ? xpLevels[current.level].minXp - current.minXp
-        : 0;
-    return (xpIntoCurrentLevel: into, xpForNextLevel: forNext);
+    final state = calculateXpState(total);
+    return (xpIntoCurrentLevel: state.xpIntoCurrentLevel, xpForNextLevel: state.xpForNextLevel);
   }
 
   String _nextLevelTitle(int total) {
-    XpLevel current = xpLevels.first;
-    for (final level in xpLevels) {
-      if (total >= level.minXp) current = level;
-    }
-    if (current.level < xpLevels.length) {
-      return xpLevels[current.level].title;
-    }
-    return '';
+    return nextLevelTitle(total);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

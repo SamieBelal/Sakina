@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 
 // ---------------------------------------------------------------------------
 // Achievement definition
@@ -15,6 +16,7 @@ class Achievement {
   final IconData icon;
   final AchievementCategory category;
   final Color color;
+  final int scrollReward;
 
   const Achievement({
     required this.id,
@@ -23,6 +25,7 @@ class Achievement {
     required this.icon,
     required this.category,
     required this.color,
+    this.scrollReward = 0,
   });
 }
 
@@ -40,6 +43,7 @@ const allAchievements = <Achievement>[
     icon: Icons.spa_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFF1B6B4A),
+    scrollReward: 1,
   ),
   Achievement(
     id: 'bronze_10',
@@ -48,6 +52,7 @@ const allAchievements = <Achievement>[
     icon: Icons.grid_view_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFFCD7F32),
+    scrollReward: 2,
   ),
   Achievement(
     id: 'bronze_all',
@@ -56,6 +61,7 @@ const allAchievements = <Achievement>[
     icon: Icons.stars_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFFCD7F32),
+    scrollReward: 10,
   ),
   Achievement(
     id: 'silver_10',
@@ -64,6 +70,7 @@ const allAchievements = <Achievement>[
     icon: Icons.military_tech_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFFC0C0C0),
+    scrollReward: 3,
   ),
   Achievement(
     id: 'gold_first',
@@ -72,6 +79,7 @@ const allAchievements = <Achievement>[
     icon: Icons.emoji_events_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFFD4A44C),
+    scrollReward: 2,
   ),
   Achievement(
     id: 'gold_all',
@@ -80,6 +88,7 @@ const allAchievements = <Achievement>[
     icon: Icons.workspace_premium_rounded,
     category: AchievementCategory.collection,
     color: Color(0xFFD4A44C),
+    scrollReward: 15,
   ),
 
   // ── Reflection (5) ─────────────────────────────────────────────────────────
@@ -91,6 +100,7 @@ const allAchievements = <Achievement>[
     icon: Icons.auto_stories_rounded,
     category: AchievementCategory.reflection,
     color: Color(0xFF1B6B4A),
+    scrollReward: 1,
   ),
   Achievement(
     id: 'reflect_10',
@@ -99,6 +109,7 @@ const allAchievements = <Achievement>[
     icon: Icons.auto_stories_rounded,
     category: AchievementCategory.reflection,
     color: Color(0xFF1B6B4A),
+    scrollReward: 2,
   ),
   Achievement(
     id: 'reflect_50',
@@ -107,6 +118,7 @@ const allAchievements = <Achievement>[
     icon: Icons.favorite_rounded,
     category: AchievementCategory.reflection,
     color: Color(0xFF1B6B4A),
+    scrollReward: 5,
   ),
   Achievement(
     id: 'emotions_all',
@@ -115,6 +127,7 @@ const allAchievements = <Achievement>[
     icon: Icons.palette_rounded,
     category: AchievementCategory.reflection,
     color: Color(0xFF6B4E9B),
+    scrollReward: 3,
   ),
   Achievement(
     id: 'unique_names_10',
@@ -123,6 +136,7 @@ const allAchievements = <Achievement>[
     icon: Icons.auto_awesome,
     category: AchievementCategory.reflection,
     color: Color(0xFFC8985E),
+    scrollReward: 2,
   ),
 
   // ── Dua (4) ────────────────────────────────────────────────────────────────
@@ -134,6 +148,7 @@ const allAchievements = <Achievement>[
     icon: Icons.auto_awesome,
     category: AchievementCategory.dua,
     color: Color(0xFFC8985E),
+    scrollReward: 1,
   ),
   Achievement(
     id: 'dua_10',
@@ -142,6 +157,7 @@ const allAchievements = <Achievement>[
     icon: Icons.auto_awesome,
     category: AchievementCategory.dua,
     color: Color(0xFFC8985E),
+    scrollReward: 2,
   ),
   Achievement(
     id: 'dua_50',
@@ -150,6 +166,7 @@ const allAchievements = <Achievement>[
     icon: Icons.brightness_3_rounded,
     category: AchievementCategory.dua,
     color: Color(0xFFC8985E),
+    scrollReward: 5,
   ),
   Achievement(
     id: 'dua_100',
@@ -158,6 +175,7 @@ const allAchievements = <Achievement>[
     icon: Icons.all_inclusive_rounded,
     category: AchievementCategory.dua,
     color: Color(0xFFC8985E),
+    scrollReward: 8,
   ),
 
   // ── Streak (5) ─────────────────────────────────────────────────────────────
@@ -169,6 +187,7 @@ const allAchievements = <Achievement>[
     icon: Icons.local_fire_department,
     category: AchievementCategory.streak,
     color: Color(0xFFF59E0B),
+    scrollReward: 1,
   ),
   Achievement(
     id: 'streak_30',
@@ -177,6 +196,7 @@ const allAchievements = <Achievement>[
     icon: Icons.local_fire_department,
     category: AchievementCategory.streak,
     color: Color(0xFFF59E0B),
+    scrollReward: 3,
   ),
   Achievement(
     id: 'streak_100',
@@ -185,6 +205,7 @@ const allAchievements = <Achievement>[
     icon: Icons.local_fire_department,
     category: AchievementCategory.streak,
     color: Color(0xFFF59E0B),
+    scrollReward: 5,
   ),
   Achievement(
     id: 'streak_365',
@@ -193,6 +214,7 @@ const allAchievements = <Achievement>[
     icon: Icons.whatshot_rounded,
     category: AchievementCategory.streak,
     color: Color(0xFFF59E0B),
+    scrollReward: 10,
   ),
   Achievement(
     id: 'comeback',
@@ -201,33 +223,55 @@ const allAchievements = <Achievement>[
     icon: Icons.replay_rounded,
     category: AchievementCategory.streak,
     color: Color(0xFF1B6B4A),
+    scrollReward: 1,
   ),
 
-  // ── Growth (5) ─────────────────────────────────────────────────────────────
+  // ── Growth & Levels ─────────────────────────────────────────────────────────
 
   Achievement(
     id: 'level_5',
-    title: 'Devoted',
-    description: 'Reach Level 5 — Devoted.',
+    title: 'Grateful',
+    description: 'Reach Level 5 — Grateful.',
     icon: Icons.trending_up_rounded,
     category: AchievementCategory.growth,
     color: Color(0xFF1B6B4A),
+    scrollReward: 1,
   ),
   Achievement(
     id: 'level_10',
+    title: 'Humble',
+    description: 'Reach Level 10 — Humble.',
+    icon: Icons.trending_up_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFF1B6B4A),
+    scrollReward: 2,
+  ),
+  Achievement(
+    id: 'level_15',
+    title: 'Contented',
+    description: 'Reach Level 15 — Contented.',
+    icon: Icons.trending_up_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFF1B6B4A),
+    scrollReward: 3,
+  ),
+  Achievement(
+    id: 'level_20',
+    title: 'Beloved',
+    description: 'Reach Level 20 — Beloved.',
+    icon: Icons.trending_up_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFFD4A44C),
+    scrollReward: 5,
+  ),
+  Achievement(
+    id: 'level_25',
     title: 'Friend of Allah',
-    description: 'Reach Level 10 — the highest rank.',
+    description: 'Reach Level 25 — the highest rank.',
     icon: Icons.workspace_premium_rounded,
     category: AchievementCategory.growth,
     color: Color(0xFFD4A44C),
-  ),
-  Achievement(
-    id: 'xp_1000',
-    title: 'Thousand Steps',
-    description: 'Earn 1,000 total XP.',
-    icon: Icons.bolt_rounded,
-    category: AchievementCategory.growth,
-    color: Color(0xFF1B6B4A),
+    scrollReward: 10,
   ),
   Achievement(
     id: 'journal_25',
@@ -236,6 +280,7 @@ const allAchievements = <Achievement>[
     icon: Icons.bookmark_rounded,
     category: AchievementCategory.growth,
     color: Color(0xFF6B4E9B),
+    scrollReward: 2,
   ),
   Achievement(
     id: 'all_quests_day',
@@ -244,6 +289,139 @@ const allAchievements = <Achievement>[
     icon: Icons.check_circle_rounded,
     category: AchievementCategory.growth,
     color: Color(0xFF1B6B4A),
+    scrollReward: 2,
+  ),
+
+  // ── Scrolls & Upgrading ───────────────────────────────────────────────────
+
+  Achievement(
+    id: 'first_upgrade',
+    title: 'First Upgrade',
+    description: 'Use a Tier Up Scroll for the first time.',
+    icon: Icons.receipt_long,
+    category: AchievementCategory.collection,
+    color: Color(0xFF3B82F6),
+    scrollReward: 1,
+  ),
+  Achievement(
+    id: 'silver_5',
+    title: 'Silver Collector',
+    description: 'Own 5 Silver cards.',
+    icon: Icons.military_tech_rounded,
+    category: AchievementCategory.collection,
+    color: Color(0xFFC0C0C0),
+    scrollReward: 2,
+  ),
+  Achievement(
+    id: 'gold_5',
+    title: 'Gold Collector',
+    description: 'Own 5 Gold cards.',
+    icon: Icons.emoji_events_rounded,
+    category: AchievementCategory.collection,
+    color: Color(0xFFD4A44C),
+    scrollReward: 3,
+  ),
+  Achievement(
+    id: 'complete_set',
+    title: 'Complete Set',
+    description: 'Own bronze, silver, and gold of the same Name.',
+    icon: Icons.collections_rounded,
+    category: AchievementCategory.collection,
+    color: Color(0xFFC8985E),
+    scrollReward: 3,
+  ),
+
+  // ── Titles ────────────────────────────────────────────────────────────────
+
+  Achievement(
+    id: 'custom_title',
+    title: 'Identity',
+    description: 'Select a custom title for the first time.',
+    icon: Icons.badge_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFF6B4E9B),
+    scrollReward: 1,
+  ),
+  Achievement(
+    id: 'titles_5',
+    title: 'Title Collector',
+    description: 'Unlock 5 titles.',
+    icon: Icons.badge_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFF6B4E9B),
+    scrollReward: 3,
+  ),
+
+  // ── Quests ────────────────────────────────────────────────────────────────
+
+  Achievement(
+    id: 'weekly_quest',
+    title: 'Weekly Warrior',
+    description: 'Complete a weekly quest.',
+    icon: Icons.emoji_events_outlined,
+    category: AchievementCategory.growth,
+    color: Color(0xFF1B6B4A),
+    scrollReward: 2,
+  ),
+  Achievement(
+    id: 'monthly_quest',
+    title: 'Monthly Master',
+    description: 'Complete a monthly quest.',
+    icon: Icons.emoji_events_rounded,
+    category: AchievementCategory.growth,
+    color: Color(0xFFD4A44C),
+    scrollReward: 3,
+  ),
+
+  // ── Extended Streaks ──────────────────────────────────────────────────────
+
+  Achievement(
+    id: 'streak_14',
+    title: 'Two Weeks Strong',
+    description: 'Maintain a 14-day streak.',
+    icon: Icons.local_fire_department,
+    category: AchievementCategory.streak,
+    color: Color(0xFFF59E0B),
+    scrollReward: 1,
+  ),
+  Achievement(
+    id: 'streak_60',
+    title: 'Sixty Days of Light',
+    description: 'Maintain a 60-day streak.',
+    icon: Icons.local_fire_department,
+    category: AchievementCategory.streak,
+    color: Color(0xFFF59E0B),
+    scrollReward: 3,
+  ),
+  Achievement(
+    id: 'streak_180',
+    title: 'Half a Year',
+    description: 'Maintain a 180-day streak.',
+    icon: Icons.local_fire_department,
+    category: AchievementCategory.streak,
+    color: Color(0xFFF59E0B),
+    scrollReward: 5,
+  ),
+
+  // ── Spending ──────────────────────────────────────────────────────────────
+
+  Achievement(
+    id: 'tokens_spent_100',
+    title: 'Generous Spender',
+    description: 'Spend 100 tokens.',
+    icon: Icons.toll,
+    category: AchievementCategory.growth,
+    color: Color(0xFFC8985E),
+    scrollReward: 2,
+  ),
+  Achievement(
+    id: 'tokens_spent_500',
+    title: 'Big Spender',
+    description: 'Spend 500 tokens.',
+    icon: Icons.toll,
+    category: AchievementCategory.growth,
+    color: Color(0xFFC8985E),
+    scrollReward: 5,
   ),
 ];
 
@@ -287,12 +465,19 @@ class AchievementCheckData {
   final int builtDuaCount;
   final int longestStreak;
   final int currentStreak;
-  final bool hadBrokenStreak; // streak was 0 but now > 0
+  final bool hadBrokenStreak;
   final int xpTotal;
   final int level;
   final int journalEntries;
   final int dailyQuestsCompletedToday;
   final int totalDailyQuests;
+  final bool hasUsedScroll;
+  final bool hasCompleteSet; // bronze+silver+gold of same name
+  final bool hasSelectedTitle;
+  final int unlockedTitleCount;
+  final int weeklyQuestsCompleted;
+  final int monthlyQuestsCompleted;
+  final int totalTokensSpent;
 
   const AchievementCheckData({
     required this.discoveredNames,
@@ -310,6 +495,13 @@ class AchievementCheckData {
     required this.journalEntries,
     required this.dailyQuestsCompletedToday,
     required this.totalDailyQuests,
+    this.hasUsedScroll = false,
+    this.hasCompleteSet = false,
+    this.hasSelectedTitle = false,
+    this.unlockedTitleCount = 0,
+    this.weeklyQuestsCompleted = 0,
+    this.monthlyQuestsCompleted = 0,
+    this.totalTokensSpent = 0,
   });
 }
 
@@ -326,6 +518,10 @@ Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async
     'silver_10': data.silverNames >= 10,
     'gold_first': data.goldNames >= 1,
     'gold_all': data.goldNames >= 99,
+    'first_upgrade': data.hasUsedScroll,
+    'silver_5': data.silverNames >= 5,
+    'gold_5': data.goldNames >= 5,
+    'complete_set': data.hasCompleteSet,
 
     // Reflection
     'reflect_first': data.reflectionCount >= 1,
@@ -342,23 +538,45 @@ Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async
 
     // Streak
     'streak_7': data.longestStreak >= 7,
+    'streak_14': data.longestStreak >= 14,
     'streak_30': data.longestStreak >= 30,
+    'streak_60': data.longestStreak >= 60,
     'streak_100': data.longestStreak >= 100,
+    'streak_180': data.longestStreak >= 180,
     'streak_365': data.longestStreak >= 365,
     'comeback': data.hadBrokenStreak && data.currentStreak >= 1,
 
-    // Growth
+    // Growth & Levels
     'level_5': data.level >= 5,
     'level_10': data.level >= 10,
-    'xp_1000': data.xpTotal >= 1000,
+    'level_15': data.level >= 15,
+    'level_20': data.level >= 20,
+    'level_25': data.level >= 25,
     'journal_25': data.journalEntries >= 25,
     'all_quests_day': data.dailyQuestsCompletedToday >= data.totalDailyQuests && data.totalDailyQuests > 0,
+
+    // Titles
+    'custom_title': data.hasSelectedTitle,
+    'titles_5': data.unlockedTitleCount >= 5,
+
+    // Quests
+    'weekly_quest': data.weeklyQuestsCompleted >= 1,
+    'monthly_quest': data.monthlyQuestsCompleted >= 1,
+
+    // Spending
+    'tokens_spent_100': data.totalTokensSpent >= 100,
+    'tokens_spent_500': data.totalTokensSpent >= 500,
   };
 
   for (final entry in checks.entries) {
     if (entry.value && !unlocked.contains(entry.key)) {
       await unlockAchievement(entry.key);
       newlyUnlocked.add(entry.key);
+      // Award scroll reward
+      final achievement = allAchievements.where((a) => a.id == entry.key).firstOrNull;
+      if (achievement != null && achievement.scrollReward > 0) {
+        await earnTierUpScrolls(achievement.scrollReward);
+      }
     }
   }
 

@@ -1,5 +1,76 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+
+// ---------------------------------------------------------------------------
+// Streak Milestones — one-time rewards for reaching streak thresholds
+// ---------------------------------------------------------------------------
+
+class StreakMilestone {
+  final int days;
+  final int scrollReward;
+  final String? titleUnlock; // English title to unlock, or null
+  final String? titleUnlockArabic;
+
+  const StreakMilestone({
+    required this.days,
+    required this.scrollReward,
+    this.titleUnlock,
+    this.titleUnlockArabic,
+  });
+}
+
+const List<StreakMilestone> streakMilestones = [
+  StreakMilestone(days: 7,   scrollReward: 2,  titleUnlock: 'Consistent',    titleUnlockArabic: 'مُوَاظِب'),
+  StreakMilestone(days: 14,  scrollReward: 3),
+  StreakMilestone(days: 30,  scrollReward: 5,  titleUnlock: 'Unwavering',    titleUnlockArabic: 'رَاسِخ'),
+  StreakMilestone(days: 60,  scrollReward: 5),
+  StreakMilestone(days: 90,  scrollReward: 10, titleUnlock: 'Steadfast Soul', titleUnlockArabic: 'صَاحِبُ العَزْم'),
+  StreakMilestone(days: 180, scrollReward: 10),
+  StreakMilestone(days: 365, scrollReward: 15, titleUnlock: 'Guardian of Light', titleUnlockArabic: 'حَارِسُ النُّور'),
+];
+
+class StreakMilestoneResult {
+  final StreakMilestone milestone;
+  final bool isNew; // true if just claimed for the first time
+
+  const StreakMilestoneResult({required this.milestone, required this.isNew});
+}
+
+const String _claimedMilestonesKey = 'sakina_streak_milestones_claimed';
+
+/// Check which milestones were just reached. Returns only newly claimed ones.
+Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(_claimedMilestonesKey);
+  final claimed = raw != null ? (jsonDecode(raw) as List<dynamic>).cast<int>().toSet() : <int>{};
+
+  final newlyReached = <StreakMilestoneResult>[];
+  for (final milestone in streakMilestones) {
+    if (currentStreak >= milestone.days && !claimed.contains(milestone.days)) {
+      claimed.add(milestone.days);
+      newlyReached.add(StreakMilestoneResult(milestone: milestone, isNew: true));
+    }
+  }
+
+  if (newlyReached.isNotEmpty) {
+    await prefs.setString(_claimedMilestonesKey, jsonEncode(claimed.toList()));
+  }
+
+  return newlyReached;
+}
+
+/// Get set of already-claimed milestone day counts.
+Future<Set<int>> getClaimedMilestones() async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(_claimedMilestonesKey);
+  if (raw == null) return {};
+  return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+}
+
+// ---------------------------------------------------------------------------
+// Streak State
+// ---------------------------------------------------------------------------
 
 class StreakState {
   final int currentStreak;

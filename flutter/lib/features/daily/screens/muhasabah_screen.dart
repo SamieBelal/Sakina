@@ -52,6 +52,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               levelNumber: state.newLevelNumber ?? state.levelNumber,
               title: state.newLevelTitle ?? state.levelTitle,
               titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
+              rewards: state.levelUpRewards,
               onContinue: () {
                 Navigator.of(context, rootNavigator: true).pop();
                 notifier.clearLevelUp();

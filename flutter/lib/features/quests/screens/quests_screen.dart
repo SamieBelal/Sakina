@@ -376,6 +376,15 @@ class _QuestCard extends StatelessWidget {
                       done: completed,
                     ),
                   ],
+                  if (quest.scrollReward > 0) ...[
+                    const SizedBox(height: 4),
+                    _RewardBadge(
+                      icon: Icons.receipt_long,
+                      value: '+${quest.scrollReward}',
+                      color: const Color(0xFF3B82F6),
+                      done: completed,
+                    ),
+                  ],
                 ],
               ),
             ],

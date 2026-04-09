@@ -1,11 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _tokenKey = 'sakina_tokens';
-const int startingTokens = 50;
+const int startingTokens = 100;
 
 // Token costs
-const int tokenCostReflection = 1;
-const int tokenCostBuiltDua = 1;
+const int tokenCostReflection = 10;
+const int tokenCostBuiltDua = 10;
+const int tokenCostDiscoverName = 10;
 
 // Token rewards
 const int tokenRewardDeeperReflection = 2;
@@ -51,6 +52,9 @@ Future<TokenSpendResult> spendTokens(int amount) async {
   }
   final newBalance = current - amount;
   await prefs.setInt(_tokenKey, newBalance);
+  // Track total spent for achievements
+  final totalSpent = prefs.getInt('sakina_total_tokens_spent') ?? 0;
+  await prefs.setInt('sakina_total_tokens_spent', totalSpent + amount);
   return TokenSpendResult(success: true, newBalance: newBalance);
 }
 

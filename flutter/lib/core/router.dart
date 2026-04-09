@@ -17,6 +17,7 @@ import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
 import '../features/collection/widgets/bronze_card_preview.dart';
+import '../features/store/screens/store_screen.dart';
 import 'app_session.dart';
 
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -143,6 +144,12 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
             path: '/settings',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: SettingsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/store',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: StoreScreen(),
             ),
           ),
         ],

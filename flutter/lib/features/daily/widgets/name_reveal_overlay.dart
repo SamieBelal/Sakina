@@ -372,7 +372,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                     _isNewCard
                                         ? 'NEW CARD'
                                         : _tierLabel == 'Gold'
-                                            ? 'FULLY EVOLVED'
+                                            ? 'FULLY UPGRADED'
                                             : 'TIER ${widget.engageResult?.newTier ?? 2} UNLOCKED',
                                     style: AppTypography.labelMedium.copyWith(
                                       color: _tierColor,

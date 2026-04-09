@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -389,9 +390,17 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   // ── Save Built Dua ─────────────────────────────────────────
 
+  static const int freeJournalLimit = 5;
+
   Future<void> saveCurrentBuiltDua() async {
     final result = state.buildResult;
     if (result == null) return;
+
+    // Check journal limit for free users
+    final premium = await PurchaseService().isPremium();
+    if (!premium && state.savedBuiltDuas.length >= freeJournalLimit) {
+      return; // silently skip — UI should show upgrade prompt
+    }
 
     final dua = SavedBuiltDua(
       id: DateTime.now().millisecondsSinceEpoch.toString(),

@@ -7,13 +7,17 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
+import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
+import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -24,9 +28,18 @@ class CollectionScreen extends ConsumerStatefulWidget {
 
 enum _Filter { all, newCards, bronze, silver, gold }
 
+class _GridEntry {
+  final CollectibleName card;
+  final CardTier? displayTier; // null = locked
+  final bool isMaxTier;
+
+  const _GridEntry({required this.card, this.displayTier, this.isMaxTier = false});
+}
+
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   _Filter _filter = _Filter.all;
   bool _questFired = false;
+  bool _showOnlyDiscovered = false;
   NavigatorState? _sheetNavigator;
 
   @override
@@ -78,16 +91,36 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       });
     }
 
-    final filtered = switch (_filter) {
-      _Filter.all => allCollectibleNames,
-      _Filter.newCards => allCollectibleNames.where((n) => collection.isUnseen(n.id)).toList(),
-      _Filter.bronze => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.bronze).toList(),
-      _Filter.silver => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.silver).toList(),
-      _Filter.gold => allCollectibleNames.where((n) => collection.cardTierFor(n.id) == CardTier.gold).toList(),
+    final List<_GridEntry> filtered = switch (_filter) {
+      _Filter.all => _showOnlyDiscovered
+          ? _buildDiscoveredEntries(collection)
+          : _buildAllEntries(collection),
+      _Filter.newCards => _buildNewEntries(collection),
+      _Filter.bronze => _buildTierEntries(collection, CardTier.bronze),
+      _Filter.silver => _buildTierEntries(collection, CardTier.silver),
+      _Filter.gold => _buildTierEntries(collection, CardTier.gold),
     };
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      floatingActionButton: _filter == _Filter.all
+          ? FloatingActionButton.small(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() => _showOnlyDiscovered = !_showOnlyDiscovered);
+              },
+              backgroundColor: _showOnlyDiscovered ? AppColors.primary : AppColors.surfaceLight,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: _showOnlyDiscovered ? AppColors.primary : AppColors.borderLight),
+              ),
+              child: Icon(
+                _showOnlyDiscovered ? Icons.auto_stories : Icons.menu_book,
+                size: 20,
+                color: _showOnlyDiscovered ? Colors.white : AppColors.textSecondaryLight,
+              ),
+            )
+          : null,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -100,11 +133,40 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Collection',
-                      style: AppTypography.displayLarge.copyWith(
-                        color: AppColors.textPrimaryLight,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'Collection',
+                          style: AppTypography.displayLarge.copyWith(
+                            color: AppColors.textPrimaryLight,
+                          ),
+                        ),
+                        const Spacer(),
+                        Builder(builder: (_) {
+                          final scrolls = ref.watch(tierUpScrollProvider).balance;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.receipt_long, size: 14, color: Color(0xFF3B82F6)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$scrolls',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: const Color(0xFF3B82F6),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
                     )
                         .animate()
                         .fadeIn(duration: 500.ms)
@@ -113,48 +175,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                     _buildProgressSummary(collection),
                     const SizedBox(height: AppSpacing.lg),
                     _buildTierFilters(collection),
-                    const SizedBox(height: AppSpacing.sm),
-                    // DEBUG: Preview buttons — remove later
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => context.push('/bronze-preview'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFCD7F32).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text('Bronze Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFCD7F32))),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => context.push('/silver-preview'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFA8A9AD).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text('Silver Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFA8A9AD))),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => context.push('/gold-preview'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFC8985E).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text('Gold Preview', style: AppTypography.labelSmall.copyWith(color: const Color(0xFFC8985E))),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
                   ],
                 ),
               ),
@@ -170,26 +191,127 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final card = filtered[index];
-                    final tier = collection.cardTierFor(card.id);
+                    final entry = filtered[index];
+                    if (entry.displayTier == null) {
+                      // Locked tile
+                      return _CardTile(card: entry.card, tier: null, unseen: false, onTap: null);
+                    }
                     return _CardTile(
-                      card: card,
-                      tier: tier,
-                      unseen: collection.isUnseen(card.id),
-                      onTap: tier != null
-                          ? () => _showCardDetail(context, card, tier, collection)
-                          : null,
+                      card: entry.card,
+                      tier: entry.displayTier,
+                      unseen: collection.isUnseen(entry.card.id, entry.displayTier),
+                      onTap: () => _showCardDetail(context, entry.card, entry.displayTier!, entry.isMaxTier, collection),
                     );
                   },
                   childCount: filtered.length,
                 ),
               ),
             ),
+            // DEBUG: Preview button per tier
+            if (_filter == _Filter.bronze || _filter == _Filter.silver || _filter == _Filter.gold)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.lg, AppSpacing.pagePadding, 0),
+                  child: GestureDetector(
+                    onTap: () => context.push(switch (_filter) {
+                      _Filter.bronze => '/bronze-preview',
+                      _Filter.silver => '/silver-preview',
+                      _Filter.gold => '/gold-preview',
+                      _ => '',
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: switch (_filter) {
+                          _Filter.bronze => const Color(0xFFCD7F32).withValues(alpha: 0.15),
+                          _Filter.silver => const Color(0xFFA8A9AD).withValues(alpha: 0.12),
+                          _Filter.gold => const Color(0xFFC8985E).withValues(alpha: 0.15),
+                          _ => Colors.transparent,
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.visibility_outlined, size: 14, color: switch (_filter) {
+                            _Filter.bronze => const Color(0xFFCD7F32),
+                            _Filter.silver => const Color(0xFFA8A9AD),
+                            _Filter.gold => const Color(0xFFC8985E),
+                            _ => Colors.transparent,
+                          }),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${switch (_filter) { _Filter.bronze => 'Bronze', _Filter.silver => 'Silver', _Filter.gold => 'Gold', _ => '' }} Preview',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: switch (_filter) {
+                                _Filter.bronze => const Color(0xFFCD7F32),
+                                _Filter.silver => const Color(0xFFA8A9AD),
+                                _Filter.gold => const Color(0xFFC8985E),
+                                _ => Colors.transparent,
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxxl)),
           ],
         ),
       ),
     );
+  }
+
+  List<_GridEntry> _buildAllEntries(CardCollectionState col) {
+    final entries = <_GridEntry>[];
+    for (final name in allCollectibleNames) {
+      final tiers = col.unlockedTiersFor(name.id);
+      if (tiers.isEmpty) {
+        entries.add(_GridEntry(card: name));
+      } else {
+        for (final tier in tiers) {
+          entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+        }
+      }
+    }
+    return entries;
+  }
+
+  List<_GridEntry> _buildDiscoveredEntries(CardCollectionState col) {
+    final entries = <_GridEntry>[];
+    for (final name in allCollectibleNames) {
+      final tiers = col.unlockedTiersFor(name.id);
+      for (final tier in tiers) {
+        entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+      }
+    }
+    return entries;
+  }
+
+  List<_GridEntry> _buildTierEntries(CardCollectionState col, CardTier tier) {
+    return allCollectibleNames
+        .where((n) => col.hasTierVersion(n.id, tier))
+        .map((n) => _GridEntry(
+              card: n,
+              displayTier: tier,
+              isMaxTier: col.cardTierFor(n.id) == tier,
+            ))
+        .toList();
+  }
+
+  List<_GridEntry> _buildNewEntries(CardCollectionState col) {
+    final entries = <_GridEntry>[];
+    for (final name in allCollectibleNames) {
+      final tiers = col.unlockedTiersFor(name.id);
+      for (final tier in tiers) {
+        if (col.isUnseen(name.id, tier)) {
+          entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+        }
+      }
+    }
+    return entries;
   }
 
   Widget _buildProgressSummary(CardCollectionState collection) {
@@ -227,7 +349,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 
   Widget _buildTierFilters(CardCollectionState collection) {
-    final unseenCount = collection.discoveredIds.where((id) => collection.isUnseen(id)).length;
+    var unseenCount = 0;
+    for (final id in collection.discoveredIds) {
+      for (final tier in collection.unlockedTiersFor(id)) {
+        if (collection.isUnseen(id, tier)) unseenCount++;
+      }
+    }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -288,17 +415,17 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     );
   }
 
-  void _showCardDetail(BuildContext context, CollectibleName card, CardTier tier, CardCollectionState collection) {
+  void _showCardDetail(BuildContext context, CollectibleName card, CardTier tier, bool isMaxTier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
-    ref.read(cardCollectionProvider.notifier).markSeen(card.id);
+    ref.read(cardCollectionProvider.notifier).markSeen(card.id, tierNumber: tier.number);
     _sheetNavigator = Navigator.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useRootNavigator: false,
-      builder: (_) => _CardDetailSheet(card: card, tier: tier),
+      builder: (_) => _CardDetailSheet(card: card, tier: tier, isMaxTier: isMaxTier),
     ).whenComplete(() => _sheetNavigator = null);
   }
 }
@@ -716,17 +843,151 @@ class _SilverOrnateBorderPainter extends CustomPainter {
 // Card Detail Bottom Sheet
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _CardDetailSheet extends StatelessWidget {
-  const _CardDetailSheet({required this.card, required this.tier});
+class _CardDetailSheet extends ConsumerWidget {
+  const _CardDetailSheet({required this.card, required this.tier, required this.isMaxTier});
 
   final CollectibleName card;
   final CardTier tier;
+  final bool isMaxTier;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scrollBalance = ref.watch(tierUpScrollProvider).balance;
+    final scrollCost = tier == CardTier.bronze ? scrollCostBronzeToSilver : scrollCostSilverToGold;
+    final canUpgrade = isMaxTier && tier.number < 3 && scrollBalance >= scrollCost;
+
+    void confirmUpgrade() {
+      final nextTier = tier.number == 1 ? 'Silver' : 'Gold';
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (sheetCtx) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Icon(Icons.receipt_long, size: 32, color: Color(0xFF3B82F6)),
+              const SizedBox(height: 12),
+              Text(
+                'Upgrade to $nextTier?',
+                style: AppTypography.headlineMedium.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Use $scrollCost Tier Up Scroll${scrollCost == 1 ? '' : 's'} to upgrade ${card.transliteration} from ${tier.label} to $nextTier.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'You have $scrollBalance scroll${scrollBalance == 1 ? '' : 's'} remaining.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sheetCtx).pop(),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.borderLight),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.of(sheetCtx).pop();
+                        final spendResult = await ref.read(tierUpScrollProvider.notifier).spend(scrollCost);
+                        if (spendResult.success) {
+                          final engageResult = await ref.read(cardCollectionProvider.notifier).engageById(card.id);
+                          if (context.mounted) {
+                            final rootNav = Navigator.of(context, rootNavigator: true);
+                            Navigator.of(context).pop();
+                            rootNav.push(
+                              PageRouteBuilder(
+                                opaque: true,
+                                barrierDismissible: false,
+                                pageBuilder: (_, __, ___) => NameRevealOverlay(
+                                  nameArabic: card.arabic,
+                                  nameEnglish: card.transliteration,
+                                  nameEnglishMeaning: card.english,
+                                  teaching: card.lesson,
+                                  card: card,
+                                  engageResult: engageResult,
+                                  onContinue: () => rootNav.pop(),
+                                ),
+                                transitionsBuilder: (_, anim, __, child) =>
+                                    FadeTransition(opacity: anim, child: child),
+                                transitionDuration: const Duration(milliseconds: 300),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.receipt_long, size: 16),
+                          const SizedBox(width: 6),
+                          const Text('Upgrade'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return switch (tier) {
-      CardTier.bronze => BronzeOrnateDetailSheet(card: card, tier: tier),
-      CardTier.silver => _SilverOrnateDetailSheet(card: card, tier: tier),
+      CardTier.bronze => BronzeOrnateDetailSheet(
+        card: card, tier: tier,
+        canUpgrade: canUpgrade,
+        onUpgrade: canUpgrade ? confirmUpgrade : null,
+        scrollCost: scrollCost,
+        isMaxTier: isMaxTier,
+      ),
+      CardTier.silver => _SilverOrnateDetailSheet(
+        card: card, tier: tier,
+        canUpgrade: canUpgrade,
+        onUpgrade: canUpgrade ? confirmUpgrade : null,
+        scrollCost: scrollCost,
+        isMaxTier: isMaxTier,
+      ),
       CardTier.gold => GoldOrnateDetailSheet(card: card, tier: tier),
     };
   }
@@ -737,10 +998,14 @@ class _CardDetailSheet extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SilverOrnateDetailSheet extends StatelessWidget {
-  const _SilverOrnateDetailSheet({required this.card, required this.tier});
+  const _SilverOrnateDetailSheet({required this.card, required this.tier, this.canUpgrade = false, this.onUpgrade, this.scrollCost = 0, this.isMaxTier = true});
 
   final CollectibleName card;
   final CardTier tier;
+  final bool canUpgrade;
+  final VoidCallback? onUpgrade;
+  final int scrollCost;
+  final bool isMaxTier;
 
   static const _bgDark = Color(0xFF2A2D3A);
   static const _bgMid = Color(0xFF353847);
@@ -977,14 +1242,30 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                       Text('Coming soon...', style: AppTypography.bodySmall.copyWith(color: _silverDim, fontStyle: FontStyle.italic)),
                   ],
 
-                  // Upgrade hint
-                  if (tier.number < 3) ...[
+                  // Upgrade (only on max tier cards)
+                  if (isMaxTier && tier.number < 3) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'Encounter this Name again to unlock the Dua',
-                      style: AppTypography.bodySmall.copyWith(color: _silverDim),
-                      textAlign: TextAlign.center,
-                    ),
+                    if (onUpgrade != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: onUpgrade,
+                          icon: const Icon(Icons.receipt_long, size: 18),
+                          label: Text('Upgrade ($scrollCost Scrolls)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _silverCore,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        'Earn a Tier Up Scroll to unlock the Dua',
+                        style: AppTypography.bodySmall.copyWith(color: _silverDim),
+                        textAlign: TextAlign.center,
+                      ),
                   ],
 
                   const SizedBox(height: AppSpacing.lg),

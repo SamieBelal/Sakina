@@ -33,7 +33,7 @@ class GoldOrnateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
+    Widget tile = AspectRatio(
       aspectRatio: 0.72,
       child: Container(
         decoration: BoxDecoration(
@@ -220,6 +220,17 @@ class GoldOrnateTile extends StatelessWidget {
         ),
       ),
     );
+
+    if (unseen) {
+      tile = tile
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .shimmer(
+            duration: 2200.ms,
+            color: _glowColor.withValues(alpha: 0.2),
+          );
+    }
+
+    return tile;
   }
 }
 

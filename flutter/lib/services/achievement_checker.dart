@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/widgets/achievement_toast.dart';
 
@@ -63,6 +65,22 @@ Future<void> checkAchievements(WidgetRef ref) async {
     final hadBrokenStreak =
         streak.longestStreak > streak.currentStreak && streak.currentStreak >= 1;
 
+    // Check for complete set (bronze+silver+gold of same name = tier >= 3)
+    final hasCompleteSet = collection.tiers.values.any((t) => t >= 3);
+
+    // Scroll/title/spending data
+    final prefs = await SharedPreferences.getInstance();
+    final hasUsedScroll = prefs.getBool('sakina_has_used_scroll') ?? false;
+    final totalTokensSpent = prefs.getInt('sakina_total_tokens_spent') ?? 0;
+
+    // Title data
+    final displayTitle = await getDisplayTitle(xp.level);
+    final unlockedTitles = await getUnlockedTitles();
+
+    // Quest completion counts
+    final weeklyCompleted = questsState.weekly.where((q) => questsState.completedIds.contains(q.id)).length;
+    final monthlyCompleted = questsState.monthly.where((q) => questsState.completedIds.contains(q.id)).length;
+
     final data = AchievementCheckData(
       discoveredNames: discoveredCount,
       silverNames: silverCount,
@@ -79,6 +97,13 @@ Future<void> checkAchievements(WidgetRef ref) async {
       journalEntries: journalEntries,
       dailyQuestsCompletedToday: dailyCompleted,
       totalDailyQuests: totalDaily,
+      hasUsedScroll: hasUsedScroll,
+      hasCompleteSet: hasCompleteSet,
+      hasSelectedTitle: !displayTitle.isAuto,
+      unlockedTitleCount: unlockedTitles.length,
+      weeklyQuestsCompleted: weeklyCompleted,
+      monthlyQuestsCompleted: monthlyCompleted,
+      totalTokensSpent: totalTokensSpent,
     );
 
     final newlyUnlocked = await checkAndUnlockAchievements(data);

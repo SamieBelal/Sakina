@@ -799,19 +799,6 @@ CollectibleName? findCollectibleByName(String name) {
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Pick a card that can still be upgraded (for guaranteed tier-up reward)
-// ---------------------------------------------------------------------------
-
-CollectibleName? pickUpgradeableCard(CardCollectionState collection) {
-  final upgradeable = allCollectibleNames.where((n) {
-    final tier = collection.tierFor(n.id);
-    return tier < 3; // not yet gold
-  }).toList();
-  if (upgradeable.isEmpty) return null;
-  return upgradeable[math.Random().nextInt(upgradeable.length)];
-}
-
 /// Smart name picker for the gacha flow:
 /// 1. Undiscovered names first (random)
 /// 2. Lowest-tier discovered names next (bronze before silver)
@@ -858,17 +845,25 @@ class CardCollectionState {
   final Set<int> discoveredIds;
   final Map<int, String> discoveryDates;
   final Map<int, int> tiers; // card id → tier (1, 2, or 3)
-  final Set<int>? _seenIds; // cards the user has tapped to view
+  final Set<String>? _seenIds; // composite keys "$cardId:$tier" for viewed tiles
 
   const CardCollectionState({
     this.discoveredIds = const {},
     this.discoveryDates = const {},
     this.tiers = const {},
-    Set<int>? seenIds,
+    Set<String>? seenIds,
   }) : _seenIds = seenIds;
 
-  Set<int> get seenIds => _seenIds ?? const {};
-  bool isUnseen(int id) => discoveredIds.contains(id) && !seenIds.contains(id);
+  Set<String> get seenIds => _seenIds ?? const {};
+
+  bool isUnseen(int id, [CardTier? tier]) {
+    if (!discoveredIds.contains(id)) return false;
+    if (tier != null) {
+      return !seenIds.contains('$id:${tier.number}');
+    }
+    final maxTier = tiers[id] ?? 0;
+    return !seenIds.contains('$id:$maxTier');
+  }
 
   int get totalDiscovered => discoveredIds.length;
   int get totalCards => allCollectibleNames.length;
@@ -883,8 +878,21 @@ class CardCollectionState {
     return CardTierX.fromNumber(t);
   }
 
+  bool hasTierVersion(int id, CardTier tier) {
+    return (tiers[id] ?? 0) >= tier.number;
+  }
+
+  List<CardTier> unlockedTiersFor(int id) {
+    final maxTier = tiers[id] ?? 0;
+    return [
+      if (maxTier >= 1) CardTier.bronze,
+      if (maxTier >= 2) CardTier.silver,
+      if (maxTier >= 3) CardTier.gold,
+    ];
+  }
+
   int countByTier(CardTier tier) {
-    return discoveredIds.where((id) => tiers[id] == tier.number).length;
+    return discoveredIds.where((id) => (tiers[id] ?? 0) >= tier.number).length;
   }
 
   int get totalGold => countByTier(CardTier.gold);
@@ -938,8 +946,24 @@ Future<CardCollectionState> getCardCollection() async {
           ?.map((k, v) => MapEntry(int.parse(k), v as int)) ??
       {};
 
-  final seenRaw = prefs.getStringList(_seenKey);
-  final seenIds = seenRaw?.map(int.parse).toSet() ?? {};
+  final seenRaw = prefs.getStringList(_seenKey) ?? [];
+  // Migration: old format was plain IDs ("5"), new format is "5:1", "5:2" etc.
+  // Convert old plain IDs to composite keys for all tiers of that card.
+  final seenIds = <String>{};
+  for (final entry in seenRaw) {
+    if (entry.contains(':')) {
+      seenIds.add(entry);
+    } else {
+      // Old format — mark all tiers of this card as seen
+      final cardId = int.tryParse(entry);
+      if (cardId != null) {
+        final maxTier = tiers[cardId] ?? 0;
+        for (int t = 1; t <= maxTier; t++) {
+          seenIds.add('$cardId:$t');
+        }
+      }
+    }
+  }
 
   return CardCollectionState(discoveredIds: ids, discoveryDates: dates, tiers: tiers, seenIds: seenIds);
 }
@@ -998,10 +1022,10 @@ Future<CardEngageResult> engageCard(int cardId) async {
 
   final isDuplicate = !isNew && !tierChanged;
 
-  // Mark card as unseen when newly discovered or tiered up so the glow shows.
+  // Mark the new tier as unseen so the glow shows on the new tile.
   if (tierChanged) {
     final seenList = prefs.getStringList(_seenKey) ?? [];
-    seenList.remove(cardId.toString());
+    seenList.remove('$cardId:$newTier');
     await prefs.setStringList(_seenKey, seenList);
   }
 
@@ -1021,12 +1045,12 @@ Future<CardEngageResult> engageCard(int cardId) async {
 }
 
 /// Mark a card as seen (user tapped to view detail).
-Future<void> markCardSeen(int cardId) async {
+Future<void> markCardSeen(int cardId, {int? tierNumber}) async {
   final prefs = await SharedPreferences.getInstance();
   final existing = prefs.getStringList(_seenKey) ?? [];
-  final idStr = cardId.toString();
-  if (!existing.contains(idStr)) {
-    existing.add(idStr);
+  final key = tierNumber != null ? '$cardId:$tierNumber' : '$cardId';
+  if (!existing.contains(key)) {
+    existing.add(key);
     await prefs.setStringList(_seenKey, existing);
   }
 }

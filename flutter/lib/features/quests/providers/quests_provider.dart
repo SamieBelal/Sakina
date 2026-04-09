@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -23,6 +24,7 @@ class QuestTemplate {
   final IconData icon;
   final int xpReward;
   final int tokenReward;
+  final int scrollReward;
   final int target; // 0 = single-action (no progress bar), >0 = threshold
 
   const QuestTemplate({
@@ -32,6 +34,7 @@ class QuestTemplate {
     required this.icon,
     required this.xpReward,
     this.tokenReward = 0,
+    this.scrollReward = 0,
     this.target = 0,
   });
 }
@@ -48,6 +51,7 @@ class Quest {
   final IconData icon;
   final int xpReward;
   final int tokenReward;
+  final int scrollReward;
   final int poolIndex;
   final int target; // 0 = single-action, >0 = threshold quest
 
@@ -59,6 +63,7 @@ class Quest {
     required this.icon,
     required this.xpReward,
     this.tokenReward = 0,
+    this.scrollReward = 0,
     required this.poolIndex,
     this.target = 0,
   });
@@ -74,70 +79,70 @@ const _dailyPool = <QuestTemplate>[
     title: 'Complete a Reflection',
     description: 'Open Reflect and share what\'s on your heart.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 15,
+    xpReward: 15, tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 1,
     title: 'Build a personal dua',
     description: 'Craft a dua for your specific need.',
     icon: Icons.auto_awesome,
-    xpReward: 15,
+    xpReward: 15, tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 2,
     title: 'Visit your Collection',
     description: 'Browse your discovered Names of Allah.',
     icon: Icons.grid_view_rounded,
-    xpReward: 10,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 3,
     title: 'Review a past reflection',
     description: 'Revisit a saved entry in your Journal.',
     icon: Icons.bookmark_rounded,
-    xpReward: 10,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 4,
     title: 'Browse the duas library',
     description: 'Explore duas by category in the Duas tab.',
     icon: Icons.menu_book_rounded,
-    xpReward: 10,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 5,
     title: 'Share a reflection',
     description: 'Share your result card with someone.',
     icon: Icons.share_rounded,
-    xpReward: 15,
+    xpReward: 15, tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 6,
     title: 'Explore a Name of Allah',
     description: 'Tap into a Name in your Collection to learn more.',
     icon: Icons.search_rounded,
-    xpReward: 10,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 7,
     title: 'Save a dua',
     description: 'Save a built dua to your personal library.',
     icon: Icons.favorite_rounded,
-    xpReward: 10,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 8,
     title: 'Reflect on gratitude',
     description: 'Write a reflection about something you\'re grateful for.',
     icon: Icons.wb_sunny_rounded,
-    xpReward: 15,
+    xpReward: 15, tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 9,
     title: 'Complete the Discovery Quiz',
     description: 'Take the personality quiz to find your anchor Names.',
     icon: Icons.psychology_rounded,
-    xpReward: 20,
+    xpReward: 20, tokenReward: 5,
   ),
 ];
 
@@ -147,8 +152,7 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Reflect 3 times',
     description: 'Complete 3 Reflect sessions this week.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 50,
-    tokenReward: 3,
+    xpReward: 50, tokenReward: 3, scrollReward: 2,
     target: 3,
   ),
   QuestTemplate(
@@ -156,8 +160,7 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Build 2 personal duas',
     description: 'Craft 2 duas for specific needs.',
     icon: Icons.auto_awesome,
-    xpReward: 30,
-    tokenReward: 2,
+    xpReward: 30, tokenReward: 2, scrollReward: 1,
     target: 2,
   ),
   QuestTemplate(
@@ -165,8 +168,7 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Discover 3 new Names',
     description: 'Encounter 3 new Names through check-ins.',
     icon: Icons.explore_rounded,
-    xpReward: 40,
-    tokenReward: 2,
+    xpReward: 40, tokenReward: 2, scrollReward: 2,
     target: 3,
   ),
   QuestTemplate(
@@ -174,8 +176,7 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Share 2 reflections',
     description: 'Share your reflection cards twice.',
     icon: Icons.share_rounded,
-    xpReward: 30,
-    tokenReward: 2,
+    xpReward: 30, tokenReward: 2, scrollReward: 1,
     target: 2,
   ),
   QuestTemplate(
@@ -183,8 +184,7 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Visit Collection 3 days',
     description: 'Open your Collection on 3 different days.',
     icon: Icons.grid_view_rounded,
-    xpReward: 40,
-    tokenReward: 3,
+    xpReward: 40, tokenReward: 3, scrollReward: 2,
     target: 3,
   ),
 ];
@@ -195,8 +195,7 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Discover 10 Names',
     description: 'Grow your collection to 10+ discovered Names.',
     icon: Icons.stars_rounded,
-    xpReward: 150,
-    tokenReward: 10,
+    xpReward: 150, tokenReward: 10, scrollReward: 5,
     target: 10,
   ),
   QuestTemplate(
@@ -204,8 +203,7 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Reflect 15 times',
     description: 'Complete 15 Reflect sessions this month.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 150,
-    tokenReward: 10,
+    xpReward: 150, tokenReward: 10, scrollReward: 5,
     target: 15,
   ),
   QuestTemplate(
@@ -213,8 +211,7 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Build 5 personal duas',
     description: 'Craft 5 personal duas this month.',
     icon: Icons.auto_awesome,
-    xpReward: 100,
-    tokenReward: 8,
+    xpReward: 100, tokenReward: 8, scrollReward: 3,
     target: 5,
   ),
   QuestTemplate(
@@ -222,8 +219,7 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Unlock 3 Silver Names',
     description: 'Tier up 3 Names to Silver in your Collection.',
     icon: Icons.military_tech_rounded,
-    xpReward: 120,
-    tokenReward: 8,
+    xpReward: 120, tokenReward: 8, scrollReward: 4,
     target: 3,
   ),
   QuestTemplate(
@@ -231,8 +227,7 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Maintain a 20-day streak',
     description: 'Check in 20+ days this month to show true dedication.',
     icon: Icons.local_fire_department,
-    xpReward: 150,
-    tokenReward: 10,
+    xpReward: 150, tokenReward: 10, scrollReward: 5,
     target: 20,
   ),
 ];
@@ -370,6 +365,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
         icon: t.icon,
         xpReward: t.xpReward,
         tokenReward: t.tokenReward,
+        scrollReward: t.scrollReward,
         poolIndex: t.poolIndex,
         target: t.target,
       );
@@ -387,6 +383,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
         icon: t.icon,
         xpReward: t.xpReward,
         tokenReward: t.tokenReward,
+        scrollReward: t.scrollReward,
         poolIndex: t.poolIndex,
         target: t.target,
       );
@@ -404,6 +401,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
         icon: mt.icon,
         xpReward: mt.xpReward,
         tokenReward: mt.tokenReward,
+        scrollReward: mt.scrollReward,
         poolIndex: mt.poolIndex,
         target: mt.target,
       ),
@@ -438,6 +436,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
 
     if (quest.xpReward > 0) await awardXp(quest.xpReward);
     if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
+    if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
   }
 
   /// Try to complete a quest by pool index + cadence if it's active today.

@@ -1123,6 +1123,23 @@ class _AchievementCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                  if (achievement.scrollReward > 0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.receipt_long, size: 12, color: unlocked ? AppColors.primary : AppColors.textTertiaryLight),
+                        const SizedBox(width: 3),
+                        Text(
+                          '+${achievement.scrollReward} Scroll${achievement.scrollReward == 1 ? '' : 's'}',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: unlocked ? AppColors.primary : AppColors.textTertiaryLight,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

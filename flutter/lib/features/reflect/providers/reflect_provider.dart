@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -330,7 +331,15 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     return buffer.toString();
   }
 
+  static const int freeJournalLimit = 5;
+
   Future<void> _saveReflection(ai.ReflectResponse response) async {
+    // Check journal limit for free users
+    final premium = await PurchaseService().isPremium();
+    if (!premium && state.savedReflections.length >= freeJournalLimit) {
+      return; // silently skip — UI should show upgrade prompt
+    }
+
     final preview = response.reframe.length > 150
         ? '${response.reframe.substring(0, 150)}...'
         : response.reframe;

@@ -27,8 +27,8 @@ class CardCollectionNotifier extends StateNotifier<CardCollectionState> {
     return result;
   }
 
-  Future<void> markSeen(int cardId) async {
-    await markCardSeen(cardId);
+  Future<void> markSeen(int cardId, {int? tierNumber}) async {
+    await markCardSeen(cardId, tierNumber: tierNumber);
     state = await getCardCollection();
   }
 

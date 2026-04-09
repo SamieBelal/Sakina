@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/services/xp_service.dart';
 
 class LevelUpOverlay extends StatefulWidget {
   const LevelUpOverlay({
@@ -11,12 +12,14 @@ class LevelUpOverlay extends StatefulWidget {
     required this.levelNumber,
     required this.title,
     required this.titleArabic,
+    this.rewards,
     this.onContinue,
   });
 
   final int levelNumber;
   final String title;
   final String titleArabic;
+  final LevelUpRewards? rewards;
   final VoidCallback? onContinue;
 
   @override
@@ -384,6 +387,35 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                             color: AppColors.secondary.withValues(alpha: 0.8),
                           ),
                         ).animate().fadeIn(delay: 700.ms, duration: 400.ms),
+
+                        // Rewards
+                        if (widget.rewards != null) ...[
+                          const SizedBox(height: 24),
+                          _buildRewardRow(
+                            Icons.toll,
+                            AppColors.secondary,
+                            '+${widget.rewards!.tokensAwarded} Tokens',
+                            800,
+                          ),
+                          if (widget.rewards!.scrollsAwarded > 0) ...[
+                            const SizedBox(height: 10),
+                            _buildRewardRow(
+                              Icons.receipt_long,
+                              const Color(0xFF3B82F6),
+                              '+${widget.rewards!.scrollsAwarded} Scrolls',
+                              1000,
+                            ),
+                          ],
+                          if (widget.rewards!.titleUnlocked) ...[
+                            const SizedBox(height: 10),
+                            _buildRewardRow(
+                              Icons.star_rounded,
+                              const Color(0xFFFBBF24),
+                              'New Title Unlocked!',
+                              1200,
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),
@@ -441,7 +473,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                   ),
                 ],
 
-                // ── Floating sparkle particles (phase 2) ──
+                // ── Floating sparkle particles (phase 2+) ──
                 if (_phase >= 2)
                   ...List.generate(16, (i) {
                     final isLeft = i % 2 == 0;
@@ -486,5 +518,29 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
         ),
       ),
     );
+  }
+
+  Widget _buildRewardRow(IconData icon, Color color, String label, int delayMs) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: AppTypography.labelMedium.copyWith(
+            color: Colors.white.withValues(alpha: 0.9),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: delayMs.ms, duration: 400.ms).slideX(begin: -0.2, end: 0, delay: delayMs.ms, duration: 400.ms);
   }
 }

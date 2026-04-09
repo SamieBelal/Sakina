@@ -11,6 +11,9 @@ import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/title_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/services/premium_grants_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -61,6 +64,7 @@ class DailyLoopState {
   final String? newLevelTitle;
   final String? newLevelTitleArabic;
   final int? newLevelNumber;
+  final LevelUpRewards? levelUpRewards;
 
   // Card collection
   final CardEngageResult? cardEngageResult;
@@ -104,6 +108,7 @@ class DailyLoopState {
     this.newLevelTitle,
     this.newLevelTitleArabic,
     this.newLevelNumber,
+    this.levelUpRewards,
     this.error,
   });
 
@@ -139,6 +144,7 @@ class DailyLoopState {
     String? newLevelTitle,
     String? newLevelTitleArabic,
     int? newLevelNumber,
+    LevelUpRewards? levelUpRewards,
     String? error,
   }) {
     return DailyLoopState(
@@ -173,6 +179,7 @@ class DailyLoopState {
       newLevelTitle: newLevelTitle ?? this.newLevelTitle,
       newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
       newLevelNumber: newLevelNumber ?? this.newLevelNumber,
+      levelUpRewards: levelUpRewards ?? this.levelUpRewards,
       error: error,
     );
   }
@@ -201,6 +208,17 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       final xpState = await getXp();
       final tokenState = await getTokens();
 
+      // Initialize unlocked titles for existing users
+      await initializeUnlockedTitles(xpState.level);
+
+      // Check premium monthly grants (may add tokens/scrolls)
+      await checkPremiumMonthlyGrant();
+      // Re-read token balance after potential grant
+      final finalTokenState = await getTokens();
+
+      // Get display title (respects auto/manual selection)
+      final displayTitle = await getDisplayTitle(xpState.level);
+
       // Today's question
       final question = getTodaysDailyQuestion();
 
@@ -216,9 +234,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         todaysQuestion: question,
         streakCount: streakState.currentStreak,
         xpTotal: xpState.totalXp,
-        tokenBalance: tokenState.balance,
-        levelTitle: xpState.title,
-        levelTitleArabic: xpState.titleArabic,
+        tokenBalance: finalTokenState.balance,
+        levelTitle: displayTitle.title,
+        levelTitleArabic: displayTitle.titleArabic,
         levelNumber: xpState.level,
         questDua: questDua,
       );
@@ -251,6 +269,67 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     final dayOfYear =
         DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
     return candidates[dayOfYear % candidates.length];
+  }
+
+  // ---------------------------------------------------------------------------
+  // XP + Level-up reward helper
+  // ---------------------------------------------------------------------------
+
+  Future<void> _handleXpAward(int amount) async {
+    final xpResult = await awardXp(amount);
+    state = state.copyWith(
+      xpTotal: xpResult.newTotal,
+      levelNumber: xpResult.state.level,
+    );
+
+    if (xpResult.leveledUp && xpResult.rewards != null) {
+      final rewards = xpResult.rewards!;
+
+      // Award tokens
+      if (rewards.tokensAwarded > 0) {
+        final tokenResult = await earnTokens(rewards.tokensAwarded);
+        state = state.copyWith(tokenBalance: tokenResult.balance);
+      }
+
+      // Award scrolls
+      if (rewards.scrollsAwarded > 0) {
+        await earnTierUpScrolls(rewards.scrollsAwarded);
+      }
+
+      // Unlock title
+      if (rewards.titleUnlocked && rewards.unlockedTitle != null) {
+        await unlockTitle(rewards.unlockedTitle!);
+      }
+
+      // Update display title (auto mode will pick the new level title)
+      final displayTitle = await getDisplayTitle(xpResult.state.level);
+
+      state = state.copyWith(
+        leveledUp: true,
+        newLevelTitle: xpResult.state.title,
+        newLevelTitleArabic: xpResult.state.titleArabic,
+        newLevelNumber: xpResult.state.level,
+        levelTitle: displayTitle.title,
+        levelTitleArabic: displayTitle.titleArabic,
+        levelUpRewards: rewards,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Streak milestone helper
+  // ---------------------------------------------------------------------------
+
+  Future<void> _handleStreakMilestones(int currentStreak) async {
+    final milestones = await checkStreakMilestones(currentStreak);
+    for (final result in milestones) {
+      if (result.milestone.scrollReward > 0) {
+        await earnTierUpScrolls(result.milestone.scrollReward);
+      }
+      if (result.milestone.titleUnlock != null) {
+        await unlockTitle(result.milestone.titleUnlock!);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -315,19 +394,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Award XP and mark streak
       try {
-        final xpResult = await awardXp(5);
+        await _handleXpAward(5);
         final streakResult = await markActiveToday();
-        state = state.copyWith(
-          xpTotal: xpResult.newTotal,
-          levelTitle: xpResult.state.title,
-          levelTitleArabic: xpResult.state.titleArabic,
-          levelNumber: xpResult.state.level,
-          streakCount: streakResult.currentStreak,
-          leveledUp: xpResult.leveledUp,
-          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic: xpResult.leveledUp ? xpResult.state.titleArabic : null,
-          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-        );
+        state = state.copyWith(streakCount: streakResult.currentStreak);
+        await _handleStreakMilestones(streakResult.currentStreak);
       } catch (_) {}
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
@@ -409,22 +479,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       CardEngageResult? cardEngageResult;
       CollectibleName? engagedCard;
       try {
-        final rewardsState = await getDailyRewards();
         CollectibleName? collectible;
 
-        if (rewardsState.guaranteedTierUpFlag) {
-          final collection = await getCardCollection();
-          collectible = pickUpgradeableCard(collection);
-          await clearGuaranteedTierUp();
-        } else {
-          collectible = findCollectibleByName(result.name);
-          if (collectible == null && result.nameArabic.isNotEmpty) {
-            for (final n in allCollectibleNames) {
-              if (n.arabic.replaceAll(RegExp(r'\s'), '') ==
-                  result.nameArabic.replaceAll(RegExp(r'\s'), '')) {
-                collectible = n;
-                break;
-              }
+        collectible = findCollectibleByName(result.name);
+        if (collectible == null && result.nameArabic.isNotEmpty) {
+          for (final n in allCollectibleNames) {
+            if (n.arabic.replaceAll(RegExp(r'\s'), '') ==
+                result.nameArabic.replaceAll(RegExp(r'\s'), '')) {
+              collectible = n;
+              break;
             }
           }
         }
@@ -489,20 +552,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Award XP and mark streak
       try {
-        final xpResult = await awardXp(5);
+        await _handleXpAward(5);
         final streakResult = await markActiveToday();
-        state = state.copyWith(
-          xpTotal: xpResult.newTotal,
-          levelTitle: xpResult.state.title,
-          levelTitleArabic: xpResult.state.titleArabic,
-          levelNumber: xpResult.state.level,
-          streakCount: streakResult.currentStreak,
-          leveledUp: xpResult.leveledUp,
-          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic:
-              xpResult.leveledUp ? xpResult.state.titleArabic : null,
-          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-        );
+        state = state.copyWith(streakCount: streakResult.currentStreak);
+        await _handleStreakMilestones(streakResult.currentStreak);
       } catch (_) {
         // Non-critical — don't fail the check-in
       }
@@ -540,6 +593,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
   void clearLevelUp() {
     state = state.copyWith(leveledUp: false);
+  }
+
+  void refreshTokenBalance(int balance) {
+    state = state.copyWith(tokenBalance: balance);
   }
 
   // ---------------------------------------------------------------------------
@@ -583,18 +640,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Award XP for starting deeper reflection
       try {
-        final xpResult = await awardXp(25);
-        state = state.copyWith(
-          xpTotal: xpResult.newTotal,
-          levelTitle: xpResult.state.title,
-          levelTitleArabic: xpResult.state.titleArabic,
-          levelNumber: xpResult.state.level,
-          leveledUp: xpResult.leveledUp,
-          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic:
-              xpResult.leveledUp ? xpResult.state.titleArabic : null,
-          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-        );
+        await _handleXpAward(25);
       } catch (_) {}
 
       // Award tokens for completing deeper reflection
@@ -627,18 +673,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Award quest XP + tokens here since we skip the quest step
       try {
-        final xpResult = await awardXp(10);
-        state = state.copyWith(
-          xpTotal: xpResult.newTotal,
-          levelTitle: xpResult.state.title,
-          levelTitleArabic: xpResult.state.titleArabic,
-          levelNumber: xpResult.state.level,
-          leveledUp: xpResult.leveledUp,
-          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic:
-              xpResult.leveledUp ? xpResult.state.titleArabic : null,
-          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-        );
+        await _handleXpAward(10);
       } catch (_) {}
 
       try {
@@ -656,18 +691,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     // Award XP for story (step 2) and dua (step 3)
     if (next == 2 || next == 3) {
       try {
-        final xpResult = await awardXp(10);
-        state = state.copyWith(
-          xpTotal: xpResult.newTotal,
-          levelTitle: xpResult.state.title,
-          levelTitleArabic: xpResult.state.titleArabic,
-          levelNumber: xpResult.state.level,
-          leveledUp: xpResult.leveledUp,
-          newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-          newLevelTitleArabic:
-              xpResult.leveledUp ? xpResult.state.titleArabic : null,
-          newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-        );
+        await _handleXpAward(10);
       } catch (_) {}
     }
   }
@@ -683,18 +707,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     );
 
     try {
-      final xpResult = await awardXp(10);
-      state = state.copyWith(
-        xpTotal: xpResult.newTotal,
-        levelTitle: xpResult.state.title,
-        levelTitleArabic: xpResult.state.titleArabic,
-        levelNumber: xpResult.state.level,
-        leveledUp: xpResult.leveledUp,
-        newLevelTitle: xpResult.leveledUp ? xpResult.state.title : null,
-        newLevelTitleArabic:
-            xpResult.leveledUp ? xpResult.state.titleArabic : null,
-        newLevelNumber: xpResult.leveledUp ? xpResult.state.level : null,
-      );
+      await _handleXpAward(10);
     } catch (_) {}
 
     // Award tokens for quest completion

@@ -13,6 +13,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
@@ -78,6 +79,9 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     HapticFeedback.mediumImpact();
 
     final result = await ref.read(dailyRewardsProvider.notifier).claim();
+    if (result.earnedTierUpScroll) {
+      await ref.read(tierUpScrollProvider.notifier).earn(5);
+    }
     if (mounted) {
       setState(() {
         _claimResult = result;
@@ -407,8 +411,8 @@ class _RewardStrip extends StatelessWidget {
     switch (reward.icon) {
       case 'freeze':
         return const Icon(Icons.ac_unit, size: 14, color: Color(0xFF60A5FA));
-      case 'card':
-        return const Icon(Icons.style, size: 14, color: Color(0xFF7C3AED));
+      case 'scroll':
+        return const Icon(Icons.receipt_long, size: 14, color: Color(0xFF3B82F6));
       case 'star':
         return Icon(Icons.star_rounded, size: 15, color: AppColors.secondary);
       default:
@@ -464,8 +468,8 @@ class _RewardHighlight extends StatelessWidget {
     switch (reward.icon) {
       case 'freeze':
         return Icons.ac_unit;
-      case 'card':
-        return Icons.style;
+      case 'scroll':
+        return Icons.receipt_long;
       case 'star':
         return Icons.star_rounded;
       default:
