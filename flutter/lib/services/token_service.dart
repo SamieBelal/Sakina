@@ -114,37 +114,21 @@ Future<TokenSpendResult> spendTokens(int amount) async {
   final userId = supabaseSyncService.currentUserId;
   int newBalance;
   if (userId != null) {
-    final remoteBalance = await supabaseSyncService.callRpc<int>(
+    // RPC returns {"balance": N, "total_spent": N} in one round trip.
+    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
       'spend_tokens',
       {'amount': amount},
     );
-    if (remoteBalance == null) {
+    if (result == null) {
       return TokenSpendResult(success: false, newBalance: current);
     }
-    newBalance = remoteBalance;
+    newBalance = result['balance'] as int;
+    final serverSpent = result['total_spent'] as int;
+    await _setCachedBalance(prefs, newBalance);
+    await _setCachedTotalSpent(prefs, serverSpent);
   } else {
     newBalance = current - amount;
-  }
-
-  await _setCachedBalance(prefs, newBalance);
-
-  // Sync total_spent from server to avoid cross-device drift.
-  // The spend_tokens RPC atomically updates it, so re-fetch the real value.
-  if (userId != null) {
-    final row = await supabaseSyncService.fetchRow(
-      'user_tokens',
-      userId,
-      columns: 'total_spent',
-    );
-    final serverSpent = row?['total_spent'] as int?;
-    if (serverSpent != null) {
-      await _setCachedTotalSpent(prefs, serverSpent);
-    } else {
-      // Fallback: increment locally if fetch fails
-      final localSpent = await _getCachedTotalSpent(prefs);
-      await _setCachedTotalSpent(prefs, localSpent + amount);
-    }
-  } else {
+    await _setCachedBalance(prefs, newBalance);
     final localSpent = await _getCachedTotalSpent(prefs);
     await _setCachedTotalSpent(prefs, localSpent + amount);
   }

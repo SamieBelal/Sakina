@@ -39,10 +39,14 @@ void main() {
     expect((await getTokens()).balance, 110);
   });
 
-  test('spendTokens success updates balance and total spent', () async {
+  test('spendTokens success updates balance and total spent from RPC response', () async {
     SharedPreferences.setMockInitialValues({'sakina_tokens': 100});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
-    fakeSync.rpcHandlers['spend_tokens'] = (params) async => 80;
+    // RPC now returns both balance and total_spent in one response
+    fakeSync.rpcHandlers['spend_tokens'] = (params) async => {
+      'balance': 80,
+      'total_spent': 55, // Server-side cumulative total
+    };
     SupabaseSyncService.debugSetInstance(fakeSync);
 
     final result = await spendTokens(20);
@@ -50,7 +54,10 @@ void main() {
     expect(result.success, isTrue);
     expect(result.newBalance, 80);
     expect((await getTokens()).balance, 80);
-    expect(await getTotalTokensSpent(), 20);
+    // total_spent comes from server (55), not local increment (20)
+    expect(await getTotalTokensSpent(), 55);
+    // No fetchRow call needed — RPC returned everything
+    expect(fakeSync.rpcCalls.length, 1);
   });
 
   test('spendTokens fails early for insufficient balance', () async {
