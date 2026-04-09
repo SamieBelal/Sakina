@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,12 +7,12 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 // Store pricing
 const int tokenCostPerScroll = 20;
@@ -72,22 +71,12 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
 
     final result = await spendTokens(tokenCostStreakFreeze);
     if (result.success) {
-      // Award streak freeze via daily rewards state
-      final rewardsState = await getDailyRewards();
-      if (!rewardsState.streakFreezeOwned) {
-        // Manually persist freeze owned
-        final prefs = await SharedPreferences.getInstance();
-        final raw = prefs.getString('sakina_daily_rewards');
-        if (raw != null) {
-          final data = Map<String, dynamic>.from(jsonDecode(raw));
-          data['streakFreezeOwned'] = true;
-          await prefs.setString('sakina_daily_rewards', jsonEncode(data));
-        }
-      }
+      await grantStreakFreeze();
       final tokenState = await getTokens();
       ref
           .read(dailyLoopProvider.notifier)
           .refreshTokenBalance(tokenState.balance);
+      await ref.read(dailyRewardsProvider.notifier).reload();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

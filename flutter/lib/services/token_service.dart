@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _tokenKey = 'sakina_tokens';
+const String _totalSpentKey = 'sakina_total_tokens_spent';
 const int startingTokens = 100;
 
 // Token costs
@@ -25,41 +27,137 @@ class TokenSpendResult {
   const TokenSpendResult({required this.success, required this.newBalance});
 }
 
+Future<int> _getCachedBalance(SharedPreferences prefs) async {
+  final migrated =
+      await supabaseSyncService.migrateLegacyIntCache(prefs, _tokenKey);
+  if (migrated == null) {
+    await prefs.setInt(supabaseSyncService.scopedKey(_tokenKey), startingTokens);
+    return startingTokens;
+  }
+  return migrated;
+}
+
+Future<int> _getCachedTotalSpent(SharedPreferences prefs) async {
+  final migrated =
+      await supabaseSyncService.migrateLegacyIntCache(prefs, _totalSpentKey);
+  return migrated ?? 0;
+}
+
+Future<void> _setCachedBalance(SharedPreferences prefs, int balance) async {
+  await prefs.setInt(supabaseSyncService.scopedKey(_tokenKey), balance);
+}
+
+Future<void> _setCachedTotalSpent(
+  SharedPreferences prefs,
+  int totalSpent,
+) async {
+  await prefs.setInt(supabaseSyncService.scopedKey(_totalSpentKey), totalSpent);
+}
+
 Future<TokenState> getTokens() async {
   final prefs = await SharedPreferences.getInstance();
-  if (!prefs.containsKey(_tokenKey)) {
-    // First launch — grant starting tokens
-    await prefs.setInt(_tokenKey, startingTokens);
-    return const TokenState(balance: startingTokens);
-  }
-  final balance = prefs.getInt(_tokenKey) ?? 0;
+  final balance = await _getCachedBalance(prefs);
   return TokenState(balance: balance);
+}
+
+Future<void> syncTokenCacheFromSupabase() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  await _getCachedBalance(prefs);
+  await _getCachedTotalSpent(prefs);
+
+  final row = await supabaseSyncService.fetchRow(
+    'user_tokens',
+    userId,
+    columns: 'balance,total_spent',
+  );
+  final balance = row?['balance'] as int?;
+  final totalSpent = row?['total_spent'] as int?;
+  if (balance == null || totalSpent == null) return;
+
+  await _setCachedBalance(prefs, balance);
+  await _setCachedTotalSpent(prefs, totalSpent);
 }
 
 Future<TokenState> earnTokens(int amount) async {
   final prefs = await SharedPreferences.getInstance();
-  final current = prefs.getInt(_tokenKey) ?? startingTokens;
-  final newBalance = current + amount;
-  await prefs.setInt(_tokenKey, newBalance);
+  final current = await _getCachedBalance(prefs);
+  final userId = supabaseSyncService.currentUserId;
+
+  int newBalance;
+  if (userId != null) {
+    final remoteBalance = await supabaseSyncService.callRpc<int>(
+      'earn_tokens',
+      {'amount': amount},
+    );
+    if (remoteBalance == null) {
+      return TokenState(balance: current);
+    }
+    newBalance = remoteBalance;
+  } else {
+    newBalance = current + amount;
+  }
+
+  await _setCachedBalance(prefs, newBalance);
   return TokenState(balance: newBalance);
 }
 
 Future<TokenSpendResult> spendTokens(int amount) async {
   final prefs = await SharedPreferences.getInstance();
-  final current = prefs.getInt(_tokenKey) ?? startingTokens;
+  final current = await _getCachedBalance(prefs);
   if (current < amount) {
     return TokenSpendResult(success: false, newBalance: current);
   }
-  final newBalance = current - amount;
-  await prefs.setInt(_tokenKey, newBalance);
-  // Track total spent for achievements
-  final totalSpent = prefs.getInt('sakina_total_tokens_spent') ?? 0;
-  await prefs.setInt('sakina_total_tokens_spent', totalSpent + amount);
+
+  final userId = supabaseSyncService.currentUserId;
+  int newBalance;
+  if (userId != null) {
+    final remoteBalance = await supabaseSyncService.callRpc<int>(
+      'spend_tokens',
+      {'amount': amount},
+    );
+    if (remoteBalance == null) {
+      return TokenSpendResult(success: false, newBalance: current);
+    }
+    newBalance = remoteBalance;
+  } else {
+    newBalance = current - amount;
+  }
+
+  await _setCachedBalance(prefs, newBalance);
+
+  // Sync total_spent from server to avoid cross-device drift.
+  // The spend_tokens RPC atomically updates it, so re-fetch the real value.
+  if (userId != null) {
+    final row = await supabaseSyncService.fetchRow(
+      'user_tokens',
+      userId,
+      columns: 'total_spent',
+    );
+    final serverSpent = row?['total_spent'] as int?;
+    if (serverSpent != null) {
+      await _setCachedTotalSpent(prefs, serverSpent);
+    } else {
+      // Fallback: increment locally if fetch fails
+      final localSpent = await _getCachedTotalSpent(prefs);
+      await _setCachedTotalSpent(prefs, localSpent + amount);
+    }
+  } else {
+    final localSpent = await _getCachedTotalSpent(prefs);
+    await _setCachedTotalSpent(prefs, localSpent + amount);
+  }
   return TokenSpendResult(success: true, newBalance: newBalance);
 }
 
 Future<bool> hasTokens(int amount) async {
   final prefs = await SharedPreferences.getInstance();
-  final current = prefs.getInt(_tokenKey) ?? startingTokens;
+  final current = await _getCachedBalance(prefs);
   return current >= amount;
+}
+
+Future<int> getTotalTokensSpent() async {
+  final prefs = await SharedPreferences.getInstance();
+  return _getCachedTotalSpent(prefs);
 }

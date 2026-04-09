@@ -6,45 +6,95 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
+import '../services/daily_rewards_service.dart';
+import '../services/streak_service.dart';
+import '../services/token_service.dart';
+import '../services/xp_service.dart';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
 class AppSessionNotifier extends ChangeNotifier {
   AppSessionNotifier({
-    required AuthService authService,
+    AuthService? authService,
     required bool initialOnboarded,
-  })  : _authService = authService,
-        _hasOnboarded = initialOnboarded {
-    _subscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen(_onAuthChange);
+    Stream<AuthState>? authStateChanges,
+    bool Function()? isAuthenticatedProvider,
+    Future<void> Function()? hydrateEconomyCache,
+    Future<bool> Function()? hasCompletedOnboarding,
+  })  : _hasOnboarded = initialOnboarded,
+        _isAuthenticatedProvider =
+            isAuthenticatedProvider ??
+            (() => Supabase.instance.client.auth.currentUser != null),
+        _hydrateEconomyCache =
+            hydrateEconomyCache ??
+            (() => Future.wait([
+                  syncXpCacheFromSupabase(),
+                  syncTokenCacheFromSupabase(),
+                  syncStreakCacheFromSupabase(),
+                  syncDailyRewardsCacheFromSupabase(),
+                ]).then((_) => null)),
+        _hasCompletedOnboarding =
+            hasCompletedOnboarding ??
+            authService?.hasCompletedOnboarding ??
+            (() async => false) {
+    _subscription = (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
+        .listen(_onAuthChange);
   }
 
-  final AuthService _authService;
   late final StreamSubscription<AuthState> _subscription;
+  final bool Function() _isAuthenticatedProvider;
+  final Future<void> Function() _hydrateEconomyCache;
+  final Future<bool> Function() _hasCompletedOnboarding;
   bool _hasOnboarded;
 
-  bool get isAuthenticated => Supabase.instance.client.auth.currentUser != null;
+  bool get isAuthenticated => _isAuthenticatedProvider();
   bool get hasOnboarded => _hasOnboarded;
+
+  /// `true` while an economy hydration is in flight.
+  bool _hydrating = false;
+
+  /// Whether the economy cache has been hydrated at least once this session.
+  bool get economyHydrated => _economyHydrated;
+  bool _economyHydrated = false;
 
   void _onAuthChange(AuthState data) {
     switch (data.event) {
       case AuthChangeEvent.signedIn:
       case AuthChangeEvent.initialSession:
       case AuthChangeEvent.tokenRefreshed:
-        if (data.session != null && !_hasOnboarded) {
-          _checkOnboardingStatus();
+        if (isAuthenticated) {
+          unawaited(_hydrateAndNotify());
+        }
+        if (isAuthenticated && !_hasOnboarded) {
+          unawaited(_checkOnboardingStatus());
         }
         notifyListeners();
+        break;
       case AuthChangeEvent.signedOut:
         _hasOnboarded = false;
+        _economyHydrated = false;
         notifyListeners();
+        break;
       default:
         notifyListeners();
+        break;
+    }
+  }
+
+  Future<void> _hydrateAndNotify() async {
+    if (_hydrating) return; // Avoid overlapping hydrations
+    _hydrating = true;
+    try {
+      await _hydrateEconomyCache();
+      _economyHydrated = true;
+      notifyListeners(); // Kick providers to re-read fresh cache
+    } finally {
+      _hydrating = false;
     }
   }
 
   Future<void> _checkOnboardingStatus() async {
-    final onboarded = await _authService.hasCompletedOnboarding();
+    final onboarded = await _hasCompletedOnboarding();
     if (onboarded && !_hasOnboarded) {
       _hasOnboarded = true;
       final prefs = await SharedPreferences.getInstance();
@@ -57,7 +107,7 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> ensureOnboardingChecked() async {
     if (!isAuthenticated) return;
     if (_hasOnboarded) return;
-    final onboarded = await _authService.hasCompletedOnboarding();
+    final onboarded = await _hasCompletedOnboarding();
     if (onboarded) {
       _hasOnboarded = true;
       final prefs = await SharedPreferences.getInstance();

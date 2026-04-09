@@ -114,12 +114,15 @@ abstract final class AppStrings {
   static const paywallBenefit4 = 'Revisit every moment of your journey';
   static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
-  static const paywallAnnualLabel = 'Annual';
-  static const paywallAnnualBadge = 'BEST VALUE';
-  static const paywallAnnualPerWeek = 'Just \$0.96/week';
+  static const paywallAnnualLabel = 'Yearly';
+  static const paywallAnnualBadge = 'SAVE 81%';
+  static const paywallAnnualPerWeek = '\$0.96';
+  static const paywallAnnualPerWeekLabel = 'Per Week';
+  static const paywallAnnualTotal = '\$49.99 Total';
   static const paywallWeeklyPrice = '\$4.99';
   static const paywallWeeklyPeriod = '/week';
   static const paywallWeeklyLabel = 'Weekly';
+  static const paywallWeeklyPerWeekLabel = 'Per Week';
   static const paywallTrialTermsAnnual =
       '3-day free trial, then \$49.99/year. Cancel anytime.';
   static const paywallTrialTermsWeekly =

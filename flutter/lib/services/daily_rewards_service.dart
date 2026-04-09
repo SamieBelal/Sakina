@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 // ---------------------------------------------------------------------------
 // Reward types
@@ -107,6 +108,10 @@ class DailyRewardClaimResult {
 
 const String _rewardsKey = 'sakina_daily_rewards';
 
+Future<String?> _getCachedRewardsRaw(SharedPreferences prefs) async {
+  return supabaseSyncService.migrateLegacyStringCache(prefs, _rewardsKey);
+}
+
 String _today() {
   final now = DateTime.now();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -119,7 +124,7 @@ String _yesterday() {
 
 Future<DailyRewardsState> getDailyRewards() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_rewardsKey);
+  final raw = await _getCachedRewardsRaw(prefs);
 
   if (raw == null) {
     return const DailyRewardsState();
@@ -155,7 +160,7 @@ Future<DailyRewardsState> getDailyRewards() async {
 Future<void> _persist(DailyRewardsState state) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(
-    _rewardsKey,
+    supabaseSyncService.scopedKey(_rewardsKey),
     jsonEncode({
       'currentDay': state.currentDay,
       'lastClaimDate': state.lastClaimDate,
@@ -164,9 +169,80 @@ Future<void> _persist(DailyRewardsState state) async {
   );
 }
 
-Future<DailyRewardClaimResult> claimDailyReward() async {
+Future<void> syncDailyRewardsCacheFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final localState = await getDailyRewards();
+  final row = await supabaseSyncService.fetchRow(
+    'user_daily_rewards',
+    userId,
+    columns: 'current_day,last_claim_date,streak_freeze_owned',
+  );
+  if (row == null) return;
+
+  final serverDay = row['current_day'] as int?;
+  final serverLastClaim = row['last_claim_date'] as String?;
+  final serverFreeze = row['streak_freeze_owned'] as bool?;
+
+  // Use server values when available, fall back to local
+  await _persist(localState.copyWith(
+    currentDay: serverDay ?? localState.currentDay,
+    lastClaimDate: serverLastClaim ?? localState.lastClaimDate,
+    streakFreezeOwned: serverFreeze ?? localState.streakFreezeOwned,
+  ));
+}
+
+Future<void> grantStreakFreeze() async {
   final state = await getDailyRewards();
+  final userId = supabaseSyncService.currentUserId;
+
+  if (userId != null) {
+    final ok = await supabaseSyncService.upsertRow(
+      'user_daily_rewards',
+      userId,
+      {'streak_freeze_owned': true},
+    );
+    if (!ok) return; // Server failed — don't update local either
+  }
+
+  final newState = state.copyWith(streakFreezeOwned: true);
+  await _persist(newState);
+}
+
+Future<DailyRewardClaimResult> claimDailyReward() async {
+  var state = await getDailyRewards();
   final today = _today();
+  final userId = supabaseSyncService.currentUserId;
+
+  // For authenticated users, refresh from server to prevent cross-device
+  // double-claims (Device A claims day 4, Device B still sees day 3).
+  if (userId != null) {
+    final row = await supabaseSyncService.fetchRow(
+      'user_daily_rewards',
+      userId,
+      columns: 'current_day,last_claim_date,streak_freeze_owned',
+    );
+    if (row != null) {
+      final serverDay = row['current_day'] as int? ?? state.currentDay;
+      final serverLastClaim = row['last_claim_date'] as String? ?? state.lastClaimDate;
+      final serverFreeze = row['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
+
+      // Apply the same calendar reset logic as getDailyRewards():
+      // if lastClaimDate is older than yesterday, reset to day 0.
+      final yesterday = _yesterday();
+      final needsReset = serverLastClaim != null &&
+          serverLastClaim != today &&
+          serverLastClaim != yesterday;
+
+      state = DailyRewardsState(
+        currentDay: needsReset ? 0 : serverDay,
+        lastClaimDate: serverLastClaim,
+        streakFreezeOwned: serverFreeze,
+        claimedToday: serverLastClaim == today,
+      );
+    }
+  }
 
   // Already claimed today
   if (state.lastClaimDate == today) {
@@ -208,7 +284,25 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       break;
   }
 
+  // Persist to server first — if that fails, don't update local cache
+  if (userId != null) {
+    final ok = await supabaseSyncService.upsertRow(
+      'user_daily_rewards',
+      userId,
+      {
+        'current_day': newState.currentDay,
+        'last_claim_date': today,
+        'streak_freeze_owned': newState.streakFreezeOwned,
+      },
+    );
+    if (!ok) {
+      return DailyRewardClaimResult(day: state.currentDay, alreadyClaimed: true);
+    }
+  }
+
   await _persist(newState);
+  // No separate grantStreakFreeze() call needed here — the server upsert above
+  // already includes streak_freeze_owned, and newState has it set locally.
 
   return DailyRewardClaimResult(
     day: nextDay,
@@ -221,10 +315,32 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
 
 Future<bool> consumeStreakFreeze() async {
   final state = await getDailyRewards();
+  final userId = supabaseSyncService.currentUserId;
+
+  if (userId != null) {
+    final row = await supabaseSyncService.fetchRow(
+      'user_daily_rewards',
+      userId,
+      columns: 'streak_freeze_owned',
+    );
+    final hasFreeze = row?['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
+    if (!hasFreeze) return false;
+
+    final ok = await supabaseSyncService.upsertRow(
+      'user_daily_rewards',
+      userId,
+      {'streak_freeze_owned': false},
+    );
+    if (!ok) return false; // Server failed — don't consume locally
+
+    final newState = state.copyWith(streakFreezeOwned: false);
+    await _persist(newState);
+    return true;
+  }
+
   if (!state.streakFreezeOwned) return false;
 
   final newState = state.copyWith(streakFreezeOwned: false);
   await _persist(newState);
   return true;
 }
-

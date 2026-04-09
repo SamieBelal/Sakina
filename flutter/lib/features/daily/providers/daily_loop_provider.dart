@@ -599,6 +599,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(tokenBalance: balance);
   }
 
+  /// Re-reads streak, XP, and token state from cache.
+  /// Call after economy hydration completes to pick up server-synced values.
+  Future<void> refreshEconomyState() async {
+    try {
+      final streakState = await getStreak();
+      final xpState = await getXp();
+      final tokenState = await getTokens();
+      final displayTitle = await getDisplayTitle(xpState.level);
+      state = state.copyWith(
+        streakCount: streakState.currentStreak,
+        xpTotal: xpState.totalXp,
+        tokenBalance: tokenState.balance,
+        levelTitle: displayTitle.title,
+        levelTitleArabic: displayTitle.titleArabic,
+        levelNumber: xpState.level,
+      );
+    } catch (_) {
+      // Non-critical — stale values are better than crashing
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Step 2: Deeper reflect
   // ---------------------------------------------------------------------------

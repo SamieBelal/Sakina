@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 class XpLevel {
   final int level;
@@ -117,6 +118,15 @@ const int xpBuiltDuaCompleted = 15;
 
 const String _xpKey = 'sakina_total_xp';
 
+Future<int> _getCachedXpTotal(SharedPreferences prefs) async {
+  final migrated = await supabaseSyncService.migrateLegacyIntCache(prefs, _xpKey);
+  return migrated ?? 0;
+}
+
+Future<void> _setCachedXpTotal(SharedPreferences prefs, int total) async {
+  await prefs.setInt(supabaseSyncService.scopedKey(_xpKey), total);
+}
+
 XpState calculateXpState(int total) {
   XpLevel current = xpLevels.first;
   for (final level in xpLevels) {
@@ -156,16 +166,49 @@ String nextLevelTitle(int totalXp) {
 
 Future<XpState> getXp() async {
   final prefs = await SharedPreferences.getInstance();
-  final total = prefs.getInt(_xpKey) ?? 0;
+  final total = await _getCachedXpTotal(prefs);
   return calculateXpState(total);
+}
+
+Future<void> syncXpCacheFromSupabase() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  await _getCachedXpTotal(prefs);
+  final row = await supabaseSyncService.fetchRow('user_xp', userId);
+  final total = row?['total_xp'] as int?;
+  if (total == null) return;
+
+  await _setCachedXpTotal(prefs, total);
 }
 
 Future<XpAwardResult> awardXp(int amount) async {
   final prefs = await SharedPreferences.getInstance();
-  final oldTotal = prefs.getInt(_xpKey) ?? 0;
+  final oldTotal = await _getCachedXpTotal(prefs);
   final oldState = calculateXpState(oldTotal);
-  final newTotal = oldTotal + amount;
-  await prefs.setInt(_xpKey, newTotal);
+  final userId = supabaseSyncService.currentUserId;
+
+  int newTotal;
+  if (userId != null) {
+    final remoteTotal = await supabaseSyncService.callRpc<int>(
+      'award_xp',
+      {'amount': amount},
+    );
+    if (remoteTotal == null) {
+      return XpAwardResult(
+        gained: 0,
+        newTotal: oldTotal,
+        leveledUp: false,
+        state: oldState,
+      );
+    }
+    newTotal = remoteTotal;
+  } else {
+    newTotal = oldTotal + amount;
+  }
+
+  await _setCachedXpTotal(prefs, newTotal);
   final newState = calculateXpState(newTotal);
 
   final didLevel = newState.level > oldState.level;

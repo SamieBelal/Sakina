@@ -162,36 +162,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Compact pricing row
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _PricingOption(
-                        label: AppStrings.paywallAnnualLabel,
-                        price: AppStrings.paywallAnnualPrice,
-                        period: AppStrings.paywallAnnualPeriod,
-                        badge: AppStrings.paywallAnnualBadge,
-                        subPrice: AppStrings.paywallAnnualPerWeek,
-                        selected: _selectedPlan == _PlanType.annual,
-                        onTap: () =>
-                            setState(() => _selectedPlan = _PlanType.annual),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _PricingOption(
-                        label: AppStrings.paywallWeeklyLabel,
-                        price: AppStrings.paywallWeeklyPrice,
-                        period: AppStrings.paywallWeeklyPeriod,
-                        selected: _selectedPlan == _PlanType.weekly,
-                        onTap: () =>
-                            setState(() => _selectedPlan = _PlanType.weekly),
-                      ),
-                    ),
-                  ],
-                ),
+              // Pricing cards — stacked, yearly first
+              _PricingCard(
+                label: AppStrings.paywallAnnualLabel,
+                mainPrice: AppStrings.paywallAnnualPerWeek,
+                mainPriceLabel: AppStrings.paywallAnnualPerWeekLabel,
+                subPrice: AppStrings.paywallAnnualTotal,
+                badge: AppStrings.paywallAnnualBadge,
+                selected: _selectedPlan == _PlanType.annual,
+                onTap: () =>
+                    setState(() => _selectedPlan = _PlanType.annual),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _PricingCard(
+                label: AppStrings.paywallWeeklyLabel,
+                mainPrice: AppStrings.paywallWeeklyPrice,
+                mainPriceLabel: AppStrings.paywallWeeklyPerWeekLabel,
+                selected: _selectedPlan == _PlanType.weekly,
+                onTap: () =>
+                    setState(() => _selectedPlan = _PlanType.weekly),
               ),
               const SizedBox(height: AppSpacing.sm),
 
@@ -293,11 +282,11 @@ class _LegalLink extends StatelessWidget {
   }
 }
 
-class _PricingOption extends StatelessWidget {
-  const _PricingOption({
+class _PricingCard extends StatelessWidget {
+  const _PricingCard({
     required this.label,
-    required this.price,
-    required this.period,
+    required this.mainPrice,
+    required this.mainPriceLabel,
     required this.selected,
     required this.onTap,
     this.badge,
@@ -305,8 +294,8 @@ class _PricingOption extends StatelessWidget {
   });
 
   final String label;
-  final String price;
-  final String period;
+  final String mainPrice;
+  final String mainPriceLabel;
   final String? badge;
   final String? subPrice;
   final bool selected;
@@ -320,7 +309,7 @@ class _PricingOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
+          vertical: 14,
         ),
         decoration: BoxDecoration(
           color: selected ? AppColors.primaryLight : AppColors.surfaceLight,
@@ -330,50 +319,99 @@ class _PricingOption extends StatelessWidget {
             width: selected ? 2 : 1,
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            if (badge != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                ),
-                child: Text(
-                  badge!,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textOnPrimary,
-                  ),
+            // Radio indicator
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? AppColors.primary : Colors.transparent,
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primary
+                      : AppColors.textTertiaryLight,
+                  width: 2,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
-            Text(
-              price,
-              style: AppTypography.headlineLarge.copyWith(
-                color: AppColors.textPrimaryLight,
+              child: selected
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: AppSpacing.md),
+
+            // Label + badge
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                    ),
+                  ),
+                  if (badge != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
+                      child: Text(
+                        badge!,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textOnPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            Text(
-              period,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-            if (subPrice != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  subPrice!,
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.primary,
+
+            // Price column — right-aligned
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  mainPrice,
+                  style: AppTypography.headlineLarge.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
                   ),
                 ),
-              ),
+                Text(
+                  mainPriceLabel,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                    fontSize: 13,
+                  ),
+                ),
+                if (subPrice != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subPrice!,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

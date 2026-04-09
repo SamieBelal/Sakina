@@ -18,6 +18,7 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/core/app_session.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point — push as a full-screen opaque route
@@ -37,6 +38,7 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   bool _rewardClaimed = false;
   DailyRewardClaimResult? _claimResult;
   bool _claimLoading = false;
+  AppSessionNotifier? _session; // Captured ref so listener cleanup works after dispose
 
   @override
   void initState() {
@@ -45,6 +47,13 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     markDailyLaunchShown();
     // Ensure rewards provider has fresh data before we check claimedToday
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final session = ref.read(appSessionProvider);
+      _session = session;
+      if (!session.economyHydrated) {
+        session.addListener(_onSessionChange);
+      }
+
       await ref.read(dailyRewardsProvider.notifier).reload();
       if (!mounted) return;
       final rewards = ref.read(dailyRewardsProvider);
@@ -52,6 +61,25 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
         setState(() => _rewardClaimed = true);
       }
     });
+  }
+
+  void _onSessionChange() {
+    if (!mounted) {
+      _session?.removeListener(_onSessionChange);
+      return;
+    }
+    final session = _session;
+    if (session != null && session.economyHydrated) {
+      session.removeListener(_onSessionChange);
+      ref.read(dailyLoopProvider.notifier).refreshEconomyState();
+      ref.read(dailyRewardsProvider.notifier).reload();
+    }
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_onSessionChange);
+    super.dispose();
   }
 
   void _advance() {

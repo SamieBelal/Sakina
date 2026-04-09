@@ -6,6 +6,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/widgets/achievement_toast.dart';
@@ -71,7 +72,7 @@ Future<void> checkAchievements(WidgetRef ref) async {
     // Scroll/title/spending data
     final prefs = await SharedPreferences.getInstance();
     final hasUsedScroll = prefs.getBool('sakina_has_used_scroll') ?? false;
-    final totalTokensSpent = prefs.getInt('sakina_total_tokens_spent') ?? 0;
+    final totalTokensSpent = await getTotalTokensSpent();
 
     // Title data
     final displayTitle = await getDisplayTitle(xp.level);

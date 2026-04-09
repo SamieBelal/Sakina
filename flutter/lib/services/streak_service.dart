@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 // ---------------------------------------------------------------------------
 // Streak Milestones — one-time rewards for reaching streak thresholds
@@ -39,11 +40,17 @@ class StreakMilestoneResult {
 
 const String _claimedMilestonesKey = 'sakina_streak_milestones_claimed';
 
+Future<Set<int>> _getScopedClaimedMilestones(SharedPreferences prefs) async {
+  final raw =
+      await supabaseSyncService.migrateLegacyStringCache(prefs, _claimedMilestonesKey);
+  if (raw == null) return {};
+  return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+}
+
 /// Check which milestones were just reached. Returns only newly claimed ones.
 Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_claimedMilestonesKey);
-  final claimed = raw != null ? (jsonDecode(raw) as List<dynamic>).cast<int>().toSet() : <int>{};
+  final claimed = await _getScopedClaimedMilestones(prefs);
 
   final newlyReached = <StreakMilestoneResult>[];
   for (final milestone in streakMilestones) {
@@ -54,7 +61,10 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) asy
   }
 
   if (newlyReached.isNotEmpty) {
-    await prefs.setString(_claimedMilestonesKey, jsonEncode(claimed.toList()));
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_claimedMilestonesKey),
+      jsonEncode(claimed.toList()),
+    );
   }
 
   return newlyReached;
@@ -63,9 +73,7 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) asy
 /// Get set of already-claimed milestone day counts.
 Future<Set<int>> getClaimedMilestones() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_claimedMilestonesKey);
-  if (raw == null) return {};
-  return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+  return _getScopedClaimedMilestones(prefs);
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +99,49 @@ const String _longestStreakKey = 'sakina_longest_streak';
 const String _lastActiveKey = 'sakina_last_active';
 const String _activityLogKey = 'sakina_activity_log';
 
+Future<int> _getCachedCurrentStreak(SharedPreferences prefs) async {
+  final migrated =
+      await supabaseSyncService.migrateLegacyIntCache(prefs, _currentStreakKey);
+  return migrated ?? 0;
+}
+
+Future<int> _getCachedLongestStreak(SharedPreferences prefs) async {
+  final migrated =
+      await supabaseSyncService.migrateLegacyIntCache(prefs, _longestStreakKey);
+  return migrated ?? 0;
+}
+
+Future<String?> _getCachedLastActive(SharedPreferences prefs) async {
+  return supabaseSyncService.migrateLegacyStringCache(prefs, _lastActiveKey);
+}
+
+Future<Set<String>> _getCachedActivityLogSet(SharedPreferences prefs) async {
+  final migrated =
+      await supabaseSyncService.migrateLegacyStringListCache(prefs, _activityLogKey);
+  return (migrated ?? const <String>[]).toSet();
+}
+
+Future<void> _setCachedStreakState(
+  SharedPreferences prefs, {
+  required int currentStreak,
+  required int longestStreak,
+  String? lastActive,
+}) async {
+  await prefs.setInt(
+    supabaseSyncService.scopedKey(_currentStreakKey),
+    currentStreak,
+  );
+  await prefs.setInt(
+    supabaseSyncService.scopedKey(_longestStreakKey),
+    longestStreak,
+  );
+  if (lastActive == null) {
+    await prefs.remove(supabaseSyncService.scopedKey(_lastActiveKey));
+  } else {
+    await prefs.setString(supabaseSyncService.scopedKey(_lastActiveKey), lastActive);
+  }
+}
+
 String _todayString() {
   final now = DateTime.now();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -106,28 +157,15 @@ Future<StreakState> getStreak() async {
   final prefs = await SharedPreferences.getInstance();
   final today = _todayString();
 
-  int currentStreak = prefs.getInt(_currentStreakKey) ?? 0;
-  final int longestStreak = prefs.getInt(_longestStreakKey) ?? 0;
-  final String? lastActive = prefs.getString(_lastActiveKey);
+  final int currentStreak = await _getCachedCurrentStreak(prefs);
+  final int longestStreak = await _getCachedLongestStreak(prefs);
+  final String? lastActive = await _getCachedLastActive(prefs);
 
   bool todayActive = false;
 
   if (lastActive != null) {
     if (lastActive == today) {
       todayActive = true;
-    } else if (_daysBetween(lastActive, today) > 1) {
-      // Try streak freeze before resetting
-      final frozeUsed = await consumeStreakFreeze();
-      if (frozeUsed) {
-        // Freeze consumed — pretend yesterday was active
-        final y = DateTime.now().subtract(const Duration(days: 1));
-        final yesterday = '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
-        await prefs.setString(_lastActiveKey, yesterday);
-      } else {
-        // Streak broken — reset
-        currentStreak = 0;
-        await prefs.setInt(_currentStreakKey, 0);
-      }
     }
   }
 
@@ -139,23 +177,77 @@ Future<StreakState> getStreak() async {
   );
 }
 
+Future<void> syncStreakCacheFromSupabase() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  // Migrate legacy keys → scoped keys. If the server fetch below returns null
+  // (new user, or fetch failure), the migrated values remain as the cache.
+  await _getCachedCurrentStreak(prefs);
+  await _getCachedLongestStreak(prefs);
+  await _getCachedLastActive(prefs);
+  await _getCachedActivityLogSet(prefs);
+
+  final row = await supabaseSyncService.fetchRow(
+    'user_streaks',
+    userId,
+    columns: 'current_streak,longest_streak,last_active',
+  );
+  if (row == null) return;
+
+  await _setCachedStreakState(
+    prefs,
+    currentStreak: row['current_streak'] as int? ?? 0,
+    longestStreak: row['longest_streak'] as int? ?? 0,
+    lastActive: row['last_active'] as String?,
+  );
+}
+
 Future<StreakState> markActiveToday() async {
   final prefs = await SharedPreferences.getInstance();
   final today = _todayString();
-  final String? lastActive = prefs.getString(_lastActiveKey);
+  final userId = supabaseSyncService.currentUserId;
+  String? lastActive = await _getCachedLastActive(prefs);
+  int currentStreak = await _getCachedCurrentStreak(prefs);
+  int longestStreak = await _getCachedLongestStreak(prefs);
+
+  if (userId != null) {
+    final row = await supabaseSyncService.fetchRow(
+      'user_streaks',
+      userId,
+      columns: 'current_streak,longest_streak,last_active',
+    );
+    if (row != null) {
+      currentStreak = row['current_streak'] as int? ?? currentStreak;
+      longestStreak = row['longest_streak'] as int? ?? longestStreak;
+      lastActive = row['last_active'] as String? ?? lastActive;
+    }
+  }
 
   // Already active today — return current state
   if (lastActive == today) {
-    return getStreak();
+    await _setCachedStreakState(
+      prefs,
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      lastActive: lastActive,
+    );
+    return StreakState(
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      lastActive: lastActive,
+      todayActive: true,
+    );
   }
 
-  int currentStreak = prefs.getInt(_currentStreakKey) ?? 0;
-  int longestStreak = prefs.getInt(_longestStreakKey) ?? 0;
-
   // Check if streak continues (yesterday) or resets
+  bool freezeConsumed = false;
   if (lastActive != null && _daysBetween(lastActive, today) > 1) {
     final frozeUsed = await consumeStreakFreeze();
-    if (!frozeUsed) {
+    if (frozeUsed) {
+      freezeConsumed = true;
+    } else {
       currentStreak = 0;
     }
   }
@@ -166,9 +258,28 @@ Future<StreakState> markActiveToday() async {
     longestStreak = currentStreak;
   }
 
-  await prefs.setInt(_currentStreakKey, currentStreak);
-  await prefs.setInt(_longestStreakKey, longestStreak);
-  await prefs.setString(_lastActiveKey, today);
+  if (userId != null) {
+    final ok = await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': currentStreak,
+      'longest_streak': longestStreak,
+      'last_active': today,
+    });
+    if (!ok && !freezeConsumed) {
+      // Server write failed and no side-effects committed — safe to return
+      // stale cached state so callers don't see phantom progress.
+      return getStreak();
+    }
+    // If the freeze was consumed (server-side commit already happened) but
+    // the streak upsert failed, we must still cache the computed values
+    // locally. Otherwise the user loses their freeze for nothing.
+  }
+
+  await _setCachedStreakState(
+    prefs,
+    currentStreak: currentStreak,
+    longestStreak: longestStreak,
+    lastActive: today,
+  );
 
   return StreakState(
     currentStreak: currentStreak,
@@ -180,18 +291,26 @@ Future<StreakState> markActiveToday() async {
 
 Future<Set<String>> getActivityLog() async {
   final prefs = await SharedPreferences.getInstance();
-  final List<String> log = prefs.getStringList(_activityLogKey) ?? [];
-  return log.toSet();
+  return _getCachedActivityLogSet(prefs);
 }
 
 Future<void> logActivity() async {
   final prefs = await SharedPreferences.getInstance();
   final today = _todayString();
-  final List<String> log = prefs.getStringList(_activityLogKey) ?? [];
-  final logSet = log.toSet();
+  final logSet = await _getCachedActivityLogSet(prefs);
 
   if (!logSet.contains(today)) {
     logSet.add(today);
-    await prefs.setStringList(_activityLogKey, logSet.toList());
+    await prefs.setStringList(
+      supabaseSyncService.scopedKey(_activityLogKey),
+      logSet.toList(),
+    );
   }
+
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+  await supabaseSyncService.insertRow('user_activity_log', {
+    'user_id': userId,
+    'active_date': today,
+  });
 }
