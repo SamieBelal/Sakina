@@ -58,7 +58,7 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 17,
+        progressSegment: 16,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

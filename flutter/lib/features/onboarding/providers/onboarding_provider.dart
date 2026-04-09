@@ -1,8 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' show VoidCallback;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/app_session.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/launch_gate_service.dart';
+
+const _prefsKey = 'onboarding_state';
+
+/// Last index in [OnboardingScreen]'s PageView (paywall). Inclusive range for
+/// persisted `currentPage` is `0.._onboardingLastPageIndex`.
+const int onboardingLastPageIndex = 19;
 
 class OnboardingState {
   const OnboardingState({
@@ -78,10 +90,55 @@ class OnboardingState {
       signUpEmail: clearSignUpEmail ? null : (signUpEmail ?? this.signUpEmail),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'version': 2,
+        'currentPage': currentPage,
+        'intention': intention,
+        'struggles': struggles.toList(),
+        'notificationPermissionGranted': notificationPermissionGranted,
+        'demoCheckinCompleted': demoCheckinCompleted,
+        'familiarity': familiarity,
+        'quranConnection': quranConnection,
+        'attribution': attribution.toList(),
+        'signUpName': signUpName,
+        'signUpEmail': signUpEmail,
+      };
+
+  static OnboardingState fromJson(Map<String, dynamic> json) {
+    var currentPage = json['currentPage'] as int? ?? 0;
+    if (json['version'] == null && currentPage > 0) {
+      currentPage -= 1;
+    }
+    currentPage = currentPage.clamp(0, onboardingLastPageIndex);
+    return OnboardingState(
+      currentPage: currentPage,
+      intention: json['intention'] as String?,
+      struggles: (json['struggles'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toSet() ??
+          const {},
+      notificationPermissionGranted:
+          json['notificationPermissionGranted'] as bool? ?? false,
+      demoCheckinCompleted: json['demoCheckinCompleted'] as bool? ?? false,
+      familiarity: json['familiarity'] as String?,
+      quranConnection: json['quranConnection'] as String?,
+      attribution: (json['attribution'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toSet() ??
+          const {},
+      signUpName: json['signUpName'] as String?,
+      signUpEmail: json['signUpEmail'] as String?,
+    );
+  }
 }
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
-  OnboardingNotifier() : super(const OnboardingState());
+  OnboardingNotifier({OnboardingState? restored, AuthService? authService})
+      : _authService = authService ?? AuthService(),
+        super(restored ?? const OnboardingState());
+
+  final AuthService _authService;
 
   Timer? _generateTimer;
 
@@ -91,12 +148,32 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     super.dispose();
   }
 
+  Future<void> _saveToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, jsonEncode(state.toJson()));
+  }
+
+  static Future<OnboardingState?> loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefsKey);
+    if (raw == null) return null;
+    try {
+      return OnboardingState.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   void setPage(int page) {
     state = state.copyWith(currentPage: page);
+    _saveToPrefs();
   }
 
   void setIntention(String intention) {
     state = state.copyWith(intention: intention);
+    _saveToPrefs();
   }
 
   void toggleStruggle(String struggle) {
@@ -107,14 +184,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       updated.add(struggle);
     }
     state = state.copyWith(struggles: updated);
+    _saveToPrefs();
   }
 
   void setNotificationPermission(bool granted) {
     state = state.copyWith(notificationPermissionGranted: granted);
+    _saveToPrefs();
   }
 
   void setDemoFeelingInput(String input) {
     state = state.copyWith(demoFeelingInput: input);
+    _saveToPrefs();
   }
 
   Future<void> completeDemoCheckin() async {
@@ -124,14 +204,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       isLoadingDemoResult: false,
       demoCheckinCompleted: true,
     );
+    _saveToPrefs();
   }
 
   void setFamiliarity(String familiarity) {
     state = state.copyWith(familiarity: familiarity);
+    _saveToPrefs();
   }
 
   void setQuranConnection(String quranConnection) {
     state = state.copyWith(quranConnection: quranConnection);
+    _saveToPrefs();
   }
 
   void toggleAttribution(String source) {
@@ -142,13 +225,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       updated.add(source);
     }
     state = state.copyWith(attribution: updated);
+    _saveToPrefs();
   }
 
   void runGeneratingTheater(VoidCallback onComplete) {
     state = state.copyWith(generateProgress: 0.0);
     const totalDuration = Duration(seconds: 3);
     const tickInterval = Duration(milliseconds: 50);
-    final totalTicks = totalDuration.inMilliseconds ~/ tickInterval.inMilliseconds;
+    final totalTicks =
+        totalDuration.inMilliseconds ~/ tickInterval.inMilliseconds;
     var currentTick = 0;
 
     _generateTimer?.cancel();
@@ -163,6 +248,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         onComplete();
       }
     });
+  }
+
+  /// Reset all onboarding state back to defaults (page 0, no selections).
+  /// Call this on sign-out or account deletion so a returning user starts fresh.
+  void reset() {
+    _generateTimer?.cancel();
+    _generateTimer = null;
+    state = const OnboardingState();
+    _saveToPrefs();
   }
 
   void setSignedUp(bool value) {
@@ -183,21 +277,53 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void setSignUpName(String name) {
     state = state.copyWith(signUpName: name);
+    _saveToPrefs();
   }
 
   void setSignUpEmail(String email) {
     state = state.copyWith(signUpEmail: email);
+    _saveToPrefs();
   }
 
-  Future<void> completeOnboarding() async {
+  Future<void> persistOnboardingToSupabase() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _authService.saveOnboardingData(
+        intention: state.intention,
+        struggles: state.struggles.toList(),
+        familiarity: state.familiarity,
+        quranConnection: state.quranConnection,
+        attribution: state.attribution.toList(),
+      );
+    } catch (_) {
+      // Best-effort — don't block onboarding completion on DB failure
+    }
+  }
+
+  Future<void> completeOnboarding(AppSessionNotifier appSession) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_completed', true);
+    await prefs.remove(_prefsKey);
+
+    // Reset the daily launch gate so the new user always sees the day-0
+    // DailyLaunchOverlay when they land on the home screen.
+    await resetDailyLaunchGate();
+
+    await persistOnboardingToSupabase();
+
+    // Mark onboarded in the single source of truth
+    await appSession.markOnboarded();
   }
 }
 
+final cachedOnboardingStateProvider = Provider<OnboardingState?>((ref) => null);
+
 final onboardingProvider =
     StateNotifierProvider<OnboardingNotifier, OnboardingState>(
-  (ref) => OnboardingNotifier(),
+  (ref) => OnboardingNotifier(
+    restored: ref.read(cachedOnboardingStateProvider),
+    authService: ref.read(authServiceProvider),
+  ),
 );
 
-final initialOnboardingCompletedProvider = Provider<bool>((ref) => false);

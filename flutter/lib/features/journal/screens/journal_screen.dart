@@ -428,21 +428,38 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderLight),
       ),
-      child: TabBar(
-        controller: _tab,
-        indicator: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelStyle: AppTypography.bodyMedium
-            .copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-        unselectedLabelStyle:
-            AppTypography.bodyMedium.copyWith(fontSize: 13),
-        labelColor: Colors.white,
-        unselectedLabelColor: AppColors.textSecondaryLight,
-        tabs: labels.map((l) => Tab(text: l)).toList(),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final selected = _tab.index == i;
+          return Flexible(
+            child: GestureDetector(
+              onTap: () => _tab.animateTo(i),
+              child: Container(
+                height: 40,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      labels[i],
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        fontSize: 13,
+                        color: selected ? Colors.white : AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }

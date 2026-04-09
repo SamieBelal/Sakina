@@ -21,7 +21,7 @@ Everything in the app serves this loop or retains users around it. If a feature 
 
 - **Frontend:** Flutter (Dart)
 - **Backend:** Supabase (auth, Postgres DB, edge functions, storage)
-- **AI:** Anthropic Claude API for emotion → content matching
+- **AI:** OpenAI Chat Completions (`gpt-4o-mini`) for emotion → content matching
 - **Payments:** RevenueCat for subscription management
 - **Paywall:** Superwall SDK (Flutter) for remote paywall config and A/B testing
 - **Analytics:** Mixpanel

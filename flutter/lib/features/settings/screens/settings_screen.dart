@@ -12,7 +12,11 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/auth_service.dart';
+import 'package:sakina/core/app_session.dart';
+import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -106,8 +110,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (confirmed == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('onboarding_completed');
+      await ref.read(appSessionProvider).clearSession();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Onboarding reset')),
@@ -116,13 +119,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _clearAllData() async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _deleteAccount() async {
+    // Step 1: Warning dialog
+    final warned = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear All Data'),
+        title: const Text('Delete Account'),
         content: const Text(
-            'This will permanently delete all your local data including streaks, XP, saved reflections, and preferences. This cannot be undone.'),
+          'This will permanently delete your account and all associated data — '
+          'streaks, saved reflections, journal entries, and preferences. '
+          'This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -130,21 +137,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child:
-                Text('Clear All', style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
+            child: Text(
+              'Continue',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+            ),
           ),
         ],
       ),
     );
-    if (confirmed == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All data cleared')),
+    if (warned != true || !mounted) return;
+
+    // Step 2: Type DELETE to confirm
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final isValid = controller.text.trim() == 'DELETE';
+            return AlertDialog(
+              title: const Text('Are you sure?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Type DELETE to confirm account deletion.'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'DELETE',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: isValid
+                      ? () => Navigator.pop(ctx, true)
+                      : null,
+                  child: Text(
+                    'Delete My Account',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: isValid
+                          ? AppColors.error
+                          : AppColors.textTertiaryLight,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
-        _loadData();
-      }
+      },
+    );
+    // Don't dispose controller here — the dialog's dismiss animation may still
+    // reference it when signOut() triggers a synchronous GoRouter rebuild.
+    // It will be garbage collected when this method returns.
+    if (confirmed != true || !mounted) return;
+
+    // Step 3: Perform deletion
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.deleteAccount();
+      ref.read(onboardingProvider.notifier).reset();
+      await ref.read(appSessionProvider).clearSession();
+      await authService.signOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not delete account. Please try again.'),
+        ),
+      );
     }
   }
 
@@ -179,6 +251,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  User? get _currentUser => Supabase.instance.client.auth.currentUser;
+
+  String get _displayName {
+    final user = _currentUser;
+    if (user == null) return 'Guest';
+    final meta = user.userMetadata;
+    if (meta != null && meta['full_name'] != null) {
+      return meta['full_name'] as String;
+    }
+    return user.email ?? 'Guest';
+  }
+
+  String get _subtitle {
+    final user = _currentUser;
+    if (user == null) return 'Sign up to save your progress';
+    return user.email ?? '';
+  }
+
   Widget _buildHeader() {
     return Column(
       children: [
@@ -197,14 +287,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Guest',
+          _displayName,
           style: AppTypography.displayLarge.copyWith(
             color: AppColors.textPrimaryLight,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Sign up to save your progress',
+          _subtitle,
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondaryLight,
           ),
@@ -356,12 +446,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: AppSpacing.sm),
         _buildSettingsCard([
           _buildSettingsRow(
-            icon: Icons.login_rounded,
-            label: 'Sign In / Sign Up',
-            onTap: () {
-              // TODO: navigate to auth
-            },
-          ),
+              icon: Icons.logout_rounded,
+              label: 'Sign Out',
+              onTap: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sign Out'),
+                    content: const Text(
+                        'Are you sure you want to sign out?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: Text('Sign Out',
+                            style: AppTypography.bodyMedium
+                                .copyWith(color: AppColors.error)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  try {
+                    ref.read(onboardingProvider.notifier).reset();
+                    await ref.read(appSessionProvider).clearSession();
+                    await ref.read(authServiceProvider).signOut();
+                  } catch (_) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not sign out. Please try again.'),
+                      ),
+                    );
+                  }
+                }
+              },
+              isDestructive: true,
+            ),
         ]),
         const SizedBox(height: AppSpacing.lg),
 
@@ -434,9 +558,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           _buildDivider(),
           _buildSettingsRow(
-            icon: Icons.delete_outline_rounded,
-            label: 'Clear All Data',
-            onTap: _clearAllData,
+            icon: Icons.delete_forever_rounded,
+            label: 'Delete Account',
+            onTap: _deleteAccount,
             isDestructive: true,
           ),
         ]),

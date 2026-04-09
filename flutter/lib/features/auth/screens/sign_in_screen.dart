@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../core/utils/keyboard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/utils/keyboard.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../onboarding/widgets/social_sign_in_button.dart';
 
@@ -43,12 +45,31 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       await ref.read(authServiceProvider).signInWithEmail(email, password);
       if (!mounted) return;
-      context.go('/');
-    } catch (e) {
+      await ref.read(appSessionProvider).ensureOnboardingChecked();
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      context.go('/');
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// After OAuth sign-in, verify the user has completed onboarding.
+  /// If not, they were auto-created by Supabase — sign them out and
+  /// show an error directing them to onboard first.
+  Future<void> _ensureExistingUser() async {
+    final authService = ref.read(authServiceProvider);
+    final onboarded = await authService.hasCompletedOnboarding();
+    if (!onboarded) {
+      await authService.signOut();
+      throw const AuthException(
+        'No account found. Please sign up through the onboarding flow first.',
+      );
     }
   }
 
@@ -61,10 +82,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
-      context.go('/');
-    } catch (e) {
+      await _ensureExistingUser();
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      await ref.read(appSessionProvider).ensureOnboardingChecked();
+      if (!mounted) return;
+      context.go('/');
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -79,10 +107,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
-      context.go('/');
-    } catch (e) {
+      await _ensureExistingUser();
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      await ref.read(appSessionProvider).ensureOnboardingChecked();
+      if (!mounted) return;
+      context.go('/');
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -101,9 +136,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent')),
       );
-    } catch (e) {
+    } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Something went wrong. Please try again.');
     }
   }
 

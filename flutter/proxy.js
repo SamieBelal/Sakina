@@ -4,10 +4,13 @@ const https = require('https');
 const PORT = 8787;
 
 const server = http.createServer((req, res) => {
-  // CORS headers
+  // CORS headers (dev-only proxy for Flutter web → OpenAI)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, anthropic-version');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization',
+  );
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -16,16 +19,15 @@ const server = http.createServer((req, res) => {
   }
 
   let body = '';
-  req.on('data', chunk => body += chunk);
+  req.on('data', (chunk) => (body += chunk));
   req.on('end', () => {
     const options = {
-      hostname: 'api.anthropic.com',
+      hostname: 'api.openai.com',
       path: req.url,
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': req.headers['x-api-key'],
-        'anthropic-version': req.headers['anthropic-version'],
+        Authorization: req.headers['authorization'],
       },
     };
 
@@ -45,5 +47,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Proxy running at http://localhost:${PORT}`);
+  console.log(`OpenAI proxy running at http://localhost:${PORT}`);
 });

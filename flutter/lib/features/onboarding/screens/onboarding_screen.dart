@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/app_session.dart';
 import '../providers/onboarding_provider.dart';
 import 'attribution_screen.dart';
 import 'encouragement_screen.dart';
@@ -11,7 +12,6 @@ import 'feature_names_screen.dart';
 import 'feature_quests_screen.dart';
 import 'first_checkin_screen.dart';
 import 'generating_screen.dart';
-import 'hook_screen.dart';
 import 'intention_screen.dart';
 import 'notification_screen.dart';
 import 'paywall_screen.dart';
@@ -34,12 +34,16 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
 
-  static const _paywallPage = 20;
-
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    final restoredPage = ref.read(onboardingProvider).currentPage;
+    final initialPage = restoredPage.clamp(0, onboardingLastPageIndex);
+    _pageController = PageController(initialPage: initialPage);
+    if (initialPage != restoredPage) {
+      Future(() =>
+          ref.read(onboardingProvider.notifier).setPage(initialPage));
+    }
   }
 
   @override
@@ -67,27 +71,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     final current = ref.read(onboardingProvider).currentPage;
-    if (current < _paywallPage) _goToPage(current + 1);
+    if (current < onboardingLastPageIndex) _goToPage(current + 1);
+  }
+
+  void _goToPaywall() {
+    _goToPage(onboardingLastPageIndex);
   }
 
   void _back() {
     final current = ref.read(onboardingProvider).currentPage;
-    if (current > 0) _goToPage(current - 1);
-  }
-
-  void _goToPaywall() {
-    _goToPage(_paywallPage);
+    if (current > 0) {
+      _goToPage(current - 1);
+    } else if (context.canPop()) {
+      context.pop();
+    }
   }
 
   Future<void> _completeOnboarding() async {
     try {
-      await ref.read(onboardingProvider.notifier).completeOnboarding();
+      await ref.read(onboardingProvider.notifier).completeOnboarding(ref.read(appSessionProvider));
     } catch (_) {}
     if (mounted) context.go('/');
-  }
-
-  void _goToSignIn() {
-    context.push('/signin');
   }
 
   @override
@@ -97,54 +101,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          // 0: Hook
-          HookScreen(onNext: _next, onSignIn: _goToSignIn),
-          // 1: Intention
+          // 0: Intention
           IntentionScreen(onNext: _next, onBack: _back),
-          // 2: Struggles
+          // 1: Struggles
           StrugglesScreen(onNext: _next, onBack: _back),
-          // 3: Value Prop
+          // 2: Value Prop
           ValuePropScreen(onNext: _next, onBack: _back),
-          // 4: Familiarity
+          // 3: Familiarity
           FamiliarityScreen(onNext: _next, onBack: _back),
-          // 5: Quran Connection
+          // 4: Quran Connection
           QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 6: Attribution
+          // 5: Attribution
           AttributionScreen(onNext: _next, onBack: _back),
-          // 7: Encouragement
+          // 6: Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 8: Feature — Build a Dua
+          // 7: Feature — Build a Dua
           FeatureDuaScreen(onNext: _next, onBack: _back),
-          // 9: Feature — Collect 99 Names
+          // 8: Feature — Collect 99 Names
           FeatureNamesScreen(onNext: _next, onBack: _back),
-          // 10: Feature — Quests & Ranks
+          // 9: Feature — Quests & Ranks
           FeatureQuestsScreen(onNext: _next, onBack: _back),
-          // 11: Feature — Journal
+          // 10: Feature — Journal
           FeatureJournalScreen(onNext: _next, onBack: _back),
-          // 12: Social Proof
+          // 11: Social Proof
           SocialProofScreen(onNext: _next, onBack: _back),
-          // 13: Notifications
+          // 12: Notifications
           NotificationScreen(onNext: _next, onBack: _back),
-          // 14: Generating
+          // 13: Generating
           GeneratingScreen(onNext: _next),
-          // 15: First Check-in
+          // 14: First Check-in
           FirstCheckinScreen(
             onNext: _next,
             onBack: _back,
           ),
-          // 16: Sign-Up Choice
+          // 15: Sign-Up Choice
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
-            onSkipToPaywall: _goToPaywall,
+            onSocialAuthComplete: _goToPaywall,
           ),
-          // 17: Sign-Up Name
-          SignUpNameScreen(onNext: _next, onBack: _back),
-          // 18: Sign-Up Email
+          // 16: Sign-Up Email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 19: Sign-Up Password
+          // 17: Sign-Up Password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 20: Paywall
+          // 18: Sign-Up Name
+          SignUpNameScreen(onNext: _next, onBack: _back),
+          // 19: Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

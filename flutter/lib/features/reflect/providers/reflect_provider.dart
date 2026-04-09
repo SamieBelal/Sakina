@@ -285,7 +285,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       state = state.copyWith(screenState: ReflectScreenState.loading, clearError: true);
 
       // TODO: Build ReflectContext from journal/anchors when those are implemented
-      final response = await ai.reflectWithClaude(text);
+      final response = await ai.reflectWithOpenAI(text);
 
       if (response.offTopic) {
         state = state.copyWith(

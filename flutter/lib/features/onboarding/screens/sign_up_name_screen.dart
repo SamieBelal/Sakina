@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/keyboard.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -44,7 +47,24 @@ class _SignUpNameScreenState extends ConsumerState<SignUpNameScreen> {
   void _submit() {
     final name = _controller.text.trim();
     if (name.isEmpty) return;
+    dismissKeyboard(context);
     ref.read(onboardingProvider.notifier).setSignUpName(name);
+    // Update auth metadata + DB profile with the name (best-effort, don't block)
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    unawaited(
+      Supabase.instance.client.auth
+          .updateUser(UserAttributes(data: {'full_name': name}))
+          .then((_) {}, onError: (_) {}),
+    );
+    if (userId != null) {
+      unawaited(
+        Supabase.instance.client
+            .from('user_profiles')
+            .update({'display_name': name})
+            .eq('id', userId)
+            .then((_) {}, onError: (_) {}),
+      );
+    }
     widget.onNext();
   }
 
@@ -56,7 +76,7 @@ class _SignUpNameScreenState extends ConsumerState<SignUpNameScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 16,
+        progressSegment: 18,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

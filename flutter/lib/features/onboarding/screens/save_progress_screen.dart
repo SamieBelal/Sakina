@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/auth_service.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
@@ -16,13 +17,13 @@ class SaveProgressScreen extends ConsumerStatefulWidget {
   const SaveProgressScreen({
     required this.onNext,
     required this.onBack,
-    required this.onSkipToPaywall,
+    required this.onSocialAuthComplete,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
-  final VoidCallback onSkipToPaywall;
+  final VoidCallback onSocialAuthComplete;
 
   @override
   ConsumerState<SaveProgressScreen> createState() =>
@@ -40,10 +41,15 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      widget.onSkipToPaywall();
-    } catch (e) {
+      await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
-      ref.read(onboardingProvider.notifier).setAuthError(e.toString());
+      widget.onSocialAuthComplete();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ref.read(onboardingProvider.notifier).setAuthError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(onboardingProvider.notifier).setAuthError('Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -57,10 +63,15 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      widget.onSkipToPaywall();
-    } catch (e) {
+      await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
-      ref.read(onboardingProvider.notifier).setAuthError(e.toString());
+      widget.onSocialAuthComplete();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ref.read(onboardingProvider.notifier).setAuthError(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(onboardingProvider.notifier).setAuthError('Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -174,21 +185,6 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
             label: AppStrings.signUpChoiceEmail,
             onPressed: _isLoading ? null : widget.onNext,
             enabled: !_isLoading,
-          ),
-          // Skip
-          Center(
-            child: TextButton(
-              onPressed: () {
-                ref.read(onboardingProvider.notifier).setSignedUp(false);
-                widget.onSkipToPaywall();
-              },
-              child: Text(
-                AppStrings.signUpChoiceSkip,
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.textSecondaryLight,
-                ),
-              ),
-            ),
           ),
           const Spacer(),
         ],

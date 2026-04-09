@@ -4,32 +4,60 @@ import '../features/auth/screens/sign_in_screen.dart';
 import '../features/progress/screens/progress_screen.dart';
 import '../features/reflect/screens/reflect_screen.dart';
 import '../features/duas/screens/duas_screen.dart';
-import '../features/feelings/screens/home_screen.dart';
 import '../features/journal/screens/journal_screen.dart';
 import '../features/quests/screens/quests_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
 import '../features/daily/screens/muhasabah_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
+import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../widgets/achievement_toast.dart';
 import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
 import '../features/collection/widgets/bronze_card_preview.dart';
+import 'app_session.dart';
 
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-GoRouter buildRouter({required bool onboardingCompleted}) {
+GoRouter buildRouter({required AppSessionNotifier appSession}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: onboardingCompleted ? '/' : '/onboarding',
+    initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
+    refreshListenable: appSession,
+    redirect: (context, state) {
+      final path = state.uri.path;
+
+      // Always allow onboarding, signin, and welcome (including sub-paths)
+      if (path.startsWith('/onboarding') ||
+          path.startsWith('/signin') ||
+          path.startsWith('/welcome')) {
+        return null;
+      }
+
+      if (!appSession.hasOnboarded || !appSession.isAuthenticated) {
+        return '/welcome';
+      }
+
+      return null;
+    },
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(
         path: '/onboarding',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // Welcome / auth landing (full screen, no bottom nav)
+      GoRoute(
+        path: '/welcome',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => HookScreen(
+          onNext: () => GoRouter.of(context).push('/onboarding'),
+          onSignIn: () => GoRouter.of(context).push('/signin'),
+        ),
       ),
 
       // Sign in (full screen, no bottom nav)

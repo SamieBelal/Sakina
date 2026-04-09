@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/keyboard.dart';
+import '../../../services/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -42,11 +44,40 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
 
   bool get _isValid => _controller.text.length >= 6;
 
-  void _submit() {
-    if (!_isValid) return;
-    // TODO: Wire up actual Supabase signUpWithEmail when backend is ready.
-    ref.read(onboardingProvider.notifier).setSignedUp(true);
-    widget.onNext();
+  bool _isLoading = false;
+
+  Future<void> _submit() async {
+    if (!_isValid || _isLoading) return;
+
+    final email = ref.read(onboardingProvider).signUpEmail;
+
+    if (email == null || email.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await ref.read(authServiceProvider).signUpWithEmail(
+            email,
+            _controller.text,
+          );
+      if (!mounted) return;
+      ref.read(onboardingProvider.notifier).setSignedUp(true);
+      await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
+      if (!mounted) return;
+      widget.onNext();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -55,7 +86,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 18,
+        progressSegment: 17,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

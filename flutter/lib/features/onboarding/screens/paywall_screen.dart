@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/app_session.dart';
 import '../providers/onboarding_provider.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final notifier = ref.read(onboardingProvider.notifier);
     () async {
       try {
-        await notifier.completeOnboarding();
+        await notifier.completeOnboarding(ref.read(appSessionProvider));
       } catch (_) {}
       widget.onComplete();
     }();

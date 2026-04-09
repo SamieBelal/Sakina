@@ -1,8 +1,7 @@
-/// Claude API integration for the Sakina app.
+/// OpenAI Chat Completions integration for the Sakina app.
 ///
-/// Ports the logic from the original TypeScript claude.ts.
-/// Maps user emotions to Names of Allah via Claude, parses structured
-/// responses, and provides follow-up question generation.
+/// Maps user emotions to Names of Allah via the configured chat model,
+/// parses structured responses, and provides follow-up question generation.
 library;
 
 import 'dart:convert';
@@ -89,12 +88,13 @@ class FollowUpQuestion {
 // Constants
 // ---------------------------------------------------------------------------
 
-const String _claudeApiUrl = kIsWeb
-    ? 'http://localhost:8787/v1/messages'
-    : 'https://api.anthropic.com/v1/messages';
-const _reflectModel = 'claude-sonnet-4-20250514';
-const _followUpModel = 'claude-haiku-4-5-20251001';
-const _anthropicVersion = '2023-06-01';
+/// Web builds use `proxy.js` (localhost:8787) to avoid browser CORS to the API.
+const String _openAiChatUrl = kIsWeb
+    ? 'http://localhost:8787/v1/chat/completions'
+    : 'https://api.openai.com/v1/chat/completions';
+
+/// Single model for all AI calls (follow-ups, reflect, find names, build dua, daily).
+const _chatModel = 'gpt-4o-mini';
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -217,7 +217,7 @@ List<RelatedName> _parseRelatedNames(String? raw) {
       .toList();
 }
 
-ReflectResponse? parseClaudeResponse(String text) {
+ReflectResponse? parseReflectResponse(String text) {
   final name = _parseSection(text, '##NAME##');
   final nameArabic = _parseSection(text, '##NAME_AR##');
   final reframe = _parseSection(text, '##REFRAME##');
@@ -258,7 +258,7 @@ bool isOffTopic(String text) {
   if (lower.length < 3) return true;
 
   // Patterns that indicate non-emotional input.
-  // Be conservative — it's better to let a borderline input through to Claude
+  // Be conservative — it's better to let a borderline input through to the model
   // than to block a genuine emotional expression.
   final offTopicPatterns = [
     RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$', caseSensitive: false),
@@ -271,30 +271,64 @@ bool isOffTopic(String text) {
 }
 
 // ---------------------------------------------------------------------------
-// Claude API calls
+// OpenAI Chat Completions (POST /v1/chat/completions)
+//
+// See: https://platform.openai.com/docs/api-reference/chat/create
+// - Auth: `Authorization: Bearer <OPENAI_API_KEY>`
+// - Prefer `max_completion_tokens` over deprecated `max_tokens`
+// - Assistant `message.content` may be a string or a list of content parts
 // ---------------------------------------------------------------------------
 
-Future<Map<String, dynamic>?> _callClaude({
-  required String model,
+/// Extracts visible assistant text per ChatCompletionMessage schema.
+String? _assistantMessageText(Map<String, dynamic>? message) {
+  if (message == null) return null;
+
+  final refusal = message['refusal'];
+  if (refusal is String && refusal.isNotEmpty) {
+    return null;
+  }
+
+  final content = message['content'];
+  if (content == null) return null;
+
+  if (content is String) {
+    return content.isEmpty ? null : content;
+  }
+
+  if (content is List<dynamic>) {
+    final buf = StringBuffer();
+    for (final part in content) {
+      if (part is! Map<String, dynamic>) continue;
+      if (part['type'] == 'text' && part['text'] is String) {
+        buf.write(part['text'] as String);
+      }
+    }
+    final s = buf.toString();
+    return s.isEmpty ? null : s;
+  }
+
+  return null;
+}
+
+Future<Map<String, dynamic>?> _callOpenAiChat({
   required String systemPrompt,
   required String userMessage,
-  required int maxTokens,
+  required int maxCompletionTokens,
 }) async {
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  final apiKey = dotenv.env['OPENAI_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) return null;
 
   final response = await http.post(
-    Uri.parse(_claudeApiUrl),
+    Uri.parse(_openAiChatUrl),
     headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': _anthropicVersion,
-      'content-type': 'application/json',
+      'Authorization': 'Bearer $apiKey',
+      'Content-Type': 'application/json',
     },
     body: jsonEncode({
-      'model': model,
-      'max_tokens': maxTokens,
-      'system': systemPrompt,
+      'model': _chatModel,
+      'max_completion_tokens': maxCompletionTokens,
       'messages': [
+        {'role': 'system', 'content': systemPrompt},
         {'role': 'user', 'content': userMessage},
       ],
     }),
@@ -308,10 +342,11 @@ Future<Map<String, dynamic>?> _callClaude({
 }
 
 String? _extractTextFromResponse(Map<String, dynamic> response) {
-  final content = response['content'] as List<dynamic>?;
-  if (content == null || content.isEmpty) return null;
-  final first = content[0] as Map<String, dynamic>;
-  return first['text'] as String?;
+  final choices = response['choices'] as List<dynamic>?;
+  if (choices == null || choices.isEmpty) return null;
+  final first = choices[0] as Map<String, dynamic>;
+  final message = first['message'] as Map<String, dynamic>?;
+  return _assistantMessageText(message);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,7 +371,7 @@ Dua: ${t.dua.transliteration} — "${t.dua.translation}" (${t.dua.source})''';
 // ---------------------------------------------------------------------------
 
 /// Get follow-up questions to help the user articulate their feelings.
-/// Uses Claude Haiku for speed. Skips if text is already detailed (>150 chars).
+/// Skips if text is already detailed (>150 chars).
 Future<List<FollowUpQuestion>> getFollowUpQuestions(String userText) async {
   if (userText.length > 150) return [];
 
@@ -359,11 +394,10 @@ Example:
   {"type": "choice", "question": "What triggered this feeling?", "options": ["A specific event", "It built up over time", "I woke up with it", "I'm not sure"]}
 ]''';
 
-  final response = await _callClaude(
-    model: _followUpModel,
+  final response = await _callOpenAiChat(
     systemPrompt: systemPrompt,
     userMessage: 'The user said: "$userText"',
-    maxTokens: 300,
+    maxCompletionTokens: 300,
   );
 
   if (response == null) return [];
@@ -394,8 +428,8 @@ Example:
   }
 }
 
-/// Main reflect endpoint: maps a user's feelings to a Name of Allah via Claude Sonnet.
-Future<ReflectResponse> reflectWithClaude(
+/// Main reflect endpoint: maps a user's feelings to a Name of Allah.
+Future<ReflectResponse> reflectWithOpenAI(
   String userText, {
   ReflectContext? context,
   String? forceName,
@@ -420,7 +454,7 @@ Future<ReflectResponse> reflectWithClaude(
   }
 
   // Check for API key — fallback to demo if missing
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  final apiKey = dotenv.env['OPENAI_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
     return getDemoResponse();
   }
@@ -437,11 +471,10 @@ Future<ReflectResponse> reflectWithClaude(
     forceName: forceName,
   );
 
-  final response = await _callClaude(
-    model: _reflectModel,
+  final response = await _callOpenAiChat(
     systemPrompt: systemPrompt,
     userMessage: userText,
-    maxTokens: 1500,
+    maxCompletionTokens: 1500,
   );
 
   if (response == null) {
@@ -453,7 +486,7 @@ Future<ReflectResponse> reflectWithClaude(
     return getDemoResponse();
   }
 
-  final parsed = parseClaudeResponse(text);
+  final parsed = parseReflectResponse(text);
   if (parsed == null) {
     return getDemoResponse();
   }
@@ -672,7 +705,7 @@ Future<FindDuasResponse> findDuas(String need) async {
   // 1. Search local duas — always fast, free, verified
   final localDuas = _searchLocalDuas(need);
 
-  // 2. Get Names of Allah via Claude (lightweight call, names only)
+  // 2. Get Names of Allah via model (lightweight call, names only)
   final names = await _findNamesForNeed(need);
 
   // 3. If no local results found, fall back to a general set
@@ -690,7 +723,7 @@ Future<FindDuasResponse> findDuas(String need) async {
 }
 
 Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  final apiKey = dotenv.env['OPENAI_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
     return const [
       FindDuasNameEntry(
@@ -709,8 +742,7 @@ Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
 
     final canonicalList = buildCanonicalNamesPromptList();
 
-    final response = await _callClaude(
-      model: _followUpModel,
+    final response = await _callOpenAiChat(
       systemPrompt:
           'You are an Islamic learning tool. A person has described what they want to make dua for. '
           'Identify the 2-3 most fitting Names of Allah to call upon for this need.\n\n'
@@ -719,7 +751,7 @@ Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
           'Respond with EXACTLY this format (one name per line):\n'
           'English · Arabic · [one sentence why this Name fits their specific need]',
       userMessage: need,
-      maxTokens: 300,
+      maxCompletionTokens: 300,
     );
 
     if (response == null) return [];
@@ -804,7 +836,7 @@ class BuiltDuaResponse {
 }
 
 Future<BuiltDuaResponse> buildDua(String need) async {
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  final apiKey = dotenv.env['OPENAI_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
     return const BuiltDuaResponse(
       arabic: 'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
@@ -858,8 +890,7 @@ Future<BuiltDuaResponse> buildDua(String need) async {
 
   final canonicalNamesList = buildCanonicalNamesPromptList();
 
-  final response = await _callClaude(
-    model: _reflectModel,
+  final response = await _callOpenAiChat(
     systemPrompt: 'You are an Islamic scholar constructing a personal dua in classical Arabic following authentic prophetic etiquette (adab al-du\'a).\n\n'
         'CRITICAL — You MUST only invoke Names of Allah from this canonical list. Do not invent or use any Name not on this list:\n'
         '$canonicalNamesList\n\n\n'
@@ -914,7 +945,7 @@ Future<BuiltDuaResponse> buildDua(String need) async {
         'Title | Arabic | Transliteration | Translation | Source\n'
         'IMPORTANT: Include the COMPLETE dua text — do NOT truncate or abbreviate. Give the full Arabic, full transliteration, and full translation for each dua.',
     userMessage: 'I want to make dua for: $need',
-    maxTokens: 3500,
+    maxCompletionTokens: 3500,
   );
 
   if (response == null) {
@@ -1061,7 +1092,7 @@ Future<DailyReflectResponse> getDailyResponse(
   List<String> recentNames = const [],
   List<String> discoveredNames = const [],
 }) async {
-  final apiKey = dotenv.env['ANTHROPIC_API_KEY'];
+  final apiKey = dotenv.env['OPENAI_API_KEY'];
   if (apiKey == null || apiKey.isEmpty) {
     return const DailyReflectResponse(
       name: 'Al-Wakeel',
@@ -1094,8 +1125,7 @@ Future<DailyReflectResponse> getDailyResponse(
     'What they need from Allah: ${answers.length > 3 ? answers[3] : ""}',
   ].join('\n');
 
-  final response = await _callClaude(
-    model: _followUpModel,
+  final response = await _callOpenAiChat(
     systemPrompt:
         'You are an Islamic learning tool. A person has completed a 4-question daily check-in. '
         'Based on their answers, identify the single most fitting Name of Allah.\n\n'
@@ -1109,7 +1139,7 @@ Future<DailyReflectResponse> getDailyResponse(
         '##NAME## (English · Arabic)\n\n'
         'Example: ##NAME## As-Saboor · ٱلصَّبُورُ',
     userMessage: answersFormatted,
-    maxTokens: 100,
+    maxCompletionTokens: 100,
   );
 
   if (response == null) {

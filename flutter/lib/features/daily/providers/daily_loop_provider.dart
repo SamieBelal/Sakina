@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
@@ -570,7 +569,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           ? state.checkinAnswers.join(' / ')
           : "I answered '${state.checkinAnswer}'.";
 
-      final result = await reflectWithClaude(
+      final result = await reflectWithOpenAI(
         contextText,
         forceName: state.checkinName,
       );

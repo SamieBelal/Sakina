@@ -40,6 +40,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _wasLoading = false;
   bool _rewardCalendarExpanded = false;
   bool _levelUpShown = false;
+  bool _launchGateReady = false;
 
 
   @override
@@ -51,19 +52,24 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Future<void> _maybeShowDailyLaunch() async {
     final should = await shouldShowDailyLaunch();
-    if (!should || !mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).push(
-        PageRouteBuilder(
-          opaque: true,
-          pageBuilder: (_, __, ___) => const DailyLaunchOverlay(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 300),
-        ),
-      );
-    });
+    if (!mounted) return;
+    if (should) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            pageBuilder: (_, __, ___) => const DailyLaunchOverlay(),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+        setState(() => _launchGateReady = true);
+      });
+    } else {
+      setState(() => _launchGateReady = true);
+    }
   }
 
   Future<void> _checkDiscoveryQuiz() async {
@@ -124,7 +130,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       _levelUpShown = false;
     }
 
-    if (!state.loaded) {
+    if (!state.loaded || !_launchGateReady) {
       return SakinaLoader.fullScreen();
     }
 
@@ -1173,13 +1179,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     !claimed && day == rewards.nextClaimDay;
                 final isSpecial = reward.type != RewardType.tokens;
 
-                return _buildRewardDay(
-                  day: day,
-                  reward: reward,
-                  claimed: isClaimed ||
-                      (day == rewards.currentDay && claimed),
-                  current: isCurrent,
-                  special: isSpecial,
+                return Expanded(
+                  child: _buildRewardDay(
+                    day: day,
+                    reward: reward,
+                    claimed: isClaimed ||
+                        (day == rewards.currentDay && claimed),
+                    current: isCurrent,
+                    special: isSpecial,
+                  ),
                 );
               }),
             ),
