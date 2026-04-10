@@ -1894,110 +1894,6 @@ class CardCollectionState {
   int get totalBronze => countByTier(CardTier.bronze);
 }
 
-// IDs of cards with full Tier 2+3 content (hadith + dua).
-// Used to seed collection so all complete cards are visible.
-const Set<int> _completedCardIds = {
-  1,
-  2,
-  3,
-  4,
-  5,
-  6,
-  7,
-  8,
-  9,
-  10,
-  11,
-  12,
-  13,
-  14,
-  15,
-  16,
-  17,
-  18,
-  19,
-  20,
-  21,
-  22,
-  23,
-  24,
-  25,
-  26,
-  27,
-  28,
-  29,
-  30,
-  31,
-  32,
-  33,
-  34,
-  35,
-  36,
-  37,
-  38,
-  39,
-  40,
-  41,
-  42,
-  43,
-  44,
-  45,
-  46,
-  47,
-  48,
-  49,
-  50,
-  51,
-  52,
-  53,
-  54,
-  55,
-  56,
-  57,
-  58,
-  59,
-  60,
-  61,
-  62,
-  63,
-  64,
-  65,
-  66,
-  67,
-  68,
-  69,
-  70,
-  71,
-  72,
-  73,
-  74,
-  75,
-  76,
-  77,
-  78,
-  79,
-  80,
-  81,
-  82,
-  83,
-  84,
-  85,
-  86,
-  87,
-  88,
-  89,
-  90,
-  91,
-  92,
-  93,
-  94,
-  95,
-  96,
-  97,
-  98,
-  99,
-};
-
 Future<CardCollectionState> getCardCollection() async {
   final prefs = await SharedPreferences.getInstance();
   final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
@@ -2017,7 +1913,7 @@ Future<CardCollectionState> getCardCollection() async {
   final raw =
       await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
   if (raw == null) {
-    return CardCollectionState(
+    return const CardCollectionState(
       discoveredIds: {},
       discoveryDates: {},
       tiers: {},
@@ -2190,60 +2086,53 @@ Future<void> clearCardCollection() async {
   }
 }
 
-/// Sync card collection from Supabase into local cache.
-Future<void> syncCardCollectionFromSupabase() async {
+Future<void> migrateCardCollectionCachesForHydration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
+  await supabaseSyncService.migrateLegacyStringListCache(prefs, _seenKey);
+}
+
+Future<void> seedCardCollectionToSupabaseFromLocalCache() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
 
   final prefs = await SharedPreferences.getInstance();
+  final localRaw =
+      prefs.getString(supabaseSyncService.scopedKey(_collectionKey));
+  if (localRaw == null) return;
+
+  final data = jsonDecode(localRaw) as Map<String, dynamic>;
+  final ids = (data['ids'] as List<dynamic>?)?.cast<int>() ?? [];
+  if (ids.isEmpty) return;
+
+  final dates = (data['dates'] as Map<String, dynamic>?) ?? {};
+  final tiers = (data['tiers'] as Map<String, dynamic>?) ?? {};
+  final tierUpDates = (data['tierUpDates'] as Map<String, dynamic>?) ?? {};
+
+  final supabaseRows = ids.map((id) {
+    final idStr = id.toString();
+    final tierInt = (tiers[idStr] as int?) ?? 1;
+    return {
+      'user_id': userId,
+      'name_id': id,
+      'tier': tierToEnum(tierInt),
+      'discovered_at': dates[idStr] as String? ??
+          DateTime.now().toIso8601String().substring(0, 10),
+      'last_engaged_at': tierUpDates[idStr] as String? ??
+          DateTime.now().toIso8601String().substring(0, 10),
+    };
+  }).toList();
+
+  await supabaseSyncService.batchInsertRows(
+      'user_card_collection', supabaseRows);
+}
+
+Future<void> hydrateCardCollectionCacheFromRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
   final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
-  // Ensure legacy keys are migrated
-  await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
-  await supabaseSyncService.migrateLegacyStringListCache(prefs, _seenKey);
 
-  final rows = await supabaseSyncService.fetchRows(
-    'user_card_collection',
-    userId,
-    orderBy: 'discovered_at',
-    ascending: true,
-  );
-
-  if (rows.isEmpty) {
-    // Seed Supabase from local if we have discovered cards
-    final localRaw = prefs.getString(scopedCollectionKey);
-    if (localRaw != null) {
-      final data = jsonDecode(localRaw) as Map<String, dynamic>;
-      final ids = (data['ids'] as List<dynamic>?)?.cast<int>() ?? [];
-      if (ids.isNotEmpty) {
-        final dates = (data['dates'] as Map<String, dynamic>?) ?? {};
-        final tiers = (data['tiers'] as Map<String, dynamic>?) ?? {};
-        final tierUpDates =
-            (data['tierUpDates'] as Map<String, dynamic>?) ?? {};
-
-        final supabaseRows = ids.map((id) {
-          final idStr = id.toString();
-          final tierInt = (tiers[idStr] as int?) ?? 1;
-          return {
-            'user_id': userId,
-            'name_id': id,
-            'tier': tierToEnum(tierInt),
-            'discovered_at': dates[idStr] as String? ??
-                DateTime.now().toIso8601String().substring(0, 10),
-            'last_engaged_at': tierUpDates[idStr] as String? ??
-                DateTime.now().toIso8601String().substring(0, 10),
-          };
-        }).toList();
-
-        await supabaseSyncService.batchInsertRows(
-          'user_card_collection',
-          supabaseRows,
-        );
-      }
-    }
-    return;
-  }
-
-  // Build local blob from Supabase rows
   final ids = <int>{};
   final dates = <int, String>{};
   final tiers = <int, int>{};

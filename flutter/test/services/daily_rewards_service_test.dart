@@ -20,7 +20,7 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
-  test('syncDailyRewardsCacheFromSupabase hydrates freeze ownership', () async {
+  test('hydrateDailyRewardsCache writes freeze ownership', () async {
     SharedPreferences.setMockInitialValues({
       'sakina_daily_rewards': jsonEncode({
         'currentDay': 3,
@@ -29,10 +29,14 @@ void main() {
       }),
     });
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
-    fakeSync.rows['user_daily_rewards:user-1'] = {'streak_freeze_owned': true};
     SupabaseSyncService.debugSetInstance(fakeSync);
 
-    await syncDailyRewardsCacheFromSupabase();
+    await prepareDailyRewardsCacheForHydration();
+    await hydrateDailyRewardsCache(
+      currentDay: 3,
+      lastClaimDate: '2026-04-09',
+      streakFreezeOwned: true,
+    );
 
     final state = await getDailyRewards();
     expect(state.currentDay, 3);
@@ -44,7 +48,8 @@ void main() {
 
     final state = await getDailyRewards();
     expect(state.streakFreezeOwned, isTrue);
-    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'], isTrue);
+    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'],
+        isTrue);
   });
 
   test('consumeStreakFreeze clears remote-backed freeze', () async {
@@ -53,7 +58,8 @@ void main() {
     final consumed = await consumeStreakFreeze();
 
     expect(consumed, isTrue);
-    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'], isFalse);
+    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'],
+        isFalse);
     expect((await getDailyRewards()).streakFreezeOwned, isFalse);
   });
 

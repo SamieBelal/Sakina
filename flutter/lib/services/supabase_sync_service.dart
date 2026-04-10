@@ -163,50 +163,35 @@ class SupabaseSyncService {
     }
   }
 
-  /// Generic list-sync helper. Handles the common pattern:
-  /// 1. Check userId  2. Migrate legacy key  3. Fetch from Supabase
-  /// 4. If empty → seed from local  5. If not empty → cache from server
+  /// Seed a list-backed Supabase table from the local cached JSON list.
+  ///
+  /// Used by batch hydration when the RPC explicitly reports that the server
+  /// section is empty for the current user.
   ///
   /// [table] — Supabase table name
   /// [cacheKey] — SharedPreferences key (unscoped, will be scoped internally)
-  /// [orderBy] — Supabase column to order by
   /// [toRows] — converts local JSON list items to Supabase row maps
-  /// [fromRows] — converts Supabase rows to local JSON list items
-  Future<void> syncList({
+  Future<void> seedListFromLocalCache({
     required String table,
     required String cacheKey,
-    required String orderBy,
     required List<Map<String, dynamic>> Function(
       List<dynamic> localItems,
       String userId,
     ) toRows,
-    required List<Map<String, dynamic>> Function(
-      List<Map<String, dynamic>> remoteRows,
-    ) fromRows,
   }) async {
     final userId = currentUserId;
     if (userId == null) return;
 
     final prefs = await SharedPreferences.getInstance();
     await migrateLegacyStringCache(prefs, cacheKey);
-
-    final rows = await fetchRows(table, userId, orderBy: orderBy);
     final scoped = scopedKey(cacheKey);
+    final localJson = prefs.getString(scoped);
+    if (localJson == null) return;
 
-    if (rows.isEmpty) {
-      // Seed Supabase from local if we have data
-      final localJson = prefs.getString(scoped);
-      if (localJson != null) {
-        final localItems = jsonDecode(localJson) as List<dynamic>;
-        if (localItems.isNotEmpty) {
-          await batchInsertRows(table, toRows(localItems, userId));
-        }
-      }
-      return;
-    }
+    final localItems = jsonDecode(localJson) as List<dynamic>;
+    if (localItems.isEmpty) return;
 
-    final localItems = fromRows(rows);
-    await prefs.setString(scoped, jsonEncode(localItems));
+    await batchInsertRows(table, toRows(localItems, userId));
   }
 
   Future<T?> callRpc<T>(String fn, [Map<String, dynamic>? params]) async {

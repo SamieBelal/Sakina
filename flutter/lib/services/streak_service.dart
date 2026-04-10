@@ -24,13 +24,33 @@ class StreakMilestone {
 }
 
 const List<StreakMilestone> streakMilestones = [
-  StreakMilestone(days: 7,   xpReward: 100,  scrollReward: 2,  titleUnlock: 'Consistent',    titleUnlockArabic: 'مُوَاظِب'),
-  StreakMilestone(days: 14,  xpReward: 150,  scrollReward: 3),
-  StreakMilestone(days: 30,  xpReward: 300,  scrollReward: 5,  titleUnlock: 'Unwavering',    titleUnlockArabic: 'رَاسِخ'),
-  StreakMilestone(days: 60,  xpReward: 500,  scrollReward: 5),
-  StreakMilestone(days: 90,  xpReward: 750,  scrollReward: 10, titleUnlock: 'Steadfast Soul', titleUnlockArabic: 'صَاحِبُ العَزْم'),
+  StreakMilestone(
+      days: 7,
+      xpReward: 100,
+      scrollReward: 2,
+      titleUnlock: 'Consistent',
+      titleUnlockArabic: 'مُوَاظِب'),
+  StreakMilestone(days: 14, xpReward: 150, scrollReward: 3),
+  StreakMilestone(
+      days: 30,
+      xpReward: 300,
+      scrollReward: 5,
+      titleUnlock: 'Unwavering',
+      titleUnlockArabic: 'رَاسِخ'),
+  StreakMilestone(days: 60, xpReward: 500, scrollReward: 5),
+  StreakMilestone(
+      days: 90,
+      xpReward: 750,
+      scrollReward: 10,
+      titleUnlock: 'Steadfast Soul',
+      titleUnlockArabic: 'صَاحِبُ العَزْم'),
   StreakMilestone(days: 180, xpReward: 1000, scrollReward: 10),
-  StreakMilestone(days: 365, xpReward: 2000, scrollReward: 15, titleUnlock: 'Guardian of Light', titleUnlockArabic: 'حَارِسُ النُّور'),
+  StreakMilestone(
+      days: 365,
+      xpReward: 2000,
+      scrollReward: 15,
+      titleUnlock: 'Guardian of Light',
+      titleUnlockArabic: 'حَارِسُ النُّور'),
 ];
 
 class StreakMilestoneResult {
@@ -43,14 +63,15 @@ class StreakMilestoneResult {
 const String _claimedMilestonesKey = 'sakina_streak_milestones_claimed';
 
 Future<Set<int>> _getScopedClaimedMilestones(SharedPreferences prefs) async {
-  final raw =
-      await supabaseSyncService.migrateLegacyStringCache(prefs, _claimedMilestonesKey);
+  final raw = await supabaseSyncService.migrateLegacyStringCache(
+      prefs, _claimedMilestonesKey);
   if (raw == null) return {};
   return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
 }
 
 /// Check which milestones were just reached. Returns only newly claimed ones.
-Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) async {
+Future<List<StreakMilestoneResult>> checkStreakMilestones(
+    int currentStreak) async {
   final prefs = await SharedPreferences.getInstance();
   final claimed = await _getScopedClaimedMilestones(prefs);
 
@@ -58,7 +79,8 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(int currentStreak) asy
   for (final milestone in streakMilestones) {
     if (currentStreak >= milestone.days && !claimed.contains(milestone.days)) {
       claimed.add(milestone.days);
-      newlyReached.add(StreakMilestoneResult(milestone: milestone, isNew: true));
+      newlyReached
+          .add(StreakMilestoneResult(milestone: milestone, isNew: true));
     }
   }
 
@@ -118,8 +140,8 @@ Future<String?> _getCachedLastActive(SharedPreferences prefs) async {
 }
 
 Future<Set<String>> _getCachedActivityLogSet(SharedPreferences prefs) async {
-  final migrated =
-      await supabaseSyncService.migrateLegacyStringListCache(prefs, _activityLogKey);
+  final migrated = await supabaseSyncService.migrateLegacyStringListCache(
+      prefs, _activityLogKey);
   return (migrated ?? const <String>[]).toSet();
 }
 
@@ -140,7 +162,8 @@ Future<void> _setCachedStreakState(
   if (lastActive == null) {
     await prefs.remove(supabaseSyncService.scopedKey(_lastActiveKey));
   } else {
-    await prefs.setString(supabaseSyncService.scopedKey(_lastActiveKey), lastActive);
+    await prefs.setString(
+        supabaseSyncService.scopedKey(_lastActiveKey), lastActive);
   }
 }
 
@@ -179,30 +202,25 @@ Future<StreakState> getStreak() async {
   );
 }
 
-Future<void> syncStreakCacheFromSupabase() async {
+Future<void> prepareStreakCacheForHydration() async {
   final prefs = await SharedPreferences.getInstance();
-  final userId = supabaseSyncService.currentUserId;
-  if (userId == null) return;
-
-  // Migrate legacy keys → scoped keys. If the server fetch below returns null
-  // (new user, or fetch failure), the migrated values remain as the cache.
   await _getCachedCurrentStreak(prefs);
   await _getCachedLongestStreak(prefs);
   await _getCachedLastActive(prefs);
   await _getCachedActivityLogSet(prefs);
+}
 
-  final row = await supabaseSyncService.fetchRow(
-    'user_streaks',
-    userId,
-    columns: 'current_streak,longest_streak,last_active',
-  );
-  if (row == null) return;
-
+Future<void> hydrateStreakCache({
+  required int currentStreak,
+  required int longestStreak,
+  String? lastActive,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
   await _setCachedStreakState(
     prefs,
-    currentStreak: row['current_streak'] as int? ?? 0,
-    longestStreak: row['longest_streak'] as int? ?? 0,
-    lastActive: row['last_active'] as String?,
+    currentStreak: currentStreak,
+    longestStreak: longestStreak,
+    lastActive: lastActive,
   );
 }
 

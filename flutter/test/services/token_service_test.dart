@@ -18,13 +18,9 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
-  test('syncTokenCacheFromSupabase hydrates balance and total spent', () async {
-    fakeSync.rows['user_tokens:user-1'] = {
-      'balance': 145,
-      'total_spent': 30,
-    };
-
-    await syncTokenCacheFromSupabase();
+  test('hydrateTokenCache writes balance and total spent', () async {
+    await prepareTokenCacheForHydration();
+    await hydrateTokenCache(balance: 145, totalSpent: 30);
 
     expect((await getTokens()).balance, 145);
     expect(await getTotalTokensSpent(), 30);
@@ -39,14 +35,15 @@ void main() {
     expect((await getTokens()).balance, 110);
   });
 
-  test('spendTokens success updates balance and total spent from RPC response', () async {
+  test('spendTokens success updates balance and total spent from RPC response',
+      () async {
     SharedPreferences.setMockInitialValues({'sakina_tokens': 100});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     // RPC now returns both balance and total_spent in one response
     fakeSync.rpcHandlers['spend_tokens'] = (params) async => {
-      'balance': 80,
-      'total_spent': 55, // Server-side cumulative total
-    };
+          'balance': 80,
+          'total_spent': 55, // Server-side cumulative total
+        };
     SupabaseSyncService.debugSetInstance(fakeSync);
 
     final result = await spendTokens(20);

@@ -7,6 +7,8 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
+import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -230,6 +232,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await authService.deleteAccount();
       ref.read(onboardingProvider.notifier).reset();
       await ref.read(appSessionProvider).clearSession();
+      ref.invalidate(reflectProvider);
+      ref.invalidate(duasProvider);
       await authService.signOut();
     } catch (_) {
       if (!mounted) return;
@@ -795,6 +799,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 try {
                   ref.read(onboardingProvider.notifier).reset();
                   await ref.read(appSessionProvider).clearSession();
+                  ref.invalidate(reflectProvider);
+                  ref.invalidate(duasProvider);
                   await ref.read(authServiceProvider).signOut();
                 } catch (_) {
                   if (!mounted) return;

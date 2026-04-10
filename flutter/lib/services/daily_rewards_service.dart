@@ -26,13 +26,46 @@ class DayReward {
 }
 
 const List<DayReward> rewardSchedule = [
-  DayReward(day: 1, type: RewardType.tokens, tokenAmount: 2, label: '2 Tokens', icon: 'token'),
-  DayReward(day: 2, type: RewardType.tokens, tokenAmount: 3, label: '3 Tokens', icon: 'token'),
-  DayReward(day: 3, type: RewardType.tokens, tokenAmount: 4, label: '4 Tokens', icon: 'token'),
-  DayReward(day: 4, type: RewardType.streakFreeze, label: 'Streak Freeze', icon: 'freeze'),
-  DayReward(day: 5, type: RewardType.tokens, tokenAmount: 5, label: '5 Tokens', icon: 'token'),
-  DayReward(day: 6, type: RewardType.tierUpScroll, label: '5 Scrolls', icon: 'scroll'),
-  DayReward(day: 7, type: RewardType.tokensPlusTitle, tokenAmount: 8, label: '8 + Title', icon: 'star'),
+  DayReward(
+      day: 1,
+      type: RewardType.tokens,
+      tokenAmount: 2,
+      label: '2 Tokens',
+      icon: 'token'),
+  DayReward(
+      day: 2,
+      type: RewardType.tokens,
+      tokenAmount: 3,
+      label: '3 Tokens',
+      icon: 'token'),
+  DayReward(
+      day: 3,
+      type: RewardType.tokens,
+      tokenAmount: 4,
+      label: '4 Tokens',
+      icon: 'token'),
+  DayReward(
+      day: 4,
+      type: RewardType.streakFreeze,
+      label: 'Streak Freeze',
+      icon: 'freeze'),
+  DayReward(
+      day: 5,
+      type: RewardType.tokens,
+      tokenAmount: 5,
+      label: '5 Tokens',
+      icon: 'token'),
+  DayReward(
+      day: 6,
+      type: RewardType.tierUpScroll,
+      label: '5 Scrolls',
+      icon: 'scroll'),
+  DayReward(
+      day: 7,
+      type: RewardType.tokensPlusTitle,
+      tokenAmount: 8,
+      label: '8 + Title',
+      icon: 'star'),
 ];
 
 // ---------------------------------------------------------------------------
@@ -169,28 +202,23 @@ Future<void> _persist(DailyRewardsState state) async {
   );
 }
 
-Future<void> syncDailyRewardsCacheFromSupabase() async {
-  final userId = supabaseSyncService.currentUserId;
-  if (userId == null) return;
+Future<void> prepareDailyRewardsCacheForHydration() async {
+  await getDailyRewards();
+}
 
-  final localState = await getDailyRewards();
-  final row = await supabaseSyncService.fetchRow(
-    'user_daily_rewards',
-    userId,
-    columns: 'current_day,last_claim_date,streak_freeze_owned',
+Future<void> hydrateDailyRewardsCache({
+  required int currentDay,
+  String? lastClaimDate,
+  required bool streakFreezeOwned,
+}) async {
+  await _persist(
+    DailyRewardsState(
+      currentDay: currentDay,
+      lastClaimDate: lastClaimDate,
+      streakFreezeOwned: streakFreezeOwned,
+      claimedToday: lastClaimDate == _today(),
+    ),
   );
-  if (row == null) return;
-
-  final serverDay = row['current_day'] as int?;
-  final serverLastClaim = row['last_claim_date'] as String?;
-  final serverFreeze = row['streak_freeze_owned'] as bool?;
-
-  // Use server values when available, fall back to local
-  await _persist(localState.copyWith(
-    currentDay: serverDay ?? localState.currentDay,
-    lastClaimDate: serverLastClaim ?? localState.lastClaimDate,
-    streakFreezeOwned: serverFreeze ?? localState.streakFreezeOwned,
-  ));
 }
 
 Future<void> grantStreakFreeze() async {
@@ -225,8 +253,10 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     );
     if (row != null) {
       final serverDay = row['current_day'] as int? ?? state.currentDay;
-      final serverLastClaim = row['last_claim_date'] as String? ?? state.lastClaimDate;
-      final serverFreeze = row['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
+      final serverLastClaim =
+          row['last_claim_date'] as String? ?? state.lastClaimDate;
+      final serverFreeze =
+          row['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
 
       // Apply the same calendar reset logic as getDailyRewards():
       // if lastClaimDate is older than yesterday, reset to day 0.
@@ -296,7 +326,8 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       },
     );
     if (!ok) {
-      return DailyRewardClaimResult(day: state.currentDay, alreadyClaimed: true);
+      return DailyRewardClaimResult(
+          day: state.currentDay, alreadyClaimed: true);
     }
   }
 
@@ -323,7 +354,8 @@ Future<bool> consumeStreakFreeze() async {
       userId,
       columns: 'streak_freeze_owned',
     );
-    final hasFreeze = row?['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
+    final hasFreeze =
+        row?['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
     if (!hasFreeze) return false;
 
     final ok = await supabaseSyncService.upsertRow(

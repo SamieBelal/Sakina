@@ -64,7 +64,8 @@ class CheckInRecord {
   factory CheckInRecord.fromSupabaseRow(Map<String, dynamic> row) {
     final checkedInAt = row['checked_in_at'] as String? ?? '';
     // checked_in_at may be a full timestamp or just a date — extract date part
-    final date = checkedInAt.length >= 10 ? checkedInAt.substring(0, 10) : checkedInAt;
+    final date =
+        checkedInAt.length >= 10 ? checkedInAt.substring(0, 10) : checkedInAt;
     return CheckInRecord(
       date: date,
       q1: row['q1'] as String? ?? '',
@@ -83,7 +84,8 @@ class CheckInRecord {
 
 Future<List<CheckInRecord>> getCheckinHistory() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = await supabaseSyncService.migrateLegacyStringCache(prefs, _historyKey);
+  final raw =
+      await supabaseSyncService.migrateLegacyStringCache(prefs, _historyKey);
   if (raw == null) return [];
   final list = jsonDecode(raw) as List<dynamic>;
   return list
@@ -117,21 +119,31 @@ Future<void> saveCheckinRecord(CheckInRecord record) async {
   }
 }
 
-/// Sync check-in history from Supabase into local cache.
-/// Called from app_session on auth state change.
-Future<void> syncCheckinHistoryFromSupabase() async {
-  await supabaseSyncService.syncList(
+Future<void> migrateCheckinHistoryCache() async {
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _historyKey);
+}
+
+Future<void> seedCheckinHistoryToSupabaseFromLocalCache() async {
+  await supabaseSyncService.seedListFromLocalCache(
     table: 'user_checkin_history',
     cacheKey: _historyKey,
-    orderBy: 'checked_in_at',
     toRows: (localItems, userId) => localItems
         .map((e) => CheckInRecord.fromJson(e as Map<String, dynamic>)
             .toSupabaseRow(userId))
         .toList(),
-    fromRows: (remoteRows) => remoteRows
-        .map((r) => CheckInRecord.fromSupabaseRow(r).toJson())
-        .toList()
-        .cast<Map<String, dynamic>>(),
+  );
+}
+
+Future<void> hydrateCheckinHistoryCacheFromRows(
+  List<Map<String, dynamic>> remoteRows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_historyKey),
+    jsonEncode(
+      remoteRows.map((r) => CheckInRecord.fromSupabaseRow(r).toJson()).toList(),
+    ),
   );
 }
 
@@ -151,8 +163,19 @@ String _formatDate(String iso) {
   try {
     final d = DateTime.parse(iso);
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[d.month]} ${d.day}';
   } catch (_) {

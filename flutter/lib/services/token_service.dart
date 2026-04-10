@@ -31,7 +31,8 @@ Future<int> _getCachedBalance(SharedPreferences prefs) async {
   final migrated =
       await supabaseSyncService.migrateLegacyIntCache(prefs, _tokenKey);
   if (migrated == null) {
-    await prefs.setInt(supabaseSyncService.scopedKey(_tokenKey), startingTokens);
+    await prefs.setInt(
+        supabaseSyncService.scopedKey(_tokenKey), startingTokens);
     return startingTokens;
   }
   return migrated;
@@ -60,23 +61,17 @@ Future<TokenState> getTokens() async {
   return TokenState(balance: balance);
 }
 
-Future<void> syncTokenCacheFromSupabase() async {
+Future<void> prepareTokenCacheForHydration() async {
   final prefs = await SharedPreferences.getInstance();
-  final userId = supabaseSyncService.currentUserId;
-  if (userId == null) return;
-
   await _getCachedBalance(prefs);
   await _getCachedTotalSpent(prefs);
+}
 
-  final row = await supabaseSyncService.fetchRow(
-    'user_tokens',
-    userId,
-    columns: 'balance,total_spent',
-  );
-  final balance = row?['balance'] as int?;
-  final totalSpent = row?['total_spent'] as int?;
-  if (balance == null || totalSpent == null) return;
-
+Future<void> hydrateTokenCache({
+  required int balance,
+  required int totalSpent,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
   await _setCachedBalance(prefs, balance);
   await _setCachedTotalSpent(prefs, totalSpent);
 }

@@ -77,39 +77,195 @@ class XpAwardResult {
 
 const List<XpLevel> xpLevels = [
   // Levels 1-5: stretched so First Steps (~375 XP) lands exactly at L5.
-  XpLevel(level: 1,  title: 'Seeker',           titleArabic: 'طَالِب',       minXp: 0,     tokenReward: 5,  scrollReward: 0,  unlocksTitle: true),
-  XpLevel(level: 2,  title: 'Listener',         titleArabic: 'مُسْتَمِع',    minXp: 75,    tokenReward: 5,  scrollReward: 0),
-  XpLevel(level: 3,  title: 'Repentant',        titleArabic: 'تَائِب',       minXp: 175,   tokenReward: 5,  scrollReward: 0),
-  XpLevel(level: 4,  title: 'Hopeful',          titleArabic: 'رَاجٍ',        minXp: 275,   tokenReward: 5,  scrollReward: 0),
-  XpLevel(level: 5,  title: 'Grateful',         titleArabic: 'شَاكِر',       minXp: 375,   tokenReward: 5,  scrollReward: 2,  unlocksTitle: true),
+  XpLevel(
+      level: 1,
+      title: 'Seeker',
+      titleArabic: 'طَالِب',
+      minXp: 0,
+      tokenReward: 5,
+      scrollReward: 0,
+      unlocksTitle: true),
+  XpLevel(
+      level: 2,
+      title: 'Listener',
+      titleArabic: 'مُسْتَمِع',
+      minXp: 75,
+      tokenReward: 5,
+      scrollReward: 0),
+  XpLevel(
+      level: 3,
+      title: 'Repentant',
+      titleArabic: 'تَائِب',
+      minXp: 175,
+      tokenReward: 5,
+      scrollReward: 0),
+  XpLevel(
+      level: 4,
+      title: 'Hopeful',
+      titleArabic: 'رَاجٍ',
+      minXp: 275,
+      tokenReward: 5,
+      scrollReward: 0),
+  XpLevel(
+      level: 5,
+      title: 'Grateful',
+      titleArabic: 'شَاكِر',
+      minXp: 375,
+      tokenReward: 5,
+      scrollReward: 2,
+      unlocksTitle: true),
 
   // Levels 6-10: original deltas carried forward from L5 = 375.
-  XpLevel(level: 6,  title: 'Patient',          titleArabic: 'صَابِر',       minXp: 445,   tokenReward: 6,  scrollReward: 0),
-  XpLevel(level: 7,  title: 'Mindful',          titleArabic: 'مُتَأَمِّل',   minXp: 545,   tokenReward: 6,  scrollReward: 0),
-  XpLevel(level: 8,  title: 'Devoted',          titleArabic: 'مُخْلِص',      minXp: 665,   tokenReward: 7,  scrollReward: 0),
-  XpLevel(level: 9,  title: 'Rememberer',       titleArabic: 'ذَاكِر',       minXp: 815,   tokenReward: 7,  scrollReward: 0),
-  XpLevel(level: 10, title: 'Humble',           titleArabic: 'خَاشِع',       minXp: 995,   tokenReward: 8,  scrollReward: 5,  unlocksTitle: true),
+  XpLevel(
+      level: 6,
+      title: 'Patient',
+      titleArabic: 'صَابِر',
+      minXp: 445,
+      tokenReward: 6,
+      scrollReward: 0),
+  XpLevel(
+      level: 7,
+      title: 'Mindful',
+      titleArabic: 'مُتَأَمِّل',
+      minXp: 545,
+      tokenReward: 6,
+      scrollReward: 0),
+  XpLevel(
+      level: 8,
+      title: 'Devoted',
+      titleArabic: 'مُخْلِص',
+      minXp: 665,
+      tokenReward: 7,
+      scrollReward: 0),
+  XpLevel(
+      level: 9,
+      title: 'Rememberer',
+      titleArabic: 'ذَاكِر',
+      minXp: 815,
+      tokenReward: 7,
+      scrollReward: 0),
+  XpLevel(
+      level: 10,
+      title: 'Humble',
+      titleArabic: 'خَاشِع',
+      minXp: 995,
+      tokenReward: 8,
+      scrollReward: 5,
+      unlocksTitle: true),
 
   // Levels 11-15
-  XpLevel(level: 11, title: 'Steadfast',        titleArabic: 'ثَابِت',       minXp: 1195,  tokenReward: 8,  scrollReward: 0),
-  XpLevel(level: 12, title: 'Reflective',       titleArabic: 'مُتَفَكِّر',   minXp: 1445,  tokenReward: 9,  scrollReward: 0),
-  XpLevel(level: 13, title: 'Trusting',         titleArabic: 'مُتَوَكِّل',   minXp: 1745,  tokenReward: 9,  scrollReward: 0),
-  XpLevel(level: 14, title: 'Generous',         titleArabic: 'كَرِيم',       minXp: 2095,  tokenReward: 10, scrollReward: 0),
-  XpLevel(level: 15, title: 'Contented',        titleArabic: 'رَاضٍ',        minXp: 2495,  tokenReward: 10, scrollReward: 3,  unlocksTitle: true),
+  XpLevel(
+      level: 11,
+      title: 'Steadfast',
+      titleArabic: 'ثَابِت',
+      minXp: 1195,
+      tokenReward: 8,
+      scrollReward: 0),
+  XpLevel(
+      level: 12,
+      title: 'Reflective',
+      titleArabic: 'مُتَفَكِّر',
+      minXp: 1445,
+      tokenReward: 9,
+      scrollReward: 0),
+  XpLevel(
+      level: 13,
+      title: 'Trusting',
+      titleArabic: 'مُتَوَكِّل',
+      minXp: 1745,
+      tokenReward: 9,
+      scrollReward: 0),
+  XpLevel(
+      level: 14,
+      title: 'Generous',
+      titleArabic: 'كَرِيم',
+      minXp: 2095,
+      tokenReward: 10,
+      scrollReward: 0),
+  XpLevel(
+      level: 15,
+      title: 'Contented',
+      titleArabic: 'رَاضٍ',
+      minXp: 2495,
+      tokenReward: 10,
+      scrollReward: 3,
+      unlocksTitle: true),
 
   // Levels 16-20
-  XpLevel(level: 16, title: 'Yearning',         titleArabic: 'مُشْتَاق',     minXp: 2945,  tokenReward: 11, scrollReward: 0),
-  XpLevel(level: 17, title: 'Awakened',         titleArabic: 'مُتَيَقِّظ',   minXp: 3495,  tokenReward: 11, scrollReward: 0),
-  XpLevel(level: 18, title: 'Purified',         titleArabic: 'مُزَكَّى',     minXp: 4145,  tokenReward: 12, scrollReward: 0),
-  XpLevel(level: 19, title: 'Luminous',         titleArabic: 'مُنِير',       minXp: 4895,  tokenReward: 12, scrollReward: 0),
-  XpLevel(level: 20, title: 'Beloved',          titleArabic: 'مَحْبُوب',     minXp: 5745,  tokenReward: 13, scrollReward: 7,  unlocksTitle: true),
+  XpLevel(
+      level: 16,
+      title: 'Yearning',
+      titleArabic: 'مُشْتَاق',
+      minXp: 2945,
+      tokenReward: 11,
+      scrollReward: 0),
+  XpLevel(
+      level: 17,
+      title: 'Awakened',
+      titleArabic: 'مُتَيَقِّظ',
+      minXp: 3495,
+      tokenReward: 11,
+      scrollReward: 0),
+  XpLevel(
+      level: 18,
+      title: 'Purified',
+      titleArabic: 'مُزَكَّى',
+      minXp: 4145,
+      tokenReward: 12,
+      scrollReward: 0),
+  XpLevel(
+      level: 19,
+      title: 'Luminous',
+      titleArabic: 'مُنِير',
+      minXp: 4895,
+      tokenReward: 12,
+      scrollReward: 0),
+  XpLevel(
+      level: 20,
+      title: 'Beloved',
+      titleArabic: 'مَحْبُوب',
+      minXp: 5745,
+      tokenReward: 13,
+      scrollReward: 7,
+      unlocksTitle: true),
 
   // Levels 21-25
-  XpLevel(level: 21, title: 'Guided',           titleArabic: 'مَهْدِيّ',     minXp: 6695,  tokenReward: 13, scrollReward: 0),
-  XpLevel(level: 22, title: 'Surrendered',      titleArabic: 'مُسْتَسْلِم',  minXp: 7795,  tokenReward: 14, scrollReward: 0),
-  XpLevel(level: 23, title: 'Radiant',          titleArabic: 'مُتَأَلِّق',   minXp: 9095,  tokenReward: 14, scrollReward: 0),
-  XpLevel(level: 24, title: 'Intimate',         titleArabic: 'قَرِيب',       minXp: 10595, tokenReward: 15, scrollReward: 0),
-  XpLevel(level: 25, title: 'Friend of Allah',  titleArabic: 'وَلِيّ',       minXp: 12195, tokenReward: 15, scrollReward: 10, unlocksTitle: true),
+  XpLevel(
+      level: 21,
+      title: 'Guided',
+      titleArabic: 'مَهْدِيّ',
+      minXp: 6695,
+      tokenReward: 13,
+      scrollReward: 0),
+  XpLevel(
+      level: 22,
+      title: 'Surrendered',
+      titleArabic: 'مُسْتَسْلِم',
+      minXp: 7795,
+      tokenReward: 14,
+      scrollReward: 0),
+  XpLevel(
+      level: 23,
+      title: 'Radiant',
+      titleArabic: 'مُتَأَلِّق',
+      minXp: 9095,
+      tokenReward: 14,
+      scrollReward: 0),
+  XpLevel(
+      level: 24,
+      title: 'Intimate',
+      titleArabic: 'قَرِيب',
+      minXp: 10595,
+      tokenReward: 15,
+      scrollReward: 0),
+  XpLevel(
+      level: 25,
+      title: 'Friend of Allah',
+      titleArabic: 'وَلِيّ',
+      minXp: 12195,
+      tokenReward: 15,
+      scrollReward: 10,
+      unlocksTitle: true),
 ];
 
 // =============================================================================
@@ -136,7 +292,8 @@ const int xpMuhasabahCompleted = 100;
 const String _xpKey = 'sakina_total_xp';
 
 Future<int> _getCachedXpTotal(SharedPreferences prefs) async {
-  final migrated = await supabaseSyncService.migrateLegacyIntCache(prefs, _xpKey);
+  final migrated =
+      await supabaseSyncService.migrateLegacyIntCache(prefs, _xpKey);
   return migrated ?? 0;
 }
 
@@ -187,17 +344,14 @@ Future<XpState> getXp() async {
   return calculateXpState(total);
 }
 
-Future<void> syncXpCacheFromSupabase() async {
+Future<void> prepareXpCacheForHydration() async {
   final prefs = await SharedPreferences.getInstance();
-  final userId = supabaseSyncService.currentUserId;
-  if (userId == null) return;
-
   await _getCachedXpTotal(prefs);
-  final row = await supabaseSyncService.fetchRow('user_xp', userId);
-  final total = row?['total_xp'] as int?;
-  if (total == null) return;
+}
 
-  await _setCachedXpTotal(prefs, total);
+Future<void> hydrateXpCache({required int totalXp}) async {
+  final prefs = await SharedPreferences.getInstance();
+  await _setCachedXpTotal(prefs, totalXp);
 }
 
 Future<XpAwardResult> awardXp(int amount) async {

@@ -123,26 +123,34 @@ class SavedRelatedDua {
 // Supabase sync
 // ---------------------------------------------------------------------------
 
-/// Sync saved built duas from Supabase into local cache.
-Future<void> syncBuiltDuasFromSupabase() async {
-  // Also migrate the local-only keys so they're user-scoped
+Future<void> migrateDuaCachesForHydration() async {
   final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _builtDuasKey);
   await supabaseSyncService.migrateLegacyStringCache(prefs, _relatedDuasKey);
   await supabaseSyncService.migrateLegacyStringListCache(
       prefs, _browseDuaIdsKey);
+}
 
-  await supabaseSyncService.syncList(
+Future<void> seedBuiltDuasToSupabaseFromLocalCache() async {
+  await supabaseSyncService.seedListFromLocalCache(
     table: 'user_built_duas',
     cacheKey: _builtDuasKey,
-    orderBy: 'saved_at',
     toRows: (localItems, userId) => localItems
         .map((e) => SavedBuiltDua.fromJson(e as Map<String, dynamic>)
             .toSupabaseRow(userId))
         .toList(),
-    fromRows: (remoteRows) => remoteRows
-        .map((r) => SavedBuiltDua.fromSupabaseRow(r).toJson())
-        .toList()
-        .cast<Map<String, dynamic>>(),
+  );
+}
+
+Future<void> hydrateBuiltDuaCacheFromRows(
+  List<Map<String, dynamic>> remoteRows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_builtDuasKey),
+    jsonEncode(
+      remoteRows.map((r) => SavedBuiltDua.fromSupabaseRow(r).toJson()).toList(),
+    ),
   );
 }
 

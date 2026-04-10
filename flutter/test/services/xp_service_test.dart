@@ -18,10 +18,9 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
-  test('syncXpCacheFromSupabase hydrates scoped cache', () async {
-    fakeSync.rows['user_xp:user-1'] = {'total_xp': 42};
-
-    await syncXpCacheFromSupabase();
+  test('hydrateXpCache writes scoped cache', () async {
+    await prepareXpCacheForHydration();
+    await hydrateXpCache(totalXp: 42);
 
     final xp = await getXp();
     expect(xp.totalXp, 42);

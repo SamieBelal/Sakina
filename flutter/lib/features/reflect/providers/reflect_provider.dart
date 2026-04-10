@@ -56,56 +56,58 @@ class SavedReflection {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'date': date,
-    'userText': userText,
-    'name': name,
-    'nameArabic': nameArabic,
-    'reframePreview': reframePreview,
-    'reframe': reframe,
-    'story': story,
-    'duaArabic': duaArabic,
-    'duaTransliteration': duaTransliteration,
-    'duaTranslation': duaTranslation,
-    'duaSource': duaSource,
-    'relatedNames': relatedNames,
-  };
+        'id': id,
+        'date': date,
+        'userText': userText,
+        'name': name,
+        'nameArabic': nameArabic,
+        'reframePreview': reframePreview,
+        'reframe': reframe,
+        'story': story,
+        'duaArabic': duaArabic,
+        'duaTransliteration': duaTransliteration,
+        'duaTranslation': duaTranslation,
+        'duaSource': duaSource,
+        'relatedNames': relatedNames,
+      };
 
-  factory SavedReflection.fromJson(Map<String, dynamic> json) => SavedReflection(
-    id: json['id'] as String,
-    date: json['date'] as String,
-    userText: json['userText'] as String,
-    name: json['name'] as String,
-    nameArabic: json['nameArabic'] as String,
-    reframePreview: json['reframePreview'] as String,
-    reframe: json['reframe'] as String? ?? '',
-    story: json['story'] as String? ?? '',
-    duaArabic: json['duaArabic'] as String? ?? '',
-    duaTransliteration: json['duaTransliteration'] as String? ?? '',
-    duaTranslation: json['duaTranslation'] as String? ?? '',
-    duaSource: json['duaSource'] as String? ?? '',
-    relatedNames: (json['relatedNames'] as List<dynamic>?)
-        ?.map((e) => Map<String, String>.from(e as Map))
-        .toList() ?? [],
-  );
+  factory SavedReflection.fromJson(Map<String, dynamic> json) =>
+      SavedReflection(
+        id: json['id'] as String,
+        date: json['date'] as String,
+        userText: json['userText'] as String,
+        name: json['name'] as String,
+        nameArabic: json['nameArabic'] as String,
+        reframePreview: json['reframePreview'] as String,
+        reframe: json['reframe'] as String? ?? '',
+        story: json['story'] as String? ?? '',
+        duaArabic: json['duaArabic'] as String? ?? '',
+        duaTransliteration: json['duaTransliteration'] as String? ?? '',
+        duaTranslation: json['duaTranslation'] as String? ?? '',
+        duaSource: json['duaSource'] as String? ?? '',
+        relatedNames: (json['relatedNames'] as List<dynamic>?)
+                ?.map((e) => Map<String, String>.from(e as Map))
+                .toList() ??
+            [],
+      );
 
   /// Convert to Supabase row format.
   Map<String, dynamic> toSupabaseRow(String userId) => {
-    'id': id,
-    'user_id': userId,
-    'saved_at': date,
-    'user_text': userText,
-    'name': name,
-    'name_arabic': nameArabic,
-    'reframe_preview': reframePreview,
-    'reframe': reframe,
-    'story': story,
-    'dua_arabic': duaArabic,
-    'dua_transliteration': duaTransliteration,
-    'dua_translation': duaTranslation,
-    'dua_source': duaSource,
-    'related_names': relatedNames,
-  };
+        'id': id,
+        'user_id': userId,
+        'saved_at': date,
+        'user_text': userText,
+        'name': name,
+        'name_arabic': nameArabic,
+        'reframe_preview': reframePreview,
+        'reframe': reframe,
+        'story': story,
+        'dua_arabic': duaArabic,
+        'dua_transliteration': duaTransliteration,
+        'dua_translation': duaTranslation,
+        'dua_source': duaSource,
+        'related_names': relatedNames,
+      };
 
   /// Create from a Supabase row.
   factory SavedReflection.fromSupabaseRow(Map<String, dynamic> row) =>
@@ -123,8 +125,9 @@ class SavedReflection {
         duaTranslation: row['dua_translation'] as String? ?? '',
         duaSource: row['dua_source'] as String? ?? '',
         relatedNames: (row['related_names'] as List<dynamic>?)
-            ?.map((e) => Map<String, String>.from(e as Map))
-            .toList() ?? [],
+                ?.map((e) => Map<String, String>.from(e as Map))
+                .toList() ??
+            [],
       );
 }
 
@@ -132,20 +135,33 @@ class SavedReflection {
 // Supabase sync
 // ---------------------------------------------------------------------------
 
-/// Sync saved reflections from Supabase into local cache.
-Future<void> syncReflectionsFromSupabase() async {
-  await supabaseSyncService.syncList(
+Future<void> migrateReflectionCachesForHydration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _reflectionsKey);
+}
+
+Future<void> seedReflectionsToSupabaseFromLocalCache() async {
+  await supabaseSyncService.seedListFromLocalCache(
     table: 'user_reflections',
     cacheKey: _reflectionsKey,
-    orderBy: 'saved_at',
     toRows: (localItems, userId) => localItems
         .map((e) => SavedReflection.fromJson(e as Map<String, dynamic>)
             .toSupabaseRow(userId))
         .toList(),
-    fromRows: (remoteRows) => remoteRows
-        .map((r) => SavedReflection.fromSupabaseRow(r).toJson())
-        .toList()
-        .cast<Map<String, dynamic>>(),
+  );
+}
+
+Future<void> hydrateReflectionCacheFromRows(
+  List<Map<String, dynamic>> remoteRows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_reflectionsKey),
+    jsonEncode(
+      remoteRows
+          .map((r) => SavedReflection.fromSupabaseRow(r).toJson())
+          .toList(),
+    ),
   );
 }
 
@@ -164,6 +180,7 @@ class ReflectState {
   final int currentFollowUpIndex;
   final Set<String> selectedEmotions;
   final List<SavedReflection> savedReflections;
+
   /// True when the user has hit the free daily limit and must spend a token.
   final bool needsToken;
 
@@ -255,7 +272,8 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
 
   Future<void> _doSubmit() async {
     try {
-      state = state.copyWith(screenState: ReflectScreenState.loading, clearError: true);
+      state = state.copyWith(
+          screenState: ReflectScreenState.loading, clearError: true);
 
       final questions = await ai.getFollowUpQuestions(state.userText);
 
@@ -280,14 +298,16 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Record a follow-up answer. If last question, triggers reflect.
   Future<void> answerFollowUp(String answer) async {
     final updatedAnswers = [...state.followUpAnswers, answer];
-    final isLast = state.currentFollowUpIndex >= state.followUpQuestions.length - 1;
+    final isLast =
+        state.currentFollowUpIndex >= state.followUpQuestions.length - 1;
 
     state = state.copyWith(followUpAnswers: updatedAnswers);
 
     if (isLast) {
       await _reflect(_buildCombinedText(updatedAnswers));
     } else {
-      state = state.copyWith(currentFollowUpIndex: state.currentFollowUpIndex + 1);
+      state =
+          state.copyWith(currentFollowUpIndex: state.currentFollowUpIndex + 1);
     }
   }
 
@@ -346,7 +366,8 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
 
   Future<void> _reflect(String text) async {
     try {
-      state = state.copyWith(screenState: ReflectScreenState.loading, clearError: true);
+      state = state.copyWith(
+          screenState: ReflectScreenState.loading, clearError: true);
 
       // TODO: Build ReflectContext from journal/anchors when those are implemented
       final response = await ai.reflectWithOpenAI(text);

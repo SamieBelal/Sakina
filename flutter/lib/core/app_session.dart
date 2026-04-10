@@ -5,17 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/supabase_sync_service.dart';
+import '../services/achievements_service.dart';
 import '../services/auth_service.dart';
-import '../services/card_collection_service.dart';
-import '../services/checkin_history_service.dart';
-import '../services/daily_rewards_service.dart';
-import '../services/streak_service.dart';
-import '../services/token_service.dart';
-import '../services/xp_service.dart';
-import '../features/duas/providers/duas_provider.dart';
+import '../services/daily_usage_service.dart';
+import '../features/daily/providers/daily_question_provider.dart';
+import '../features/discovery/providers/discovery_quiz_provider.dart';
 import '../features/quests/providers/quests_provider.dart';
-import '../features/reflect/providers/reflect_provider.dart';
+import '../services/supabase_sync_service.dart';
+import '../services/user_data_batch_sync_service.dart';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
@@ -27,32 +24,21 @@ class AppSessionNotifier extends ChangeNotifier {
     bool Function()? isAuthenticatedProvider,
     Future<void> Function()? hydrateEconomyCache,
     Future<bool> Function()? hasCompletedOnboarding,
+    Future<void> Function()? syncFirstStepsCache,
   })  : _hasOnboarded = initialOnboarded,
-        _isAuthenticatedProvider =
-            isAuthenticatedProvider ??
+        _isAuthenticatedProvider = isAuthenticatedProvider ??
             (() => Supabase.instance.client.auth.currentUser != null),
-        _hydrateEconomyCache =
-            hydrateEconomyCache ??
-            (() => Future.wait([
-                  // Wave 1: Economy
-                  syncXpCacheFromSupabase(),
-                  syncTokenCacheFromSupabase(),
-                  syncStreakCacheFromSupabase(),
-                  syncDailyRewardsCacheFromSupabase(),
-                  // Wave 2: Core loop data
-                  syncCheckinHistoryFromSupabase(),
-                  syncReflectionsFromSupabase(),
-                  syncBuiltDuasFromSupabase(),
-                  syncCardCollectionFromSupabase(),
-                  // Wave 3: First Steps eligibility + completion
-                  syncFirstStepsFromSupabase(),
-                ]).then((_) => null)),
-        _hasCompletedOnboarding =
-            hasCompletedOnboarding ??
+        _hydrateEconomyCache = hydrateEconomyCache ??
+            (() => _defaultHydrate(
+                  syncFirstStepsCache:
+                      syncFirstStepsCache ?? syncFirstStepsFromSupabase,
+                )),
+        _hasCompletedOnboarding = hasCompletedOnboarding ??
             authService?.hasCompletedOnboarding ??
             (() async => false) {
-    _subscription = (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
-        .listen(_onAuthChange);
+    _subscription =
+        (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
+            .listen(_onAuthChange);
   }
 
   late final StreamSubscription<AuthState> _subscription;
@@ -171,3 +157,26 @@ class AppSessionNotifier extends ChangeNotifier {
 final appSessionProvider = Provider<AppSessionNotifier>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
+
+// ---------------------------------------------------------------------------
+// Default hydration path
+//
+// Hydrates Wave 1-2 via the batch RPC, then runs the remaining Wave 3-4
+// sync paths separately.
+// ---------------------------------------------------------------------------
+
+Future<void> _defaultHydrate({
+  required Future<void> Function() syncFirstStepsCache,
+}) async {
+  await Future.wait([
+    hydrateUserDataFromBatchRpc(),
+    // Wave 3: First Steps eligibility + completion
+    syncFirstStepsCache(),
+    // Wave 4: Engagement systems
+    syncAchievementsCacheFromSupabase(),
+    syncDiscoveryResultsFromSupabase(),
+    syncDailyUsageFromSupabase(),
+    syncDailyAnswersFromSupabase(),
+    syncQuestProgressFromSupabase(),
+  ]);
+}
