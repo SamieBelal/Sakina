@@ -1,127 +1,104 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/discovery_quiz.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
+import 'package:sakina/widgets/sakina_loader.dart';
 
-class DiscoveryQuizScreen extends StatefulWidget {
+class DiscoveryQuizScreen extends ConsumerWidget {
   const DiscoveryQuizScreen({super.key});
 
   @override
-  State<DiscoveryQuizScreen> createState() => _DiscoveryQuizScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(discoveryQuizProvider);
+    final notifier = ref.read(discoveryQuizProvider.notifier);
+    final questions = notifier.questions;
+    final questionCount = notifier.questionCount;
 
-class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
-  int currentQuestion = 0;
-  final List<int?> selectedAnswers = List.filled(6, null);
-  bool showResults = false;
-  List<AnchorResult>? results;
+    if (!state.initialized) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: SafeArea(child: SakinaLoader.fullScreen()),
+      );
+    }
 
-  void _selectAnswer(int optionIndex) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      selectedAnswers[currentQuestion] = optionIndex;
-    });
-
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      if (currentQuestion < 5) {
-        setState(() {
-          currentQuestion++;
-        });
-      } else {
-        _showResultsScreen();
-      }
-    });
-  }
-
-  Future<void> _showResultsScreen() async {
-    final answers = selectedAnswers.map((e) => e ?? 0).toList();
-    final computed = calculateQuizResults(answers);
-
-    // Save to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = computed
-        .map((r) => {
-              'nameKey': r.nameKey,
-              'name': r.name,
-              'arabic': r.arabic,
-              'score': r.score,
-              'anchor': r.anchor,
-              'detail': r.detail,
-            })
-        .toList();
-    await prefs.setString('anchor_names', jsonEncode(jsonList));
-
-    if (!mounted) return;
-    setState(() {
-      results = computed;
-      showResults = true;
-    });
-  }
-
-  void _goBack() {
-    if (currentQuestion > 0) {
-      setState(() {
-        currentQuestion--;
+    if (!state.completed && !state.quizStarted && questions.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifier.ensureQuizReady();
       });
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: showResults ? _buildResultsScreen() : _buildQuestionScreen(),
-      ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      child: Row(
-        children: List.generate(6, (index) {
-          final isFilled = index <= currentQuestion;
-          return Expanded(
-            child: Container(
-              height: 4,
-              margin: EdgeInsets.only(right: index < 5 ? 6 : 0),
-              decoration: BoxDecoration(
-                color: isFilled ? AppColors.primary : AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
+        child: state.completed
+            ? _ResultsScreen(results: state.results ?? const [])
+            : _QuestionScreen(
+                currentQuestion: state.currentQuestion,
+                selectedAnswers: state.selectedAnswers,
+                questions: questions,
+                questionCount: questionCount,
+                onBack: notifier.goBack,
+                onSelectAnswer: (optionIndex) {
+                  HapticFeedback.lightImpact();
+                  notifier.answerQuestion(optionIndex);
+                },
               ),
-            ).animate(key: ValueKey('seg_${index}_$isFilled')).fadeIn(
-                  duration: 200.ms,
-                ),
-          );
-        }),
       ),
     );
   }
+}
 
-  Widget _buildQuestionScreen() {
-    final question = discoveryQuizQuestions[currentQuestion];
+class _QuestionScreen extends StatelessWidget {
+  const _QuestionScreen({
+    required this.currentQuestion,
+    required this.selectedAnswers,
+    required this.questions,
+    required this.questionCount,
+    required this.onBack,
+    required this.onSelectAnswer,
+  });
+
+  final int currentQuestion;
+  final List<int?> selectedAnswers;
+  final List<QuizQuestion> questions;
+  final int questionCount;
+  final VoidCallback onBack;
+  final ValueChanged<int> onSelectAnswer;
+
+  @override
+  Widget build(BuildContext context) {
+    if (questions.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.pagePadding),
+          child: Text(
+            'Quiz content is unavailable right now. Please try again in a moment.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final boundedIndex = currentQuestion.clamp(0, questions.length - 1);
+    final question = questions[boundedIndex];
 
     return Column(
       children: [
         const SizedBox(height: AppSpacing.md),
-        // Top bar with back button and progress
         Padding(
           padding:
               const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
           child: Row(
             children: [
-              if (currentQuestion > 0)
+              if (boundedIndex > 0)
                 GestureDetector(
-                  onTap: _goBack,
+                  onTap: onBack,
                   child: const Icon(
                     Icons.arrow_back_ios,
                     size: 20,
@@ -135,24 +112,25 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        _buildProgressBar(),
+        _ProgressBar(
+          currentQuestion: boundedIndex,
+          questionCount: questionCount,
+        ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Question ${currentQuestion + 1} of 6',
+          'Question ${boundedIndex + 1} of $questionCount',
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondaryLight,
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.lg),
-        // Question + options
         Expanded(
           child: SingleChildScrollView(
             padding:
                 const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
             child: Column(
               children: [
-                // Question card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -175,19 +153,19 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                     textAlign: TextAlign.center,
                   ),
                 )
-                    .animate(key: ValueKey('q_$currentQuestion'))
+                    .animate(key: ValueKey('q_$boundedIndex'))
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: 0.05, end: 0, duration: 300.ms),
                 const SizedBox(height: 20),
-                // Option cards
                 ...List.generate(question.options.length, (index) {
                   final option = question.options[index];
-                  final isSelected = selectedAnswers[currentQuestion] == index;
+                  final isSelected = selectedAnswers.length > boundedIndex &&
+                      selectedAnswers[boundedIndex] == index;
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: GestureDetector(
-                      onTap: () => _selectAnswer(index),
+                      onTap: () => onSelectAnswer(index),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: double.infinity,
@@ -225,7 +203,7 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                       ),
                     ),
                   )
-                      .animate(key: ValueKey('q${currentQuestion}_opt$index'))
+                      .animate(key: ValueKey('q${boundedIndex}_opt$index'))
                       .fadeIn(duration: 300.ms, delay: (50 * index).ms)
                       .slideX(begin: 0.05, end: 0, duration: 300.ms);
                 }),
@@ -237,10 +215,49 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
       ],
     );
   }
+}
 
-  Widget _buildResultsScreen() {
-    final anchors = results ?? [];
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({
+    required this.currentQuestion,
+    required this.questionCount,
+  });
 
+  final int currentQuestion;
+  final int questionCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+      child: Row(
+        children: List.generate(questionCount, (index) {
+          final isFilled = index <= currentQuestion;
+          return Expanded(
+            child: Container(
+              height: 4,
+              margin: EdgeInsets.only(right: index < questionCount - 1 ? 6 : 0),
+              decoration: BoxDecoration(
+                color: isFilled ? AppColors.primary : AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ).animate(key: ValueKey('seg_${index}_$isFilled')).fadeIn(
+                  duration: 200.ms,
+                ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _ResultsScreen extends StatelessWidget {
+  const _ResultsScreen({required this.results});
+
+  final List<AnchorResult> results;
+
+  @override
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.pagePadding,
@@ -265,9 +282,8 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
           const SizedBox(height: 32),
-          // Result cards
-          ...List.generate(anchors.length, (index) {
-            final anchor = anchors[index];
+          ...List.generate(results.length, (index) {
+            final anchor = results[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Container(
@@ -287,7 +303,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Rank badge
                     Container(
                       width: 32,
                       height: 32,
@@ -304,7 +319,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Name
                     Text(
                       anchor.name,
                       style: AppTypography.headlineLarge.copyWith(
@@ -312,7 +326,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Arabic
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
@@ -325,7 +338,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Anchor sentence
                     Text(
                       anchor.anchor,
                       style: AppTypography.bodyMedium.copyWith(
@@ -333,7 +345,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Detail text
                     Text(
                       anchor.detail,
                       style: AppTypography.bodySmall.copyWith(
@@ -349,7 +360,6 @@ class _DiscoveryQuizScreenState extends State<DiscoveryQuizScreen> {
                 .slideY(begin: 0.05, end: 0, duration: 400.ms);
           }),
           const SizedBox(height: 32),
-          // Continue button
           SizedBox(
             width: double.infinity,
             height: 52,

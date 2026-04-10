@@ -1,0 +1,236 @@
+[
+  {
+    "id": "q1",
+    "prompt": "When life feels heavy, what do you find yourself reaching for?",
+    "sort_order": 0,
+    "options": [
+      {
+        "text": "A reminder that this pain has a purpose",
+        "scores": {
+          "as-sabur": 2,
+          "al-hakim": 1,
+          "al-latif": 1
+        }
+      },
+      {
+        "text": "Someone to hear me — even if I can't explain it",
+        "scores": {
+          "as-sami": 2,
+          "al-qarib": 2,
+          "al-wadud": 1
+        }
+      },
+      {
+        "text": "The feeling that I'm not alone in this",
+        "scores": {
+          "ar-rahman": 2,
+          "al-wadud": 2,
+          "as-salam": 1
+        }
+      },
+      {
+        "text": "A sense that someone is in control when I'm not",
+        "scores": {
+          "al-wakil": 2,
+          "ar-rabb": 2,
+          "al-qayyum": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "q2",
+    "prompt": "When you think about your relationship with Allah, what feels most true?",
+    "sort_order": 1,
+    "options": [
+      {
+        "text": "I worry I've strayed too far to come back",
+        "scores": {
+          "at-tawwab": 2,
+          "al-ghaffar": 2,
+          "ar-rahman": 1
+        }
+      },
+      {
+        "text": "I feel His presence in the small, quiet moments",
+        "scores": {
+          "al-latif": 2,
+          "al-khabir": 1,
+          "as-sami": 1
+        }
+      },
+      {
+        "text": "I trust Him even when I don't understand His plan",
+        "scores": {
+          "al-hakim": 2,
+          "al-wakil": 2,
+          "al-ali": 1
+        }
+      },
+      {
+        "text": "I long for a deeper, more loving connection",
+        "scores": {
+          "al-wadud": 2,
+          "ar-rahim": 2,
+          "al-qarib": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "q3",
+    "prompt": "Which struggle resonates with you most right now?",
+    "sort_order": 2,
+    "options": [
+      {
+        "text": "Waiting — for an answer, a change, a sign",
+        "scores": {
+          "as-sabur": 2,
+          "al-mujib": 2,
+          "al-fattah": 1
+        }
+      },
+      {
+        "text": "Feeling unseen or misunderstood by others",
+        "scores": {
+          "al-basir": 2,
+          "ash-shahid": 1,
+          "al-khabir": 1
+        }
+      },
+      {
+        "text": "Carrying guilt or shame I can't seem to shake",
+        "scores": {
+          "al-ghaffar": 2,
+          "al-afuw": 2,
+          "at-tawwab": 1
+        }
+      },
+      {
+        "text": "Feeling scattered, lost, or without direction",
+        "scores": {
+          "al-hadi": 2,
+          "an-nur": 2,
+          "ar-rabb": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "q4",
+    "prompt": "A moment of genuine peace for you looks like:",
+    "sort_order": 3,
+    "options": [
+      {
+        "text": "Quiet stillness — no noise, no pressure",
+        "scores": {
+          "as-salam": 2,
+          "al-quddus": 1,
+          "as-samad": 1
+        }
+      },
+      {
+        "text": "Feeling completely known and still loved",
+        "scores": {
+          "al-wadud": 2,
+          "al-khabir": 1,
+          "ar-rahim": 1
+        }
+      },
+      {
+        "text": "Knowing my provision and future are taken care of",
+        "scores": {
+          "ar-razzaq": 2,
+          "al-wakil": 1,
+          "al-qayyum": 1
+        }
+      },
+      {
+        "text": "A breakthrough — something finally opening up",
+        "scores": {
+          "al-fattah": 2,
+          "al-latif": 1,
+          "al-mujib": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "q5",
+    "prompt": "When you pray, what are you most often asking for?",
+    "sort_order": 4,
+    "options": [
+      {
+        "text": "Healing — for my heart, body, or relationships",
+        "scores": {
+          "ash-shafi": 2,
+          "ar-rahman": 1,
+          "al-latif": 1
+        }
+      },
+      {
+        "text": "Strength to keep going when I want to give up",
+        "scores": {
+          "al-qawi": 2,
+          "as-sabur": 1,
+          "al-matin": 1
+        }
+      },
+      {
+        "text": "Guidance — to know the right path",
+        "scores": {
+          "al-hadi": 2,
+          "al-hakim": 1,
+          "an-nur": 1
+        }
+      },
+      {
+        "text": "Forgiveness — more than anything else",
+        "scores": {
+          "al-afuw": 2,
+          "al-ghaffar": 1,
+          "at-tawwab": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "q6",
+    "prompt": "How do you most naturally connect with Allah?",
+    "sort_order": 5,
+    "options": [
+      {
+        "text": "Through difficulty — hardship brings me closer",
+        "scores": {
+          "as-sabur": 1,
+          "al-mujib": 1,
+          "ar-rabb": 2
+        }
+      },
+      {
+        "text": "Through beauty — nature, art, the world around me",
+        "scores": {
+          "al-latif": 2,
+          "an-nur": 1,
+          "al-jamil": 1
+        }
+      },
+      {
+        "text": "Through gratitude — counting what I have",
+        "scores": {
+          "ar-razzaq": 2,
+          "ash-shakur": 2,
+          "al-karim": 1
+        }
+      },
+      {
+        "text": "Through dua — just talking to Him",
+        "scores": {
+          "al-qarib": 2,
+          "as-sami": 1,
+          "al-mujib": 2
+        }
+      }
+    ]
+  }
+]

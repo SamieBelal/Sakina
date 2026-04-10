@@ -7,6 +7,7 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
 
   String? userId;
   final Map<String, Map<String, dynamic>?> rows = {};
+  final Map<String, List<Map<String, dynamic>>> publicRows = {};
   final List<Map<String, dynamic>> upsertCalls = [];
   final List<Map<String, dynamic>> insertCalls = [];
   final List<Map<String, dynamic>> rpcCalls = [];
@@ -57,6 +58,21 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       'data': data,
     });
     return true;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPublicRows(
+    String table, {
+    String columns = '*',
+    String orderBy = 'id',
+    bool ascending = true,
+    int? limit,
+  }) async {
+    final rows = List<Map<String, dynamic>>.from(publicRows[table] ?? const []);
+    if (limit != null && rows.length > limit) {
+      return rows.take(limit).toList();
+    }
+    return rows;
   }
 
   @override

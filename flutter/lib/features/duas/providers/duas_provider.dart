@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -43,32 +44,32 @@ class SavedBuiltDua {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'savedAt': savedAt,
-    'need': need,
-    'arabic': arabic,
-    'transliteration': transliteration,
-    'translation': translation,
-  };
+        'id': id,
+        'savedAt': savedAt,
+        'need': need,
+        'arabic': arabic,
+        'transliteration': transliteration,
+        'translation': translation,
+      };
 
   factory SavedBuiltDua.fromJson(Map<String, dynamic> json) => SavedBuiltDua(
-    id: json['id'] as String,
-    savedAt: json['savedAt'] as String,
-    need: json['need'] as String,
-    arabic: json['arabic'] as String,
-    transliteration: json['transliteration'] as String,
-    translation: json['translation'] as String,
-  );
+        id: json['id'] as String,
+        savedAt: json['savedAt'] as String,
+        need: json['need'] as String,
+        arabic: json['arabic'] as String,
+        transliteration: json['transliteration'] as String,
+        translation: json['translation'] as String,
+      );
 
   Map<String, dynamic> toSupabaseRow(String userId) => {
-    'id': id,
-    'user_id': userId,
-    'saved_at': savedAt,
-    'need': need,
-    'arabic': arabic,
-    'transliteration': transliteration,
-    'translation': translation,
-  };
+        'id': id,
+        'user_id': userId,
+        'saved_at': savedAt,
+        'need': need,
+        'arabic': arabic,
+        'transliteration': transliteration,
+        'translation': translation,
+      };
 
   factory SavedBuiltDua.fromSupabaseRow(Map<String, dynamic> row) =>
       SavedBuiltDua(
@@ -99,22 +100,23 @@ class SavedRelatedDua {
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'arabic': arabic,
-    'transliteration': transliteration,
-    'translation': translation,
-    'source': source,
-  };
+        'id': id,
+        'title': title,
+        'arabic': arabic,
+        'transliteration': transliteration,
+        'translation': translation,
+        'source': source,
+      };
 
-  factory SavedRelatedDua.fromJson(Map<String, dynamic> json) => SavedRelatedDua(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    arabic: json['arabic'] as String,
-    transliteration: json['transliteration'] as String,
-    translation: json['translation'] as String,
-    source: json['source'] as String,
-  );
+  factory SavedRelatedDua.fromJson(Map<String, dynamic> json) =>
+      SavedRelatedDua(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        arabic: json['arabic'] as String,
+        transliteration: json['transliteration'] as String,
+        translation: json['translation'] as String,
+        source: json['source'] as String,
+      );
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +128,8 @@ Future<void> syncBuiltDuasFromSupabase() async {
   // Also migrate the local-only keys so they're user-scoped
   final prefs = await SharedPreferences.getInstance();
   await supabaseSyncService.migrateLegacyStringCache(prefs, _relatedDuasKey);
-  await supabaseSyncService.migrateLegacyStringListCache(prefs, _browseDuaIdsKey);
+  await supabaseSyncService.migrateLegacyStringListCache(
+      prefs, _browseDuaIdsKey);
 
   await supabaseSyncService.syncList(
     table: 'user_built_duas',
@@ -162,8 +165,10 @@ class DuasState {
   final String? error;
   final List<SavedBuiltDua> savedBuiltDuas;
   final List<SavedRelatedDua> savedRelatedDuas;
+
   /// True when build-a-dua hits the free daily limit and needs a token.
   final bool buildNeedsToken;
+
   /// Progress theater value (0.0 – 1.0) shown during dua generation.
   final double buildProgress;
 
@@ -288,7 +293,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   List<BrowseDua> get filteredBrowseDuas {
     final query = state.browseQuery.trim().toLowerCase();
-    return browseDuas.where((d) {
+    return browseDuasCatalog.where((d) {
       final categoryMatch = state.selectedCategory == 'all' ||
           d.category == state.selectedCategory;
       if (!categoryMatch) return false;
@@ -360,15 +365,24 @@ class DuasNotifier extends StateNotifier<DuasState> {
     if (lower.length < 5) return true;
     // Greetings / nonsense
     final offTopicPatterns = [
-      RegExp(r"^(hi|hello|hey|salam|assalam|salaam|yo|sup|whats up|what's up)\s*[!.?]*\s*$", caseSensitive: false),
-      RegExp(r'^(test|testing|asdf|aaa|123|lol|haha)\s*$', caseSensitive: false),
-      RegExp(r'^(what is|who is|where is|how do i|how to)\s+\w', caseSensitive: false),
-      RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)', caseSensitive: false),
+      RegExp(
+          r"^(hi|hello|hey|salam|assalam|salaam|yo|sup|whats up|what's up)\s*[!.?]*\s*$",
+          caseSensitive: false),
+      RegExp(r'^(test|testing|asdf|aaa|123|lol|haha)\s*$',
+          caseSensitive: false),
+      RegExp(r'^(what is|who is|where is|how do i|how to)\s+\w',
+          caseSensitive: false),
+      RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)',
+          caseSensitive: false),
     ];
     // Harmful intent
     final harmfulPatterns = [
-      RegExp(r'(curse|destroy|destory|destruction|punish|harm|kill|hurt|damage|ruin|death|die)', caseSensitive: false),
-      RegExp(r'(against|upon|on)\s+.*(enemy|enemies|person|people|someone|haters)', caseSensitive: false),
+      RegExp(
+          r'(curse|destroy|destory|destruction|punish|harm|kill|hurt|damage|ruin|death|die)',
+          caseSensitive: false),
+      RegExp(
+          r'(against|upon|on)\s+.*(enemy|enemies|person|people|someone|haters)',
+          caseSensitive: false),
       RegExp(r'(revenge|vengeance|retribution|payback)', caseSensitive: false),
     ];
     if (offTopicPatterns.any((p) => p.hasMatch(lower))) return true;
@@ -380,7 +394,8 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // Check for off-topic or harmful input
     if (_isDuaOffTopic(state.buildNeed)) {
       state = state.copyWith(
-        error: () => 'This place is for your heart. Please describe a sincere need or intention for your dua.',
+        error: () =>
+            'This place is for your heart. Please describe a sincere need or intention for your dua.',
       );
       return;
     }
@@ -447,7 +462,8 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   void previousBuildSection() {
     if (state.buildCurrentSection > 0) {
-      state = state.copyWith(buildCurrentSection: state.buildCurrentSection - 1);
+      state =
+          state.copyWith(buildCurrentSection: state.buildCurrentSection - 1);
     }
   }
 
@@ -558,9 +574,12 @@ class DuasNotifier extends StateNotifier<DuasState> {
   Future<void> loadSavedDuas() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final builtJson = await supabaseSyncService.migrateLegacyStringCache(prefs, _builtDuasKey);
-      final relatedJson = await supabaseSyncService.migrateLegacyStringCache(prefs, _relatedDuasKey);
-      final browseIds = await supabaseSyncService.migrateLegacyStringListCache(prefs, _browseDuaIdsKey);
+      final builtJson = await supabaseSyncService.migrateLegacyStringCache(
+          prefs, _builtDuasKey);
+      final relatedJson = await supabaseSyncService.migrateLegacyStringCache(
+          prefs, _relatedDuasKey);
+      final browseIds = await supabaseSyncService.migrateLegacyStringListCache(
+          prefs, _browseDuaIdsKey);
 
       if (builtJson != null) {
         final list = (jsonDecode(builtJson) as List)
@@ -597,6 +616,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
       jsonEncode(duas.map((d) => d.toJson()).toList()),
     );
   }
+
+  void onCatalogRefreshed() {
+    state = state.copyWith();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -604,5 +627,14 @@ class DuasNotifier extends StateNotifier<DuasState> {
 // ---------------------------------------------------------------------------
 
 final duasProvider = StateNotifierProvider<DuasNotifier, DuasState>(
-  (ref) => DuasNotifier(),
+  (ref) {
+    final notifier = DuasNotifier();
+    ref.listen<int>(
+      publicCatalogRegistryProvider.select((registry) => registry.revision),
+      (_, __) {
+        notifier.onCatalogRefreshed();
+      },
+    );
+    return notifier;
+  },
 );

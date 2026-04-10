@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -88,10 +89,7 @@ class SupabaseSyncService {
   /// Delete a row by column match.
   Future<bool> deleteRow(String table, String column, dynamic value) async {
     try {
-      await Supabase.instance.client
-          .from(table)
-          .delete()
-          .eq(column, value);
+      await Supabase.instance.client.from(table).delete().eq(column, value);
       return true;
     } catch (e) {
       debugPrint('[SupabaseSyncService] deleteRow($table) failed: $e');
@@ -114,6 +112,57 @@ class SupabaseSyncService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchPublicRows(
+    String table, {
+    String columns = '*',
+    String orderBy = 'id',
+    bool ascending = true,
+    int? limit,
+  }) async {
+    try {
+      var query = Supabase.instance.client
+          .from(table)
+          .select(columns)
+          .order(orderBy, ascending: ascending);
+      if (limit != null) query = query.limit(limit);
+      final rows = await query;
+      return List<Map<String, dynamic>>.from(rows);
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] fetchPublicRows($table) failed: $e');
+      return [];
+    }
+  }
+
+  Future<String?> getPublicCatalogCache(String cacheKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(cacheKey);
+  }
+
+  Future<void> setPublicCatalogCache(String cacheKey, String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(cacheKey, json);
+  }
+
+  Future<String?> ensurePublicCatalogCache({
+    required String cacheKey,
+    required String assetPath,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(cacheKey);
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    try {
+      final bundled = await rootBundle.loadString(assetPath);
+      await prefs.setString(cacheKey, bundled);
+      return bundled;
+    } catch (e) {
+      debugPrint(
+        '[SupabaseSyncService] ensurePublicCatalogCache($assetPath) failed: $e',
+      );
+      return null;
+    }
+  }
+
   /// Generic list-sync helper. Handles the common pattern:
   /// 1. Check userId  2. Migrate legacy key  3. Fetch from Supabase
   /// 4. If empty → seed from local  5. If not empty → cache from server
@@ -128,7 +177,8 @@ class SupabaseSyncService {
     required String cacheKey,
     required String orderBy,
     required List<Map<String, dynamic>> Function(
-      List<dynamic> localItems, String userId,
+      List<dynamic> localItems,
+      String userId,
     ) toRows,
     required List<Map<String, dynamic>> Function(
       List<Map<String, dynamic>> remoteRows,

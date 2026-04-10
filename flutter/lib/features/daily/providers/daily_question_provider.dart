@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
+import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,10 +17,6 @@ class DailyQuestionState {
   final String? selectedAnswer;
   final String? resultName;
   final String? resultNameArabic;
-  final String? resultTeaching;
-  final String? resultDuaArabic;
-  final String? resultDuaTransliteration;
-  final String? resultDuaTranslation;
   final bool loading;
 
   const DailyQuestionState({
@@ -28,10 +25,6 @@ class DailyQuestionState {
     this.selectedAnswer,
     this.resultName,
     this.resultNameArabic,
-    this.resultTeaching,
-    this.resultDuaArabic,
-    this.resultDuaTransliteration,
-    this.resultDuaTranslation,
     this.loading = false,
   });
 
@@ -41,10 +34,6 @@ class DailyQuestionState {
     String? selectedAnswer,
     String? resultName,
     String? resultNameArabic,
-    String? resultTeaching,
-    String? resultDuaArabic,
-    String? resultDuaTransliteration,
-    String? resultDuaTranslation,
     bool? loading,
   }) {
     return DailyQuestionState(
@@ -53,12 +42,6 @@ class DailyQuestionState {
       selectedAnswer: selectedAnswer ?? this.selectedAnswer,
       resultName: resultName ?? this.resultName,
       resultNameArabic: resultNameArabic ?? this.resultNameArabic,
-      resultTeaching: resultTeaching ?? this.resultTeaching,
-      resultDuaArabic: resultDuaArabic ?? this.resultDuaArabic,
-      resultDuaTransliteration:
-          resultDuaTransliteration ?? this.resultDuaTransliteration,
-      resultDuaTranslation:
-          resultDuaTranslation ?? this.resultDuaTranslation,
       loading: loading ?? this.loading,
     );
   }
@@ -71,6 +54,10 @@ class DailyQuestionState {
 class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
   DailyQuestionNotifier() : super(const DailyQuestionState()) {
     loadTodaysQuestion();
+  }
+
+  Future<void> onCatalogRefreshed() async {
+    await loadTodaysQuestion();
   }
 
   Future<void> loadTodaysQuestion() async {
@@ -89,10 +76,6 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
           selectedAnswer: data['answer'] as String?,
           resultName: data['name'] as String?,
           resultNameArabic: data['nameArabic'] as String?,
-          resultTeaching: data['teaching'] as String?,
-          resultDuaArabic: data['duaArabic'] as String?,
-          resultDuaTransliteration: data['duaTransliteration'] as String?,
-          resultDuaTranslation: data['duaTranslation'] as String?,
         );
       }
     } catch (_) {}
@@ -112,10 +95,6 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
         answered: true,
         resultName: response.name,
         resultNameArabic: response.nameArabic,
-        resultTeaching: response.teaching,
-        resultDuaArabic: response.duaArabic,
-        resultDuaTransliteration: response.duaTransliteration,
-        resultDuaTranslation: response.duaTranslation,
         loading: false,
       );
 
@@ -125,14 +104,15 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
       await prefs.setString(
         key,
         jsonEncode({
+          'date': todayKey(),
           'questionId': state.question?.id,
           'answer': answer,
           'name': response.name,
           'nameArabic': response.nameArabic,
-          'teaching': response.teaching,
-          'duaArabic': response.duaArabic,
-          'duaTransliteration': response.duaTransliteration,
-          'duaTranslation': response.duaTranslation,
+          'teaching': '',
+          'duaArabic': '',
+          'duaTransliteration': '',
+          'duaTranslation': '',
         }),
       );
     } catch (_) {
@@ -147,5 +127,12 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
 
 final dailyQuestionProvider =
     StateNotifierProvider<DailyQuestionNotifier, DailyQuestionState>((ref) {
-  return DailyQuestionNotifier();
+  final notifier = DailyQuestionNotifier();
+  ref.listen<int>(
+    publicCatalogRegistryProvider.select((registry) => registry.revision),
+    (_, __) {
+      notifier.onCatalogRefreshed();
+    },
+  );
+  return notifier;
 });

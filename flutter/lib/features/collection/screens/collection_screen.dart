@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -12,12 +11,10 @@ import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
-import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -33,7 +30,8 @@ class _GridEntry {
   final CardTier? displayTier; // null = locked
   final bool isMaxTier;
 
-  const _GridEntry({required this.card, this.displayTier, this.isMaxTier = false});
+  const _GridEntry(
+      {required this.card, this.displayTier, this.isMaxTier = false});
 }
 
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
@@ -109,15 +107,22 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 HapticFeedback.lightImpact();
                 setState(() => _showOnlyDiscovered = !_showOnlyDiscovered);
               },
-              backgroundColor: _showOnlyDiscovered ? AppColors.primary : AppColors.surfaceLight,
+              backgroundColor: _showOnlyDiscovered
+                  ? AppColors.primary
+                  : AppColors.surfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: BorderSide(color: _showOnlyDiscovered ? AppColors.primary : AppColors.borderLight),
+                side: BorderSide(
+                    color: _showOnlyDiscovered
+                        ? AppColors.primary
+                        : AppColors.borderLight),
               ),
               child: Icon(
                 _showOnlyDiscovered ? Icons.auto_stories : Icons.menu_book,
                 size: 20,
-                color: _showOnlyDiscovered ? Colors.white : AppColors.textSecondaryLight,
+                color: _showOnlyDiscovered
+                    ? Colors.white
+                    : AppColors.textSecondaryLight,
               ),
             )
           : null,
@@ -127,8 +132,10 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding, 32,
-                  AppSpacing.pagePadding, 0,
+                  AppSpacing.pagePadding,
+                  32,
+                  AppSpacing.pagePadding,
+                  0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,17 +150,21 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                         ),
                         const Spacer(),
                         Builder(builder: (_) {
-                          final scrolls = ref.watch(tierUpScrollProvider).balance;
+                          final scrolls =
+                              ref.watch(tierUpScrollProvider).balance;
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                              color: const Color(0xFF3B82F6)
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.receipt_long, size: 14, color: Color(0xFF3B82F6)),
+                                const Icon(Icons.receipt_long,
+                                    size: 14, color: Color(0xFF3B82F6)),
                                 const SizedBox(width: 4),
                                 Text(
                                   '$scrolls',
@@ -181,7 +192,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.pagePadding),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
@@ -194,13 +206,19 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                     final entry = filtered[index];
                     if (entry.displayTier == null) {
                       // Locked tile
-                      return _CardTile(card: entry.card, tier: null, unseen: false, onTap: null);
+                      return _CardTile(
+                          card: entry.card,
+                          tier: null,
+                          unseen: false,
+                          onTap: null);
                     }
                     return _CardTile(
                       card: entry.card,
                       tier: entry.displayTier,
-                      unseen: collection.isUnseen(entry.card.id, entry.displayTier),
-                      onTap: () => _showCardDetail(context, entry.card, entry.displayTier!, entry.isMaxTier, collection),
+                      unseen:
+                          collection.isUnseen(entry.card.id, entry.displayTier),
+                      onTap: () => _showCardDetail(context, entry.card,
+                          entry.displayTier!, entry.isMaxTier, collection),
                     );
                   },
                   childCount: filtered.length,
@@ -208,10 +226,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
               ),
             ),
             // DEBUG: Preview button per tier
-            if (_filter == _Filter.bronze || _filter == _Filter.silver || _filter == _Filter.gold)
+            if (_filter == _Filter.bronze ||
+                _filter == _Filter.silver ||
+                _filter == _Filter.gold)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.pagePadding, AppSpacing.lg, AppSpacing.pagePadding, 0),
+                  padding: EdgeInsets.fromLTRB(AppSpacing.pagePadding,
+                      AppSpacing.lg, AppSpacing.pagePadding, 0),
                   child: GestureDetector(
                     onTap: () => context.push(switch (_filter) {
                       _Filter.bronze => '/bronze-preview',
@@ -220,12 +241,16 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       _ => '',
                     }),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: switch (_filter) {
-                          _Filter.bronze => const Color(0xFFCD7F32).withValues(alpha: 0.15),
-                          _Filter.silver => const Color(0xFFA8A9AD).withValues(alpha: 0.12),
-                          _Filter.gold => const Color(0xFFC8985E).withValues(alpha: 0.15),
+                          _Filter.bronze =>
+                            const Color(0xFFCD7F32).withValues(alpha: 0.15),
+                          _Filter.silver =>
+                            const Color(0xFFA8A9AD).withValues(alpha: 0.12),
+                          _Filter.gold =>
+                            const Color(0xFFC8985E).withValues(alpha: 0.15),
                           _ => Colors.transparent,
                         },
                         borderRadius: BorderRadius.circular(8),
@@ -233,15 +258,22 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.visibility_outlined, size: 14, color: switch (_filter) {
-                            _Filter.bronze => const Color(0xFFCD7F32),
-                            _Filter.silver => const Color(0xFFA8A9AD),
-                            _Filter.gold => const Color(0xFFC8985E),
-                            _ => Colors.transparent,
-                          }),
+                          Icon(Icons.visibility_outlined,
+                              size: 14,
+                              color: switch (_filter) {
+                                _Filter.bronze => const Color(0xFFCD7F32),
+                                _Filter.silver => const Color(0xFFA8A9AD),
+                                _Filter.gold => const Color(0xFFC8985E),
+                                _ => Colors.transparent,
+                              }),
                           const SizedBox(width: 6),
                           Text(
-                            '${switch (_filter) { _Filter.bronze => 'Bronze', _Filter.silver => 'Silver', _Filter.gold => 'Gold', _ => '' }} Preview',
+                            '${switch (_filter) {
+                              _Filter.bronze => 'Bronze',
+                              _Filter.silver => 'Silver',
+                              _Filter.gold => 'Gold',
+                              _ => ''
+                            }} Preview',
                             style: AppTypography.labelSmall.copyWith(
                               color: switch (_filter) {
                                 _Filter.bronze => const Color(0xFFCD7F32),
@@ -266,13 +298,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   List<_GridEntry> _buildAllEntries(CardCollectionState col) {
     final entries = <_GridEntry>[];
-    for (final name in allCollectibleNames) {
+    for (final name in currentCollectibleNames()) {
       final tiers = col.unlockedTiersFor(name.id);
       if (tiers.isEmpty) {
         entries.add(_GridEntry(card: name));
       } else {
         for (final tier in tiers) {
-          entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+          entries.add(_GridEntry(
+              card: name, displayTier: tier, isMaxTier: tier == tiers.last));
         }
       }
     }
@@ -281,17 +314,18 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   List<_GridEntry> _buildDiscoveredEntries(CardCollectionState col) {
     final entries = <_GridEntry>[];
-    for (final name in allCollectibleNames) {
+    for (final name in currentCollectibleNames()) {
       final tiers = col.unlockedTiersFor(name.id);
       for (final tier in tiers) {
-        entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+        entries.add(_GridEntry(
+            card: name, displayTier: tier, isMaxTier: tier == tiers.last));
       }
     }
     return entries;
   }
 
   List<_GridEntry> _buildTierEntries(CardCollectionState col, CardTier tier) {
-    return allCollectibleNames
+    return currentCollectibleNames()
         .where((n) => col.hasTierVersion(n.id, tier))
         .map((n) => _GridEntry(
               card: n,
@@ -303,11 +337,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 
   List<_GridEntry> _buildNewEntries(CardCollectionState col) {
     final entries = <_GridEntry>[];
-    for (final name in allCollectibleNames) {
+    for (final name in currentCollectibleNames()) {
       final tiers = col.unlockedTiersFor(name.id);
       for (final tier in tiers) {
         if (col.isUnseen(name.id, tier)) {
-          entries.add(_GridEntry(card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+          entries.add(_GridEntry(
+              card: name, displayTier: tier, isMaxTier: tier == tiers.last));
         }
       }
     }
@@ -321,18 +356,28 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
         children: [
-          Text('${collection.totalDiscovered}', style: AppTypography.displaySmall.copyWith(color: AppColors.primary)),
-          Text(' / ${collection.totalCards}', style: AppTypography.bodyLarge.copyWith(color: AppColors.textTertiaryLight)),
+          Text('${collection.totalDiscovered}',
+              style: AppTypography.displaySmall
+                  .copyWith(color: AppColors.primary)),
+          Text(' / ${collection.totalCards}',
+              style: AppTypography.bodyLarge
+                  .copyWith(color: AppColors.textTertiaryLight)),
           const SizedBox(width: 8),
-          Text('Names discovered', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight)),
+          Text('Names discovered',
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textSecondaryLight)),
           const Spacer(),
           SizedBox(
-            width: 36, height: 36,
+            width: 36,
+            height: 36,
             child: CircularProgressIndicator(
               value: collection.progress,
               strokeWidth: 3.5,
@@ -360,25 +405,29 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _filterChip(_Filter.all, 'All', '${collection.totalDiscovered}/${collection.totalCards}'),
+          _filterChip(_Filter.all, 'All',
+              '${collection.totalDiscovered}/${collection.totalCards}'),
           const SizedBox(width: 8),
           if (unseenCount > 0) ...[
-            _filterChip(_Filter.newCards, 'New', '$unseenCount', dotColor: AppColors.primary),
+            _filterChip(_Filter.newCards, 'New', '$unseenCount',
+                dotColor: AppColors.primary),
             const SizedBox(width: 8),
           ],
-          _filterChip(_Filter.bronze, 'Bronze', '${collection.totalBronze}', dotColor: const Color(0xFFCD7F32)),
+          _filterChip(_Filter.bronze, 'Bronze', '${collection.totalBronze}',
+              dotColor: const Color(0xFFCD7F32)),
           const SizedBox(width: 8),
-          _filterChip(_Filter.silver, 'Silver', '${collection.totalSilver}', dotColor: const Color(0xFFA8A9AD)),
+          _filterChip(_Filter.silver, 'Silver', '${collection.totalSilver}',
+              dotColor: const Color(0xFFA8A9AD)),
           const SizedBox(width: 8),
-          _filterChip(_Filter.gold, 'Gold', '${collection.totalGold}', dotColor: const Color(0xFFC8985E)),
+          _filterChip(_Filter.gold, 'Gold', '${collection.totalGold}',
+              dotColor: const Color(0xFFC8985E)),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 400.ms, delay: 400.ms);
+    ).animate().fadeIn(duration: 400.ms, delay: 400.ms);
   }
 
-  Widget _filterChip(_Filter filter, String label, String count, {Color? dotColor}) {
+  Widget _filterChip(_Filter filter, String label, String count,
+      {Color? dotColor}) {
     final isSelected = _filter == filter;
 
     return GestureDetector(
@@ -391,22 +440,27 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.borderLight),
+          border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.borderLight),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (dotColor != null) ...[
               Container(
-                width: 8, height: 8,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                width: 8,
+                height: 8,
+                decoration:
+                    BoxDecoration(shape: BoxShape.circle, color: dotColor),
               ),
               const SizedBox(width: 6),
             ],
             Text(
               '$label $count',
               style: AppTypography.labelSmall.copyWith(
-                color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondaryLight,
+                color: isSelected
+                    ? AppColors.textOnPrimary
+                    : AppColors.textSecondaryLight,
               ),
             ),
           ],
@@ -415,17 +469,21 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     );
   }
 
-  void _showCardDetail(BuildContext context, CollectibleName card, CardTier tier, bool isMaxTier, CardCollectionState collection) {
+  void _showCardDetail(BuildContext context, CollectibleName card,
+      CardTier tier, bool isMaxTier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
-    ref.read(cardCollectionProvider.notifier).markSeen(card.id, tierNumber: tier.number);
+    ref
+        .read(cardCollectionProvider.notifier)
+        .markSeen(card.id, tierNumber: tier.number);
     _sheetNavigator = Navigator.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useRootNavigator: false,
-      builder: (_) => _CardDetailSheet(card: card, tier: tier, isMaxTier: isMaxTier),
+      builder: (_) =>
+          _CardDetailSheet(card: card, tier: tier, isMaxTier: isMaxTier),
     ).whenComplete(() => _sheetNavigator = null);
   }
 }
@@ -435,7 +493,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CardTile extends StatelessWidget {
-  const _CardTile({required this.card, required this.tier, this.unseen = false, this.onTap});
+  const _CardTile(
+      {required this.card,
+      required this.tier,
+      this.unseen = false,
+      this.onTap});
 
   final CollectibleName card;
   final CardTier? tier;
@@ -449,7 +511,10 @@ class _CardTile extends StatelessWidget {
     // Discovered cards get ornate dark treatment per tier
     if (discovered) {
       Widget ornateTile = switch (tier!) {
-        CardTier.bronze => BronzeOrnateTile(arabic: card.arabic, transliteration: card.transliteration, unseen: unseen),
+        CardTier.bronze => BronzeOrnateTile(
+            arabic: card.arabic,
+            transliteration: card.transliteration,
+            unseen: unseen),
         CardTier.silver => _SilverOrnateTile(card: card, unseen: unseen),
         CardTier.gold => GoldOrnateTile(card: card, unseen: unseen),
       };
@@ -466,11 +531,15 @@ class _CardTile extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.lock_outline, color: AppColors.textTertiaryLight.withValues(alpha: 0.4), size: 24),
+          Icon(Icons.lock_outline,
+              color: AppColors.textTertiaryLight.withValues(alpha: 0.4),
+              size: 24),
           const SizedBox(height: 6),
           Text(
             '???',
-            style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.textTertiaryLight.withValues(alpha: 0.3)),
+            style: AppTypography.nameOfAllahDisplay.copyWith(
+                fontSize: 22,
+                color: AppColors.textTertiaryLight.withValues(alpha: 0.3)),
           ),
         ],
       ),
@@ -574,7 +643,8 @@ class _SilverOrnateTile extends StatelessWidget {
                                 shape: BoxShape.circle,
                                 gradient: RadialGradient(
                                   colors: [
-                                    _glowColor.withValues(alpha: unseen ? 0.2 : 0.1),
+                                    _glowColor.withValues(
+                                        alpha: unseen ? 0.2 : 0.1),
                                     _glowColor.withValues(alpha: 0.0),
                                   ],
                                 ),
@@ -605,15 +675,23 @@ class _SilverOrnateTile extends StatelessWidget {
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
                                     card.arabic,
-                                    style: AppTypography.nameOfAllahDisplay.copyWith(
+                                    style: AppTypography.nameOfAllahDisplay
+                                        .copyWith(
                                       fontSize: 18,
                                       color: _silverBright,
                                       shadows: [
-                                        Shadow(color: _glowColor.withValues(alpha: 0.5), blurRadius: 12),
-                                        Shadow(color: _glowColor.withValues(alpha: 0.2), blurRadius: 24),
+                                        Shadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.5),
+                                            blurRadius: 12),
+                                        Shadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.2),
+                                            blurRadius: 24),
                                       ],
                                     ),
                                     textDirection: TextDirection.rtl,
@@ -634,14 +712,22 @@ class _SilverOrnateTile extends StatelessWidget {
                         children: List.generate(3, (i) {
                           final filled = i < 2;
                           return Container(
-                            width: 4, height: 4,
+                            width: 4,
+                            height: 4,
                             margin: const EdgeInsets.symmetric(horizontal: 2),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: filled ? _silverBright : _silverDim.withValues(alpha: 0.3),
-                              boxShadow: filled ? [
-                                BoxShadow(color: _glowColor.withValues(alpha: 0.4), blurRadius: 4),
-                              ] : null,
+                              color: filled
+                                  ? _silverBright
+                                  : _silverDim.withValues(alpha: 0.3),
+                              boxShadow: filled
+                                  ? [
+                                      BoxShadow(
+                                          color:
+                                              _glowColor.withValues(alpha: 0.4),
+                                          blurRadius: 4),
+                                    ]
+                                  : null,
                             ),
                           );
                         }),
@@ -676,9 +762,7 @@ class _SilverOrnateTile extends StatelessWidget {
     );
 
     if (unseen) {
-      tile = tile
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .shimmer(
+      tile = tile.animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
             duration: 2200.ms,
             color: _glowColor.withValues(alpha: 0.2),
           );
@@ -738,7 +822,8 @@ class _SilverIslamicPatternPainter extends CustomPainter {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SilverOrnateBorderPainter extends CustomPainter {
-  _SilverOrnateBorderPainter({required this.color, required this.cornerAccentColor});
+  _SilverOrnateBorderPainter(
+      {required this.color, required this.cornerAccentColor});
   final Color color;
   final Color cornerAccentColor;
 
@@ -768,7 +853,8 @@ class _SilverOrnateBorderPainter extends CustomPainter {
 
     const innerInset = 6.0;
     final innerRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
+      Rect.fromLTWH(
+          innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(7),
     );
     canvas.drawRRect(innerRect, innerPaint);
@@ -778,10 +864,14 @@ class _SilverOrnateBorderPainter extends CustomPainter {
       ..color = cornerAccentColor
       ..style = PaintingStyle.fill;
 
-    _drawCornerOrnament(canvas, accentPaint, inset + 1, inset + 1, 10, false, false);
-    _drawCornerOrnament(canvas, accentPaint, w - inset - 1, inset + 1, 10, true, false);
-    _drawCornerOrnament(canvas, accentPaint, inset + 1, h - inset - 1, 10, false, true);
-    _drawCornerOrnament(canvas, accentPaint, w - inset - 1, h - inset - 1, 10, true, true);
+    _drawCornerOrnament(
+        canvas, accentPaint, inset + 1, inset + 1, 10, false, false);
+    _drawCornerOrnament(
+        canvas, accentPaint, w - inset - 1, inset + 1, 10, true, false);
+    _drawCornerOrnament(
+        canvas, accentPaint, inset + 1, h - inset - 1, 10, false, true);
+    _drawCornerOrnament(
+        canvas, accentPaint, w - inset - 1, h - inset - 1, 10, true, true);
 
     // Mid-edge diamonds
     final diamondPaint = Paint()
@@ -794,7 +884,8 @@ class _SilverOrnateBorderPainter extends CustomPainter {
     _drawDiamond(canvas, diamondPaint, w - inset, h / 2, 2.5);
   }
 
-  void _drawCornerOrnament(Canvas canvas, Paint paint, double x, double y, double size, bool flipX, bool flipY) {
+  void _drawCornerOrnament(Canvas canvas, Paint paint, double x, double y,
+      double size, bool flipX, bool flipY) {
     final dx = flipX ? -1.0 : 1.0;
     final dy = flipY ? -1.0 : 1.0;
 
@@ -825,7 +916,8 @@ class _SilverOrnateBorderPainter extends CustomPainter {
     );
   }
 
-  void _drawDiamond(Canvas canvas, Paint paint, double cx, double cy, double size) {
+  void _drawDiamond(
+      Canvas canvas, Paint paint, double cx, double cy, double size) {
     final path = Path()
       ..moveTo(cx, cy - size)
       ..lineTo(cx + size, cy)
@@ -844,7 +936,8 @@ class _SilverOrnateBorderPainter extends CustomPainter {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CardDetailSheet extends ConsumerWidget {
-  const _CardDetailSheet({required this.card, required this.tier, required this.isMaxTier});
+  const _CardDetailSheet(
+      {required this.card, required this.tier, required this.isMaxTier});
 
   final CollectibleName card;
   final CardTier tier;
@@ -853,7 +946,9 @@ class _CardDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scrollBalance = ref.watch(tierUpScrollProvider).balance;
-    final scrollCost = tier == CardTier.bronze ? scrollCostBronzeToSilver : scrollCostSilverToGold;
+    final scrollCost = tier == CardTier.bronze
+        ? scrollCostBronzeToSilver
+        : scrollCostSilverToGold;
     final showUpgrade = isMaxTier && tier.number < 3;
     final canAfford = scrollBalance >= scrollCost;
 
@@ -874,15 +969,25 @@ class _CardDetailSheet extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(2))),
+                Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: AppColors.borderLight,
+                        borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 20),
-                const Icon(Icons.receipt_long, size: 32, color: Color(0xFF3B82F6)),
+                const Icon(Icons.receipt_long,
+                    size: 32, color: Color(0xFF3B82F6)),
                 const SizedBox(height: 12),
-                Text('Not Enough Scrolls', style: AppTypography.headlineMedium.copyWith(color: AppColors.textPrimaryLight, fontWeight: FontWeight.w700)),
+                Text('Not Enough Scrolls',
+                    style: AppTypography.headlineMedium.copyWith(
+                        color: AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text(
                   'You need $scrollCost scrolls to upgrade to $nextTier. You have $scrollBalance.',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight),
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.textSecondaryLight),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
@@ -898,7 +1003,8 @@ class _CardDetailSheet extends ConsumerWidget {
                       backgroundColor: const Color(0xFF3B82F6),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Go to Store'),
                   ),
@@ -906,7 +1012,8 @@ class _CardDetailSheet extends ConsumerWidget {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.of(sheetCtx).pop(),
-                  child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+                  child: Text('Cancel',
+                      style: TextStyle(color: AppColors.textSecondaryLight)),
                 ),
               ],
             ),
@@ -928,14 +1035,16 @@ class _CardDetailSheet extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 36, height: 4,
+                width: 36,
+                height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.borderLight,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 20),
-              const Icon(Icons.receipt_long, size: 32, color: Color(0xFF3B82F6)),
+              const Icon(Icons.receipt_long,
+                  size: 32, color: Color(0xFF3B82F6)),
               const SizedBox(height: 12),
               Text(
                 'Upgrade to $nextTier?',
@@ -969,9 +1078,12 @@ class _CardDetailSheet extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.borderLight),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+                      child: Text('Cancel',
+                          style:
+                              TextStyle(color: AppColors.textSecondaryLight)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -979,14 +1091,19 @@ class _CardDetailSheet extends ConsumerWidget {
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.of(sheetCtx).pop();
-                        final spendResult = await ref.read(tierUpScrollProvider.notifier).spend(scrollCost);
+                        final spendResult = await ref
+                            .read(tierUpScrollProvider.notifier)
+                            .spend(scrollCost);
                         if (spendResult.success) {
-                          final engageResult = await ref.read(cardCollectionProvider.notifier).engageById(card.id);
+                          final engageResult = await ref
+                              .read(cardCollectionProvider.notifier)
+                              .engageById(card.id);
                           if (engageResult.tierChanged) {
                             ref.read(questsProvider.notifier).onCardTieredUp();
                           }
                           if (context.mounted) {
-                            final rootNav = Navigator.of(context, rootNavigator: true);
+                            final rootNav =
+                                Navigator.of(context, rootNavigator: true);
                             Navigator.of(context).pop();
                             rootNav.push(
                               PageRouteBuilder(
@@ -1003,7 +1120,8 @@ class _CardDetailSheet extends ConsumerWidget {
                                 ),
                                 transitionsBuilder: (_, anim, __, child) =>
                                     FadeTransition(opacity: anim, child: child),
-                                transitionDuration: const Duration(milliseconds: 300),
+                                transitionDuration:
+                                    const Duration(milliseconds: 300),
                               ),
                             );
                           }
@@ -1013,7 +1131,8 @@ class _CardDetailSheet extends ConsumerWidget {
                         backgroundColor: const Color(0xFF3B82F6),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1035,19 +1154,21 @@ class _CardDetailSheet extends ConsumerWidget {
 
     return switch (tier) {
       CardTier.bronze => BronzeOrnateDetailSheet(
-        card: card, tier: tier,
-        canUpgrade: showUpgrade,
-        onUpgrade: showUpgrade ? confirmUpgrade : null,
-        scrollCost: scrollCost,
-        isMaxTier: isMaxTier,
-      ),
+          card: card,
+          tier: tier,
+          canUpgrade: showUpgrade,
+          onUpgrade: showUpgrade ? confirmUpgrade : null,
+          scrollCost: scrollCost,
+          isMaxTier: isMaxTier,
+        ),
       CardTier.silver => _SilverOrnateDetailSheet(
-        card: card, tier: tier,
-        canUpgrade: showUpgrade,
-        onUpgrade: showUpgrade ? confirmUpgrade : null,
-        scrollCost: scrollCost,
-        isMaxTier: isMaxTier,
-      ),
+          card: card,
+          tier: tier,
+          canUpgrade: showUpgrade,
+          onUpgrade: showUpgrade ? confirmUpgrade : null,
+          scrollCost: scrollCost,
+          isMaxTier: isMaxTier,
+        ),
       CardTier.gold => GoldOrnateDetailSheet(card: card, tier: tier),
     };
   }
@@ -1058,7 +1179,13 @@ class _CardDetailSheet extends ConsumerWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SilverOrnateDetailSheet extends StatelessWidget {
-  const _SilverOrnateDetailSheet({required this.card, required this.tier, this.canUpgrade = false, this.onUpgrade, this.scrollCost = 0, this.isMaxTier = true});
+  const _SilverOrnateDetailSheet(
+      {required this.card,
+      required this.tier,
+      this.canUpgrade = false,
+      this.onUpgrade,
+      this.scrollCost = 0,
+      this.isMaxTier = true});
 
   final CollectibleName card;
   final CardTier tier;
@@ -1079,12 +1206,19 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(12),
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: _glowColor.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 2),
-          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 8)),
+          BoxShadow(
+              color: _glowColor.withValues(alpha: 0.15),
+              blurRadius: 30,
+              spreadRadius: 2),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: ClipRRect(
@@ -1129,7 +1263,8 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                 children: [
                   // Handle
                   Container(
-                    width: 36, height: 4,
+                    width: 36,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: _silverDim.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
@@ -1143,10 +1278,16 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                     height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: _frameGold.withValues(alpha: 0.35), width: 2),
+                      border: Border.all(
+                          color: _frameGold.withValues(alpha: 0.35), width: 2),
                       boxShadow: [
-                        BoxShadow(color: _glowColor.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 4),
-                        BoxShadow(color: _frameGold.withValues(alpha: 0.1), blurRadius: 16),
+                        BoxShadow(
+                            color: _glowColor.withValues(alpha: 0.15),
+                            blurRadius: 24,
+                            spreadRadius: 4),
+                        BoxShadow(
+                            color: _frameGold.withValues(alpha: 0.1),
+                            blurRadius: 16),
                       ],
                     ),
                     child: Center(
@@ -1160,8 +1301,12 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                               fontSize: 38,
                               color: _silverBright,
                               shadows: [
-                                Shadow(color: _glowColor.withValues(alpha: 0.6), blurRadius: 16),
-                                Shadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 32),
+                                Shadow(
+                                    color: _glowColor.withValues(alpha: 0.6),
+                                    blurRadius: 16),
+                                Shadow(
+                                    color: _glowColor.withValues(alpha: 0.3),
+                                    blurRadius: 32),
                               ],
                             ),
                             textDirection: TextDirection.rtl,
@@ -1170,34 +1315,47 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                         ),
                       ),
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 800.ms)
-                      .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+                  ).animate().fadeIn(duration: 800.ms).scaleXY(
+                      begin: 0.85,
+                      end: 1.0,
+                      duration: 800.ms,
+                      curve: Curves.easeOutBack),
                   const SizedBox(height: 16),
 
                   // Tier badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _silverCore.withValues(alpha: 0.25)),
+                      border: Border.all(
+                          color: _silverCore.withValues(alpha: 0.25)),
                       color: _silverDim.withValues(alpha: 0.12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ...List.generate(3, (i) => Container(
-                          width: 5, height: 5,
-                          margin: const EdgeInsets.only(right: 3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i < 2 ? _silverBright : _silverDim.withValues(alpha: 0.3),
-                            boxShadow: i < 2 ? [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 3),
-                            ] : null,
-                          ),
-                        )),
+                        ...List.generate(
+                            3,
+                            (i) => Container(
+                                  width: 5,
+                                  height: 5,
+                                  margin: const EdgeInsets.only(right: 3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: i < 2
+                                        ? _silverBright
+                                        : _silverDim.withValues(alpha: 0.3),
+                                    boxShadow: i < 2
+                                        ? [
+                                            BoxShadow(
+                                                color: _glowColor.withValues(
+                                                    alpha: 0.3),
+                                                blurRadius: 3),
+                                          ]
+                                        : null,
+                                  ),
+                                )),
                         const SizedBox(width: 6),
                         Text(
                           'SILVER',
@@ -1213,12 +1371,19 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                   ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                   const SizedBox(height: 16),
 
-                  Text(card.transliteration, style: AppTypography.headlineMedium.copyWith(color: _silverBright))
-                      .animate().fadeIn(duration: 500.ms, delay: 300.ms)
-                      .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
+                  Text(card.transliteration,
+                          style: AppTypography.headlineMedium
+                              .copyWith(color: _silverBright))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 300.ms)
+                      .slideY(
+                          begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
                   const SizedBox(height: 4),
-                  Text(card.english, style: AppTypography.bodyMedium.copyWith(color: _silverCore))
-                      .animate().fadeIn(duration: 500.ms, delay: 400.ms),
+                  Text(card.english,
+                          style: AppTypography.bodyMedium
+                              .copyWith(color: _silverCore))
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 400.ms),
                   const SizedBox(height: 24),
 
                   // Ornate divider
@@ -1235,7 +1400,10 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Meaning
-                  Text(card.meaning, style: AppTypography.bodyMedium.copyWith(color: _silverCore, height: 1.7), textAlign: TextAlign.center),
+                  Text(card.meaning,
+                      style: AppTypography.bodyMedium
+                          .copyWith(color: _silverCore, height: 1.7),
+                      textAlign: TextAlign.center),
                   const SizedBox(height: 16),
 
                   // Lesson box
@@ -1245,7 +1413,9 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1B6B4A).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1B6B4A).withValues(alpha: 0.2)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF1B6B4A).withValues(alpha: 0.2)),
                     ),
                     child: Text(
                       card.lesson,
@@ -1275,12 +1445,15 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 3, height: 16,
+                          width: 3,
+                          height: 16,
                           decoration: BoxDecoration(
                             color: _silverBright,
                             borderRadius: BorderRadius.circular(2),
                             boxShadow: [
-                              BoxShadow(color: _glowColor.withValues(alpha: 0.3), blurRadius: 4),
+                              BoxShadow(
+                                  color: _glowColor.withValues(alpha: 0.3),
+                                  blurRadius: 4),
                             ],
                           ),
                         ),
@@ -1297,9 +1470,15 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     if (card.hasTier2Content)
-                      Text(card.hadith, style: AppTypography.bodyMedium.copyWith(color: _silverCore, height: 1.7, fontStyle: FontStyle.italic))
+                      Text(card.hadith,
+                          style: AppTypography.bodyMedium.copyWith(
+                              color: _silverCore,
+                              height: 1.7,
+                              fontStyle: FontStyle.italic))
                     else
-                      Text('Coming soon...', style: AppTypography.bodySmall.copyWith(color: _silverDim, fontStyle: FontStyle.italic)),
+                      Text('Coming soon...',
+                          style: AppTypography.bodySmall.copyWith(
+                              color: _silverDim, fontStyle: FontStyle.italic)),
                   ],
 
                   // Upgrade (only on max tier cards)
@@ -1316,14 +1495,16 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
                             backgroundColor: _silverCore,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       )
                     else
                       Text(
                         'Earn a Tier Up Scroll to unlock the Dua',
-                        style: AppTypography.bodySmall.copyWith(color: _silverDim),
+                        style:
+                            AppTypography.bodySmall.copyWith(color: _silverDim),
                         textAlign: TextAlign.center,
                       ),
                   ],
@@ -1340,19 +1521,24 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.black.withValues(alpha: 0.4),
                   ),
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: _silverBright.withValues(alpha: 0.8), size: 22),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: _silverBright.withValues(alpha: 0.8), size: 22),
                 ),
               ),
             ),
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0, duration: 300.ms);
+    )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.05, end: 0, duration: 300.ms);
   }
 }
 
@@ -1361,7 +1547,8 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SilverOrnateDetailBorderPainter extends CustomPainter {
-  _SilverOrnateDetailBorderPainter({required this.color, required this.accentColor});
+  _SilverOrnateDetailBorderPainter(
+      {required this.color, required this.accentColor});
   final Color color;
   final Color accentColor;
 
@@ -1389,7 +1576,8 @@ class _SilverOrnateDetailBorderPainter extends CustomPainter {
 
     const innerInset = 10.0;
     final innerRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
+      Rect.fromLTWH(
+          innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(12),
     );
     canvas.drawRRect(innerRect, innerPaint);
@@ -1404,7 +1592,8 @@ class _SilverOrnateDetailBorderPainter extends CustomPainter {
     _drawDiamond(canvas, accentPaint, w / 2, h - inset, ds);
   }
 
-  void _drawDiamond(Canvas canvas, Paint paint, double cx, double cy, double size) {
+  void _drawDiamond(
+      Canvas canvas, Paint paint, double cx, double cy, double size) {
     final path = Path()
       ..moveTo(cx, cy - size)
       ..lineTo(cx + size, cy)
@@ -1423,7 +1612,8 @@ class _SilverOrnateDetailBorderPainter extends CustomPainter {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SilverOrnateDividerPainter extends CustomPainter {
-  _SilverOrnateDividerPainter({required this.lineColor, required this.accentColor});
+  _SilverOrnateDividerPainter(
+      {required this.lineColor, required this.accentColor});
   final Color lineColor;
   final Color accentColor;
 
@@ -1451,7 +1641,8 @@ class _SilverOrnateDividerPainter extends CustomPainter {
     canvas.drawPath(diamond, accentPaint);
 
     canvas.drawLine(Offset(20, cy), Offset(centerX - ds - 6, cy), linePaint);
-    canvas.drawLine(Offset(centerX + ds + 6, cy), Offset(size.width - 20, cy), linePaint);
+    canvas.drawLine(
+        Offset(centerX + ds + 6, cy), Offset(size.width - 20, cy), linePaint);
 
     final dotPaint = Paint()
       ..color = lineColor
@@ -1467,7 +1658,11 @@ class _SilverOrnateDividerPainter extends CustomPainter {
         ..lineTo(px, cy + sds)
         ..lineTo(px - sds, cy)
         ..close();
-      canvas.drawPath(sm, Paint()..color = lineColor..style = PaintingStyle.fill);
+      canvas.drawPath(
+          sm,
+          Paint()
+            ..color = lineColor
+            ..style = PaintingStyle.fill);
     }
   }
 

@@ -1,14 +1,12 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -56,24 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final displayTitle = await getDisplayTitle(xp.level);
     final unlockedTitles = await getUnlockedTitles();
 
-    final prefs = await SharedPreferences.getInstance();
-    final anchorsJson = prefs.getString('anchor_names');
-    List<String> anchors = [];
-    if (anchorsJson != null) {
-      try {
-        final decoded = json.decode(anchorsJson);
-        if (decoded is List) {
-          anchors = decoded
-              .map((item) {
-                if (item is String) return item;
-                if (item is Map) return item['name']?.toString() ?? '';
-                return item.toString();
-              })
-              .where((s) => s.isNotEmpty)
-              .toList();
-        }
-      } catch (_) {}
-    }
+    final anchors = await loadSavedDiscoveryQuizAnchorNames();
 
     if (!mounted) return;
     setState(() {
@@ -86,6 +67,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isAutoTitle = displayTitle.isAuto;
       _loading = false;
     });
+  }
+
+  Future<void> _openDiscoveryQuiz() async {
+    await context.push('/discovery-quiz');
+    if (!mounted) return;
+    await _loadData();
   }
 
   Future<void> _resetDailyLoop() async {
@@ -699,9 +686,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      context.push('/discovery-quiz');
-                    },
+                    onPressed: _openDiscoveryQuiz,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.textOnPrimary,
@@ -765,7 +750,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await earnTokens(100);
               await earnTierUpScrolls(100);
               final tokenState = await getTokens();
-              ref.read(dailyLoopProvider.notifier).refreshTokenBalance(tokenState.balance);
+              ref
+                  .read(dailyLoopProvider.notifier)
+                  .refreshTokenBalance(tokenState.balance);
               await ref.read(tierUpScrollProvider.notifier).reload();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

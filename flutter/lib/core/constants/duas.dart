@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:sakina/services/public_catalog_service.dart';
+
 class BrowseDua {
   final String id;
   final String category;
@@ -1161,3 +1165,36 @@ const List<BrowseDua> browseDuas = [
     emotionTags: ['general', 'protection', 'afterlife', 'prayer'],
   ),
 ];
+
+List<BrowseDua> get browseDuasCatalog {
+  try {
+    return getParsedCatalog<List<BrowseDua>>(
+      PublicCatalogKeys.browseDuas,
+      _parseBrowseDuas,
+    );
+  } catch (_) {
+    return browseDuas;
+  }
+}
+
+List<BrowseDua> _parseBrowseDuas(String raw) {
+  final decoded = jsonDecode(raw) as List<dynamic>;
+  final parsed = decoded.map((row) {
+    final map = row as Map<String, dynamic>;
+    return BrowseDua(
+      id: map['id'] as String? ?? '',
+      category: map['category'] as String? ?? '',
+      title: map['title'] as String? ?? '',
+      arabic: map['arabic'] as String? ?? '',
+      transliteration: map['transliteration'] as String? ?? '',
+      translation: map['translation'] as String? ?? '',
+      source: map['source'] as String? ?? '',
+      emotionTags: (map['emotion_tags'] as List<dynamic>?)
+          ?.map((tag) => tag.toString())
+          .toList(),
+      whenToRecite: map['when_to_recite'] as String?,
+    );
+  }).where((dua) => dua.id.isNotEmpty).toList();
+
+  return parsed.isNotEmpty ? parsed : browseDuas;
+}

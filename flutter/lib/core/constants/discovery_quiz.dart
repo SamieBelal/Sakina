@@ -1,7 +1,10 @@
+import 'dart:convert';
+
+import 'package:sakina/services/public_catalog_service.dart';
+
 /// "Which Names of Allah are your anchors?" quiz
 /// 6 scenario-based questions. Each answer scores 1 point toward specific Names.
 /// Top 3 scored Names become the user's spiritual anchors.
-library;
 
 class QuizOption {
   final String text;
@@ -197,7 +200,8 @@ const List<QuizQuestion> discoveryQuizQuestions = [
 const Map<String, NameAnchorInfo> nameAnchors = {
   'ar-rahman': NameAnchorInfo(
     name: 'Ar-Rahman',
-    arabic: '\u0627\u0644\u0631\u064E\u0651\u062D\u0652\u0645\u064E\u0670\u0646\u064F',
+    arabic:
+        '\u0627\u0644\u0631\u064E\u0651\u062D\u0652\u0645\u064E\u0670\u0646\u064F',
     anchor: 'You are held by infinite mercy.',
     detail:
         'Ar-Rahman is the name Allah chose for Himself above all others. Return to it whenever you feel unworthy \u2014 His mercy is not earned, it simply is.',
@@ -267,14 +271,16 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
   'al-fattah': NameAnchorInfo(
     name: 'Al-Fattah',
-    arabic: '\u0627\u0644\u0652\u0641\u064E\u062A\u064E\u0651\u0627\u062D\u064F',
+    arabic:
+        '\u0627\u0644\u0652\u0641\u064E\u062A\u064E\u0651\u0627\u062D\u064F',
     anchor: 'Doors will open that you cannot open yourself.',
     detail:
         'Al-Fattah is the Opener of all things. No door is permanently shut to the one who returns to Him. The breakthrough you are waiting for is in His hands.',
   ),
   'al-ghaffar': NameAnchorInfo(
     name: 'Al-Ghaffar',
-    arabic: '\u0627\u0644\u0652\u063A\u064E\u0641\u064E\u0651\u0627\u0631\u064F',
+    arabic:
+        '\u0627\u0644\u0652\u063A\u064E\u0641\u064E\u0651\u0627\u0631\u064F',
     anchor: 'You are not defined by your worst moments.',
     detail:
         'Al-Ghaffar means the One who forgives repeatedly, without limit. The same sin brought back with a sincere heart is forgiven again. He does not keep a tally against you.',
@@ -288,7 +294,8 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
   'at-tawwab': NameAnchorInfo(
     name: 'At-Tawwab',
-    arabic: '\u0627\u0644\u062A\u064E\u0651\u0648\u064E\u0651\u0627\u0628\u064F',
+    arabic:
+        '\u0627\u0644\u062A\u064E\u0651\u0648\u064E\u0651\u0627\u0628\u064F',
     anchor: 'The door of return is always open.',
     detail:
         'At-Tawwab means Allah turns to His servant the moment the servant turns to Him. You do not have to earn your way back \u2014 the turning itself is the beginning.',
@@ -316,7 +323,8 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
   'al-qayyum': NameAnchorInfo(
     name: 'Al-Qayyum',
-    arabic: '\u0627\u0644\u0652\u0642\u064E\u064A\u064F\u0651\u0648\u0645\u064F',
+    arabic:
+        '\u0627\u0644\u0652\u0642\u064E\u064A\u064F\u0651\u0648\u0645\u064F',
     anchor: 'He is the only constant when everything shifts.',
     detail:
         'Al-Qayyum means self-subsisting and sustaining all things. When everything you lean on feels unstable, He is the one ground that cannot give way.',
@@ -330,7 +338,8 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
   'ar-razzaq': NameAnchorInfo(
     name: 'Ar-Razzaq',
-    arabic: '\u0627\u0644\u0631\u064E\u0651\u0632\u064E\u0651\u0627\u0642\u064F',
+    arabic:
+        '\u0627\u0644\u0631\u064E\u0651\u0632\u064E\u0651\u0627\u0642\u064F',
     anchor: 'Your provision has already been written.',
     detail:
         'Ar-Razzaq \u2014 the Provider \u2014 has already decreed every provision that will ever reach you. Work, but release the grip of anxiety: what is yours will not pass you by.',
@@ -386,7 +395,8 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
   'al-quddus': NameAnchorInfo(
     name: 'Al-Quddus',
-    arabic: '\u0627\u0644\u0652\u0642\u064F\u062F\u064F\u0651\u0648\u0633\u064F',
+    arabic:
+        '\u0627\u0644\u0652\u0642\u064F\u062F\u064F\u0651\u0648\u0633\u064F',
     anchor: 'There is a purity available to your heart.',
     detail:
         'Al-Quddus is the Most Holy, free of all imperfection. Connecting to Him is how the heart gets cleansed \u2014 not by your effort alone, but by proximity to the One who is pure.',
@@ -421,14 +431,89 @@ const Map<String, NameAnchorInfo> nameAnchors = {
   ),
 };
 
+List<QuizQuestion> get discoveryQuizQuestionsCatalog {
+  try {
+    return getParsedCatalog<List<QuizQuestion>>(
+      PublicCatalogKeys.discoveryQuizQuestions,
+      _parseQuizQuestions,
+    );
+  } catch (_) {
+    return discoveryQuizQuestions;
+  }
+}
+
+List<QuizQuestion> _parseQuizQuestions(String raw) {
+  final decoded = jsonDecode(raw) as List<dynamic>;
+  final parsed = decoded
+      .map((row) {
+        final map = row as Map<String, dynamic>;
+        final options = (map['options'] as List<dynamic>? ?? const [])
+            .map((option) {
+              final optionMap = option as Map<String, dynamic>;
+              final scores = (optionMap['scores'] as Map<String, dynamic>? ??
+                      {})
+                  .map((key, value) => MapEntry(key, (value as num).toInt()));
+              return QuizOption(
+                text: optionMap['text'] as String? ?? '',
+                scores: scores,
+              );
+            })
+            .where((option) => option.text.isNotEmpty)
+            .toList();
+
+        return QuizQuestion(
+          id: map['id'] as String? ?? '',
+          prompt: map['prompt'] as String? ?? '',
+          options: options,
+        );
+      })
+      .where((question) => question.id.isNotEmpty)
+      .toList();
+
+  return parsed.isNotEmpty ? parsed : discoveryQuizQuestions;
+}
+
+Map<String, NameAnchorInfo> get nameAnchorsCatalog {
+  try {
+    return getParsedCatalog<Map<String, NameAnchorInfo>>(
+      PublicCatalogKeys.nameAnchors,
+      _parseNameAnchors,
+    );
+  } catch (_) {
+    return nameAnchors;
+  }
+}
+
+Map<String, NameAnchorInfo> _parseNameAnchors(String raw) {
+  final decoded = jsonDecode(raw) as List<dynamic>;
+  final entries = decoded.map((row) {
+    final map = row as Map<String, dynamic>;
+    final key = map['name_key'] as String? ?? '';
+    return MapEntry(
+      key,
+      NameAnchorInfo(
+        name: map['name'] as String? ?? '',
+        arabic: map['arabic'] as String? ?? '',
+        anchor: map['anchor'] as String? ?? '',
+        detail: map['detail'] as String? ?? '',
+      ),
+    );
+  }).where((entry) => entry.key.isNotEmpty);
+
+  final parsed = Map<String, NameAnchorInfo>.fromEntries(entries);
+  return parsed.isNotEmpty ? parsed : nameAnchors;
+}
+
 /// Calculate quiz results from user answers.
 /// [answers] is a list of selected option indices (0-based), one per question.
 /// Returns the top 3 Names as [AnchorResult] sorted by score descending.
 List<AnchorResult> calculateQuizResults(List<int> answers) {
   final Map<String, int> tally = {};
+  final questions = discoveryQuizQuestionsCatalog;
+  final anchors = nameAnchorsCatalog;
 
-  for (int i = 0; i < answers.length && i < discoveryQuizQuestions.length; i++) {
-    final question = discoveryQuizQuestions[i];
+  for (int i = 0; i < answers.length && i < questions.length; i++) {
+    final question = questions[i];
     final optionIndex = answers[i];
     if (optionIndex < 0 || optionIndex >= question.options.length) continue;
 
@@ -445,7 +530,7 @@ List<AnchorResult> calculateQuizResults(List<int> answers) {
   final top3 = sorted.take(3).toList();
 
   return top3.map((entry) {
-    final info = nameAnchors[entry.key];
+    final info = anchors[entry.key];
     return AnchorResult(
       nameKey: entry.key,
       name: info?.name ?? entry.key,

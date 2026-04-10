@@ -148,7 +148,7 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
                 child: SizedBox(
                   width: cardWidth * 1.1,
                   child: GoldOrnateTile(
-                    card: allCollectibleNames[0],
+                    card: getCollectiblePreviewCard(),
                     shimmer: shimmer,
                   ),
                 ).animate().fadeIn(duration: 500.ms, delay: 580.ms).slideY(

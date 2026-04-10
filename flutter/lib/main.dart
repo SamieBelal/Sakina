@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'services/auth_service.dart';
+import 'services/public_catalog_service.dart';
 // import 'services/purchase_service.dart';
 
 Future<void> main() async {
@@ -29,6 +32,11 @@ Future<void> main() async {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
+  }
+
+  await bootstrapPublicCatalogs();
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    unawaited(refreshPublicCatalogsFromSupabase());
   }
 
   // Temporarily disabled until RevenueCat is set up.

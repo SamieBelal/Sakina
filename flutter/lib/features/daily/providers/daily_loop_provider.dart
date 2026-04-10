@@ -10,6 +10,7 @@ import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
@@ -36,7 +37,7 @@ class DailyLoopState {
   // Step 1: Check-in (4-question adaptive flow)
   final int checkinQuestionIndex; // 0-3, which of the 4 questions we're on
   final List<String> checkinAnswers; // accumulates as user answers
-  final DailyQuestion? todaysQuestion; // kept for legacy compat, unused
+  final DailyQuestion? todaysQuestion; // displayed as subtitle under Muḥāsabah CTA
   final String? checkinAnswer; // final combined summary for display
   final String? checkinName;
   final String? checkinNameArabic;
@@ -251,6 +252,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   BrowseDua _pickQuestDua(int hour) {
+    final catalog = browseDuasCatalog;
     final String category;
     if (hour < 12) {
       category = 'morning';
@@ -260,15 +262,23 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       category = 'general';
     }
 
-    final candidates = browseDuas.where((d) => d.category == category).toList();
+    final candidates = catalog.where((d) => d.category == category).toList();
     if (candidates.isEmpty) {
-      return browseDuas.first;
+      return catalog.first;
     }
 
     // Rotate by day-of-year
     final dayOfYear =
         DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
     return candidates[dayOfYear % candidates.length];
+  }
+
+  void onCatalogRefreshed() {
+    final hour = DateTime.now().hour;
+    state = state.copyWith(
+      todaysQuestion: getTodaysDailyQuestion(),
+      questDua: _pickQuestDua(hour),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -352,7 +362,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           state = state.copyWith(
             checkinLoading: false,
             tokenBalance: spendResult.newBalance,
-            error: 'Not enough tokens. Earn more through daily rewards and quests.',
+            error:
+                'Not enough tokens. Earn more through daily rewards and quests.',
           );
           return;
         }
@@ -367,7 +378,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       if (engageResult.tierChanged) {
         cardResult = engageResult;
       } else if (engageResult.isDuplicate) {
-        try { await earnTokens(1); } catch (_) {}
+        try {
+          await earnTokens(1);
+        } catch (_) {}
       }
 
       state = state.copyWith(
@@ -403,7 +416,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       } catch (_) {}
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
-      state = state.copyWith(checkinLoading: false, error: 'Something went wrong. Try again.');
+      state = state.copyWith(
+          checkinLoading: false, error: 'Something went wrong. Try again.');
     }
   }
 
@@ -461,9 +475,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Also pass all discovered names so AI prioritizes undiscovered ones
       final collection = await getCardCollection();
+      final collectibleNames = currentCollectibleNames();
       final discoveredNames = collection.discoveredIds
           .map((id) {
-            final card = allCollectibleNames.where((n) => n.id == id).firstOrNull;
+            final card = collectibleNames.where((n) => n.id == id).firstOrNull;
             return card?.transliteration ?? '';
           })
           .where((n) => n.isNotEmpty)
@@ -485,7 +500,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
         collectible = findCollectibleByName(result.name);
         if (collectible == null && result.nameArabic.isNotEmpty) {
-          for (final n in allCollectibleNames) {
+          for (final n in collectibleNames) {
             if (n.arabic.replaceAll(RegExp(r'\s'), '') ==
                 result.nameArabic.replaceAll(RegExp(r'\s'), '')) {
               collectible = n;
@@ -494,12 +509,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           }
         }
 
-        debugPrint('[CARD] Looking for: "${result.name}" / "${result.nameArabic}"');
-        debugPrint('[CARD] Found collectible: ${collectible?.transliteration ?? "NULL"} (id: ${collectible?.id})');
+        debugPrint(
+            '[CARD] Looking for: "${result.name}" / "${result.nameArabic}"');
+        debugPrint(
+            '[CARD] Found collectible: ${collectible?.transliteration ?? "NULL"} (id: ${collectible?.id})');
         if (collectible != null) {
           engagedCard = collectible; // Always set for check-in result display
           final engageResult = await engageCard(collectible.id);
-          debugPrint('[CARD] Engage result: isNew=${engageResult.isNew}, tierChanged=${engageResult.tierChanged}, newTier=${engageResult.newTier}, isDuplicate=${engageResult.isDuplicate}');
+          debugPrint(
+              '[CARD] Engage result: isNew=${engageResult.isNew}, tierChanged=${engageResult.tierChanged}, newTier=${engageResult.newTier}, isDuplicate=${engageResult.isDuplicate}');
           if (engageResult.tierChanged) {
             // New card or tier upgrade — show gacha overlay
             cardEngageResult = engageResult;
@@ -518,7 +536,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       // Clean AI name — strip Arabic chars and " — meaning" suffix
       // Only split on em-dash/en-dash surrounded by spaces, not hyphens in "Al-Lateef"
       final cleanName = result.name
-          .replaceAll(RegExp(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+'), '')
+          .replaceAll(
+              RegExp(
+                  r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+'),
+              '')
           .split(RegExp(r'\s+[—–]\s+'))
           .first
           .trim();
@@ -819,5 +840,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
 final dailyLoopProvider =
     StateNotifierProvider<DailyLoopNotifier, DailyLoopState>(
-  (ref) => DailyLoopNotifier(),
+  (ref) {
+    final notifier = DailyLoopNotifier();
+    ref.listen<int>(
+      publicCatalogRegistryProvider.select((registry) => registry.revision),
+      (_, __) {
+        notifier.onCatalogRefreshed();
+      },
+    );
+    return notifier;
+  },
 );

@@ -11,8 +11,8 @@ import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
-import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -26,7 +26,6 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressScreen extends ConsumerStatefulWidget {
   const ProgressScreen({super.key});
@@ -42,7 +41,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _rewardCalendarExpanded = false;
   bool _levelUpShown = false;
   bool _launchGateReady = false;
-
 
   @override
   void initState() {
@@ -74,11 +72,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   Future<void> _checkDiscoveryQuiz() async {
-    final prefs = await SharedPreferences.getInstance();
-    final anchorNames = prefs.getStringList('anchor_names');
-    if (mounted && anchorNames != null && anchorNames.isNotEmpty) {
-      setState(() => _showDiscoveryQuiz = false);
-    }
+    final anchorNames = await loadSavedDiscoveryQuizAnchorNames();
+    if (!mounted) return;
+    setState(() => _showDiscoveryQuiz = anchorNames.isEmpty);
+  }
+
+  Future<void> _openDiscoveryQuiz() async {
+    await GoRouter.of(context).push('/discovery-quiz');
+    await _checkDiscoveryQuiz();
   }
 
   @override
@@ -88,7 +89,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final todaysName = getTodaysName();
 
     // Detect transition from loading → checkin done to trigger full-screen reveal
-    if (_wasLoading && !state.checkinLoading && state.checkinDone && state.checkinName != null && !_revealDone) {
+    if (_wasLoading &&
+        !state.checkinLoading &&
+        state.checkinDone &&
+        state.checkinName != null &&
+        !_revealDone) {
       _revealDone = true;
       // Wire quest: update monthly streak
       ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
@@ -167,7 +172,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.primaryLight,
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    width: 1.5),
               ),
               child: Center(
                 child: Text(
@@ -216,7 +223,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 16),
+                  const Icon(Icons.local_fire_department,
+                      color: AppColors.streakAmber, size: 16),
                   const SizedBox(width: 3),
                   Text(
                     '${state.streakCount}',
@@ -245,7 +253,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.toll, size: 14, color: AppColors.secondary),
+                    const Icon(Icons.toll,
+                        size: 14, color: AppColors.secondary),
                     const SizedBox(width: 3),
                     Text(
                       '${state.tokenBalance}',
@@ -347,7 +356,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                         value: xpProgress,
                         minHeight: 8,
                         backgroundColor: AppColors.borderLight,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary),
                       ),
                     ),
                   ],
@@ -473,7 +483,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: AppColors.primaryLight,
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      width: 1.5),
                 ),
                 child: Center(
                   child: Text(
@@ -493,7 +505,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(6),
@@ -530,7 +543,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 12),
+                    const Icon(Icons.local_fire_department,
+                        color: AppColors.streakAmber, size: 12),
                     const SizedBox(width: 2),
                     Text(
                       '${state.streakCount}',
@@ -554,7 +568,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.toll, size: 12, color: AppColors.secondary),
+                    const Icon(Icons.toll,
+                        size: 12, color: AppColors.secondary),
                     const SizedBox(width: 2),
                     Text(
                       '${state.tokenBalance}',
@@ -575,7 +590,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   context.push('/store');
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -583,7 +599,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.receipt_long, size: 12, color: Color(0xFF3B82F6)),
+                      const Icon(Icons.receipt_long,
+                          size: 12, color: Color(0xFF3B82F6)),
                       const SizedBox(width: 2),
                       Text(
                         '${ref.watch(tierUpScrollProvider).balance}',
@@ -609,7 +626,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 value: xpProgress,
                 minHeight: 3,
                 backgroundColor: AppColors.borderLight,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
           ),
@@ -626,11 +644,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             children: List.generate(5, (i) {
               return Icon(
                 Icons.auto_awesome,
-                color: AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
+                color:
+                    AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
                 size: i == 2 ? 18 : 12,
               )
                   .animate()
-                  .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut, duration: 600.ms, delay: (i * 80).ms)
+                  .scale(
+                      begin: const Offset(0, 0),
+                      end: const Offset(1, 1),
+                      curve: Curves.elasticOut,
+                      duration: 600.ms,
+                      delay: (i * 80).ms)
                   .fadeIn(duration: 400.ms, delay: (i * 80).ms);
             }),
           ),
@@ -652,10 +676,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
-          )
-              .animate()
-              .fadeIn(duration: 800.ms, delay: 200.ms)
-              .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+          ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
+              begin: 0.9,
+              end: 1.0,
+              duration: 800.ms,
+              delay: 200.ms,
+              curve: Curves.easeOutBack),
           const SizedBox(height: 6),
           Text(
             '${todaysName.transliteration} — ${todaysName.english}',
@@ -692,7 +718,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             },
             child: Row(
               children: [
-                Icon(Icons.emoji_events_outlined, color: AppColors.secondary, size: 20),
+                Icon(Icons.emoji_events_outlined,
+                    color: AppColors.secondary, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -715,7 +742,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiaryLight),
+                Icon(Icons.arrow_forward_ios_rounded,
+                    size: 14, color: AppColors.textTertiaryLight),
               ],
             ),
           ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
@@ -727,13 +755,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             const SizedBox(height: 14),
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () {
+              onTap: () async {
                 HapticFeedback.lightImpact();
-                GoRouter.of(context).push('/discovery-quiz');
+                await _openDiscoveryQuiz();
               },
               child: Row(
                 children: [
-                  Icon(Icons.star_outline_rounded, color: AppColors.secondary, size: 20),
+                  Icon(Icons.star_outline_rounded,
+                      color: AppColors.secondary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -756,7 +785,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiaryLight),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: AppColors.textTertiaryLight),
                 ],
               ),
             ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
@@ -769,7 +799,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           _buildRewardCalendar(),
         ],
       ),
-    ).animate().fadeIn(duration: 500.ms, delay: 100.ms).slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
+    )
+        .animate()
+        .fadeIn(duration: 500.ms, delay: 100.ms)
+        .slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -803,9 +836,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      claimed ? 'Day $currentDay/7 claimed' : 'Claim today\'s reward',
+                      claimed
+                          ? 'Day $currentDay/7 claimed'
+                          : 'Claim today\'s reward',
                       style: AppTypography.labelMedium.copyWith(
-                        color: claimed ? AppColors.primary : AppColors.textPrimaryLight,
+                        color: claimed
+                            ? AppColors.primary
+                            : AppColors.textPrimaryLight,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -885,15 +922,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                               Text(
                                 'Day ${i + 1}',
                                 style: AppTypography.labelSmall.copyWith(
-                                  color: done ? AppColors.textPrimaryLight : AppColors.textSecondaryLight,
-                                  fontWeight: done ? FontWeight.w600 : FontWeight.w400,
+                                  color: done
+                                      ? AppColors.textPrimaryLight
+                                      : AppColors.textSecondaryLight,
+                                  fontWeight:
+                                      done ? FontWeight.w600 : FontWeight.w400,
                                 ),
                               ),
                               const Spacer(),
                               Text(
                                 reward.label,
                                 style: AppTypography.bodySmall.copyWith(
-                                  color: done ? AppColors.primary : AppColors.textTertiaryLight,
+                                  color: done
+                                      ? AppColors.primary
+                                      : AppColors.textTertiaryLight,
                                   fontSize: 11,
                                 ),
                               ),
@@ -928,7 +970,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.borderLight,
                 borderRadius: BorderRadius.circular(2),
@@ -964,7 +1007,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Go to Store'),
               ),
@@ -972,7 +1016,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.of(sheetCtx).pop(),
-              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+              child: Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondaryLight)),
             ),
           ],
         ),
@@ -982,7 +1027,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildMuhasabahRow(DailyLoopState state) {
     final completed = state.currentStep == DailyLoopStep.completed;
-    final inProgress = state.checkinDone || state.currentStep != DailyLoopStep.checkin;
+    final inProgress =
+        state.checkinDone || state.currentStep != DailyLoopStep.checkin;
+    final promptLabel = _buildMuhasabahPromptLabel(state);
 
     if (completed) {
       return GestureDetector(
@@ -1015,7 +1062,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     ),
                   ),
                   Text(
-                    'Begin another Muḥāsabah',
+                    promptLabel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textTertiaryLight,
                       fontSize: 11,
@@ -1065,7 +1114,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.play_circle_outline_rounded, color: Colors.white, size: 22),
+            const Icon(Icons.play_circle_outline_rounded,
+                color: Colors.white, size: 22),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1079,7 +1129,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     ),
                   ),
                   Text(
-                    'Daily spiritual check-in',
+                    promptLabel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: AppTypography.bodySmall.copyWith(
                       color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 11,
@@ -1088,11 +1140,21 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 14),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white.withValues(alpha: 0.7), size: 14),
           ],
         ),
       ),
     ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
+  }
+
+  String _buildMuhasabahPromptLabel(DailyLoopState state) {
+    final prompt = state.todaysQuestion?.question.trim();
+    if (prompt == null || prompt.isEmpty) {
+      return 'Daily spiritual check-in';
+    }
+
+    return 'Today: $prompt';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1121,7 +1183,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 shape: BoxShape.circle,
                 color: AppColors.primary.withValues(alpha: 0.15),
               ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1165,7 +1228,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     }
 
     // Not started or in progress — big CTA button
-    final inProgress = state.checkinDone || state.currentStep != DailyLoopStep.checkin;
+    final inProgress =
+        state.checkinDone || state.currentStep != DailyLoopStep.checkin;
     return GestureDetector(
       onTap: () {
         HapticFeedback.mediumImpact();
@@ -1213,7 +1277,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               ],
             ),
             const Spacer(),
-            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white.withValues(alpha: 0.7), size: 16),
           ],
         ),
       ),
@@ -1311,7 +1376,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(7, (i) {
@@ -1320,16 +1384,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 final isClaimed = day <= rewards.currentDay && claimed
                     ? true
                     : day < rewards.currentDay;
-                final isCurrent =
-                    !claimed && day == rewards.nextClaimDay;
+                final isCurrent = !claimed && day == rewards.nextClaimDay;
                 final isSpecial = reward.type != RewardType.tokens;
 
                 return Expanded(
                   child: _buildRewardDay(
                     day: day,
                     reward: reward,
-                    claimed: isClaimed ||
-                        (day == rewards.currentDay && claimed),
+                    claimed:
+                        isClaimed || (day == rewards.currentDay && claimed),
                     current: isCurrent,
                     special: isSpecial,
                   ),
@@ -1337,7 +1400,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               }),
             ),
             const SizedBox(height: AppSpacing.md),
-
             if (claimed && rewards.currentDay < 7)
               Text(
                 'Come back tomorrow for ${rewardSchedule[rewards.currentDay].label}',
@@ -1363,14 +1425,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-
             if (rewards.streakFreezeOwned) ...[
               const SizedBox(height: AppSpacing.sm),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.ac_unit,
-                      color: Color(0xFF60A5FA), size: 14),
+                  const Icon(Icons.ac_unit, color: Color(0xFF60A5FA), size: 14),
                   const SizedBox(width: 4),
                   Text(
                     'Streak Freeze active',
@@ -1384,7 +1444,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.05, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 400.ms, delay: 100.ms)
+        .slideY(begin: 0.05, end: 0);
   }
 
   Widget _buildRewardDay({
@@ -1413,7 +1476,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     } else {
       borderColor = AppColors.borderLight;
       bgColor = Colors.transparent;
-      icon = _rewardIcon(reward, AppColors.textTertiaryLight.withValues(alpha: 0.5));
+      icon = _rewardIcon(
+          reward, AppColors.textTertiaryLight.withValues(alpha: 0.5));
     }
 
     Widget circle = Container(
@@ -1463,9 +1527,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       case 'freeze':
         return const Icon(Icons.ac_unit, size: 15, color: Color(0xFF60A5FA));
       case 'scroll':
-        return const Icon(Icons.receipt_long, size: 15, color: Color(0xFF3B82F6));
+        return const Icon(Icons.receipt_long,
+            size: 15, color: Color(0xFF3B82F6));
       case 'star':
-        return const Icon(Icons.star_rounded, size: 16, color: AppColors.secondary);
+        return const Icon(Icons.star_rounded,
+            size: 16, color: AppColors.secondary);
       case 'token':
         return Icon(Icons.toll, size: 15, color: color);
       default:
@@ -1481,7 +1547,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // 2.5. Today's Spiritual Tasks
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildSpiritualTasks(DailyLoopState state, DailyLoopNotifier notifier) {
+  Widget _buildSpiritualTasks(
+      DailyLoopState state, DailyLoopNotifier notifier) {
     final tasks = [
       (
         icon: Icons.favorite_rounded,
@@ -1554,7 +1621,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: completedCount == 3
                       ? AppColors.primaryLight
@@ -1592,15 +1660,24 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                       height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: t.done ? t.bgColor : t.isCurrent ? t.bgColor : const Color(0xFFF0EBE3),
+                        color: t.done
+                            ? t.bgColor
+                            : t.isCurrent
+                                ? t.bgColor
+                                : const Color(0xFFF0EBE3),
                         border: t.isCurrent && !t.done
                             ? Border.all(color: t.color, width: 2)
                             : null,
                       ),
                       child: Center(
                         child: t.done
-                            ? Icon(Icons.check_rounded, size: 18, color: t.color)
-                            : Icon(t.icon, size: 18, color: t.done || t.isCurrent ? t.color : AppColors.textTertiaryLight),
+                            ? Icon(Icons.check_rounded,
+                                size: 18, color: t.color)
+                            : Icon(t.icon,
+                                size: 18,
+                                color: t.done || t.isCurrent
+                                    ? t.color
+                                    : AppColors.textTertiaryLight),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -1617,7 +1694,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                                   ? AppColors.textTertiaryLight
                                   : AppColors.textPrimaryLight,
                               fontWeight: FontWeight.w600,
-                              decoration: t.done ? TextDecoration.lineThrough : null,
+                              decoration:
+                                  t.done ? TextDecoration.lineThrough : null,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -1635,7 +1713,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     // Reward badge or GO button
                     if (t.done)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: t.bgColor,
                           borderRadius: BorderRadius.circular(12),
@@ -1660,7 +1739,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                       GestureDetector(
                         onTap: t.onGo,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 7),
                           decoration: BoxDecoration(
                             color: t.color,
                             borderRadius: BorderRadius.circular(16),
@@ -1677,7 +1757,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                       )
                     else
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF0EBE3),
                           borderRadius: BorderRadius.circular(12),
@@ -1700,7 +1781,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     child: Container(
                       width: 2,
                       height: 12,
-                      color: t.done ? t.color.withValues(alpha: 0.3) : AppColors.borderLight,
+                      color: t.done
+                          ? t.color.withValues(alpha: 0.3)
+                          : AppColors.borderLight,
                     ),
                   ),
                 ],
@@ -1825,7 +1908,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Divider(color: AppColors.dividerLight, indent: 40, endIndent: 40),
+            const Divider(
+                color: AppColors.dividerLight, indent: 40, endIndent: 40),
             const SizedBox(height: AppSpacing.lg),
           ],
           AnimatedSwitcher(
@@ -2072,24 +2156,38 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final step = state.reflectStep;
 
     // Step labels and headers
-    final (String headerLabel, Widget content, String buttonLabel, VoidCallback onButton) = switch (step) {
+    final (
+      String headerLabel,
+      Widget content,
+      String buttonLabel,
+      VoidCallback onButton
+    ) = switch (step) {
       0 => (
           'A Name for your heart',
           _deeperNameContent(result),
           'See Reflection',
-          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
+          () {
+            HapticFeedback.mediumImpact();
+            notifier.advanceReflectStep();
+          },
         ),
       1 => (
           'Reflection',
           _deeperTextContent(result.reframe),
           'Read the Story',
-          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
+          () {
+            HapticFeedback.mediumImpact();
+            notifier.advanceReflectStep();
+          },
         ),
       2 => (
           'A Prophetic Story',
           _deeperTextContent(result.story),
           'See the Dua',
-          () { HapticFeedback.mediumImpact(); notifier.advanceReflectStep(); },
+          () {
+            HapticFeedback.mediumImpact();
+            notifier.advanceReflectStep();
+          },
         ),
       _ => (
           'Dua',
@@ -2132,7 +2230,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                           color: AppColors.secondary,
                           borderRadius: BorderRadius.circular(2),
                         ),
-                      ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
+                      ).animate().scaleY(
+                          begin: 0,
+                          end: 1,
+                          duration: 300.ms,
+                          delay: 200.ms,
+                          curve: Curves.easeOut),
                       const SizedBox(width: 8),
                       Text(
                         headerLabel,
@@ -2180,15 +2283,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                           ),
                         ),
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
+                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(
+                        begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
                   else
                     _buildActionButton(buttonLabel, onButton)
-                        .animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 500.ms),
                 ],
               ),
             ),
           ],
-        ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+        )
+            .animate()
+            .fadeIn(duration: 600.ms)
+            .slideY(begin: 0.05, end: 0, duration: 600.ms),
       ),
     );
   }
@@ -2233,16 +2341,21 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
-          )
-              .animate()
-              .fadeIn(duration: 800.ms)
-              .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+          ).animate().fadeIn(duration: 800.ms).scaleXY(
+              begin: 0.85,
+              end: 1.0,
+              duration: 800.ms,
+              curve: Curves.easeOutBack),
           const SizedBox(height: AppSpacing.sm),
           Text(
             result.name,
-            style: AppTypography.headlineMedium.copyWith(color: AppColors.primary),
+            style:
+                AppTypography.headlineMedium.copyWith(color: AppColors.primary),
             textAlign: TextAlign.center,
-          ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 300.ms)
+              .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
         ],
       ),
     );
@@ -2270,10 +2383,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
           ),
-        )
-            .animate()
-            .fadeIn(duration: 800.ms, delay: 200.ms)
-            .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+        ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
+            begin: 0.9,
+            end: 1.0,
+            duration: 800.ms,
+            delay: 200.ms,
+            curve: Curves.easeOutBack),
         const SizedBox(height: AppSpacing.md),
         const Divider(color: AppColors.dividerLight),
         const SizedBox(height: AppSpacing.md),
@@ -2295,7 +2410,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text(
           result.duaSource,
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+          style: AppTypography.bodySmall
+              .copyWith(color: AppColors.textTertiaryLight),
         ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
       ],
     );
@@ -2428,228 +2544,257 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         _cardShell(
           child: Column(
             children: [
-            // Celebration illustration
-            SvgPicture.asset(
-              'assets/illustrations/main_screens/daily_complete.svg',
-              height: 140,
-            ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
-            const SizedBox(height: AppSpacing.md),
-            // ── Completion label ─────────────────────────────────────────────
-            Text(
-              'Muḥāsabah Complete',
-              style: AppTypography.headlineMedium.copyWith(
-                color: AppColors.textPrimaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-            const SizedBox(height: 4),
-            Text(
-              "You've reflected, gone deeper, and connected with Allah today.",
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
-            const SizedBox(height: AppSpacing.md),
-
-            // ── Rank hero ───────────────────────────────────────────────────
-            Text(
-              state.levelTitleArabic,
-              style: AppTypography.nameOfAllahDisplay.copyWith(
-                color: AppColors.primary,
-                fontSize: 44,
-              ),
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
-            )
-                .animate()
-                .fadeIn(duration: 800.ms, delay: 500.ms)
-                .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, delay: 500.ms, curve: Curves.easeOutBack),
-            const SizedBox(height: 2),
-            Text(
-              state.levelTitle.toUpperCase(),
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.primary,
-                letterSpacing: 2.5,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
-            const SizedBox(height: AppSpacing.sm),
-
-            // ── XP progress bar ─────────────────────────────────────────────
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: xpProgress,
-                minHeight: 6,
-                backgroundColor: AppColors.borderLight,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-              ),
-            ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-            const SizedBox(height: 4),
-            Text(
-              isMaxLevel
-                  ? 'Max rank reached'
-                  : '${xpState.xpIntoCurrentLevel} / ${xpState.xpForNextLevel} XP to ${_nextLevelTitle(state.xpTotal)}',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textTertiaryLight,
-                fontSize: 11,
-              ),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(duration: 400.ms, delay: 750.ms),
-            const SizedBox(height: AppSpacing.sm),
-
-            // ── Stat banner (streak · XP · tokens) ──────────────────────────
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _completedStat(
-                      icon: const Icon(Icons.local_fire_department, color: AppColors.streakAmber, size: 18),
-                      value: '${state.streakCount}',
-                      label: 'streak',
-                    ),
-                    VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
-                    _completedStat(
-                      icon: const Icon(Icons.bolt, color: AppColors.primary, size: 18),
-                      value: '${state.xpTotal}',
-                      label: 'XP',
-                    ),
-                    VerticalDivider(width: 1, thickness: 1, color: AppColors.primary.withValues(alpha: 0.2)),
-                    _completedStat(
-                      icon: const Icon(Icons.toll, color: AppColors.secondary, size: 18),
-                      value: '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
-                      label: 'tokens',
-                    ),
-                  ],
+              // Celebration illustration
+              SvgPicture.asset(
+                'assets/illustrations/main_screens/daily_complete.svg',
+                height: 140,
+              ).animate().fadeIn(duration: 600.ms, delay: 200.ms),
+              const SizedBox(height: AppSpacing.md),
+              // ── Completion label ─────────────────────────────────────────────
+              Text(
+                'Muḥāsabah Complete',
+                style: AppTypography.headlineMedium.copyWith(
+                  color: AppColors.textPrimaryLight,
                 ),
-              ),
-            ).animate().fadeIn(duration: 400.ms, delay: 800.ms),
-            const SizedBox(height: AppSpacing.lg),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+              const SizedBox(height: 4),
+              Text(
+                "You've reflected, gone deeper, and connected with Allah today.",
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+              const SizedBox(height: AppSpacing.md),
 
-            // ── Primary CTA — Reflect More ────────────────────────────────
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                context.go('/reflect');
-              },
-              child: Container(
-                width: double.infinity,
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
+              // ── Rank hero ───────────────────────────────────────────────────
+              Text(
+                state.levelTitleArabic,
+                style: AppTypography.nameOfAllahDisplay.copyWith(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(100),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  fontSize: 44,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Reflect More',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(duration: 800.ms, delay: 500.ms).scaleXY(
+                  begin: 0.85,
+                  end: 1.0,
+                  duration: 800.ms,
+                  delay: 500.ms,
+                  curve: Curves.easeOutBack),
+              const SizedBox(height: 2),
+              Text(
+                state.levelTitle.toUpperCase(),
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.primary,
+                  letterSpacing: 2.5,
                 ),
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 900.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 900.ms),
-            const SizedBox(height: 12),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
+              const SizedBox(height: AppSpacing.sm),
 
-            // ── Secondary actions ─────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      context.go('/duas');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryLight,
-                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+              // ── XP progress bar ─────────────────────────────────────────────
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: xpProgress,
+                  minHeight: 6,
+                  backgroundColor: AppColors.borderLight,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
+              const SizedBox(height: 4),
+              Text(
+                isMaxLevel
+                    ? 'Max rank reached'
+                    : '${xpState.xpIntoCurrentLevel} / ${xpState.xpForNextLevel} XP to ${_nextLevelTitle(state.xpTotal)}',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                  fontSize: 11,
+                ),
+                textAlign: TextAlign.center,
+              ).animate().fadeIn(duration: 400.ms, delay: 750.ms),
+              const SizedBox(height: AppSpacing.sm),
+
+              // ── Stat banner (streak · XP · tokens) ──────────────────────────
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _completedStat(
+                        icon: const Icon(Icons.local_fire_department,
+                            color: AppColors.streakAmber, size: 18),
+                        value: '${state.streakCount}',
+                        label: 'streak',
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.auto_awesome, color: AppColors.secondary, size: 18),
-                          const SizedBox(height: 4),
-                          Text('Build a Dua',
-                              style: AppTypography.labelSmall.copyWith(color: AppColors.secondary),
-                              textAlign: TextAlign.center),
-                        ],
+                      VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: AppColors.primary.withValues(alpha: 0.2)),
+                      _completedStat(
+                        icon: const Icon(Icons.bolt,
+                            color: AppColors.primary, size: 18),
+                        value: '${state.xpTotal}',
+                        label: 'XP',
+                      ),
+                      VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: AppColors.primary.withValues(alpha: 0.2)),
+                      _completedStat(
+                        icon: const Icon(Icons.toll,
+                            color: AppColors.secondary, size: 18),
+                        value:
+                            '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
+                        label: 'tokens',
+                      ),
+                    ],
+                  ),
+                ),
+              ).animate().fadeIn(duration: 400.ms, delay: 800.ms),
+              const SizedBox(height: AppSpacing.lg),
+
+              // ── Primary CTA — Reflect More ────────────────────────────────
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  context.go('/reflect');
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.favorite_rounded,
+                          color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Reflect More',
+                        style: AppTypography.labelLarge.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 900.ms)
+                  .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 900.ms),
+              const SizedBox(height: 12),
+
+              // ── Secondary actions ─────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        context.go('/duas');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryLight,
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.buttonRadius),
+                          border: Border.all(
+                              color:
+                                  AppColors.secondary.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome,
+                                color: AppColors.secondary, size: 18),
+                            const SizedBox(height: 4),
+                            Text('Build a Dua',
+                                style: AppTypography.labelSmall
+                                    .copyWith(color: AppColors.secondary),
+                                textAlign: TextAlign.center),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      context.push('/quests');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDE9FE),
-                        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-                        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.emoji_events_rounded, color: Color(0xFF7C3AED), size: 18),
-                          const SizedBox(height: 4),
-                          Text('Quests',
-                              style: AppTypography.labelSmall.copyWith(color: const Color(0xFF7C3AED)),
-                              textAlign: TextAlign.center),
-                        ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        context.push('/quests');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEDE9FE),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.buttonRadius),
+                          border: Border.all(
+                              color: const Color(0xFF7C3AED)
+                                  .withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.emoji_events_rounded,
+                                color: Color(0xFF7C3AED), size: 18),
+                            const SizedBox(height: 4),
+                            Text('Quests',
+                                style: AppTypography.labelSmall
+                                    .copyWith(color: const Color(0xFF7C3AED)),
+                                textAlign: TextAlign.center),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
-          ],
+                ],
+              ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
+            ],
+          ),
         ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        'Every step brings you closer to Allah',
-        style: AppTypography.bodySmall.copyWith(
-          color: AppColors.secondary,
-          fontStyle: FontStyle.italic,
-        ),
-        textAlign: TextAlign.center,
-      ).animate().fadeIn(duration: 400.ms, delay: 1100.ms),
-    ],
+        const SizedBox(height: 12),
+        Text(
+          'Every step brings you closer to Allah',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.secondary,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ).animate().fadeIn(duration: 400.ms, delay: 1100.ms),
+      ],
     )
         .animate()
         .fadeIn(duration: 600.ms, delay: 100.ms)
         .slideY(begin: 0.08, end: 0);
   }
 
-  Widget _completedStat({required Widget icon, required String value, required String label}) {
+  Widget _completedStat(
+      {required Widget icon, required String value, required String label}) {
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2675,9 +2820,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     );
   }
 
-  ({int xpIntoCurrentLevel, int xpForNextLevel}) _calculateXpProgress(int total) {
+  ({int xpIntoCurrentLevel, int xpForNextLevel}) _calculateXpProgress(
+      int total) {
     final state = calculateXpState(total);
-    return (xpIntoCurrentLevel: state.xpIntoCurrentLevel, xpForNextLevel: state.xpForNextLevel);
+    return (
+      xpIntoCurrentLevel: state.xpIntoCurrentLevel,
+      xpForNextLevel: state.xpForNextLevel
+    );
   }
 
   String _nextLevelTitle(int total) {
@@ -2755,9 +2904,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildDiscoveryQuizCta() {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         HapticFeedback.lightImpact();
-        GoRouter.of(context).push('/discovery-quiz');
+        await _openDiscoveryQuiz();
       },
       child: Container(
         width: double.infinity,
@@ -2860,7 +3009,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildNewCardBanner(CollectibleName card, CardEngageResult result) {
     final tierColor = Color(result.tier.colorValue);
-    final title = result.isNew ? 'New Card Discovered!' : '${result.tier.label} Tier Unlocked!';
+    final title = result.isNew
+        ? 'New Card Discovered!'
+        : '${result.tier.label} Tier Unlocked!';
 
     return Container(
       width: double.infinity,

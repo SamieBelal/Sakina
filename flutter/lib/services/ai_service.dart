@@ -119,7 +119,9 @@ String buildSystemPrompt({
           'reframe, story, and dua specifically for "$forceName".'
       : '';
 
-  final anchorClause = (anchorNames != null && anchorNames.isNotEmpty && forceName == null)
+  final anchorClause = (anchorNames != null &&
+          anchorNames.isNotEmpty &&
+          forceName == null)
       ? '\n\nThe user has marked these Names as personal anchors: ${anchorNames.join(", ")}. '
           'When relevant, prefer returning one of these anchor Names — but only if it genuinely '
           'fits the feeling. Do not force an anchor Name when a different Name is clearly more appropriate.'
@@ -265,10 +267,13 @@ bool isOffTopic(String text) {
   // Be conservative — it's better to let a borderline input through to the model
   // than to block a genuine emotional expression.
   final offTopicPatterns = [
-    RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$', caseSensitive: false),
+    RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$',
+        caseSensitive: false),
     RegExp(r'^(test|testing|asdf|aaa|123)\s*$', caseSensitive: false),
-    RegExp(r'^(what is|who is|where is|when is|how do i|how to)\s+\w', caseSensitive: false),
-    RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)', caseSensitive: false),
+    RegExp(r'^(what is|who is|where is|when is|how do i|how to)\s+\w',
+        caseSensitive: false),
+    RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)',
+        caseSensitive: false),
   ];
 
   return offTopicPatterns.any((p) => p.hasMatch(lower));
@@ -379,7 +384,8 @@ Dua: ${t.dua.transliteration} — "${t.dua.translation}" (${t.dua.source})''';
 Future<List<FollowUpQuestion>> getFollowUpQuestions(String userText) async {
   if (userText.length > 150) return [];
 
-  const systemPrompt = '''You help users explore their feelings more deeply before we match them with a Name of Allah.
+  const systemPrompt =
+      '''You help users explore their feelings more deeply before we match them with a Name of Allah.
 
 Rules:
 - Ask about the CONTENT of their feelings, not meta-questions about the app
@@ -411,7 +417,10 @@ Example:
 
   try {
     // Extract JSON from the response (may be wrapped in markdown code fences)
-    final jsonStr = text.replaceAll(RegExp(r'```json?\s*'), '').replaceAll('```', '').trim();
+    final jsonStr = text
+        .replaceAll(RegExp(r'```json?\s*'), '')
+        .replaceAll('```', '')
+        .trim();
     final parsed = jsonDecode(jsonStr) as List<dynamic>;
 
     return parsed.map((item) {
@@ -641,12 +650,14 @@ const _semanticMap = <String, List<String>>{
   'trip': ['travel'],
 };
 
-/// Search the local browseDuas list for duas matching the user's need.
+/// Search the local browse duas catalog for duas matching the user's need.
 /// Uses semantic intent mapping + keyword + emotion tag matching.
 /// Returns up to 5 best matches sorted by relevance score.
 List<FindDuasDuaEntry> _searchLocalDuas(String need) {
   final query = need.toLowerCase();
-  final queryWords = query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+  final queryWords =
+      query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+  final duas = browseDuasCatalog;
 
   // Expand query words to inferred categories/tags via semantic map
   final inferredTags = <String>{};
@@ -659,7 +670,7 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
   }
 
   final scored = <(int, BrowseDua)>[];
-  for (final dua in browseDuas) {
+  for (final dua in duas) {
     int score = 0;
     final searchable = [
       dua.title,
@@ -708,6 +719,7 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
 Future<FindDuasResponse> findDuas(String need) async {
   // 1. Search local duas — always fast, free, verified
   final localDuas = _searchLocalDuas(need);
+  final fallbackCatalog = browseDuasCatalog;
 
   // 2. Get Names of Allah via model (lightweight call, names only)
   final names = await _findNamesForNeed(need);
@@ -715,13 +727,16 @@ Future<FindDuasResponse> findDuas(String need) async {
   // 3. If no local results found, fall back to a general set
   final duas = localDuas.isNotEmpty
       ? localDuas
-      : browseDuas.take(3).map((d) => FindDuasDuaEntry(
-            title: d.title,
-            arabic: d.arabic,
-            transliteration: d.transliteration,
-            translation: d.translation,
-            source: d.source,
-          )).toList();
+      : fallbackCatalog
+          .take(3)
+          .map((d) => FindDuasDuaEntry(
+                title: d.title,
+                arabic: d.arabic,
+                transliteration: d.transliteration,
+                translation: d.translation,
+                source: d.source,
+              ))
+          .toList();
 
   return FindDuasResponse(names: names, duas: duas);
 }
@@ -740,9 +755,11 @@ Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
 
   try {
     final teachings = getRelevantTeachings(need);
-    final teachingContext = teachings.take(5).map((t) =>
-      '${t.name} (${t.arabic}): ${t.emotionalContext.take(3).join(', ')} — ${t.coreTeaching}'
-    ).join('\n');
+    final teachingContext = teachings
+        .take(5)
+        .map((t) =>
+            '${t.name} (${t.arabic}): ${t.emotionalContext.take(3).join(', ')} — ${t.coreTeaching}')
+        .join('\n');
 
     final canonicalList = buildCanonicalNamesPromptList();
 
@@ -768,11 +785,16 @@ Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
         .where((l) => l.trim().isNotEmpty && l.contains('·'))
         .map((line) {
           final parts = line.split('·').map((s) => s.trim()).toList();
-          final whyMatch = RegExp(r'\[(.+)\]').firstMatch(parts.length > 2 ? parts[2] : '');
+          final whyMatch =
+              RegExp(r'\[(.+)\]').firstMatch(parts.length > 2 ? parts[2] : '');
           return {
-            'name': (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
+            'name': (parts.isNotEmpty ? parts[0] : '')
+                .replaceAll(RegExp(r'^[-\d.)\s]+'), '')
+                .trim(),
             'nameArabic': parts.length > 1 ? parts[1].trim() : '',
-            'why': whyMatch != null ? whyMatch.group(1)! : (parts.length > 2 ? parts[2].trim() : ''),
+            'why': whyMatch != null
+                ? whyMatch.group(1)!
+                : (parts.length > 2 ? parts[2].trim() : ''),
           };
         })
         .where((n) => (n['name'] as String).isNotEmpty)
@@ -845,13 +867,15 @@ Future<BuiltDuaResponse> buildDua(String need) async {
     return const BuiltDuaResponse(
       arabic: 'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
       transliteration: 'Bismillahi r-rahmani r-rahim',
-      translation: 'In the name of Allah, the Most Gracious, the Most Merciful.',
+      translation:
+          'In the name of Allah, the Most Gracious, the Most Merciful.',
       breakdown: [
         BuiltDuaSection(
           label: 'Opening',
           arabic: 'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
           transliteration: 'Bismillahi r-rahmani r-rahim',
-          translation: 'In the name of Allah, the Most Gracious, the Most Merciful.',
+          translation:
+              'In the name of Allah, the Most Gracious, the Most Merciful.',
         ),
       ],
       namesUsed: [],
@@ -861,41 +885,54 @@ Future<BuiltDuaResponse> buildDua(String need) async {
 
   // Get relevant Names from both knowledge bases
   final nameGuidanceResults = getNameGuidanceForNeed(need);
-  final knowledgeBaseTeachings =
-      nameGuidanceResults.length < 2 ? getRelevantTeachings(need) : <NameTeaching>[];
+  final knowledgeBaseTeachings = nameGuidanceResults.length < 2
+      ? getRelevantTeachings(need)
+      : <NameTeaching>[];
 
   // Build name context: prioritise duaKnowledge guidance, supplement with knowledgeBase
   String nameContext;
   if (nameGuidanceResults.take(3).isNotEmpty) {
-    nameContext = nameGuidanceResults.take(3).map((n) =>
-      '- ${n.name} (${n.arabic}): Call upon for ${n.callFor.take(3).join(', ')}\n'
-      '  Invocation: ${n.invocationStyle}\n'
-      '  Sample phrase: ${n.samplePhrase}'
-    ).join('\n');
+    nameContext = nameGuidanceResults
+        .take(3)
+        .map((n) =>
+            '- ${n.name} (${n.arabic}): Call upon for ${n.callFor.take(3).join(', ')}\n'
+            '  Invocation: ${n.invocationStyle}\n'
+            '  Sample phrase: ${n.samplePhrase}')
+        .join('\n');
   } else {
-    nameContext = knowledgeBaseTeachings.take(3).map((t) =>
-      '- ${t.name} (${t.arabic}): Call upon for ${t.emotionalContext.take(3).join(', ')}\n'
-      '  Invocation: ${t.dua.transliteration}\n'
-      '  Sample phrase: ${t.dua.arabic}'
-    ).join('\n');
+    nameContext = knowledgeBaseTeachings
+        .take(3)
+        .map((t) =>
+            '- ${t.name} (${t.arabic}): Call upon for ${t.emotionalContext.take(3).join(', ')}\n'
+            '  Invocation: ${t.dua.transliteration}\n'
+            '  Sample phrase: ${t.dua.arabic}')
+        .join('\n');
   }
 
   // Pick the most thematically fitting hamd opening
   final needLower = need.toLowerCase();
   final hamdOpening = hamdOpenings.cast<HamdOpening?>().firstWhere(
-    (h) =>
-        needLower.contains(h!.theme) ||
-        (h.theme == 'provision' && RegExp(r'money|job|debt|rizq|sustain|provide').hasMatch(needLower)) ||
-        (h.theme == 'healing' && RegExp(r'sick|health|ill|pain|hurt|heal').hasMatch(needLower)) ||
-        (h.theme == 'guidance' && RegExp(r'guide|lost|direction|confus|decision').hasMatch(needLower)) ||
-        (h.theme == 'mercy' && RegExp(r'sin|forgiv|guilt|shame|return').hasMatch(needLower)),
-    orElse: () => hamdOpenings[0],
-  )!;
+        (h) =>
+            needLower.contains(h!.theme) ||
+            (h.theme == 'provision' &&
+                RegExp(r'money|job|debt|rizq|sustain|provide')
+                    .hasMatch(needLower)) ||
+            (h.theme == 'healing' &&
+                RegExp(r'sick|health|ill|pain|hurt|heal')
+                    .hasMatch(needLower)) ||
+            (h.theme == 'guidance' &&
+                RegExp(r'guide|lost|direction|confus|decision')
+                    .hasMatch(needLower)) ||
+            (h.theme == 'mercy' &&
+                RegExp(r'sin|forgiv|guilt|shame|return').hasMatch(needLower)),
+        orElse: () => hamdOpenings[0],
+      )!;
 
   final canonicalNamesList = buildCanonicalNamesPromptList();
 
   final response = await _callOpenAiChat(
-    systemPrompt: 'You are an Islamic scholar constructing a personal dua in classical Arabic following authentic prophetic etiquette (adab al-du\'a).\n\n'
+    systemPrompt:
+        'You are an Islamic scholar constructing a personal dua in classical Arabic following authentic prophetic etiquette (adab al-du\'a).\n\n'
         'CRITICAL — You MUST only invoke Names of Allah from this canonical list. Do not invent or use any Name not on this list:\n'
         '$canonicalNamesList\n\n\n'
         '$duaEtiquettes\n\n'
@@ -977,13 +1014,23 @@ Future<BuiltDuaResponse> buildDua(String need) async {
 
   // Parse the 4 sections from 12 markers
   const sectionDefs = [
-    ('Opening Praise', '##S1_ARABIC##', '##S1_TRANSLIT##', '##S1_TRANSLATION##'),
+    (
+      'Opening Praise',
+      '##S1_ARABIC##',
+      '##S1_TRANSLIT##',
+      '##S1_TRANSLATION##'
+    ),
     ('Salawat', '##S2_ARABIC##', '##S2_TRANSLIT##', '##S2_TRANSLATION##'),
     ('The Ask', '##S3_ARABIC##', '##S3_TRANSLIT##', '##S3_TRANSLATION##'),
     ('Closing', '##S4_ARABIC##', '##S4_TRANSLIT##', '##S4_TRANSLATION##'),
   ];
 
-  final nextArabicMarkers = ['##S2_ARABIC##', '##S3_ARABIC##', '##S4_ARABIC##', '##NAMES_USED##'];
+  final nextArabicMarkers = [
+    '##S2_ARABIC##',
+    '##S3_ARABIC##',
+    '##S4_ARABIC##',
+    '##NAMES_USED##'
+  ];
 
   final breakdown = <BuiltDuaSection>[];
   for (var i = 0; i < sectionDefs.length; i++) {
@@ -1035,7 +1082,9 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .map((line) {
         final parts = line.split(separatorPattern).map((s) => s.trim()).toList();
         return {
-          'name': (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
+          'name': (parts.isNotEmpty ? parts[0] : '')
+              .replaceAll(RegExp(r'^[-\d.)\s]+'), '')
+              .trim(),
           'nameArabic': parts.length > 1 ? parts[1].trim() : '',
           'why': parts.length > 2 ? parts.sublist(2).join(' — ').trim() : '',
         };
@@ -1060,7 +1109,9 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .map((line) {
         final parts = line.split('|').map((s) => s.trim()).toList();
         return FindDuasDuaEntry(
-          title: (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
+          title: (parts.isNotEmpty ? parts[0] : '')
+              .replaceAll(RegExp(r'^[-\d.)\s]+'), '')
+              .trim(),
           arabic: parts.length > 1 ? parts[1] : '',
           transliteration: parts.length > 2 ? parts[2] : '',
           translation: parts.length > 3 ? parts[3] : '',
@@ -1141,18 +1192,18 @@ Future<DailyReflectResponse> getDailyResponse(
 
   final avoidClause = recentNames.isNotEmpty
       ? 'IMPORTANT — Do NOT return any of these Names shown recently: ${recentNames.join(", ")}. '
-        'The user needs variety. Pick a genuinely different Name that still fits their answers.\n\n'
+          'The user needs variety. Pick a genuinely different Name that still fits their answers.\n\n'
       : '';
 
   final discoveryClause = discoveredNames.isNotEmpty
       ? 'The user has already discovered these Names: ${discoveredNames.join(", ")}. '
-        'STRONGLY PREFER a Name they have NOT yet discovered, as long as it still fits their emotional state. '
-        'Only return an already-discovered Name if no undiscovered Name is a good fit.\n\n'
+          'STRONGLY PREFER a Name they have NOT yet discovered, as long as it still fits their emotional state. '
+          'Only return an already-discovered Name if no undiscovered Name is a good fit.\n\n'
       : '';
 
   final historySection = historyContext.isNotEmpty
       ? 'PAST CHECK-INS (most recent first):\n$historyContext\n\n'
-        'Use this history to avoid repeating the same Name.\n\n'
+          'Use this history to avoid repeating the same Name.\n\n'
       : '';
 
   final answersFormatted = [
