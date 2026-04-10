@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/services/public_catalog_contracts.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,32 +15,13 @@ class PublicCatalogKeys {
   static const collectibleNames = 'sakina_public_collectible_names_v1';
 }
 
-class PublicCatalogAssets {
-  static const dailyQuestions = 'assets/content/daily_questions.json';
-  static const browseDuas = 'assets/content/browse_duas.json';
-  static const discoveryQuizQuestions =
-      'assets/content/discovery_quiz_questions.json';
-  static const nameAnchors = 'assets/content/name_anchors.json';
-  static const collectibleNames = 'assets/content/collectible_names.json';
-}
-
 class _PublicCatalogDefinition {
   final String cacheKey;
-  final String assetPath;
-  final String table;
-  final String orderBy;
-  final int expectedCount;
-  final List<String> requiredKeys;
-  final bool Function(Map<String, dynamic> row)? rowValidator;
+  final PublicCatalogContract contract;
 
   const _PublicCatalogDefinition({
     required this.cacheKey,
-    required this.assetPath,
-    required this.table,
-    required this.orderBy,
-    required this.expectedCount,
-    required this.requiredKeys,
-    this.rowValidator,
+    required this.contract,
   });
 }
 
@@ -64,66 +46,23 @@ final publicCatalogRegistryProvider =
 const _publicCatalogs = <_PublicCatalogDefinition>[
   _PublicCatalogDefinition(
     cacheKey: PublicCatalogKeys.dailyQuestions,
-    assetPath: PublicCatalogAssets.dailyQuestions,
-    table: 'daily_questions',
-    orderBy: 'id',
-    expectedCount: 30,
-    requiredKeys: ['id', 'question', 'options'],
-    rowValidator: _isValidDailyQuestionRow,
+    contract: dailyQuestionsPublicCatalog,
   ),
   _PublicCatalogDefinition(
     cacheKey: PublicCatalogKeys.browseDuas,
-    assetPath: PublicCatalogAssets.browseDuas,
-    table: 'browse_duas',
-    orderBy: 'id',
-    expectedCount: 76,
-    requiredKeys: [
-      'id',
-      'category',
-      'title',
-      'arabic',
-      'transliteration',
-      'translation',
-      'source',
-    ],
-    rowValidator: _isValidBrowseDuaRow,
+    contract: browseDuasPublicCatalog,
   ),
   _PublicCatalogDefinition(
     cacheKey: PublicCatalogKeys.discoveryQuizQuestions,
-    assetPath: PublicCatalogAssets.discoveryQuizQuestions,
-    table: 'discovery_quiz_questions',
-    orderBy: 'sort_order',
-    expectedCount: 6,
-    requiredKeys: ['id', 'prompt', 'options', 'sort_order'],
-    rowValidator: _isValidDiscoveryQuizQuestionRow,
+    contract: discoveryQuizQuestionsPublicCatalog,
   ),
   _PublicCatalogDefinition(
     cacheKey: PublicCatalogKeys.nameAnchors,
-    assetPath: PublicCatalogAssets.nameAnchors,
-    table: 'name_anchors',
-    orderBy: 'name_key',
-    expectedCount: 32,
-    requiredKeys: ['name_key', 'name', 'arabic', 'anchor', 'detail'],
+    contract: nameAnchorsPublicCatalog,
   ),
   _PublicCatalogDefinition(
     cacheKey: PublicCatalogKeys.collectibleNames,
-    assetPath: PublicCatalogAssets.collectibleNames,
-    table: 'collectible_names',
-    orderBy: 'id',
-    expectedCount: 99,
-    requiredKeys: [
-      'id',
-      'arabic',
-      'transliteration',
-      'english',
-      'meaning',
-      'lesson',
-      'hadith',
-      'dua_arabic',
-      'dua_transliteration',
-      'dua_translation',
-    ],
-    rowValidator: _isValidCollectibleNameRow,
+    contract: collectibleNamesPublicCatalog,
   ),
 ];
 
@@ -156,7 +95,7 @@ Future<void> bootstrapPublicCatalogs() async {
   for (final catalog in _publicCatalogs) {
     final json = await supabaseSyncService.ensurePublicCatalogCache(
       cacheKey: catalog.cacheKey,
-      assetPath: catalog.assetPath,
+      assetPath: catalog.contract.assetPath,
     );
     if (json != null && json.isNotEmpty) {
       if (_catalogJsonByKey[catalog.cacheKey] != json) {
@@ -179,8 +118,8 @@ Future<void> refreshPublicCatalogsFromSupabase({
   // Fetch all catalogs in parallel — one round trip each, no dependencies.
   final futures = _publicCatalogs.map((catalog) async {
     final rows = await supabaseSyncService.fetchPublicRows(
-      catalog.table,
-      orderBy: catalog.orderBy,
+      catalog.contract.table,
+      orderBy: catalog.contract.orderBy,
       ascending: true,
     );
     return (catalog, rows);
@@ -245,97 +184,14 @@ bool _isValidCatalogPayload(
   _PublicCatalogDefinition catalog,
   List<Map<String, dynamic>> rows,
 ) {
-  if (rows.length != catalog.expectedCount) {
+  try {
+    validatePublicCatalogRows(catalog.contract, rows);
+    return true;
+  } catch (error) {
     debugPrint(
-      '[PublicCatalogService] ${catalog.table} expected '
-      '${catalog.expectedCount} rows, got ${rows.length}. Keeping existing cache.',
+      '[PublicCatalogService] ${catalog.contract.table} validation failed: '
+      '$error Keeping existing cache.',
     );
     return false;
   }
-
-  for (final row in rows) {
-    for (final key in catalog.requiredKeys) {
-      if (!row.containsKey(key) || row[key] == null) {
-        debugPrint(
-          '[PublicCatalogService] ${catalog.table} row missing required key '
-          '"$key". Keeping existing cache.',
-        );
-        return false;
-      }
-    }
-
-    final rowValidator = catalog.rowValidator;
-    if (rowValidator != null && !rowValidator(row)) {
-      debugPrint(
-        '[PublicCatalogService] ${catalog.table} row failed validation. '
-        'Keeping existing cache.',
-      );
-      return false;
-    }
-  }
-
-  if (catalog.cacheKey == PublicCatalogKeys.collectibleNames &&
-      !_hasStableCollectibleIds(rows)) {
-    debugPrint(
-      '[PublicCatalogService] ${catalog.table} ids failed canonical '
-      'validation. Keeping existing cache.',
-    );
-    return false;
-  }
-
-  return true;
-}
-
-bool _hasStableCollectibleIds(List<Map<String, dynamic>> rows) {
-  final ids = rows
-      .map((row) => (row['id'] as num?)?.toInt())
-      .whereType<int>()
-      .toList()
-    ..sort();
-  final expectedIds = List<int>.generate(99, (index) => index + 1);
-  if (ids.length != expectedIds.length) {
-    return false;
-  }
-
-  for (var index = 0; index < expectedIds.length; index++) {
-    if (ids[index] != expectedIds[index]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool _isValidDailyQuestionRow(Map<String, dynamic> row) {
-  return row['question'] is String && row['options'] is List;
-}
-
-bool _isValidBrowseDuaRow(Map<String, dynamic> row) {
-  final emotionTags = row['emotion_tags'];
-  return row['id'] is String &&
-      row['title'] is String &&
-      row['translation'] is String &&
-      (emotionTags == null || emotionTags is List);
-}
-
-bool _isValidDiscoveryQuizQuestionRow(Map<String, dynamic> row) {
-  final options = row['options'];
-  if (options is! List || options.isEmpty) return false;
-
-  for (final option in options) {
-    if (option is! Map<String, dynamic>) return false;
-    if (option['text'] is! String ||
-        option['scores'] is! Map<String, dynamic>) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool _isValidCollectibleNameRow(Map<String, dynamic> row) {
-  return row['id'] is num &&
-      row['arabic'] is String &&
-      row['transliteration'] is String &&
-      row['english'] is String;
 }

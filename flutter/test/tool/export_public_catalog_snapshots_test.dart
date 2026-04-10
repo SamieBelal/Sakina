@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:sakina/services/public_catalog_contracts.dart';
 
 import '../../tool/export_public_catalog_snapshots.dart';
 
@@ -17,7 +18,7 @@ void main() {
 
       final client = MockClient((request) async {
         final table = request.url.pathSegments.last;
-        final definition = publicCatalogSnapshotDefinitions.firstWhere(
+        final definition = publicCatalogContracts.firstWhere(
           (item) => item.table == table,
         );
 
@@ -45,7 +46,7 @@ void main() {
           .whereType<File>()
           .map((file) => file.path)
           .toSet();
-      expect(exportedFiles, hasLength(publicCatalogSnapshotDefinitions.length));
+      expect(exportedFiles, hasLength(publicCatalogContracts.length));
 
       final dailyQuestionsFile = File('${directory.path}/daily_questions.json');
       final dailyQuestions = jsonDecode(
@@ -64,7 +65,7 @@ void main() {
 
       final client = MockClient((request) async {
         final table = request.url.pathSegments.last;
-        final definition = publicCatalogSnapshotDefinitions.firstWhere(
+        final definition = publicCatalogContracts.firstWhere(
           (item) => item.table == table,
         );
 
@@ -95,7 +96,7 @@ void main() {
 }
 
 List<Map<String, dynamic>> _rowsForDefinition(
-  PublicCatalogSnapshotDefinition definition,
+  PublicCatalogContract definition,
 ) {
   switch (definition.table) {
     case 'daily_questions':
@@ -126,7 +127,7 @@ List<Map<String, dynamic>> _rowsForDefinition(
       return List.generate(
         definition.expectedCount,
         (index) => {
-          'id': index + 1,
+          'id': 'q${index + 1}',
           'prompt': 'Prompt ${index + 1}',
           'sort_order': index,
           'options': [

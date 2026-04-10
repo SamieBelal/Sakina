@@ -2,79 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-
-class PublicCatalogSnapshotDefinition {
-  final String table;
-  final String orderBy;
-  final String fileName;
-  final int expectedCount;
-  final List<String> requiredKeys;
-
-  const PublicCatalogSnapshotDefinition({
-    required this.table,
-    required this.orderBy,
-    required this.fileName,
-    required this.expectedCount,
-    required this.requiredKeys,
-  });
-}
-
-const publicCatalogSnapshotDefinitions = <PublicCatalogSnapshotDefinition>[
-  PublicCatalogSnapshotDefinition(
-    table: 'daily_questions',
-    orderBy: 'id',
-    fileName: 'daily_questions.json',
-    expectedCount: 30,
-    requiredKeys: ['id', 'question', 'options'],
-  ),
-  PublicCatalogSnapshotDefinition(
-    table: 'browse_duas',
-    orderBy: 'id',
-    fileName: 'browse_duas.json',
-    expectedCount: 76,
-    requiredKeys: [
-      'id',
-      'category',
-      'title',
-      'arabic',
-      'transliteration',
-      'translation',
-      'source',
-    ],
-  ),
-  PublicCatalogSnapshotDefinition(
-    table: 'discovery_quiz_questions',
-    orderBy: 'sort_order',
-    fileName: 'discovery_quiz_questions.json',
-    expectedCount: 6,
-    requiredKeys: ['id', 'prompt', 'options', 'sort_order'],
-  ),
-  PublicCatalogSnapshotDefinition(
-    table: 'name_anchors',
-    orderBy: 'name_key',
-    fileName: 'name_anchors.json',
-    expectedCount: 32,
-    requiredKeys: ['name_key', 'name', 'arabic', 'anchor', 'detail'],
-  ),
-  PublicCatalogSnapshotDefinition(
-    table: 'collectible_names',
-    orderBy: 'id',
-    fileName: 'collectible_names.json',
-    expectedCount: 99,
-    requiredKeys: [
-      'id',
-      'arabic',
-      'transliteration',
-      'english',
-      'meaning',
-      'lesson',
-      'hadith',
-      'dua_arabic',
-      'dua_transliteration',
-      'dua_translation',
-    ],
-  ),
-];
+import 'package:sakina/services/public_catalog_contracts.dart';
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help')) {
@@ -117,8 +45,7 @@ Future<void> exportPublicCatalogSnapshots({
   required String anonKey,
   required String outputDirectory,
   http.Client? client,
-  List<PublicCatalogSnapshotDefinition> definitions =
-      publicCatalogSnapshotDefinitions,
+  List<PublicCatalogContract> definitions = publicCatalogContracts,
 }) async {
   final directory = Directory(outputDirectory);
   await directory.create(recursive: true);
@@ -126,14 +53,14 @@ Future<void> exportPublicCatalogSnapshots({
   final normalizedUrl = supabaseUrl.replaceFirst(RegExp(r'/$'), '');
   final activeClient = client ?? http.Client();
   final shouldCloseClient = client == null;
-  final encoder = const JsonEncoder.withIndent('  ');
+  const encoder = JsonEncoder.withIndent('  ');
 
   try {
     for (final definition in definitions) {
       final rows = await fetchPublicCatalogRows(
         client: activeClient,
         supabaseUrl: normalizedUrl,
-        anonKey: anonKey,
+        apiKey: anonKey,
         definition: definition,
       );
       validatePublicCatalogRows(definition, rows);
@@ -154,8 +81,8 @@ Future<void> exportPublicCatalogSnapshots({
 Future<List<Map<String, dynamic>>> fetchPublicCatalogRows({
   required http.Client client,
   required String supabaseUrl,
-  required String anonKey,
-  required PublicCatalogSnapshotDefinition definition,
+  required String apiKey,
+  required PublicCatalogContract definition,
 }) async {
   final uri = Uri.parse('$supabaseUrl/rest/v1/${definition.table}').replace(
     queryParameters: {
@@ -167,8 +94,8 @@ Future<List<Map<String, dynamic>>> fetchPublicCatalogRows({
   final response = await client.get(
     uri,
     headers: {
-      'apikey': anonKey,
-      'Authorization': 'Bearer $anonKey',
+      'apikey': apiKey,
+      'Authorization': 'Bearer $apiKey',
       'Accept': 'application/json',
     },
   );
@@ -195,29 +122,6 @@ Future<List<Map<String, dynamic>>> fetchPublicCatalogRows({
     }
     return Map<String, dynamic>.from(row);
   }).toList();
-}
-
-void validatePublicCatalogRows(
-  PublicCatalogSnapshotDefinition definition,
-  List<Map<String, dynamic>> rows,
-) {
-  if (rows.length != definition.expectedCount) {
-    throw StateError(
-      'Expected ${definition.expectedCount} rows for ${definition.table}, '
-      'got ${rows.length}. Refusing to overwrite checked-in snapshots.',
-    );
-  }
-
-  for (final row in rows) {
-    for (final key in definition.requiredKeys) {
-      if (!row.containsKey(key) || row[key] == null) {
-        throw StateError(
-          'Row in ${definition.table} is missing required key "$key". '
-          'Refusing to export an incomplete snapshot.',
-        );
-      }
-    }
-  }
 }
 
 Future<Map<String, String>> _readEnvFile(String path) async {
