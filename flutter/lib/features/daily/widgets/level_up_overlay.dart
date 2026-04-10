@@ -264,15 +264,15 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
 
                   // Hexagonal badge area (level number)
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.22,
+                    top: MediaQuery.of(context).size.height * 0.20,
                     left: 24,
                     right: 24,
                     child: Column(
                       children: [
                         // Hexagon-like badge
                         Container(
-                          width: 120,
-                          height: 120,
+                          width: 100,
+                          height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
@@ -303,7 +303,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               '${widget.levelNumber}',
                               style: AppTypography.displayLarge.copyWith(
                                 color: Colors.white,
-                                fontSize: 48,
+                                fontSize: 40,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -318,7 +318,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               duration: 600.ms,
                               curve: Curves.easeOutBack,
                             ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 20),
 
                         // Arabic calligraphy — the hero
                         SizedBox(
@@ -355,7 +355,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               duration: 700.ms,
                               curve: Curves.easeOutBack,
                             ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
                         // English title pill
                         Container(
@@ -384,7 +384,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                               delay: 600.ms,
                               duration: 500.ms,
                             ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
                         // Subtitle
                         Text(
@@ -396,7 +396,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
 
                         // Rewards
                         if (widget.rewards != null) ...[
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
                           _buildRewardRow(
                             Icons.toll,
                             AppColors.secondary,

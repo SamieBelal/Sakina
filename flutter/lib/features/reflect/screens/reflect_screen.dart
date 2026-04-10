@@ -193,8 +193,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 ),
                 child: TextField(
                   controller: _textController,
-                  maxLines: 5,
-                  minLines: 3,
+                  minLines: 6,
+                  maxLines: 8,
                   onChanged: (value) => notifier.setUserText(value),
                   decoration: InputDecoration(
                     filled: true,
@@ -733,13 +733,19 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           ),
                         ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                         const SizedBox(height: 16),
-                        Text(
-                          result.nameArabic,
-                          style: AppTypography.nameOfAllahDisplay.copyWith(
-                            color: Colors.white,
+                        SizedBox(
+                          height: 80,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              result.nameArabic,
+                              style: AppTypography.nameOfAllahDisplay.copyWith(
+                                color: Colors.white,
+                              ),
+                              textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
                         )
                             .animate()
                             .fadeIn(duration: 800.ms)

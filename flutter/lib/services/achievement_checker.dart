@@ -78,6 +78,9 @@ Future<void> checkAchievements(WidgetRef ref) async {
     final displayTitle = await getDisplayTitle(xp.level);
     final unlockedTitles = await getUnlockedTitles();
 
+    // Names invoked in duas
+    final namesInvoked = prefs.getStringList('sakina_names_invoked') ?? [];
+
     // Quest completion counts
     final weeklyCompleted = questsState.weekly.where((q) => questsState.completedIds.contains(q.id)).length;
     final monthlyCompleted = questsState.monthly.where((q) => questsState.completedIds.contains(q.id)).length;
@@ -105,6 +108,7 @@ Future<void> checkAchievements(WidgetRef ref) async {
       weeklyQuestsCompleted: weeklyCompleted,
       monthlyQuestsCompleted: monthlyCompleted,
       totalTokensSpent: totalTokensSpent,
+      namesInvokedCount: namesInvoked.length,
     );
 
     final newlyUnlocked = await checkAndUnlockAchievements(data);

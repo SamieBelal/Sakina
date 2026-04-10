@@ -914,6 +914,72 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // Muhasabah Row (inside dashboard card)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  void _showNotEnoughTokens(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.toll, size: 32, color: AppColors.secondary),
+            const SizedBox(height: 12),
+            Text(
+              'Not Enough Tokens',
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You need $tokenCostReflection tokens for this action.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(sheetCtx).pop();
+                  context.push('/store');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Go to Store'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(sheetCtx).pop(),
+              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMuhasabahRow(DailyLoopState state) {
     final completed = state.currentStep == DailyLoopStep.completed;
     final inProgress = state.checkinDone || state.currentStep != DailyLoopStep.checkin;
@@ -922,22 +988,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       return GestureDetector(
         onTap: () async {
           HapticFeedback.mediumImpact();
-          // Deduct tokens and reset for a new roll
           final notifier = ref.read(dailyLoopProvider.notifier);
-          try {
-            await spendTokens(tokenCostReflection);
+          final result = await spendTokens(tokenCostReflection);
+          if (result.success) {
+            notifier.refreshTokenBalance(result.newBalance);
             await notifier.resetToday();
             if (mounted) context.push('/muhasabah');
-          } catch (_) {
-            // Not enough tokens — show a snackbar
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Not enough tokens ($tokenCostReflection needed)'),
-                  backgroundColor: AppColors.error,
-                ),
-              );
-            }
+          } else if (mounted) {
+            _showNotEnoughTokens(context);
           }
         },
         behavior: HitTestBehavior.opaque,
@@ -1222,13 +1280,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           children: [
             Row(
               children: [
-                Text(
-                  'Daily Rewards',
-                  style: AppTypography.headlineMedium.copyWith(
-                    color: AppColors.textPrimaryLight,
+                Expanded(
+                  child: Text(
+                    'Daily Rewards',
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1358,8 +1417,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     }
 
     Widget circle = Container(
-      width: 38,
-      height: 38,
+      width: 34,
+      height: 34,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: bgColor,
@@ -1382,19 +1441,18 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         circle,
         const SizedBox(height: 4),
         Text(
-          reward.label.length > 6
-              ? reward.label.replaceAll(' ', '\n')
-              : reward.label,
+          reward.label.replaceAll(' ', '\n'),
           style: AppTypography.labelSmall.copyWith(
             color: claimed
                 ? AppColors.textSecondaryLight
                 : current
                     ? AppColors.primary
                     : AppColors.textTertiaryLight,
-            fontSize: 8,
+            fontSize: 7,
           ),
           textAlign: TextAlign.center,
           maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

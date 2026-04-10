@@ -86,16 +86,14 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
       !widget.engageResult!.isNew &&
       widget.engageResult!.tierChanged;
 
-  bool _continued = false;
-
   void _handleContinue() {
-    if (_continued) return;
-    _continued = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();
     } else {
-      Navigator.of(context).pop();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -104,7 +102,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A12),
       body: GestureDetector(
-        onTap: _phase >= 3 ? _handleContinue : null,
+        onTap: _phase >= 2 ? _handleContinue : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 800),
           curve: Curves.easeInOut,
@@ -278,8 +276,12 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                   begin: -0.5,
                                   end: 0,
                                   duration: 400.ms),
-                        const SizedBox(height: 24),
-                        Text(
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          height: 110,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
                           widget.nameArabic.isNotEmpty
                               ? widget.nameArabic
                               : widget.card?.arabic ?? '',
@@ -300,6 +302,8 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                           ),
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.center,
+                        ),
+                          ),
                         )
                             .animate()
                             .fadeIn(duration: 800.ms)
@@ -308,7 +312,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                 end: 1.0,
                                 duration: 800.ms,
                                 curve: Curves.easeOutBack),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Text(
                           widget.nameEnglish,
                           style: AppTypography.headlineLarge.copyWith(
@@ -401,9 +405,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                           ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
                           const SizedBox(height: 20),
 
-                          GestureDetector(
-                            onTap: _handleContinue,
-                            child: Container(
+                          Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               decoration: BoxDecoration(
@@ -418,7 +420,6 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                     color: Colors.white.withValues(alpha: 0.9)),
                                 textAlign: TextAlign.center,
                               ),
-                            ),
                           ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
                         ],
                       ),

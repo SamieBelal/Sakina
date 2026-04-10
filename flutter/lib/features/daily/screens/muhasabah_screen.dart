@@ -44,7 +44,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       _levelUpShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).push(
+        final levelNav = Navigator.of(context, rootNavigator: true);
+        levelNav.push(
           PageRouteBuilder(
             opaque: true,
             barrierDismissible: false,
@@ -54,7 +55,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
               rewards: state.levelUpRewards,
               onContinue: () {
-                Navigator.of(context, rootNavigator: true).pop();
+                levelNav.pop();
                 notifier.clearLevelUp();
               },
             ),
@@ -83,7 +84,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).push(
+        final rootNav = Navigator.of(context, rootNavigator: true);
+        rootNav.push(
           PageRouteBuilder(
             opaque: true,
             barrierDismissible: false,
@@ -95,7 +97,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               card: state.engagedCard,
               engageResult: state.cardEngageResult,
               onContinue: () {
-                Navigator.of(context, rootNavigator: true).pop();
+                rootNav.pop();
               },
             ),
             transitionsBuilder: (_, anim, __, child) =>
@@ -238,6 +240,72 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // CHECK-IN RESULT (Name card + Go Deeper)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  void _showNotEnoughTokens() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.toll, size: 32, color: AppColors.secondary),
+            const SizedBox(height: 12),
+            Text(
+              'Not Enough Tokens',
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You need $tokenCostReflection tokens. Earn more through quests and daily rewards, or visit the store.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(sheetCtx).pop();
+                  context.push('/store');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Go to Store'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(sheetCtx).pop(),
+              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCheckinResult(DailyLoopState state, DailyLoopNotifier notifier) {
     // Try engagedCard first, fall back to looking up by name
     final card = state.engagedCard ?? findCollectibleByName(state.checkinName ?? '');
@@ -315,9 +383,14 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           const SizedBox(height: AppSpacing.lg),
           // Go Deeper button
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               HapticFeedback.mediumImpact();
-              notifier.startDeeper();
+              final hasEnough = await hasTokens(tokenCostReflection);
+              if (hasEnough) {
+                notifier.startDeeper();
+              } else if (mounted) {
+                _showNotEnoughTokens();
+              }
             },
             child: Container(
               width: double.infinity,

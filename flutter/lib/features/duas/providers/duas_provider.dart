@@ -237,6 +237,19 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   Timer? _progressTimer;
 
+  static const String _namesInvokedKey = 'sakina_names_invoked';
+
+  Future<void> _trackNamesInvoked(List<String> names) async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getStringList(_namesInvokedKey) ?? [];
+    final set = existing.toSet();
+    for (final name in names) {
+      // Normalize: strip "Al-", lowercase for matching
+      set.add(name.trim());
+    }
+    await prefs.setStringList(_namesInvokedKey, set.toList());
+  }
+
   @override
   void dispose() {
     _progressTimer?.cancel();
@@ -355,8 +368,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
     ];
     // Harmful intent
     final harmfulPatterns = [
-      RegExp(r'(curse|destroy|punish|harm|kill|hurt|damage|ruin|death to|die)\s', caseSensitive: false),
-      RegExp(r'(against|upon).*(enemy|enemies|person|people|someone)', caseSensitive: false),
+      RegExp(r'(curse|destroy|destory|destruction|punish|harm|kill|hurt|damage|ruin|death|die)', caseSensitive: false),
+      RegExp(r'(against|upon|on)\s+.*(enemy|enemies|person|people|someone|haters)', caseSensitive: false),
+      RegExp(r'(revenge|vengeance|retribution|payback)', caseSensitive: false),
     ];
     if (offTopicPatterns.any((p) => p.hasMatch(lower))) return true;
     if (harmfulPatterns.any((p) => p.hasMatch(lower))) return true;
@@ -367,7 +381,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // Check for off-topic or harmful input
     if (_isDuaOffTopic(state.buildNeed)) {
       state = state.copyWith(
-        error: () => 'Please describe a specific need or intention for your dua. This space is for sincere supplication.',
+        error: () => 'This place is for your heart. Please describe a sincere need or intention for your dua.',
       );
       return;
     }
@@ -404,6 +418,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // Brief pause at 100% before showing result
       await Future.delayed(const Duration(milliseconds: 400));
       state = state.copyWith(buildResult: () => result, buildLoading: false);
+      // Track names invoked in this dua
+      if (result.namesUsed.isNotEmpty) {
+        await _trackNamesInvoked(result.namesUsed.map((n) => n.name).toList());
+      }
       await awardXp(15);
     } catch (e) {
       _progressTimer?.cancel();

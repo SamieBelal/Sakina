@@ -193,7 +193,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 child: TextField(
                   key: _textFieldKey,
                   controller: _buildController,
-                  maxLines: 3,
+                  minLines: 6,
+                  maxLines: 8,
                   onChanged: notifier.setBuildNeed,
                   decoration: InputDecoration(
                     filled: true,
@@ -319,9 +320,46 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   Widget _buildStepViewer(DuasState state, DuasNotifier notifier) {
     final breakdown = state.buildResult!.breakdown;
     if (breakdown.isEmpty) {
-      return Center(
-        child: Text('Something went wrong. Please try again.',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.error)),
+      return SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.pagePadding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.favorite_outline, size: 48, color: AppColors.primary),
+                const SizedBox(height: 16),
+                Text(
+                  'This place is for your heart',
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please describe a sincere need or intention for your dua.',
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondaryLight),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    notifier.resetBuild();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Try Again'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     final section = breakdown[state.buildCurrentSection.clamp(0, breakdown.length - 1)];

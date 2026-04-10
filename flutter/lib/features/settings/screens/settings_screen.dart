@@ -13,6 +13,9 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
+import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/core/app_session.dart';
@@ -754,6 +757,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.storefront_rounded,
             label: 'Store',
             onTap: () => context.push('/store'),
+          ),
+          _buildSettingsRow(
+            icon: Icons.bug_report_rounded,
+            label: 'DEBUG: +100 Tokens & +100 Scrolls',
+            onTap: () async {
+              await earnTokens(100);
+              await earnTierUpScrolls(100);
+              final tokenState = await getTokens();
+              ref.read(dailyLoopProvider.notifier).refreshTokenBalance(tokenState.balance);
+              await ref.read(tierUpScrollProvider.notifier).reload();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('+100 tokens, +100 scrolls')),
+                );
+              }
+            },
           ),
         ]),
         const SizedBox(height: AppSpacing.lg),

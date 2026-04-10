@@ -1,4 +1,4 @@
-// Simple CORS proxy for Anthropic API — development only.
+// Simple CORS proxy for OpenAI API — development only.
 // Run with: node proxy/server.js
 // Listens on http://localhost:8787
 
@@ -20,14 +20,14 @@ function loadEnv() {
 }
 loadEnv();
 
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-if (!API_KEY || API_KEY === 'your-anthropic-api-key') {
-  console.error('ERROR: ANTHROPIC_API_KEY not set in flutter/.env');
+const API_KEY = process.env.OPENAI_API_KEY;
+if (!API_KEY || API_KEY.startsWith('your-')) {
+  console.error('ERROR: OPENAI_API_KEY not set in flutter/.env');
   process.exit(1);
 }
 
 const PORT = 8787;
-const TARGET_HOST = 'api.anthropic.com';
+const TARGET_HOST = 'api.openai.com';
 
 const server = http.createServer((req, res) => {
   // CORS headers
@@ -51,8 +51,7 @@ const server = http.createServer((req, res) => {
       method: req.method,
       headers: {
         'content-type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': API_KEY,
+        'authorization': `Bearer ${API_KEY}`,
       },
     };
 
@@ -76,5 +75,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Anthropic CORS proxy running at http://localhost:${PORT}`);
+  console.log(`OpenAI CORS proxy running at http://localhost:${PORT}`);
 });

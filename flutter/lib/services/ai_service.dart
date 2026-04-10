@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
@@ -218,8 +219,11 @@ List<RelatedName> _parseRelatedNames(String? raw) {
 }
 
 ReflectResponse? parseReflectResponse(String text) {
-  final name = _parseSection(text, '##NAME##');
-  final nameArabic = _parseSection(text, '##NAME_AR##');
+  final rawName = _parseSection(text, '##NAME##');
+  final rawNameArabic = _parseSection(text, '##NAME_AR##');
+  // Strip parentheses that the AI sometimes adds
+  final name = rawName?.replaceAll(RegExp(r'[()]'), '').trim();
+  final nameArabic = rawNameArabic?.replaceAll(RegExp(r'[()]'), '').trim();
   final reframe = _parseSection(text, '##REFRAME##');
   final story = _parseSection(text, '##STORY##');
   final duaArabic = _parseSection(text, '##DUA_AR##');
@@ -1018,22 +1022,29 @@ Future<BuiltDuaResponse> buildDua(String need) async {
   final namesBlock = namesRaw.contains('##RELATED_DUAS##')
       ? namesRaw.substring(0, namesRaw.indexOf('##RELATED_DUAS##'))
       : namesRaw;
+  // Try multiple separators that the AI might use
+  final separatorPattern = RegExp(r'\s*[·\|\-—–:]\s*');
   final parsedNameMaps = namesBlock
       .split('\n')
-      .where((l) => l.trim().isNotEmpty && l.contains('·'))
+      .where((l) {
+        final trimmed = l.trim();
+        if (trimmed.isEmpty) return false;
+        // Must have at least 2 parts when split by separator
+        return trimmed.split(separatorPattern).length >= 2;
+      })
       .map((line) {
-        final parts = line.split('·').map((s) => s.trim()).toList();
+        final parts = line.split(separatorPattern).map((s) => s.trim()).toList();
         return {
           'name': (parts.isNotEmpty ? parts[0] : '').replaceAll(RegExp(r'^[-\d.)\s]+'), '').trim(),
           'nameArabic': parts.length > 1 ? parts[1].trim() : '',
-          'why': parts.length > 2 ? parts[2].trim() : '',
+          'why': parts.length > 2 ? parts.sublist(2).join(' — ').trim() : '',
         };
       })
       .where((n) => (n['name'] as String).isNotEmpty)
       .toList();
 
-  final validatedNames = filterValidNames(parsedNameMaps);
-  final namesUsed = validatedNames
+  // Don't filter — keep all names the AI returned, even if not in canonical 99
+  final namesUsed = parsedNameMaps
       .map((m) => BuiltDuaNameUsed(
             name: m['name'] as String,
             nameArabic: m['nameArabic'] as String,
@@ -1059,14 +1070,40 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .where((d) => d.title.isNotEmpty && d.arabic.isNotEmpty)
       .toList();
 
+  // Fallback: if AI didn't list names used, scan the Arabic text for known Names
+  final finalNamesUsed = namesUsed.isNotEmpty
+      ? namesUsed
+      : _detectNamesInArabic(arabic);
+
   return BuiltDuaResponse(
     arabic: arabic,
     transliteration: transliteration,
     translation: translation,
     breakdown: breakdown,
-    namesUsed: namesUsed,
+    namesUsed: finalNamesUsed,
     relatedDuas: relatedDuas,
   );
+}
+
+/// Scan Arabic dua text for Names of Allah by matching against the canonical list.
+List<BuiltDuaNameUsed> _detectNamesInArabic(String arabicText) {
+  if (arabicText.isEmpty) return [];
+  // Strip diacritics for matching
+  final stripped = arabicText.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
+  final found = <BuiltDuaNameUsed>[];
+  for (final name in allahNames) {
+    // Skip "Allah" (too common — it's in every dua)
+    if (name.id == 1) continue;
+    final nameStripped = name.arabic.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
+    if (stripped.contains(nameStripped)) {
+      found.add(BuiltDuaNameUsed(
+        name: '${name.transliteration} (${name.english})',
+        nameArabic: name.arabic,
+        why: name.meaning,
+      ));
+    }
+  }
+  return found;
 }
 
 // ---------------------------------------------------------------------------

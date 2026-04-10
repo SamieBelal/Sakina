@@ -178,6 +178,45 @@ const allAchievements = <Achievement>[
     scrollReward: 8,
   ),
 
+  // ── Names Invoked (4) ──────────────────────────────────────────────────────
+
+  Achievement(
+    id: 'invoked_1',
+    title: 'First Call',
+    description: 'Call upon a Name of Allah in a dua.',
+    icon: Icons.record_voice_over_rounded,
+    category: AchievementCategory.dua,
+    color: Color(0xFFC8985E),
+    scrollReward: 1,
+  ),
+  Achievement(
+    id: 'invoked_10',
+    title: 'Ten Names Invoked',
+    description: 'Call upon 10 different Names of Allah in your duas.',
+    icon: Icons.record_voice_over_rounded,
+    category: AchievementCategory.dua,
+    color: Color(0xFFC8985E),
+    scrollReward: 2,
+  ),
+  Achievement(
+    id: 'invoked_50',
+    title: 'Half the Names',
+    description: 'Call upon 50 different Names of Allah in your duas.',
+    icon: Icons.record_voice_over_rounded,
+    category: AchievementCategory.dua,
+    color: Color(0xFFC8985E),
+    scrollReward: 5,
+  ),
+  Achievement(
+    id: 'invoked_99',
+    title: 'All 99 Invoked',
+    description: 'Call upon all 99 Names of Allah in your duas.',
+    icon: Icons.record_voice_over_rounded,
+    category: AchievementCategory.dua,
+    color: Color(0xFFD4A44C),
+    scrollReward: 15,
+  ),
+
   // ── Streak (5) ─────────────────────────────────────────────────────────────
 
   Achievement(
@@ -478,6 +517,7 @@ class AchievementCheckData {
   final int weeklyQuestsCompleted;
   final int monthlyQuestsCompleted;
   final int totalTokensSpent;
+  final int namesInvokedCount;
 
   const AchievementCheckData({
     required this.discoveredNames,
@@ -502,6 +542,7 @@ class AchievementCheckData {
     this.weeklyQuestsCompleted = 0,
     this.monthlyQuestsCompleted = 0,
     this.totalTokensSpent = 0,
+    this.namesInvokedCount = 0,
   });
 }
 
@@ -535,6 +576,12 @@ Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async
     'dua_10': data.builtDuaCount >= 10,
     'dua_50': data.builtDuaCount >= 50,
     'dua_100': data.builtDuaCount >= 100,
+
+    // Names Invoked
+    'invoked_1': data.namesInvokedCount >= 1,
+    'invoked_10': data.namesInvokedCount >= 10,
+    'invoked_50': data.namesInvokedCount >= 50,
+    'invoked_99': data.namesInvokedCount >= 99,
 
     // Streak
     'streak_7': data.longestStreak >= 7,

@@ -854,10 +854,67 @@ class _CardDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scrollBalance = ref.watch(tierUpScrollProvider).balance;
     final scrollCost = tier == CardTier.bronze ? scrollCostBronzeToSilver : scrollCostSilverToGold;
-    final canUpgrade = isMaxTier && tier.number < 3 && scrollBalance >= scrollCost;
+    final showUpgrade = isMaxTier && tier.number < 3;
+    final canAfford = scrollBalance >= scrollCost;
 
     void confirmUpgrade() {
       final nextTier = tier.number == 1 ? 'Silver' : 'Gold';
+
+      // Not enough scrolls — redirect to store
+      if (!canAfford) {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (sheetCtx) => Container(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+            decoration: const BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 20),
+                const Icon(Icons.receipt_long, size: 32, color: Color(0xFF3B82F6)),
+                const SizedBox(height: 12),
+                Text('Not Enough Scrolls', style: AppTypography.headlineMedium.copyWith(color: AppColors.textPrimaryLight, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  'You need $scrollCost scrolls to upgrade to $nextTier. You have $scrollBalance.',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondaryLight),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      Navigator.of(context).pop(); // close detail sheet
+                      GoRouter.of(context).push('/store');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Go to Store'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
+                  child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+                ),
+              ],
+            ),
+          ),
+        );
+        return;
+      }
+
       showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
@@ -976,15 +1033,15 @@ class _CardDetailSheet extends ConsumerWidget {
     return switch (tier) {
       CardTier.bronze => BronzeOrnateDetailSheet(
         card: card, tier: tier,
-        canUpgrade: canUpgrade,
-        onUpgrade: canUpgrade ? confirmUpgrade : null,
+        canUpgrade: showUpgrade,
+        onUpgrade: showUpgrade ? confirmUpgrade : null,
         scrollCost: scrollCost,
         isMaxTier: isMaxTier,
       ),
       CardTier.silver => _SilverOrnateDetailSheet(
         card: card, tier: tier,
-        canUpgrade: canUpgrade,
-        onUpgrade: canUpgrade ? confirmUpgrade : null,
+        canUpgrade: showUpgrade,
+        onUpgrade: showUpgrade ? confirmUpgrade : null,
         scrollCost: scrollCost,
         isMaxTier: isMaxTier,
       ),
