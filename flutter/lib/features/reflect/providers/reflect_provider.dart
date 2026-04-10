@@ -5,7 +5,6 @@ import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
-import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -306,12 +305,6 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     };
     final next = nextStep[state.currentStep];
     if (next != null) {
-      // Award XP when advancing to story or dua steps
-      if (next == ReflectStep.story) {
-        await awardXp(xpStoryRead);
-      } else if (next == ReflectStep.dua) {
-        await awardXp(xpDuaRead);
-      }
       state = state.copyWith(currentStep: next);
     }
   }
@@ -369,8 +362,8 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           result: response,
           currentStep: ReflectStep.name,
         );
-        // Award XP and track streak for completed reflection
-        await awardXp(xpReflectionComplete);
+        // Track streak (XP for Reflect is intentionally zero — only Muhasabah,
+        // quests, and streak milestones grant XP).
         await markActiveToday();
         await logActivity();
         // Auto-save the reflection

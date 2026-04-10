@@ -2098,7 +2098,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           () {
             HapticFeedback.mediumImpact();
             notifier.advanceReflectStep();
-            ref.read(questsProvider.notifier).onReflectCompleted();
+            ref.read(questsProvider.notifier).onMuhasabahCompleted();
           },
         ),
     };

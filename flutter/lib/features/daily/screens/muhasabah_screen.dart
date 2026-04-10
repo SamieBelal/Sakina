@@ -496,7 +496,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   onTap: () {
                     HapticFeedback.mediumImpact();
                     notifier.advanceReflectStep();
-                    ref.read(questsProvider.notifier).onReflectCompleted();
+                    ref.read(questsProvider.notifier).onMuhasabahCompleted();
                   },
                   child: Container(
                     width: double.infinity,

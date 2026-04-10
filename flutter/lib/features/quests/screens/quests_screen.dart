@@ -1,20 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
+import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 
-class QuestsScreen extends ConsumerWidget {
+class QuestsScreen extends ConsumerStatefulWidget {
   const QuestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuestsScreen> createState() => _QuestsScreenState();
+}
+
+class _QuestsScreenState extends ConsumerState<QuestsScreen> {
+  AppSessionNotifier? _session;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final session = ref.read(appSessionProvider);
+      _session = session;
+      // Reload now in case hydration finished before this screen mounted.
+      ref.read(questsProvider.notifier).reload();
+      if (!session.economyHydrated) {
+        session.addListener(_onSessionChange);
+      }
+    });
+  }
+
+  void _onSessionChange() {
+    if (!mounted) {
+      _session?.removeListener(_onSessionChange);
+      return;
+    }
+    final session = _session;
+    if (session != null && session.economyHydrated) {
+      session.removeListener(_onSessionChange);
+      ref.read(questsProvider.notifier).reload();
+    }
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_onSessionChange);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(questsProvider);
     final tokenState = ref.watch(tokenProvider);
+
+    // Bundle celebration: when First Steps bundle is awarded, push the
+    // level-up overlay (reused) to celebrate. Then clear the pending flag.
+    ref.listen<QuestsState>(questsProvider, (prev, next) {
+      final celebration = next.pendingBundleCelebration;
+      if (celebration != null && prev?.pendingBundleCelebration == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final navigator = Navigator.of(context, rootNavigator: true);
+          navigator
+              .push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => LevelUpOverlay(
+                    levelNumber: 1,
+                    title: 'FIRST STEPS COMPLETE',
+                    titleArabic: 'بِدَايَة',
+                    rewards: LevelUpRewards(
+                      tokensAwarded: celebration.tokens,
+                      scrollsAwarded: celebration.scrolls,
+                      titleUnlocked: false,
+                    ),
+                  ),
+                ),
+              )
+              .whenComplete(() {
+                ref
+                    .read(questsProvider.notifier)
+                    .clearPendingBundleCelebration();
+              });
+        });
+      }
+    });
 
     if (!state.loaded) {
       return SakinaLoader.fullScreen();
@@ -67,6 +145,25 @@ class QuestsScreen extends ConsumerWidget {
                 ),
               ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
             ),
+
+            // ── First Steps (one-time, new users only) ──────────────────────
+            if (state.showFirstSteps) ...[
+              const _FirstStepsHeader(),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) {
+                    final quest = beginnerQuests[i];
+                    return _FirstStepsCard(
+                      quest: quest,
+                      completed: state.isBeginnerCompleted(quest.id),
+                      delay: i * 60,
+                    );
+                  },
+                  childCount: beginnerQuests.length,
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            ],
 
             // ── Daily ────────────────────────────────────────────────────────
             _SectionHeader(label: 'Daily', sublabel: 'Resets at midnight'),
@@ -515,5 +612,233 @@ class _QuestProgressBar extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// First Steps section (one-time beginner quests)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FirstStepsHeader extends StatelessWidget {
+  const _FirstStepsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          8,
+          AppSpacing.pagePadding,
+          12,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryLight,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: AppColors.secondary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'First Steps',
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Learn the basics — disappears once complete',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FirstStepsCard extends StatelessWidget {
+  const _FirstStepsCard({
+    required this.quest,
+    required this.completed,
+    this.delay = 0,
+  });
+
+  final BeginnerQuest quest;
+  final bool completed;
+  final int delay;
+
+  void _handleTap(BuildContext context) {
+    if (completed) return;
+    HapticFeedback.lightImpact();
+    GoRouter.of(context).go(quest.route);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: completed
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.secondaryLight,
+                  AppColors.surfaceLight,
+                ],
+              ),
+        color: completed ? AppColors.surfaceAltLight : null,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(
+          color: completed
+              ? AppColors.borderLight
+              : AppColors.secondary.withValues(alpha: 0.35),
+          width: completed ? 1 : 1.5,
+        ),
+        boxShadow: completed
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          // Icon container
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: completed
+                  ? AppColors.borderLight
+                  : AppColors.secondary.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              completed ? Icons.check_rounded : quest.icon,
+              color: completed
+                  ? AppColors.textTertiaryLight
+                  : AppColors.secondary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  quest.title,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: completed
+                        ? AppColors.textTertiaryLight
+                        : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                    decoration: completed
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  quest.description,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiaryLight,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Rewards column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _RewardBadge(
+                icon: Icons.bolt_rounded,
+                value: '+${quest.xpReward} XP',
+                color: AppColors.primary,
+                done: completed,
+              ),
+              const SizedBox(height: 4),
+              _RewardBadge(
+                icon: Icons.toll_rounded,
+                value: '+${quest.tokenReward}',
+                color: AppColors.secondary,
+                done: completed,
+              ),
+              const SizedBox(height: 4),
+              _RewardBadge(
+                icon: Icons.receipt_long,
+                value: '+${quest.scrollReward}',
+                color: const Color(0xFF3B82F6),
+                done: completed,
+              ),
+            ],
+          ),
+          // Chevron hint that the card is tappable
+          if (!completed) ...[
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.secondary.withValues(alpha: 0.7),
+              size: 20,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.pagePadding,
+        0,
+        AppSpacing.pagePadding,
+        12,
+      ),
+      child: AnimatedOpacity(
+        opacity: completed ? 0.55 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: completed ? null : () => _handleTap(context),
+          child: card,
+        ),
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 350.ms, delay: delay.ms)
+        .slideY(begin: 0.06, end: 0, duration: 350.ms, delay: delay.ms);
   }
 }

@@ -6,9 +6,9 @@ const String _totalSpentKey = 'sakina_total_tokens_spent';
 const int startingTokens = 100;
 
 // Token costs
-const int tokenCostReflection = 10;
-const int tokenCostBuiltDua = 10;
-const int tokenCostDiscoverName = 10;
+const int tokenCostReflection = 50;
+const int tokenCostBuiltDua = 50;
+const int tokenCostDiscoverName = 50;
 
 // Token rewards
 const int tokenRewardDeeperReflection = 2;

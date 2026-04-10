@@ -14,6 +14,7 @@ import '../services/streak_service.dart';
 import '../services/token_service.dart';
 import '../services/xp_service.dart';
 import '../features/duas/providers/duas_provider.dart';
+import '../features/quests/providers/quests_provider.dart';
 import '../features/reflect/providers/reflect_provider.dart';
 
 /// Single source of truth for auth + onboarding state.
@@ -43,6 +44,8 @@ class AppSessionNotifier extends ChangeNotifier {
                   syncReflectionsFromSupabase(),
                   syncBuiltDuasFromSupabase(),
                   syncCardCollectionFromSupabase(),
+                  // Wave 3: First Steps eligibility + completion
+                  syncFirstStepsFromSupabase(),
                 ]).then((_) => null)),
         _hasCompletedOnboarding =
             hasCompletedOnboarding ??

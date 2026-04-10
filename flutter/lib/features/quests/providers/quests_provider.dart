@@ -2,16 +2,120 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ---------------------------------------------------------------------------
 // Cadence
 // ---------------------------------------------------------------------------
 
 enum QuestCadence { daily, weekly, monthly }
+
+// ---------------------------------------------------------------------------
+// First Steps (one-time beginner quests for new users)
+// ---------------------------------------------------------------------------
+
+/// Accounts created on or after this UTC date are eligible for First Steps.
+/// Existing users (created before) never see the section.
+final DateTime firstStepsShipDate = DateTime.utc(2026, 4, 9);
+
+enum BeginnerQuestId { firstMuhasabah, firstReflect, firstBuiltDua }
+
+extension BeginnerQuestIdX on BeginnerQuestId {
+  String get key {
+    switch (this) {
+      case BeginnerQuestId.firstMuhasabah:
+        return 'first_muhasabah';
+      case BeginnerQuestId.firstReflect:
+        return 'first_reflect';
+      case BeginnerQuestId.firstBuiltDua:
+        return 'first_built_dua';
+    }
+  }
+
+  static BeginnerQuestId? fromKey(String key) {
+    for (final id in BeginnerQuestId.values) {
+      if (id.key == key) return id;
+    }
+    return null;
+  }
+}
+
+class BeginnerQuest {
+  final BeginnerQuestId id;
+  final String title;
+  final String description;
+  final IconData icon;
+  final int xpReward;
+  final int tokenReward;
+  final int scrollReward;
+  final String route;
+
+  const BeginnerQuest({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.xpReward,
+    required this.tokenReward,
+    required this.scrollReward,
+    required this.route,
+  });
+}
+
+const List<BeginnerQuest> beginnerQuests = [
+  BeginnerQuest(
+    id: BeginnerQuestId.firstMuhasabah,
+    title: 'Your First Check-In',
+    description: 'Complete a Muhasabah and meet a Name of Allah.',
+    icon: Icons.favorite_rounded,
+    xpReward: 75,
+    tokenReward: 50,
+    scrollReward: 5,
+    route: '/muhasabah',
+  ),
+  BeginnerQuest(
+    id: BeginnerQuestId.firstReflect,
+    title: 'Reflect on a Feeling',
+    description: 'Write a reflection and receive a personalized response.',
+    icon: Icons.edit_note_rounded,
+    xpReward: 75,
+    tokenReward: 50,
+    scrollReward: 5,
+    route: '/reflect',
+  ),
+  BeginnerQuest(
+    id: BeginnerQuestId.firstBuiltDua,
+    title: 'Build Your Own Dua',
+    description: 'Craft a custom dua for something on your heart.',
+    icon: Icons.auto_awesome,
+    xpReward: 75,
+    tokenReward: 50,
+    scrollReward: 5,
+    route: '/duas',
+  ),
+];
+
+/// Bundle bonus granted when all 3 First Steps quests are completed.
+const int firstStepsBundleXp = 50;
+const int firstStepsBundleTokens = 100;
+const int firstStepsBundleScrolls = 5;
+
+/// Snapshot of a freshly-earned bundle celebration to drive the UI overlay.
+class FirstStepsBundleCelebration {
+  final int xp;
+  final int tokens;
+  final int scrolls;
+  const FirstStepsBundleCelebration({
+    required this.xp,
+    required this.tokens,
+    required this.scrolls,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Quest template (pool entry)
@@ -244,6 +348,16 @@ class QuestsState {
   final Map<String, int> progress; // quest id → current count
   final bool loaded;
 
+  // ── First Steps ───────────────────────────────────────────────────────────
+  /// True if this account is eligible (created on/after the ship date).
+  final bool firstStepsEligible;
+  final Set<BeginnerQuestId> firstStepsCompleted;
+  final bool firstStepsBundleClaimed;
+
+  /// Set when the bundle bonus is awarded; UI consumes and clears it
+  /// after presenting the celebration overlay.
+  final FirstStepsBundleCelebration? pendingBundleCelebration;
+
   const QuestsState({
     this.daily = const [],
     this.weekly = const [],
@@ -251,6 +365,10 @@ class QuestsState {
     this.completedIds = const {},
     this.progress = const {},
     this.loaded = false,
+    this.firstStepsEligible = false,
+    this.firstStepsCompleted = const {},
+    this.firstStepsBundleClaimed = false,
+    this.pendingBundleCelebration,
   });
 
   List<Quest> get all => [...daily, ...weekly, ...monthly];
@@ -262,6 +380,16 @@ class QuestsState {
   int get dailyCompletedCount =>
       daily.where((q) => completedIds.contains(q.id)).length;
 
+  bool isBeginnerCompleted(BeginnerQuestId id) =>
+      firstStepsCompleted.contains(id);
+
+  /// Show the First Steps section if the account is eligible and the
+  /// section hasn't been fully retired (all 3 done + bundle claimed).
+  bool get showFirstSteps =>
+      firstStepsEligible &&
+      !(firstStepsCompleted.length >= beginnerQuests.length &&
+          firstStepsBundleClaimed);
+
   QuestsState copyWith({
     List<Quest>? daily,
     List<Quest>? weekly,
@@ -269,6 +397,11 @@ class QuestsState {
     Set<String>? completedIds,
     Map<String, int>? progress,
     bool? loaded,
+    bool? firstStepsEligible,
+    Set<BeginnerQuestId>? firstStepsCompleted,
+    bool? firstStepsBundleClaimed,
+    FirstStepsBundleCelebration? pendingBundleCelebration,
+    bool clearPendingBundleCelebration = false,
   }) {
     return QuestsState(
       daily: daily ?? this.daily,
@@ -277,6 +410,13 @@ class QuestsState {
       completedIds: completedIds ?? this.completedIds,
       progress: progress ?? this.progress,
       loaded: loaded ?? this.loaded,
+      firstStepsEligible: firstStepsEligible ?? this.firstStepsEligible,
+      firstStepsCompleted: firstStepsCompleted ?? this.firstStepsCompleted,
+      firstStepsBundleClaimed:
+          firstStepsBundleClaimed ?? this.firstStepsBundleClaimed,
+      pendingBundleCelebration: clearPendingBundleCelebration
+          ? null
+          : (pendingBundleCelebration ?? this.pendingBundleCelebration),
     );
   }
 }
@@ -329,12 +469,30 @@ List<int> _rotateIndices(int seed, int poolSize, int count) {
 // Notifier
 // ---------------------------------------------------------------------------
 
+class _FirstStepsCacheSnapshot {
+  final bool eligible;
+  final Set<BeginnerQuestId> completed;
+  final bool bundleClaimed;
+  const _FirstStepsCacheSnapshot({
+    required this.eligible,
+    required this.completed,
+    required this.bundleClaimed,
+  });
+}
+
 const _completedKey = 'quests_completed_v2';
+const _firstStepsCompletedKey = 'first_steps_completed_v1';
+const _firstStepsBundleClaimedKey = 'first_steps_bundle_claimed_v1';
+const _firstStepsEligibleKey = 'first_steps_eligible_v1';
 
 class QuestsNotifier extends StateNotifier<QuestsState> {
   QuestsNotifier() : super(const QuestsState()) {
     _load();
   }
+
+  /// Re-runs `_load()`. Called from app session after a fresh sign-in /
+  /// hydration so that newly synced First Steps state lands in the UI.
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -348,6 +506,9 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
         completedIds = list.toSet();
       } catch (_) {}
     }
+
+    // ── First Steps load ─────────────────────────────────────────────────────
+    final firstStepsState = await _loadFirstStepsFromCache(prefs);
 
     final today = _todayLabel();
     final week = _weekLabel();
@@ -413,7 +574,119 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       monthly: monthly,
       completedIds: completedIds,
       loaded: true,
+      firstStepsEligible: firstStepsState.eligible,
+      firstStepsCompleted: firstStepsState.completed,
+      firstStepsBundleClaimed: firstStepsState.bundleClaimed,
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // First Steps: load / persist
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  Future<_FirstStepsCacheSnapshot> _loadFirstStepsFromCache(
+    SharedPreferences prefs,
+  ) async {
+    final eligibleKey =
+        supabaseSyncService.scopedKey(_firstStepsEligibleKey);
+    final completedKey =
+        supabaseSyncService.scopedKey(_firstStepsCompletedKey);
+    final bundleKey =
+        supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey);
+
+    final eligible = prefs.getBool(eligibleKey) ?? false;
+    final bundleClaimed = prefs.getBool(bundleKey) ?? false;
+
+    final completedRaw = prefs.getString(completedKey);
+    final Set<BeginnerQuestId> completed = {};
+    if (completedRaw != null) {
+      try {
+        final list = (jsonDecode(completedRaw) as List).cast<String>();
+        for (final k in list) {
+          final id = BeginnerQuestIdX.fromKey(k);
+          if (id != null) completed.add(id);
+        }
+      } catch (_) {}
+    }
+
+    return _FirstStepsCacheSnapshot(
+      eligible: eligible,
+      completed: completed,
+      bundleClaimed: bundleClaimed,
+    );
+  }
+
+  Future<void> _persistFirstSteps({
+    required Set<BeginnerQuestId> completed,
+    required bool bundleClaimed,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_firstStepsCompletedKey),
+      jsonEncode(completed.map((e) => e.key).toList()),
+    );
+    await prefs.setBool(
+      supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey),
+      bundleClaimed,
+    );
+
+    // Mirror to Supabase (best-effort).
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.upsertRow('user_profiles', userId, {
+        'id': userId,
+        'first_steps_completed': completed.map((e) => e.key).toList(),
+        'first_steps_bundle_claimed': bundleClaimed,
+      });
+    }
+  }
+
+  Future<void> _markBeginnerComplete(BeginnerQuestId id) async {
+    if (!state.firstStepsEligible) return;
+    if (state.firstStepsCompleted.contains(id)) return;
+
+    final quest = beginnerQuests.firstWhere((q) => q.id == id);
+
+    // Grant rewards first.
+    if (quest.xpReward > 0) await awardXp(quest.xpReward);
+    if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
+    if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
+
+    final updatedCompleted = {...state.firstStepsCompleted, id};
+
+    // Bundle bonus when all 3 are done and not yet claimed.
+    bool bundleClaimed = state.firstStepsBundleClaimed;
+    FirstStepsBundleCelebration? celebration;
+    if (updatedCompleted.length >= beginnerQuests.length && !bundleClaimed) {
+      if (firstStepsBundleXp > 0) await awardXp(firstStepsBundleXp);
+      if (firstStepsBundleTokens > 0) await earnTokens(firstStepsBundleTokens);
+      if (firstStepsBundleScrolls > 0) {
+        await earnTierUpScrolls(firstStepsBundleScrolls);
+      }
+      bundleClaimed = true;
+      celebration = const FirstStepsBundleCelebration(
+        xp: firstStepsBundleXp,
+        tokens: firstStepsBundleTokens,
+        scrolls: firstStepsBundleScrolls,
+      );
+    }
+
+    state = state.copyWith(
+      firstStepsCompleted: updatedCompleted,
+      firstStepsBundleClaimed: bundleClaimed,
+      pendingBundleCelebration: celebration,
+    );
+
+    await _persistFirstSteps(
+      completed: updatedCompleted,
+      bundleClaimed: bundleClaimed,
+    );
+  }
+
+  /// UI calls this after presenting the bundle celebration overlay.
+  void clearPendingBundleCelebration() {
+    if (state.pendingBundleCelebration == null) return;
+    state = state.copyWith(clearPendingBundleCelebration: true);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -470,15 +743,28 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   // Daily quest triggers
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Pool 0 & 8: Complete a Reflection / Reflect on gratitude
+  /// Pool 0 & 8: Complete a Reflection / Reflect on gratitude.
+  /// Also marks the First Steps "Reflect on a Feeling" beginner quest.
   Future<void> onReflectCompleted() async {
     await _tryComplete(QuestCadence.daily, 0);
     await _tryComplete(QuestCadence.daily, 8);
+    await _markBeginnerComplete(BeginnerQuestId.firstReflect);
   }
 
-  /// Pool 1: Build a personal dua
+  /// Fired from the Muhasabah Ameen step. Triggers the same daily quests
+  /// as a reflection (existing behavior) and marks the First Steps
+  /// "Your First Check-In" beginner quest.
+  Future<void> onMuhasabahCompleted() async {
+    await _tryComplete(QuestCadence.daily, 0);
+    await _tryComplete(QuestCadence.daily, 8);
+    await _markBeginnerComplete(BeginnerQuestId.firstMuhasabah);
+  }
+
+  /// Pool 1: Build a personal dua.
+  /// Also marks the First Steps "Build Your Own Dua" beginner quest.
   Future<void> onBuiltDuaCompleted() async {
     await _tryComplete(QuestCadence.daily, 1);
+    await _markBeginnerComplete(BeginnerQuestId.firstBuiltDua);
   }
 
   /// Pool 2: Visit your Collection
@@ -617,3 +903,57 @@ final questsProvider =
     StateNotifierProvider<QuestsNotifier, QuestsState>((ref) {
   return QuestsNotifier();
 });
+
+// ---------------------------------------------------------------------------
+// First Steps cache hydration from Supabase
+// ---------------------------------------------------------------------------
+
+/// Fetches `user_profiles.created_at` + first_steps_* columns and writes
+/// the eligibility flag and completion state into SharedPreferences (scoped
+/// to the current user). Called from app session hydration after sign-in.
+///
+/// Eligibility is `created_at >= firstStepsShipDate`, computed once and
+/// cached locally — accounts created before the ship date never see the
+/// First Steps section regardless of any later state.
+Future<void> syncFirstStepsFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  try {
+    final row = await Supabase.instance.client
+        .from('user_profiles')
+        .select('created_at, first_steps_completed, first_steps_bundle_claimed')
+        .eq('id', userId)
+        .maybeSingle();
+    if (row == null) return;
+
+    final createdAtRaw = row['created_at'] as String?;
+    if (createdAtRaw == null) return;
+    final createdAt = DateTime.tryParse(createdAtRaw);
+    if (createdAt == null) return;
+
+    final eligible = !createdAt.toUtc().isBefore(firstStepsShipDate);
+
+    final completedRaw = row['first_steps_completed'];
+    final completedKeys = completedRaw is List
+        ? completedRaw.whereType<String>().toList()
+        : <String>[];
+    final bundleClaimed = row['first_steps_bundle_claimed'] == true;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      supabaseSyncService.scopedKey(_firstStepsEligibleKey),
+      eligible,
+    );
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_firstStepsCompletedKey),
+      jsonEncode(completedKeys),
+    );
+    await prefs.setBool(
+      supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey),
+      bundleClaimed,
+    );
+  } catch (_) {
+    // Best-effort — fall back to whatever's already cached locally.
+  }
+}

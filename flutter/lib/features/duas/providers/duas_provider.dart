@@ -7,7 +7,6 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
-import 'package:sakina/services/xp_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -316,7 +315,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
     try {
       final result = await findDuas(state.findNeed);
       state = state.copyWith(findResult: () => result, findLoading: false);
-      await awardXp(10); // dua read
+      // No XP — only Muhasabah, quests, and streak milestones grant XP.
     } catch (e) {
       state = state.copyWith(
         findLoading: false,
@@ -422,7 +421,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       if (result.namesUsed.isNotEmpty) {
         await _trackNamesInvoked(result.namesUsed.map((n) => n.name).toList());
       }
-      await awardXp(15);
+      // No XP — only Muhasabah, quests, and streak milestones grant XP.
     } catch (e) {
       _progressTimer?.cancel();
       state = state.copyWith(

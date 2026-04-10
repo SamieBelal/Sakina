@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -92,6 +93,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       _achievementChecked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         checkAchievements(ref);
+        // Mark First Steps "Reflect on a Feeling" beginner quest.
+        ref.read(questsProvider.notifier).onReflectCompleted();
       });
     }
 

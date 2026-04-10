@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/services/ai_service.dart';
-import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,7 +105,7 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
       final questionText = state.question?.question ?? '';
       final response = await getDailyResponse([questionText, answer]);
 
-      await awardXp(5);
+      // No XP — only Muhasabah, quests, and streak milestones grant XP.
       await markActiveToday();
 
       state = state.copyWith(

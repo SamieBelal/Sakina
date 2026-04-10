@@ -323,6 +323,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   Future<void> _handleStreakMilestones(int currentStreak) async {
     final milestones = await checkStreakMilestones(currentStreak);
     for (final result in milestones) {
+      if (result.milestone.xpReward > 0) {
+        await _handleXpAward(result.milestone.xpReward);
+      }
       if (result.milestone.scrollReward > 0) {
         await earnTierUpScrolls(result.milestone.scrollReward);
       }
@@ -392,9 +395,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         ));
       } catch (_) {}
 
-      // Award XP and mark streak
+      // Mark streak (XP is awarded once at Muhasabah completion, not here)
       try {
-        await _handleXpAward(5);
         final streakResult = await markActiveToday();
         state = state.copyWith(streakCount: streakResult.currentStreak);
         await _handleStreakMilestones(streakResult.currentStreak);
@@ -550,9 +552,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         debugPrint('[HISTORY SAVE ERROR] $e');
       }
 
-      // Award XP and mark streak
+      // Mark streak (XP is awarded once at Muhasabah completion, not here)
       try {
-        await _handleXpAward(5);
         final streakResult = await markActiveToday();
         state = state.copyWith(streakCount: streakResult.currentStreak);
         await _handleStreakMilestones(streakResult.currentStreak);
@@ -659,12 +660,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
             1, // skip step 0 (name display) — user saw the name in gacha
       );
 
-      // Award XP for starting deeper reflection
-      try {
-        await _handleXpAward(25);
-      } catch (_) {}
-
       // Award tokens for completing deeper reflection
+      // (XP is awarded once at Muhasabah completion, not here)
       try {
         final tokenResult = await earnTokens(tokenRewardDeeperReflection);
         state = state.copyWith(tokenBalance: tokenResult.balance);
@@ -685,16 +682,16 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     final current = state.reflectStep.clamp(1, 3); // step 0 is skipped
 
     if (current == 3) {
-      // Completing the dua step — finish Muhasabah (skip quest)
+      // Completing the dua step — finish Muhasabah. This is the single
+      // XP grant for the entire flow (the Muhasabah Complete moment).
       state = state.copyWith(
         deeperDone: true,
         questDone: true,
         currentStep: DailyLoopStep.completed,
       );
 
-      // Award quest XP + tokens here since we skip the quest step
       try {
-        await _handleXpAward(10);
+        await _handleXpAward(xpMuhasabahCompleted);
       } catch (_) {}
 
       try {
@@ -708,17 +705,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
     final next = current + 1;
     state = state.copyWith(reflectStep: next);
-
-    // Award XP for story (step 2) and dua (step 3)
-    if (next == 2 || next == 3) {
-      try {
-        await _handleXpAward(10);
-      } catch (_) {}
-    }
+    // No per-step XP — XP is awarded once at completion above.
   }
 
   // ---------------------------------------------------------------------------
-  // Step 3: Quest
+  // Step 3: Quest (legacy entrypoint — completes Muhasabah)
   // ---------------------------------------------------------------------------
 
   Future<void> completeQuest() async {
@@ -728,7 +719,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     );
 
     try {
-      await _handleXpAward(10);
+      await _handleXpAward(xpMuhasabahCompleted);
     } catch (_) {}
 
     // Award tokens for quest completion

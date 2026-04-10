@@ -9,12 +9,14 @@ import 'package:sakina/services/supabase_sync_service.dart';
 
 class StreakMilestone {
   final int days;
+  final int xpReward;
   final int scrollReward;
   final String? titleUnlock; // English title to unlock, or null
   final String? titleUnlockArabic;
 
   const StreakMilestone({
     required this.days,
+    required this.xpReward,
     required this.scrollReward,
     this.titleUnlock,
     this.titleUnlockArabic,
@@ -22,13 +24,13 @@ class StreakMilestone {
 }
 
 const List<StreakMilestone> streakMilestones = [
-  StreakMilestone(days: 7,   scrollReward: 2,  titleUnlock: 'Consistent',    titleUnlockArabic: 'مُوَاظِب'),
-  StreakMilestone(days: 14,  scrollReward: 3),
-  StreakMilestone(days: 30,  scrollReward: 5,  titleUnlock: 'Unwavering',    titleUnlockArabic: 'رَاسِخ'),
-  StreakMilestone(days: 60,  scrollReward: 5),
-  StreakMilestone(days: 90,  scrollReward: 10, titleUnlock: 'Steadfast Soul', titleUnlockArabic: 'صَاحِبُ العَزْم'),
-  StreakMilestone(days: 180, scrollReward: 10),
-  StreakMilestone(days: 365, scrollReward: 15, titleUnlock: 'Guardian of Light', titleUnlockArabic: 'حَارِسُ النُّور'),
+  StreakMilestone(days: 7,   xpReward: 100,  scrollReward: 2,  titleUnlock: 'Consistent',    titleUnlockArabic: 'مُوَاظِب'),
+  StreakMilestone(days: 14,  xpReward: 150,  scrollReward: 3),
+  StreakMilestone(days: 30,  xpReward: 300,  scrollReward: 5,  titleUnlock: 'Unwavering',    titleUnlockArabic: 'رَاسِخ'),
+  StreakMilestone(days: 60,  xpReward: 500,  scrollReward: 5),
+  StreakMilestone(days: 90,  xpReward: 750,  scrollReward: 10, titleUnlock: 'Steadfast Soul', titleUnlockArabic: 'صَاحِبُ العَزْم'),
+  StreakMilestone(days: 180, xpReward: 1000, scrollReward: 10),
+  StreakMilestone(days: 365, xpReward: 2000, scrollReward: 15, titleUnlock: 'Guardian of Light', titleUnlockArabic: 'حَارِسُ النُّور'),
 ];
 
 class StreakMilestoneResult {
