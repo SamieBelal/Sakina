@@ -2,6 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -177,6 +182,9 @@ class Quest {
 // Quest pools
 // ---------------------------------------------------------------------------
 
+// Daily pool — 9 unique single-shot quests, pick 3 per day.
+// Pool indices are stable identifiers used in persisted completion records;
+// don't reorder. Replace contents in place if a slot needs new meaning.
 const _dailyPool = <QuestTemplate>[
   QuestTemplate(
     poolIndex: 0,
@@ -201,24 +209,24 @@ const _dailyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 3,
-    title: 'Review a past reflection',
-    description: 'Revisit a saved entry in your Journal.',
+    title: 'Review your Journal',
+    description: 'Open your Journal to revisit a saved entry.',
     icon: Icons.bookmark_rounded,
     xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 4,
-    title: 'Browse the duas library',
-    description: 'Explore duas by category in the Duas tab.',
-    icon: Icons.menu_book_rounded,
-    xpReward: 10, tokenReward: 3,
+    title: 'Complete a Muhasabah',
+    description: 'Do today\'s daily check-in.',
+    icon: Icons.favorite_rounded,
+    xpReward: 20, tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 5,
-    title: 'Share a reflection',
-    description: 'Share your result card with someone.',
-    icon: Icons.share_rounded,
-    xpReward: 15, tokenReward: 5,
+    title: 'Save a related dua',
+    description: 'Tap the heart on a related dua to save it for later.',
+    icon: Icons.bookmark_add_rounded,
+    xpReward: 10, tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 6,
@@ -229,27 +237,21 @@ const _dailyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 7,
-    title: 'Save a dua',
-    description: 'Save a built dua to your personal library.',
-    icon: Icons.favorite_rounded,
-    xpReward: 10, tokenReward: 3,
-  ),
-  QuestTemplate(
-    poolIndex: 8,
-    title: 'Reflect on gratitude',
-    description: 'Write a reflection about something you\'re grateful for.',
-    icon: Icons.wb_sunny_rounded,
+    title: 'Discover a new Name',
+    description: 'Pull a card from your check-in to grow your collection.',
+    icon: Icons.auto_fix_high_rounded,
     xpReward: 15, tokenReward: 5,
   ),
   QuestTemplate(
-    poolIndex: 9,
-    title: 'Complete the Discovery Quiz',
-    description: 'Take the personality quiz to find your anchor Names.',
-    icon: Icons.psychology_rounded,
+    poolIndex: 8,
+    title: 'Tier up a card',
+    description: 'Spend tier-up scrolls to upgrade a Name in your collection.',
+    icon: Icons.military_tech_rounded,
     xpReward: 20, tokenReward: 5,
   ),
 ];
 
+// Weekly pool — 7 threshold quests, pick 3 per week.
 const _weeklyPool = <QuestTemplate>[
   QuestTemplate(
     poolIndex: 0,
@@ -277,11 +279,11 @@ const _weeklyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 3,
-    title: 'Share 2 reflections',
-    description: 'Share your reflection cards twice.',
-    icon: Icons.share_rounded,
-    xpReward: 30, tokenReward: 2, scrollReward: 1,
-    target: 2,
+    title: 'Complete 5 Muhasabahs',
+    description: 'Do 5 daily check-ins this week.',
+    icon: Icons.favorite_rounded,
+    xpReward: 60, tokenReward: 3, scrollReward: 2,
+    target: 5,
   ),
   QuestTemplate(
     poolIndex: 4,
@@ -291,13 +293,30 @@ const _weeklyPool = <QuestTemplate>[
     xpReward: 40, tokenReward: 3, scrollReward: 2,
     target: 3,
   ),
+  QuestTemplate(
+    poolIndex: 5,
+    title: 'Save 3 related duas',
+    description: 'Heart 3 related duas you discover this week.',
+    icon: Icons.bookmark_add_rounded,
+    xpReward: 35, tokenReward: 2, scrollReward: 1,
+    target: 3,
+  ),
+  QuestTemplate(
+    poolIndex: 6,
+    title: 'Tier up 2 cards',
+    description: 'Upgrade 2 Names in your collection this week.',
+    icon: Icons.military_tech_rounded,
+    xpReward: 60, tokenReward: 3, scrollReward: 3,
+    target: 2,
+  ),
 ];
 
+// Monthly pool — 8 threshold quests, pick 3 per month.
 const _monthlyPool = <QuestTemplate>[
   QuestTemplate(
     poolIndex: 0,
     title: 'Discover 10 Names',
-    description: 'Grow your collection to 10+ discovered Names.',
+    description: 'Grow your collection by 10 new Names this month.',
     icon: Icons.stars_rounded,
     xpReward: 150, tokenReward: 10, scrollReward: 5,
     target: 10,
@@ -333,6 +352,30 @@ const _monthlyPool = <QuestTemplate>[
     icon: Icons.local_fire_department,
     xpReward: 150, tokenReward: 10, scrollReward: 5,
     target: 20,
+  ),
+  QuestTemplate(
+    poolIndex: 5,
+    title: 'Complete 20 Muhasabahs',
+    description: 'Do 20 daily check-ins this month.',
+    icon: Icons.favorite_rounded,
+    xpReward: 150, tokenReward: 10, scrollReward: 5,
+    target: 20,
+  ),
+  QuestTemplate(
+    poolIndex: 6,
+    title: 'Save 10 related duas',
+    description: 'Heart 10 related duas you discover this month.',
+    icon: Icons.bookmark_add_rounded,
+    xpReward: 100, tokenReward: 8, scrollReward: 3,
+    target: 10,
+  ),
+  QuestTemplate(
+    poolIndex: 7,
+    title: 'Unlock 1 Gold Name',
+    description: 'Tier up a Name all the way to Gold this month.',
+    icon: Icons.workspace_premium_rounded,
+    xpReward: 200, tokenReward: 12, scrollReward: 8,
+    target: 1,
   ),
 ];
 
@@ -452,6 +495,19 @@ int _isoWeekNumber() {
   return ((now.difference(jan1).inDays + jan1.weekday - 1) / 7).ceil();
 }
 
+/// Midnight at the start of this week's Monday (local time).
+DateTime _weekStart() {
+  final now = DateTime.now();
+  final monday = now.subtract(Duration(days: now.weekday - 1));
+  return DateTime(monday.year, monday.month, monday.day);
+}
+
+/// Midnight at the start of the 1st of this month (local time).
+DateTime _monthStart() {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, 1);
+}
+
 // ---------------------------------------------------------------------------
 // Rotation logic
 // ---------------------------------------------------------------------------
@@ -484,6 +540,9 @@ const _completedKey = 'quests_completed_v2';
 const _firstStepsCompletedKey = 'first_steps_completed_v1';
 const _firstStepsBundleClaimedKey = 'first_steps_bundle_claimed_v1';
 const _firstStepsEligibleKey = 'first_steps_eligible_v1';
+const _tierUpsLogKey = 'tier_ups_log_v1';
+const _collectionVisitDatesKey = 'collection_visit_dates_v1';
+const _relatedDuaSavesLogKey = 'related_dua_saves_log_v1';
 
 class QuestsNotifier extends StateNotifier<QuestsState> {
   QuestsNotifier() : super(const QuestsState()) {
@@ -514,7 +573,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final week = _weekLabel();
     final month = _monthLabel();
 
-    // ── Rotate daily: pick 3 from 10 ─────────────────────────────────────────
+    // ── Rotate daily: pick 3 from 9 ──────────────────────────────────────────
     final dailyIndices = _rotateIndices(_dayOfYear(), _dailyPool.length, 3);
     final daily = dailyIndices.map((i) {
       final t = _dailyPool[i];
@@ -532,8 +591,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       );
     }).toList();
 
-    // ── Rotate weekly: pick 2 from 5 ─────────────────────────────────────────
-    final weekIndices = _rotateIndices(_isoWeekNumber(), _weeklyPool.length, 2);
+    // ── Rotate weekly: pick 3 from 7 ─────────────────────────────────────────
+    final weekIndices = _rotateIndices(_isoWeekNumber(), _weeklyPool.length, 3);
     final weekly = weekIndices.map((i) {
       final t = _weeklyPool[i];
       return Quest(
@@ -550,23 +609,27 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       );
     }).toList();
 
-    // ── Rotate monthly: pick 1 from 5 ────────────────────────────────────────
-    final monthIndex = DateTime.now().month % _monthlyPool.length;
-    final mt = _monthlyPool[monthIndex];
-    final monthly = [
-      Quest(
-        id: 'monthly_${mt.poolIndex}_$month',
+    // ── Rotate monthly: pick 3 from 8 ────────────────────────────────────────
+    final monthIndices = _rotateIndices(
+      DateTime.now().month,
+      _monthlyPool.length,
+      3,
+    );
+    final monthly = monthIndices.map((i) {
+      final t = _monthlyPool[i];
+      return Quest(
+        id: 'monthly_${t.poolIndex}_$month',
         cadence: QuestCadence.monthly,
-        title: mt.title,
-        description: mt.description,
-        icon: mt.icon,
-        xpReward: mt.xpReward,
-        tokenReward: mt.tokenReward,
-        scrollReward: mt.scrollReward,
-        poolIndex: mt.poolIndex,
-        target: mt.target,
-      ),
-    ];
+        title: t.title,
+        description: t.description,
+        icon: t.icon,
+        xpReward: t.xpReward,
+        tokenReward: t.tokenReward,
+        scrollReward: t.scrollReward,
+        poolIndex: t.poolIndex,
+        target: t.target,
+      );
+    }).toList();
 
     state = state.copyWith(
       daily: daily,
@@ -740,70 +803,71 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Daily quest triggers
+  // Daily quest triggers — one per pool slot, all unique single-shot
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Pool 0 & 8: Complete a Reflection / Reflect on gratitude.
-  /// Also marks the First Steps "Reflect on a Feeling" beginner quest.
+  /// Daily pool 0. Also marks the First Steps "Reflect on a Feeling" quest.
   Future<void> onReflectCompleted() async {
     await _tryComplete(QuestCadence.daily, 0);
-    await _tryComplete(QuestCadence.daily, 8);
     await _markBeginnerComplete(BeginnerQuestId.firstReflect);
   }
 
-  /// Fired from the Muhasabah Ameen step. Triggers the same daily quests
-  /// as a reflection (existing behavior) and marks the First Steps
-  /// "Your First Check-In" beginner quest.
-  Future<void> onMuhasabahCompleted() async {
-    await _tryComplete(QuestCadence.daily, 0);
-    await _tryComplete(QuestCadence.daily, 8);
-    await _markBeginnerComplete(BeginnerQuestId.firstMuhasabah);
-  }
-
-  /// Pool 1: Build a personal dua.
-  /// Also marks the First Steps "Build Your Own Dua" beginner quest.
+  /// Daily pool 1. Also marks the First Steps "Build Your Own Dua" quest.
   Future<void> onBuiltDuaCompleted() async {
     await _tryComplete(QuestCadence.daily, 1);
     await _markBeginnerComplete(BeginnerQuestId.firstBuiltDua);
   }
 
-  /// Pool 2: Visit your Collection
+  /// Daily pool 2. Also tracks distinct visit days for the weekly quest.
   Future<void> onCollectionVisited() async {
     await _tryComplete(QuestCadence.daily, 2);
+    await _recordCollectionVisitDay();
   }
 
-  /// Pool 3: Review a past reflection (Journal visited)
+  /// Daily pool 3.
   Future<void> onJournalVisited() async {
     await _tryComplete(QuestCadence.daily, 3);
   }
 
-  /// Pool 4: Browse the duas library
-  Future<void> onDuasBrowsed() async {
+  /// Daily pool 4. Also marks the First Steps "Your First Check-In" quest.
+  Future<void> onMuhasabahCompleted() async {
     await _tryComplete(QuestCadence.daily, 4);
+    await _markBeginnerComplete(BeginnerQuestId.firstMuhasabah);
   }
 
-  /// Pool 5: Share a reflection
-  Future<void> onReflectionShared() async {
+  /// Daily pool 5. Fires when the user hearts a related dua (not when they
+  /// un-heart it). The caller is responsible for not firing on un-save.
+  /// Also appends to a local log used by weekly + monthly threshold quests.
+  Future<void> onDuaSaved() async {
     await _tryComplete(QuestCadence.daily, 5);
+    await _recordRelatedDuaSaveEvent();
   }
 
-  /// Pool 6: Explore a Name of Allah
+  /// Daily pool 6.
   Future<void> onNameExplored() async {
     await _tryComplete(QuestCadence.daily, 6);
   }
 
-  /// Pool 7: Save a dua
-  Future<void> onDuaSaved() async {
+  /// Daily pool 7. Fired when a card is engaged from a check-in pull.
+  Future<void> onNameDiscovered() async {
     await _tryComplete(QuestCadence.daily, 7);
   }
 
-  /// Pool 9: Complete the Discovery Quiz
+  /// Daily pool 8. Fired on tier-up (manual via scrolls or auto via gacha).
+  /// Also appends to a local tier-up log used by the weekly threshold quest.
+  Future<void> onCardTieredUp() async {
+    await _tryComplete(QuestCadence.daily, 8);
+    await _recordTierUpEvent();
+  }
+
+  /// No-op stub. Discovery Quiz isn't in the active quest pools, but the
+  /// hook is kept defined so future achievements / First Steps can wire it.
   Future<void> onDiscoveryQuizCompleted() async {
-    await _tryComplete(QuestCadence.daily, 9);
+    // intentionally empty
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Weekly quest triggers (threshold-based)
+  // Threshold quest progress (weekly + monthly)
   // ─────────────────────────────────────────────────────────────────────────────
 
   /// Update progress for a threshold quest and complete if target reached.
@@ -840,58 +904,171 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     }
   }
 
-  /// Pool 0: Reflect 3 times this week
-  Future<void> updateWeeklyReflections(int count) async {
-    await _updateProgress(QuestCadence.weekly, 0, count);
-  }
+  // ── Weekly thresholds (one per weekly pool slot) ───────────────────────────
 
-  /// Pool 1: Build 2 personal duas this week
-  Future<void> updateWeeklyBuiltDuas(int count) async {
-    await _updateProgress(QuestCadence.weekly, 1, count);
-  }
+  /// Weekly pool 0: Reflect 3 times this week
+  Future<void> updateWeeklyReflections(int count) =>
+      _updateProgress(QuestCadence.weekly, 0, count);
 
-  /// Pool 2: Discover 3 new Names this week
-  Future<void> updateWeeklyDiscoveries(int count) async {
-    await _updateProgress(QuestCadence.weekly, 2, count);
-  }
+  /// Weekly pool 1: Build 2 personal duas this week
+  Future<void> updateWeeklyBuiltDuas(int count) =>
+      _updateProgress(QuestCadence.weekly, 1, count);
 
-  /// Pool 3: Share 2 reflections this week
-  Future<void> updateWeeklyShares(int count) async {
-    await _updateProgress(QuestCadence.weekly, 3, count);
-  }
+  /// Weekly pool 2: Discover 3 new Names this week
+  Future<void> updateWeeklyDiscoveries(int count) =>
+      _updateProgress(QuestCadence.weekly, 2, count);
 
-  /// Pool 4: Visit Collection 3 days this week
-  Future<void> updateWeeklyCollectionVisits(int count) async {
-    await _updateProgress(QuestCadence.weekly, 4, count);
-  }
+  /// Weekly pool 3: Complete 5 Muhasabahs this week
+  Future<void> updateWeeklyMuhasabahs(int count) =>
+      _updateProgress(QuestCadence.weekly, 3, count);
+
+  /// Weekly pool 4: Visit Collection 3 different days this week
+  Future<void> updateWeeklyCollectionVisits(int count) =>
+      _updateProgress(QuestCadence.weekly, 4, count);
+
+  /// Weekly pool 5: Save 3 related duas this week
+  Future<void> updateWeeklySavedRelatedDuas(int count) =>
+      _updateProgress(QuestCadence.weekly, 5, count);
+
+  /// Weekly pool 6: Tier up 2 cards this week
+  Future<void> updateWeeklyTierUps(int count) =>
+      _updateProgress(QuestCadence.weekly, 6, count);
+
+  // ── Monthly thresholds (one per monthly pool slot) ─────────────────────────
+
+  /// Monthly pool 0: Discover 10 new Names this month
+  Future<void> updateMonthlyDiscoveries(int count) =>
+      _updateProgress(QuestCadence.monthly, 0, count);
+
+  /// Monthly pool 1: Reflect 15 times this month
+  Future<void> updateMonthlyReflections(int count) =>
+      _updateProgress(QuestCadence.monthly, 1, count);
+
+  /// Monthly pool 2: Build 5 personal duas this month
+  Future<void> updateMonthlyBuiltDuas(int count) =>
+      _updateProgress(QuestCadence.monthly, 2, count);
+
+  /// Monthly pool 3: Unlock 3 Silver Names this month
+  Future<void> updateMonthlySilverNames(int count) =>
+      _updateProgress(QuestCadence.monthly, 3, count);
+
+  /// Monthly pool 4: Maintain a 20-day streak
+  Future<void> updateMonthlyStreak(int streakCount) =>
+      _updateProgress(QuestCadence.monthly, 4, streakCount);
+
+  /// Monthly pool 5: Complete 20 Muhasabahs this month
+  Future<void> updateMonthlyMuhasabahs(int count) =>
+      _updateProgress(QuestCadence.monthly, 5, count);
+
+  /// Monthly pool 6: Save 10 related duas this month
+  Future<void> updateMonthlySavedRelatedDuas(int count) =>
+      _updateProgress(QuestCadence.monthly, 6, count);
+
+  /// Monthly pool 7: Unlock 1 Gold Name this month
+  Future<void> updateMonthlyGoldNames(int count) =>
+      _updateProgress(QuestCadence.monthly, 7, count);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Monthly quest triggers (threshold-based)
+  // Local trackers — counters that aren't derivable from existing data sources
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /// Pool 0: Discover 10 Names this month
-  Future<void> updateMonthlyDiscoveries(int count) async {
-    await _updateProgress(QuestCadence.monthly, 0, count);
+  /// Append a tier-up event timestamp. Used by `tierUpsThisWeek()` and
+  /// `tierUpsThisMonth()` to count events without scanning the full
+  /// card collection (where tier-change timestamps aren't tracked).
+  Future<void> _recordTierUpEvent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_tierUpsLogKey);
+    final raw = prefs.getString(key);
+    final List<String> log = raw == null
+        ? <String>[]
+        : (jsonDecode(raw) as List).cast<String>();
+    log.add(DateTime.now().toIso8601String());
+    // Cap log size to avoid unbounded growth — 90 days of tier-ups is plenty
+    // for any monthly window.
+    if (log.length > 200) {
+      log.removeRange(0, log.length - 200);
+    }
+    await prefs.setString(key, jsonEncode(log));
   }
 
-  /// Pool 1: Reflect 15 times this month
-  Future<void> updateMonthlyReflections(int count) async {
-    await _updateProgress(QuestCadence.monthly, 1, count);
+  /// Count tier-up events whose timestamp falls in the current ISO week.
+  Future<int> tierUpsThisWeek() async {
+    return _countLoggedEventsSince(_tierUpsLogKey, _weekStart());
   }
 
-  /// Pool 2: Build 5 personal duas this month
-  Future<void> updateMonthlyBuiltDuas(int count) async {
-    await _updateProgress(QuestCadence.monthly, 2, count);
+  /// Count tier-up events whose timestamp falls in the current calendar month.
+  Future<int> tierUpsThisMonth() async {
+    return _countLoggedEventsSince(_tierUpsLogKey, _monthStart());
   }
 
-  /// Pool 3: Unlock 3 Silver Names this month
-  Future<void> updateMonthlySilverNames(int count) async {
-    await _updateProgress(QuestCadence.monthly, 3, count);
+  /// Append a related-dua save event timestamp. Used because the
+  /// `SavedRelatedDua` model has no `savedAt` field of its own.
+  Future<void> _recordRelatedDuaSaveEvent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_relatedDuaSavesLogKey);
+    final raw = prefs.getString(key);
+    final List<String> log = raw == null
+        ? <String>[]
+        : (jsonDecode(raw) as List).cast<String>();
+    log.add(DateTime.now().toIso8601String());
+    if (log.length > 200) {
+      log.removeRange(0, log.length - 200);
+    }
+    await prefs.setString(key, jsonEncode(log));
   }
 
-  /// Pool 4: Maintain a 20-day streak
-  Future<void> updateMonthlyStreak(int streakCount) async {
-    await _updateProgress(QuestCadence.monthly, 4, streakCount);
+  Future<int> relatedDuaSavesThisWeek() async {
+    return _countLoggedEventsSince(_relatedDuaSavesLogKey, _weekStart());
+  }
+
+  Future<int> relatedDuaSavesThisMonth() async {
+    return _countLoggedEventsSince(_relatedDuaSavesLogKey, _monthStart());
+  }
+
+  /// Record that the user opened the Collection on `today`. The set of
+  /// distinct visit dates is then read by the weekly "visit 3 days" quest.
+  Future<void> _recordCollectionVisitDay() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_collectionVisitDatesKey);
+    final raw = prefs.getString(key);
+    final Set<String> dates = raw == null
+        ? <String>{}
+        : (jsonDecode(raw) as List).cast<String>().toSet();
+    dates.add(_todayLabel());
+    // Keep at most 60 entries (≈ 2 months) so the set doesn't grow forever.
+    if (dates.length > 60) {
+      final sorted = dates.toList()..sort();
+      dates
+        ..clear()
+        ..addAll(sorted.sublist(sorted.length - 60));
+    }
+    await prefs.setString(key, jsonEncode(dates.toList()));
+  }
+
+  /// Count distinct collection visit dates in the current ISO week.
+  Future<int> collectionVisitDaysThisWeek() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_collectionVisitDatesKey);
+    final raw = prefs.getString(key);
+    if (raw == null) return 0;
+    final dates = (jsonDecode(raw) as List).cast<String>();
+    final weekStart = _weekStart();
+    return dates.where((d) {
+      final parsed = DateTime.tryParse(d);
+      return parsed != null && !parsed.isBefore(weekStart);
+    }).length;
+  }
+
+  Future<int> _countLoggedEventsSince(String baseKey, DateTime since) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(baseKey);
+    final raw = prefs.getString(key);
+    if (raw == null) return 0;
+    final log = (jsonDecode(raw) as List).cast<String>();
+    return log.where((iso) {
+      final parsed = DateTime.tryParse(iso);
+      return parsed != null && !parsed.isBefore(since);
+    }).length;
   }
 }
 
@@ -956,4 +1133,102 @@ Future<void> syncFirstStepsFromSupabase() async {
   } catch (_) {
     // Best-effort — fall back to whatever's already cached locally.
   }
+}
+
+// ---------------------------------------------------------------------------
+// Threshold quest progress recompute
+// ---------------------------------------------------------------------------
+
+/// Reads every data source the threshold quests depend on, derives current
+/// counts for the active week / month, and feeds them into the corresponding
+/// `update*` methods on `QuestsNotifier`.
+///
+/// Called from `QuestsScreen` on mount (and after hydration). Without this
+/// pattern, weekly / monthly progress would only ever land in the in-memory
+/// `QuestsState.progress` map at the moment a single trigger fires —
+/// meaning a user who hasn't opened the quests page for a few days would see
+/// stale "0/N" bars even after doing the underlying actions.
+///
+/// Cheap to call: each lookup is either a SharedPreferences read or an
+/// in-memory provider state read. Idempotent.
+Future<void> recomputeQuestProgress(WidgetRef ref) async {
+  final notifier = ref.read(questsProvider.notifier);
+  final weekStart = _weekStart();
+  final monthStart = _monthStart();
+
+  // ── Reflections (week + month) ───────────────────────────────────────────
+  final reflectState = ref.read(reflectProvider);
+  int reflectionsThisWeek = 0;
+  int reflectionsThisMonth = 0;
+  for (final r in reflectState.savedReflections) {
+    final t = DateTime.tryParse(r.date);
+    if (t == null) continue;
+    if (!t.isBefore(weekStart)) reflectionsThisWeek++;
+    if (!t.isBefore(monthStart)) reflectionsThisMonth++;
+  }
+  await notifier.updateWeeklyReflections(reflectionsThisWeek);
+  await notifier.updateMonthlyReflections(reflectionsThisMonth);
+
+  // ── Built duas (week + month) ────────────────────────────────────────────
+  final duasState = ref.read(duasProvider);
+  int builtDuasThisWeek = 0;
+  int builtDuasThisMonth = 0;
+  for (final d in duasState.savedBuiltDuas) {
+    final t = DateTime.tryParse(d.savedAt);
+    if (t == null) continue;
+    if (!t.isBefore(weekStart)) builtDuasThisWeek++;
+    if (!t.isBefore(monthStart)) builtDuasThisMonth++;
+  }
+  await notifier.updateWeeklyBuiltDuas(builtDuasThisWeek);
+  await notifier.updateMonthlyBuiltDuas(builtDuasThisMonth);
+
+  // ── Discoveries from card collection (week + month) ──────────────────────
+  final collection = await getCardCollection();
+  int discoveriesThisWeek = 0;
+  int discoveriesThisMonth = 0;
+  for (final entry in collection.discoveryDates.entries) {
+    final t = DateTime.tryParse(entry.value);
+    if (t == null) continue;
+    if (!t.isBefore(weekStart)) discoveriesThisWeek++;
+    if (!t.isBefore(monthStart)) discoveriesThisMonth++;
+  }
+  await notifier.updateWeeklyDiscoveries(discoveriesThisWeek);
+  await notifier.updateMonthlyDiscoveries(discoveriesThisMonth);
+
+  // ── Silver / Gold totals (cumulative, not month-bounded) ─────────────────
+  // The current schema doesn't track tier-change timestamps so we can't
+  // restrict these to "this month" — we use the running totals as a
+  // best-effort approximation. The user only ever benefits.
+  await notifier.updateMonthlySilverNames(collection.totalSilver);
+  await notifier.updateMonthlyGoldNames(collection.totalGold);
+
+  // ── Muhasabahs from check-in history (week + month) ──────────────────────
+  final history = await getCheckinHistory();
+  int muhasabahsThisWeek = 0;
+  int muhasabahsThisMonth = 0;
+  for (final r in history) {
+    // CheckInRecord.date is YYYY-MM-DD; parse as local midnight.
+    final t = DateTime.tryParse(r.date);
+    if (t == null) continue;
+    if (!t.isBefore(weekStart)) muhasabahsThisWeek++;
+    if (!t.isBefore(monthStart)) muhasabahsThisMonth++;
+  }
+  await notifier.updateWeeklyMuhasabahs(muhasabahsThisWeek);
+  await notifier.updateMonthlyMuhasabahs(muhasabahsThisMonth);
+
+  // ── Streak (just push current value at the monthly target) ───────────────
+  final streak = await getStreak();
+  await notifier.updateMonthlyStreak(streak.currentStreak);
+
+  // ── Local-log derived counters ───────────────────────────────────────────
+  await notifier.updateWeeklyTierUps(await notifier.tierUpsThisWeek());
+  await notifier.updateWeeklyCollectionVisits(
+    await notifier.collectionVisitDaysThisWeek(),
+  );
+  await notifier.updateWeeklySavedRelatedDuas(
+    await notifier.relatedDuaSavesThisWeek(),
+  );
+  await notifier.updateMonthlySavedRelatedDuas(
+    await notifier.relatedDuaSavesThisMonth(),
+  );
 }

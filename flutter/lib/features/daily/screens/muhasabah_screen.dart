@@ -495,8 +495,14 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.mediumImpact();
+                    final tieredUp =
+                        state.cardEngageResult?.tierChanged == true;
                     notifier.advanceReflectStep();
-                    ref.read(questsProvider.notifier).onMuhasabahCompleted();
+                    final qn = ref.read(questsProvider.notifier);
+                    qn.onMuhasabahCompleted();
+                    // Every Muhasabah pulls a card → mark as a discovery.
+                    qn.onNameDiscovered();
+                    if (tieredUp) qn.onCardTieredUp();
                   },
                   child: Container(
                     width: double.infinity,

@@ -33,9 +33,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(questsProvider.notifier).onDuasBrowsed();
-    });
     _rippleControllers = List.generate(3, (index) {
       return AnimationController(
         vsync: this,
@@ -584,12 +581,12 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   Widget _buildAmeenScreen(DuasState state, DuasNotifier notifier) {
     final result = state.buildResult!;
 
-    // Auto-save on first render
+    // Auto-save on first render. Built duas are auto-saved into the journal,
+    // so the "save" quest fires from related-dua hearts only — not here.
     if (!notifier.isBuiltDuaSaved()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         notifier.saveCurrentBuiltDua();
         ref.read(questsProvider.notifier).onBuiltDuaCompleted();
-        ref.read(questsProvider.notifier).onDuaSaved();
         checkAchievements(ref);
       });
     }
@@ -861,7 +858,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                   GestureDetector(
                                     onTap: () {
                                       HapticFeedback.mediumImpact();
+                                      final wasSaved =
+                                          notifier.isRelatedDuaSaved(d);
                                       notifier.toggleSaveRelatedDua(d);
+                                      if (!wasSaved) {
+                                        ref
+                                            .read(questsProvider.notifier)
+                                            .onDuaSaved();
+                                      }
                                     },
                                     child: Padding(
                                       padding: const EdgeInsets.only(

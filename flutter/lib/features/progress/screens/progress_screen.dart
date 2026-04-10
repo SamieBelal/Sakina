@@ -2097,8 +2097,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           'Ameen',
           () {
             HapticFeedback.mediumImpact();
+            final tieredUp = state.cardEngageResult?.tierChanged == true;
             notifier.advanceReflectStep();
-            ref.read(questsProvider.notifier).onMuhasabahCompleted();
+            final qn = ref.read(questsProvider.notifier);
+            qn.onMuhasabahCompleted();
+            qn.onNameDiscovered();
+            if (tieredUp) qn.onCardTieredUp();
           },
         ),
     };

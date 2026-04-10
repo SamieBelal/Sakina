@@ -30,8 +30,10 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
       if (!mounted) return;
       final session = ref.read(appSessionProvider);
       _session = session;
-      // Reload now in case hydration finished before this screen mounted.
+      // Reload now in case hydration finished before this screen mounted,
+      // then recompute threshold progress from current data sources.
       ref.read(questsProvider.notifier).reload();
+      recomputeQuestProgress(ref);
       if (!session.economyHydrated) {
         session.addListener(_onSessionChange);
       }
@@ -47,6 +49,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
     if (session != null && session.economyHydrated) {
       session.removeListener(_onSessionChange);
       ref.read(questsProvider.notifier).reload();
+      recomputeQuestProgress(ref);
     }
   }
 

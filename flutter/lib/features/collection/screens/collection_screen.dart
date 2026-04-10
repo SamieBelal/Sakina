@@ -982,6 +982,9 @@ class _CardDetailSheet extends ConsumerWidget {
                         final spendResult = await ref.read(tierUpScrollProvider.notifier).spend(scrollCost);
                         if (spendResult.success) {
                           final engageResult = await ref.read(cardCollectionProvider.notifier).engageById(card.id);
+                          if (engageResult.tierChanged) {
+                            ref.read(questsProvider.notifier).onCardTieredUp();
+                          }
                           if (context.mounted) {
                             final rootNav = Navigator.of(context, rootNavigator: true);
                             Navigator.of(context).pop();
