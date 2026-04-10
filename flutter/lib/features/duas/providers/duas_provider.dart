@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
@@ -15,6 +16,34 @@ const _uuid = Uuid();
 const String _builtDuasKey = 'saved_built_duas';
 const String _relatedDuasKey = 'saved_related_duas';
 const String _browseDuaIdsKey = 'saved_browse_dua_ids';
+
+typedef FindDuasLoader = Future<FindDuasResponse> Function(String need);
+typedef BuildDuaLoader = Future<BuiltDuaResponse> Function(String need);
+typedef DuaNow = DateTime Function();
+typedef DuaIdFactory = String Function();
+
+String _defaultDuaIdFactory() => _uuid.v4();
+
+class DuasDependencies {
+  final FindDuasLoader findDuas;
+  final BuildDuaLoader buildDua;
+  final DuaNow now;
+  final DuaIdFactory createId;
+
+  const DuasDependencies({
+    required this.findDuas,
+    required this.buildDua,
+    required this.now,
+    required this.createId,
+  });
+}
+
+final _defaultDuasDependencies = DuasDependencies(
+  findDuas: findDuas,
+  buildDua: buildDua,
+  now: DateTime.now,
+  createId: _defaultDuaIdFactory,
+);
 
 // ---------------------------------------------------------------------------
 // Tab enum
@@ -243,11 +272,22 @@ class DuasState {
 // ---------------------------------------------------------------------------
 
 class DuasNotifier extends StateNotifier<DuasState> {
-  DuasNotifier() : super(const DuasState()) {
-    loadSavedDuas();
+  DuasNotifier({
+    DuasDependencies? dependencies,
+    @visibleForTesting bool loadOnInit = true,
+    @visibleForTesting
+    Duration resultRevealDelay = const Duration(milliseconds: 400),
+  })  : _dependencies = dependencies ?? _defaultDuasDependencies,
+        _resultRevealDelay = resultRevealDelay,
+        super(const DuasState()) {
+    if (loadOnInit) {
+      loadSavedDuas();
+    }
   }
 
   Timer? _progressTimer;
+  final DuasDependencies _dependencies;
+  final Duration _resultRevealDelay;
 
   static const String _namesInvokedKey = 'sakina_names_invoked';
 
@@ -326,7 +366,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       findResult: () => null,
     );
     try {
-      final result = await findDuas(state.findNeed);
+      final result = await _dependencies.findDuas(state.findNeed);
       state = state.copyWith(findResult: () => result, findLoading: false);
       // No XP — only Muhasabah, quests, and streak milestones grant XP.
     } catch (e) {
@@ -359,8 +399,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       state = state.copyWith(buildNeedsToken: true);
       return;
     }
-    await incrementBuiltDuaUsage();
-    await _doBuild();
+    await _doBuild(consumeFreeUsage: true);
   }
 
   Future<void> submitBuildWithToken() async {
@@ -398,7 +437,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
     return false;
   }
 
-  Future<void> _doBuild() async {
+  Future<void> _doBuild({bool consumeFreeUsage = false}) async {
     // Check for off-topic or harmful input
     if (_isDuaOffTopic(state.buildNeed)) {
       state = state.copyWith(
@@ -433,12 +472,15 @@ class DuasNotifier extends StateNotifier<DuasState> {
     });
 
     try {
-      final result = await buildDua(state.buildNeed);
+      final result = await _dependencies.buildDua(state.buildNeed);
+      if (consumeFreeUsage) {
+        await incrementBuiltDuaUsage();
+      }
       _progressTimer?.cancel();
       // Jump to 100%
       state = state.copyWith(buildProgress: 1.0);
       // Brief pause at 100% before showing result
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(_resultRevealDelay);
       state = state.copyWith(buildResult: () => result, buildLoading: false);
       // Track names invoked in this dua
       if (result.namesUsed.isNotEmpty) {
@@ -499,10 +541,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
       return; // silently skip — UI should show upgrade prompt
     }
 
-    final duaId = _uuid.v4();
+    final duaId = _dependencies.createId();
     final dua = SavedBuiltDua(
       id: duaId,
-      savedAt: DateTime.now().toIso8601String(),
+      savedAt: _dependencies.now().toIso8601String(),
       need: state.buildNeed,
       arabic: result.arabic,
       transliteration: result.transliteration,

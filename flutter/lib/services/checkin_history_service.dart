@@ -112,6 +112,23 @@ Future<void> saveCheckinRecord(CheckInRecord record) async {
   // Write to Supabase
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
+    final existingRows = await supabaseSyncService.fetchRows(
+      'user_checkin_history',
+      userId,
+      orderBy: 'checked_in_at',
+    );
+    for (final row in existingRows) {
+      final checkedInAt = row['checked_in_at']?.toString() ?? '';
+      final rowDate =
+          checkedInAt.length >= 10 ? checkedInAt.substring(0, 10) : checkedInAt;
+      if (rowDate == record.date && row['id'] != null) {
+        await supabaseSyncService.deleteRow(
+          'user_checkin_history',
+          'id',
+          row['id'],
+        );
+      }
+    }
     await supabaseSyncService.insertRow(
       'user_checkin_history',
       record.toSupabaseRow(userId),

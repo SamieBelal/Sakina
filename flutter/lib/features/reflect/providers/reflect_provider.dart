@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
@@ -11,6 +12,37 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 const String _reflectionsKey = 'saved_reflections';
+
+typedef ReflectFollowUpLoader = Future<List<ai.FollowUpQuestion>> Function(
+  String userText,
+);
+typedef ReflectResponseLoader = Future<ai.ReflectResponse> Function(
+    String text);
+typedef ReflectNow = DateTime Function();
+typedef ReflectIdFactory = String Function();
+
+String _defaultReflectIdFactory() => _uuid.v4();
+
+class ReflectDependencies {
+  final ReflectFollowUpLoader getFollowUpQuestions;
+  final ReflectResponseLoader reflect;
+  final ReflectNow now;
+  final ReflectIdFactory createId;
+
+  const ReflectDependencies({
+    required this.getFollowUpQuestions,
+    required this.reflect,
+    required this.now,
+    required this.createId,
+  });
+}
+
+final _defaultReflectDependencies = ReflectDependencies(
+  getFollowUpQuestions: ai.getFollowUpQuestions,
+  reflect: ai.reflectWithOpenAI,
+  now: DateTime.now,
+  createId: _defaultReflectIdFactory,
+);
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -234,9 +266,18 @@ class ReflectState {
 // ---------------------------------------------------------------------------
 
 class ReflectNotifier extends StateNotifier<ReflectState> {
-  ReflectNotifier() : super(const ReflectState()) {
-    _loadSavedReflections();
+  ReflectNotifier({
+    ReflectDependencies? dependencies,
+    @visibleForTesting bool loadOnInit = true,
+  })  : _dependencies = dependencies ?? _defaultReflectDependencies,
+        super(const ReflectState()) {
+    if (loadOnInit) {
+      _loadSavedReflections();
+    }
   }
+
+  final ReflectDependencies _dependencies;
+  bool _consumeFreeUsageOnSuccess = false;
 
   void setUserText(String text) {
     state = state.copyWith(userText: text);
@@ -256,6 +297,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Clears the needsToken flag and proceeds with submission.
   Future<void> submitWithToken() async {
     state = state.copyWith(needsToken: false);
+    _consumeFreeUsageOnSuccess = false;
     await _doSubmit();
   }
 
@@ -266,7 +308,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       state = state.copyWith(needsToken: true);
       return;
     }
-    await incrementReflectUsage();
+    _consumeFreeUsageOnSuccess = true;
     await _doSubmit();
   }
 
@@ -275,7 +317,8 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       state = state.copyWith(
           screenState: ReflectScreenState.loading, clearError: true);
 
-      final questions = await ai.getFollowUpQuestions(state.userText);
+      final questions =
+          await _dependencies.getFollowUpQuestions(state.userText);
 
       if (questions.isNotEmpty) {
         state = state.copyWith(
@@ -288,6 +331,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
         await _reflect(_buildCombinedText([]));
       }
     } catch (e) {
+      _consumeFreeUsageOnSuccess = false;
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
@@ -357,6 +401,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
 
   /// Reset to input state (preserves saved reflections).
   void reset() {
+    _consumeFreeUsageOnSuccess = false;
     state = ReflectState(savedReflections: state.savedReflections);
   }
 
@@ -370,9 +415,10 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           screenState: ReflectScreenState.loading, clearError: true);
 
       // TODO: Build ReflectContext from journal/anchors when those are implemented
-      final response = await ai.reflectWithOpenAI(text);
+      final response = await _dependencies.reflect(text);
 
       if (response.offTopic) {
+        _consumeFreeUsageOnSuccess = false;
         state = state.copyWith(
           screenState: ReflectScreenState.offtopic,
           result: response,
@@ -383,6 +429,10 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           result: response,
           currentStep: ReflectStep.name,
         );
+        if (_consumeFreeUsageOnSuccess) {
+          await incrementReflectUsage();
+          _consumeFreeUsageOnSuccess = false;
+        }
         // Track streak (XP for Reflect is intentionally zero — only Muhasabah,
         // quests, and streak milestones grant XP).
         await markActiveToday();
@@ -391,6 +441,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
         await _saveReflection(response);
       }
     } catch (e) {
+      _consumeFreeUsageOnSuccess = false;
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
@@ -428,10 +479,10 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
         ? '${response.reframe.substring(0, 150)}...'
         : response.reframe;
 
-    final reflectionId = _uuid.v4();
+    final reflectionId = _dependencies.createId();
     final reflection = SavedReflection(
       id: reflectionId,
-      date: DateTime.now().toIso8601String(),
+      date: _dependencies.now().toIso8601String(),
       userText: state.userText,
       name: response.name,
       nameArabic: response.nameArabic,

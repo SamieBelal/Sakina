@@ -1827,6 +1827,11 @@ String tierToEnum(int t) =>
 
 int enumToTier(String e) => const {'bronze': 1, 'silver': 2, 'gold': 3}[e] ?? 1;
 
+String _datePrefix(dynamic value) {
+  final text = value?.toString() ?? '';
+  return text.length >= 10 ? text.substring(0, 10) : text;
+}
+
 // ---------------------------------------------------------------------------
 // Collection persistence
 // ---------------------------------------------------------------------------
@@ -1961,7 +1966,11 @@ Future<CardEngageResult> engageCard(int cardId) async {
   final prefs = await SharedPreferences.getInstance();
   final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
   final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
-  final raw = prefs.getString(scopedCollectionKey);
+  final raw =
+      await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
+  final existingSeen =
+      await supabaseSyncService.migrateLegacyStringListCache(prefs, _seenKey) ??
+          [];
 
   Set<int> ids;
   Map<int, String> dates; // date card was first discovered
@@ -2013,7 +2022,7 @@ Future<CardEngageResult> engageCard(int cardId) async {
 
   // Mark the new tier as unseen so the glow shows on the new tile.
   if (tierChanged) {
-    final seenList = prefs.getStringList(scopedSeenKey) ?? [];
+    final seenList = List<String>.from(existingSeen);
     seenList.remove('$cardId:$newTier');
     await prefs.setStringList(scopedSeenKey, seenList);
   }
@@ -2141,10 +2150,9 @@ Future<void> hydrateCardCollectionCacheFromRows(
   for (final row in rows) {
     final nameId = row['name_id'] as int;
     ids.add(nameId);
-    dates[nameId] = (row['discovered_at'] as String? ?? '').substring(0, 10);
+    dates[nameId] = _datePrefix(row['discovered_at']);
     tiers[nameId] = enumToTier(row['tier'] as String? ?? 'bronze');
-    tierUpDates[nameId] =
-        (row['last_engaged_at'] as String? ?? '').substring(0, 10);
+    tierUpDates[nameId] = _datePrefix(row['last_engaged_at']);
   }
 
   await prefs.setString(
