@@ -5,6 +5,7 @@ import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
 
@@ -41,6 +42,7 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     prepareTokenCacheForHydration(),
     prepareStreakCacheForHydration(),
     prepareDailyRewardsCacheForHydration(),
+    prepareTitlePrefsCacheForHydration(),
     migrateCheckinHistoryCache(),
     migrateReflectionCachesForHydration(),
     migrateDuaCachesForHydration(),
@@ -85,6 +87,14 @@ Future<void> hydrateUserDataFromBatchRpc() async {
       currentDay: currentDay,
       lastClaimDate: _stringValue(dailyRewards?['last_claim_date']),
       streakFreezeOwned: streakFreezeOwned,
+    );
+  }
+
+  final profile = payload.objectSection('profile');
+  if (profile != null) {
+    await hydrateTitlePrefsCache(
+      selectedTitle: _stringValue(profile['selected_title']),
+      isAutoTitle: _boolValue(profile['is_auto_title']) ?? true,
     );
   }
 

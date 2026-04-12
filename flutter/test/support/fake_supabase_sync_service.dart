@@ -19,6 +19,11 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       rpcHandlers = {};
   int _nextSyntheticId = 1;
 
+  /// When set, the next upsert-style write (upsertRow / upsertRawRow) will
+  /// return `false` without touching storage, then reset to `false`. Use to
+  /// exercise the failure path in sync-service callers.
+  bool nextUpsertShouldFail = false;
+
   @override
   String? get currentUserId => userId;
 
@@ -51,6 +56,11 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       'onConflict': onConflict,
     });
 
+    if (nextUpsertShouldFail) {
+      nextUpsertShouldFail = false;
+      return false;
+    }
+
     // Merge user_id + data into the row payload, matching production behavior.
     final merged = <String, dynamic>{
       'user_id': userId,
@@ -76,6 +86,11 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       'data': data,
       'onConflict': onConflict,
     });
+
+    if (nextUpsertShouldFail) {
+      nextUpsertShouldFail = false;
+      return false;
+    }
 
     String? singleRowKey;
     final id = data['id'];

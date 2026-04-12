@@ -52,9 +52,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _loadData() async {
     final xp = await getXp();
     final streak = await getStreak();
-    await initializeUnlockedTitles(xp.level);
     final displayTitle = await getDisplayTitle(xp.level);
-    final unlockedTitles = await getUnlockedTitles();
+    final unlockedTitles = getUnlockedTitles(
+      currentLevel: xp.level,
+      longestStreak: streak.longestStreak,
+    );
 
     final anchors = await loadSavedDiscoveryQuizAnchorNames();
 

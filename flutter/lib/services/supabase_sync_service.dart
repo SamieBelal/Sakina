@@ -291,6 +291,21 @@ class SupabaseSyncService {
     return prefs.getStringList(scoped);
   }
 
+  Future<bool?> migrateLegacyBoolCache(
+    SharedPreferences prefs,
+    String baseKey,
+  ) async {
+    final scoped = scopedKey(baseKey);
+    if (!prefs.containsKey(scoped) && prefs.containsKey(baseKey)) {
+      final value = prefs.getBool(baseKey);
+      if (value != null) {
+        await prefs.setBool(scoped, value);
+      }
+      await prefs.remove(baseKey);
+    }
+    return prefs.getBool(scoped);
+  }
+
   @visibleForTesting
   static void debugSetInstance(SupabaseSyncService service) {
     instance = service;

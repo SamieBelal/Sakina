@@ -76,7 +76,10 @@ Future<void> checkAchievements(WidgetRef ref) async {
 
     // Title data
     final displayTitle = await getDisplayTitle(xp.level);
-    final unlockedTitles = await getUnlockedTitles();
+    final unlockedTitles = getUnlockedTitles(
+      currentLevel: xp.level,
+      longestStreak: streak.longestStreak,
+    );
 
     // Names invoked in duas
     final namesInvoked = prefs.getStringList('sakina_names_invoked') ?? [];

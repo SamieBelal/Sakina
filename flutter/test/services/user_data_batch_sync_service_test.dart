@@ -26,6 +26,11 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
+  String _todayStr() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
   test('hydrateUserDataFromBatchRpc hydrates Wave 1-2 caches', () async {
     SharedPreferences.setMockInitialValues({
       'saved_related_duas': jsonEncode([
@@ -60,7 +65,7 @@ void main() {
           },
           'daily_rewards': {
             'current_day': 3,
-            'last_claim_date': '2026-04-09',
+            'last_claim_date': _todayStr(),
             'streak_freeze_owned': true,
           },
           'checkin_history': [

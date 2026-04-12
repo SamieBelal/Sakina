@@ -21,10 +21,14 @@ void main() {
   tearDown(SupabaseSyncService.debugReset);
 
   test('hydrateDailyRewardsCache writes freeze ownership', () async {
+    final today = DateTime.now();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
     SharedPreferences.setMockInitialValues({
       'sakina_daily_rewards': jsonEncode({
         'currentDay': 3,
-        'lastClaimDate': '2026-04-09',
+        'lastClaimDate': todayStr,
         'streakFreezeOwned': false,
       }),
     });
@@ -34,7 +38,7 @@ void main() {
     await prepareDailyRewardsCacheForHydration();
     await hydrateDailyRewardsCache(
       currentDay: 3,
-      lastClaimDate: '2026-04-09',
+      lastClaimDate: todayStr,
       streakFreezeOwned: true,
     );
 

@@ -210,9 +210,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       final xpState = await getXp();
       final tokenState = await getTokens();
 
-      // Initialize unlocked titles for existing users
-      await initializeUnlockedTitles(xpState.level);
-
       // Check premium monthly grants (may add tokens/scrolls)
       await checkPremiumMonthlyGrant();
       // Re-read token balance after potential grant
@@ -307,10 +304,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         await earnTierUpScrolls(rewards.scrollsAwarded);
       }
 
-      // Unlock title
-      if (rewards.titleUnlocked && rewards.unlockedTitle != null) {
-        await unlockTitle(rewards.unlockedTitle!);
-      }
+      // Title unlocks are derived from level + streak on read — no persistence needed.
 
       // Update display title (auto mode will pick the new level title)
       final displayTitle = await getDisplayTitle(xpResult.state.level);
@@ -340,9 +334,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       if (result.milestone.scrollReward > 0) {
         await earnTierUpScrolls(result.milestone.scrollReward);
       }
-      if (result.milestone.titleUnlock != null) {
-        await unlockTitle(result.milestone.titleUnlock!);
-      }
+      // Title unlocks are derived from streak on read — no persistence needed.
     }
   }
 
