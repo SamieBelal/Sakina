@@ -10,6 +10,7 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   final Map<String, List<Map<String, dynamic>>> rowLists = {};
   final Map<String, List<Map<String, dynamic>>> publicRows = {};
   final List<Map<String, dynamic>> upsertCalls = [];
+  final List<Map<String, dynamic>> rawUpsertCalls = [];
   final List<Map<String, dynamic>> insertCalls = [];
   final List<Map<String, dynamic>> batchInsertCalls = [];
   final List<Map<String, dynamic>> deleteCalls = [];
@@ -40,19 +41,54 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   Future<bool> upsertRow(
     String table,
     String userId,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    String? onConflict,
+  }) async {
     upsertCalls.add({
       'table': table,
       'userId': userId,
       'data': data,
+      'onConflict': onConflict,
     });
-    rows['$table:$userId'] = {
-      ...(rows['$table:$userId'] ?? <String, dynamic>{}),
+
+    // Merge user_id + data into the row payload, matching production behavior.
+    final merged = <String, dynamic>{
       'user_id': userId,
       ...data,
     };
-    return true;
+
+    return _applyUpsert(
+      table,
+      merged,
+      onConflict: onConflict,
+      singleRowKey: '$table:$userId',
+    );
+  }
+
+  @override
+  Future<bool> upsertRawRow(
+    String table,
+    Map<String, dynamic> data, {
+    String? onConflict,
+  }) async {
+    rawUpsertCalls.add({
+      'table': table,
+      'data': data,
+      'onConflict': onConflict,
+    });
+
+    String? singleRowKey;
+    final id = data['id'];
+    if (id != null) {
+      singleRowKey = '$table:$id';
+    }
+
+    return _applyUpsert(
+      table,
+      Map<String, dynamic>.from(data),
+      onConflict: onConflict,
+      singleRowKey: singleRowKey,
+    );
   }
 
   @override
@@ -80,7 +116,7 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     final all = rowLists[table] ?? const <Map<String, dynamic>>[];
     final filtered = all
         .where((row) => row['user_id'] == userId)
-        .map((row) => Map<String, dynamic>.from(row))
+        .map(Map<String, dynamic>.from)
         .toList();
     if (limit != null && filtered.length > limit) {
       return filtered.take(limit).toList();
@@ -145,5 +181,51 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     if (handler == null) return null;
     final result = await handler(params);
     return result as T?;
+  }
+
+  Future<bool> _applyUpsert(
+    String table,
+    Map<String, dynamic> merged, {
+    String? onConflict,
+    String? singleRowKey,
+  }) async {
+    if (onConflict != null && onConflict.isNotEmpty) {
+      final conflictCols = onConflict.split(',').map((s) => s.trim()).toList();
+      final list = rowLists.putIfAbsent(table, () => []);
+      final existingIdx = list.indexWhere((row) {
+        for (final col in conflictCols) {
+          if (row[col] != merged[col]) return false;
+        }
+        return true;
+      });
+      if (existingIdx >= 0) {
+        list[existingIdx] = {...list[existingIdx], ...merged};
+      } else {
+        final normalized = Map<String, dynamic>.from(merged);
+        normalized.putIfAbsent('id', () => 'fake-${_nextSyntheticId++}');
+        list.add(normalized);
+      }
+
+      if (singleRowKey != null &&
+          conflictCols.length == 1 &&
+          merged.containsKey(conflictCols.single)) {
+        rows[singleRowKey] = {...merged};
+      }
+      return true;
+    }
+
+    if (singleRowKey != null) {
+      rows[singleRowKey] = {
+        ...(rows[singleRowKey] ?? <String, dynamic>{}),
+        ...merged,
+      };
+      return true;
+    }
+
+    final list = rowLists.putIfAbsent(table, () => []);
+    final normalized = Map<String, dynamic>.from(merged);
+    normalized.putIfAbsent('id', () => 'fake-${_nextSyntheticId++}');
+    list.add(normalized);
+    return true;
   }
 }

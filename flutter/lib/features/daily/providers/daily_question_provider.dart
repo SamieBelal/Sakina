@@ -5,7 +5,11 @@ import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+String _dailyAnswerKey(String date) =>
+    supabaseSyncService.scopedKey('daily_answer_$date');
 
 // ---------------------------------------------------------------------------
 // State
@@ -66,8 +70,10 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = 'daily_answer_${todayKey()}';
-      final savedJson = prefs.getString(key);
+      final savedJson = await supabaseSyncService.migrateLegacyStringCache(
+        prefs,
+        'daily_answer_${todayKey()}',
+      );
 
       if (savedJson != null) {
         final data = jsonDecode(savedJson) as Map<String, dynamic>;
@@ -100,9 +106,8 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
 
       // Persist today's answer
       final prefs = await SharedPreferences.getInstance();
-      final key = 'daily_answer_${todayKey()}';
       await prefs.setString(
-        key,
+        _dailyAnswerKey(todayKey()),
         jsonEncode({
           'date': todayKey(),
           'questionId': state.question?.id,
@@ -115,10 +120,100 @@ class DailyQuestionNotifier extends StateNotifier<DailyQuestionState> {
           'duaTranslation': '',
         }),
       );
+
+      // Sync to Supabase
+      final userId = supabaseSyncService.currentUserId;
+      if (userId != null) {
+        await supabaseSyncService.insertRow('user_daily_answers', {
+          'user_id': userId,
+          'question_id': state.question?.id ?? 0,
+          'selected_option': answer,
+          'name_returned': response.name,
+          'name_arabic': response.nameArabic,
+          'teaching': '',
+          'dua_arabic': '',
+          'dua_transliteration': '',
+          'dua_translation': '',
+        });
+      }
     } catch (_) {
       state = state.copyWith(loading: false);
     }
   }
+}
+
+/// Hydrate local daily answer cache from Supabase for today's question.
+/// If server has today's answer, restore it locally. If server empty and
+/// local exists, seed server from local.
+Future<void> syncDailyAnswersFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final today = todayKey();
+
+  // Fetch all rows (we filter by today's date client-side — fetchRows
+  // doesn't support compound filters).
+  final rows = await supabaseSyncService.fetchRows(
+    'user_daily_answers',
+    userId,
+    orderBy: 'answered_at',
+  );
+
+  // Find today's answer: row whose answered_at, in the device's local time,
+  // falls on today's date. We cannot string-match against a UTC timestamp
+  // because a Pacific user answering at 5pm produces `2026-04-10T00:00:00Z`
+  // while local today is still `2026-04-09` — startsWith would miss the row.
+  final todayRow = rows.cast<Map<String, dynamic>?>().firstWhere(
+        (row) {
+          final raw = row?['answered_at']?.toString();
+          if (raw == null) return false;
+          final parsed = DateTime.tryParse(raw)?.toLocal();
+          if (parsed == null) return false;
+          final localDate =
+              '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+          return localDate == today;
+        },
+        orElse: () => null,
+      );
+
+  if (todayRow == null) {
+    // Seed from local if we have an answer today.
+    final scoped = _dailyAnswerKey(today);
+    final localJson = prefs.getString(scoped);
+    if (localJson == null) return;
+    try {
+      final data = jsonDecode(localJson) as Map<String, dynamic>;
+      await supabaseSyncService.insertRow('user_daily_answers', {
+        'user_id': userId,
+        'question_id': data['questionId'] ?? 0,
+        'selected_option': data['answer'] ?? '',
+        'name_returned': data['name'] ?? '',
+        'name_arabic': data['nameArabic'] ?? '',
+        'teaching': data['teaching'] ?? '',
+        'dua_arabic': data['duaArabic'] ?? '',
+        'dua_transliteration': data['duaTransliteration'] ?? '',
+        'dua_translation': data['duaTranslation'] ?? '',
+      });
+    } catch (_) {}
+    return;
+  }
+
+  // Server has today's answer — cache locally.
+  await prefs.setString(
+    _dailyAnswerKey(today),
+    jsonEncode({
+      'date': today,
+      'questionId': todayRow['question_id'],
+      'answer': todayRow['selected_option'],
+      'name': todayRow['name_returned'],
+      'nameArabic': todayRow['name_arabic'],
+      'teaching': todayRow['teaching'] ?? '',
+      'duaArabic': todayRow['dua_arabic'] ?? '',
+      'duaTransliteration': todayRow['dua_transliteration'] ?? '',
+      'duaTranslation': todayRow['dua_translation'] ?? '',
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------

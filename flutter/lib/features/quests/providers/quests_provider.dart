@@ -191,63 +191,72 @@ const _dailyPool = <QuestTemplate>[
     title: 'Complete a Reflection',
     description: 'Open Reflect and share what\'s on your heart.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 15, tokenReward: 5,
+    xpReward: 15,
+    tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 1,
     title: 'Build a personal dua',
     description: 'Craft a dua for your specific need.',
     icon: Icons.auto_awesome,
-    xpReward: 15, tokenReward: 5,
+    xpReward: 15,
+    tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 2,
     title: 'Visit your Collection',
     description: 'Browse your discovered Names of Allah.',
     icon: Icons.grid_view_rounded,
-    xpReward: 10, tokenReward: 3,
+    xpReward: 10,
+    tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 3,
     title: 'Review your Journal',
     description: 'Open your Journal to revisit a saved entry.',
     icon: Icons.bookmark_rounded,
-    xpReward: 10, tokenReward: 3,
+    xpReward: 10,
+    tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 4,
     title: 'Complete a Muhasabah',
     description: 'Do today\'s daily check-in.',
     icon: Icons.favorite_rounded,
-    xpReward: 20, tokenReward: 5,
+    xpReward: 20,
+    tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 5,
     title: 'Save a related dua',
     description: 'Tap the heart on a related dua to save it for later.',
     icon: Icons.bookmark_add_rounded,
-    xpReward: 10, tokenReward: 3,
+    xpReward: 10,
+    tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 6,
     title: 'Explore a Name of Allah',
     description: 'Tap into a Name in your Collection to learn more.',
     icon: Icons.search_rounded,
-    xpReward: 10, tokenReward: 3,
+    xpReward: 10,
+    tokenReward: 3,
   ),
   QuestTemplate(
     poolIndex: 7,
     title: 'Discover a new Name',
     description: 'Pull a card from your check-in to grow your collection.',
     icon: Icons.auto_fix_high_rounded,
-    xpReward: 15, tokenReward: 5,
+    xpReward: 15,
+    tokenReward: 5,
   ),
   QuestTemplate(
     poolIndex: 8,
     title: 'Tier up a card',
     description: 'Spend tier-up scrolls to upgrade a Name in your collection.',
     icon: Icons.military_tech_rounded,
-    xpReward: 20, tokenReward: 5,
+    xpReward: 20,
+    tokenReward: 5,
   ),
 ];
 
@@ -258,7 +267,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Reflect 3 times',
     description: 'Complete 3 Reflect sessions this week.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 50, tokenReward: 3, scrollReward: 2,
+    xpReward: 50,
+    tokenReward: 3,
+    scrollReward: 2,
     target: 3,
   ),
   QuestTemplate(
@@ -266,7 +277,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Build 2 personal duas',
     description: 'Craft 2 duas for specific needs.',
     icon: Icons.auto_awesome,
-    xpReward: 30, tokenReward: 2, scrollReward: 1,
+    xpReward: 30,
+    tokenReward: 2,
+    scrollReward: 1,
     target: 2,
   ),
   QuestTemplate(
@@ -274,7 +287,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Discover 3 new Names',
     description: 'Encounter 3 new Names through check-ins.',
     icon: Icons.explore_rounded,
-    xpReward: 40, tokenReward: 2, scrollReward: 2,
+    xpReward: 40,
+    tokenReward: 2,
+    scrollReward: 2,
     target: 3,
   ),
   QuestTemplate(
@@ -282,7 +297,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Complete 5 Muhasabahs',
     description: 'Do 5 daily check-ins this week.',
     icon: Icons.favorite_rounded,
-    xpReward: 60, tokenReward: 3, scrollReward: 2,
+    xpReward: 60,
+    tokenReward: 3,
+    scrollReward: 2,
     target: 5,
   ),
   QuestTemplate(
@@ -290,7 +307,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Visit Collection 3 days',
     description: 'Open your Collection on 3 different days.',
     icon: Icons.grid_view_rounded,
-    xpReward: 40, tokenReward: 3, scrollReward: 2,
+    xpReward: 40,
+    tokenReward: 3,
+    scrollReward: 2,
     target: 3,
   ),
   QuestTemplate(
@@ -298,7 +317,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Save 3 related duas',
     description: 'Heart 3 related duas you discover this week.',
     icon: Icons.bookmark_add_rounded,
-    xpReward: 35, tokenReward: 2, scrollReward: 1,
+    xpReward: 35,
+    tokenReward: 2,
+    scrollReward: 1,
     target: 3,
   ),
   QuestTemplate(
@@ -306,7 +327,9 @@ const _weeklyPool = <QuestTemplate>[
     title: 'Tier up 2 cards',
     description: 'Upgrade 2 Names in your collection this week.',
     icon: Icons.military_tech_rounded,
-    xpReward: 60, tokenReward: 3, scrollReward: 3,
+    xpReward: 60,
+    tokenReward: 3,
+    scrollReward: 3,
     target: 2,
   ),
 ];
@@ -318,7 +341,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Discover 10 Names',
     description: 'Grow your collection by 10 new Names this month.',
     icon: Icons.stars_rounded,
-    xpReward: 150, tokenReward: 10, scrollReward: 5,
+    xpReward: 150,
+    tokenReward: 10,
+    scrollReward: 5,
     target: 10,
   ),
   QuestTemplate(
@@ -326,7 +351,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Reflect 15 times',
     description: 'Complete 15 Reflect sessions this month.',
     icon: Icons.auto_stories_rounded,
-    xpReward: 150, tokenReward: 10, scrollReward: 5,
+    xpReward: 150,
+    tokenReward: 10,
+    scrollReward: 5,
     target: 15,
   ),
   QuestTemplate(
@@ -334,7 +361,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Build 5 personal duas',
     description: 'Craft 5 personal duas this month.',
     icon: Icons.auto_awesome,
-    xpReward: 100, tokenReward: 8, scrollReward: 3,
+    xpReward: 100,
+    tokenReward: 8,
+    scrollReward: 3,
     target: 5,
   ),
   QuestTemplate(
@@ -342,7 +371,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Unlock 3 Silver Names',
     description: 'Tier up 3 Names to Silver in your Collection.',
     icon: Icons.military_tech_rounded,
-    xpReward: 120, tokenReward: 8, scrollReward: 4,
+    xpReward: 120,
+    tokenReward: 8,
+    scrollReward: 4,
     target: 3,
   ),
   QuestTemplate(
@@ -350,7 +381,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Maintain a 20-day streak',
     description: 'Check in 20+ days this month to show true dedication.',
     icon: Icons.local_fire_department,
-    xpReward: 150, tokenReward: 10, scrollReward: 5,
+    xpReward: 150,
+    tokenReward: 10,
+    scrollReward: 5,
     target: 20,
   ),
   QuestTemplate(
@@ -358,7 +391,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Complete 20 Muhasabahs',
     description: 'Do 20 daily check-ins this month.',
     icon: Icons.favorite_rounded,
-    xpReward: 150, tokenReward: 10, scrollReward: 5,
+    xpReward: 150,
+    tokenReward: 10,
+    scrollReward: 5,
     target: 20,
   ),
   QuestTemplate(
@@ -366,7 +401,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Save 10 related duas',
     description: 'Heart 10 related duas you discover this month.',
     icon: Icons.bookmark_add_rounded,
-    xpReward: 100, tokenReward: 8, scrollReward: 3,
+    xpReward: 100,
+    tokenReward: 8,
+    scrollReward: 3,
     target: 10,
   ),
   QuestTemplate(
@@ -374,7 +411,9 @@ const _monthlyPool = <QuestTemplate>[
     title: 'Unlock 1 Gold Name',
     description: 'Tier up a Name all the way to Gold this month.',
     icon: Icons.workspace_premium_rounded,
-    xpReward: 200, tokenReward: 12, scrollReward: 8,
+    xpReward: 200,
+    tokenReward: 12,
+    scrollReward: 8,
     target: 1,
   ),
 ];
@@ -537,6 +576,7 @@ class _FirstStepsCacheSnapshot {
 }
 
 const _completedKey = 'quests_completed_v2';
+const _progressKey = 'quests_progress_v2';
 const _firstStepsCompletedKey = 'first_steps_completed_v1';
 const _firstStepsBundleClaimedKey = 'first_steps_bundle_claimed_v1';
 const _firstStepsEligibleKey = 'first_steps_eligible_v1';
@@ -556,13 +596,29 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Load completed set
-    final raw = prefs.getString(_completedKey);
+    // Load completed set (with legacy migration)
+    final raw = await supabaseSyncService.migrateLegacyStringCache(
+      prefs,
+      _completedKey,
+    );
     Set<String> completedIds = {};
     if (raw != null) {
       try {
         final list = (jsonDecode(raw) as List).cast<String>();
         completedIds = list.toSet();
+      } catch (_) {}
+    }
+
+    // Load persisted progress map
+    final progressRaw = await supabaseSyncService.migrateLegacyStringCache(
+      prefs,
+      _progressKey,
+    );
+    Map<String, int> progress = {};
+    if (progressRaw != null) {
+      try {
+        final decoded = jsonDecode(progressRaw) as Map<String, dynamic>;
+        progress = decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
       } catch (_) {}
     }
 
@@ -636,6 +692,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       weekly: weekly,
       monthly: monthly,
       completedIds: completedIds,
+      progress: progress,
       loaded: true,
       firstStepsEligible: firstStepsState.eligible,
       firstStepsCompleted: firstStepsState.completed,
@@ -650,10 +707,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<_FirstStepsCacheSnapshot> _loadFirstStepsFromCache(
     SharedPreferences prefs,
   ) async {
-    final eligibleKey =
-        supabaseSyncService.scopedKey(_firstStepsEligibleKey);
-    final completedKey =
-        supabaseSyncService.scopedKey(_firstStepsCompletedKey);
+    final eligibleKey = supabaseSyncService.scopedKey(_firstStepsEligibleKey);
+    final completedKey = supabaseSyncService.scopedKey(_firstStepsCompletedKey);
     final bundleKey =
         supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey);
 
@@ -694,14 +749,10 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     );
 
     // Mirror to Supabase (best-effort).
-    final userId = supabaseSyncService.currentUserId;
-    if (userId != null) {
-      await supabaseSyncService.upsertRow('user_profiles', userId, {
-        'id': userId,
-        'first_steps_completed': completed.map((e) => e.key).toList(),
-        'first_steps_bundle_claimed': bundleClaimed,
-      });
-    }
+    await persistFirstStepsStateToSupabase(
+      completed: completed,
+      bundleClaimed: bundleClaimed,
+    );
   }
 
   Future<void> _markBeginnerComplete(BeginnerQuestId id) async {
@@ -768,11 +819,56 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     state = state.copyWith(completedIds: updated);
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_completedKey, jsonEncode(updated.toList()));
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_completedKey),
+      jsonEncode(updated.toList()),
+    );
+
+    // Upsert to Supabase (best-effort). Composite unique key is
+    // (user_id, quest_id, period_start) — must be passed as onConflict.
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.upsertRow(
+        'user_quest_progress',
+        userId,
+        {
+          'quest_id': id,
+          'cadence': quest.cadence.name,
+          'progress': quest.target > 0 ? quest.target : 1,
+          'completed': true,
+          'period_start': _periodStartFor(quest.cadence),
+        },
+        onConflict: 'user_id,quest_id,period_start',
+      );
+    }
 
     if (quest.xpReward > 0) await awardXp(quest.xpReward);
     if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
     if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
+  }
+
+  /// Returns the period_start date (YYYY-MM-DD) for a given cadence.
+  String _periodStartFor(QuestCadence cadence) {
+    final DateTime date;
+    switch (cadence) {
+      case QuestCadence.daily:
+        final n = DateTime.now();
+        date = DateTime(n.year, n.month, n.day);
+      case QuestCadence.weekly:
+        date = _weekStart();
+      case QuestCadence.monthly:
+        date = _monthStart();
+    }
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Persist the current progress map to SharedPreferences (scoped).
+  Future<void> _persistProgress(Map<String, int> progress) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_progressKey),
+      jsonEncode(progress),
+    );
   }
 
   /// Try to complete a quest by pool index + cadence if it's active today.
@@ -871,7 +967,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /// Update progress for a threshold quest and complete if target reached.
-  Future<void> _updateProgress(QuestCadence cadence, int poolIndex, int count) async {
+  Future<void> _updateProgress(
+      QuestCadence cadence, int poolIndex, int count) async {
     final String prefix;
     final String datePart;
     final List<Quest> pool;
@@ -892,12 +989,43 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     }
 
     final id = '${prefix}_${poolIndex}_$datePart';
-    final quest = pool.cast<Quest?>().firstWhere((q) => q?.id == id, orElse: () => null);
+    final quest =
+        pool.cast<Quest?>().firstWhere((q) => q?.id == id, orElse: () => null);
     if (quest == null) return;
 
     final clamped = count.clamp(0, quest.target > 0 ? quest.target : count);
+
+    // Skip no-op updates to avoid thrashing the cache and Supabase.
+    if (state.progress[id] == clamped) {
+      if (quest.target > 0 && clamped >= quest.target) {
+        await completeQuest(id);
+      }
+      return;
+    }
+
     final updated = {...state.progress, id: clamped};
     state = state.copyWith(progress: updated);
+
+    // Persist progress map locally
+    await _persistProgress(updated);
+
+    // Upsert progress to Supabase (best-effort). Composite unique key is
+    // (user_id, quest_id, period_start) — must be passed as onConflict.
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null && !state.completedIds.contains(id)) {
+      await supabaseSyncService.upsertRow(
+        'user_quest_progress',
+        userId,
+        {
+          'quest_id': id,
+          'cadence': quest.cadence.name,
+          'progress': clamped,
+          'completed': false,
+          'period_start': _periodStartFor(quest.cadence),
+        },
+        onConflict: 'user_id,quest_id,period_start',
+      );
+    }
 
     if (quest.target > 0 && clamped >= quest.target) {
       await completeQuest(id);
@@ -979,9 +1107,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final prefs = await SharedPreferences.getInstance();
     final key = supabaseSyncService.scopedKey(_tierUpsLogKey);
     final raw = prefs.getString(key);
-    final List<String> log = raw == null
-        ? <String>[]
-        : (jsonDecode(raw) as List).cast<String>();
+    final List<String> log =
+        raw == null ? <String>[] : (jsonDecode(raw) as List).cast<String>();
     log.add(DateTime.now().toIso8601String());
     // Cap log size to avoid unbounded growth — 90 days of tier-ups is plenty
     // for any monthly window.
@@ -1007,9 +1134,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final prefs = await SharedPreferences.getInstance();
     final key = supabaseSyncService.scopedKey(_relatedDuaSavesLogKey);
     final raw = prefs.getString(key);
-    final List<String> log = raw == null
-        ? <String>[]
-        : (jsonDecode(raw) as List).cast<String>();
+    final List<String> log =
+        raw == null ? <String>[] : (jsonDecode(raw) as List).cast<String>();
     log.add(DateTime.now().toIso8601String());
     if (log.length > 200) {
       log.removeRange(0, log.length - 200);
@@ -1082,6 +1208,149 @@ final questsProvider =
 });
 
 // ---------------------------------------------------------------------------
+// Quest progress sync from Supabase
+// ---------------------------------------------------------------------------
+
+/// Hydrate local quest progress cache from Supabase.
+/// Rebuilds `completedIds` and `progress` map from `user_quest_progress` rows.
+/// If server is empty and local has data, seed server from local.
+Future<void> syncQuestProgressFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _completedKey);
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _progressKey);
+
+  final rows = await supabaseSyncService.fetchRows(
+    'user_quest_progress',
+    userId,
+    orderBy: 'updated_at',
+  );
+
+  if (rows.isEmpty) {
+    // Seed server from local if we have any data.
+    final completedRaw =
+        prefs.getString(supabaseSyncService.scopedKey(_completedKey));
+    final progressRaw =
+        prefs.getString(supabaseSyncService.scopedKey(_progressKey));
+
+    final Set<String> localCompleted = completedRaw == null
+        ? <String>{}
+        : ((jsonDecode(completedRaw) as List).cast<String>().toSet());
+    final Map<String, int> localProgress = progressRaw == null
+        ? <String, int>{}
+        : (jsonDecode(progressRaw) as Map<String, dynamic>)
+            .map((k, v) => MapEntry(k, (v as num).toInt()));
+
+    if (localCompleted.isEmpty && localProgress.isEmpty) return;
+
+    // Build rows from local state. Derive period_start by parsing the suffix
+    // encoded in the quest_id itself (e.g. daily_0_2026-04-09 → 2026-04-09,
+    // weekly_0_2026-W04-06 → 2026-04-06, monthly_0_2026-04 → 2026-04-01).
+    // Fall back to today for any quest_id we can't parse.
+    final String todayStr;
+    {
+      final n = DateTime.now();
+      todayStr =
+          '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+    }
+
+    final questIds = {...localCompleted, ...localProgress.keys};
+    final seedRows = questIds.map((id) {
+      final cadence = _cadenceFromQuestId(id);
+      final periodStart = _periodStartFromQuestId(id) ?? todayStr;
+      return {
+        'user_id': userId,
+        'quest_id': id,
+        'cadence': cadence,
+        'progress': localProgress[id] ?? 0,
+        'completed': localCompleted.contains(id),
+        'period_start': periodStart,
+      };
+    }).toList();
+
+    await supabaseSyncService.batchInsertRows(
+      'user_quest_progress',
+      seedRows,
+    );
+    return;
+  }
+
+  // Server data wins — rebuild local state from rows.
+  final Set<String> completedIds = {};
+  final Map<String, int> progress = {};
+  for (final row in rows) {
+    final questId = row['quest_id'] as String?;
+    if (questId == null) continue;
+    final isCompleted = row['completed'] == true;
+    final progressVal = (row['progress'] as num?)?.toInt() ?? 0;
+    if (isCompleted) completedIds.add(questId);
+    if (progressVal > 0) progress[questId] = progressVal;
+  }
+
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_completedKey),
+    jsonEncode(completedIds.toList()),
+  );
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_progressKey),
+    jsonEncode(progress),
+  );
+}
+
+/// Derive cadence string from quest ID prefix (daily_*, weekly_*, monthly_*).
+String _cadenceFromQuestId(String questId) {
+  if (questId.startsWith('weekly_')) return 'weekly';
+  if (questId.startsWith('monthly_')) return 'monthly';
+  return 'daily';
+}
+
+/// Extract the period_start date (YYYY-MM-DD) from a quest ID suffix.
+///
+/// Quest IDs encode their period:
+///   daily_{poolIndex}_{YYYY-MM-DD}           → the date itself
+///   weekly_{poolIndex}_{YYYY-WMM-DD}         → the Monday of that week
+///   monthly_{poolIndex}_{YYYY-MM}            → the 1st of that month
+///
+/// Returns null if the suffix can't be parsed.
+String? _periodStartFromQuestId(String questId) {
+  // Strip the prefix up to and including the pool index: "daily_0_".
+  // Everything after that is the period suffix.
+  final underscoreIdx = questId.indexOf('_');
+  if (underscoreIdx < 0) return null;
+  final secondUnderscoreIdx = questId.indexOf('_', underscoreIdx + 1);
+  if (secondUnderscoreIdx < 0) return null;
+  final suffix = questId.substring(secondUnderscoreIdx + 1);
+  if (suffix.isEmpty) return null;
+
+  if (questId.startsWith('daily_')) {
+    // suffix is already YYYY-MM-DD
+    return _isValidDate(suffix) ? suffix : null;
+  }
+
+  if (questId.startsWith('weekly_')) {
+    // suffix is YYYY-WMM-DD (e.g. 2026-W04-06). Extract year, month, day.
+    final match = RegExp(r'^(\d{4})-W(\d{2})-(\d{2})$').firstMatch(suffix);
+    if (match == null) return null;
+    return '${match.group(1)}-${match.group(2)}-${match.group(3)}';
+  }
+
+  if (questId.startsWith('monthly_')) {
+    // suffix is YYYY-MM. Month start = YYYY-MM-01.
+    final match = RegExp(r'^(\d{4})-(\d{2})$').firstMatch(suffix);
+    if (match == null) return null;
+    return '${match.group(1)}-${match.group(2)}-01';
+  }
+
+  return null;
+}
+
+bool _isValidDate(String s) {
+  return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(s);
+}
+
+// ---------------------------------------------------------------------------
 // First Steps cache hydration from Supabase
 // ---------------------------------------------------------------------------
 
@@ -1133,6 +1402,24 @@ Future<void> syncFirstStepsFromSupabase() async {
   } catch (_) {
     // Best-effort — fall back to whatever's already cached locally.
   }
+}
+
+Future<void> persistFirstStepsStateToSupabase({
+  required Set<BeginnerQuestId> completed,
+  required bool bundleClaimed,
+}) async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  await supabaseSyncService.upsertRawRow(
+    'user_profiles',
+    {
+      'id': userId,
+      'first_steps_completed': completed.map((e) => e.key).toList(),
+      'first_steps_bundle_claimed': bundleClaimed,
+    },
+    onConflict: 'id',
+  );
 }
 
 // ---------------------------------------------------------------------------

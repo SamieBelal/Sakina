@@ -34,19 +34,57 @@ class SupabaseSyncService {
   }
 
   /// Returns `true` when the write succeeds, `false` on any failure.
+  ///
+  /// [onConflict] names the columns Supabase should use as the conflict
+  /// target. Required for tables whose uniqueness is a composite constraint
+  /// (e.g. `user_id,usage_date`) rather than a single-column primary key —
+  /// otherwise PostgREST defaults to the PK, inserts a fresh row, and hits
+  /// the composite unique constraint, silently failing every write after
+  /// the first.
+  ///
+  /// Tables where `user_id` IS the primary key (user_xp, user_tokens,
+  /// user_streaks, user_daily_rewards) can omit [onConflict] — the default
+  /// PK resolution works. Tables with a separate uuid PK and a composite
+  /// unique constraint MUST pass [onConflict].
   Future<bool> upsertRow(
     String table,
     String userId,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    String? onConflict,
+  }) async {
     try {
-      await Supabase.instance.client.from(table).upsert({
-        'user_id': userId,
-        ...data,
-      });
+      await Supabase.instance.client.from(table).upsert(
+        {
+          'user_id': userId,
+          ...data,
+        },
+        onConflict: onConflict,
+      );
       return true;
     } catch (e) {
       debugPrint('[SupabaseSyncService] upsertRow($table) failed: $e');
+      return false;
+    }
+  }
+
+  /// Upsert a row without injecting `user_id`.
+  ///
+  /// Use this for tables whose identity column is something else (for example
+  /// `user_profiles.id`). Most user-scoped tables should still use [upsertRow]
+  /// so the caller cannot forget to include `user_id`.
+  Future<bool> upsertRawRow(
+    String table,
+    Map<String, dynamic> data, {
+    String? onConflict,
+  }) async {
+    try {
+      await Supabase.instance.client.from(table).upsert(
+            data,
+            onConflict: onConflict,
+          );
+      return true;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] upsertRawRow($table) failed: $e');
       return false;
     }
   }
@@ -203,6 +241,11 @@ class SupabaseSyncService {
     }
   }
 
+  /// Migration rule: legacy unscoped keys are copied to the *current* user's
+  /// scoped key exactly ONCE, then deleted. Keeping the legacy key alive would
+  /// let a second user who signs in later inherit the first user's local
+  /// data, then sync it to their own Supabase account — a cross-account
+  /// data bleed. Delete-after-copy makes the migration one-way.
   Future<int?> migrateLegacyIntCache(
     SharedPreferences prefs,
     String baseKey,
@@ -213,6 +256,7 @@ class SupabaseSyncService {
       if (value != null) {
         await prefs.setInt(scoped, value);
       }
+      await prefs.remove(baseKey);
     }
     return prefs.getInt(scoped);
   }
@@ -227,6 +271,7 @@ class SupabaseSyncService {
       if (value != null) {
         await prefs.setString(scoped, value);
       }
+      await prefs.remove(baseKey);
     }
     return prefs.getString(scoped);
   }
@@ -241,6 +286,7 @@ class SupabaseSyncService {
       if (value != null) {
         await prefs.setStringList(scoped, value);
       }
+      await prefs.remove(baseKey);
     }
     return prefs.getStringList(scoped);
   }

@@ -15,7 +15,10 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    SupabaseSyncService.debugSetInstance(FakeSupabaseSyncService());
   });
+
+  tearDown(SupabaseSyncService.debugReset);
 
   test('legacy anchor_names JSON migrates to normalized discovery quiz results',
       () async {

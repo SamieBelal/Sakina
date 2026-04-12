@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -472,7 +473,10 @@ const _achievementsKey = 'sakina_achievements_unlocked';
 
 Future<Set<String>> getUnlockedAchievements() async {
   final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_achievementsKey);
+  final raw = await supabaseSyncService.migrateLegacyStringCache(
+    prefs,
+    _achievementsKey,
+  );
   if (raw == null) return {};
   try {
     return (jsonDecode(raw) as List).cast<String>().toSet();
@@ -486,8 +490,62 @@ Future<Set<String>> unlockAchievement(String id) async {
   final current = await getUnlockedAchievements();
   if (current.contains(id)) return current;
   final updated = {...current, id};
-  await prefs.setString(_achievementsKey, jsonEncode(updated.toList()));
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_achievementsKey),
+    jsonEncode(updated.toList()),
+  );
+
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.insertRow('user_achievements', {
+      'user_id': userId,
+      'achievement_id': id,
+    });
+  }
+
   return updated;
+}
+
+/// Hydrate local achievement cache from Supabase.
+/// If server has data, it becomes the source of truth. If server is empty
+/// and local has data, seed the server from local.
+Future<void> syncAchievementsCacheFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _achievementsKey);
+
+  final rows = await supabaseSyncService.fetchRows(
+    'user_achievements',
+    userId,
+    orderBy: 'unlocked_at',
+  );
+
+  final scoped = supabaseSyncService.scopedKey(_achievementsKey);
+
+  if (rows.isEmpty) {
+    // Seed server from local if we have data.
+    final localRaw = prefs.getString(scoped);
+    if (localRaw == null) return;
+    try {
+      final localIds = (jsonDecode(localRaw) as List).cast<String>();
+      if (localIds.isEmpty) return;
+      await supabaseSyncService.batchInsertRows(
+        'user_achievements',
+        localIds
+            .map((id) => {'user_id': userId, 'achievement_id': id})
+            .toList(),
+      );
+    } catch (_) {}
+    return;
+  }
+
+  final ids = rows
+      .map((row) => row['achievement_id'] as String?)
+      .whereType<String>()
+      .toSet();
+  await prefs.setString(scoped, jsonEncode(ids.toList()));
 }
 
 // ---------------------------------------------------------------------------

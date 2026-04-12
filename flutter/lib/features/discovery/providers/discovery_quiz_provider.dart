@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/discovery_quiz.dart';
 import 'package:sakina/services/public_catalog_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _discoveryQuizResultsKey = 'sakina_discovery_quiz_results_v1';
@@ -141,14 +142,30 @@ class DiscoveryQuizNotifier extends StateNotifier<DiscoveryQuizState> {
 
 Future<void> saveDiscoveryQuizResults(List<AnchorResult> results) async {
   final prefs = await SharedPreferences.getInstance();
+  final encodedResults = results.map(_encodeAnchorResult).toList();
   final payload = jsonEncode({
     'version': 1,
-    'results': results.map(_encodeAnchorResult).toList(),
+    'results': encodedResults,
   });
 
-  await prefs.setString(_discoveryQuizResultsKey, payload);
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_discoveryQuizResultsKey),
+    payload,
+  );
   await prefs.remove(_legacyDiscoveryQuizResultsKey);
   await prefs.remove(_legacyAnchorNamesKey);
+
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    // Composite key is (user_id) via the unique constraint — not the PK
+    // (which is a uuid id column). Must pass onConflict explicitly.
+    await supabaseSyncService.upsertRow(
+      'user_discovery_results',
+      userId,
+      {'anchor_names': encodedResults},
+      onConflict: 'user_id',
+    );
+  }
 }
 
 Future<List<AnchorResult>> loadSavedDiscoveryQuizResults() async {
@@ -156,7 +173,10 @@ Future<List<AnchorResult>> loadSavedDiscoveryQuizResults() async {
 
   String? normalizedJson;
   try {
-    normalizedJson = prefs.getString(_discoveryQuizResultsKey);
+    normalizedJson = await supabaseSyncService.migrateLegacyStringCache(
+      prefs,
+      _discoveryQuizResultsKey,
+    );
   } catch (_) {}
   final normalized = _decodeSavedResults(normalizedJson);
   if (normalized.isNotEmpty) return normalized;
@@ -184,7 +204,7 @@ Future<List<AnchorResult>> loadSavedDiscoveryQuizResults() async {
   final legacyAnchorNames = prefs.getStringList(_legacyAnchorNamesKey);
   if (legacyAnchorNames != null && legacyAnchorNames.isNotEmpty) {
     final migrated = legacyAnchorNames
-        .map((name) => _anchorResultFromName(name))
+        .map(_anchorResultFromName)
         .whereType<AnchorResult>()
         .toList();
     if (migrated.isNotEmpty) {
@@ -194,6 +214,52 @@ Future<List<AnchorResult>> loadSavedDiscoveryQuizResults() async {
   }
 
   return [];
+}
+
+/// Hydrate local discovery results cache from Supabase.
+/// Server data becomes source of truth. If server empty and local exists,
+/// seed server from local.
+Future<void> syncDiscoveryResultsFromSupabase() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(
+    prefs,
+    _discoveryQuizResultsKey,
+  );
+
+  final row = await supabaseSyncService.fetchRow(
+    'user_discovery_results',
+    userId,
+    columns: 'anchor_names',
+  );
+
+  if (row == null) {
+    // Seed from local if we have results.
+    final localResults = await loadSavedDiscoveryQuizResults();
+    if (localResults.isNotEmpty) {
+      await supabaseSyncService.upsertRow(
+        'user_discovery_results',
+        userId,
+        {'anchor_names': localResults.map(_encodeAnchorResult).toList()},
+        onConflict: 'user_id',
+      );
+    }
+    return;
+  }
+
+  final anchorNames = row['anchor_names'];
+  if (anchorNames is! List || anchorNames.isEmpty) return;
+
+  final payload = jsonEncode({
+    'version': 1,
+    'results': anchorNames,
+  });
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_discoveryQuizResultsKey),
+    payload,
+  );
 }
 
 Future<List<String>> loadSavedDiscoveryQuizAnchorNames() async {
@@ -210,7 +276,7 @@ List<AnchorResult> _decodeSavedResults(String? rawJson) {
       final results = decoded['results'];
       if (results is List) {
         return results
-            .map((item) => _anchorResultFromJson(item))
+            .map(_anchorResultFromJson)
             .whereType<AnchorResult>()
             .toList();
       }
@@ -218,7 +284,7 @@ List<AnchorResult> _decodeSavedResults(String? rawJson) {
 
     if (decoded is List) {
       return decoded
-          .map((item) => _anchorResultFromJson(item))
+          .map(_anchorResultFromJson)
           .whereType<AnchorResult>()
           .toList();
     }
