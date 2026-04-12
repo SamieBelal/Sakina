@@ -472,17 +472,46 @@ const allAchievements = <Achievement>[
 const _achievementsKey = 'sakina_achievements_unlocked';
 
 Future<Set<String>> getUnlockedAchievements() async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = await supabaseSyncService.migrateLegacyStringCache(
-    prefs,
-    _achievementsKey,
-  );
+  final raw = await migrateAchievementsCacheForHydration();
   if (raw == null) return {};
   try {
     return (jsonDecode(raw) as List).cast<String>().toSet();
   } catch (_) {
     return {};
   }
+}
+
+Future<String?> migrateAchievementsCacheForHydration() async {
+  final prefs = await SharedPreferences.getInstance();
+  return supabaseSyncService.migrateLegacyStringCache(prefs, _achievementsKey);
+}
+
+Future<void> hydrateAchievementsCacheFromRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final ids = rows
+      .map((row) => row['achievement_id'] as String?)
+      .whereType<String>()
+      .toSet()
+      .toList();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_achievementsKey),
+    jsonEncode(ids),
+  );
+}
+
+Future<void> seedAchievementsToSupabaseFromLocalCache() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final localIds = await getUnlockedAchievements();
+  if (localIds.isEmpty) return;
+
+  await supabaseSyncService.batchInsertRows(
+    'user_achievements',
+    localIds.map((id) => {'user_id': userId, 'achievement_id': id}).toList(),
+  );
 }
 
 Future<Set<String>> unlockAchievement(String id) async {
@@ -512,9 +541,7 @@ Future<Set<String>> unlockAchievement(String id) async {
 Future<void> syncAchievementsCacheFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  await supabaseSyncService.migrateLegacyStringCache(prefs, _achievementsKey);
+  await migrateAchievementsCacheForHydration();
 
   final rows = await supabaseSyncService.fetchRows(
     'user_achievements',
@@ -522,30 +549,11 @@ Future<void> syncAchievementsCacheFromSupabase() async {
     orderBy: 'unlocked_at',
   );
 
-  final scoped = supabaseSyncService.scopedKey(_achievementsKey);
-
   if (rows.isEmpty) {
-    // Seed server from local if we have data.
-    final localRaw = prefs.getString(scoped);
-    if (localRaw == null) return;
-    try {
-      final localIds = (jsonDecode(localRaw) as List).cast<String>();
-      if (localIds.isEmpty) return;
-      await supabaseSyncService.batchInsertRows(
-        'user_achievements',
-        localIds
-            .map((id) => {'user_id': userId, 'achievement_id': id})
-            .toList(),
-      );
-    } catch (_) {}
+    await seedAchievementsToSupabaseFromLocalCache();
     return;
   }
-
-  final ids = rows
-      .map((row) => row['achievement_id'] as String?)
-      .whereType<String>()
-      .toSet();
-  await prefs.setString(scoped, jsonEncode(ids.toList()));
+  await hydrateAchievementsCacheFromRows(rows);
 }
 
 // ---------------------------------------------------------------------------

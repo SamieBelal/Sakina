@@ -97,15 +97,63 @@ Future<void> _upsertToday(SharedPreferences prefs) async {
   );
 }
 
+Future<void> hydrateDailyUsageCacheFromPayload(
+  Map<String, dynamic> section,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final serverReflect = (section['reflect_uses'] as num?)?.toInt();
+  final serverBuiltDua = (section['built_dua_uses'] as num?)?.toInt();
+  if (serverReflect != null) {
+    await prefs.setInt(_todayKey('reflect'), serverReflect);
+  }
+  if (serverBuiltDua != null) {
+    await prefs.setInt(_todayKey('built_dua'), serverBuiltDua);
+  }
+}
+
+Map<String, dynamic>? _findTodayUsageRow(List<Map<String, dynamic>> rows) {
+  final today = _today();
+  return rows.cast<Map<String, dynamic>?>().firstWhere(
+        (row) => row?['usage_date'] == today,
+        orElse: () => null,
+      );
+}
+
+Future<void> hydrateDailyUsageCacheFromRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final todayRow = _findTodayUsageRow(rows);
+  if (todayRow == null) return;
+  await hydrateDailyUsageCacheFromPayload(todayRow);
+}
+
+Future<void> seedDailyUsageToSupabaseFromLocalCache() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
+  final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
+  if (reflectUses <= 0 && builtDuaUses <= 0) return;
+
+  await supabaseSyncService.upsertRow(
+    'user_daily_usage',
+    userId,
+    {
+      'usage_date': _today(),
+      'reflect_uses': reflectUses,
+      'built_dua_uses': builtDuaUses,
+    },
+    onConflict: 'user_id,usage_date',
+  );
+}
+
 /// Hydrate local daily usage cache from Supabase for today's date.
 /// If server has data, it becomes source of truth. If server empty and
 /// local has counts, seed server from local.
 Future<void> syncDailyUsageFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  final today = _today();
 
   // Server row keyed by user_id AND usage_date. fetchRow only supports user_id,
   // so we use fetchRows + filter by usage_date client-side.
@@ -115,36 +163,9 @@ Future<void> syncDailyUsageFromSupabase() async {
     orderBy: 'usage_date',
   );
 
-  final todayRow = rows.cast<Map<String, dynamic>?>().firstWhere(
-        (row) => row?['usage_date'] == today,
-        orElse: () => null,
-      );
-
-  if (todayRow == null) {
-    // Seed from local if we have any usage today.
-    final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
-    final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
-    if (reflectUses > 0 || builtDuaUses > 0) {
-      await supabaseSyncService.upsertRow(
-        'user_daily_usage',
-        userId,
-        {
-          'usage_date': today,
-          'reflect_uses': reflectUses,
-          'built_dua_uses': builtDuaUses,
-        },
-        onConflict: 'user_id,usage_date',
-      );
-    }
+  if (_findTodayUsageRow(rows) == null) {
+    await seedDailyUsageToSupabaseFromLocalCache();
     return;
   }
-
-  final serverReflect = todayRow['reflect_uses'] as int?;
-  final serverBuiltDua = todayRow['built_dua_uses'] as int?;
-  if (serverReflect != null) {
-    await prefs.setInt(_todayKey('reflect'), serverReflect);
-  }
-  if (serverBuiltDua != null) {
-    await prefs.setInt(_todayKey('built_dua'), serverBuiltDua);
-  }
+  await hydrateDailyUsageCacheFromRows(rows);
 }

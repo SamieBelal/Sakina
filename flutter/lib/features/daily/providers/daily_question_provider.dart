@@ -149,9 +149,6 @@ Future<void> syncDailyAnswersFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
 
-  final prefs = await SharedPreferences.getInstance();
-  final today = todayKey();
-
   // Fetch all rows (we filter by today's date client-side — fetchRows
   // doesn't support compound filters).
   final rows = await supabaseSyncService.fetchRows(
@@ -160,46 +157,37 @@ Future<void> syncDailyAnswersFromSupabase() async {
     orderBy: 'answered_at',
   );
 
-  // Find today's answer: row whose answered_at, in the device's local time,
-  // falls on today's date. We cannot string-match against a UTC timestamp
-  // because a Pacific user answering at 5pm produces `2026-04-10T00:00:00Z`
-  // while local today is still `2026-04-09` — startsWith would miss the row.
-  final todayRow = rows.cast<Map<String, dynamic>?>().firstWhere(
-        (row) {
-          final raw = row?['answered_at']?.toString();
-          if (raw == null) return false;
-          final parsed = DateTime.tryParse(raw)?.toLocal();
-          if (parsed == null) return false;
-          final localDate =
-              '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
-          return localDate == today;
-        },
-        orElse: () => null,
-      );
-
-  if (todayRow == null) {
-    // Seed from local if we have an answer today.
-    final scoped = _dailyAnswerKey(today);
-    final localJson = prefs.getString(scoped);
-    if (localJson == null) return;
-    try {
-      final data = jsonDecode(localJson) as Map<String, dynamic>;
-      await supabaseSyncService.insertRow('user_daily_answers', {
-        'user_id': userId,
-        'question_id': data['questionId'] ?? 0,
-        'selected_option': data['answer'] ?? '',
-        'name_returned': data['name'] ?? '',
-        'name_arabic': data['nameArabic'] ?? '',
-        'teaching': data['teaching'] ?? '',
-        'dua_arabic': data['duaArabic'] ?? '',
-        'dua_transliteration': data['duaTransliteration'] ?? '',
-        'dua_translation': data['duaTranslation'] ?? '',
-      });
-    } catch (_) {}
+  if (_findTodayRow(rows) == null) {
+    await seedDailyAnswersToSupabaseFromLocalCache();
     return;
   }
+  await hydrateDailyAnswersCacheFromRows(rows);
+}
 
-  // Server has today's answer — cache locally.
+Map<String, dynamic>? _findTodayRow(List<Map<String, dynamic>> rows) {
+  final today = todayKey();
+  return rows.cast<Map<String, dynamic>?>().firstWhere(
+    (row) {
+      final raw = row?['answered_at']?.toString();
+      if (raw == null) return false;
+      final parsed = DateTime.tryParse(raw)?.toLocal();
+      if (parsed == null) return false;
+      final localDate =
+          '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+      return localDate == today;
+    },
+    orElse: () => null,
+  );
+}
+
+Future<void> hydrateDailyAnswersCacheFromRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final todayRow = _findTodayRow(rows);
+  if (todayRow == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final today = todayKey();
   await prefs.setString(
     _dailyAnswerKey(today),
     jsonEncode({
@@ -214,6 +202,30 @@ Future<void> syncDailyAnswersFromSupabase() async {
       'duaTranslation': todayRow['dua_translation'] ?? '',
     }),
   );
+}
+
+Future<void> seedDailyAnswersToSupabaseFromLocalCache() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final localJson = prefs.getString(_dailyAnswerKey(todayKey()));
+  if (localJson == null) return;
+
+  try {
+    final data = jsonDecode(localJson) as Map<String, dynamic>;
+    await supabaseSyncService.insertRow('user_daily_answers', {
+      'user_id': userId,
+      'question_id': data['questionId'] ?? 0,
+      'selected_option': data['answer'] ?? '',
+      'name_returned': data['name'] ?? '',
+      'name_arabic': data['nameArabic'] ?? '',
+      'teaching': data['teaching'] ?? '',
+      'dua_arabic': data['duaArabic'] ?? '',
+      'dua_transliteration': data['duaTransliteration'] ?? '',
+      'dua_translation': data['duaTranslation'] ?? '',
+    });
+  } catch (_) {}
 }
 
 // ---------------------------------------------------------------------------

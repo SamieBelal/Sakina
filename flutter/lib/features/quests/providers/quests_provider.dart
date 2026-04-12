@@ -11,6 +11,7 @@ import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/widgets/quest_completion_toast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -440,6 +441,9 @@ class QuestsState {
   /// after presenting the celebration overlay.
   final FirstStepsBundleCelebration? pendingBundleCelebration;
 
+  /// Quests completed since last flush. UI consumes via flushQuestNotifications.
+  final List<Quest> pendingCompletions;
+
   const QuestsState({
     this.daily = const [],
     this.weekly = const [],
@@ -451,6 +455,7 @@ class QuestsState {
     this.firstStepsCompleted = const {},
     this.firstStepsBundleClaimed = false,
     this.pendingBundleCelebration,
+    this.pendingCompletions = const [],
   });
 
   List<Quest> get all => [...daily, ...weekly, ...monthly];
@@ -484,6 +489,7 @@ class QuestsState {
     bool? firstStepsBundleClaimed,
     FirstStepsBundleCelebration? pendingBundleCelebration,
     bool clearPendingBundleCelebration = false,
+    List<Quest>? pendingCompletions,
   }) {
     return QuestsState(
       daily: daily ?? this.daily,
@@ -499,6 +505,7 @@ class QuestsState {
       pendingBundleCelebration: clearPendingBundleCelebration
           ? null
           : (pendingBundleCelebration ?? this.pendingBundleCelebration),
+      pendingCompletions: pendingCompletions ?? this.pendingCompletions,
     );
   }
 }
@@ -809,6 +816,14 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     state = state.copyWith(clearPendingBundleCelebration: true);
   }
 
+  /// Returns and clears pending quest completions for the UI to show toasts.
+  List<Quest> consumePendingCompletions() {
+    if (state.pendingCompletions.isEmpty) return const [];
+    final pending = state.pendingCompletions;
+    state = state.copyWith(pendingCompletions: const []);
+    return pending;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Core completion
   // ─────────────────────────────────────────────────────────────────────────────
@@ -827,7 +842,10 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     }
 
     final updated = {...state.completedIds, id};
-    state = state.copyWith(completedIds: updated);
+    state = state.copyWith(
+      completedIds: updated,
+      pendingCompletions: [...state.pendingCompletions, quest],
+    );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -1218,6 +1236,18 @@ final questsProvider =
 });
 
 // ---------------------------------------------------------------------------
+// Quest notification flush
+// ---------------------------------------------------------------------------
+
+/// Consume pending quest completions and show a toast for each one.
+void flushQuestNotifications(WidgetRef ref) {
+  final quests = ref.read(questsProvider.notifier).consumePendingCompletions();
+  for (final quest in quests) {
+    showQuestCompletionToast(quest);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Quest progress sync from Supabase
 // ---------------------------------------------------------------------------
 
@@ -1227,10 +1257,7 @@ final questsProvider =
 Future<void> syncQuestProgressFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  await supabaseSyncService.migrateLegacyStringCache(prefs, _completedKey);
-  await supabaseSyncService.migrateLegacyStringCache(prefs, _progressKey);
+  await migrateQuestProgressCacheForHydration();
 
   final rows = await supabaseSyncService.fetchRows(
     'user_quest_progress',
@@ -1239,55 +1266,22 @@ Future<void> syncQuestProgressFromSupabase() async {
   );
 
   if (rows.isEmpty) {
-    // Seed server from local if we have any data.
-    final completedRaw =
-        prefs.getString(supabaseSyncService.scopedKey(_completedKey));
-    final progressRaw =
-        prefs.getString(supabaseSyncService.scopedKey(_progressKey));
-
-    final Set<String> localCompleted = completedRaw == null
-        ? <String>{}
-        : ((jsonDecode(completedRaw) as List).cast<String>().toSet());
-    final Map<String, int> localProgress = progressRaw == null
-        ? <String, int>{}
-        : (jsonDecode(progressRaw) as Map<String, dynamic>)
-            .map((k, v) => MapEntry(k, (v as num).toInt()));
-
-    if (localCompleted.isEmpty && localProgress.isEmpty) return;
-
-    // Build rows from local state. Derive period_start by parsing the suffix
-    // encoded in the quest_id itself (e.g. daily_0_2026-04-09 → 2026-04-09,
-    // weekly_0_2026-W04-06 → 2026-04-06, monthly_0_2026-04 → 2026-04-01).
-    // Fall back to today for any quest_id we can't parse.
-    final String todayStr;
-    {
-      final n = DateTime.now();
-      todayStr =
-          '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
-    }
-
-    final questIds = {...localCompleted, ...localProgress.keys};
-    final seedRows = questIds.map((id) {
-      final cadence = _cadenceFromQuestId(id);
-      final periodStart = _periodStartFromQuestId(id) ?? todayStr;
-      return {
-        'user_id': userId,
-        'quest_id': id,
-        'cadence': cadence,
-        'progress': localProgress[id] ?? 0,
-        'completed': localCompleted.contains(id),
-        'period_start': periodStart,
-      };
-    }).toList();
-
-    await supabaseSyncService.batchInsertRows(
-      'user_quest_progress',
-      seedRows,
-    );
+    await seedQuestProgressToSupabaseFromLocalCache();
     return;
   }
+  await hydrateQuestProgressCacheFromRows(rows);
+}
 
-  // Server data wins — rebuild local state from rows.
+Future<void> migrateQuestProgressCacheForHydration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _completedKey);
+  await supabaseSyncService.migrateLegacyStringCache(prefs, _progressKey);
+}
+
+Future<void> hydrateQuestProgressCacheFromRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final prefs = await SharedPreferences.getInstance();
   final Set<String> completedIds = {};
   final Map<String, int> progress = {};
   for (final row in rows) {
@@ -1306,6 +1300,54 @@ Future<void> syncQuestProgressFromSupabase() async {
   await prefs.setString(
     supabaseSyncService.scopedKey(_progressKey),
     jsonEncode(progress),
+  );
+}
+
+Future<void> seedQuestProgressToSupabaseFromLocalCache() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  await migrateQuestProgressCacheForHydration();
+  final prefs = await SharedPreferences.getInstance();
+  final completedRaw =
+      prefs.getString(supabaseSyncService.scopedKey(_completedKey));
+  final progressRaw =
+      prefs.getString(supabaseSyncService.scopedKey(_progressKey));
+
+  final Set<String> localCompleted = completedRaw == null
+      ? <String>{}
+      : ((jsonDecode(completedRaw) as List).cast<String>().toSet());
+  final Map<String, int> localProgress = progressRaw == null
+      ? <String, int>{}
+      : (jsonDecode(progressRaw) as Map<String, dynamic>)
+          .map((k, v) => MapEntry(k, (v as num).toInt()));
+
+  if (localCompleted.isEmpty && localProgress.isEmpty) return;
+
+  final String todayStr;
+  {
+    final n = DateTime.now();
+    todayStr =
+        '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+  }
+
+  final questIds = {...localCompleted, ...localProgress.keys};
+  final seedRows = questIds.map((id) {
+    final cadence = _cadenceFromQuestId(id);
+    final periodStart = _periodStartFromQuestId(id) ?? todayStr;
+    return {
+      'user_id': userId,
+      'quest_id': id,
+      'cadence': cadence,
+      'progress': localProgress[id] ?? 0,
+      'completed': localCompleted.contains(id),
+      'period_start': periodStart,
+    };
+  }).toList();
+
+  await supabaseSyncService.batchInsertRows(
+    'user_quest_progress',
+    seedRows,
   );
 }
 

@@ -143,17 +143,7 @@ class DiscoveryQuizNotifier extends StateNotifier<DiscoveryQuizState> {
 Future<void> saveDiscoveryQuizResults(List<AnchorResult> results) async {
   final prefs = await SharedPreferences.getInstance();
   final encodedResults = results.map(_encodeAnchorResult).toList();
-  final payload = jsonEncode({
-    'version': 1,
-    'results': encodedResults,
-  });
-
-  await prefs.setString(
-    supabaseSyncService.scopedKey(_discoveryQuizResultsKey),
-    payload,
-  );
-  await prefs.remove(_legacyDiscoveryQuizResultsKey);
-  await prefs.remove(_legacyAnchorNamesKey);
+  await _storeDiscoveryResultsPayload(prefs, encodedResults);
 
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
@@ -216,18 +206,83 @@ Future<List<AnchorResult>> loadSavedDiscoveryQuizResults() async {
   return [];
 }
 
+Future<void> migrateDiscoveryResultsCacheForHydration() async {
+  final prefs = await SharedPreferences.getInstance();
+  final normalizedJson = await supabaseSyncService.migrateLegacyStringCache(
+    prefs,
+    _discoveryQuizResultsKey,
+  );
+  if (_decodeSavedResults(normalizedJson).isNotEmpty) {
+    await prefs.remove(_legacyDiscoveryQuizResultsKey);
+    await prefs.remove(_legacyAnchorNamesKey);
+    return;
+  }
+
+  final legacyResults = _decodeSavedResults(
+    prefs.getString(_legacyDiscoveryQuizResultsKey),
+  );
+  if (legacyResults.isNotEmpty) {
+    await _storeDiscoveryResultsPayload(
+      prefs,
+      legacyResults.map(_encodeAnchorResult).toList(),
+    );
+    return;
+  }
+
+  final legacyAnchors =
+      _decodeSavedResults(prefs.getString(_legacyAnchorNamesKey));
+  if (legacyAnchors.isNotEmpty) {
+    await _storeDiscoveryResultsPayload(
+      prefs,
+      legacyAnchors.map(_encodeAnchorResult).toList(),
+    );
+    return;
+  }
+
+  final legacyAnchorNames = prefs.getStringList(_legacyAnchorNamesKey);
+  if (legacyAnchorNames == null || legacyAnchorNames.isEmpty) return;
+
+  final migrated = legacyAnchorNames
+      .map(_anchorResultFromName)
+      .whereType<AnchorResult>()
+      .map(_encodeAnchorResult)
+      .toList();
+  if (migrated.isEmpty) return;
+
+  await _storeDiscoveryResultsPayload(prefs, migrated);
+}
+
+Future<void> hydrateDiscoveryResultsCacheFromPayload(
+  List<dynamic> anchorNames,
+) async {
+  if (anchorNames.isEmpty) return;
+  final prefs = await SharedPreferences.getInstance();
+  await _storeDiscoveryResultsPayload(prefs, anchorNames);
+}
+
+Future<void> seedDiscoveryResultsToSupabaseFromLocalCache() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  await migrateDiscoveryResultsCacheForHydration();
+  final localResults = await loadSavedDiscoveryQuizResults();
+  if (localResults.isEmpty) return;
+
+  await supabaseSyncService.upsertRow(
+    'user_discovery_results',
+    userId,
+    {'anchor_names': localResults.map(_encodeAnchorResult).toList()},
+    onConflict: 'user_id',
+  );
+}
+
 /// Hydrate local discovery results cache from Supabase.
 /// Server data becomes source of truth. If server empty and local exists,
 /// seed server from local.
 Future<void> syncDiscoveryResultsFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
-
-  final prefs = await SharedPreferences.getInstance();
-  await supabaseSyncService.migrateLegacyStringCache(
-    prefs,
-    _discoveryQuizResultsKey,
-  );
+  await migrateDiscoveryResultsCacheForHydration();
 
   final row = await supabaseSyncService.fetchRow(
     'user_discovery_results',
@@ -236,30 +291,13 @@ Future<void> syncDiscoveryResultsFromSupabase() async {
   );
 
   if (row == null) {
-    // Seed from local if we have results.
-    final localResults = await loadSavedDiscoveryQuizResults();
-    if (localResults.isNotEmpty) {
-      await supabaseSyncService.upsertRow(
-        'user_discovery_results',
-        userId,
-        {'anchor_names': localResults.map(_encodeAnchorResult).toList()},
-        onConflict: 'user_id',
-      );
-    }
+    await seedDiscoveryResultsToSupabaseFromLocalCache();
     return;
   }
 
   final anchorNames = row['anchor_names'];
-  if (anchorNames is! List || anchorNames.isEmpty) return;
-
-  final payload = jsonEncode({
-    'version': 1,
-    'results': anchorNames,
-  });
-  await prefs.setString(
-    supabaseSyncService.scopedKey(_discoveryQuizResultsKey),
-    payload,
-  );
+  if (anchorNames is! List) return;
+  await hydrateDiscoveryResultsCacheFromPayload(anchorNames);
 }
 
 Future<List<String>> loadSavedDiscoveryQuizAnchorNames() async {
@@ -291,6 +329,23 @@ List<AnchorResult> _decodeSavedResults(String? rawJson) {
   } catch (_) {}
 
   return const [];
+}
+
+Future<void> _storeDiscoveryResultsPayload(
+  SharedPreferences prefs,
+  List<dynamic> results,
+) async {
+  final payload = jsonEncode({
+    'version': 1,
+    'results': results,
+  });
+
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_discoveryQuizResultsKey),
+    payload,
+  );
+  await prefs.remove(_legacyDiscoveryQuizResultsKey);
+  await prefs.remove(_legacyAnchorNamesKey);
 }
 
 Map<String, dynamic> _encodeAnchorResult(AnchorResult result) {

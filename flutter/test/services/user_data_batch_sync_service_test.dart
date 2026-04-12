@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -32,7 +35,7 @@ void main() {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
-  test('hydrateUserDataFromBatchRpc hydrates Wave 1-2 caches', () async {
+  test('hydrateUserDataFromBatchRpc hydrates all user data caches', () async {
     SharedPreferences.setMockInitialValues({
       'saved_related_duas': jsonEncode([
         {
@@ -122,6 +125,64 @@ void main() {
               'last_engaged_at': '2026-04-02T00:00:00Z',
             },
           ],
+          'achievements': [
+            {
+              'achievement_id': 'first_name',
+              'unlocked_at': '2026-04-09T13:00:00Z',
+            },
+            {
+              'achievement_id': 'reflect_first',
+              'unlocked_at': '2026-04-09T14:00:00Z',
+            },
+          ],
+          'discovery_results': {
+            'anchor_names': [
+              {
+                'nameKey': 'ar-rahman',
+                'name': 'Ar-Rahman',
+                'arabic': 'الرَّحْمَـٰن',
+                'score': 8,
+                'anchor': 'mercy',
+                'detail': 'detail',
+              },
+            ],
+          },
+          'daily_usage': {
+            'usage_date': todayStr(),
+            'reflect_uses': 2,
+            'built_dua_uses': 1,
+          },
+          'daily_answers': [
+            {
+              'answered_at': '${todayStr()}T10:00:00Z',
+              'question_id': 5,
+              'selected_option': 'A specific loss',
+              'name_returned': 'Al-Hadi',
+              'name_arabic': 'الهادي',
+              'teaching': 'Al-Hadi is the Guide',
+              'dua_arabic': '',
+              'dua_transliteration': '',
+              'dua_translation': '',
+            },
+          ],
+          'quest_progress': [
+            {
+              'quest_id': 'daily_0_2026-04-09',
+              'cadence': 'daily',
+              'progress': 1,
+              'completed': true,
+              'period_start': '2026-04-09',
+              'updated_at': '2026-04-09T15:00:00Z',
+            },
+            {
+              'quest_id': 'weekly_0_2026-W04-06',
+              'cadence': 'weekly',
+              'progress': 2,
+              'completed': false,
+              'period_start': '2026-04-06',
+              'updated_at': '2026-04-09T16:00:00Z',
+            },
+          ],
         };
 
     await hydrateUserDataFromBatchRpc();
@@ -155,6 +216,32 @@ void main() {
     expect(
       prefs.getString('sakina_premium_last_grant:user-1'),
       '2026-04',
+    );
+    expect(await getUnlockedAchievements(), {'first_name', 'reflect_first'});
+
+    final discoveryResults = await loadSavedDiscoveryQuizResults();
+    expect(discoveryResults, hasLength(1));
+    expect(discoveryResults.first.name, 'Ar-Rahman');
+
+    expect(await getReflectUsageToday(), 2);
+    expect(await getBuiltDuaUsageToday(), 1);
+
+    final dailyAnswer = jsonDecode(
+      prefs.getString('daily_answer_${todayStr()}:user-1')!,
+    ) as Map<String, dynamic>;
+    expect(dailyAnswer['answer'], 'A specific loss');
+    expect(dailyAnswer['name'], 'Al-Hadi');
+
+    final completedRaw = prefs.getString('quests_completed_v2:user-1');
+    final progressRaw = prefs.getString('quests_progress_v2:user-1');
+    expect(
+      (jsonDecode(completedRaw!) as List).cast<String>(),
+      contains('daily_0_2026-04-09'),
+    );
+    expect(
+      (jsonDecode(progressRaw!)
+          as Map<String, dynamic>)['weekly_0_2026-W04-06'],
+      2,
     );
   });
 
@@ -313,5 +400,257 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('sakina_premium_last_grant:user-1'), '2026-03');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc seeds achievements when server section is empty',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_achievements_unlocked:user-1': jsonEncode(['bronze_10']),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] =
+        (params) async => {'achievements': <Map<String, dynamic>>[]};
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(fakeSync.batchInsertCalls, hasLength(1));
+    final seedCall = fakeSync.batchInsertCalls.single;
+    expect(seedCall['table'], 'user_achievements');
+    final rows = seedCall['rows'] as List;
+    expect(rows, hasLength(1));
+    expect(
+        (rows.single as Map<String, dynamic>)['achievement_id'], 'bronze_10');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc seeds discovery results when server section is null',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_discovery_quiz_results_v1:user-1': jsonEncode({
+        'version': 1,
+        'results': [
+          {
+            'nameKey': 'ar-rahman',
+            'name': 'Ar-Rahman',
+            'arabic': 'الرَّحْمَـٰن',
+            'score': 8,
+            'anchor': 'mercy',
+            'detail': 'detail',
+          },
+        ],
+      }),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] =
+        (params) async => {'discovery_results': null};
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(fakeSync.upsertCalls, hasLength(1));
+    final call = fakeSync.upsertCalls.single;
+    expect(call['table'], 'user_discovery_results');
+    expect(call['onConflict'], 'user_id');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc seeds daily usage when server section is null',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'daily_usage_reflect_${todayStr()}:user-1': 2,
+      'daily_usage_built_dua_${todayStr()}:user-1': 1,
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] =
+        (params) async => {'daily_usage': null};
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(fakeSync.upsertCalls, hasLength(1));
+    final call = fakeSync.upsertCalls.single;
+    expect(call['table'], 'user_daily_usage');
+    expect(call['onConflict'], 'user_id,usage_date');
+    final data = call['data'] as Map<String, dynamic>;
+    expect(data['reflect_uses'], 2);
+    expect(data['built_dua_uses'], 1);
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc seeds daily answers when server section is empty',
+      () async {
+    final today = todayStr();
+    SharedPreferences.setMockInitialValues({
+      'daily_answer_$today:user-1': jsonEncode({
+        'date': today,
+        'questionId': 3,
+        'answer': 'Gratitude',
+        'name': 'Ash-Shakur',
+        'nameArabic': 'الشكور',
+        'teaching': '',
+        'duaArabic': '',
+        'duaTransliteration': '',
+        'duaTranslation': '',
+      }),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] =
+        (params) async => {'daily_answers': <Map<String, dynamic>>[]};
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(fakeSync.insertCalls, hasLength(1));
+    final call = fakeSync.insertCalls.single;
+    expect(call['table'], 'user_daily_answers');
+    final data = call['data'] as Map<String, dynamic>;
+    expect(data['selected_option'], 'Gratitude');
+    expect(data['name_returned'], 'Ash-Shakur');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc seeds quest progress when server section is empty',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'quests_completed_v2:user-1': jsonEncode(['daily_0_2026-04-09']),
+      'quests_progress_v2:user-1': jsonEncode({'weekly_1_2026-W04-06': 1}),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] =
+        (params) async => {'quest_progress': <Map<String, dynamic>>[]};
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(fakeSync.batchInsertCalls, hasLength(1));
+    final call = fakeSync.batchInsertCalls.single;
+    expect(call['table'], 'user_quest_progress');
+    final rows = call['rows'] as List;
+    expect(rows, hasLength(2));
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc matches today local for a tomorrow UTC daily answer row',
+      () async {
+    final now = DateTime.now();
+    final localLate = DateTime(now.year, now.month, now.day, 23, 30);
+    final answeredAt = localLate.toUtc().toIso8601String();
+    final answeredLocal = DateTime.parse(answeredAt).toLocal();
+    final today = todayStr();
+
+    fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
+          'daily_answers': [
+            {
+              'answered_at': answeredAt,
+              'question_id': 9,
+              'selected_option': 'Hope',
+              'name_returned': 'Ar-Raja',
+              'name_arabic': '',
+              'teaching': '',
+              'dua_arabic': '',
+              'dua_transliteration': '',
+              'dua_translation': '',
+            },
+          ],
+        };
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect(
+      '${answeredLocal.year}-${answeredLocal.month.toString().padLeft(2, '0')}-${answeredLocal.day.toString().padLeft(2, '0')}',
+      today,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('daily_answer_$today:user-1');
+    expect(stored, isNotNull);
+    final data = jsonDecode(stored!) as Map<String, dynamic>;
+    expect(data['answer'], 'Hope');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc falls back to standalone syncs when batch RPC omits sections',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_achievements_unlocked:user-1': jsonEncode(['existing_local']),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rowLists['user_achievements'] = [
+      {
+        'user_id': 'user-1',
+        'achievement_id': 'first_name',
+      },
+    ];
+    fakeSync.rows['user_discovery_results:user-1'] = {
+      'anchor_names': [
+        {
+          'nameKey': 'ar-rahman',
+          'name': 'Ar-Rahman',
+          'arabic': 'الرَّحْمَـٰن',
+          'score': 8,
+          'anchor': 'mercy',
+          'detail': 'detail',
+        },
+      ],
+    };
+    fakeSync.rowLists['user_daily_usage'] = [
+      {
+        'user_id': 'user-1',
+        'usage_date': todayStr(),
+        'reflect_uses': 2,
+        'built_dua_uses': 1,
+      },
+    ];
+    fakeSync.rowLists['user_daily_answers'] = [
+      {
+        'user_id': 'user-1',
+        'answered_at': '${todayStr()}T10:00:00Z',
+        'question_id': 7,
+        'selected_option': 'Hope',
+        'name_returned': 'Ar-Raja',
+        'name_arabic': '',
+        'teaching': '',
+        'dua_arabic': '',
+        'dua_transliteration': '',
+        'dua_translation': '',
+      },
+    ];
+    fakeSync.rowLists['user_quest_progress'] = [
+      {
+        'user_id': 'user-1',
+        'quest_id': 'daily_0_2026-04-09',
+        'cadence': 'daily',
+        'progress': 1,
+        'completed': true,
+        'period_start': '2026-04-09',
+      },
+    ];
+    fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
+          'xp': {'total_xp': 7},
+        };
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect((await getXp()).totalXp, 7);
+    expect(await getUnlockedAchievements(), {'first_name'});
+    expect((await loadSavedDiscoveryQuizResults()).first.name, 'Ar-Rahman');
+    expect(await getReflectUsageToday(), 2);
+    expect(await getBuiltDuaUsageToday(), 1);
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      jsonDecode(prefs.getString('daily_answer_${todayStr()}:user-1')!)
+          as Map<String, dynamic>,
+      containsPair('answer', 'Hope'),
+    );
+    expect(
+      (jsonDecode(prefs.getString('quests_completed_v2:user-1')!) as List)
+          .cast<String>(),
+      contains('daily_0_2026-04-09'),
+    );
+    expect(fakeSync.batchInsertCalls, isEmpty);
+    expect(fakeSync.upsertCalls, isEmpty);
+    expect(fakeSync.insertCalls, isEmpty);
   });
 }

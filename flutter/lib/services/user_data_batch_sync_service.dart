@@ -1,7 +1,12 @@
+import 'package:sakina/features/daily/providers/daily_question_provider.dart';
+import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -19,6 +24,8 @@ class UserDataBatchPayload {
   factory UserDataBatchPayload.fromRpc(Map<String, dynamic> raw) {
     return UserDataBatchPayload(Map<String, dynamic>.from(raw));
   }
+
+  bool containsKey(String key) => raw.containsKey(key);
 
   Map<String, dynamic>? objectSection(String key) {
     if (!raw.containsKey(key)) return null;
@@ -51,6 +58,9 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     migrateReflectionCachesForHydration(),
     migrateDuaCachesForHydration(),
     migrateCardCollectionCachesForHydration(),
+    migrateAchievementsCacheForHydration(),
+    migrateDiscoveryResultsCacheForHydration(),
+    migrateQuestProgressCacheForHydration(),
   ]);
 
   final payloadRaw = await supabaseSyncService
@@ -132,6 +142,46 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     hydrate: hydrateCardCollectionCacheFromRows,
     seed: seedCardCollectionToSupabaseFromLocalCache,
   );
+  await _hydrateOrSeedListSection(
+    rows: payload.listSection('achievements'),
+    hydrate: hydrateAchievementsCacheFromRows,
+    seed: seedAchievementsToSupabaseFromLocalCache,
+  );
+  await _hydrateOrSeedDiscoveryResults(
+    hasSection: payload.containsKey('discovery_results'),
+    section: payload.objectSection('discovery_results'),
+  );
+  await _hydrateOrSeedDailyUsage(
+    hasSection: payload.containsKey('daily_usage'),
+    section: payload.objectSection('daily_usage'),
+    rows: payload.listSection('daily_usage'),
+  );
+  await _hydrateOrSeedListSection(
+    rows: payload.listSection('daily_answers'),
+    hydrate: hydrateDailyAnswersCacheFromRows,
+    seed: seedDailyAnswersToSupabaseFromLocalCache,
+  );
+  await _hydrateOrSeedListSection(
+    rows: payload.listSection('quest_progress'),
+    hydrate: hydrateQuestProgressCacheFromRows,
+    seed: seedQuestProgressToSupabaseFromLocalCache,
+  );
+
+  if (!payload.containsKey('achievements')) {
+    await syncAchievementsCacheFromSupabase();
+  }
+  if (!payload.containsKey('discovery_results')) {
+    await syncDiscoveryResultsFromSupabase();
+  }
+  if (!payload.containsKey('daily_usage')) {
+    await syncDailyUsageFromSupabase();
+  }
+  if (!payload.containsKey('daily_answers')) {
+    await syncDailyAnswersFromSupabase();
+  }
+  if (!payload.containsKey('quest_progress')) {
+    await syncQuestProgressFromSupabase();
+  }
 }
 
 Future<void> _hydrateOrSeedListSection({
@@ -145,6 +195,42 @@ Future<void> _hydrateOrSeedListSection({
     return;
   }
   await hydrate(rows);
+}
+
+Future<void> _hydrateOrSeedDiscoveryResults({
+  required bool hasSection,
+  required Map<String, dynamic>? section,
+}) async {
+  if (!hasSection) return;
+  if (section == null) {
+    await seedDiscoveryResultsToSupabaseFromLocalCache();
+    return;
+  }
+
+  final anchorNames = section['anchor_names'];
+  if (anchorNames is! List) return;
+  await hydrateDiscoveryResultsCacheFromPayload(anchorNames);
+}
+
+Future<void> _hydrateOrSeedDailyUsage({
+  required bool hasSection,
+  required Map<String, dynamic>? section,
+  required List<Map<String, dynamic>>? rows,
+}) async {
+  if (!hasSection) return;
+  if (rows != null) {
+    if (rows.isEmpty) {
+      await seedDailyUsageToSupabaseFromLocalCache();
+      return;
+    }
+    await hydrateDailyUsageCacheFromRows(rows);
+    return;
+  }
+  if (section == null) {
+    await seedDailyUsageToSupabaseFromLocalCache();
+    return;
+  }
+  await hydrateDailyUsageCacheFromPayload(section);
 }
 
 int? _intValue(dynamic value) {
