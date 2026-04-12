@@ -15,6 +15,7 @@ import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/widgets/achievement_toast.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -86,6 +87,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       _questFired = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(questsProvider.notifier).onCollectionVisited();
+        flushQuestNotifications(ref);
       });
     }
 
@@ -182,8 +184,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                         .animate()
                         .fadeIn(duration: 500.ms)
                         .slideY(begin: 0.05, end: 0, duration: 500.ms),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildProgressSummary(collection),
                     const SizedBox(height: AppSpacing.lg),
                     _buildTierFilters(collection),
                     const SizedBox(height: AppSpacing.lg),
@@ -349,50 +349,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     return entries;
   }
 
-  Widget _buildProgressSummary(CardCollectionState collection) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Text('${collection.totalDiscovered}',
-              style: AppTypography.displaySmall
-                  .copyWith(color: AppColors.primary)),
-          Text(' / ${collection.totalCards}',
-              style: AppTypography.bodyLarge
-                  .copyWith(color: AppColors.textTertiaryLight)),
-          const SizedBox(width: 8),
-          Text('Names discovered',
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.textSecondaryLight)),
-          const Spacer(),
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: CircularProgressIndicator(
-              value: collection.progress,
-              strokeWidth: 3.5,
-              backgroundColor: AppColors.borderLight,
-              color: AppColors.primary,
-            ),
-          ),
-        ],
-      ),
-    )
-        .animate()
-        .fadeIn(duration: 400.ms, delay: 200.ms)
-        .slideY(begin: 0.05, end: 0, duration: 400.ms, delay: 200.ms);
-  }
-
   Widget _buildTierFilters(CardCollectionState collection) {
     var unseenCount = 0;
     for (final id in collection.discoveredIds) {
@@ -473,6 +429,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       CardTier tier, bool isMaxTier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
+    flushQuestNotifications(ref);
     ref
         .read(cardCollectionProvider.notifier)
         .markSeen(card.id, tierNumber: tier.number);
@@ -1116,7 +1073,10 @@ class _CardDetailSheet extends ConsumerWidget {
                                   teaching: card.lesson,
                                   card: card,
                                   engageResult: engageResult,
-                                  onContinue: () => rootNav.pop(),
+                                  onContinue: () {
+                                    rootNav.pop();
+                                    flushQuestNotifications(ref);
+                                  },
                                 ),
                                 transitionsBuilder: (_, anim, __, child) =>
                                     FadeTransition(opacity: anim, child: child),

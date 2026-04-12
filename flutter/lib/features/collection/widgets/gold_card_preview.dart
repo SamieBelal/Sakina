@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 
@@ -40,31 +41,17 @@ class GoldCardPreviewScreen extends StatelessWidget {
 
             const SizedBox(height: 48),
 
-            // ── Comparison ──
-            Text('Side-by-side: Current vs Ornate', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFE8D5A8))),
+            // ── Large single card ──
+            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFE8D5A8))),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Current', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _CurrentGoldTile(arabic: 'الرَّحْمَنُ', transliteration: 'Ar-Rahman'),
-                    ],
+            Center(
+              child: SizedBox(
+                width: 200,
+                child: _GoldOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
+              ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
+                    duration: 2200.ms,
+                    color: const Color(0xFFE8C56D).withValues(alpha: 0.2),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Ornate', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _GoldOrnateTile(arabic: 'الرَّحْمَنُ', transliteration: 'Ar-Rahman', unseen: false),
-                    ],
-                  ),
-                ),
-              ],
             ),
 
             const SizedBox(height: 48),
@@ -86,18 +73,6 @@ class GoldCardPreviewScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(child: _GoldOrnateTile(arabic: 'القُدُّوسُ', transliteration: 'Al-Quddus', unseen: false)),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 48),
-
-            // ── Large single card ──
-            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFE8D5A8))),
-            const SizedBox(height: 16),
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: _GoldOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ),
             ),
 
@@ -135,7 +110,6 @@ class _GoldOrnateTile extends StatelessWidget {
   static const _goldDim = Color(0xFF8B7340);         // dim gold for subtle elements
   static const _glowColor = Color(0xFFE8C56D);      // warm gold glow
   static const _gemBlue = Color(0xFF5B8DD9);         // blue gem accents
-  static const _gemGlow = Color(0xFF7EB3F7);         // blue gem glow
 
   @override
   Widget build(BuildContext context) {
@@ -323,65 +297,6 @@ class _GoldOrnateTile extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Current gold tile (for comparison)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _CurrentGoldTile extends StatelessWidget {
-  const _CurrentGoldTile({required this.arabic, required this.transliteration});
-
-  final String arabic;
-  final String transliteration;
-
-  @override
-  Widget build(BuildContext context) {
-    const tierColor = Color(0xFFC8985E);
-
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: tierColor.withValues(alpha: 0.6), width: 1.5),
-          boxShadow: [
-            BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                return Container(
-                  width: 5, height: 5,
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: tierColor,
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 6),
-            Text(arabic, style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.secondary),
-                textDirection: TextDirection.rtl, textAlign: TextAlign.center, maxLines: 1),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(transliteration, style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight, fontSize: 9),
-                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            const SizedBox(height: 2),
-            Text('Gold', style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700)),
-          ],
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 
@@ -41,31 +42,17 @@ class BronzeCardPreviewScreen extends StatelessWidget {
 
             const SizedBox(height: 48),
 
-            // ── Comparison ──
-            Text('Side-by-side: Current vs Ornate', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD4A574))),
+            // ── Large single card ──
+            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD4A574))),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Current', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _CurrentBronzeTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem'),
-                    ],
+            Center(
+              child: SizedBox(
+                width: 200,
+                child: _BronzeOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
+              ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
+                    duration: 2200.ms,
+                    color: const Color(0xFFE8A154).withValues(alpha: 0.2),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Ornate', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _BronzeOrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: false),
-                    ],
-                  ),
-                ),
-              ],
             ),
 
             const SizedBox(height: 48),
@@ -87,18 +74,6 @@ class BronzeCardPreviewScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(child: _BronzeOrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 48),
-
-            // ── Large single card ──
-            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD4A574))),
-            const SizedBox(height: 16),
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: _BronzeOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ),
             ),
 
@@ -137,7 +112,6 @@ class _BronzeOrnateTile extends StatelessWidget {
   static const _bronzeDim = Color(0xFF8B6338);      // dim bronze
   static const _glowColor = Color(0xFFE8A154);      // warm amber glow
   static const _rubyRed = Color(0xFFCC3333);        // ruby accent
-  static const _rubyGlow = Color(0xFFE85555);       // ruby glow
 
   @override
   Widget build(BuildContext context) {
@@ -363,66 +337,6 @@ class _BronzeOrnateTile extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Current bronze tile (for comparison)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _CurrentBronzeTile extends StatelessWidget {
-  const _CurrentBronzeTile({required this.arabic, required this.transliteration});
-
-  final String arabic;
-  final String transliteration;
-
-  @override
-  Widget build(BuildContext context) {
-    const tierColor = Color(0xFFCD7F32);
-
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: tierColor.withValues(alpha: 0.6), width: 1.5),
-          boxShadow: [
-            BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                final filled = i < 1;
-                return Container(
-                  width: 5, height: 5,
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: filled ? tierColor : tierColor.withValues(alpha: 0.2),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 6),
-            Text(arabic, style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.secondary),
-                textDirection: TextDirection.rtl, textAlign: TextAlign.center, maxLines: 1),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(transliteration, style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight, fontSize: 9),
-                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            const SizedBox(height: 2),
-            Text('Bronze', style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // Bronze Ornate Detail Card
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -431,7 +345,6 @@ class _BronzeOrnateDetailCard extends StatelessWidget {
 
   static const _bgDark = Color(0xFF2A1F1A);
   static const _bgMid = Color(0xFF382A22);
-  static const _bgInner = Color(0xFF2E2028);
   static const _bronzeBright = Color(0xFFD4A574);
   static const _bronzeCore = Color(0xFFCD7F32);
   static const _bronzeDim = Color(0xFF8B6338);

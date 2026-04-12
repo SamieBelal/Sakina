@@ -1,5 +1,5 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 
@@ -38,31 +38,17 @@ class SilverCardPreviewScreen extends StatelessWidget {
 
             const SizedBox(height: 48),
 
-            // ── Section: Comparison ──
-            Text('Side-by-side: Current vs Ornate', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD0D1D5))),
+            // ── Section: Large single card ──
+            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD0D1D5))),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Current', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _CurrentTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem'),
-                    ],
+            Center(
+              child: SizedBox(
+                width: 200,
+                child: _OrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
+              ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
+                    duration: 2200.ms,
+                    color: const Color(0xFFB8C8E0).withValues(alpha: 0.2),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text('Ornate', style: AppTypography.labelMedium.copyWith(color: const Color(0xFF9CA3AF))),
-                      const SizedBox(height: 8),
-                      _OrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: false),
-                    ],
-                  ),
-                ),
-              ],
             ),
 
             const SizedBox(height: 48),
@@ -84,18 +70,6 @@ class SilverCardPreviewScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Expanded(child: _OrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 48),
-
-            // ── Section: Large single card ──
-            Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD0D1D5))),
-            const SizedBox(height: 16),
-            Center(
-              child: SizedBox(
-                width: 200,
-                child: _OrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ),
             ),
 
@@ -312,66 +286,6 @@ class _OrnateTile extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Current design (for comparison)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _CurrentTile extends StatelessWidget {
-  const _CurrentTile({required this.arabic, required this.transliteration});
-
-  final String arabic;
-  final String transliteration;
-
-  @override
-  Widget build(BuildContext context) {
-    const tierColor = Color(0xFFA8A9AD);
-
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: tierColor.withValues(alpha: 0.6), width: 1.5),
-          boxShadow: [
-            BoxShadow(color: tierColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (i) {
-                final filled = i < 2;
-                return Container(
-                  width: 5, height: 5,
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: filled ? tierColor : tierColor.withValues(alpha: 0.2),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 6),
-            Text(arabic, style: AppTypography.nameOfAllahDisplay.copyWith(fontSize: 22, color: AppColors.secondary),
-                textDirection: TextDirection.rtl, textAlign: TextAlign.center, maxLines: 1),
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(transliteration, style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight, fontSize: 9),
-                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            const SizedBox(height: 2),
-            Text('Silver', style: AppTypography.labelSmall.copyWith(color: tierColor, fontSize: 8, fontWeight: FontWeight.w700)),
-          ],
         ),
       ),
     );

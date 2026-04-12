@@ -17,6 +17,7 @@ import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
 import '../features/collection/widgets/bronze_card_preview.dart';
+import '../features/collection/widgets/emerald_card_preview.dart';
 import '../features/store/screens/store_screen.dart';
 import 'app_session.dart';
 
@@ -97,6 +98,11 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         path: '/bronze-preview',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const BronzeCardPreviewScreen(),
+      ),
+      GoRoute(
+        path: '/emerald-preview',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const EmeraldCardPreviewScreen(),
       ),
 
       // Main app with bottom navigation

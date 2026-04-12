@@ -1864,8 +1864,10 @@ class CardCollectionState {
     return !seenIds.contains('$id:$maxTier');
   }
 
-  int get totalDiscovered => discoveredIds.length;
-  int get totalCards => currentCollectibleNames().length;
+  // Each name has 4 cards (Bronze, Silver, Gold, Emerald) = 396 total
+  int get totalCards => currentCollectibleNames().length * 4;
+  // Count tier-cards collected: a name at tier 3 = 3 cards, tier 2 = 2, tier 1 = 1
+  int get totalDiscovered => tiers.values.fold(0, (sum, t) => sum + t);
   double get progress => totalCards > 0 ? totalDiscovered / totalCards : 0;
 
   bool isDiscovered(int id) => discoveredIds.contains(id);
