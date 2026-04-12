@@ -813,6 +813,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildInlineRewards() {
     final rewards = ref.watch(dailyRewardsProvider);
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final claimed = rewards.claimedToday;
     final currentDay = rewards.currentDay;
 
@@ -890,7 +891,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     padding: const EdgeInsets.only(top: 12),
                     child: Column(
                       children: List.generate(7, (i) {
-                        final reward = rewardSchedule[i];
+                        final reward =
+                            scaledRewardForDay(i + 1, isPremium: isPremium);
                         final done = i < currentDay;
                         final isToday = i == currentDay - (claimed ? 1 : 0);
                         return Padding(
@@ -1291,12 +1293,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildRewardCalendar() {
     final rewards = ref.watch(dailyRewardsProvider);
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final claimed = rewards.claimedToday;
 
     // When claimed: show a slim collapsed bar, tap to expand full calendar
     if (claimed && !_rewardCalendarExpanded) {
       final nextDay = rewards.currentDay < 7 ? rewards.currentDay + 1 : null;
-      final nextReward = nextDay != null ? rewardSchedule[nextDay - 1] : null;
+      final nextReward = nextDay != null
+          ? scaledRewardForDay(nextDay, isPremium: isPremium)
+          : null;
 
       return GestureDetector(
         onTap: () {
@@ -1380,7 +1385,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(7, (i) {
                 final day = i + 1;
-                final reward = rewardSchedule[i];
+                final reward = scaledRewardForDay(day, isPremium: isPremium);
                 final isClaimed = day <= rewards.currentDay && claimed
                     ? true
                     : day < rewards.currentDay;
@@ -1402,7 +1407,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             const SizedBox(height: AppSpacing.md),
             if (claimed && rewards.currentDay < 7)
               Text(
-                'Come back tomorrow for ${rewardSchedule[rewards.currentDay].label}',
+                'Come back tomorrow for ${scaledRewardForDay(rewards.currentDay + 1, isPremium: isPremium).label}',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textTertiaryLight,
                 ),
@@ -2653,8 +2658,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                       _completedStat(
                         icon: const Icon(Icons.toll,
                             color: AppColors.secondary, size: 18),
-                        value:
-                            '+${tokenRewardDeeperReflection + tokenRewardQuestComplete}',
+                        value: '${state.tokenBalance}',
                         label: 'tokens',
                       ),
                     ],

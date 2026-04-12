@@ -3,16 +3,15 @@ import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _tokenKey = 'sakina_tokens';
 const String _totalSpentKey = 'sakina_total_tokens_spent';
-const int startingTokens = 100;
+const int startingTokens = 50;
 
 // Token costs
 const int tokenCostReflection = 50;
 const int tokenCostBuiltDua = 50;
 const int tokenCostDiscoverName = 50;
 
-// Token rewards
-const int tokenRewardDeeperReflection = 2;
-const int tokenRewardQuestComplete = 1;
+// Token rewards: muhasabah grants no tokens — the card pull is the reward.
+// Tokens come from quests, daily login rewards, and streak milestones.
 
 class TokenState {
   final int balance;

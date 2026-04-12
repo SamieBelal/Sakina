@@ -1255,268 +1255,288 @@ class _SilverOrnateDetailSheet extends StatelessWidget {
               ),
             ),
 
-            // Content
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle
-                  Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: _silverDim.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
+            // Content (scrollable) + sticky footer (Upgrade button / hint)
+            Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Handle
+                        Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: _silverDim.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
 
-                  // Medallion ring + Arabic
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: _frameGold.withValues(alpha: 0.35), width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                            color: _glowColor.withValues(alpha: 0.15),
-                            blurRadius: 24,
-                            spreadRadius: 4),
-                        BoxShadow(
-                            color: _frameGold.withValues(alpha: 0.1),
-                            blurRadius: 16),
-                      ],
-                    ),
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            card.arabic,
-                            style: AppTypography.nameOfAllahDisplay.copyWith(
-                              fontSize: 38,
-                              color: _silverBright,
-                              shadows: [
-                                Shadow(
-                                    color: _glowColor.withValues(alpha: 0.6),
-                                    blurRadius: 16),
-                                Shadow(
-                                    color: _glowColor.withValues(alpha: 0.3),
-                                    blurRadius: 32),
-                              ],
+                        // Medallion ring + Arabic
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: _frameGold.withValues(alpha: 0.35),
+                                width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: _glowColor.withValues(alpha: 0.15),
+                                  blurRadius: 24,
+                                  spreadRadius: 4),
+                              BoxShadow(
+                                  color: _frameGold.withValues(alpha: 0.1),
+                                  blurRadius: 16),
+                            ],
+                          ),
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(
+                                  card.arabic,
+                                  style:
+                                      AppTypography.nameOfAllahDisplay.copyWith(
+                                    fontSize: 38,
+                                    color: _silverBright,
+                                    shadows: [
+                                      Shadow(
+                                          color:
+                                              _glowColor.withValues(alpha: 0.6),
+                                          blurRadius: 16),
+                                      Shadow(
+                                          color:
+                                              _glowColor.withValues(alpha: 0.3),
+                                          blurRadius: 32),
+                                    ],
+                                  ),
+                                  textDirection: TextDirection.rtl,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
                             ),
-                            textDirection: TextDirection.rtl,
+                          ),
+                        ).animate().fadeIn(duration: 800.ms).scaleXY(
+                            begin: 0.85,
+                            end: 1.0,
+                            duration: 800.ms,
+                            curve: Curves.easeOutBack),
+                        const SizedBox(height: 16),
+
+                        // Tier badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: _silverCore.withValues(alpha: 0.25)),
+                            color: _silverDim.withValues(alpha: 0.12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ...List.generate(
+                                  3,
+                                  (i) => Container(
+                                        width: 5,
+                                        height: 5,
+                                        margin: const EdgeInsets.only(right: 3),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: i < 2
+                                              ? _silverBright
+                                              : _silverDim.withValues(
+                                                  alpha: 0.3),
+                                          boxShadow: i < 2
+                                              ? [
+                                                  BoxShadow(
+                                                      color:
+                                                          _glowColor.withValues(
+                                                              alpha: 0.3),
+                                                      blurRadius: 3),
+                                                ]
+                                              : null,
+                                        ),
+                                      )),
+                              const SizedBox(width: 6),
+                              Text(
+                                'SILVER',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: _silverCore,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 2.0,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                        const SizedBox(height: 16),
+
+                        Text(card.transliteration,
+                                style: AppTypography.headlineMedium
+                                    .copyWith(color: _silverBright))
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 300.ms)
+                            .slideY(
+                                begin: 0.1,
+                                end: 0,
+                                duration: 500.ms,
+                                delay: 300.ms),
+                        const SizedBox(height: 4),
+                        Text(card.english,
+                                style: AppTypography.bodyMedium
+                                    .copyWith(color: _silverCore))
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 400.ms),
+                        const SizedBox(height: 24),
+
+                        // Ornate divider
+                        SizedBox(
+                          height: 12,
+                          width: double.infinity,
+                          child: CustomPaint(
+                            painter: _SilverOrnateDividerPainter(
+                              lineColor: _silverDim.withValues(alpha: 0.3),
+                              accentColor: _frameGold.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Meaning
+                        Text(card.meaning,
+                            style: AppTypography.bodyMedium
+                                .copyWith(color: _silverCore, height: 1.7),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+
+                        // Lesson box
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF1B6B4A).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: const Color(0xFF1B6B4A)
+                                    .withValues(alpha: 0.2)),
+                          ),
+                          child: Text(
+                            card.lesson,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: const Color(0xFF8BC6A5),
+                              fontStyle: FontStyle.italic,
+                              height: 1.6,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),
-                      ),
-                    ),
-                  ).animate().fadeIn(duration: 800.ms).scaleXY(
-                      begin: 0.85,
-                      end: 1.0,
-                      duration: 800.ms,
-                      curve: Curves.easeOutBack),
-                  const SizedBox(height: 16),
 
-                  // Tier badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: _silverCore.withValues(alpha: 0.25)),
-                      color: _silverDim.withValues(alpha: 0.12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ...List.generate(
-                            3,
-                            (i) => Container(
-                                  width: 5,
-                                  height: 5,
-                                  margin: const EdgeInsets.only(right: 3),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: i < 2
-                                        ? _silverBright
-                                        : _silverDim.withValues(alpha: 0.3),
-                                    boxShadow: i < 2
-                                        ? [
-                                            BoxShadow(
-                                                color: _glowColor.withValues(
-                                                    alpha: 0.3),
-                                                blurRadius: 3),
-                                          ]
-                                        : null,
-                                  ),
-                                )),
-                        const SizedBox(width: 6),
-                        Text(
-                          'SILVER',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: _silverCore,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2.0,
-                            fontSize: 10,
+                        // Tier 2: Hadith
+                        if (tier.number >= 2) ...[
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            height: 12,
+                            width: double.infinity,
+                            child: CustomPaint(
+                              painter: _SilverOrnateDividerPainter(
+                                lineColor: _silverDim.withValues(alpha: 0.3),
+                                accentColor: _frameGold.withValues(alpha: 0.4),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                  const SizedBox(height: 16),
-
-                  Text(card.transliteration,
-                          style: AppTypography.headlineMedium
-                              .copyWith(color: _silverBright))
-                      .animate()
-                      .fadeIn(duration: 500.ms, delay: 300.ms)
-                      .slideY(
-                          begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
-                  const SizedBox(height: 4),
-                  Text(card.english,
-                          style: AppTypography.bodyMedium
-                              .copyWith(color: _silverCore))
-                      .animate()
-                      .fadeIn(duration: 500.ms, delay: 400.ms),
-                  const SizedBox(height: 24),
-
-                  // Ornate divider
-                  SizedBox(
-                    height: 12,
-                    width: double.infinity,
-                    child: CustomPaint(
-                      painter: _SilverOrnateDividerPainter(
-                        lineColor: _silverDim.withValues(alpha: 0.3),
-                        accentColor: _frameGold.withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Meaning
-                  Text(card.meaning,
-                      style: AppTypography.bodyMedium
-                          .copyWith(color: _silverCore, height: 1.7),
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-
-                  // Lesson box
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1B6B4A).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color:
-                              const Color(0xFF1B6B4A).withValues(alpha: 0.2)),
-                    ),
-                    child: Text(
-                      card.lesson,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: const Color(0xFF8BC6A5),
-                        fontStyle: FontStyle.italic,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-                  // Tier 2: Hadith
-                  if (tier.number >= 2) ...[
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 12,
-                      width: double.infinity,
-                      child: CustomPaint(
-                        painter: _SilverOrnateDividerPainter(
-                          lineColor: _silverDim.withValues(alpha: 0.3),
-                          accentColor: _frameGold.withValues(alpha: 0.4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: _silverBright,
-                            borderRadius: BorderRadius.circular(2),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: _glowColor.withValues(alpha: 0.3),
-                                  blurRadius: 4),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: _silverBright,
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color:
+                                            _glowColor.withValues(alpha: 0.3),
+                                        blurRadius: 4),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'PROPHETIC TEACHING',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: _silverCore,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'PROPHETIC TEACHING',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: _silverCore,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
+                          const SizedBox(height: AppSpacing.sm),
+                          if (card.hasTier2Content)
+                            Text(card.hadith,
+                                style: AppTypography.bodyMedium.copyWith(
+                                    color: _silverCore,
+                                    height: 1.7,
+                                    fontStyle: FontStyle.italic))
+                          else
+                            Text('Coming soon...',
+                                style: AppTypography.bodySmall.copyWith(
+                                    color: _silverDim,
+                                    fontStyle: FontStyle.italic)),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    if (card.hasTier2Content)
-                      Text(card.hadith,
-                          style: AppTypography.bodyMedium.copyWith(
-                              color: _silverCore,
-                              height: 1.7,
-                              fontStyle: FontStyle.italic))
-                    else
-                      Text('Coming soon...',
-                          style: AppTypography.bodySmall.copyWith(
-                              color: _silverDim, fontStyle: FontStyle.italic)),
-                  ],
-
-                  // Upgrade (only on max tier cards)
-                  if (isMaxTier && tier.number < 3) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    if (onUpgrade != null)
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: onUpgrade,
-                          icon: const Icon(Icons.receipt_long, size: 18),
-                          label: Text('Upgrade ($scrollCost Scrolls)'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _silverCore,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                // Sticky footer — always-visible Upgrade CTA / hint, inset from
+                // the ornate border so it never overlaps the curved card edge.
+                if (isMaxTier && tier.number < 3)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                    child: onUpgrade != null
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: onUpgrade,
+                              icon: const Icon(Icons.receipt_long, size: 18),
+                              label: Text('Upgrade ($scrollCost Scrolls)'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _silverCore,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          )
+                        : Text(
+                            'Earn a Tier Up Scroll to unlock the Dua',
+                            style: AppTypography.bodySmall
+                                .copyWith(color: _silverDim),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      )
-                    else
-                      Text(
-                        'Earn a Tier Up Scroll to unlock the Dua',
-                        style:
-                            AppTypography.bodySmall.copyWith(color: _silverDim),
-                        textAlign: TextAlign.center,
-                      ),
-                  ],
-
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-              ),
+                  )
+                else
+                  const SizedBox(height: 24),
+              ],
             ),
 
-            // Dismiss button
+            // Dismiss button — pinned to top-right so it doesn't fight
+            // with the sticky footer at the bottom of the card.
             Positioned(
-              bottom: 12,
+              top: 12,
               right: 12,
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pop(),

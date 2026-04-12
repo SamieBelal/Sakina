@@ -7,12 +7,17 @@ import 'package:sakina/services/supabase_sync_service.dart';
 // Reward types
 // ---------------------------------------------------------------------------
 
-enum RewardType { tokens, streakFreeze, tierUpScroll, tokensPlusTitle }
+enum RewardType { tokens, streakFreeze, tierUpScroll }
+
+/// Premium subscribers receive base token / scroll amounts multiplied by this
+/// value. Streak freeze rewards are not multiplied (the slot remains binary).
+const int premiumRewardMultiplier = 5;
 
 class DayReward {
   final int day;
   final RewardType type;
   final int tokenAmount;
+  final int scrollAmount;
   final String label;
   final String icon; // semantic icon name for UI
 
@@ -20,6 +25,7 @@ class DayReward {
     required this.day,
     required this.type,
     this.tokenAmount = 0,
+    this.scrollAmount = 0,
     required this.label,
     required this.icon,
   });
@@ -29,20 +35,20 @@ const List<DayReward> rewardSchedule = [
   DayReward(
       day: 1,
       type: RewardType.tokens,
-      tokenAmount: 2,
-      label: '2 Tokens',
+      tokenAmount: 5,
+      label: '5 Tokens',
       icon: 'token'),
   DayReward(
       day: 2,
       type: RewardType.tokens,
-      tokenAmount: 3,
-      label: '3 Tokens',
+      tokenAmount: 10,
+      label: '10 Tokens',
       icon: 'token'),
   DayReward(
       day: 3,
       type: RewardType.tokens,
-      tokenAmount: 4,
-      label: '4 Tokens',
+      tokenAmount: 15,
+      label: '15 Tokens',
       icon: 'token'),
   DayReward(
       day: 4,
@@ -52,21 +58,53 @@ const List<DayReward> rewardSchedule = [
   DayReward(
       day: 5,
       type: RewardType.tokens,
-      tokenAmount: 5,
-      label: '5 Tokens',
+      tokenAmount: 20,
+      label: '20 Tokens',
       icon: 'token'),
   DayReward(
       day: 6,
       type: RewardType.tierUpScroll,
+      scrollAmount: 5,
       label: '5 Scrolls',
       icon: 'scroll'),
   DayReward(
       day: 7,
-      type: RewardType.tokensPlusTitle,
-      tokenAmount: 8,
-      label: '8 + Title',
-      icon: 'star'),
+      type: RewardType.tokens,
+      tokenAmount: 30,
+      label: '30 Tokens',
+      icon: 'token'),
 ];
+
+/// Returns the reward for [day] (1-indexed) with token / scroll amounts and
+/// label scaled for premium subscribers when [isPremium] is true. Streak
+/// freeze rewards are returned unchanged because the underlying storage is a
+/// single boolean — premium users receive the same one-freeze slot.
+DayReward scaledRewardForDay(int day, {required bool isPremium}) {
+  final base = rewardSchedule[day - 1];
+  if (!isPremium) return base;
+  switch (base.type) {
+    case RewardType.tokens:
+      final amount = base.tokenAmount * premiumRewardMultiplier;
+      return DayReward(
+        day: base.day,
+        type: base.type,
+        tokenAmount: amount,
+        label: '$amount Tokens',
+        icon: base.icon,
+      );
+    case RewardType.tierUpScroll:
+      final amount = base.scrollAmount * premiumRewardMultiplier;
+      return DayReward(
+        day: base.day,
+        type: base.type,
+        scrollAmount: amount,
+        label: '$amount Scrolls',
+        icon: base.icon,
+      );
+    case RewardType.streakFreeze:
+      return base;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -120,17 +158,17 @@ class DailyRewardsState {
 class DailyRewardClaimResult {
   final int day;
   final int tokensAwarded;
+  final int scrollsAwarded;
   final bool earnedStreakFreeze;
   final bool earnedTierUpScroll;
-  final bool earnedProfileTitle;
   final bool alreadyClaimed;
 
   const DailyRewardClaimResult({
     required this.day,
     this.tokensAwarded = 0,
+    this.scrollsAwarded = 0,
     this.earnedStreakFreeze = false,
     this.earnedTierUpScroll = false,
-    this.earnedProfileTitle = false,
     this.alreadyClaimed = false,
   });
 }
@@ -238,7 +276,9 @@ Future<void> grantStreakFreeze() async {
   await _persist(newState);
 }
 
-Future<DailyRewardClaimResult> claimDailyReward() async {
+Future<DailyRewardClaimResult> claimDailyReward({
+  bool isPremium = false,
+}) async {
   var state = await getDailyRewards();
   final today = _today();
   final userId = supabaseSyncService.currentUserId;
@@ -282,9 +322,10 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     );
   }
 
-  // Determine next day
+  // Determine next day. Token / scroll amounts are scaled here so the result
+  // returned to callers already reflects the user's premium status.
   final nextDay = state.nextClaimDay;
-  final reward = rewardSchedule[nextDay - 1];
+  final reward = scaledRewardForDay(nextDay, isPremium: isPremium);
 
   // Build new state
   var newState = DailyRewardsState(
@@ -297,7 +338,6 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
   // Apply reward-specific state changes
   bool earnedFreeze = false;
   bool earnedScroll = false;
-  bool earnedTitle = false;
 
   switch (reward.type) {
     case RewardType.streakFreeze:
@@ -306,9 +346,6 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       break;
     case RewardType.tierUpScroll:
       earnedScroll = true;
-      break;
-    case RewardType.tokensPlusTitle:
-      earnedTitle = true;
       break;
     case RewardType.tokens:
       break;
@@ -338,9 +375,9 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
   return DailyRewardClaimResult(
     day: nextDay,
     tokensAwarded: reward.tokenAmount,
+    scrollsAwarded: reward.scrollAmount,
     earnedStreakFreeze: earnedFreeze,
     earnedTierUpScroll: earnedScroll,
-    earnedProfileTitle: earnedTitle,
   );
 }
 

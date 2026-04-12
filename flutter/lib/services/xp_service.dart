@@ -272,19 +272,15 @@ const List<XpLevel> xpLevels = [
 // XP Awards — single source of truth
 // =============================================================================
 //
-// Only three things grant XP in this app:
-//   1. Completing a Muhasabah (one award at the end)
-//   2. Completing a quest (daily / weekly / monthly / First Steps)
-//   3. Hitting a streak milestone
+// Only two things grant XP in this app:
+//   1. Completing a quest (daily / weekly / monthly / First Steps)
+//   2. Hitting a streak milestone
 //
-// Reflect, Build a Dua, Find a Dua, Daily Question, story/dua reads, and
-// any other in-flow micro-actions grant zero XP. The way to gain XP is to
-// finish something meaningful — not to tap through screens.
+// Muhasabah, Reflect, Build a Dua, Find a Dua, Daily Question, story / dua
+// reads, and every other in-flow micro-action grant zero XP on their own.
+// The card pull at the end of a muhasabah is the reward for showing up; XP
+// only flows through quest completion and streak milestones.
 // =============================================================================
-
-/// XP granted once per Muhasabah, on the final Ameen tap that lands the user
-/// on the completion screen.
-const int xpMuhasabahCompleted = 100;
 
 // Streak milestone XP is defined alongside scroll rewards on
 // `StreakMilestone` in `services/streak_service.dart`.

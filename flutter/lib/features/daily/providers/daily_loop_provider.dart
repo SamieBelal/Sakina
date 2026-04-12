@@ -15,6 +15,7 @@ import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -355,21 +356,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(checkinLoading: true, error: null);
 
     try {
-      // First daily discover is free; subsequent ones cost a token
-      if (state.checkinDone) {
-        final spendResult = await spendTokens(tokenCostReflection);
-        if (!spendResult.success) {
-          state = state.copyWith(
-            checkinLoading: false,
-            tokenBalance: spendResult.newBalance,
-            error:
-                'Not enough tokens. Earn more through daily rewards and quests.',
-          );
-          return;
-        }
-        state = state.copyWith(tokenBalance: spendResult.newBalance);
-      }
-
+      // No token charge here — the entry-point CTAs ("Seek Another Name" /
+      // "Discover a New Name") are responsible for charging the 50-token
+      // unlock fee on additional muhasabahs. Once we're inside the flow,
+      // every step is free for the user.
       final collection = await getCardCollection();
       final card = pickNextCard(collection);
       final engageResult = await engageCard(card.id);
@@ -448,20 +438,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     );
 
     try {
-      // First daily check-in is free; subsequent ones cost a token
-      if (state.checkinDone) {
-        final spendResult = await spendTokens(tokenCostReflection);
-        if (!spendResult.success) {
-          state = state.copyWith(
-            checkinLoading: false,
-            tokenBalance: spendResult.newBalance,
-            error:
-                'Not enough tokens. Earn more through daily rewards and quests.',
-          );
-          return;
-        }
-        state = state.copyWith(tokenBalance: spendResult.newBalance);
-      }
+      // No token charge here — see discoverName for the rationale. The 50
+      // token unlock for additional muhasabahs is collected at the entry
+      // CTA, not at the per-step level.
 
       // Load history for context
       final history = await getCheckinHistory();
@@ -582,12 +561,20 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         // Non-critical — don't fail the check-in
       }
 
-      // Claim daily reward
+      // Claim daily reward (idempotent — safe even if the launch overlay
+      // already claimed today's reward; the second call returns
+      // alreadyClaimed=true and we skip the wallet credit.)
       try {
-        final claimResult = await claimDailyReward();
-        if (!claimResult.alreadyClaimed && claimResult.tokensAwarded > 0) {
-          final tokenResult = await earnTokens(claimResult.tokensAwarded);
-          state = state.copyWith(tokenBalance: tokenResult.balance);
+        final isPremium = await PurchaseService().isPremium();
+        final claimResult = await claimDailyReward(isPremium: isPremium);
+        if (!claimResult.alreadyClaimed) {
+          if (claimResult.tokensAwarded > 0) {
+            final tokenResult = await earnTokens(claimResult.tokensAwarded);
+            state = state.copyWith(tokenBalance: tokenResult.balance);
+          }
+          if (claimResult.scrollsAwarded > 0) {
+            await earnTierUpScrolls(claimResult.scrollsAwarded);
+          }
         }
         state = state.copyWith(rewardClaimResult: claimResult);
       } catch (_) {}
@@ -647,17 +634,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // ---------------------------------------------------------------------------
 
   Future<void> startDeeper() async {
-    // Spend token for deeper reflection
-    final spendResult = await spendTokens(tokenCostReflection);
-    if (!spendResult.success) {
-      state = state.copyWith(
-        tokenBalance: spendResult.newBalance,
-        error: 'Not enough tokens. Earn more through daily rewards and quests.',
-      );
-      return;
-    }
+    // Always free. The 50-token unlock for additional muhasabahs is charged
+    // up front at the "Seek Another Name" / "Discover a New Name" entry
+    // CTAs, so once the user is inside a muhasabah cycle every step — the
+    // discover, the deeper reflection, the dua — runs without any token
+    // gating.
     state = state.copyWith(
-      tokenBalance: spendResult.newBalance,
       currentStep: DailyLoopStep.deeper,
       reflectLoading: true,
       reflectStep: 1, // skip step 0 (name display) — user just saw it in gacha
@@ -681,12 +663,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
             1, // skip step 0 (name display) — user saw the name in gacha
       );
 
-      // Award tokens for completing deeper reflection
-      // (XP is awarded once at Muhasabah completion, not here)
-      try {
-        final tokenResult = await earnTokens(tokenRewardDeeperReflection);
-        state = state.copyWith(tokenBalance: tokenResult.balance);
-      } catch (_) {}
+      // No token reward for entering deeper reflection — muhasabah is its
+      // own reward (the card pull). Tokens come from quests, daily login
+      // rewards, and streak milestones.
     } catch (e) {
       state = state.copyWith(
         reflectLoading: false,
@@ -703,22 +682,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     final current = state.reflectStep.clamp(1, 3); // step 0 is skipped
 
     if (current == 3) {
-      // Completing the dua step — finish Muhasabah. This is the single
-      // XP grant for the entire flow (the Muhasabah Complete moment).
+      // Completing the dua step — finish Muhasabah. The reward for going
+      // through the muhasabah is the card pull itself, nothing more. XP and
+      // tokens come from quests, daily rewards, and streak milestones —
+      // never from this flow, on either the free first daily or replays.
       state = state.copyWith(
         deeperDone: true,
         questDone: true,
         currentStep: DailyLoopStep.completed,
       );
-
-      try {
-        await _handleXpAward(xpMuhasabahCompleted);
-      } catch (_) {}
-
-      try {
-        final tokenResult = await earnTokens(tokenRewardQuestComplete);
-        state = state.copyWith(tokenBalance: tokenResult.balance);
-      } catch (_) {}
 
       await _persistTodayState();
       return;
@@ -734,21 +706,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // ---------------------------------------------------------------------------
 
   Future<void> completeQuest() async {
+    // Legacy completion entrypoint. Like advanceReflectStep, this no longer
+    // grants XP or tokens — muhasabah is its own reward.
     state = state.copyWith(
       questDone: true,
       currentStep: DailyLoopStep.completed,
     );
-
-    try {
-      await _handleXpAward(xpMuhasabahCompleted);
-    } catch (_) {}
-
-    // Award tokens for quest completion
-    try {
-      final tokenResult = await earnTokens(tokenRewardQuestComplete);
-      state = state.copyWith(tokenBalance: tokenResult.balance);
-    } catch (_) {}
-
     await _persistTodayState();
   }
 

@@ -381,16 +381,14 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           const SizedBox(height: AppSpacing.lg),
           _sparkleRow(),
           const SizedBox(height: AppSpacing.lg),
-          // Go Deeper button
+          // Go Deeper button — always free. The 50-token unlock for an
+          // additional muhasabah is collected at the "Seek Another Name" /
+          // "Discover a New Name" entry CTAs, so once the user is in the
+          // flow there's no further token gating.
           GestureDetector(
-            onTap: () async {
+            onTap: () {
               HapticFeedback.mediumImpact();
-              final hasEnough = await hasTokens(tokenCostReflection);
-              if (hasEnough) {
-                notifier.startDeeper();
-              } else if (mounted) {
-                _showNotEnoughTokens();
-              }
+              notifier.startDeeper();
             },
             child: Container(
               width: double.infinity,
@@ -727,20 +725,18 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             onTap: () async {
               HapticFeedback.mediumImpact();
               final notifier = ref.read(dailyLoopProvider.notifier);
-              try {
-                await spendTokens(tokenCostReflection);
-                await notifier.resetToday();
-                // Stay on this screen — it will rebuild with fresh check-in
-              } catch (_) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Not enough tokens ($tokenCostReflection needed)'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
+              // Charge the 50-token unlock fee here, BEFORE resetting the
+              // cycle. spendTokens returns success=false on insufficient
+              // balance instead of throwing, so we have to inspect the
+              // result — a try/catch would silently let the reset run.
+              final result = await spendTokens(tokenCostReflection);
+              if (!result.success) {
+                if (mounted) _showNotEnoughTokens();
+                return;
               }
+              notifier.refreshTokenBalance(result.newBalance);
+              await notifier.resetToday();
+              // Stay on this screen — it will rebuild with fresh check-in
             },
             child: Container(
               width: double.infinity,

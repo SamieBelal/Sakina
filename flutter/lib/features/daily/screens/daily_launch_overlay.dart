@@ -11,6 +11,7 @@ import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
@@ -107,8 +108,18 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     HapticFeedback.mediumImpact();
 
     final result = await ref.read(dailyRewardsProvider.notifier).claim();
-    if (result.earnedTierUpScroll) {
-      await ref.read(tierUpScrollProvider.notifier).earn(5);
+    // Credit the user's wallets with whatever the claim returned. Token /
+    // scroll amounts are already premium-scaled inside `claim()`, so the
+    // overlay just forwards them — no hard-coded values here.
+    if (!result.alreadyClaimed) {
+      if (result.tokensAwarded > 0) {
+        await ref.read(tokenProvider.notifier).earn(result.tokensAwarded);
+      }
+      if (result.scrollsAwarded > 0) {
+        await ref
+            .read(tierUpScrollProvider.notifier)
+            .earn(result.scrollsAwarded);
+      }
     }
     if (mounted) {
       setState(() {
@@ -312,7 +323,10 @@ class _RewardClaimStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rewards = ref.watch(dailyRewardsProvider);
     final nextDay = rewards.nextClaimDay;
-    final reward = rewardSchedule[nextDay - 1];
+    // Default to free-tier display if premium status hasn't loaded yet so the
+    // strip never flashes a premium label for non-premium users.
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+    final reward = scaledRewardForDay(nextDay, isPremium: isPremium);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -329,7 +343,7 @@ class _RewardClaimStep extends ConsumerWidget {
           const SizedBox(height: 12),
 
           // 7-day strip
-          _RewardStrip(rewards: rewards)
+          _RewardStrip(rewards: rewards, isPremium: isPremium)
               .animate()
               .fadeIn(duration: 400.ms, delay: 100.ms)
               .slideY(begin: 0.06, end: 0),
@@ -350,7 +364,10 @@ class _RewardClaimStep extends ConsumerWidget {
                     .fadeIn(duration: 400.ms, delay: 350.ms),
           ] else ...[
             // Post-claim celebration
-            _ClaimSuccess(result: claimResult, rewards: rewards)
+            _ClaimSuccess(
+                    result: claimResult,
+                    rewards: rewards,
+                    isPremium: isPremium)
                 .animate()
                 .fadeIn(duration: 500.ms)
                 .scaleXY(begin: 0.9, end: 1.0, duration: 400.ms),
@@ -366,8 +383,9 @@ class _RewardClaimStep extends ConsumerWidget {
 }
 
 class _RewardStrip extends StatelessWidget {
-  const _RewardStrip({required this.rewards});
+  const _RewardStrip({required this.rewards, required this.isPremium});
   final DailyRewardsState rewards;
+  final bool isPremium;
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +393,7 @@ class _RewardStrip extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
         final day = i + 1;
-        final reward = rewardSchedule[i];
+        final reward = scaledRewardForDay(day, isPremium: isPremium);
         final isClaimed = rewards.claimedToday
             ? day <= rewards.currentDay
             : day < rewards.currentDay;
@@ -507,14 +525,17 @@ class _RewardHighlight extends StatelessWidget {
 }
 
 class _ClaimSuccess extends StatelessWidget {
-  const _ClaimSuccess({this.result, required this.rewards});
+  const _ClaimSuccess(
+      {this.result, required this.rewards, required this.isPremium});
   final DailyRewardClaimResult? result;
   final DailyRewardsState rewards;
+  final bool isPremium;
 
   @override
   Widget build(BuildContext context) {
     final day = result?.day ?? rewards.currentDay;
-    final reward = rewardSchedule[(day - 1).clamp(0, 6)];
+    final reward =
+        scaledRewardForDay((day).clamp(1, 7), isPremium: isPremium);
     final isSpecial = reward.type != RewardType.tokens;
     final color = isSpecial ? AppColors.secondary : AppColors.primary;
 
