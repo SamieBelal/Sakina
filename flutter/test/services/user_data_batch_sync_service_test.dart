@@ -125,6 +125,11 @@ void main() {
               'last_engaged_at': '2026-04-02T00:00:00Z',
             },
           ],
+          'profile': {
+            'selected_title': null,
+            'is_auto_title': true,
+            'created_at': '2026-04-10T00:00:00Z',
+          },
           'achievements': [
             {
               'achievement_id': 'first_name',
@@ -166,6 +171,22 @@ void main() {
             },
           ],
           'quest_progress': [
+            {
+              'quest_id': 'first_muhasabah',
+              'cadence': 'one_time',
+              'progress': 1,
+              'completed': true,
+              'period_start': '2026-04-10',
+              'updated_at': '2026-04-10T15:00:00Z',
+            },
+            {
+              'quest_id': 'first_steps_bundle',
+              'cadence': 'one_time',
+              'progress': 1,
+              'completed': true,
+              'period_start': '2026-04-10',
+              'updated_at': '2026-04-10T15:30:00Z',
+            },
             {
               'quest_id': 'daily_0_2026-04-09',
               'cadence': 'daily',
@@ -216,6 +237,19 @@ void main() {
     expect(
       prefs.getString('sakina_premium_last_grant:user-1'),
       '2026-04',
+    );
+    expect(prefs.getBool('first_steps_eligible_v1:user-1'), isTrue);
+    expect(
+      prefs.getString('first_steps_anchor_date_v1:user-1'),
+      '2026-04-10',
+    );
+    expect(
+      prefs.getString('first_steps_completed_v1:user-1'),
+      jsonEncode(['first_muhasabah']),
+    );
+    expect(
+      prefs.getBool('first_steps_bundle_claimed_v1:user-1'),
+      isTrue,
     );
     expect(await getUnlockedAchievements(), {'first_name', 'reflect_first'});
 

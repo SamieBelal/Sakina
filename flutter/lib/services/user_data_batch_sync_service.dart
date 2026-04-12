@@ -120,6 +120,10 @@ Future<void> hydrateUserDataFromBatchRpc() async {
       selectedTitle: _stringValue(profile['selected_title']),
       isAutoTitle: _boolValue(profile['is_auto_title']) ?? true,
     );
+    final createdAt = _stringValue(profile['created_at']);
+    if (createdAt != null) {
+      await hydrateFirstStepsEligibilityFromBatch(createdAt: createdAt);
+    }
   }
 
   await _hydrateOrSeedListSection(

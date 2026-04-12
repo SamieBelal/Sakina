@@ -69,7 +69,6 @@ void main() {
     final fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
     var isAuthenticated = false;
-    var firstStepsCalls = 0;
 
     fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
           'xp': {'total_xp': 42},
@@ -92,6 +91,12 @@ void main() {
           'reflections': <Map<String, dynamic>>[],
           'built_duas': <Map<String, dynamic>>[],
           'card_collection': <Map<String, dynamic>>[],
+          'profile': {
+            'selected_title': null,
+            'is_auto_title': true,
+            'created_at': '2026-04-10T00:00:00Z',
+          },
+          'quest_progress': <Map<String, dynamic>>[],
         };
 
     final session = AppSessionNotifier(
@@ -99,9 +104,6 @@ void main() {
       authStateChanges: controller.stream,
       isAuthenticatedProvider: () => isAuthenticated,
       hasCompletedOnboarding: () async => false,
-      syncFirstStepsCache: () async {
-        firstStepsCalls += 1;
-      },
     );
 
     isAuthenticated = true;
@@ -113,7 +115,6 @@ void main() {
       fakeSync.rpcCalls.where((call) => call['fn'] == 'sync_all_user_data'),
       hasLength(1),
     );
-    expect(firstStepsCalls, 1);
     expect((await getXp()).totalXp, 42);
     expect((await getTierUpScrolls()).balance, 8);
 

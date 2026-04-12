@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../features/quests/providers/quests_provider.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
@@ -20,15 +19,10 @@ class AppSessionNotifier extends ChangeNotifier {
     bool Function()? isAuthenticatedProvider,
     Future<void> Function()? hydrateEconomyCache,
     Future<bool> Function()? hasCompletedOnboarding,
-    Future<void> Function()? syncFirstStepsCache,
   })  : _hasOnboarded = initialOnboarded,
         _isAuthenticatedProvider = isAuthenticatedProvider ??
             (() => Supabase.instance.client.auth.currentUser != null),
-        _hydrateEconomyCache = hydrateEconomyCache ??
-            (() => _defaultHydrate(
-                  syncFirstStepsCache:
-                      syncFirstStepsCache ?? syncFirstStepsFromSupabase,
-                )),
+        _hydrateEconomyCache = hydrateEconomyCache ?? _defaultHydrate,
         _hasCompletedOnboarding = hasCompletedOnboarding ??
             authService?.hasCompletedOnboarding ??
             (() async => false) {
@@ -157,15 +151,9 @@ final appSessionProvider = Provider<AppSessionNotifier>((ref) {
 // ---------------------------------------------------------------------------
 // Default hydration path
 //
-// Hydrates batched user data via the batch RPC, then runs the remaining
-// standalone startup sync path.
+// Hydrates batched user data via the batch RPC.
 // ---------------------------------------------------------------------------
 
-Future<void> _defaultHydrate({
-  required Future<void> Function() syncFirstStepsCache,
-}) async {
-  await Future.wait([
-    hydrateUserDataFromBatchRpc(),
-    syncFirstStepsCache(),
-  ]);
+Future<void> _defaultHydrate() async {
+  await hydrateUserDataFromBatchRpc();
 }

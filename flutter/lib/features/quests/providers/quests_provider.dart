@@ -587,9 +587,17 @@ const _progressKey = 'quests_progress_v2';
 const _firstStepsCompletedKey = 'first_steps_completed_v1';
 const _firstStepsBundleClaimedKey = 'first_steps_bundle_claimed_v1';
 const _firstStepsEligibleKey = 'first_steps_eligible_v1';
+const _firstStepsAnchorDateKey = 'first_steps_anchor_date_v1';
 const _tierUpsLogKey = 'tier_ups_log_v1';
 const _collectionVisitDatesKey = 'collection_visit_dates_v1';
 const _relatedDuaSavesLogKey = 'related_dua_saves_log_v1';
+const _oneTimeQuestCadence = 'one_time';
+const _firstStepsBundleQuestId = 'first_steps_bundle';
+const Set<String> _firstStepsQuestKeys = {
+  'first_muhasabah',
+  'first_reflect',
+  'first_built_dua',
+};
 
 class QuestsNotifier extends StateNotifier<QuestsState> {
   QuestsNotifier() : super(const QuestsState()) {
@@ -1287,6 +1295,7 @@ Future<void> hydrateQuestProgressCacheFromRows(
   for (final row in rows) {
     final questId = row['quest_id'] as String?;
     if (questId == null) continue;
+    if (row['cadence'] == _oneTimeQuestCadence) continue;
     final isCompleted = row['completed'] == true;
     final progressVal = (row['progress'] as num?)?.toInt() ?? 0;
     if (isCompleted) completedIds.add(questId);
@@ -1301,6 +1310,8 @@ Future<void> hydrateQuestProgressCacheFromRows(
     supabaseSyncService.scopedKey(_progressKey),
     jsonEncode(progress),
   );
+
+  await hydrateFirstStepsFromQuestProgressRows(rows);
 }
 
 Future<void> seedQuestProgressToSupabaseFromLocalCache() async {
@@ -1321,29 +1332,62 @@ Future<void> seedQuestProgressToSupabaseFromLocalCache() async {
       ? <String, int>{}
       : (jsonDecode(progressRaw) as Map<String, dynamic>)
           .map((k, v) => MapEntry(k, (v as num).toInt()));
+  final firstStepsCompletedRaw =
+      prefs.getString(supabaseSyncService.scopedKey(_firstStepsCompletedKey));
+  final Set<String> firstStepsCompleted = firstStepsCompletedRaw == null
+      ? <String>{}
+      : ((jsonDecode(firstStepsCompletedRaw) as List).cast<String>().toSet());
+  final firstStepsBundleClaimed = prefs.getBool(
+          supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey)) ??
+      false;
+  final firstStepsAnchorDate = prefs
+          .getString(supabaseSyncService.scopedKey(_firstStepsAnchorDateKey)) ??
+      _formatUtcDate(firstStepsShipDate);
 
-  if (localCompleted.isEmpty && localProgress.isEmpty) return;
-
-  final String todayStr;
-  {
-    final n = DateTime.now();
-    todayStr =
-        '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+  if (localCompleted.isEmpty &&
+      localProgress.isEmpty &&
+      firstStepsCompleted.isEmpty &&
+      !firstStepsBundleClaimed) {
+    return;
   }
 
-  final questIds = {...localCompleted, ...localProgress.keys};
-  final seedRows = questIds.map((id) {
-    final cadence = _cadenceFromQuestId(id);
-    final periodStart = _periodStartFromQuestId(id) ?? todayStr;
-    return {
-      'user_id': userId,
-      'quest_id': id,
-      'cadence': cadence,
-      'progress': localProgress[id] ?? 0,
-      'completed': localCompleted.contains(id),
-      'period_start': periodStart,
-    };
-  }).toList();
+  final todayStr = _formatLocalDate(DateTime.now());
+
+  final questIds = {
+    ...localCompleted,
+    ...localProgress.keys,
+  }.where((id) => !_isFirstStepsQuestId(id)).toSet();
+  final seedRows = <Map<String, dynamic>>[
+    ...questIds.map((id) {
+      final cadence = _cadenceFromQuestId(id);
+      final periodStart = _periodStartFromQuestId(id) ?? todayStr;
+      return {
+        'user_id': userId,
+        'quest_id': id,
+        'cadence': cadence,
+        'progress': localProgress[id] ?? 0,
+        'completed': localCompleted.contains(id),
+        'period_start': periodStart,
+      };
+    }),
+    ...firstStepsCompleted.map((id) => {
+          'user_id': userId,
+          'quest_id': id,
+          'cadence': _oneTimeQuestCadence,
+          'progress': 1,
+          'completed': true,
+          'period_start': firstStepsAnchorDate,
+        }),
+    if (firstStepsBundleClaimed)
+      {
+        'user_id': userId,
+        'quest_id': _firstStepsBundleQuestId,
+        'cadence': _oneTimeQuestCadence,
+        'progress': 1,
+        'completed': true,
+        'period_start': firstStepsAnchorDate,
+      },
+  ];
 
   await supabaseSyncService.batchInsertRows(
     'user_quest_progress',
@@ -1402,13 +1446,27 @@ bool _isValidDate(String s) {
   return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(s);
 }
 
+bool _isFirstStepsQuestId(String questId) {
+  return _firstStepsQuestKeys.contains(questId) ||
+      questId == _firstStepsBundleQuestId;
+}
+
+String _formatUtcDate(DateTime date) {
+  final utc = date.toUtc();
+  return '${utc.year}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}';
+}
+
+String _formatLocalDate(DateTime date) {
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
 // ---------------------------------------------------------------------------
 // First Steps cache hydration from Supabase
 // ---------------------------------------------------------------------------
 
-/// Fetches `user_profiles.created_at` + first_steps_* columns and writes
-/// the eligibility flag and completion state into SharedPreferences (scoped
-/// to the current user). Called from app session hydration after sign-in.
+/// Fetches `user_profiles.created_at` plus unified first-steps quest rows and
+/// writes the eligibility flag and completion state into SharedPreferences
+/// (scoped to the current user). Kept as a standalone fallback sync path.
 ///
 /// Eligibility is `created_at >= firstStepsShipDate`, computed once and
 /// cached locally — accounts created before the ship date never see the
@@ -1418,42 +1476,91 @@ Future<void> syncFirstStepsFromSupabase() async {
   if (userId == null) return;
 
   try {
-    final row = await Supabase.instance.client
+    final profile = await Supabase.instance.client
         .from('user_profiles')
-        .select('created_at, first_steps_completed, first_steps_bundle_claimed')
+        .select('created_at')
         .eq('id', userId)
         .maybeSingle();
-    if (row == null) return;
+    if (profile == null) return;
 
-    final createdAtRaw = row['created_at'] as String?;
-    if (createdAtRaw == null) return;
-    final createdAt = DateTime.tryParse(createdAtRaw);
-    if (createdAt == null) return;
+    final createdAtRaw = profile['created_at'] as String?;
+    if (createdAtRaw != null) {
+      await hydrateFirstStepsEligibilityFromBatch(createdAt: createdAtRaw);
+    }
 
-    final eligible = !createdAt.toUtc().isBefore(firstStepsShipDate);
+    final rows = await Supabase.instance.client
+        .from('user_quest_progress')
+        .select('quest_id, cadence, completed, period_start, updated_at')
+        .eq('user_id', userId)
+        .eq('cadence', _oneTimeQuestCadence)
+        .inFilter('quest_id', [
+      ..._firstStepsQuestKeys,
+      _firstStepsBundleQuestId,
+    ]);
 
-    final completedRaw = row['first_steps_completed'];
-    final completedKeys = completedRaw is List
-        ? completedRaw.whereType<String>().toList()
-        : <String>[];
-    final bundleClaimed = row['first_steps_bundle_claimed'] == true;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      supabaseSyncService.scopedKey(_firstStepsEligibleKey),
-      eligible,
-    );
-    await prefs.setString(
-      supabaseSyncService.scopedKey(_firstStepsCompletedKey),
-      jsonEncode(completedKeys),
-    );
-    await prefs.setBool(
-      supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey),
-      bundleClaimed,
+    await hydrateFirstStepsFromQuestProgressRows(
+      rows.map((row) => Map<String, dynamic>.from(row)).toList(),
     );
   } catch (_) {
     // Best-effort — fall back to whatever's already cached locally.
   }
+}
+
+/// Called from batch hydration to set the First Steps eligibility flag and
+/// cache the shared period_start anchor derived from user_profiles.created_at.
+Future<void> hydrateFirstStepsEligibilityFromBatch({
+  required String createdAt,
+}) async {
+  final parsed = DateTime.tryParse(createdAt);
+  if (parsed == null) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(
+    supabaseSyncService.scopedKey(_firstStepsEligibleKey),
+    !parsed.toUtc().isBefore(firstStepsShipDate),
+  );
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_firstStepsAnchorDateKey),
+    _formatUtcDate(parsed),
+  );
+}
+
+/// Extracts one-time First Steps rows from quest_progress hydration and writes
+/// the dedicated beginner-quest cache keys.
+Future<void> hydrateFirstStepsFromQuestProgressRows(
+  List<Map<String, dynamic>> rows,
+) async {
+  final completedKeys = <String>{};
+  var bundleClaimed = false;
+  var sawOneTimeRow = false;
+
+  for (final row in rows) {
+    if (row['cadence'] != _oneTimeQuestCadence) continue;
+    sawOneTimeRow = true;
+    final questId = row['quest_id'] as String?;
+    if (questId == null || row['completed'] != true) continue;
+
+    if (_firstStepsQuestKeys.contains(questId)) {
+      completedKeys.add(questId);
+    } else if (questId == _firstStepsBundleQuestId) {
+      bundleClaimed = true;
+    }
+  }
+
+  // Don't overwrite local cache if the server had no one_time rows —
+  // the migration may not have run yet, or the user simply has no
+  // first-steps data on the server. Preserve whatever's cached locally.
+  if (!sawOneTimeRow) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_firstStepsCompletedKey),
+    jsonEncode(completedKeys.toList()..sort()),
+  );
+  await prefs.setBool(
+    supabaseSyncService.scopedKey(_firstStepsBundleClaimedKey),
+    bundleClaimed,
+  );
 }
 
 Future<void> persistFirstStepsStateToSupabase({
@@ -1463,15 +1570,63 @@ Future<void> persistFirstStepsStateToSupabase({
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
 
-  await supabaseSyncService.upsertRawRow(
-    'user_profiles',
+  final periodStart = await _getFirstStepsPeriodStart();
+  if (periodStart == null) return;
+
+  for (final id in completed) {
+    await supabaseSyncService.upsertRow(
+      'user_quest_progress',
+      userId,
+      {
+        'quest_id': id.key,
+        'cadence': _oneTimeQuestCadence,
+        'progress': 1,
+        'completed': true,
+        'period_start': periodStart,
+      },
+      onConflict: 'user_id,quest_id,period_start',
+    );
+  }
+
+  if (!bundleClaimed) return;
+
+  await supabaseSyncService.upsertRow(
+    'user_quest_progress',
+    userId,
     {
-      'id': userId,
-      'first_steps_completed': completed.map((e) => e.key).toList(),
-      'first_steps_bundle_claimed': bundleClaimed,
+      'quest_id': _firstStepsBundleQuestId,
+      'cadence': _oneTimeQuestCadence,
+      'progress': 1,
+      'completed': true,
+      'period_start': periodStart,
     },
-    onConflict: 'id',
+    onConflict: 'user_id,quest_id,period_start',
   );
+}
+
+Future<String?> _getFirstStepsPeriodStart() async {
+  final prefs = await SharedPreferences.getInstance();
+  final cachedAnchor =
+      prefs.getString(supabaseSyncService.scopedKey(_firstStepsAnchorDateKey));
+  if (cachedAnchor != null && cachedAnchor.isNotEmpty) return cachedAnchor;
+
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return null;
+
+  try {
+    final row = await Supabase.instance.client
+        .from('user_profiles')
+        .select('created_at')
+        .eq('id', userId)
+        .maybeSingle();
+    final createdAtRaw = row?['created_at'] as String?;
+    if (createdAtRaw == null) return null;
+    await hydrateFirstStepsEligibilityFromBatch(createdAt: createdAtRaw);
+    return prefs
+        .getString(supabaseSyncService.scopedKey(_firstStepsAnchorDateKey));
+  } catch (_) {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

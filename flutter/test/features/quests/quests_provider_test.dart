@@ -57,6 +57,59 @@ void main() {
     expect(progress['weekly_0_2026-W04-06'], 2);
   });
 
+  test(
+      'syncQuestProgressFromSupabase excludes one_time rows from rotating cache and hydrates First Steps separately',
+      () async {
+    fakeSync.rowLists['user_quest_progress'] = [
+      {
+        'user_id': 'user-1',
+        'quest_id': 'daily_0_2026-04-09',
+        'cadence': 'daily',
+        'progress': 1,
+        'completed': true,
+        'period_start': '2026-04-09',
+      },
+      {
+        'user_id': 'user-1',
+        'quest_id': 'first_muhasabah',
+        'cadence': 'one_time',
+        'progress': 1,
+        'completed': true,
+        'period_start': '2026-04-10',
+      },
+      {
+        'user_id': 'user-1',
+        'quest_id': 'first_steps_bundle',
+        'cadence': 'one_time',
+        'progress': 1,
+        'completed': true,
+        'period_start': '2026-04-10',
+      },
+    ];
+
+    await syncQuestProgressFromSupabase();
+
+    final prefs = await SharedPreferences.getInstance();
+    final completedRaw = prefs.getString('quests_completed_v2:user-1');
+    final firstStepsRaw = prefs.getString('first_steps_completed_v1:user-1');
+
+    expect(completedRaw, isNotNull);
+    expect(firstStepsRaw, isNotNull);
+
+    final completed =
+        (jsonDecode(completedRaw!) as List).cast<String>().toSet();
+    final firstSteps =
+        (jsonDecode(firstStepsRaw!) as List).cast<String>().toSet();
+
+    expect(completed, contains('daily_0_2026-04-09'));
+    expect(completed, isNot(contains('first_muhasabah')));
+    expect(firstSteps, contains('first_muhasabah'));
+    expect(
+      prefs.getBool('first_steps_bundle_claimed_v1:user-1'),
+      isTrue,
+    );
+  });
+
   test('syncQuestProgressFromSupabase seeds server when empty', () async {
     SharedPreferences.setMockInitialValues({
       'quests_completed_v2:user-1': jsonEncode(['daily_0_2026-04-09']),
@@ -99,6 +152,34 @@ void main() {
 
     expect(fakeSync.batchInsertCalls, isEmpty);
     expect(fakeSync.upsertCalls, isEmpty);
+  });
+
+  test('seed path includes cached First Steps rows when server is empty',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'first_steps_completed_v1:user-1': jsonEncode(['first_muhasabah']),
+      'first_steps_bundle_claimed_v1:user-1': true,
+      'first_steps_anchor_date_v1:user-1': '2026-04-10',
+    });
+
+    await syncQuestProgressFromSupabase();
+
+    expect(fakeSync.batchInsertCalls, hasLength(1));
+    final rows = fakeSync.batchInsertCalls.single['rows'] as List;
+    expect(
+      rows.any((r) =>
+          (r as Map)['quest_id'] == 'first_muhasabah' &&
+          r['cadence'] == 'one_time' &&
+          r['period_start'] == '2026-04-10'),
+      isTrue,
+    );
+    expect(
+      rows.any((r) =>
+          (r as Map)['quest_id'] == 'first_steps_bundle' &&
+          r['cadence'] == 'one_time' &&
+          r['period_start'] == '2026-04-10'),
+      isTrue,
+    );
   });
 
   test('cadence inference from quest_id', () async {
@@ -203,25 +284,51 @@ void main() {
     expect(periodStarts['monthly_2_2026-04'], '2026-04-01');
   });
 
-  test('persistFirstStepsStateToSupabase upserts user_profiles by id',
+  test('persistFirstStepsStateToSupabase upserts one_time quest rows',
       () async {
+    SharedPreferences.setMockInitialValues({
+      'first_steps_anchor_date_v1:user-1': '2026-04-10',
+    });
+
     await persistFirstStepsStateToSupabase(
       completed: {BeginnerQuestId.firstMuhasabah, BeginnerQuestId.firstReflect},
       bundleClaimed: true,
     );
 
-    expect(fakeSync.rawUpsertCalls, hasLength(1));
-    final call = fakeSync.rawUpsertCalls.single;
-    expect(call['table'], 'user_profiles');
-    expect(call['onConflict'], 'id');
+    expect(fakeSync.upsertCalls, hasLength(3));
 
-    final data = call['data'] as Map<String, dynamic>;
-    expect(data['id'], 'user-1');
-    expect(data.containsKey('user_id'), isFalse);
+    final questIds =
+        fakeSync.upsertCalls.map((call) => call['data']['quest_id']).toSet();
     expect(
-      (data['first_steps_completed'] as List).cast<String>(),
-      containsAll(['first_muhasabah', 'first_reflect']),
+      questIds,
+      containsAll(['first_muhasabah', 'first_reflect', 'first_steps_bundle']),
     );
-    expect(data['first_steps_bundle_claimed'], isTrue);
+
+    for (final call in fakeSync.upsertCalls) {
+      expect(call['table'], 'user_quest_progress');
+      expect(call['onConflict'], 'user_id,quest_id,period_start');
+      final data = call['data'] as Map<String, dynamic>;
+      expect(data['cadence'], 'one_time');
+      expect(data['completed'], isTrue);
+      expect(data['period_start'], '2026-04-10');
+    }
+  });
+
+  test('persistFirstStepsStateToSupabase skips bundle row when not claimed',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'first_steps_anchor_date_v1:user-1': '2026-04-10',
+    });
+
+    await persistFirstStepsStateToSupabase(
+      completed: {BeginnerQuestId.firstMuhasabah},
+      bundleClaimed: false,
+    );
+
+    expect(fakeSync.upsertCalls, hasLength(1));
+    expect(
+      fakeSync.upsertCalls.single['data']['quest_id'],
+      'first_muhasabah',
+    );
   });
 }
