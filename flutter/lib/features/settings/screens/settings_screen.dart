@@ -754,7 +754,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             label: 'DEBUG: +100 Tokens & +100 Scrolls',
             onTap: () async {
               await earnTokens(100);
-              await earnTierUpScrolls(100);
+              final scrollResult = await earnTierUpScrolls(100);
+              if (!scrollResult.success) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Couldn\'t save the debug scroll reward. Try again.',
+                      ),
+                    ),
+                  );
+                }
+                return;
+              }
               final tokenState = await getTokens();
               ref
                   .read(dailyLoopProvider.notifier)

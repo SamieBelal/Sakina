@@ -195,7 +195,11 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     final handler = rpcHandlers[fn];
     if (handler == null) return null;
     final result = await handler(params);
-    return result as T?;
+    if (result == null) return null;
+    if (T == int && result is num) {
+      return result.toInt() as T;
+    }
+    return result as T;
   }
 
   Future<bool> _applyUpsert(

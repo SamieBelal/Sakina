@@ -3,8 +3,10 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -40,8 +42,10 @@ Future<void> hydrateUserDataFromBatchRpc() async {
   await Future.wait([
     prepareXpCacheForHydration(),
     prepareTokenCacheForHydration(),
+    prepareTierUpScrollCacheForHydration(),
     prepareStreakCacheForHydration(),
     prepareDailyRewardsCacheForHydration(),
+    preparePremiumGrantCacheForHydration(),
     prepareTitlePrefsCacheForHydration(),
     migrateCheckinHistoryCache(),
     migrateReflectionCachesForHydration(),
@@ -67,6 +71,10 @@ Future<void> hydrateUserDataFromBatchRpc() async {
   if (balance != null && totalSpent != null) {
     await hydrateTokenCache(balance: balance, totalSpent: totalSpent);
   }
+  final tierUpScrolls = _intValue(tokens?['tier_up_scrolls']);
+  if (tierUpScrolls != null) {
+    await hydrateTierUpScrollCache(balance: tierUpScrolls);
+  }
 
   final streak = payload.objectSection('streak');
   final currentStreak = _intValue(streak?['current_streak']);
@@ -87,6 +95,12 @@ Future<void> hydrateUserDataFromBatchRpc() async {
       currentDay: currentDay,
       lastClaimDate: _stringValue(dailyRewards?['last_claim_date']),
       streakFreezeOwned: streakFreezeOwned,
+    );
+  }
+  if (dailyRewards != null &&
+      dailyRewards.containsKey('last_premium_grant_month')) {
+    await hydratePremiumGrantCache(
+      lastGrantMonth: _stringValue(dailyRewards['last_premium_grant_month']),
     );
   }
 

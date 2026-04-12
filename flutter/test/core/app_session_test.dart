@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -72,7 +73,11 @@ void main() {
 
     fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
           'xp': {'total_xp': 42},
-          'tokens': {'balance': 145, 'total_spent': 30},
+          'tokens': {
+            'balance': 145,
+            'total_spent': 30,
+            'tier_up_scrolls': 8,
+          },
           'streak': {
             'current_streak': 4,
             'longest_streak': 10,
@@ -110,6 +115,7 @@ void main() {
     );
     expect(firstStepsCalls, 1);
     expect((await getXp()).totalXp, 42);
+    expect((await getTierUpScrolls()).balance, 8);
 
     await controller.close();
     session.dispose();

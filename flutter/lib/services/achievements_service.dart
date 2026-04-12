@@ -605,7 +605,8 @@ class AchievementCheckData {
 }
 
 /// Returns IDs of newly unlocked achievements.
-Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async {
+Future<List<String>> checkAndUnlockAchievements(
+    AchievementCheckData data) async {
   final unlocked = await getUnlockedAchievements();
   final newlyUnlocked = <String>[];
 
@@ -658,7 +659,8 @@ Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async
     'level_20': data.level >= 20,
     'level_25': data.level >= 25,
     'journal_25': data.journalEntries >= 25,
-    'all_quests_day': data.dailyQuestsCompletedToday >= data.totalDailyQuests && data.totalDailyQuests > 0,
+    'all_quests_day': data.dailyQuestsCompletedToday >= data.totalDailyQuests &&
+        data.totalDailyQuests > 0,
 
     // Titles
     'custom_title': data.hasSelectedTitle,
@@ -675,13 +677,16 @@ Future<List<String>> checkAndUnlockAchievements(AchievementCheckData data) async
 
   for (final entry in checks.entries) {
     if (entry.value && !unlocked.contains(entry.key)) {
+      final achievement =
+          allAchievements.where((a) => a.id == entry.key).firstOrNull;
+      if (achievement != null && achievement.scrollReward > 0) {
+        final scrollResult = await earnTierUpScrolls(achievement.scrollReward);
+        if (!scrollResult.success) {
+          continue;
+        }
+      }
       await unlockAchievement(entry.key);
       newlyUnlocked.add(entry.key);
-      // Award scroll reward
-      final achievement = allAchievements.where((a) => a.id == entry.key).firstOrNull;
-      if (achievement != null && achievement.scrollReward > 0) {
-        await earnTierUpScrolls(achievement.scrollReward);
-      }
     }
   }
 

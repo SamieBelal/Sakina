@@ -7,6 +7,7 @@ import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/user_data_batch_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -26,7 +27,7 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
-  String _todayStr() {
+  String todayStr() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
@@ -57,7 +58,11 @@ void main() {
 
     fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
           'xp': {'total_xp': 42},
-          'tokens': {'balance': 145, 'total_spent': 30},
+          'tokens': {
+            'balance': 145,
+            'total_spent': 30,
+            'tier_up_scrolls': 9,
+          },
           'streak': {
             'current_streak': 4,
             'longest_streak': 10,
@@ -65,8 +70,9 @@ void main() {
           },
           'daily_rewards': {
             'current_day': 3,
-            'last_claim_date': _todayStr(),
+            'last_claim_date': todayStr(),
             'streak_freeze_owned': true,
+            'last_premium_grant_month': '2026-04',
           },
           'checkin_history': [
             {
@@ -123,6 +129,7 @@ void main() {
     expect((await getXp()).totalXp, 42);
     expect((await getTokens()).balance, 145);
     expect(await getTotalTokensSpent(), 30);
+    expect((await getTierUpScrolls()).balance, 9);
 
     final streak = await getStreak();
     expect(streak.currentStreak, 4);
@@ -145,6 +152,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('saved_related_duas:user-1'), isNotNull);
     expect(prefs.getStringList('saved_browse_dua_ids:user-1'), ['browse-1']);
+    expect(
+      prefs.getString('sakina_premium_last_grant:user-1'),
+      '2026-04',
+    );
   });
 
   test(
@@ -260,5 +271,47 @@ void main() {
     expect(rows, hasLength(1));
     expect((rows.first as Map<String, dynamic>)['name_id'], 5);
     expect((rows.first)['tier'], 'silver');
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc leaves existing scroll cache when payload omits scroll field',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_tier_up_scrolls:user-1': 4,
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
+          'tokens': {
+            'balance': 145,
+            'total_spent': 30,
+          },
+        };
+
+    await hydrateUserDataFromBatchRpc();
+
+    expect((await getTierUpScrolls()).balance, 4);
+  });
+
+  test(
+      'hydrateUserDataFromBatchRpc preserves premium grant cache when payload omits new field',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_premium_last_grant:user-1': '2026-03',
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakeSync.rpcHandlers['sync_all_user_data'] = (params) async => {
+          'daily_rewards': {
+            'current_day': 2,
+            'last_claim_date': '2026-04-10',
+            'streak_freeze_owned': false,
+          },
+        };
+
+    await hydrateUserDataFromBatchRpc();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('sakina_premium_last_grant:user-1'), '2026-03');
   });
 }

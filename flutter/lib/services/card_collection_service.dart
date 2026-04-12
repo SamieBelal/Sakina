@@ -2049,7 +2049,7 @@ Future<CardEngageResult> engageCard(int cardId) async {
       'tier': tierToEnum(newTier),
       'discovered_at': dates[cardId] ?? todayStr,
       'last_engaged_at': todayStr,
-    });
+    }, onConflict: 'user_id,name_id');
   }
 
   return CardEngageResult(

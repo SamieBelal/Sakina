@@ -8,6 +8,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -40,14 +41,42 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   bool _questFired = false;
   bool _showOnlyDiscovered = false;
   NavigatorState? _sheetNavigator;
+  AppSessionNotifier? _session;
 
   @override
   void initState() {
     super.initState();
-    // Reload from disk on first mount so newly engaged cards appear.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Reload from disk on first mount so newly engaged cards appear.
       ref.read(cardCollectionProvider.notifier).reload();
+      // Listen for economy hydration so scroll balance refreshes after sign-in.
+      final session = ref.read(appSessionProvider);
+      _session = session;
+      if (!session.economyHydrated) {
+        session.addListener(_onSessionChange);
+      } else {
+        ref.read(tierUpScrollProvider.notifier).reload();
+      }
     });
+  }
+
+  void _onSessionChange() {
+    if (!mounted) {
+      _session?.removeListener(_onSessionChange);
+      return;
+    }
+    final session = _session;
+    if (session != null && session.economyHydrated) {
+      session.removeListener(_onSessionChange);
+      ref.read(tierUpScrollProvider.notifier).reload();
+    }
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_onSessionChange);
+    super.dispose();
   }
 
   @override
@@ -442,6 +471,55 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       builder: (_) =>
           _CardDetailSheet(card: card, tier: tier, isMaxTier: isMaxTier),
     ).whenComplete(() => _sheetNavigator = null);
+  }
+}
+
+enum CollectionTierUpFailureAction {
+  goToStore,
+  retry,
+}
+
+class CollectionTierUpFailurePresentation {
+  final String title;
+  final String message;
+  final CollectionTierUpFailureAction primaryAction;
+  final String primaryActionLabel;
+
+  const CollectionTierUpFailurePresentation({
+    required this.title,
+    required this.message,
+    required this.primaryAction,
+    required this.primaryActionLabel,
+  });
+}
+
+CollectionTierUpFailurePresentation? collectionTierUpFailurePresentation({
+  required TierUpScrollSpendResult spendResult,
+  required int scrollCost,
+  required int scrollBalance,
+  required String nextTier,
+}) {
+  if (spendResult.success) return null;
+
+  switch (spendResult.failureReason) {
+    case TierUpScrollFailureReason.insufficientBalance:
+      return CollectionTierUpFailurePresentation(
+        title: 'Not Enough Scrolls',
+        message:
+            'You need $scrollCost scrolls to upgrade to $nextTier. You have $scrollBalance.',
+        primaryAction: CollectionTierUpFailureAction.goToStore,
+        primaryActionLabel: 'Go to Store',
+      );
+    case TierUpScrollFailureReason.syncFailed:
+      return const CollectionTierUpFailurePresentation(
+        title: 'Couldn\'t Spend Scrolls',
+        message:
+            'Your balance looks fine, but we could not sync the upgrade right now. Please try again.',
+        primaryAction: CollectionTierUpFailureAction.retry,
+        primaryActionLabel: 'Try Again',
+      );
+    case null:
+      return null;
   }
 }
 
@@ -908,74 +986,103 @@ class _CardDetailSheet extends ConsumerWidget {
         : scrollCostSilverToGold;
     final showUpgrade = isMaxTier && tier.number < 3;
     final canAfford = scrollBalance >= scrollCost;
+    final nextTier = tier.number == 1 ? 'Silver' : 'Gold';
+    late final VoidCallback confirmUpgrade;
 
-    void confirmUpgrade() {
-      final nextTier = tier.number == 1 ? 'Silver' : 'Gold';
-
-      // Not enough scrolls — redirect to store
-      if (!canAfford) {
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (sheetCtx) => Container(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: AppColors.borderLight,
-                        borderRadius: BorderRadius.circular(2))),
-                const SizedBox(height: 20),
-                const Icon(Icons.receipt_long,
-                    size: 32, color: Color(0xFF3B82F6)),
-                const SizedBox(height: 12),
-                Text('Not Enough Scrolls',
-                    style: AppTypography.headlineMedium.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Text(
-                  'You need $scrollCost scrolls to upgrade to $nextTier. You have $scrollBalance.',
-                  style: AppTypography.bodySmall
-                      .copyWith(color: AppColors.textSecondaryLight),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(sheetCtx).pop();
-                      Navigator.of(context).pop(); // close detail sheet
-                      GoRouter.of(context).push('/store');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Go to Store'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.of(sheetCtx).pop(),
-                  child: Text('Cancel',
-                      style: TextStyle(color: AppColors.textSecondaryLight)),
-                ),
-              ],
-            ),
+    void showSpendFailureSheet(CollectionTierUpFailurePresentation failure) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (sheetCtx) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          decoration: const BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Icon(Icons.receipt_long,
+                  size: 32, color: Color(0xFF3B82F6)),
+              const SizedBox(height: 12),
+              Text(
+                failure.title,
+                style: AppTypography.headlineMedium.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                failure.message,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(sheetCtx).pop();
+                    switch (failure.primaryAction) {
+                      case CollectionTierUpFailureAction.goToStore:
+                        Navigator.of(context).pop();
+                        GoRouter.of(context).push('/store');
+                      case CollectionTierUpFailureAction.retry:
+                        confirmUpgrade();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(failure.primaryActionLabel),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(sheetCtx).pop(),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColors.textSecondaryLight),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    confirmUpgrade = () {
+      if (!canAfford) {
+        final failure = collectionTierUpFailurePresentation(
+          spendResult: TierUpScrollSpendResult(
+            success: false,
+            newBalance: scrollBalance,
+            failureReason: TierUpScrollFailureReason.insufficientBalance,
+          ),
+          scrollCost: scrollCost,
+          scrollBalance: scrollBalance,
+          nextTier: nextTier,
         );
+        if (failure != null) {
+          showSpendFailureSheet(failure);
+        }
         return;
       }
 
@@ -1051,40 +1158,52 @@ class _CardDetailSheet extends ConsumerWidget {
                         final spendResult = await ref
                             .read(tierUpScrollProvider.notifier)
                             .spend(scrollCost);
-                        if (spendResult.success) {
-                          final engageResult = await ref
-                              .read(cardCollectionProvider.notifier)
-                              .engageById(card.id);
-                          if (engageResult.tierChanged) {
-                            ref.read(questsProvider.notifier).onCardTieredUp();
+                        if (!spendResult.success) {
+                          if (!context.mounted) return;
+                          final failure = collectionTierUpFailurePresentation(
+                            spendResult: spendResult,
+                            scrollCost: scrollCost,
+                            scrollBalance: spendResult.newBalance,
+                            nextTier: nextTier,
+                          );
+                          if (failure != null) {
+                            showSpendFailureSheet(failure);
                           }
-                          if (context.mounted) {
-                            final rootNav =
-                                Navigator.of(context, rootNavigator: true);
-                            Navigator.of(context).pop();
-                            rootNav.push(
-                              PageRouteBuilder(
-                                opaque: true,
-                                barrierDismissible: false,
-                                pageBuilder: (_, __, ___) => NameRevealOverlay(
-                                  nameArabic: card.arabic,
-                                  nameEnglish: card.transliteration,
-                                  nameEnglishMeaning: card.english,
-                                  teaching: card.lesson,
-                                  card: card,
-                                  engageResult: engageResult,
-                                  onContinue: () {
-                                    rootNav.pop();
-                                    flushQuestNotifications(ref);
-                                  },
-                                ),
-                                transitionsBuilder: (_, anim, __, child) =>
-                                    FadeTransition(opacity: anim, child: child),
-                                transitionDuration:
-                                    const Duration(milliseconds: 300),
+                          return;
+                        }
+
+                        final engageResult = await ref
+                            .read(cardCollectionProvider.notifier)
+                            .engageById(card.id);
+                        if (engageResult.tierChanged) {
+                          ref.read(questsProvider.notifier).onCardTieredUp();
+                        }
+                        if (context.mounted) {
+                          final rootNav =
+                              Navigator.of(context, rootNavigator: true);
+                          Navigator.of(context).pop();
+                          rootNav.push(
+                            PageRouteBuilder(
+                              opaque: true,
+                              barrierDismissible: false,
+                              pageBuilder: (_, __, ___) => NameRevealOverlay(
+                                nameArabic: card.arabic,
+                                nameEnglish: card.transliteration,
+                                nameEnglishMeaning: card.english,
+                                teaching: card.lesson,
+                                card: card,
+                                engageResult: engageResult,
+                                onContinue: () {
+                                  rootNav.pop();
+                                  flushQuestNotifications(ref);
+                                },
                               ),
-                            );
-                          }
+                              transitionsBuilder: (_, anim, __, child) =>
+                                  FadeTransition(opacity: anim, child: child),
+                              transitionDuration:
+                                  const Duration(milliseconds: 300),
+                            ),
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -1110,7 +1229,7 @@ class _CardDetailSheet extends ConsumerWidget {
           ),
         ),
       );
-    }
+    };
 
     return switch (tier) {
       CardTier.bronze => BronzeOrnateDetailSheet(

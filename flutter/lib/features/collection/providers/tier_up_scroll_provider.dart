@@ -10,8 +10,10 @@ class TierUpScrollNotifier extends StateNotifier<TierUpScrollState> {
     state = await getTierUpScrolls();
   }
 
-  Future<void> earn(int amount) async {
-    state = await earnTierUpScrolls(amount);
+  Future<TierUpScrollEarnResult> earn(int amount) async {
+    final result = await earnTierUpScrolls(amount);
+    state = TierUpScrollState(balance: result.newBalance);
+    return result;
   }
 
   Future<TierUpScrollSpendResult> spend(int amount) async {

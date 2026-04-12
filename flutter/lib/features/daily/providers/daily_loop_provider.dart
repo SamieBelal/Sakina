@@ -22,6 +22,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 // State
 // ---------------------------------------------------------------------------
 
+const _scrollRewardSyncError =
+    'We couldn\'t save your scroll reward. Please try again.';
+
 enum DailyLoopStep { checkin, deeper, quest, completed }
 
 class DailyLoopState {
@@ -38,7 +41,8 @@ class DailyLoopState {
   // Step 1: Check-in (4-question adaptive flow)
   final int checkinQuestionIndex; // 0-3, which of the 4 questions we're on
   final List<String> checkinAnswers; // accumulates as user answers
-  final DailyQuestion? todaysQuestion; // displayed as subtitle under Muḥāsabah CTA
+  final DailyQuestion?
+      todaysQuestion; // displayed as subtitle under Muḥāsabah CTA
   final String? checkinAnswer; // final combined summary for display
   final String? checkinName;
   final String? checkinNameArabic;
@@ -208,8 +212,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       // Load streak, XP, and tokens
       final streakState = await getStreak();
       final xpState = await getXp();
-      final tokenState = await getTokens();
-
       // Check premium monthly grants (may add tokens/scrolls)
       await checkPremiumMonthlyGrant();
       // Re-read token balance after potential grant
@@ -301,7 +303,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Award scrolls
       if (rewards.scrollsAwarded > 0) {
-        await earnTierUpScrolls(rewards.scrollsAwarded);
+        final scrollResult = await earnTierUpScrolls(rewards.scrollsAwarded);
+        if (!scrollResult.success) {
+          state = state.copyWith(error: _scrollRewardSyncError);
+        }
       }
 
       // Title unlocks are derived from level + streak on read — no persistence needed.
@@ -332,7 +337,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         await _handleXpAward(result.milestone.xpReward);
       }
       if (result.milestone.scrollReward > 0) {
-        await earnTierUpScrolls(result.milestone.scrollReward);
+        final scrollResult =
+            await earnTierUpScrolls(result.milestone.scrollReward);
+        if (!scrollResult.success) {
+          state = state.copyWith(error: _scrollRewardSyncError);
+        }
       }
       // Title unlocks are derived from streak on read — no persistence needed.
     }
@@ -565,7 +574,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
             state = state.copyWith(tokenBalance: tokenResult.balance);
           }
           if (claimResult.scrollsAwarded > 0) {
-            await earnTierUpScrolls(claimResult.scrollsAwarded);
+            final scrollResult =
+                await earnTierUpScrolls(claimResult.scrollsAwarded);
+            if (!scrollResult.success) {
+              state = state.copyWith(error: _scrollRewardSyncError);
+            }
           }
         }
         state = state.copyWith(rewardClaimResult: claimResult);

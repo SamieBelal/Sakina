@@ -235,8 +235,15 @@ class SupabaseSyncService {
   Future<T?> callRpc<T>(String fn, [Map<String, dynamic>? params]) async {
     try {
       final result = await Supabase.instance.client.rpc(fn, params: params);
-      return result as T?;
-    } catch (_) {
+      if (result == null) return null;
+      // PostgreSQL integer types may deserialize as num (double) rather than
+      // int.  Cast through num first so `num as int` doesn't throw a TypeError.
+      if (T == int && result is num) {
+        return result.toInt() as T;
+      }
+      return result as T;
+    } catch (e) {
+      debugPrint('[callRpc] $fn failed: $e');
       return null;
     }
   }

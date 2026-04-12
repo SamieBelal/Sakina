@@ -41,8 +41,7 @@ void main() {
 
     expect(fakeSync.batchInsertCalls, hasLength(1));
     expect(fakeSync.batchInsertCalls.single['table'], 'user_achievements');
-    final inserted =
-        fakeSync.batchInsertCalls.single['rows'] as List<dynamic>;
+    final inserted = fakeSync.batchInsertCalls.single['rows'] as List<dynamic>;
     expect(inserted, hasLength(1));
     expect(inserted.first['achievement_id'], 'bronze_10');
   });
@@ -68,6 +67,34 @@ void main() {
 
     // Only one insert — the second call is a no-op.
     expect(fakeSync.insertCalls, hasLength(1));
+  });
+
+  test('checkAndUnlockAchievements skips unlock when scroll sync fails',
+      () async {
+    final newlyUnlocked = await checkAndUnlockAchievements(
+      const AchievementCheckData(
+        discoveredNames: 1,
+        silverNames: 0,
+        goldNames: 0,
+        reflectionCount: 0,
+        uniqueEmotions: 0,
+        uniqueNamesInReflections: 0,
+        builtDuaCount: 0,
+        longestStreak: 0,
+        currentStreak: 0,
+        hadBrokenStreak: false,
+        xpTotal: 0,
+        level: 0,
+        journalEntries: 0,
+        dailyQuestsCompletedToday: 0,
+        totalDailyQuests: 0,
+      ),
+    );
+
+    expect(newlyUnlocked, isEmpty);
+    expect(await getUnlockedAchievements(), isEmpty);
+    expect(fakeSync.insertCalls, isEmpty);
+    expect(fakeSync.rpcCalls.single['fn'], 'earn_scrolls');
   });
 
   test('scoped key isolation between users', () async {

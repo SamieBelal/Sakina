@@ -760,23 +760,29 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     if (state.firstStepsCompleted.contains(id)) return;
 
     final quest = beginnerQuests.firstWhere((q) => q.id == id);
+    final updatedCompleted = {...state.firstStepsCompleted, id};
+    final shouldClaimBundle =
+        updatedCompleted.length >= beginnerQuests.length &&
+            !state.firstStepsBundleClaimed;
 
-    // Grant rewards first.
+    if (quest.scrollReward > 0) {
+      final scrollResult = await earnTierUpScrolls(quest.scrollReward);
+      if (!scrollResult.success) return;
+    }
+    if (shouldClaimBundle && firstStepsBundleScrolls > 0) {
+      final scrollResult = await earnTierUpScrolls(firstStepsBundleScrolls);
+      if (!scrollResult.success) return;
+    }
+
     if (quest.xpReward > 0) await awardXp(quest.xpReward);
     if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
-    if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
-
-    final updatedCompleted = {...state.firstStepsCompleted, id};
 
     // Bundle bonus when all 3 are done and not yet claimed.
     bool bundleClaimed = state.firstStepsBundleClaimed;
     FirstStepsBundleCelebration? celebration;
-    if (updatedCompleted.length >= beginnerQuests.length && !bundleClaimed) {
+    if (shouldClaimBundle) {
       if (firstStepsBundleXp > 0) await awardXp(firstStepsBundleXp);
       if (firstStepsBundleTokens > 0) await earnTokens(firstStepsBundleTokens);
-      if (firstStepsBundleScrolls > 0) {
-        await earnTierUpScrolls(firstStepsBundleScrolls);
-      }
       bundleClaimed = true;
       celebration = const FirstStepsBundleCelebration(
         xp: firstStepsBundleXp,
@@ -815,6 +821,11 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       orElse: () => throw StateError('Quest not found: $id'),
     );
 
+    if (quest.scrollReward > 0) {
+      final scrollResult = await earnTierUpScrolls(quest.scrollReward);
+      if (!scrollResult.success) return;
+    }
+
     final updated = {...state.completedIds, id};
     state = state.copyWith(completedIds: updated);
 
@@ -844,7 +855,6 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
 
     if (quest.xpReward > 0) await awardXp(quest.xpReward);
     if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
-    if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
   }
 
   /// Returns the period_start date (YYYY-MM-DD) for a given cadence.

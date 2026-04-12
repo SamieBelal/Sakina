@@ -53,6 +53,9 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
       _session = session;
       if (!session.economyHydrated) {
         session.addListener(_onSessionChange);
+      } else {
+        // Hydration already complete — refresh scroll state now.
+        ref.read(tierUpScrollProvider.notifier).reload();
       }
 
       await ref.read(dailyRewardsProvider.notifier).reload();
@@ -74,6 +77,7 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
       session.removeListener(_onSessionChange);
       ref.read(dailyLoopProvider.notifier).refreshEconomyState();
       ref.read(dailyRewardsProvider.notifier).reload();
+      ref.read(tierUpScrollProvider.notifier).reload();
     }
   }
 
