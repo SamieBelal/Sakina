@@ -80,7 +80,7 @@ class _SignUpNameScreenState extends ConsumerState<SignUpNameScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 17,
+        progressSegment: 9,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

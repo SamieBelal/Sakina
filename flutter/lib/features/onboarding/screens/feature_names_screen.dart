@@ -64,7 +64,7 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 4,
+      progressSegment: 1,
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

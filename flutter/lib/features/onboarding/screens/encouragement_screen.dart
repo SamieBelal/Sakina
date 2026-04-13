@@ -58,7 +58,7 @@ class EncouragementScreen extends ConsumerWidget {
     final subtitle = _subtitleForFamiliarity(state.familiarity);
 
     return OnboardingPageWrapper(
-      progressSegment: 2,
+      progressSegment: 10,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

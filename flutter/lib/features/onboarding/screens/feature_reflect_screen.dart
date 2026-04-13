@@ -138,7 +138,7 @@ class _FeatureReflectScreenState extends State<FeatureReflectScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 5,
+      progressSegment: 2,
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

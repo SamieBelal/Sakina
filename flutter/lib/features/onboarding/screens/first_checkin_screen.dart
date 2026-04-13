@@ -63,7 +63,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 3,
+        progressSegment: 0,
         contentTopPadding: state.demoCheckinCompleted ? 8.0 : null,
         onBack: () {
           dismissKeyboard(context);

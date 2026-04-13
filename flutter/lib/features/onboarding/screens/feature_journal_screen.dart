@@ -79,7 +79,7 @@ class _FeatureJournalScreenState extends State<FeatureJournalScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 8,
+      progressSegment: 5,
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -57,7 +57,7 @@ class _FeatureQuestsScreenState extends State<FeatureQuestsScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 7,
+      progressSegment: 4,
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

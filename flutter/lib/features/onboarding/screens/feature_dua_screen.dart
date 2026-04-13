@@ -160,7 +160,7 @@ class _FeatureDuaScreenState extends State<FeatureDuaScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 6,
+      progressSegment: 3,
       onBack: widget.onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

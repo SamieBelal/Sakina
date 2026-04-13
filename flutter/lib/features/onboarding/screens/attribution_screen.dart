@@ -36,7 +36,7 @@ class AttributionScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingPageWrapper(
-      progressSegment: 12,
+      progressSegment: 17,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
