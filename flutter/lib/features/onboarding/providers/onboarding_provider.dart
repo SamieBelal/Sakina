@@ -14,7 +14,7 @@ const _prefsKey = 'onboarding_state';
 
 /// Last index in [OnboardingScreen]'s PageView (paywall). Inclusive range for
 /// persisted `currentPage` is `0.._onboardingLastPageIndex`.
-const int onboardingLastPageIndex = 19;
+const int onboardingLastPageIndex = 18;
 
 class OnboardingState {
   const OnboardingState({

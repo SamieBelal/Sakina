@@ -132,21 +132,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           SocialProofScreen(onNext: _next, onBack: _back),
           // 13: Notifications
           NotificationScreen(onNext: _next, onBack: _back),
-          // 14: Generating
-          GeneratingScreen(onNext: _next),
-          // 15: Sign-Up Choice
+          // 14: Sign-Up Choice
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _goToPaywall,
           ),
-          // 16: Sign-Up Email
+          // 15: Sign-Up Email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 17: Sign-Up Password
+          // 16: Sign-Up Password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 18: Sign-Up Name
+          // 17: Sign-Up Name
           SignUpNameScreen(onNext: _next, onBack: _back),
-          // 19: Paywall
+          // 18: Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

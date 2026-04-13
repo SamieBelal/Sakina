@@ -92,7 +92,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 17,
+        progressSegment: 16,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();
