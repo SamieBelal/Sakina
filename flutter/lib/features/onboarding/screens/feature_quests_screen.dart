@@ -83,9 +83,9 @@ class _FeatureQuestsScreenState extends State<FeatureQuestsScreen> {
                       ),
                     ),
                     child: switch (_phase) {
-                      _Phase.xpFilling => _XpFillingCard(key: const ValueKey('xp')),
-                      _Phase.questComplete => _QuestCompleteCard(key: const ValueKey('complete')),
-                      _Phase.achievement => _AchievementCard(key: const ValueKey('achievement')),
+                      _Phase.xpFilling => const _XpFillingCard(key: ValueKey('xp')),
+                      _Phase.questComplete => const _QuestCompleteCard(key: ValueKey('complete')),
+                      _Phase.achievement => const _AchievementCard(key: ValueKey('achievement')),
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -467,11 +467,11 @@ class _QuestCompleteCard extends StatelessWidget {
           // Full progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
+            child: const LinearProgressIndicator(
               value: 1.0,
               minHeight: 8,
               backgroundColor: AppColors.primaryLight,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
         ],

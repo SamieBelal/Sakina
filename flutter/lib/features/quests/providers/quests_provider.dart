@@ -1574,7 +1574,7 @@ Future<void> syncFirstStepsFromSupabase() async {
     ]);
 
     await hydrateFirstStepsFromQuestProgressRows(
-      rows.map((row) => Map<String, dynamic>.from(row)).toList(),
+      rows.map(Map<String, dynamic>.from).toList(),
     );
   } catch (_) {
     // Best-effort — fall back to whatever's already cached locally.

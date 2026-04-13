@@ -12,7 +12,6 @@ import 'feature_names_screen.dart';
 import 'feature_quests_screen.dart';
 import 'feature_reflect_screen.dart';
 import 'first_checkin_screen.dart';
-import 'generating_screen.dart';
 import 'intention_screen.dart';
 import 'notification_screen.dart';
 import 'paywall_screen.dart';
@@ -73,10 +72,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() {
     final current = ref.read(onboardingProvider).currentPage;
     if (current < onboardingLastPageIndex) _goToPage(current + 1);
-  }
-
-  void _goToPaywall() {
-    _goToPage(onboardingLastPageIndex);
   }
 
   void _back() {

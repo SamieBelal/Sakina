@@ -169,7 +169,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
             ],
 
             // ── Daily ────────────────────────────────────────────────────────
-            _SectionHeader(label: 'Daily', sublabel: 'Resets at midnight'),
+            const _SectionHeader(label: 'Daily', sublabel: 'Resets at midnight'),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) => _QuestCard(
@@ -183,7 +183,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
             ),
 
             // ── Weekly ───────────────────────────────────────────────────────
-            _SectionHeader(label: 'Weekly', sublabel: 'Resets on Monday'),
+            const _SectionHeader(label: 'Weekly', sublabel: 'Resets on Monday'),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) => _QuestCard(
@@ -197,7 +197,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
             ),
 
             // ── Monthly ──────────────────────────────────────────────────────
-            _SectionHeader(label: 'Monthly', sublabel: 'Resets on the 1st'),
+            const _SectionHeader(label: 'Monthly', sublabel: 'Resets on the 1st'),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) => _QuestCard(
@@ -516,25 +516,6 @@ class _QuestCard extends StatelessWidget {
         return AppColors.secondary;
       case QuestCadence.monthly:
         return const Color(0xFF7C3AED);
-    }
-  }
-
-  IconData _iconData(String name) {
-    switch (name) {
-      case 'checkin':
-        return Icons.favorite_rounded;
-      case 'dua':
-        return Icons.menu_book_rounded;
-      case 'reflect':
-        return Icons.edit_note_rounded;
-      case 'streak':
-        return Icons.local_fire_department_rounded;
-      case 'build_dua':
-        return Icons.auto_fix_high_rounded;
-      case 'fire':
-        return Icons.local_fire_department_rounded;
-      default:
-        return Icons.star_rounded;
     }
   }
 }

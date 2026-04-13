@@ -29,12 +29,12 @@ class GoldCardPreviewScreen extends StatelessWidget {
             // ── Grid tiles ──
             Text('Grid Tiles (3-up)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFE8D5A8))),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Expanded(child: _GoldOrnateTile(arabic: 'الرَّحْمَنُ', transliteration: 'Ar-Rahman', unseen: true)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _GoldOrnateTile(arabic: 'المَلِكُ', transliteration: 'Al-Malik', unseen: false)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _GoldOrnateTile(arabic: 'القُدُّوسُ', transliteration: 'Al-Quddus', unseen: false)),
               ],
             ),
@@ -45,7 +45,7 @@ class GoldCardPreviewScreen extends StatelessWidget {
             Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFE8D5A8))),
             const SizedBox(height: 16),
             Center(
-              child: SizedBox(
+              child: const SizedBox(
                 width: 200,
                 child: _GoldOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
@@ -65,12 +65,12 @@ class GoldCardPreviewScreen extends StatelessWidget {
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Expanded(child: _GoldOrnateTile(arabic: 'الرَّحْمَنُ', transliteration: 'Ar-Rahman', unseen: true)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _GoldOrnateTile(arabic: 'المَلِكُ', transliteration: 'Al-Malik', unseen: false)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _GoldOrnateTile(arabic: 'القُدُّوسُ', transliteration: 'Al-Quddus', unseen: false)),
                 ],
               ),
@@ -690,8 +690,8 @@ class _GoldOrnateDetailCard extends StatelessWidget {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () {},
-                      icon: Icon(Icons.share_outlined, size: 18, color: _goldBright),
-                      label: Text('Share this Name', style: TextStyle(color: _goldBright)),
+                      icon: const Icon(Icons.share_outlined, size: 18, color: _goldBright),
+                      label: const Text('Share this Name', style: TextStyle(color: _goldBright)),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: _goldCore.withValues(alpha: 0.4)),
                         backgroundColor: _bgDark.withValues(alpha: 0.7),

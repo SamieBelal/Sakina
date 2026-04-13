@@ -276,7 +276,7 @@ class _ShareCardWidget extends StatelessWidget {
 Future<void> shareBuiltDuaCard({
   required BuildContext context,
   required String need,
-  required List<_DuaShareSection> sections,
+  required List<DuaShareSection> sections,
   required String translation,
   Rect? sharePositionOrigin,
 }) async {
@@ -341,16 +341,16 @@ Future<void> shareBuiltDuaCard({
   }
 }
 
-class _DuaShareSection {
+class DuaShareSection {
   final String label;
   final String arabic;
-  const _DuaShareSection({required this.label, required this.arabic});
+  const DuaShareSection({required this.label, required this.arabic});
 }
 
 /// Convenience to create sections from BuiltDuaSection list.
-List<_DuaShareSection> duaSectionsForShare(List sections) {
+List<DuaShareSection> duaSectionsForShare(List sections) {
   return sections
-      .map((s) => _DuaShareSection(label: s.label as String, arabic: s.arabic as String))
+      .map((s) => DuaShareSection(label: s.label as String, arabic: s.arabic as String))
       .toList();
 }
 
@@ -363,7 +363,7 @@ class _BuiltDuaShareCard extends StatelessWidget {
   });
 
   final String need;
-  final List<_DuaShareSection> sections;
+  final List<DuaShareSection> sections;
   final String translation;
   final bool preview;
 

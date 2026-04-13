@@ -30,12 +30,12 @@ class BronzeCardPreviewScreen extends StatelessWidget {
             // ── Grid tiles ──
             Text('Grid Tiles (3-up)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD4A574))),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Expanded(child: _BronzeOrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: true)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _BronzeOrnateTile(arabic: 'السَّلَامُ', transliteration: 'As-Salaam', unseen: false)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _BronzeOrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
               ],
             ),
@@ -46,7 +46,7 @@ class BronzeCardPreviewScreen extends StatelessWidget {
             Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD4A574))),
             const SizedBox(height: 16),
             Center(
-              child: SizedBox(
+              child: const SizedBox(
                 width: 200,
                 child: _BronzeOrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
@@ -66,12 +66,12 @@ class BronzeCardPreviewScreen extends StatelessWidget {
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Expanded(child: _BronzeOrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: true)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _BronzeOrnateTile(arabic: 'السَّلَامُ', transliteration: 'As-Salaam', unseen: false)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _BronzeOrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
                 ],
               ),
@@ -722,7 +722,7 @@ class _BronzeOrnateBorderPainter extends CustomPainter {
     const studR = 3.5;
     const offset = inset + 5;
     // Four corners
-    canvas.drawCircle(Offset(offset, offset), studR, studPaint);
+    canvas.drawCircle(const Offset(offset, offset), studR, studPaint);
     canvas.drawCircle(Offset(w - offset, offset), studR, studPaint);
     canvas.drawCircle(Offset(offset, h - offset), studR, studPaint);
     canvas.drawCircle(Offset(w - offset, h - offset), studR, studPaint);
@@ -732,7 +732,7 @@ class _BronzeOrnateBorderPainter extends CustomPainter {
       ..color = borderColor.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
-    canvas.drawCircle(Offset(offset, offset), studR - 1, innerRingPaint);
+    canvas.drawCircle(const Offset(offset, offset), studR - 1, innerRingPaint);
     canvas.drawCircle(Offset(w - offset, offset), studR - 1, innerRingPaint);
     canvas.drawCircle(Offset(offset, h - offset), studR - 1, innerRingPaint);
     canvas.drawCircle(Offset(w - offset, h - offset), studR - 1, innerRingPaint);
@@ -804,7 +804,7 @@ class _BronzeOrnateDetailBorderPainter extends CustomPainter {
 
     const studR = 4.0;
     const sOffset = inset + 6;
-    canvas.drawCircle(Offset(sOffset, sOffset), studR, studPaint);
+    canvas.drawCircle(const Offset(sOffset, sOffset), studR, studPaint);
     canvas.drawCircle(Offset(w - sOffset, sOffset), studR, studPaint);
     canvas.drawCircle(Offset(sOffset, h - sOffset), studR, studPaint);
     canvas.drawCircle(Offset(w - sOffset, h - sOffset), studR, studPaint);
@@ -814,7 +814,7 @@ class _BronzeOrnateDetailBorderPainter extends CustomPainter {
       ..color = borderColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
-    canvas.drawCircle(Offset(sOffset, sOffset), studR - 1.2, ringPaint);
+    canvas.drawCircle(const Offset(sOffset, sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(w - sOffset, sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(sOffset, h - sOffset), studR - 1.2, ringPaint);
     canvas.drawCircle(Offset(w - sOffset, h - sOffset), studR - 1.2, ringPaint);

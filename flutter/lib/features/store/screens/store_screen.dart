@@ -214,7 +214,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
                   const SizedBox(height: AppSpacing.lg),
                   // Tab bar
                   Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
                           color: AppColors.borderLight,
@@ -295,7 +295,7 @@ class _PremiumTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Card fan hero ──────────────────────────────────────────────
-          _CardFanHero().animate().fadeIn(duration: 600.ms).slideY(
+          const _CardFanHero().animate().fadeIn(duration: 600.ms).slideY(
               begin: 0.06,
               end: 0,
               duration: 600.ms,
@@ -320,7 +320,7 @@ class _PremiumTab extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ── Perks list ─────────────────────────────────────────────────
-          _PerksList()
+          const _PerksList()
               .animate()
               .fadeIn(duration: 400.ms, delay: 200.ms),
           const SizedBox(height: 28),
@@ -455,9 +455,9 @@ class _CardFanHero extends StatelessWidget {
               left: 0,
               child: Transform.rotate(
                 angle: -0.18,
-                child: SizedBox(
+                child: const SizedBox(
                   width: cardWidth,
-                  child: const EmeraldPreviewTile(
+                  child: EmeraldPreviewTile(
                     arabic: 'الرَّحْمَنُ',
                     transliteration: 'Ar-Rahman',
                   ),
@@ -469,9 +469,9 @@ class _CardFanHero extends StatelessWidget {
               right: 0,
               child: Transform.rotate(
                 angle: 0.18,
-                child: SizedBox(
+                child: const SizedBox(
                   width: cardWidth,
-                  child: const EmeraldPreviewTile(
+                  child: EmeraldPreviewTile(
                     arabic: 'الرَّحِيمُ',
                     transliteration: 'Ar-Rahim',
                   ),
@@ -479,12 +479,12 @@ class _CardFanHero extends StatelessWidget {
               ),
             ),
             // Center card (on top)
-            SizedBox(
+            const SizedBox(
               width: cardWidth + 16,
               child: EmeraldPreviewTile(
                 arabic: 'المَلِكُ',
                 transliteration: 'Al-Malik',
-                shimmer: const OrnateCardShimmer(enabled: true),
+                shimmer: OrnateCardShimmer(enabled: true),
               ),
             ),
           ],

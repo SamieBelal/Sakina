@@ -12,9 +12,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
-import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
 
@@ -147,8 +145,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
   Widget _buildInputState(ReflectState state, ReflectNotifier notifier) {
     final enabled = state.userText.isNotEmpty;
     const emotions = [
-      'Anxious', 'Sad', 'Grateful', 'Frustrated',
-      'Lost', 'Hopeful', 'Lonely', 'Overwhelmed',
+      'Anxious',
+      'Sad',
+      'Grateful',
+      'Frustrated',
+      'Lost',
+      'Hopeful',
+      'Lonely',
+      'Overwhelmed',
     ];
 
     return SafeArea(
@@ -164,7 +168,10 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
               style: AppTypography.displayLarge.copyWith(
                 color: AppColors.textPrimaryLight,
               ),
-            ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0, duration: 500.ms),
+            )
+                .animate()
+                .fadeIn(duration: 500.ms)
+                .slideY(begin: 0.05, end: 0, duration: 500.ms),
             const SizedBox(height: 8),
             // Subtitle — delayed entrance
             Text(
@@ -177,7 +184,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
             Center(
               child: SvgPicture.asset(
                 'assets/illustrations/onboarding_checkin.svg',
-                height: (MediaQuery.sizeOf(context).height * 0.16).clamp(100, 150),
+                height:
+                    (MediaQuery.sizeOf(context).height * 0.16).clamp(100, 150),
               ),
             )
                 .animate()
@@ -191,7 +199,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-                  color: _hasFocus ? AppColors.primaryLight : AppColors.surfaceLight,
+                  color: _hasFocus
+                      ? AppColors.primaryLight
+                      : AppColors.surfaceLight,
                   border: Border.all(
                     color: _hasFocus ? AppColors.primary : Colors.transparent,
                     width: 1.5,
@@ -209,21 +219,27 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     hintStyle: AppTypography.bodyMedium
                         .copyWith(color: AppColors.textTertiaryLight),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.inputRadius),
                       borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.inputRadius),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.inputRadius),
                       borderSide: BorderSide.none,
                     ),
                   ),
                 ),
               ),
-            ).animate().fadeIn(duration: 400.ms, delay: 400.ms).slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 400.ms),
+            )
+                .animate()
+                .fadeIn(duration: 400.ms, delay: 400.ms)
+                .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 400.ms),
             const SizedBox(height: 16),
             // Emotion chips — staggered wave entrance
             Wrap(
@@ -458,9 +474,11 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           activeTrackColor: AppColors.primary,
                           inactiveTrackColor: AppColors.borderLight,
                           thumbColor: AppColors.primary,
-                          overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                          overlayColor:
+                              AppColors.primary.withValues(alpha: 0.12),
                           trackHeight: 6,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 14),
                         ),
                         child: Slider(
                           value: _scaleValue,
@@ -497,7 +515,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                         child: GestureDetector(
                           onTap: () {
                             HapticFeedback.lightImpact();
-                            notifier.answerFollowUp(_scaleValue.round().toString());
+                            notifier
+                                .answerFollowUp(_scaleValue.round().toString());
                             _scaleValue = 5; // reset for next scale question
                           },
                           child: Container(
@@ -531,41 +550,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     );
   }
 
-  Widget _buildScaleRow(int start, int end, ReflectNotifier notifier) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(end - start + 1, (i) {
-        final number = start + i;
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                notifier.answerFollowUp(number.toString());
-              },
-              child: Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundLight,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.borderLight),
-                ),
-                child: Text(
-                  number.toString(),
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textPrimaryLight,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // RESULT
   // ---------------------------------------------------------------------------
@@ -590,32 +574,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
             .fadeIn(duration: 400.ms, delay: (i * 80).ms);
       }),
     );
-  }
-
-  Widget _buildBackButton(ReflectNotifier notifier) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          notifier.previousStep();
-        },
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.surfaceLight,
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: const Icon(
-            Icons.arrow_back_rounded,
-            size: 18,
-            color: AppColors.textSecondaryLight,
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
   }
 
   Widget _buildResultState(ReflectState state, ReflectNotifier notifier) {
@@ -691,143 +649,167 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-              _buildSparkleRow(),
-              const SizedBox(height: 16),
-              // Background glow behind card
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Pulsing glow
-                  Container(
-                    width: 280,
-                    height: 280,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppColors.secondary.withValues(alpha: 0.15),
-                          AppColors.secondary.withValues(alpha: 0.05),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scaleXY(begin: 0.9, end: 1.1, duration: 2000.ms),
-                  // Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 24,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
+                    _buildSparkleRow(),
+                    const SizedBox(height: 16),
+                    // Background glow behind card
+                    Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Text(
-                          'A Name for your heart',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 80,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              result.nameArabic,
-                              style: AppTypography.nameOfAllahDisplay.copyWith(
-                                color: Colors.white,
-                              ),
-                              textDirection: TextDirection.rtl,
-                              textAlign: TextAlign.center,
+                        // Pulsing glow
+                        Container(
+                          width: 280,
+                          height: 280,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                AppColors.secondary.withValues(alpha: 0.15),
+                                AppColors.secondary.withValues(alpha: 0.05),
+                                Colors.transparent,
+                              ],
                             ),
                           ),
                         )
-                            .animate()
-                            .fadeIn(duration: 800.ms)
-                            .scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
-                        const SizedBox(height: 12),
-                        Text(
-                          result.name,
-                          style: AppTypography.headlineLarge.copyWith(
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 300.ms),
-                        if (result.relatedNames.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          Text(
-                            'Related Names of Allah:',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: result.relatedNames
-                                .asMap()
-                                .entries
-                                .map(
-                                  (entry) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      '${entry.value.name} · ${entry.value.nameArabic}',
-                                      style: AppTypography.bodySmall.copyWith(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ).animate().fadeIn(duration: 300.ms, delay: (600 + entry.key * 100).ms),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                        const SizedBox(height: 32),
-                        SizedBox(
+                            .animate(onPlay: (c) => c.repeat(reverse: true))
+                            .scaleXY(begin: 0.9, end: 1.1, duration: 2000.ms),
+                        // Card
+                        Container(
                           width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              HapticFeedback.mediumImpact();
-                              notifier.continueStep();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppSpacing.buttonRadius),
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.cardRadius),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 24,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                            child: const Text('See Reflection'),
+                            ],
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
+                          child: Column(
+                            children: [
+                              Text(
+                                'A Name for your heart',
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 200.ms),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 80,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    result.nameArabic,
+                                    style: AppTypography.nameOfAllahDisplay
+                                        .copyWith(
+                                      color: Colors.white,
+                                    ),
+                                    textDirection: TextDirection.rtl,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ).animate().fadeIn(duration: 800.ms).scaleXY(
+                                  begin: 0.85,
+                                  end: 1.0,
+                                  duration: 800.ms,
+                                  curve: Curves.easeOutBack),
+                              const SizedBox(height: 12),
+                              Text(
+                                result.name,
+                                style: AppTypography.headlineLarge.copyWith(
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 500.ms, delay: 300.ms)
+                                  .slideY(
+                                      begin: 0.1,
+                                      end: 0,
+                                      duration: 500.ms,
+                                      delay: 300.ms),
+                              if (result.relatedNames.isNotEmpty) ...[
+                                const SizedBox(height: 24),
+                                Text(
+                                  'Related Names of Allah:',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                )
+                                    .animate()
+                                    .fadeIn(duration: 400.ms, delay: 500.ms),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: result.relatedNames
+                                      .asMap()
+                                      .entries
+                                      .map(
+                                        (entry) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            '${entry.value.name} · ${entry.value.nameArabic}',
+                                            style: AppTypography.bodySmall
+                                                .copyWith(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ).animate().fadeIn(
+                                            duration: 300.ms,
+                                            delay: (600 + entry.key * 100).ms),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    HapticFeedback.mediumImpact();
+                                    notifier.continueStep();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          AppSpacing.buttonRadius),
+                                    ),
+                                  ),
+                                  child: const Text('See Reflection'),
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 700.ms),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
-              ),
                   ],
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
             ),
           ),
@@ -849,78 +831,89 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-              _buildSparkleRow(),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        // Gold accent line
-                        Container(
-                          width: 3,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Reflection',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                      ],
-                    ),
+                    _buildSparkleRow(),
                     const SizedBox(height: 16),
-                    Text(
-                      result.reframe,
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        height: 1.6,
-                      ),
-                    ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
-                    const SizedBox(height: 24),
-                    SizedBox(
+                    Container(
                       width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          notifier.continueStep();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.buttonRadius),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.cardRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                        child: const Text('Read the Story'),
+                        ],
                       ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              // Gold accent line
+                              Container(
+                                width: 3,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ).animate().scaleY(
+                                  begin: 0,
+                                  end: 1,
+                                  duration: 300.ms,
+                                  delay: 200.ms,
+                                  curve: Curves.easeOut),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Reflection',
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: AppColors.primary,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 200.ms),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            result.reframe,
+                            style: AppTypography.bodyLarge.copyWith(
+                              color: AppColors.textPrimaryLight,
+                              height: 1.6,
+                            ),
+                          ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                notifier.continueStep();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.buttonRadius),
+                                ),
+                              ),
+                              child: const Text('Read the Story'),
+                            ),
+                          ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
-              ),
-                  ],
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
             ),
           ),
@@ -942,77 +935,88 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-              _buildSparkleRow(),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
-                        const SizedBox(width: 8),
-                        Text(
-                          'A Prophetic Story',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                      ],
-                    ),
+                    _buildSparkleRow(),
                     const SizedBox(height: 16),
-                    Text(
-                      result.story,
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        height: 1.6,
-                      ),
-                    ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
-                    const SizedBox(height: 24),
-                    SizedBox(
+                    Container(
                       width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          notifier.continueStep();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.buttonRadius),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.cardRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                        child: const Text('See the Dua'),
+                        ],
                       ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 3,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ).animate().scaleY(
+                                  begin: 0,
+                                  end: 1,
+                                  duration: 300.ms,
+                                  delay: 200.ms,
+                                  curve: Curves.easeOut),
+                              const SizedBox(width: 8),
+                              Text(
+                                'A Prophetic Story',
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: AppColors.primary,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 200.ms),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            result.story,
+                            style: AppTypography.bodyLarge.copyWith(
+                              color: AppColors.textPrimaryLight,
+                              height: 1.6,
+                            ),
+                          ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                notifier.continueStep();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.buttonRadius),
+                                ),
+                              ),
+                              child: const Text('See the Dua'),
+                            ),
+                          ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
-              ),
-                  ],
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
             ),
           ),
@@ -1046,7 +1050,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       ];
                       final sizes = [5.0, 7.0, 4.0, 6.0, 5.0, 8.0];
                       return Positioned(
-                        left: MediaQuery.of(context).size.width * (0.5 + offsets[i].dx) - sizes[i] / 2,
+                        left: MediaQuery.of(context).size.width *
+                                (0.5 + offsets[i].dx) -
+                            sizes[i] / 2,
                         top: MediaQuery.of(context).size.height * offsets[i].dy,
                         child: Container(
                           width: sizes[i],
@@ -1058,180 +1064,227 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                         )
                             .animate()
                             .fadeIn(duration: 400.ms, delay: (i * 100).ms)
-                            .slideY(begin: 0, end: -2.0, duration: 2500.ms, delay: (i * 100).ms)
-                            .fadeOut(duration: 800.ms, delay: (1500 + i * 100).ms),
+                            .slideY(
+                                begin: 0,
+                                end: -2.0,
+                                duration: 2500.ms,
+                                delay: (i * 100).ms)
+                            .fadeOut(
+                                duration: 800.ms, delay: (1500 + i * 100).ms),
                       );
                     }),
                     // Main content
                     Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-              _buildSparkleRow(),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.secondary.withValues(alpha: 0.12),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        _buildSparkleRow(),
+                        const SizedBox(height: 16),
                         Container(
-                          width: 3,
-                          height: 16,
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(2),
+                            color: AppColors.surfaceLight,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.cardRadius),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.12),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
-                        const SizedBox(width: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 3,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ).animate().scaleY(
+                                      begin: 0,
+                                      end: 1,
+                                      duration: 300.ms,
+                                      delay: 200.ms,
+                                      curve: Curves.easeOut),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Dua',
+                                    style: AppTypography.labelMedium.copyWith(
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                      .animate()
+                                      .fadeIn(duration: 400.ms, delay: 200.ms),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // Arabic dua — scale in with easeOutBack
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  result.duaArabic,
+                                  style: AppTypography.quranArabic,
+                                  textDirection: TextDirection.rtl,
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 800.ms, delay: 200.ms)
+                                  .scaleXY(
+                                      begin: 0.9,
+                                      end: 1.0,
+                                      duration: 800.ms,
+                                      delay: 200.ms,
+                                      curve: Curves.easeOutBack),
+                              const SizedBox(height: 16),
+                              const Divider(color: AppColors.dividerLight),
+                              const SizedBox(height: 16),
+                              Text(
+                                result.duaTransliteration,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: AppColors.textSecondaryLight,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 500.ms, delay: 400.ms),
+                              const SizedBox(height: 12),
+                              Text(
+                                result.duaTranslation,
+                                style: AppTypography.bodyLarge.copyWith(
+                                  color: AppColors.textPrimaryLight,
+                                  height: 1.6,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 500.ms, delay: 500.ms),
+                              const SizedBox(height: 12),
+                              Text(
+                                result.duaSource,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textTertiaryLight,
+                                ),
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 600.ms),
+                              const SizedBox(height: 24),
+                              // Share button
+                              Builder(
+                                  builder: (btnContext) => IconButton(
+                                        onPressed: () async {
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
+                                          HapticFeedback.mediumImpact();
+                                          final box = btnContext
+                                              .findRenderObject() as RenderBox;
+                                          final origin =
+                                              box.localToGlobal(Offset.zero) &
+                                                  box.size;
+                                          try {
+                                            await shareReflectionCard(
+                                              context: context,
+                                              nameArabic: result.nameArabic,
+                                              nameEnglish: result.name,
+                                              duaArabic: result.duaArabic,
+                                              duaTransliteration:
+                                                  result.duaTransliteration,
+                                              duaTranslation:
+                                                  result.duaTranslation,
+                                              duaSource: result.duaSource,
+                                              reframe: result.reframe,
+                                              story: result.story,
+                                              sharePositionOrigin: origin,
+                                            );
+                                          } catch (e) {
+                                            debugPrint('[SHARE ERROR] $e');
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                  content:
+                                                      Text('Share failed: $e')),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(
+                                          Icons.share_outlined,
+                                          color: AppColors.primary,
+                                        ),
+                                      )).animate().fadeIn(
+                                  duration: 300.ms, delay: 700.ms),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Celebratory CTA — Reflect Again
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.mediumImpact();
+                            notifier.reset();
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            height: 56,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.35),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.favorite_rounded,
+                                    color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Reflect Again',
+                                  style: AppTypography.labelLarge.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 800.ms)
+                            .slideY(
+                                begin: 0.1,
+                                end: 0,
+                                duration: 500.ms,
+                                delay: 800.ms),
+                        const SizedBox(height: 12),
+                        // Inspirational line
                         Text(
-                          'Dua',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.primary,
+                          'Every reflection brings you closer to Allah',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.secondary,
+                            fontStyle: FontStyle.italic,
                           ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                          textAlign: TextAlign.center,
+                        ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    // Arabic dua — scale in with easeOutBack
-                    SizedBox(
-                      width: double.infinity,
-                      child: Text(
-                        result.duaArabic,
-                        style: AppTypography.quranArabic,
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(duration: 800.ms, delay: 200.ms)
-                        .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
-                    const SizedBox(height: 16),
-                    const Divider(color: AppColors.dividerLight),
-                    const SizedBox(height: 16),
-                    Text(
-                      result.duaTransliteration,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
-                    const SizedBox(height: 12),
-                    Text(
-                      result.duaTranslation,
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        height: 1.6,
-                      ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-                    const SizedBox(height: 12),
-                    Text(
-                      result.duaSource,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiaryLight,
-                      ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
-                    const SizedBox(height: 24),
-                    // Share button
-                    Builder(builder: (btnContext) => IconButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        HapticFeedback.mediumImpact();
-                        final box = btnContext.findRenderObject() as RenderBox;
-                        final origin = box.localToGlobal(Offset.zero) & box.size;
-                        try {
-                          await shareReflectionCard(
-                            context: context,
-                            nameArabic: result.nameArabic,
-                            nameEnglish: result.name,
-                            duaArabic: result.duaArabic,
-                            duaTransliteration: result.duaTransliteration,
-                            duaTranslation: result.duaTranslation,
-                            duaSource: result.duaSource,
-                            reframe: result.reframe,
-                            story: result.story,
-                            sharePositionOrigin: origin,
-                          );
-                        } catch (e) {
-                          debugPrint('[SHARE ERROR] $e');
-                          messenger.showSnackBar(
-                            SnackBar(content: Text('Share failed: $e')),
-                          );
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.share_outlined,
-                        color: AppColors.primary,
-                      ),
-                    )).animate().fadeIn(duration: 300.ms, delay: 700.ms),
                   ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Celebratory CTA — Reflect Again
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  notifier.reset();
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Reflect Again',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ).animate().fadeIn(duration: 500.ms, delay: 800.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 800.ms),
-              const SizedBox(height: 12),
-              // Inspirational line
-              Text(
-                'Every reflection brings you closer to Allah',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.secondary,
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ).animate().fadeIn(duration: 400.ms, delay: 1000.ms),
-                  ],
-                ),
-                  ],
-                ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 600.ms),
               ),
             ),
           ),

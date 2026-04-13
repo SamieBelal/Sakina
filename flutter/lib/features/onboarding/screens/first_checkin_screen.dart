@@ -319,17 +319,14 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
 
 class _FocusAwareTextField extends StatefulWidget {
   const _FocusAwareTextField({
-    super.key,
     required this.controller,
     required this.onChanged,
     this.autofocus = false,
-    this.onFocused,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final bool autofocus;
-  final VoidCallback? onFocused;
 
   @override
   State<_FocusAwareTextField> createState() => _FocusAwareTextFieldState();
@@ -343,9 +340,6 @@ class _FocusAwareTextFieldState extends State<_FocusAwareTextField> {
     return Focus(
       onFocusChange: (focused) {
         setState(() => _hasFocus = focused);
-        if (focused) {
-          widget.onFocused?.call();
-        }
       },
       child: TextField(
         controller: widget.controller,

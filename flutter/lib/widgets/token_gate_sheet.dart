@@ -67,7 +67,7 @@ class _TokenGateSheet extends ConsumerWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.secondaryLight,
               shape: BoxShape.circle,
             ),

@@ -12,13 +12,8 @@ class EmeraldCardPreviewScreen extends StatelessWidget {
 
   // ── Emerald palette ──
   static const _bgDark = Color(0xFF0F1F16);
-  static const _bgMid = Color(0xFF1A3328);
   static const _emeraldBright = Color(0xFF7EEAAF);
-  static const _emeraldCore = Color(0xFF3CB371);
-  static const _emeraldDim = Color(0xFF2A6B4A);
   static const _glowColor = Color(0xFF4AE68A);
-  static const _goldAccent = Color(0xFFC8985E);
-  static const _goldBright = Color(0xFFEDD9A3);
 
   @override
   Widget build(BuildContext context) {
@@ -41,20 +36,20 @@ class EmeraldCardPreviewScreen extends StatelessWidget {
                 style: AppTypography.headlineMedium
                     .copyWith(color: _emeraldBright)),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Expanded(
                     child: _EmeraldOrnateTile(
                         arabic: 'الرَّحْمَنُ',
                         transliteration: 'Ar-Rahman',
                         unseen: true)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(
                     child: _EmeraldOrnateTile(
                         arabic: 'المَلِكُ',
                         transliteration: 'Al-Malik',
                         unseen: false)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(
                     child: _EmeraldOrnateTile(
                         arabic: 'القُدُّوسُ',
@@ -71,7 +66,7 @@ class EmeraldCardPreviewScreen extends StatelessWidget {
                     .copyWith(color: _emeraldBright)),
             const SizedBox(height: 16),
             Center(
-              child: SizedBox(
+              child: const SizedBox(
                 width: 200,
                 child: _EmeraldOrnateTile(
                     arabic: 'الوَدُودُ',
@@ -96,20 +91,20 @@ class EmeraldCardPreviewScreen extends StatelessWidget {
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Expanded(
                       child: _EmeraldOrnateTile(
                           arabic: 'الرَّحْمَنُ',
                           transliteration: 'Ar-Rahman',
                           unseen: false)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                       child: _EmeraldOrnateTile(
                           arabic: 'المَلِكُ',
                           transliteration: 'Al-Malik',
                           unseen: true)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                       child: _EmeraldOrnateTile(
                           arabic: 'القُدُّوسُ',
@@ -393,7 +388,7 @@ class _PreviewInterlacePatternPainter extends CustomPainter {
       ..strokeWidth = 0.7;
 
     const cellSize = 24.0;
-    final r = cellSize * 0.38;
+    const r = cellSize * 0.38;
 
     for (double x = -cellSize; x < size.width + cellSize; x += cellSize) {
       for (double y = -cellSize; y < size.height + cellSize; y += cellSize) {
@@ -421,7 +416,7 @@ class _PreviewInterlacePatternPainter extends CustomPainter {
           ..strokeWidth = 0.4;
 
         final hexPath = Path();
-        final hr = r * 0.55;
+        const hr = r * 0.55;
         for (int i = 0; i < 6; i++) {
           final angle = i * pi / 3 - pi / 6;
           final px = cx + hr * cos(angle);

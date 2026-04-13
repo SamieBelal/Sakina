@@ -16,7 +16,6 @@ import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sakina/widgets/achievement_toast.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -95,7 +94,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     ref.read(cardCollectionProvider.notifier).reload().then((_) {
       if (!mounted) return;
       final col = ref.read(cardCollectionProvider);
-      final hasUnseen = col.discoveredIds.any((id) => col.isUnseen(id));
+      final hasUnseen = col.discoveredIds.any(col.isUnseen);
       if (hasUnseen) {
         setState(() => _filter = _Filter.newCards);
       }
@@ -260,7 +259,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 _filter == _Filter.gold)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.pagePadding,
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
                       AppSpacing.lg, AppSpacing.pagePadding, 0),
                   child: GestureDetector(
                     onTap: () => context.push(switch (_filter) {
@@ -545,7 +544,7 @@ class _CardTile extends StatelessWidget {
 
     // Discovered cards get ornate dark treatment per tier
     if (discovered) {
-      Widget ornateTile = switch (tier!) {
+      final Widget ornateTile = switch (tier!) {
         CardTier.bronze => BronzeOrnateTile(
             arabic: card.arabic,
             transliteration: card.transliteration,
@@ -827,10 +826,10 @@ class _SilverIslamicPatternPainter extends CustomPainter {
       for (double y = -cellSize; y < size.height + cellSize; y += cellSize) {
         final cx = x + cellSize / 2;
         final cy = y + cellSize / 2;
-        final r = cellSize * 0.38;
+        const r = cellSize * 0.38;
 
         final path = Path();
-        final s1 = r * 0.7;
+        const s1 = r * 0.7;
         path.moveTo(cx - s1, cy - s1);
         path.lineTo(cx + s1, cy - s1);
         path.lineTo(cx + s1, cy + s1);
@@ -1057,7 +1056,7 @@ class _CardDetailSheet extends ConsumerWidget {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => Navigator.of(sheetCtx).pop(),
-                child: Text(
+                child: const Text(
                   'Cancel',
                   style: TextStyle(color: AppColors.textSecondaryLight),
                 ),
@@ -1140,12 +1139,12 @@ class _CardDetailSheet extends ConsumerWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(sheetCtx).pop(),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.borderLight),
+                        side: const BorderSide(color: AppColors.borderLight),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text('Cancel',
+                      child: const Text('Cancel',
                           style:
                               TextStyle(color: AppColors.textSecondaryLight)),
                     ),
@@ -1213,12 +1212,12 @@ class _CardDetailSheet extends ConsumerWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.receipt_long, size: 16),
-                          const SizedBox(width: 6),
-                          const Text('Upgrade'),
+                          Icon(Icons.receipt_long, size: 16),
+                          SizedBox(width: 6),
+                          Text('Upgrade'),
                         ],
                       ),
                     ),

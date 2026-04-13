@@ -6,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
-import 'package:sakina/core/constants/checkin_questions.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
@@ -14,11 +13,8 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/token_service.dart';
-import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
-import 'package:sakina/services/xp_service.dart';
-import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 
 /// Full-screen Muhasabah experience — check-in → deeper → completion.
@@ -86,8 +82,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     }
 
     // Gacha reveal after check-in
-    if (state.checkinDone && !state.checkinLoading && !_revealShown &&
-        state.cardEngageResult != null && state.cardEngageResult!.tierChanged) {
+    if (state.checkinDone &&
+        !state.checkinLoading &&
+        !_revealShown &&
+        state.cardEngageResult != null &&
+        state.cardEngageResult!.tierChanged) {
       _revealShown = true;
       ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
       Future.delayed(const Duration(seconds: 5), () {
@@ -101,15 +100,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             opaque: true,
             barrierDismissible: false,
             pageBuilder: (_, __, ___) => NameRevealOverlay(
-              nameArabic: state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
-              nameEnglish: state.engagedCard?.transliteration ?? state.checkinName ?? '',
+              nameArabic:
+                  state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+              nameEnglish:
+                  state.engagedCard?.transliteration ?? state.checkinName ?? '',
               nameEnglishMeaning: state.engagedCard?.english ?? '',
               teaching: state.engagedCard?.lesson ?? '',
               card: state.engagedCard,
               engageResult: state.cardEngageResult,
-              onContinue: () {
-                rootNav.pop();
-              },
+              onContinue: rootNav.pop,
             ),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
@@ -138,7 +137,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (state.currentStep == DailyLoopStep.completed) {
       return _buildCompleted(state);
     }
-    if (state.currentStep == DailyLoopStep.deeper && state.reflectResult != null) {
+    if (state.currentStep == DailyLoopStep.deeper &&
+        state.reflectResult != null) {
       return _buildDeeper(state, notifier);
     }
     if (state.checkinDone && state.checkinName != null) {
@@ -158,95 +158,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // CHECK-IN (4 questions)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildCheckin(DailyLoopState state, DailyLoopNotifier notifier) {
-    final idx = state.checkinQuestionIndex;
-    final answers = state.checkinAnswers;
-    final question = switch (idx) {
-      0 => q1,
-      1 => getQ2(answers.isNotEmpty ? answers[0] : ''),
-      2 => getQ3(
-          answers.isNotEmpty ? answers[0] : '',
-          answers.length > 1 ? answers[1] : '',
-        ),
-      _ => q4,
-    };
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: KeyedSubtree(
-        key: ValueKey(idx),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Sparkles
-                _sparkleRow(),
-                const SizedBox(height: 24),
-                // Progress dots
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (i) {
-                    final filled = i <= idx;
-                    return Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: filled ? AppColors.primary : Colors.transparent,
-                        border: Border.all(
-                          color: filled ? AppColors.primary : AppColors.borderLight,
-                          width: 1.5,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 32),
-                // Question
-                Text(
-                  question.question,
-                  style: AppTypography.headlineMedium.copyWith(
-                    color: AppColors.textPrimaryLight,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 28),
-                // Options
-                ...question.options.map((option) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      notifier.answerCheckin(option);
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.borderLight),
-                      ),
-                      child: Text(
-                        option,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textPrimaryLight,
-                        ),
-                      ),
-                    ),
-                  ),
-                )),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // ═══════════════════════════════════════════════════════════════════════════
   // CHECK-IN RESULT (Name card + Go Deeper)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -265,7 +176,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 36, height: 4,
+              width: 36,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.borderLight,
                 borderRadius: BorderRadius.circular(2),
@@ -301,7 +213,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Go to Store'),
               ),
@@ -309,7 +222,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.of(sheetCtx).pop(),
-              child: Text('Cancel', style: TextStyle(color: AppColors.textSecondaryLight)),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondaryLight)),
             ),
           ],
         ),
@@ -319,7 +233,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
   Widget _buildCheckinResult(DailyLoopState state, DailyLoopNotifier notifier) {
     // Try engagedCard first, fall back to looking up by name
-    final card = state.engagedCard ?? findCollectibleByName(state.checkinName ?? '');
+    final card =
+        state.engagedCard ?? findCollectibleByName(state.checkinName ?? '');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.pagePadding),
       child: Column(
@@ -388,7 +303,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ],
               ],
             ),
-          ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+          )
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .slideY(begin: 0.05, end: 0, duration: 600.ms),
           const SizedBox(height: AppSpacing.lg),
           _sparkleRow(),
           const SizedBox(height: AppSpacing.lg),
@@ -438,10 +356,30 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     final result = state.reflectResult!;
     final step = state.reflectStep;
 
-    final (String headerLabel, Widget content, String buttonLabel, bool isAmeen) = switch (step) {
-      0 => ('A Name for your heart', _nameContent(result), 'See Reflection', false),
-      1 => ('Reflection', _textContent(result.reframe), 'Read the Story', false),
-      2 => ('A Prophetic Story', _textContent(result.story), 'See the Dua', false),
+    final (
+      String headerLabel,
+      Widget content,
+      String buttonLabel,
+      bool isAmeen
+    ) = switch (step) {
+      0 => (
+          'A Name for your heart',
+          _nameContent(result),
+          'See Reflection',
+          false
+        ),
+      1 => (
+          'Reflection',
+          _textContent(result.reframe),
+          'Read the Story',
+          false
+        ),
+      2 => (
+          'A Prophetic Story',
+          _textContent(result.story),
+          'See the Dua',
+          false
+        ),
       _ => ('Dua', _duaContent(result), 'Ameen', true),
     };
 
@@ -479,16 +417,23 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     Row(
                       children: [
                         Container(
-                          width: 3, height: 16,
+                          width: 3,
+                          height: 16,
                           decoration: BoxDecoration(
                             color: AppColors.secondary,
                             borderRadius: BorderRadius.circular(2),
                           ),
-                        ).animate().scaleY(begin: 0, end: 1, duration: 300.ms, delay: 200.ms, curve: Curves.easeOut),
+                        ).animate().scaleY(
+                            begin: 0,
+                            end: 1,
+                            duration: 300.ms,
+                            delay: 200.ms,
+                            curve: Curves.easeOut),
                         const SizedBox(width: 8),
                         Text(
                           headerLabel,
-                          style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                          style: AppTypography.labelMedium
+                              .copyWith(color: AppColors.primary),
                         ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
                       ],
                     ),
@@ -536,7 +481,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       ),
                     ),
                   ),
-                ).animate().fadeIn(duration: 500.ms, delay: 500.ms).slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms, delay: 500.ms)
+                    .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
               else
                 GestureDetector(
                   onTap: () {
@@ -548,11 +496,13 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.buttonRadius),
                     ),
                     child: Text(
                       buttonLabel,
-                      style: AppTypography.labelLarge.copyWith(color: Colors.white),
+                      style: AppTypography.labelLarge
+                          .copyWith(color: Colors.white),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -564,7 +514,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               ],
             ],
           ),
-        ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+        )
+            .animate()
+            .fadeIn(duration: 600.ms)
+            .slideY(begin: 0.05, end: 0, duration: 600.ms),
       ),
     );
   }
@@ -582,15 +535,21 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           Text(
             result.nameArabic,
             style: AppTypography.nameOfAllahDisplay.copyWith(
-              color: AppColors.primary, fontSize: 40,
+              color: AppColors.primary,
+              fontSize: 40,
             ),
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
-          ).animate().fadeIn(duration: 800.ms).scaleXY(begin: 0.85, end: 1.0, duration: 800.ms, curve: Curves.easeOutBack),
+          ).animate().fadeIn(duration: 800.ms).scaleXY(
+              begin: 0.85,
+              end: 1.0,
+              duration: 800.ms,
+              curve: Curves.easeOutBack),
           const SizedBox(height: AppSpacing.sm),
           Text(
             result.name,
-            style: AppTypography.headlineMedium.copyWith(color: AppColors.primary),
+            style:
+                AppTypography.headlineMedium.copyWith(color: AppColors.primary),
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
         ],
@@ -620,8 +579,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.center,
           ),
-        ).animate().fadeIn(duration: 800.ms, delay: 200.ms)
-            .scaleXY(begin: 0.9, end: 1.0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutBack),
+        ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
+            begin: 0.9,
+            end: 1.0,
+            duration: 800.ms,
+            delay: 200.ms,
+            curve: Curves.easeOutBack),
         const SizedBox(height: AppSpacing.md),
         const Divider(color: AppColors.dividerLight),
         const SizedBox(height: AppSpacing.md),
@@ -636,14 +599,16 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         Text(
           result.duaTranslation,
           style: AppTypography.bodyLarge.copyWith(
-            color: AppColors.textPrimaryLight, height: 1.6,
+            color: AppColors.textPrimaryLight,
+            height: 1.6,
           ),
         ),
         if (result.duaSource.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
             result.duaSource,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+            style: AppTypography.bodySmall
+                .copyWith(color: AppColors.textTertiaryLight),
           ),
         ],
       ],
@@ -671,9 +636,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.arrow_back_ios_rounded, size: 14, color: AppColors.textSecondaryLight),
+              const Icon(Icons.arrow_back_ios_rounded,
+                  size: 14, color: AppColors.textSecondaryLight),
               const SizedBox(width: 4),
-              Text('Back', style: AppTypography.labelSmall.copyWith(color: AppColors.textSecondaryLight)),
+              Text('Back',
+                  style: AppTypography.labelSmall
+                      .copyWith(color: AppColors.textSecondaryLight)),
             ],
           ),
         ),
@@ -732,74 +700,82 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 // Seek Another Name — primary CTA
-          GestureDetector(
-            onTap: () async {
-              HapticFeedback.mediumImpact();
-              final notifier = ref.read(dailyLoopProvider.notifier);
-              // Charge the 50-token unlock fee here, BEFORE resetting the
-              // cycle. spendTokens returns success=false on insufficient
-              // balance instead of throwing, so we have to inspect the
-              // result — a try/catch would silently let the reset run.
-              final result = await spendTokens(tokenCostReflection);
-              if (!result.success) {
-                if (mounted) _showNotEnoughTokens();
-                return;
-              }
-              notifier.refreshTokenBalance(result.newBalance);
-              await notifier.resetToday();
-              // Stay on this screen — it will rebuild with fresh check-in
-            },
-            child: Container(
-              width: double.infinity,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Seek Another Name', style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                GestureDetector(
+                  onTap: () async {
+                    HapticFeedback.mediumImpact();
+                    final notifier = ref.read(dailyLoopProvider.notifier);
+                    // Charge the 50-token unlock fee here, BEFORE resetting the
+                    // cycle. spendTokens returns success=false on insufficient
+                    // balance instead of throwing, so we have to inspect the
+                    // result — a try/catch would silently let the reset run.
+                    final result = await spendTokens(tokenCostReflection);
+                    if (!result.success) {
+                      if (mounted) _showNotEnoughTokens();
+                      return;
+                    }
+                    notifier.refreshTokenBalance(result.newBalance);
+                    await notifier.resetToday();
+                    // Stay on this screen — it will rebuild with fresh check-in
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 56,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.toll, size: 10, color: Colors.white),
-                        const SizedBox(width: 2),
-                        Text('$tokenCostReflection', style: AppTypography.labelSmall.copyWith(color: Colors.white, fontSize: 10)),
+                        const Icon(Icons.auto_awesome,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text('Seek Another Name',
+                            style: AppTypography.labelLarge.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.toll,
+                                  size: 10, color: Colors.white),
+                              const SizedBox(width: 2),
+                              Text('$tokenCostReflection',
+                                  style: AppTypography.labelSmall.copyWith(
+                                      color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-          const SizedBox(height: 24),
-          // Return home
-          GestureDetector(
-            onTap: () => context.go('/'),
-            child: Text(
-              'Return to Home',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textTertiaryLight,
-              ),
-            ),
+                ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
+                const SizedBox(height: 24),
+                // Return home
+                GestureDetector(
+                  onTap: () => context.go('/'),
+                  child: Text(
+                    'Return to Home',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                    ),
+                  ),
                 ).animate().fadeIn(duration: 300.ms, delay: 600.ms),
                 const SizedBox(height: 16),
               ],
@@ -815,42 +791,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // Helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _completedChip({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: iconColor ?? AppColors.textSecondaryLight),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _sparkleRow() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -861,7 +801,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           size: i == 2 ? 20 : 14,
         )
             .animate()
-            .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut, duration: 600.ms, delay: (i * 80).ms)
+            .scale(
+                begin: const Offset(0, 0),
+                end: const Offset(1, 1),
+                curve: Curves.elasticOut,
+                duration: 600.ms,
+                delay: (i * 80).ms)
             .fadeIn(duration: 400.ms, delay: (i * 80).ms);
       }),
     );

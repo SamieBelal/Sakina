@@ -26,12 +26,12 @@ class SilverCardPreviewScreen extends StatelessWidget {
             // ── Section: Grid tiles ──
             Text('Grid Tiles (3-up)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD0D1D5))),
             const SizedBox(height: 16),
-            Row(
+            const Row(
               children: [
                 Expanded(child: _OrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: true)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _OrnateTile(arabic: 'السَّلَامُ', transliteration: 'As-Salaam', unseen: false)),
-                const SizedBox(width: 14),
+                SizedBox(width: 14),
                 Expanded(child: _OrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
               ],
             ),
@@ -42,7 +42,7 @@ class SilverCardPreviewScreen extends StatelessWidget {
             Text('Single Card (Large)', style: AppTypography.headlineMedium.copyWith(color: const Color(0xFFD0D1D5))),
             const SizedBox(height: 16),
             Center(
-              child: SizedBox(
+              child: const SizedBox(
                 width: 200,
                 child: _OrnateTile(arabic: 'الوَدُودُ', transliteration: 'Al-Wadud', unseen: true),
               ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
@@ -62,12 +62,12 @@ class SilverCardPreviewScreen extends StatelessWidget {
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Expanded(child: _OrnateTile(arabic: 'الرَّحِيمُ', transliteration: 'Ar-Raheem', unseen: true)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _OrnateTile(arabic: 'السَّلَامُ', transliteration: 'As-Salaam', unseen: false)),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(child: _OrnateTile(arabic: 'المُؤْمِنُ', transliteration: "Al-Mu'min", unseen: false)),
                 ],
               ),
@@ -623,7 +623,7 @@ class _OrnateBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
-    final inset = 3.0;
+    const inset = 3.0;
     final borderRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(inset, inset, w - inset * 2, h - inset * 2),
       const Radius.circular(9),
@@ -636,7 +636,7 @@ class _OrnateBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
-    final innerInset = 6.0;
+    const innerInset = 6.0;
     final innerRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(7),
@@ -648,7 +648,7 @@ class _OrnateBorderPainter extends CustomPainter {
       ..color = cornerAccentColor
       ..style = PaintingStyle.fill;
 
-    final cornerSize = 10.0;
+    const cornerSize = 10.0;
 
     // Top-left
     _drawCornerOrnament(canvas, accentPaint, inset + 1, inset + 1, cornerSize, false, false);
@@ -663,7 +663,7 @@ class _OrnateBorderPainter extends CustomPainter {
     final diamondPaint = Paint()
       ..color = cornerAccentColor.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
-    final ds = 2.5;
+    const ds = 2.5;
 
     // Top center
     _drawDiamond(canvas, diamondPaint, w / 2, inset, ds);
@@ -680,7 +680,7 @@ class _OrnateBorderPainter extends CustomPainter {
     final dy = flipY ? -1.0 : 1.0;
 
     // Small diamond at the corner
-    final ds = 3.0;
+    const ds = 3.0;
     final diamond = Path()
       ..moveTo(x, y - ds * dy)
       ..lineTo(x + ds * dx, y)
@@ -742,7 +742,7 @@ class _OrnateDetailBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
 
-    final inset = 6.0;
+    const inset = 6.0;
     final outerRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(inset, inset, w - inset * 2, h - inset * 2),
       const Radius.circular(14),
@@ -755,7 +755,7 @@ class _OrnateDetailBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
-    final innerInset = 10.0;
+    const innerInset = 10.0;
     final innerRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(innerInset, innerInset, w - innerInset * 2, h - innerInset * 2),
       const Radius.circular(12),
@@ -767,7 +767,7 @@ class _OrnateDetailBorderPainter extends CustomPainter {
       ..color = accentColor
       ..style = PaintingStyle.fill;
 
-    final ds = 3.5;
+    const ds = 3.5;
     // Top center
     _drawDiamond(canvas, accentPaint, w / 2, inset, ds);
     // Bottom center

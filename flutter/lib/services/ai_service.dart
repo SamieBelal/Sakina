@@ -1097,7 +1097,7 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .map((m) => BuiltDuaNameUsed(
             name: m['name'] as String,
             nameArabic: m['nameArabic'] as String,
-            why: m['why'] as String? ?? '',
+            why: m['why'] ?? '',
           ))
       .toList();
 

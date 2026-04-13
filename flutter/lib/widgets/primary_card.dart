@@ -27,12 +27,12 @@ class PrimaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
         boxShadow: [
           BoxShadow(
-            color: const Color(0x1A1A2E).withValues(alpha: 0.04),
+            color: const Color(0x001a1a2e).withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
           BoxShadow(
-            color: const Color(0x1A1A2E).withValues(alpha: 0.02),
+            color: const Color(0x001a1a2e).withValues(alpha: 0.02),
             blurRadius: 3,
             offset: const Offset(0, 1),
           ),

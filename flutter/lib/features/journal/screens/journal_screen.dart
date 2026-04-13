@@ -9,7 +9,6 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
-import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -22,7 +21,8 @@ import 'package:sakina/widgets/sakina_loader.dart';
 // Stats provider
 // ---------------------------------------------------------------------------
 
-final _journalStatsProvider = FutureProvider<({XpState xp, StreakState streak})>((ref) async {
+final _journalStatsProvider =
+    FutureProvider<({XpState xp, StreakState streak})>((ref) async {
   final xp = await getXp();
   final streak = await getStreak();
   return (xp: xp, streak: streak);
@@ -130,7 +130,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             _buildHeader(totalCount),
             if (totalCount > 0) ...[
               const SizedBox(height: 12),
-              _buildInlineStats(reflections, builtDuas.length + savedDuas.length),
+              _buildInlineStats(
+                  reflections, builtDuas.length + savedDuas.length),
             ],
             const SizedBox(height: 16),
             _buildTabs(),
@@ -161,9 +162,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Journal',
-              style: AppTypography.displayLarge
-                  .copyWith(color: AppColors.textPrimaryLight))
-              .animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0, duration: 500.ms),
+                  style: AppTypography.displayLarge
+                      .copyWith(color: AppColors.textPrimaryLight))
+              .animate()
+              .fadeIn(duration: 500.ms)
+              .slideY(begin: 0.05, end: 0, duration: 500.ms),
           const SizedBox(height: 4),
           Text(
             total == 0 ? 'Your spiritual diary' : '$total entries',
@@ -175,81 +178,90 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
-  // ── Week strip ─────────────────────────────────────────────────────────────
-
-  Widget _buildWeekStrip(List<SavedReflection> reflections) {
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final reflectionDates = reflections
-        .map((r) => DateTime.parse(r.date))
-        .toSet();
-    final activeDays = List.generate(7, (i) {
-      final day = weekStart.add(Duration(days: i));
-      return reflectionDates.any((d) =>
-          d.year == day.year && d.month == day.month && d.day == day.day);
-    });
-    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(7, (i) {
-            final isToday = i == now.weekday - 1;
-            final active = activeDays[i];
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active
-                    ? AppColors.primary
-                    : isToday
-                        ? AppColors.primary.withValues(alpha: 0.12)
-                        : const Color(0xFFF0EBE3),
-                border: isToday && !active
-                    ? Border.all(color: AppColors.primary, width: 1.5)
-                    : null,
-              ),
-              child: active
-                  ? const Icon(Icons.check, size: 13, color: Colors.white)
-                  : Center(
-                      child: Text(
-                        dayLabels[i],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: isToday
-                              ? AppColors.primary
-                              : AppColors.textTertiaryLight,
-                        ),
-                      ),
-                    ),
-            );
-          }),
-        ),
-      ),
-    ).animate().fadeIn(duration: 400.ms);
-  }
-
   // ── Inline stats ───────────────────────────────────────────────────────────
 
   // Keyword → theme bucket mapping
   static const _themeBuckets = <String, List<String>>{
-    'Anxiety & Worry': ['anxious', 'anxiety', 'stressed', 'stress', 'worry', 'worried', 'nervous', 'fear', 'scared', 'overwhelmed', 'panic'],
-    'Relationships': ['family', 'friend', 'friends', 'wife', 'husband', 'mother', 'father', 'parents', 'sister', 'brother', 'relationship', 'people', 'nosy', 'marriage'],
-    'Work & Career': ['job', 'work', 'career', 'business', 'money', 'salary', 'boss', 'interview', 'study', 'school', 'exam', 'university'],
-    'Sadness & Grief': ['sad', 'sadness', 'grief', 'loss', 'lost', 'cry', 'crying', 'depressed', 'depression', 'lonely', 'alone', 'hurt'],
-    'Gratitude': ['grateful', 'gratitude', 'thankful', 'blessed', 'blessing', 'alhamdulillah', 'happy', 'joy', 'peace'],
-    'Guidance': ['confused', 'decision', 'istikhara', 'guidance', 'direction', 'know', 'should', 'proceed', 'unsure', 'doubt'],
+    'Anxiety & Worry': [
+      'anxious',
+      'anxiety',
+      'stressed',
+      'stress',
+      'worry',
+      'worried',
+      'nervous',
+      'fear',
+      'scared',
+      'overwhelmed',
+      'panic'
+    ],
+    'Relationships': [
+      'family',
+      'friend',
+      'friends',
+      'wife',
+      'husband',
+      'mother',
+      'father',
+      'parents',
+      'sister',
+      'brother',
+      'relationship',
+      'people',
+      'nosy',
+      'marriage'
+    ],
+    'Work & Career': [
+      'job',
+      'work',
+      'career',
+      'business',
+      'money',
+      'salary',
+      'boss',
+      'interview',
+      'study',
+      'school',
+      'exam',
+      'university'
+    ],
+    'Sadness & Grief': [
+      'sad',
+      'sadness',
+      'grief',
+      'loss',
+      'lost',
+      'cry',
+      'crying',
+      'depressed',
+      'depression',
+      'lonely',
+      'alone',
+      'hurt'
+    ],
+    'Gratitude': [
+      'grateful',
+      'gratitude',
+      'thankful',
+      'blessed',
+      'blessing',
+      'alhamdulillah',
+      'happy',
+      'joy',
+      'peace'
+    ],
+    'Guidance': [
+      'confused',
+      'decision',
+      'istikhara',
+      'guidance',
+      'direction',
+      'know',
+      'should',
+      'proceed',
+      'unsure',
+      'doubt'
+    ],
   };
 
   String? _topTheme(List<SavedReflection> reflections) {
@@ -276,90 +288,102 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     // Unique Names encountered
     final uniqueNames = reflections.map((r) => r.name).toSet().length;
 
-    // Days active this week
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final reflectionDates = reflections
-        .map((r) => DateTime.parse(r.date))
-        .toSet();
-    final activeDays = List.generate(7, (i) {
-      final day = weekStart.add(Duration(days: i));
-      return reflectionDates.any((d) =>
-          d.year == day.year && d.month == day.month && d.day == day.day);
-    });
-
     final topTheme = _topTheme(reflections);
 
-    return statsAsync.when(
-      loading: () => const SizedBox(
-        height: 120,
-        child: Center(child: SakinaLoader()),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (stats) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── 4 stat tiles ──
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                border: Border.all(color: AppColors.borderLight),
-              ),
-              child: IntrinsicHeight(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _statItem(Icons.auto_stories_rounded, '${reflections.length}', 'Reflections', AppColors.primary),
-                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
-                    _statItem(Icons.auto_awesome, '$duasCount', 'Duas', AppColors.secondary),
-                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
-                    _statItem(Icons.star_rounded, '$uniqueNames', 'Names', AppColors.secondary),
-                    VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
-                    _statItem(Icons.local_fire_department, '${stats.streak.longestStreak}', 'Best streak', AppColors.streakAmber),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Theme insight card (3+ reflections) ──
-            if (topTheme != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5EBD9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        color: AppColors.secondary, size: 16),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'You often turn to Allah with $topTheme',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+    return statsAsync
+        .when(
+          loading: () => const SizedBox(
+            height: 120,
+            child: Center(child: SakinaLoader()),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (stats) => Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding, 0, AppSpacing.pagePadding, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── 4 stat tiles ──
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _statItem(
+                            Icons.auto_stories_rounded,
+                            '${reflections.length}',
+                            'Reflections',
+                            AppColors.primary),
+                        const VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: AppColors.borderLight),
+                        _statItem(Icons.auto_awesome, '$duasCount', 'Duas',
+                            AppColors.secondary),
+                        const VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: AppColors.borderLight),
+                        _statItem(Icons.star_rounded, '$uniqueNames', 'Names',
+                            AppColors.secondary),
+                        const VerticalDivider(
+                            width: 1,
+                            thickness: 1,
+                            color: AppColors.borderLight),
+                        _statItem(
+                            Icons.local_fire_department,
+                            '${stats.streak.longestStreak}',
+                            'Best streak',
+                            AppColors.streakAmber),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 400.ms);
+
+                // ── Theme insight card (3+ reflections) ──
+                if (topTheme != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EBD9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.secondary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome,
+                            color: AppColors.secondary, size: 16),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'You often turn to Allah with $topTheme',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 400.ms);
   }
 
   Widget _statItem(IconData icon, String value, String label, Color color) {
@@ -381,36 +405,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondaryLight,
               fontSize: 10,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _inlineChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bgColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
             ),
           ),
         ],
@@ -451,9 +445,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                     child: Text(
                       labels[i],
                       style: AppTypography.bodyMedium.copyWith(
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
                         fontSize: 13,
-                        color: selected ? Colors.white : AppColors.textSecondaryLight,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.textSecondaryLight,
                       ),
                     ),
                   ),
@@ -476,7 +473,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: entries.asMap().entries
+      children: entries
+          .asMap()
+          .entries
           .map((e) => _animatedCard(e.key, _buildEntryCard(e.value)))
           .toList(),
     );
@@ -508,7 +507,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   // ── Duas tab ────────────────────────────────────────────────────────────────
 
-  Widget _buildDuasTab(List<SavedBuiltDua> builtDuas, List<SavedRelatedDua> savedDuas) {
+  Widget _buildDuasTab(
+      List<SavedBuiltDua> builtDuas, List<SavedRelatedDua> savedDuas) {
     if (builtDuas.isEmpty && savedDuas.isEmpty) {
       return _buildEmptyState(
         icon: Icons.brightness_3_outlined,
@@ -522,13 +522,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     final List<Widget> duaWidgets;
     switch (_duaFilter) {
       case 1:
-        duaWidgets = builtDuas.map((d) => _buildBuiltDuaCard(d)).toList();
+        duaWidgets = builtDuas.map(_buildBuiltDuaCard).toList();
       case 2:
-        duaWidgets = savedDuas.map((d) => _buildSavedDuaCard(d)).toList();
+        duaWidgets = savedDuas.map(_buildSavedDuaCard).toList();
       default:
         duaWidgets = [
-          ...builtDuas.map((d) => _buildBuiltDuaCard(d)),
-          ...savedDuas.map((d) => _buildSavedDuaCard(d)),
+          ...builtDuas.map(_buildBuiltDuaCard),
+          ...savedDuas.map(_buildSavedDuaCard),
         ];
     }
 
@@ -547,9 +547,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           ],
         ),
         const SizedBox(height: 16),
-        ...duaWidgets.asMap().entries
-            .map((e) => _animatedCard(e.key, e.value))
-            .toList(),
+        ...duaWidgets.asMap().entries.map((e) => _animatedCard(e.key, e.value)),
       ],
     );
   }
@@ -588,9 +586,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       loading: () => const Center(
         child: SakinaLoader(),
       ),
-      error: (_, __) => const Center(child: Text('Could not load achievements')),
+      error: (_, __) =>
+          const Center(child: Text('Could not load achievements')),
       data: (unlocked) {
-        final categories = AchievementCategory.values;
+        const categories = AchievementCategory.values;
         final categoryLabels = {
           AchievementCategory.collection: 'Collection',
           AchievementCategory.reflection: 'Reflection',
@@ -622,14 +621,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                     : 0,
                 minHeight: 6,
                 backgroundColor: AppColors.borderLight,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.secondary),
               ),
             ),
             const SizedBox(height: 20),
 
             // Grouped by category
             ...categories.expand((cat) {
-              final achievements = allAchievements.where((a) => a.category == cat).toList();
+              final achievements =
+                  allAchievements.where((a) => a.category == cat).toList();
               if (achievements.isEmpty) return <Widget>[];
 
               return [
@@ -658,7 +659,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   )
                       .animate()
                       .fadeIn(delay: (i * 40).ms, duration: 300.ms)
-                      .slideY(begin: 0.04, end: 0, delay: (i * 40).ms, duration: 300.ms);
+                      .slideY(
+                          begin: 0.04,
+                          end: 0,
+                          delay: (i * 40).ms,
+                          duration: 300.ms);
                 }),
               ];
             }),
@@ -689,10 +694,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => ReflectionDetailPage(
-            reflection: r,
-            onRemove: () => ref.read(reflectProvider.notifier).deleteReflection(r.id),
-          )),
+          MaterialPageRoute(
+              builder: (_) => ReflectionDetailPage(
+                    reflection: r,
+                    onRemove: () => ref
+                        .read(reflectProvider.notifier)
+                        .deleteReflection(r.id),
+                  )),
         );
       },
       topLeft: _typeChip('Reflection', AppColors.primary),
@@ -705,7 +713,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE8F5EE),
                   borderRadius: BorderRadius.circular(20),
@@ -771,8 +780,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           const SizedBox(height: 12),
           _removeButton(() {
             ref.read(reflectProvider.notifier).deleteReflection(r.id);
-          }
-          ),
+          }),
         ],
       ),
     );
@@ -786,9 +794,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => DuaDetailPage.fromBuiltDua(d,
-            onRemove: () => ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id),
-          )),
+          MaterialPageRoute(
+              builder: (_) => DuaDetailPage.fromBuiltDua(
+                    d,
+                    onRemove: () => ref
+                        .read(duasProvider.notifier)
+                        .removeSavedBuiltDua(d.id),
+                  )),
         );
       },
       topLeft: _typeChip('Personal Dua', AppColors.secondary),
@@ -842,9 +854,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       onTap: () {
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => DuaDetailPage.fromRelatedDua(d,
-            onRemove: () => ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id),
-          )),
+          MaterialPageRoute(
+              builder: (_) => DuaDetailPage.fromRelatedDua(
+                    d,
+                    onRemove: () => ref
+                        .read(duasProvider.notifier)
+                        .removeSavedRelatedDua(d.id),
+                  )),
         );
       },
       topLeft: _typeChip('Saved Dua', AppColors.secondary),
@@ -939,16 +955,17 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
                   onAction();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.buttonRadius),
                   ),
                   child: Text(
                     actionLabel,
-                    style: AppTypography.labelLarge
-                        .copyWith(color: Colors.white),
+                    style:
+                        AppTypography.labelLarge.copyWith(color: Colors.white),
                   ),
                 ),
               ),
@@ -1002,7 +1019,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.textTertiaryLight),
+            const Icon(Icons.delete_outline_rounded,
+                size: 14, color: AppColors.textTertiaryLight),
             const SizedBox(width: 4),
             Text(
               'Remove',
@@ -1028,15 +1046,25 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       label = '$diff days ago';
     } else {
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
       ];
       label = '${months[date.month - 1]} ${date.day}';
     }
     return Text(
       label,
-      style: AppTypography.bodySmall
-          .copyWith(color: AppColors.textTertiaryLight),
+      style:
+          AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
     );
   }
 }
@@ -1097,7 +1125,8 @@ class _AchievementCard extends StatelessWidget {
               ),
               child: Icon(
                 unlocked ? achievement.icon : Icons.lock_outline_rounded,
-                color: unlocked ? achievement.color : AppColors.textTertiaryLight,
+                color:
+                    unlocked ? achievement.color : AppColors.textTertiaryLight,
                 size: 22,
               ),
             ),
@@ -1129,12 +1158,18 @@ class _AchievementCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.receipt_long, size: 12, color: unlocked ? AppColors.primary : AppColors.textTertiaryLight),
+                        Icon(Icons.receipt_long,
+                            size: 12,
+                            color: unlocked
+                                ? AppColors.primary
+                                : AppColors.textTertiaryLight),
                         const SizedBox(width: 3),
                         Text(
                           '+${achievement.scrollReward} Scroll${achievement.scrollReward == 1 ? '' : 's'}',
                           style: AppTypography.labelSmall.copyWith(
-                            color: unlocked ? AppColors.primary : AppColors.textTertiaryLight,
+                            color: unlocked
+                                ? AppColors.primary
+                                : AppColors.textTertiaryLight,
                             fontWeight: FontWeight.w600,
                             fontSize: 10,
                           ),
@@ -1185,10 +1220,11 @@ class _ExpandableCardState extends State<_ExpandableCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTap ?? () {
-        HapticFeedback.selectionClick();
-        setState(() => _open = !_open);
-      },
+      onTap: widget.onTap ??
+          () {
+            HapticFeedback.selectionClick();
+            setState(() => _open = !_open);
+          },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -1248,7 +1284,7 @@ class _ExpandableCardState extends State<_ExpandableCard> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Icon(
+                            const Icon(
                               Icons.arrow_forward_ios_rounded,
                               size: 12,
                               color: AppColors.textTertiaryLight,
@@ -1263,7 +1299,7 @@ class _ExpandableCardState extends State<_ExpandableCard> {
                             AnimatedRotation(
                               turns: _open ? 0.5 : 0,
                               duration: const Duration(milliseconds: 200),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.keyboard_arrow_down_rounded,
                                 size: 18,
                                 color: AppColors.textTertiaryLight,
@@ -1275,7 +1311,8 @@ class _ExpandableCardState extends State<_ExpandableCard> {
                         AnimatedSize(
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeInOut,
-                          child: _open ? widget.expanded : const SizedBox.shrink(),
+                          child:
+                              _open ? widget.expanded : const SizedBox.shrink(),
                         ),
                       ],
                     ],

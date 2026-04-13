@@ -37,7 +37,7 @@ class ReflectDependencies {
   });
 }
 
-final _defaultReflectDependencies = ReflectDependencies(
+const _defaultReflectDependencies = ReflectDependencies(
   getFollowUpQuestions: ai.getFollowUpQuestions,
   reflect: ai.reflectWithOpenAI,
   now: DateTime.now,

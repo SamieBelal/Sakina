@@ -20,21 +20,6 @@ class EncouragementScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  static String _headlineForIntention(String? intention) {
-    switch (intention) {
-      case AppStrings.intentionSpiritualGrowth:
-        return AppStrings.encouragementHeadlineSpiritualGrowth;
-      case AppStrings.intentionDifficultTime:
-        return AppStrings.encouragementHeadlineDifficultTime;
-      case AppStrings.intentionBuildHabit:
-        return AppStrings.encouragementHeadlineBuildHabit;
-      case AppStrings.intentionCurious:
-        return AppStrings.encouragementHeadlineCurious;
-      default:
-        return AppStrings.encouragementHeadlineDefault;
-    }
-  }
-
   static String _subtitleForFamiliarity(String? familiarity) {
     switch (familiarity) {
       case 'beginner':

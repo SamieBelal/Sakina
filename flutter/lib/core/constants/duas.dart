@@ -875,7 +875,7 @@ const List<BrowseDua> browseDuas = [
     arabic:
         'رَبَّنَا ظَلَمْنَا أَنفُسَنَا وَإِن لَّمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ',
     transliteration:
-        "Rabbana zalamna anfusana wa illam taghfir lana wa tarhamna lanakunanna minal-khosirin",
+        'Rabbana zalamna anfusana wa illam taghfir lana wa tarhamna lanakunanna minal-khosirin',
     translation:
         'Our Lord, we have wronged ourselves, and if You do not forgive us and have mercy upon us, we will surely be among the losers.',
     source: 'Quran 7:23',
@@ -1037,7 +1037,7 @@ const List<BrowseDua> browseDuas = [
     arabic:
         'رَّبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا',
     transliteration:
-        "Rabbir-hamhuma kama rabbayani saghira",
+        'Rabbir-hamhuma kama rabbayani saghira',
     translation:
         'My Lord, have mercy upon them as they brought me up when I was small.',
     source: 'Quran 17:24',
@@ -1051,7 +1051,7 @@ const List<BrowseDua> browseDuas = [
     arabic:
         'اللَّهُمَّ أَكْثِرْ مَالَهُ وَوَلَدَهُ وَأَطِلْ حَيَاتَهُ وَاغْفِرْ لَهُ',
     transliteration:
-        "Allahumma akthir malahu wa waladahu wa atil hayatahu waghfir lah",
+        'Allahumma akthir malahu wa waladahu wa atil hayatahu waghfir lah',
     translation:
         'O Allah, increase his wealth, increase his children, extend his life, and forgive him his sins.',
     source: 'Sahih al-Bukhari 6334',
@@ -1083,7 +1083,7 @@ const List<BrowseDua> browseDuas = [
     arabic:
         'اللَّهُمَّ أَحْيِنِي مَا كَانَتِ الْحَيَاةُ خَيْرًا لِي وَتَوَفَّنِي إِذَا كَانَتِ الْوَفَاةُ خَيْرًا لِي',
     transliteration:
-        "Allahumma ahyini ma kanatil-hayatu khayran li wa tawaffani idha kanatil-wafatu khayran li",
+        'Allahumma ahyini ma kanatil-hayatu khayran li wa tawaffani idha kanatil-wafatu khayran li',
     translation:
         'O Allah, keep me alive as long as life is better for me, and let me die when death is better for me.',
     source: 'Sahih al-Bukhari 5671',
