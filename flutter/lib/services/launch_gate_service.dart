@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _launchGateKey = 'sakina_launch_gate';
 
@@ -14,7 +16,8 @@ String _today() {
 Future<bool> shouldShowDailyLaunch() async {
   if (_overlayPushedThisSession) return false;
   final prefs = await SharedPreferences.getInstance();
-  final last = prefs.getString(_launchGateKey);
+  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
+  final last = prefs.getString(scopedKey);
   return last != _today();
 }
 
@@ -22,12 +25,23 @@ Future<bool> shouldShowDailyLaunch() async {
 Future<void> markDailyLaunchShown() async {
   _overlayPushedThisSession = true;
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_launchGateKey, _today());
+  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
+  await prefs.setString(scopedKey, _today());
 }
 
 /// Call this when the user resets the daily loop from Settings.
 Future<void> resetDailyLaunchGate() async {
   _overlayPushedThisSession = false;
   final prefs = await SharedPreferences.getInstance();
-  await prefs.remove(_launchGateKey);
+  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
+  await prefs.remove(scopedKey);
+}
+
+void resetLaunchGateSessionState() {
+  _overlayPushedThisSession = false;
+}
+
+@visibleForTesting
+void resetLaunchGateMemoryGuard() {
+  resetLaunchGateSessionState();
 }

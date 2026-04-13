@@ -132,4 +132,36 @@ void main() {
     expect((await getTierUpScrolls()).balance, 2);
     expect(fakeSync.rpcCalls, isEmpty);
   });
+
+  test('markScrollUsed writes a user-scoped key', () async {
+    await markScrollUsed();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getBool(fakeSync.scopedKey('sakina_has_used_scroll')),
+      isTrue,
+    );
+    expect(prefs.getBool('sakina_has_used_scroll'), isNull);
+  });
+
+  test('hasEverUsedScroll reads the user-scoped key', () async {
+    expect(await hasEverUsedScroll(), isFalse);
+
+    await markScrollUsed();
+
+    expect(await hasEverUsedScroll(), isTrue);
+  });
+
+  test('clearSession pattern removes the scoped scroll-usage flag', () async {
+    await markScrollUsed();
+
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in prefs.getKeys().toList()) {
+      if (key.endsWith(':user-1')) {
+        await prefs.remove(key);
+      }
+    }
+
+    expect(await hasEverUsedScroll(), isFalse);
+  });
 }

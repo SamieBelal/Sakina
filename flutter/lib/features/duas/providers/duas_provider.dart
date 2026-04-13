@@ -38,7 +38,7 @@ class DuasDependencies {
   });
 }
 
-final _defaultDuasDependencies = DuasDependencies(
+const _defaultDuasDependencies = DuasDependencies(
   findDuas: findDuas,
   buildDua: buildDua,
   now: DateTime.now,
@@ -293,13 +293,14 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   Future<void> _trackNamesInvoked(List<String> names) async {
     final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getStringList(_namesInvokedKey) ?? [];
+    final scopedKey = supabaseSyncService.scopedKey(_namesInvokedKey);
+    final existing = prefs.getStringList(scopedKey) ?? [];
     final set = existing.toSet();
     for (final name in names) {
       // Normalize: strip "Al-", lowercase for matching
       set.add(name.trim());
     }
-    await prefs.setStringList(_namesInvokedKey, set.toList());
+    await prefs.setStringList(scopedKey, set.toList());
   }
 
   @override

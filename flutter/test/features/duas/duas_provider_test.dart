@@ -243,7 +243,11 @@ void main() {
     expect(await getBuiltDuaUsageToday(), 1);
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList('sakina_names_invoked'), contains('Al-Hadi'));
+    expect(
+      prefs.getStringList(fakeSync.scopedKey('sakina_names_invoked')),
+      contains('Al-Hadi'),
+    );
+    expect(prefs.getStringList('sakina_names_invoked'), isNull);
 
     notifier.nextBuildSection();
     notifier.nextBuildSection();

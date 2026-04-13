@@ -16,6 +16,7 @@ import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -204,7 +205,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     final now = DateTime.now();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    return 'daily_loop_$date';
+    return supabaseSyncService.scopedKey('daily_loop_$date');
   }
 
   Future<void> _initialize() async {
@@ -244,6 +245,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Restore persisted state for today
       await _loadTodayState();
+
+      // Re-read economy values in case hydration completed while we were
+      // loading. This covers the sign-out → re-login path where _initialize
+      // first reads default/empty cache, then hydration finishes before we
+      // reach this point.
+      await refreshEconomyState();
 
       state = state.copyWith(loaded: true);
     } catch (e) {

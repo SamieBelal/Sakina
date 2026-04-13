@@ -5,12 +5,18 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/providers/daily_question_provider.dart';
+import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -71,6 +77,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isAutoTitle = displayTitle.isAuto;
       _loading = false;
     });
+  }
+
+  void _invalidateAllUserProviders(WidgetRef ref) {
+    ref.invalidate(reflectProvider);
+    ref.invalidate(duasProvider);
+    ref.invalidate(cardCollectionProvider);
+    ref.invalidate(dailyRewardsProvider);
+    ref.invalidate(questsProvider);
+    ref.invalidate(dailyLoopProvider);
+    ref.invalidate(tokenProvider);
+    ref.invalidate(tierUpScrollProvider);
+    ref.invalidate(discoveryQuizProvider);
+    ref.invalidate(dailyQuestionProvider);
+    ref.invalidate(isPremiumProvider);
   }
 
   Future<void> _openDiscoveryQuiz() async {
@@ -231,11 +251,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Step 3: Perform deletion
     try {
       final authService = ref.read(authServiceProvider);
+      final uid = supabaseSyncService.currentUserId;
       await authService.deleteAccount();
       ref.read(onboardingProvider.notifier).reset();
-      await ref.read(appSessionProvider).clearSession();
-      ref.invalidate(reflectProvider);
-      ref.invalidate(duasProvider);
+      await ref.read(appSessionProvider).clearSession(userId: uid);
+      _invalidateAllUserProviders(ref);
       await authService.signOut();
     } catch (_) {
       if (!mounted) return;
@@ -813,8 +833,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 try {
                   ref.read(onboardingProvider.notifier).reset();
                   await ref.read(appSessionProvider).clearSession();
-                  ref.invalidate(reflectProvider);
-                  ref.invalidate(duasProvider);
+                  _invalidateAllUserProviders(ref);
                   await ref.read(authServiceProvider).signOut();
                 } catch (_) {
                   if (!mounted) return;

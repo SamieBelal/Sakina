@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _scrollKey = 'sakina_tier_up_scrolls';
+const String _hasUsedScrollKey = 'sakina_has_used_scroll';
 
 // Scroll costs
 const int scrollCostBronzeToSilver = 5;
@@ -82,6 +83,19 @@ Future<void> hydrateTierUpScrollCache({required int balance}) async {
   await _setCachedBalance(prefs, balance);
 }
 
+/// Mark that the user has used at least one scroll.
+Future<void> markScrollUsed() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(supabaseSyncService.scopedKey(_hasUsedScrollKey), true);
+}
+
+/// Check whether the current user has ever used a scroll.
+Future<bool> hasEverUsedScroll() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(supabaseSyncService.scopedKey(_hasUsedScrollKey)) ??
+      false;
+}
+
 Future<TierUpScrollState> getTierUpScrolls() async {
   final prefs = await SharedPreferences.getInstance();
   final balance = await _getCachedBalance(prefs);
@@ -158,7 +172,7 @@ Future<TierUpScrollSpendResult> spendTierUpScrolls(int amount) async {
   }
 
   await _setCachedBalance(prefs, newBalance);
-  await prefs.setBool('sakina_has_used_scroll', true);
+  await markScrollUsed();
   return TierUpScrollSpendResult(success: true, newBalance: newBalance);
 }
 

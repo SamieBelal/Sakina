@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
+import '../services/launch_gate_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
 
@@ -19,13 +20,15 @@ class AppSessionNotifier extends ChangeNotifier {
     bool Function()? isAuthenticatedProvider,
     Future<void> Function()? hydrateEconomyCache,
     Future<bool> Function()? hasCompletedOnboarding,
+    Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
         _isAuthenticatedProvider = isAuthenticatedProvider ??
             (() => Supabase.instance.client.auth.currentUser != null),
         _hydrateEconomyCache = hydrateEconomyCache ?? _defaultHydrate,
         _hasCompletedOnboarding = hasCompletedOnboarding ??
             authService?.hasCompletedOnboarding ??
-            (() async => false) {
+            (() async => false),
+        _hydrationTimeout = hydrationTimeout ?? const Duration(seconds: 30) {
     _subscription =
         (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
             .listen(_onAuthChange);
@@ -35,6 +38,7 @@ class AppSessionNotifier extends ChangeNotifier {
   final bool Function() _isAuthenticatedProvider;
   final Future<void> Function() _hydrateEconomyCache;
   final Future<bool> Function() _hasCompletedOnboarding;
+  final Duration _hydrationTimeout;
   bool _hasOnboarded;
 
   bool get isAuthenticated => _isAuthenticatedProvider();
@@ -46,6 +50,10 @@ class AppSessionNotifier extends ChangeNotifier {
   /// Whether the economy cache has been hydrated at least once this session.
   bool get economyHydrated => _economyHydrated;
   bool _economyHydrated = false;
+
+  /// Whether the last hydration attempt failed or timed out.
+  bool get hydrationFailed => _hydrationFailed;
+  bool _hydrationFailed = false;
 
   void _onAuthChange(AuthState data) {
     switch (data.event) {
@@ -63,6 +71,7 @@ class AppSessionNotifier extends ChangeNotifier {
       case AuthChangeEvent.signedOut:
         _hasOnboarded = false;
         _economyHydrated = false;
+        _hydrationFailed = false;
         notifyListeners();
         break;
       default:
@@ -74,13 +83,28 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> _hydrateAndNotify() async {
     if (_hydrating) return; // Avoid overlapping hydrations
     _hydrating = true;
+    _hydrationFailed = false;
     try {
-      await _hydrateEconomyCache();
+      await _hydrateEconomyCache().timeout(
+        _hydrationTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Economy hydration timed out',
+          _hydrationTimeout,
+        ),
+      );
       _economyHydrated = true;
-      notifyListeners(); // Kick providers to re-read fresh cache
+    } catch (_) {
+      _hydrationFailed = true;
     } finally {
       _hydrating = false;
+      notifyListeners(); // Kick providers to re-read fresh cache / failure UI
     }
+  }
+
+  /// Manually retry hydration after an error or timeout.
+  Future<void> retryHydration() async {
+    if (_hydrating || !_hydrationFailed) return;
+    await _hydrateAndNotify();
   }
 
   Future<void> _checkOnboardingStatus() async {
@@ -120,13 +144,15 @@ class AppSessionNotifier extends ChangeNotifier {
   /// user is null and scoped keys can't be resolved.
   Future<void> clearSession({String? userId}) async {
     _hasOnboarded = false;
+    resetLaunchGateSessionState();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('onboarding_completed');
+    await prefs.remove('onboarding_state');
 
     // Clear user-scoped SharedPreferences keys to prevent cross-user data bleed.
     final uid = userId ?? supabaseSyncService.currentUserId;
     if (uid != null) {
-      final allKeys = prefs.getKeys();
+      final allKeys = prefs.getKeys().toList();
       final scopedSuffix = ':$uid';
       for (final key in allKeys) {
         if (key.endsWith(scopedSuffix)) {

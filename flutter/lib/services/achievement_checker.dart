@@ -6,9 +6,11 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/widgets/achievement_toast.dart';
 
 /// Gather all app state and check for newly unlocked achievements.
@@ -50,10 +52,8 @@ Future<void> checkAchievements(WidgetRef ref) async {
 
     // Collection counts
     final discoveredCount = collection.discoveredIds.length;
-    final silverCount =
-        collection.tiers.values.where((t) => t >= 2).length;
-    final goldCount =
-        collection.tiers.values.where((t) => t >= 3).length;
+    final silverCount = collection.tiers.values.where((t) => t >= 2).length;
+    final goldCount = collection.tiers.values.where((t) => t >= 3).length;
 
     // Journal entries
     final journalEntries = reflections.length + builtDuas.length;
@@ -63,15 +63,15 @@ Future<void> checkAchievements(WidgetRef ref) async {
     final totalDaily = questsState.daily.length;
 
     // Comeback detection: had a broken streak (longest > current means broke at some point)
-    final hadBrokenStreak =
-        streak.longestStreak > streak.currentStreak && streak.currentStreak >= 1;
+    final hadBrokenStreak = streak.longestStreak > streak.currentStreak &&
+        streak.currentStreak >= 1;
 
     // Check for complete set (bronze+silver+gold of same name = tier >= 3)
     final hasCompleteSet = collection.tiers.values.any((t) => t >= 3);
 
     // Scroll/title/spending data
     final prefs = await SharedPreferences.getInstance();
-    final hasUsedScroll = prefs.getBool('sakina_has_used_scroll') ?? false;
+    final hasUsedScroll = await hasEverUsedScroll();
     final totalTokensSpent = await getTotalTokensSpent();
 
     // Title data
@@ -82,11 +82,18 @@ Future<void> checkAchievements(WidgetRef ref) async {
     );
 
     // Names invoked in duas
-    final namesInvoked = prefs.getStringList('sakina_names_invoked') ?? [];
+    final namesInvoked = prefs.getStringList(
+          supabaseSyncService.scopedKey('sakina_names_invoked'),
+        ) ??
+        [];
 
     // Quest completion counts
-    final weeklyCompleted = questsState.weekly.where((q) => questsState.completedIds.contains(q.id)).length;
-    final monthlyCompleted = questsState.monthly.where((q) => questsState.completedIds.contains(q.id)).length;
+    final weeklyCompleted = questsState.weekly
+        .where((q) => questsState.completedIds.contains(q.id))
+        .length;
+    final monthlyCompleted = questsState.monthly
+        .where((q) => questsState.completedIds.contains(q.id))
+        .length;
 
     final data = AchievementCheckData(
       discoveredNames: discoveredCount,
