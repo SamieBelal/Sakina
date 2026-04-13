@@ -6,6 +6,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../features/collection/widgets/bronze_ornate_card.dart';
+import '../../../features/collection/widgets/emerald_ornate_card.dart';
 import '../../../features/collection/widgets/gold_ornate_card.dart';
 import '../../../features/collection/widgets/ornate_card_shimmer.dart';
 import '../../../features/collection/widgets/silver_mini_ornate_card.dart';
@@ -158,6 +159,27 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
                     end: 0,
                     duration: 500.ms,
                     delay: 580.ms,
+                  ),
+            ),
+            // Emerald card — between gold and silver
+            Positioned(
+              right: cardWidth * 0.55,
+              top: 8,
+              child: Transform.rotate(
+                angle: 0.08,
+                child: SizedBox(
+                  width: cardWidth,
+                  child: EmeraldPreviewTile(
+                    arabic: AppStrings.featureNamesSampleName1,
+                    transliteration: AppStrings.featureNamesSampleTranslit1,
+                    shimmer: shimmer,
+                  ),
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 680.ms).slideY(
+                    begin: 0.15,
+                    end: 0,
+                    duration: 500.ms,
+                    delay: 680.ms,
                   ),
             ),
             Positioned(
