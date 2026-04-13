@@ -38,7 +38,7 @@ class FeatureDuaScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppStrings.featureDuaHeadline,
+                    AppStrings.featureDuaHeadlinePostLoop,
                     style: AppTypography.displaySmall.copyWith(
                       color: AppColors.textPrimaryLight,
                     ),
@@ -48,7 +48,7 @@ class FeatureDuaScreen extends StatelessWidget {
                       .slideY(begin: 0.05, end: 0, duration: 500.ms),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    AppStrings.featureDuaSubtitle,
+                    AppStrings.featureDuaSubtitlePostLoop,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondaryLight,
                     ),

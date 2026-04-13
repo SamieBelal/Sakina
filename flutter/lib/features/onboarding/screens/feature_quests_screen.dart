@@ -31,7 +31,7 @@ class FeatureQuestsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppStrings.featureQuestsHeadline,
+                    AppStrings.featureQuestsHeadlinePostLoop,
                     style: AppTypography.displaySmall.copyWith(
                       color: AppColors.textPrimaryLight,
                     ),
@@ -41,7 +41,7 @@ class FeatureQuestsScreen extends StatelessWidget {
                       .slideY(begin: 0.05, end: 0, duration: 500.ms),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    AppStrings.featureQuestsSubtitle,
+                    AppStrings.featureQuestsSubtitlePostLoop,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondaryLight,
                     ),

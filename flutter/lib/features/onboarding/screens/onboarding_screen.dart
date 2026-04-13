@@ -103,37 +103,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           // 0: Intention
           IntentionScreen(onNext: _next, onBack: _back),
-          // 1: Struggles
-          StrugglesScreen(onNext: _next, onBack: _back),
-          // 2: Value Prop
-          ValuePropScreen(onNext: _next, onBack: _back),
-          // 3: Familiarity
-          FamiliarityScreen(onNext: _next, onBack: _back),
-          // 4: Quran Connection
-          QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 5: Attribution
-          AttributionScreen(onNext: _next, onBack: _back),
-          // 6: Encouragement
+          // 1: Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 7: Feature — Build a Dua
-          FeatureDuaScreen(onNext: _next, onBack: _back),
-          // 8: Feature — Collect 99 Names
-          FeatureNamesScreen(onNext: _next, onBack: _back),
-          // 9: Feature — Quests & Ranks
-          FeatureQuestsScreen(onNext: _next, onBack: _back),
-          // 10: Feature — Journal
-          FeatureJournalScreen(onNext: _next, onBack: _back),
-          // 11: Social Proof
-          SocialProofScreen(onNext: _next, onBack: _back),
-          // 12: Notifications
-          NotificationScreen(onNext: _next, onBack: _back),
-          // 13: Generating
-          GeneratingScreen(onNext: _next),
-          // 14: First Check-in
+          // 2: First Check-in (core loop — moved early)
           FirstCheckinScreen(
             onNext: _next,
             onBack: _back,
           ),
+          // 3: Feature — Collect 99 Names
+          FeatureNamesScreen(onNext: _next, onBack: _back),
+          // 4: Feature — Build a Dua
+          FeatureDuaScreen(onNext: _next, onBack: _back),
+          // 5: Feature — Quests & Ranks
+          FeatureQuestsScreen(onNext: _next, onBack: _back),
+          // 6: Feature — Journal
+          FeatureJournalScreen(onNext: _next, onBack: _back),
+          // 7: Struggles
+          StrugglesScreen(onNext: _next, onBack: _back),
+          // 8: Value Prop
+          ValuePropScreen(onNext: _next, onBack: _back),
+          // 9: Familiarity
+          FamiliarityScreen(onNext: _next, onBack: _back),
+          // 10: Quran Connection
+          QuranConnectionScreen(onNext: _next, onBack: _back),
+          // 11: Attribution
+          AttributionScreen(onNext: _next, onBack: _back),
+          // 12: Social Proof
+          SocialProofScreen(onNext: _next, onBack: _back),
+          // 13: Notifications
+          NotificationScreen(onNext: _next, onBack: _back),
+          // 14: Generating
+          GeneratingScreen(onNext: _next),
           // 15: Sign-Up Choice
           SaveProgressScreen(
             onNext: _next,

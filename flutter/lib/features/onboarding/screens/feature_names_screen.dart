@@ -75,7 +75,7 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppStrings.featureNamesHeadline,
+                    AppStrings.featureNamesHeadlinePostLoop,
                     style: AppTypography.displaySmall.copyWith(
                       color: AppColors.textPrimaryLight,
                     ),
@@ -85,7 +85,7 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
                       .slideY(begin: 0.05, end: 0, duration: 500.ms),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    AppStrings.featureNamesSubtitle,
+                    AppStrings.featureNamesSubtitlePostLoop,
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textSecondaryLight,
                     ),

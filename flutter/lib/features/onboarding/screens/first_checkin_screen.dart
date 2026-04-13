@@ -12,6 +12,7 @@ import '../providers/onboarding_provider.dart';
 import '../widgets/demo_result_card.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
+import '../../daily/widgets/name_reveal_overlay.dart';
 
 class FirstCheckinScreen extends ConsumerStatefulWidget {
   const FirstCheckinScreen({
@@ -31,6 +32,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
   late final TextEditingController _controller;
   final _scrollController = ScrollController();
   final _textFieldKey = GlobalKey();
+  bool _hasShownReveal = false;
 
   static const _chips = [
     AppStrings.chipAnxious,
@@ -268,7 +270,33 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
     );
   }
 
+  void _showRevealOverlay(DemoResultData data) {
+    if (_hasShownReveal) return;
+    _hasShownReveal = true;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      navigator.push(
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (_, __, ___) => NameRevealOverlay(
+            nameArabic: data.nameArabic,
+            nameEnglish: data.nameTransliteration,
+            nameEnglishMeaning: data.nameEnglish,
+            teaching: data.verseTranslation,
+            card: null,
+            engageResult: null,
+          ),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+        ),
+      );
+    });
+  }
+
   Widget _buildResult(OnboardingState state, OnboardingNotifier notifier) {
+    final data = DemoResultData.forEmotion(state.demoFeelingInput ?? '');
+    _showRevealOverlay(data);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       HapticFeedback.mediumImpact();
     });
@@ -284,7 +312,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           DemoResultCard(
-            data: DemoResultData.forEmotion(state.demoFeelingInput ?? ''),
+            data: data,
           )
               .animate()
               .fadeIn(duration: 600.ms)

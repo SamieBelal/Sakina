@@ -252,6 +252,9 @@ abstract final class AppStrings {
   static const featureDuaHeadline = 'Craft your own\npersonal dua';
   static const featureDuaSubtitle =
       'Describe what you need — we\'ll build a dua following prophetic etiquette.';
+  static const featureDuaHeadlinePostLoop = 'Go deeper with\na personal dua';
+  static const featureDuaSubtitlePostLoop =
+      'After each check-in you can craft a dua built around your feeling and the Name you just met.';
   static const featureDuaStep1 = 'Open with praise';
   static const featureDuaStep2 = 'Send salawāt';
   static const featureDuaStep3 = 'Make your ask';
@@ -264,6 +267,9 @@ abstract final class AppStrings {
   static const featureNamesHeadline = 'Collect the\n99 Names of Allah';
   static const featureNamesSubtitle =
       'Each reflection reveals a Name. Unlock deeper wisdom as you grow.';
+  static const featureNamesHeadlinePostLoop = 'That name\nis now yours';
+  static const featureNamesSubtitlePostLoop =
+      'Every check-in reveals a Name of Allah. Collect all 99 — each one in bronze, silver, and gold.';
   static const featureNamesTierBronze = 'Meaning & Lesson';
   static const featureNamesTierSilver = 'Prophetic Teaching';
   static const featureNamesTierGold = 'Personal Dua';
@@ -281,6 +287,9 @@ abstract final class AppStrings {
   static const featureQuestsHeadline = 'Rise through\nthe ranks';
   static const featureQuestsSubtitle =
       'Complete daily quests, earn XP, and journey from Seeker to Friend of Allah.';
+  static const featureQuestsHeadlinePostLoop = 'Come back\nevery day';
+  static const featureQuestsSubtitlePostLoop =
+      'Daily quests, streaks, and ranks grow with your practice. The more you check in, the more you unlock.';
   static const featureQuestsSample1 = 'Complete a reflection';
   static const featureQuestsSample2 = 'Build a personal dua';
   static const featureQuestsSample3 = 'Discover a new Name';
