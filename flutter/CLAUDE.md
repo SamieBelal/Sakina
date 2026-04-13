@@ -194,13 +194,36 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 ## Onboarding Flow
 
-1. Hook screen with short auto-playing demo (someone typing a feeling → beautiful result appears)
-2. "What brings you here?" (single select: spiritual growth / difficult time / build habits / curious)
-3. "What do you struggle with most?" (multi-select: anxiety, sadness, anger, loneliness, motivation, gratitude)
-4. Social proof screen (user count + star rating + 1-2 testimonials)
-5. Notification permission request with context
-6. First free emotion check-in (they experience the core value)
-7. Paywall
+Page index → screen (`onboarding_screen.dart`):
+
+0. **First Check-in** — "How are you feeling today?" (headline + SVG + auto-focused text field + emotion chips). Submitting triggers gacha reveal overlay (NameRevealOverlay), then advances.
+1. **Collect** — Feature showcase: card fan animation, 99 Names collectible system
+2. **Reflect** — Feature showcase: AI reflection flow preview
+3. **Build** — Feature showcase: Dua builder preview
+4. **Ascend** — Feature showcase: Quests & ranks preview
+5. **Journal** — Feature showcase: saved reflections
+6. **Save Progress** — Sign-up choice (email or social auth)
+7. **Sign-Up Email**
+8. **Sign-Up Password**
+9. **Sign-Up Name**
+10. **Encouragement** — "Something beautiful awaits you, [Full Name]" — personalized with the name just entered. Continue button.
+11. **Notifications** — Permission request
+12. **Intention** — "What brings you here?" (single select: Spiritual Growth / Difficult Time / Just Curious / Build a Daily Habit)
+13. **Value Prop** — What Sakina does (3 feature pills)
+14. **Familiarity** — "How familiar are you with the 99 Names?" (single select)
+15. **Quran Connection** — How connected do you feel to Quran? (single select)
+16. **Struggles** — "What do you struggle with most?" (multi-select chips)
+17. **Attribution** — "How did you hear about us?" (multi-select chips)
+18. **Social Proof** — User count + rating + testimonials
+19. **Paywall**
+
+**Progress bar:** each screen's `progressSegment` matches its page index (0–18). Total segments = 20 (index 19 = paywall, no bar shown).
+
+**Key onboarding notes:**
+- `onboardingLastPageIndex = 19` in `onboarding_provider.dart`
+- Social auth (`onSocialAuthComplete`) calls `_next`, not `_goToPaywall` — keeps user in flow
+- `IntentionOptionCard` uses fixed `height: 80` so all option cards are uniform
+- All survey/feature screens end with `SizedBox(height: AppSpacing.lg)` after `OnboardingContinueButton` for consistent button positioning
 
 ## Code Conventions
 
