@@ -17,70 +17,58 @@ class FeatureDuaScreen extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  static const _steps = [
-    (Icons.volunteer_activism_outlined, AppStrings.featureDuaStep1),
-    (Icons.favorite_border, AppStrings.featureDuaStep2),
-    (Icons.front_hand_outlined, AppStrings.featureDuaStep3),
-    (Icons.auto_awesome_outlined, AppStrings.featureDuaStep4),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
       progressSegment: 5,
       onBack: onBack,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.featureDuaHeadlinePostLoop,
-                    style: AppTypography.displaySmall.copyWith(
-                      color: AppColors.textPrimaryLight,
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 500.ms)
-                      .slideY(begin: 0.05, end: 0, duration: 500.ms),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    AppStrings.featureDuaSubtitlePostLoop,
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.textSecondaryLight,
-                    ),
-                  ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
-                  const SizedBox(height: AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hero: dua card
+          Expanded(
+            flex: 5,
+            child: Center(child: _buildDuaCard()),
+          ),
 
-                  // Mock dua card
-                  _buildDuaCard(context),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // 4-step flow
-                  ...List.generate(_steps.length, (index) {
-                    final (icon, label) = _steps[index];
-                    return _buildStepRow(icon, label, index);
-                  }),
-
-                  const Spacer(),
-                  OnboardingContinueButton(
-                    label: AppStrings.continueButton,
-                    onPressed: onNext,
+          // Headline + subtitle + CTA
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  AppStrings.featureDuaHeadlinePostLoop,
+                  style: AppTypography.displaySmall.copyWith(
+                    color: AppColors.textPrimaryLight,
                   ),
-                ],
-              ),
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms, delay: 200.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 500.ms, delay: 200.ms),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  AppStrings.featureDuaSubtitlePostLoop,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ).animate().fadeIn(duration: 500.ms, delay: 350.ms),
+                const Spacer(),
+                OnboardingContinueButton(
+                  label: AppStrings.continueButton,
+                  onPressed: onNext,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildDuaCard(BuildContext context) {
+  Widget _buildDuaCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
@@ -100,8 +88,8 @@ class FeatureDuaScreen extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Gold accent line
           Container(
             width: 40,
             height: 3,
@@ -111,7 +99,6 @@ class FeatureDuaScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          // Arabic sample
           Text(
             AppStrings.featureDuaSampleArabic,
             style: AppTypography.quranArabic.copyWith(
@@ -122,7 +109,6 @@ class FeatureDuaScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.sm),
-          // Translation
           Text(
             AppStrings.featureDuaSampleTranslation,
             style: AppTypography.bodyMedium.copyWith(
@@ -132,7 +118,6 @@ class FeatureDuaScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),
-          // Gold accent line
           Container(
             width: 40,
             height: 3,
@@ -153,47 +138,5 @@ class FeatureDuaScreen extends StatelessWidget {
           delay: 400.ms,
           color: AppColors.secondary.withAlpha(25),
         );
-  }
-
-  Widget _buildStepRow(IconData icon, String label, int index) {
-    final isLast = index == _steps.length - 1;
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.sm),
-      child: Row(
-        children: [
-          // Step number circle
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.secondaryLight,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 18, color: AppColors.secondary),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          // Connecting concept
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.labelLarge.copyWith(
-                color: AppColors.textPrimaryLight,
-              ),
-            ),
-          ),
-          // Step number
-          Text(
-            '${index + 1}',
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.textTertiaryLight,
-            ),
-          ),
-        ],
-      ),
-    )
-        .animate()
-        .fadeIn(duration: 400.ms, delay: (600 + index * 120).ms)
-        .slideX(begin: 0.05, end: 0, duration: 400.ms, delay: (600 + index * 120).ms);
   }
 }

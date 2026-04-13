@@ -22,53 +22,56 @@ class FeatureJournalScreen extends StatelessWidget {
     return OnboardingPageWrapper(
       progressSegment: 7,
       onBack: onBack,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppStrings.featureJournalHeadline,
-                    style: AppTypography.displaySmall.copyWith(
-                      color: AppColors.textPrimaryLight,
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 500.ms)
-                      .slideY(begin: 0.05, end: 0, duration: 500.ms),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    AppStrings.featureJournalSubtitle,
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: AppColors.textSecondaryLight,
-                    ),
-                  ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
-                  const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hero: journal entry stack
+          Expanded(
+            flex: 5,
+            child: Center(child: _buildJournalStack()),
+          ),
 
-                  // Stacked journal entries
-                  _buildJournalStack(),
-
-                  const Spacer(),
-                  OnboardingContinueButton(
-                    label: AppStrings.continueButton,
-                    onPressed: onNext,
+          // Headline + subtitle + CTA
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  AppStrings.featureJournalHeadline,
+                  style: AppTypography.displaySmall.copyWith(
+                    color: AppColors.textPrimaryLight,
                   ),
-                ],
-              ),
+                )
+                    .animate()
+                    .fadeIn(duration: 500.ms, delay: 200.ms)
+                    .slideY(begin: 0.05, end: 0, duration: 500.ms, delay: 200.ms),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  AppStrings.featureJournalSubtitle,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ).animate().fadeIn(duration: 500.ms, delay: 350.ms),
+                const Spacer(),
+                OnboardingContinueButton(
+                  label: AppStrings.continueButton,
+                  onPressed: onNext,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildJournalStack() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Entry 1: Reflection
         _buildJournalEntry(
           icon: Icons.auto_awesome,
           iconColor: AppColors.primary,
@@ -81,8 +84,6 @@ class FeatureJournalScreen extends StatelessWidget {
           index: 0,
         ),
         const SizedBox(height: AppSpacing.sm),
-
-        // Entry 2: Built Dua
         _buildJournalEntry(
           icon: Icons.mosque_outlined,
           iconColor: AppColors.secondary,
@@ -95,8 +96,6 @@ class FeatureJournalScreen extends StatelessWidget {
           index: 1,
         ),
         const SizedBox(height: AppSpacing.sm),
-
-        // Entry 3: Name Discovered
         _buildJournalEntry(
           icon: Icons.star_rounded,
           iconColor: AppColors.streakAmber,
@@ -141,7 +140,6 @@ class FeatureJournalScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
           Container(
             width: 40,
             height: 40,
@@ -153,14 +151,12 @@ class FeatureJournalScreen extends StatelessWidget {
             child: Icon(icon, size: 20, color: iconColor),
           ),
           const SizedBox(width: AppSpacing.md),
-          // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    // Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.sm,
@@ -198,13 +194,8 @@ class FeatureJournalScreen extends StatelessWidget {
       ),
     )
         .animate()
-        .fadeIn(duration: 500.ms, delay: (400 + index * 180).ms)
-        .slideY(
-          begin: 0.08,
-          end: 0,
-          duration: 500.ms,
-          delay: (400 + index * 180).ms,
-        );
+        .fadeIn(duration: 500.ms, delay: (200 + index * 150).ms)
+        .slideY(begin: 0.08, end: 0, duration: 500.ms, delay: (200 + index * 150).ms);
   }
 
   Widget _buildNameBadge(String translitName, String arabicName) {
@@ -247,16 +238,15 @@ class FeatureJournalScreen extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (i) {
         final active = i <= tierLevel;
-        final color = active ? AppColors.streakAmber : AppColors.streakAmber.withAlpha(40);
+        final color = active
+            ? AppColors.streakAmber
+            : AppColors.streakAmber.withAlpha(40);
         return Padding(
           padding: EdgeInsets.only(right: i < 2 ? 3 : 0),
           child: Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
         );
       }),
