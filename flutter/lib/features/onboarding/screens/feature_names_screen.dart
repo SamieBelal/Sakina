@@ -114,93 +114,91 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
 
   Widget _buildCardStack(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final cardWidth = screenWidth * 0.26;
-    final cardHeight = cardWidth / 0.72;
+    final sideCardWidth = screenWidth * 0.22;
+    final centerCardWidth = screenWidth * 0.27;
+    final cardHeight = centerCardWidth / 0.72;
     final shimmer = _cardShimmer;
+    final stackWidth = screenWidth * 0.88;
+
+    // Fan positions: evenly spaced across stackWidth
+    // Cards: Bronze | Gold | Emerald | Silver
+    // Center pair slightly raised, outer pair lower and more rotated
+    final spacing = stackWidth / 3;
 
     return SizedBox(
-      height: cardHeight + 30,
+      height: cardHeight + 40,
       child: SizedBox(
-        width: screenWidth * 0.8,
+        width: stackWidth,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
+            // Bronze — far left
             Positioned(
               left: 0,
-              top: 14,
+              top: 24,
               child: Transform.rotate(
-                angle: -0.12,
+                angle: -0.18,
                 child: SizedBox(
-                  width: cardWidth,
+                  width: sideCardWidth,
                   child: BronzeOrnateTile(
                     arabic: AppStrings.featureNamesSampleName3,
                     transliteration: AppStrings.featureNamesSampleTranslit3,
                     shimmer: shimmer,
                   ),
                 ),
-              ).animate().fadeIn(duration: 500.ms, delay: 400.ms).slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 500.ms,
-                    delay: 400.ms,
-                  ),
+              ).animate().fadeIn(duration: 500.ms, delay: 300.ms).slideY(
+                    begin: 0.2, end: 0, duration: 500.ms, delay: 300.ms),
             ),
+            // Gold — center left
             Positioned(
+              left: spacing - centerCardWidth * 0.3,
               top: 0,
-              child: SizedBox(
-                width: cardWidth * 1.1,
-                child: GoldOrnateTile(
-                  card: getCollectiblePreviewCard(),
-                  shimmer: shimmer,
-                ),
-              ).animate().fadeIn(duration: 500.ms, delay: 580.ms).slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 500.ms,
-                    delay: 580.ms,
-                  ),
-            ),
-            // Emerald card — between gold and silver
-            Positioned(
-              right: cardWidth * 0.55,
-              top: 8,
               child: Transform.rotate(
-                angle: 0.08,
+                angle: -0.06,
                 child: SizedBox(
-                  width: cardWidth,
+                  width: centerCardWidth,
+                  child: GoldOrnateTile(
+                    card: getCollectiblePreviewCard(),
+                    shimmer: shimmer,
+                  ),
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 450.ms).slideY(
+                    begin: 0.2, end: 0, duration: 500.ms, delay: 450.ms),
+            ),
+            // Emerald — center right
+            Positioned(
+              right: spacing - centerCardWidth * 0.3,
+              top: 0,
+              child: Transform.rotate(
+                angle: 0.06,
+                child: SizedBox(
+                  width: centerCardWidth,
                   child: EmeraldPreviewTile(
                     arabic: AppStrings.featureNamesSampleName1,
                     transliteration: AppStrings.featureNamesSampleTranslit1,
                     shimmer: shimmer,
                   ),
                 ),
-              ).animate().fadeIn(duration: 500.ms, delay: 680.ms).slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 500.ms,
-                    delay: 680.ms,
-                  ),
+              ).animate().fadeIn(duration: 500.ms, delay: 600.ms).slideY(
+                    begin: 0.2, end: 0, duration: 500.ms, delay: 600.ms),
             ),
+            // Silver — far right
             Positioned(
               right: 0,
-              top: 14,
+              top: 24,
               child: Transform.rotate(
-                angle: 0.12,
+                angle: 0.18,
                 child: SizedBox(
-                  width: cardWidth,
+                  width: sideCardWidth,
                   child: SilverMiniOrnateTile(
                     arabic: AppStrings.featureNamesSampleName2,
                     transliteration: AppStrings.featureNamesSampleTranslit2,
                     shimmer: shimmer,
                   ),
                 ),
-              ).animate().fadeIn(duration: 500.ms, delay: 760.ms).slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 500.ms,
-                    delay: 760.ms,
-                  ),
+              ).animate().fadeIn(duration: 500.ms, delay: 750.ms).slideY(
+                    begin: 0.2, end: 0, duration: 500.ms, delay: 750.ms),
             ),
           ],
         ),
