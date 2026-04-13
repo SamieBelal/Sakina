@@ -72,11 +72,13 @@ Future<void> prepareTokenCacheForHydration() async {
 
 Future<void> hydrateTokenCache({
   required int balance,
-  required int totalSpent,
+  int? totalSpent,
 }) async {
   final prefs = await SharedPreferences.getInstance();
   await _setCachedBalance(prefs, balance);
-  await _setCachedTotalSpent(prefs, totalSpent);
+  if (totalSpent != null) {
+    await _setCachedTotalSpent(prefs, totalSpent);
+  }
 }
 
 Future<TokenState> earnTokens(int amount) async {

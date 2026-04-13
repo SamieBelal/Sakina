@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -55,6 +57,8 @@ void main() {
     fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async => {
           'granted': false,
           'grant_month': currentMonth(),
+          'tokens_granted': 0,
+          'scrolls_granted': 0,
           'new_token_balance': 120,
           'new_scroll_balance': 7,
         };
@@ -80,6 +84,8 @@ void main() {
     fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async => {
           'granted': true,
           'grant_month': currentMonth(),
+          'tokens_granted': 50,
+          'scrolls_granted': 15,
           'new_token_balance': 160,
           'new_scroll_balance': 15,
         };
@@ -87,10 +93,62 @@ void main() {
     final result = await checkPremiumMonthlyGrant();
 
     expect(result.granted, isTrue);
-    expect(result.tokens, premiumMonthlyTokens);
-    expect(result.scrolls, premiumMonthlyScrolls);
+    expect(result.tokens, 50);
+    expect(result.scrolls, 15);
     expect((await getTokens()).balance, 160);
     expect((await getTierUpScrolls()).balance, 15);
+  });
+
+  test('concurrent premium grant checks coalesce into one RPC call', () async {
+    debugSetPremiumGrantPurchaseService(StubPurchaseService(true));
+    final rpcStarted = Completer<void>();
+    final releaseRpc = Completer<void>();
+    fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async {
+      rpcStarted.complete();
+      await releaseRpc.future;
+      return {
+        'granted': true,
+        'grant_month': currentMonth(),
+        'tokens_granted': 50,
+        'scrolls_granted': 15,
+        'new_token_balance': 160,
+        'new_scroll_balance': 15,
+      };
+    };
+
+    final first = checkPremiumMonthlyGrant();
+    await rpcStarted.future;
+    final second = checkPremiumMonthlyGrant();
+
+    releaseRpc.complete();
+
+    final firstResult = await first;
+    final secondResult = await second;
+
+    expect(fakeSync.rpcCalls.length, 1);
+    expect(secondResult, firstResult);
+  });
+
+  test('concurrent premium grant callers share RPC errors', () async {
+    debugSetPremiumGrantPurchaseService(StubPurchaseService(true));
+    final rpcStarted = Completer<void>();
+    final releaseRpc = Completer<void>();
+    final error = StateError('rpc failed');
+    fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async {
+      rpcStarted.complete();
+      await releaseRpc.future;
+      throw error;
+    };
+
+    final first = checkPremiumMonthlyGrant();
+    await rpcStarted.future;
+    final second = checkPremiumMonthlyGrant();
+
+    releaseRpc.complete();
+
+    await expectLater(first, throwsA(same(error)));
+    await expectLater(second, throwsA(same(error)));
+    expect(fakeSync.rpcCalls.length, 1);
   });
 
   test('authenticated RPC failure does not mutate local grant cache', () async {
@@ -114,7 +172,8 @@ void main() {
     expect(prefs.getString('sakina_premium_last_grant:user-1'), isNull);
   });
 
-  test('unauthenticated premium user is denied grant (requires server identity)',
+  test(
+      'unauthenticated premium user is denied grant (requires server identity)',
       () async {
     SharedPreferences.setMockInitialValues({
       'sakina_tokens': 10,
@@ -132,6 +191,29 @@ void main() {
     // Balances must be untouched
     expect((await getTokens()).balance, 10);
     expect((await getTierUpScrolls()).balance, 2);
+  });
+
+  test('premium grant hydration preserves cached total tokens spent', () async {
+    SharedPreferences.setMockInitialValues({
+      'sakina_total_tokens_spent:user-1': 42,
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    debugSetPremiumGrantPurchaseService(StubPurchaseService(true));
+    fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async => {
+          'granted': true,
+          'grant_month': currentMonth(),
+          'tokens_granted': 50,
+          'scrolls_granted': 15,
+          'new_token_balance': 160,
+          'new_scroll_balance': 15,
+        };
+
+    final result = await checkPremiumMonthlyGrant();
+
+    expect(result.granted, isTrue);
+    expect((await getTokens()).balance, 160);
+    expect(await getTotalTokensSpent(), 42);
   });
 
   test('hydratePremiumGrantCache writes the scoped grant month', () async {
