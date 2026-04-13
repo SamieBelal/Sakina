@@ -52,7 +52,7 @@ class QuranConnectionScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingPageWrapper(
-      progressSegment: 5,
+      progressSegment: 11,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

@@ -27,7 +27,7 @@ class FeatureDuaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 8,
+      progressSegment: 5,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

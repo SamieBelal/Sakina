@@ -64,7 +64,7 @@ class _FeatureNamesScreenState extends State<FeatureNamesScreen>
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 9,
+      progressSegment: 4,
       onBack: widget.onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

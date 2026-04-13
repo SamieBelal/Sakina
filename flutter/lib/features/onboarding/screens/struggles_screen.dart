@@ -36,7 +36,7 @@ class StrugglesScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingPageWrapper(
-      progressSegment: 2,
+      progressSegment: 8,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

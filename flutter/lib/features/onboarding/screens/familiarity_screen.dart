@@ -46,7 +46,7 @@ class FamiliarityScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingPageWrapper(
-      progressSegment: 4,
+      progressSegment: 10,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

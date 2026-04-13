@@ -27,7 +27,7 @@ class ValuePropScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 3,
+      progressSegment: 9,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

@@ -66,7 +66,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 14,
+        progressSegment: 3,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

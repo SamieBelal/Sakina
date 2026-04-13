@@ -20,7 +20,7 @@ class FeatureQuestsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 10,
+      progressSegment: 6,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

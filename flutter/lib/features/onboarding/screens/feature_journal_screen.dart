@@ -20,7 +20,7 @@ class FeatureJournalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
-      progressSegment: 11,
+      progressSegment: 7,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
