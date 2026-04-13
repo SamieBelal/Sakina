@@ -56,19 +56,22 @@ void main() {
         isTrue);
   });
 
-  test('consumeStreakFreeze clears remote-backed freeze', () async {
-    fakeSync.rows['user_daily_rewards:user-1'] = {'streak_freeze_owned': true};
+  test('consumeStreakFreeze clears remote-backed freeze via RPC', () async {
+    // The consume_streak_freeze RPC returns true when a freeze was consumed.
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => true;
 
     final consumed = await consumeStreakFreeze();
 
     expect(consumed, isTrue);
-    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'],
-        isFalse);
     expect((await getDailyRewards()).streakFreezeOwned, isFalse);
+    expect(
+      fakeSync.rpcCalls.where((c) => c['fn'] == 'consume_streak_freeze'),
+      hasLength(1),
+    );
   });
 
-  test('consumeStreakFreeze returns false when none is owned', () async {
-    fakeSync.rows['user_daily_rewards:user-1'] = {'streak_freeze_owned': false};
+  test('consumeStreakFreeze returns false when RPC says none owned', () async {
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
 
     final consumed = await consumeStreakFreeze();
 

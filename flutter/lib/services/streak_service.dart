@@ -168,13 +168,18 @@ Future<void> _setCachedStreakState(
 }
 
 String _todayString() {
-  final now = DateTime.now();
+  final now = DateTime.now().toUtc();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
+DateTime _parseUtcDate(String isoDate) {
+  final parsed = DateTime.parse(isoDate).toUtc();
+  return DateTime.utc(parsed.year, parsed.month, parsed.day);
+}
+
 int _daysBetween(String dateA, String dateB) {
-  final a = DateTime.parse(dateA);
-  final b = DateTime.parse(dateB);
+  final a = _parseUtcDate(dateA);
+  final b = _parseUtcDate(dateB);
   return (a.difference(b).inDays).abs();
 }
 

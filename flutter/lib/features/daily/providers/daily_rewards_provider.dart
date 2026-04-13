@@ -12,8 +12,7 @@ class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
   }
 
   Future<DailyRewardClaimResult> claim() async {
-    final isPremium = await PurchaseService().isPremium();
-    final result = await claimDailyReward(isPremium: isPremium);
+    final result = await claimDailyReward();
     state = await getDailyRewards();
     return result;
   }

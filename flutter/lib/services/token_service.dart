@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -12,6 +14,8 @@ const int tokenCostDiscoverName = 50;
 
 // Token rewards: muhasabah grants no tokens — the card pull is the reward.
 // Tokens come from quests, daily login rewards, and streak milestones.
+
+Completer<void>? _spendTokensLock;
 
 class TokenState {
   final int balance;
@@ -99,34 +103,46 @@ Future<TokenState> earnTokens(int amount) async {
 }
 
 Future<TokenSpendResult> spendTokens(int amount) async {
-  final prefs = await SharedPreferences.getInstance();
-  final current = await _getCachedBalance(prefs);
-  if (current < amount) {
-    return TokenSpendResult(success: false, newBalance: current);
+  while (_spendTokensLock != null) {
+    await _spendTokensLock!.future;
   }
 
-  final userId = supabaseSyncService.currentUserId;
-  int newBalance;
-  if (userId != null) {
-    // RPC returns {"balance": N, "total_spent": N} in one round trip.
-    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
-      'spend_tokens',
-      {'amount': amount},
-    );
-    if (result == null) {
+  final lock = Completer<void>();
+  _spendTokensLock = lock;
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await _getCachedBalance(prefs);
+    if (current < amount) {
       return TokenSpendResult(success: false, newBalance: current);
     }
-    newBalance = result['balance'] as int;
-    final serverSpent = result['total_spent'] as int;
-    await _setCachedBalance(prefs, newBalance);
-    await _setCachedTotalSpent(prefs, serverSpent);
-  } else {
-    newBalance = current - amount;
-    await _setCachedBalance(prefs, newBalance);
-    final localSpent = await _getCachedTotalSpent(prefs);
-    await _setCachedTotalSpent(prefs, localSpent + amount);
+
+    final userId = supabaseSyncService.currentUserId;
+    int newBalance;
+    if (userId != null) {
+      // RPC returns {"balance": N, "total_spent": N} in one round trip.
+      final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'spend_tokens',
+        {'amount': amount},
+      );
+      if (result == null) {
+        return TokenSpendResult(success: false, newBalance: current);
+      }
+      newBalance = result['balance'] as int;
+      final serverSpent = result['total_spent'] as int;
+      await _setCachedBalance(prefs, newBalance);
+      await _setCachedTotalSpent(prefs, serverSpent);
+    } else {
+      newBalance = current - amount;
+      await _setCachedBalance(prefs, newBalance);
+      final localSpent = await _getCachedTotalSpent(prefs);
+      await _setCachedTotalSpent(prefs, localSpent + amount);
+    }
+    return TokenSpendResult(success: true, newBalance: newBalance);
+  } finally {
+    _spendTokensLock = null;
+    lock.complete();
   }
-  return TokenSpendResult(success: true, newBalance: newBalance);
 }
 
 Future<bool> hasTokens(int amount) async {

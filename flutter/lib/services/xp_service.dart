@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/services/token_service.dart';
 
 class XpLevel {
   final int level;
@@ -65,6 +67,8 @@ class XpAwardResult {
   final bool leveledUp;
   final XpState state;
   final LevelUpRewards? rewards;
+  final int? tokenBalance;
+  final int? scrollBalance;
 
   const XpAwardResult({
     required this.gained,
@@ -72,6 +76,8 @@ class XpAwardResult {
     required this.leveledUp,
     required this.state,
     this.rewards,
+    this.tokenBalance,
+    this.scrollBalance,
   });
 }
 
@@ -287,6 +293,12 @@ const List<XpLevel> xpLevels = [
 
 const String _xpKey = 'sakina_total_xp';
 
+int _readRpcInt(Map<String, dynamic> payload, String key) {
+  final value = payload[key];
+  if (value is num) return value.toInt();
+  return value as int;
+}
+
 Future<int> _getCachedXpTotal(SharedPreferences prefs) async {
   final migrated =
       await supabaseSyncService.migrateLegacyIntCache(prefs, _xpKey);
@@ -357,12 +369,14 @@ Future<XpAwardResult> awardXp(int amount) async {
   final userId = supabaseSyncService.currentUserId;
 
   int newTotal;
+  int? tokenBalance;
+  int? scrollBalance;
   if (userId != null) {
-    final remoteTotal = await supabaseSyncService.callRpc<int>(
+    final rpcResult = await supabaseSyncService.callRpc<Map<String, dynamic>>(
       'award_xp',
       {'amount': amount},
     );
-    if (remoteTotal == null) {
+    if (rpcResult == null) {
       return XpAwardResult(
         gained: 0,
         newTotal: oldTotal,
@@ -370,7 +384,12 @@ Future<XpAwardResult> awardXp(int amount) async {
         state: oldState,
       );
     }
-    newTotal = remoteTotal;
+    newTotal = _readRpcInt(rpcResult, 'total_xp');
+    final tokenValue = rpcResult['token_balance'];
+    final scrollValue = rpcResult['scroll_balance'];
+    tokenBalance = tokenValue is num ? tokenValue.toInt() : tokenValue as int?;
+    scrollBalance =
+        scrollValue is num ? scrollValue.toInt() : scrollValue as int?;
   } else {
     newTotal = oldTotal + amount;
   }
@@ -413,11 +432,39 @@ Future<XpAwardResult> awardXp(int amount) async {
     );
   }
 
+  if (userId != null) {
+    if (tokenBalance != null) {
+      await hydrateTokenCache(
+        balance: tokenBalance,
+        totalSpent: await getTotalTokensSpent(),
+      );
+    }
+    if (scrollBalance != null) {
+      await hydrateTierUpScrollCache(balance: scrollBalance);
+    }
+  } else if (rewards != null) {
+    if (rewards.tokensAwarded > 0) {
+      final currentTokens = await getTokens();
+      tokenBalance = currentTokens.balance + rewards.tokensAwarded;
+      await hydrateTokenCache(
+        balance: tokenBalance,
+        totalSpent: await getTotalTokensSpent(),
+      );
+    }
+    if (rewards.scrollsAwarded > 0) {
+      final currentScrolls = await getTierUpScrolls();
+      scrollBalance = currentScrolls.balance + rewards.scrollsAwarded;
+      await hydrateTierUpScrollCache(balance: scrollBalance);
+    }
+  }
+
   return XpAwardResult(
     gained: amount,
     newTotal: newTotal,
     leveledUp: didLevel,
     state: newState,
     rewards: rewards,
+    tokenBalance: tokenBalance,
+    scrollBalance: scrollBalance,
   );
 }

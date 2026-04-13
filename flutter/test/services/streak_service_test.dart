@@ -63,16 +63,16 @@ void main() {
       'longest_streak': 10,
       'last_active': '2026-04-01',
     };
-    fakeSync.rows['user_daily_rewards:user-1'] = {'streak_freeze_owned': true};
+    // consumeStreakFreeze now uses the consume_streak_freeze RPC
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => true;
 
     final result = await markActiveToday();
 
     expect(result.currentStreak, 6);
-    expect(fakeSync.rows['user_daily_rewards:user-1']?['streak_freeze_owned'], isFalse);
   });
 
   test('markActiveToday is a no-op when already active today', () async {
-    final today = DateTime.now();
+    final today = DateTime.now().toUtc();
     final todayString =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     fakeSync.rows['user_streaks:user-1'] = {

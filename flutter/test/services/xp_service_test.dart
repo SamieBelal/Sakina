@@ -27,7 +27,15 @@ void main() {
   });
 
   test('awardXp uses RPC result and updates cache', () async {
-    fakeSync.rpcHandlers['award_xp'] = (params) async => 75;
+    fakeSync.rpcHandlers['award_xp'] = (params) async => {
+          'total_xp': 75,
+          'old_level': 1,
+          'new_level': 1,
+          'reward_tokens': 0,
+          'reward_scrolls': 0,
+          'token_balance': 50,
+          'scroll_balance': 0,
+        };
 
     final result = await awardXp(25);
 

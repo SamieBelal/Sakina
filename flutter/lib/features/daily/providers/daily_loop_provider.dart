@@ -15,7 +15,6 @@ import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
-import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -302,20 +301,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     if (xpResult.leveledUp && xpResult.rewards != null) {
       final rewards = xpResult.rewards!;
 
-      // Award tokens
-      if (rewards.tokensAwarded > 0) {
-        final tokenResult = await earnTokens(rewards.tokensAwarded);
-        state = state.copyWith(tokenBalance: tokenResult.balance);
-      }
-
-      // Award scrolls
-      if (rewards.scrollsAwarded > 0) {
-        final scrollResult = await earnTierUpScrolls(rewards.scrollsAwarded);
-        if (!scrollResult.success) {
-          state = state.copyWith(error: _scrollRewardSyncError);
-        }
-      }
-
       // Title unlocks are derived from level + streak on read — no persistence needed.
 
       // Update display title (auto mode will pick the new level title)
@@ -329,6 +314,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         levelTitle: displayTitle.title,
         levelTitleArabic: displayTitle.titleArabic,
         levelUpRewards: rewards,
+        tokenBalance: xpResult.tokenBalance ?? state.tokenBalance,
       );
     }
   }
@@ -570,25 +556,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       }
 
       // Claim daily reward (idempotent — safe even if the launch overlay
-      // already claimed today's reward; the second call returns
-      // alreadyClaimed=true and we skip the wallet credit.)
+      // already claimed today's reward.)
       try {
-        final isPremium = await PurchaseService().isPremium();
-        final claimResult = await claimDailyReward(isPremium: isPremium);
-        if (!claimResult.alreadyClaimed) {
-          if (claimResult.tokensAwarded > 0) {
-            final tokenResult = await earnTokens(claimResult.tokensAwarded);
-            state = state.copyWith(tokenBalance: tokenResult.balance);
-          }
-          if (claimResult.scrollsAwarded > 0) {
-            final scrollResult =
-                await earnTierUpScrolls(claimResult.scrollsAwarded);
-            if (!scrollResult.success) {
-              state = state.copyWith(error: _scrollRewardSyncError);
-            }
-          }
-        }
-        state = state.copyWith(rewardClaimResult: claimResult);
+        final claimResult = await claimDailyReward();
+        state = state.copyWith(
+          rewardClaimResult: claimResult,
+          tokenBalance: claimResult.newTokenBalance ?? state.tokenBalance,
+        );
       } catch (_) {}
 
       await _persistTodayState();

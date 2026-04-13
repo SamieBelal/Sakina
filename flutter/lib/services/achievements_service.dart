@@ -687,14 +687,14 @@ Future<List<String>> checkAndUnlockAchievements(
     if (entry.value && !unlocked.contains(entry.key)) {
       final achievement =
           allAchievements.where((a) => a.id == entry.key).firstOrNull;
-      if (achievement != null && achievement.scrollReward > 0) {
-        final scrollResult = await earnTierUpScrolls(achievement.scrollReward);
-        if (!scrollResult.success) {
-          continue;
-        }
-      }
+      // Unlock first so a transient scroll sync failure doesn't block the
+      // achievement permanently. The scroll reward may be lost on failure,
+      // but the user keeps the achievement.
       await unlockAchievement(entry.key);
       newlyUnlocked.add(entry.key);
+      if (achievement != null && achievement.scrollReward > 0) {
+        await earnTierUpScrolls(achievement.scrollReward);
+      }
     }
   }
 

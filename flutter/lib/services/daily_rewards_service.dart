@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/services/token_service.dart';
 
 // ---------------------------------------------------------------------------
 // Reward types
@@ -162,6 +164,8 @@ class DailyRewardClaimResult {
   final bool earnedStreakFreeze;
   final bool earnedTierUpScroll;
   final bool alreadyClaimed;
+  final int? newTokenBalance;
+  final int? newScrollBalance;
 
   const DailyRewardClaimResult({
     required this.day,
@@ -170,6 +174,8 @@ class DailyRewardClaimResult {
     this.earnedStreakFreeze = false,
     this.earnedTierUpScroll = false,
     this.alreadyClaimed = false,
+    this.newTokenBalance,
+    this.newScrollBalance,
   });
 }
 
@@ -179,17 +185,23 @@ class DailyRewardClaimResult {
 
 const String _rewardsKey = 'sakina_daily_rewards';
 
+int _readRpcInt(Map<String, dynamic> payload, String key) {
+  final value = payload[key];
+  if (value is num) return value.toInt();
+  return value as int;
+}
+
 Future<String?> _getCachedRewardsRaw(SharedPreferences prefs) async {
   return supabaseSyncService.migrateLegacyStringCache(prefs, _rewardsKey);
 }
 
 String _today() {
-  final now = DateTime.now();
+  final now = DateTime.now().toUtc();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
 String _yesterday() {
-  final y = DateTime.now().subtract(const Duration(days: 1));
+  final y = DateTime.now().toUtc().subtract(const Duration(days: 1));
   return '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
 }
 
@@ -276,9 +288,7 @@ Future<void> grantStreakFreeze() async {
   await _persist(newState);
 }
 
-Future<DailyRewardClaimResult> claimDailyReward({
-  bool isPremium = false,
-}) async {
+Future<DailyRewardClaimResult> claimDailyReward() async {
   var state = await getDailyRewards();
   final today = _today();
   final userId = supabaseSyncService.currentUserId;
@@ -315,19 +325,70 @@ Future<DailyRewardClaimResult> claimDailyReward({
   }
 
   // Already claimed today
-  if (state.lastClaimDate == today) {
+  if (state.lastClaimDate == today && userId == null) {
     return DailyRewardClaimResult(
       day: state.currentDay,
       alreadyClaimed: true,
     );
   }
 
-  // Determine next day. Token / scroll amounts are scaled here so the result
-  // returned to callers already reflects the user's premium status.
-  final nextDay = state.nextClaimDay;
-  final reward = scaledRewardForDay(nextDay, isPremium: isPremium);
+  if (userId != null) {
+    final rpcResult = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'claim_daily_reward',
+    );
+    if (rpcResult == null) {
+      return DailyRewardClaimResult(
+          day: state.currentDay, alreadyClaimed: true);
+    }
 
-  // Build new state
+    final newState = DailyRewardsState(
+      currentDay: rpcResult['current_day'] == null
+          ? state.currentDay
+          : _readRpcInt(rpcResult, 'current_day'),
+      lastClaimDate: rpcResult['last_claim_date'] as String? ?? today,
+      streakFreezeOwned:
+          rpcResult['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned,
+      claimedToday: true,
+    );
+
+    final tokenValue = rpcResult['token_balance'];
+    final scrollValue = rpcResult['scroll_balance'];
+    final tokenBalance =
+        tokenValue is num ? tokenValue.toInt() : tokenValue as int?;
+    final scrollBalance =
+        scrollValue is num ? scrollValue.toInt() : scrollValue as int?;
+
+    await _persist(newState);
+    if (tokenBalance != null) {
+      await hydrateTokenCache(
+        balance: tokenBalance,
+        totalSpent: await getTotalTokensSpent(),
+      );
+    }
+    if (scrollBalance != null) {
+      await hydrateTierUpScrollCache(balance: scrollBalance);
+    }
+
+    return DailyRewardClaimResult(
+      day: rpcResult['day'] == null
+          ? newState.currentDay
+          : _readRpcInt(rpcResult, 'day'),
+      tokensAwarded: rpcResult['tokens_awarded'] == null
+          ? 0
+          : _readRpcInt(rpcResult, 'tokens_awarded'),
+      scrollsAwarded: rpcResult['scrolls_awarded'] == null
+          ? 0
+          : _readRpcInt(rpcResult, 'scrolls_awarded'),
+      earnedStreakFreeze: rpcResult['earned_streak_freeze'] as bool? ?? false,
+      earnedTierUpScroll: rpcResult['earned_tier_up_scroll'] as bool? ?? false,
+      alreadyClaimed: rpcResult['already_claimed'] as bool? ?? false,
+      newTokenBalance: tokenBalance,
+      newScrollBalance: scrollBalance,
+    );
+  }
+
+  final nextDay = state.nextClaimDay;
+  final reward = rewardSchedule[nextDay - 1];
   var newState = DailyRewardsState(
     currentDay: nextDay,
     lastClaimDate: today,
@@ -335,7 +396,6 @@ Future<DailyRewardClaimResult> claimDailyReward({
     claimedToday: true,
   );
 
-  // Apply reward-specific state changes
   bool earnedFreeze = false;
   bool earnedScroll = false;
 
@@ -351,26 +411,17 @@ Future<DailyRewardClaimResult> claimDailyReward({
       break;
   }
 
-  // Persist to server first — if that fails, don't update local cache
-  if (userId != null) {
-    final ok = await supabaseSyncService.upsertRow(
-      'user_daily_rewards',
-      userId,
-      {
-        'current_day': newState.currentDay,
-        'last_claim_date': today,
-        'streak_freeze_owned': newState.streakFreezeOwned,
-      },
-    );
-    if (!ok) {
-      return DailyRewardClaimResult(
-          day: state.currentDay, alreadyClaimed: true);
-    }
-  }
+  final currentTokens = await getTokens();
+  final currentScrolls = await getTierUpScrolls();
+  final newTokenBalance = currentTokens.balance + reward.tokenAmount;
+  final newScrollBalance = currentScrolls.balance + reward.scrollAmount;
 
   await _persist(newState);
-  // No separate grantStreakFreeze() call needed here — the server upsert above
-  // already includes streak_freeze_owned, and newState has it set locally.
+  await hydrateTokenCache(
+    balance: newTokenBalance,
+    totalSpent: await getTotalTokensSpent(),
+  );
+  await hydrateTierUpScrollCache(balance: newScrollBalance);
 
   return DailyRewardClaimResult(
     day: nextDay,
@@ -378,6 +429,8 @@ Future<DailyRewardClaimResult> claimDailyReward({
     scrollsAwarded: reward.scrollAmount,
     earnedStreakFreeze: earnedFreeze,
     earnedTierUpScroll: earnedScroll,
+    newTokenBalance: newTokenBalance,
+    newScrollBalance: newScrollBalance,
   );
 }
 
@@ -386,21 +439,10 @@ Future<bool> consumeStreakFreeze() async {
   final userId = supabaseSyncService.currentUserId;
 
   if (userId != null) {
-    final row = await supabaseSyncService.fetchRow(
-      'user_daily_rewards',
-      userId,
-      columns: 'streak_freeze_owned',
+    final consumed = await supabaseSyncService.callRpc<bool>(
+      'consume_streak_freeze',
     );
-    final hasFreeze =
-        row?['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
-    if (!hasFreeze) return false;
-
-    final ok = await supabaseSyncService.upsertRow(
-      'user_daily_rewards',
-      userId,
-      {'streak_freeze_owned': false},
-    );
-    if (!ok) return false; // Server failed — don't consume locally
+    if (consumed != true) return false;
 
     final newState = state.copyWith(streakFreezeOwned: false);
     await _persist(newState);

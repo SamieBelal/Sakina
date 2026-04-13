@@ -18,7 +18,6 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
-import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/core/app_session.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,8 +28,7 @@ class DailyLaunchOverlay extends ConsumerStatefulWidget {
   const DailyLaunchOverlay({super.key});
 
   @override
-  ConsumerState<DailyLaunchOverlay> createState() =>
-      _DailyLaunchOverlayState();
+  ConsumerState<DailyLaunchOverlay> createState() => _DailyLaunchOverlayState();
 }
 
 class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
@@ -39,7 +37,8 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   bool _rewardClaimed = false;
   DailyRewardClaimResult? _claimResult;
   bool _claimLoading = false;
-  AppSessionNotifier? _session; // Captured ref so listener cleanup works after dispose
+  AppSessionNotifier?
+      _session; // Captured ref so listener cleanup works after dispose
 
   @override
   void initState() {
@@ -113,19 +112,8 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     HapticFeedback.mediumImpact();
 
     final result = await ref.read(dailyRewardsProvider.notifier).claim();
-    // Credit the user's wallets with whatever the claim returned. Token /
-    // scroll amounts are already premium-scaled inside `claim()`, so the
-    // overlay just forwards them — no hard-coded values here.
-    if (!result.alreadyClaimed) {
-      if (result.tokensAwarded > 0) {
-        await ref.read(tokenProvider.notifier).earn(result.tokensAwarded);
-      }
-      if (result.scrollsAwarded > 0) {
-        await ref
-            .read(tierUpScrollProvider.notifier)
-            .earn(result.scrollsAwarded);
-      }
-    }
+    await ref.read(tokenProvider.notifier).reload();
+    await ref.read(tierUpScrollProvider.notifier).reload();
     if (mounted) {
       setState(() {
         _claimResult = result;
@@ -153,7 +141,8 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
             ),
           ),
           child: switch (_step) {
-            0 => _StreakGreetingStep(key: const ValueKey(0), onContinue: _advance),
+            0 =>
+              _StreakGreetingStep(key: const ValueKey(0), onContinue: _advance),
             1 => _RewardClaimStep(
                 key: const ValueKey(1),
                 claimed: _rewardClaimed,
@@ -195,7 +184,7 @@ class _StreakGreetingStep extends ConsumerWidget {
           Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.streakBackground,
             ),
@@ -251,7 +240,8 @@ class _StreakGreetingStep extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.secondaryLight,
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              border: Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
+              border:
+                  Border.all(color: AppColors.secondary.withValues(alpha: 0.2)),
             ),
             child: Column(
               children: [
@@ -282,7 +272,10 @@ class _StreakGreetingStep extends ConsumerWidget {
                 ),
               ],
             ),
-          ).animate().fadeIn(duration: 500.ms, delay: 450.ms).slideY(begin: 0.08, end: 0),
+          )
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 450.ms)
+              .slideY(begin: 0.08, end: 0),
 
           const SizedBox(height: 48),
 
@@ -360,7 +353,8 @@ class _RewardClaimStep extends ConsumerWidget {
             _RewardHighlight(reward: reward)
                 .animate()
                 .fadeIn(duration: 500.ms, delay: 200.ms)
-                .scaleXY(begin: 0.92, end: 1.0, duration: 400.ms, delay: 200.ms),
+                .scaleXY(
+                    begin: 0.92, end: 1.0, duration: 400.ms, delay: 200.ms),
             const SizedBox(height: 40),
             claimLoading
                 ? const SakinaLoader()
@@ -370,9 +364,7 @@ class _RewardClaimStep extends ConsumerWidget {
           ] else ...[
             // Post-claim celebration
             _ClaimSuccess(
-                    result: claimResult,
-                    rewards: rewards,
-                    isPremium: isPremium)
+                    result: claimResult, rewards: rewards, isPremium: isPremium)
                 .animate()
                 .fadeIn(duration: 500.ms)
                 .scaleXY(begin: 0.9, end: 1.0, duration: 400.ms),
@@ -427,7 +419,11 @@ class _RewardStrip extends StatelessWidget {
                 ? Icon(Icons.check_rounded,
                     size: 15,
                     color: isSpecial ? AppColors.secondary : AppColors.primary)
-                : _rewardIcon(reward, isCurrent ? AppColors.primary : AppColors.textTertiaryLight),
+                : _rewardIcon(
+                    reward,
+                    isCurrent
+                        ? AppColors.primary
+                        : AppColors.textTertiaryLight),
           ),
         );
 
@@ -463,9 +459,11 @@ class _RewardStrip extends StatelessWidget {
       case 'freeze':
         return const Icon(Icons.ac_unit, size: 14, color: Color(0xFF60A5FA));
       case 'scroll':
-        return const Icon(Icons.receipt_long, size: 14, color: Color(0xFF3B82F6));
+        return const Icon(Icons.receipt_long,
+            size: 14, color: Color(0xFF3B82F6));
       case 'star':
-        return Icon(Icons.star_rounded, size: 15, color: AppColors.secondary);
+        return const Icon(Icons.star_rounded,
+            size: 15, color: AppColors.secondary);
       default:
         return Icon(Icons.toll, size: 14, color: color);
     }
@@ -480,7 +478,8 @@ class _RewardHighlight extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSpecial = reward.type != RewardType.tokens;
     final color = isSpecial ? AppColors.secondary : AppColors.primary;
-    final bgColor = isSpecial ? AppColors.secondaryLight : AppColors.primaryLight;
+    final bgColor =
+        isSpecial ? AppColors.secondaryLight : AppColors.primaryLight;
 
     return Container(
       width: double.infinity,
@@ -539,8 +538,7 @@ class _ClaimSuccess extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final day = result?.day ?? rewards.currentDay;
-    final reward =
-        scaledRewardForDay((day).clamp(1, 7), isPremium: isPremium);
+    final reward = scaledRewardForDay((day).clamp(1, 7), isPremium: isPremium);
     final isSpecial = reward.type != RewardType.tokens;
     final color = isSpecial ? AppColors.secondary : AppColors.primary;
 
@@ -551,12 +549,12 @@ class _ClaimSuccess extends StatelessWidget {
           height: 72,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isSpecial ? AppColors.secondaryLight : AppColors.primaryLight,
+            color:
+                isSpecial ? AppColors.secondaryLight : AppColors.primaryLight,
           ),
           child: Icon(Icons.check_rounded, color: color, size: 36),
-        )
-            .animate()
-            .scaleXY(begin: 0.0, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack),
+        ).animate().scaleXY(
+            begin: 0.0, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack),
         const SizedBox(height: 16),
         Text(
           'Reward Claimed!',
@@ -618,14 +616,18 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // Only show gacha overlay for new cards or tier upgrades
-        if (state.cardEngageResult != null && state.cardEngageResult!.tierChanged) {
+        if (state.cardEngageResult != null &&
+            state.cardEngageResult!.tierChanged) {
           Navigator.of(context, rootNavigator: true).push(
             PageRouteBuilder(
               opaque: true,
               barrierDismissible: false,
               pageBuilder: (_, __, ___) => NameRevealOverlay(
-                nameArabic: state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
-                nameEnglish: state.engagedCard?.transliteration ?? state.checkinName ?? '',
+                nameArabic:
+                    state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+                nameEnglish: state.engagedCard?.transliteration ??
+                    state.checkinName ??
+                    '',
                 nameEnglishMeaning: state.engagedCard?.english ?? '',
                 teaching: state.engagedCard?.lesson ?? '',
                 card: state.engagedCard,
@@ -697,7 +699,8 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
                   position: Tween<Offset>(
                     begin: const Offset(0.06, 0),
                     end: Offset.zero,
-                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  ).animate(
+                      CurvedAnimation(parent: anim, curve: Curves.easeOut)),
                   child: child,
                 ),
               ),

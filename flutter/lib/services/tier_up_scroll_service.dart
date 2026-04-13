@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -7,6 +9,8 @@ const String _hasUsedScrollKey = 'sakina_has_used_scroll';
 // Scroll costs
 const int scrollCostBronzeToSilver = 5;
 const int scrollCostSilverToGold = 10;
+
+Completer<void>? _spendTierUpScrollsLock;
 
 enum TierUpScrollFailureReason {
   insufficientBalance,
@@ -142,38 +146,50 @@ Future<int> earnTierUpScrollsOrThrow(int amount) async {
 }
 
 Future<TierUpScrollSpendResult> spendTierUpScrolls(int amount) async {
-  final prefs = await SharedPreferences.getInstance();
-  final current = await _getCachedBalance(prefs);
-  if (current < amount) {
-    return TierUpScrollSpendResult(
-      success: false,
-      newBalance: current,
-      failureReason: TierUpScrollFailureReason.insufficientBalance,
-    );
+  while (_spendTierUpScrollsLock != null) {
+    await _spendTierUpScrollsLock!.future;
   }
 
-  final userId = supabaseSyncService.currentUserId;
-  int newBalance;
-  if (userId != null) {
-    final remoteBalance = await supabaseSyncService.callRpc<int>(
-      'spend_scrolls',
-      {'amount': amount},
-    );
-    if (remoteBalance == null) {
+  final lock = Completer<void>();
+  _spendTierUpScrollsLock = lock;
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await _getCachedBalance(prefs);
+    if (current < amount) {
       return TierUpScrollSpendResult(
         success: false,
         newBalance: current,
-        failureReason: TierUpScrollFailureReason.syncFailed,
+        failureReason: TierUpScrollFailureReason.insufficientBalance,
       );
     }
-    newBalance = remoteBalance;
-  } else {
-    newBalance = current - amount;
-  }
 
-  await _setCachedBalance(prefs, newBalance);
-  await markScrollUsed();
-  return TierUpScrollSpendResult(success: true, newBalance: newBalance);
+    final userId = supabaseSyncService.currentUserId;
+    int newBalance;
+    if (userId != null) {
+      final remoteBalance = await supabaseSyncService.callRpc<int>(
+        'spend_scrolls',
+        {'amount': amount},
+      );
+      if (remoteBalance == null) {
+        return TierUpScrollSpendResult(
+          success: false,
+          newBalance: current,
+          failureReason: TierUpScrollFailureReason.syncFailed,
+        );
+      }
+      newBalance = remoteBalance;
+    } else {
+      newBalance = current - amount;
+    }
+
+    await _setCachedBalance(prefs, newBalance);
+    await markScrollUsed();
+    return TierUpScrollSpendResult(success: true, newBalance: newBalance);
+  } finally {
+    _spendTierUpScrollsLock = null;
+    lock.complete();
+  }
 }
 
 Future<bool> hasTierUpScrolls() async {
