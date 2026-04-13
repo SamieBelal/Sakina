@@ -14,6 +14,7 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -33,6 +34,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   bool _revealShown = false;
   bool _levelUpShown = false;
   bool _discoverTriggered = false;
+  bool _questsFlushed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +74,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (!state.checkinDone) {
       _revealShown = false;
       _discoverTriggered = false;
+      _questsFlushed = false;
+    }
+
+    // Flush quest notifications once when landing on the completion screen.
+    if (state.currentStep == DailyLoopStep.completed && !_questsFlushed) {
+      _questsFlushed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) flushQuestNotifications(ref);
+      });
     }
 
     // Gacha reveal after check-in

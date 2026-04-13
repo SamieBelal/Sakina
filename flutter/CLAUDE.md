@@ -22,8 +22,8 @@ Everything in the app serves this loop or retains users around it. If a feature 
 - **Frontend:** Flutter (Dart)
 - **Backend:** Supabase (auth, Postgres DB, edge functions, storage)
 - **AI:** OpenAI Chat Completions (`gpt-4o-mini`) for emotion → content matching
-- **Payments:** RevenueCat for subscription management
-- **Paywall:** Superwall SDK (Flutter) for remote paywall config and A/B testing
+- **Payments:** RevenueCat (currently disabled — pending Superwall paywall setup)
+- **Paywall:** Superwall SDK (planned, not yet integrated)
 - **Analytics:** Mixpanel
 - **Push Notifications:** OneSignal
 - **State Management:** Riverpod
@@ -33,17 +33,25 @@ Everything in the app serves this loop or retains users around it. If a feature 
 
 ```
 lib/
-  core/           # Theme, constants, shared utilities, API clients
+  core/           # Theme, constants, router, app session, utilities
   features/
-    onboarding/   # Onboarding flow screens + paywall trigger
-    feelings/     # Emotion input, result display, share card generation
+    auth/         # Apple + Google Sign In
+    onboarding/   # Goals, pain points, notifications, paywall
+    daily/        # Daily check-in modal, muhasabah, daily rewards, gacha reveal
+    reflect/      # AI-powered reflection on feelings
+    duas/         # Dua browser & AI suggestions
     names/        # 99 Names of Allah browser
-    streaks/      # Streak tracking logic and UI
-    journal/      # Saved reflections and history
-    settings/     # Preferences, account, subscription management
+    discovery/    # Discovery quiz (emotion-to-name matching)
+    journal/      # Saved check-in history
+    collection/   # Collectible cards (bronze, silver, gold, emerald tiers)
+    store/        # Premium card shop (free + premium tabs)
+    quests/       # Quest system + First Steps beginner quests
+    streaks/      # Streak tracking UI
+    progress/     # XP/level progress
+    settings/     # Profile, preferences, account deletion
   widgets/        # Reusable UI components
-  models/         # Data models (Feeling, NameOfAllah, Verse, Dua, etc.)
-  services/       # Supabase client, AI service, RevenueCat, OneSignal
+  models/         # Data models (Feeling, NameOfAllah, Verse, Dua, Card, etc.)
+  services/       # Supabase, AI, analytics, economy, sync services
 ```
 
 ## Commands
@@ -77,6 +85,7 @@ flutter analyze
 IMPORTANT: The UI must feel premium, warm, and spiritually grounded — like opening a beautiful devotional book, not a tech product.
 
 **Design references (study these closely):**
+
 - **Glorify** — THE primary visual reference. Warm cream/off-white backgrounds, editorial layout, generous whitespace, soft rounded cards, navy headings, golden accents. The daily devotional flow (quote → passage → devotional → reflection) is the UX model. Light mode is the default.
 - **Hallow** — Reference for the dark mode option. Warm charcoal (NOT pure black), nature photography behind session cards, gold/amber highlights, cream text. Feels like a candlelit chapel. Also reference their session cards and prayer journal UI.
 - **Duolingo** — Reference ONLY for gamification UI patterns: streak flame icon, daily progress ring, celebration animations on completion, the "streak freeze" ice cube. Borrow the mechanics and interaction patterns, NOT the bright/playful color palette.
@@ -84,6 +93,7 @@ IMPORTANT: The UI must feel premium, warm, and spiritually grounded — like ope
 - **Calm** — Reference for how they make wellness feel premium: soft gradients, nature imagery, rounded shapes, breathing animations.
 
 **Visual direction:**
+
 - Light mode is the DEFAULT. Warm, cream-toned, editorial, like a beautifully typeset mushaf. Dark mode is a secondary option.
 - Arabic calligraphy is a first-class visual element displayed large and beautifully, not squeezed into a corner
 - Generous whitespace everywhere — 20-30% more padding than feels necessary
@@ -93,12 +103,14 @@ IMPORTANT: The UI must feel premium, warm, and spiritually grounded — like ope
 - The result card (Name of Allah + verse + dua) must be beautiful enough that users screenshot and share it on Instagram/TikTok unprompted. This is a growth mechanic, not just aesthetics.
 
 **Fonts:**
+
 - Arabic scripture: Amiri (for Quran verses — elegant, naskh style) or Scheherazade New
 - Arabic display: Aref Ruqaa for the Name of Allah hero display (decorative, calligraphic)
 - English display/headings: DM Serif Display (warm, high-contrast transitional serif — the Google Fonts equivalent of Apple's New York font used by Hallow. Editorial and devotional, NOT a basic serif like Lora or Times)
 - English body/UI: DM Sans (clean, rounded, warm sans-serif — same design family as DM Serif Display, pairs naturally. Similar to the body fonts Glorify and Calm use)
 
 **Color Palette — Light Mode (default):**
+
 ```
 Background:        #FBF7F2  (warm cream — Glorify-style, NOT cold white)
 Surface/Cards:     #FFFFFF  (white cards on cream bg for subtle lift)
@@ -127,6 +139,7 @@ Divider:           #F0EBE3  (barely visible warm divider)
 ```
 
 **Color Palette — Dark Mode (optional):**
+
 ```
 Background:        #1C1917  (warm charcoal — stone-900, NOT cold navy or pure black)
 Surface/Cards:     #292524  (stone-800, elevated cards)
@@ -147,6 +160,7 @@ Border:            #44403C  (stone-700)
 ```
 
 **Gamification visual patterns (borrowed from Duolingo):**
+
 - Streak flame: warm amber (#F59E0B) icon that glows/pulses when active. Show streak count prominently on home screen.
 - Daily check-in ring: circular progress indicator around the user's emotion check-in. Green fill on completion.
 - Celebration on save: when user completes a check-in, play a brief confetti/sparkle animation with a gentle haptic. Keep it tasteful — 500ms max, not Duolingo-loud.
@@ -155,6 +169,7 @@ Border:            #44403C  (stone-700)
 ## Content Data
 
 The 99 Names of Allah, Quran verses, and duas are stored in Supabase. Each Name has:
+
 - `name_arabic` — Arabic text
 - `name_transliteration` — English transliteration
 - `name_english` — English meaning
@@ -165,22 +180,17 @@ The 99 Names of Allah, Quran verses, and duas are stored in Supabase. Each Name 
 
 The AI service receives the user's free-text emotion input and returns a structured response mapping to existing content in the database. The AI does NOT generate Quran verses or hadith — it only selects from the pre-verified dataset. This is critical for Islamic scholarly accuracy.
 
-## Paywall & Monetization
+## Economy & Monetization
 
-**Free tier:**
-- 1 emotion check-in per day
-- Basic result (Name + verse, no extended content)
-- Streak tracking
-- Widget
+**Tokens:** In-app currency. Earned via daily rewards, quests, and streak milestones. Gate premium actions (AI reflect, dua generation, card upgrades).
 
-**Premium ($49.99/year or $4.99/week with 3-day free trial):**
-- Unlimited emotion check-ins
-- Full result with tafsir snippet, audio recitation, guided dua
-- Streak freeze
-- Full history of past check-ins and saved results
-- Ad-free
+**Cards:** Collectible card system with tiers — Bronze → Silver → Gold → Emerald. Cards are earned through daily gacha (after check-in) or purchased in the Store. Each Name of Allah has a corresponding collectible card.
 
-**Paywall placement:** After the user completes their first free emotion check-in and sees the result. They've experienced the value — now gate continued access. Use Superwall for remote paywall config so we can A/B test without app updates.
+**XP & Levels:** Users gain XP from check-ins, quests, and achievements. Level progression unlocks cosmetics and titles.
+
+**Titles:** User badges/display names earned from achievements, synced to Supabase via the title service.
+
+**Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is currently disabled; the token economy is the active monetization layer. Superwall paywall is planned but not yet integrated.
 
 ## Onboarding Flow
 
@@ -206,15 +216,31 @@ The AI service receives the user's free-text emotion input and returns a structu
 ## Gotchas
 
 - NEVER generate or fabricate Quran verses, hadith, or scholarly content. All Islamic content must come from the pre-verified database. The AI selects from existing entries only.
-- Arabic text rendering in Flutter requires explicit `TextDirection.rtl` and careful font handling. Test on real devices — emulators sometimes render Arabic incorrectly.
-- RevenueCat and Superwall both manage subscription state. RevenueCat is the source of truth for entitlements. Superwall handles paywall presentation only.
-- Supabase Row Level Security must be enabled on all user-facing tables. Users should only access their own journal entries, streak data, and check-in history.
+- Arabic text rendering in Flutter requires explicit `TextDirection.rtl` and careful font handling. Never mix Arabic and English in a single `Text` widget — use separate widgets with explicit text direction, or use `RichText` with `TextSpan`. Mixing directions in one widget causes RTL bleed into adjacent UI.
+- All economy/user data (tokens, XP, streaks, achievements, titles) syncs through `sync_all_user_data()` RPC. Do NOT write directly to individual economy tables from Flutter — always go through the service layer which calls the RPC.
+- Public catalog content (names, duas, quiz questions) uses `public_catalog_service.dart` with anonymous read access. No auth is needed to read content — do not add auth guards to public content fetches.
+- Supabase Row Level Security must be enabled on all user-facing tables. Users should only access their own journal entries, streak data, check-in history, and economy data.
 - The shareable result card is generated as an image (not a screenshot). Use a Flutter widget-to-image approach so the card always looks clean regardless of device.
-- iOS widgets use WidgetKit via a native Swift extension. Flutter communicates widget data through shared UserDefaults / App Groups.
+
+## Known Bugs
+
+- **Gacha continue double-tap** (`flutter/lib/features/daily/widgets/name_reveal_overlay.dart`): The "Continue" button at the end of gacha is a plain `Container` with no `GestureDetector` — it relies on the parent overlay's tap handler. First tap registers on the button (no-op), second tap hits the overlay background. Fix: wrap the Continue `Container` in a `GestureDetector` with `onTap: _handleContinue`.
+- **Arabic text bleeding into header** (e.g. `flutter/lib/features/feelings/screens/home_screen.dart:192`): Mixed Arabic + English in a single `Text` widget causes RTL rendering to bleed into surrounding UI. Fix: split into two separate `Text` widgets with explicit `textDirection` on the Arabic one.
+
+## Aref Ruqaa Font Metric Fix
+
+Aref Ruqaa (`AppTypography.nameOfAllahDisplay`) has a large built-in ascender — ~32% of font size of invisible whitespace above the visible glyphs. This causes Arabic calligraphy to visually bleed into whatever sits above it regardless of `height`, `StrutStyle`, `FittedBox`, or `OverflowBox` — all of those either clip glyphs or don't actually shift the glyph position within its line box.
+
+**The fix:** Use `AdjustedArabicDisplay` (`flutter/lib/widgets/adjusted_arabic_display.dart`) instead of a raw `Text` widget for any large Aref Ruqaa display. It applies `Transform.translate(offset: Offset(0, -(fontSize * 0.05)))` — a small upward visual shift without affecting layout — and you compensate with explicit `SizedBox` padding above/below:
+
+- **Above the Arabic:** `SizedBox(height: 44)` for fontSize 48, scale proportionally for other sizes (e.g. `height: 33` for fontSize 36)
+- **Below the Arabic:** `SizedBox(height: 20)`
+
+Do NOT attempt to fix this with `height`, `StrutStyle(forceStrutHeight: true)`, `FittedBox`, `OverflowBox`, `ClipRect`, or negative padding — none of these work reliably across navigation rebuilds.
 
 ## What NOT to Build
 
-Do not add these features. They are out of scope for the MVP and will cause scope creep:
+These remain out of scope — don't get distracted:
 
 - Full Quran reader (Muslim Pro owns this)
 - Prayer times / Qibla compass (Muslim Pro, Athan own this)

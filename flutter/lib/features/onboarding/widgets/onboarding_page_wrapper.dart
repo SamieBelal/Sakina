@@ -8,12 +8,14 @@ class OnboardingPageWrapper extends StatelessWidget {
     required this.progressSegment,
     required this.onBack,
     required this.child,
+    this.contentTopPadding,
     super.key,
   });
 
   final int progressSegment;
   final VoidCallback onBack;
   final Widget child;
+  final double? contentTopPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +60,7 @@ class OnboardingPageWrapper extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(height: contentTopPadding ?? AppSpacing.xxl),
               Expanded(child: child),
             ],
           ),

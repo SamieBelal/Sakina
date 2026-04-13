@@ -86,6 +86,7 @@ class StrugglesScreen extends ConsumerWidget {
             onPressed: onNext,
             enabled: state.struggles.isNotEmpty,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

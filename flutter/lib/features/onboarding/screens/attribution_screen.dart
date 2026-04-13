@@ -83,6 +83,7 @@ class AttributionScreen extends ConsumerWidget {
             onPressed: onNext,
             enabled: state.attribution.isNotEmpty,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

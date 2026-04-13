@@ -423,6 +423,30 @@ const _monthlyPool = <QuestTemplate>[
 // State
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Quest notification (queued for display at safe UI moments)
+// ---------------------------------------------------------------------------
+
+class QuestNotification {
+  final String title;
+  final IconData icon;
+  final bool completed;
+
+  /// For threshold quests: "2/3". Null for single-action quests.
+  final String? progressLabel;
+
+  /// Cadence-based accent colour.
+  final Color color;
+
+  const QuestNotification({
+    required this.title,
+    required this.icon,
+    required this.completed,
+    this.progressLabel,
+    required this.color,
+  });
+}
+
 class QuestsState {
   final List<Quest> daily;
   final List<Quest> weekly;
@@ -430,6 +454,10 @@ class QuestsState {
   final Set<String> completedIds;
   final Map<String, int> progress; // quest id → current count
   final bool loaded;
+
+  /// Notifications waiting to be shown. UI calls
+  /// `flushQuestNotifications(ref)` at safe moments (end of flows).
+  final List<QuestNotification> pendingNotifications;
 
   // ── First Steps ───────────────────────────────────────────────────────────
   /// True if this account is eligible (created on/after the ship date).
@@ -451,6 +479,7 @@ class QuestsState {
     this.completedIds = const {},
     this.progress = const {},
     this.loaded = false,
+    this.pendingNotifications = const [],
     this.firstStepsEligible = false,
     this.firstStepsCompleted = const {},
     this.firstStepsBundleClaimed = false,
@@ -484,6 +513,7 @@ class QuestsState {
     Set<String>? completedIds,
     Map<String, int>? progress,
     bool? loaded,
+    List<QuestNotification>? pendingNotifications,
     bool? firstStepsEligible,
     Set<BeginnerQuestId>? firstStepsCompleted,
     bool? firstStepsBundleClaimed,
@@ -498,6 +528,7 @@ class QuestsState {
       completedIds: completedIds ?? this.completedIds,
       progress: progress ?? this.progress,
       loaded: loaded ?? this.loaded,
+      pendingNotifications: pendingNotifications ?? this.pendingNotifications,
       firstStepsEligible: firstStepsEligible ?? this.firstStepsEligible,
       firstStepsCompleted: firstStepsCompleted ?? this.firstStepsCompleted,
       firstStepsBundleClaimed:
@@ -602,6 +633,47 @@ const Set<String> _firstStepsQuestKeys = {
 class QuestsNotifier extends StateNotifier<QuestsState> {
   QuestsNotifier() : super(const QuestsState()) {
     _load();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Notification helpers
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static const _cadenceColors = {
+    QuestCadence.daily: Color(0xFF1B6B4A), // primary green
+    QuestCadence.weekly: Color(0xFF3B82F6), // blue
+    QuestCadence.monthly: Color(0xFFC8985E), // gold
+  };
+
+  void _pushNotification(Quest quest, {bool completed = true}) {
+    String? progressLabel;
+    if (quest.target > 0) {
+      final current =
+          completed ? quest.target : (state.progress[quest.id] ?? 0);
+      progressLabel = '$current/${quest.target}';
+    }
+    state = state.copyWith(
+      pendingNotifications: [
+        ...state.pendingNotifications,
+        QuestNotification(
+          title: quest.title,
+          icon: quest.icon,
+          completed: completed,
+          progressLabel: progressLabel,
+          color: _cadenceColors[quest.cadence] ?? const Color(0xFF1B6B4A),
+        ),
+      ],
+    );
+  }
+
+  /// Pop all pending notifications and return them. Call this at safe
+  /// UI moments (end-of-flow screens) then pass the list to
+  /// `showQuestToasts()`.
+  List<QuestNotification> flushNotifications() {
+    final pending = state.pendingNotifications;
+    if (pending.isEmpty) return const [];
+    state = state.copyWith(pendingNotifications: const []);
+    return pending;
   }
 
   /// Re-runs `_load()`. Called from app session after a fresh sign-in /
@@ -881,6 +953,9 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
 
     if (quest.xpReward > 0) await awardXp(quest.xpReward);
     if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
+    if (quest.scrollReward > 0) await earnTierUpScrolls(quest.scrollReward);
+
+    _pushNotification(quest, completed: true);
   }
 
   /// Returns the period_start date (YYYY-MM-DD) for a given cadence.

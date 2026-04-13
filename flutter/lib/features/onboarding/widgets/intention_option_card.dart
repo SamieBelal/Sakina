@@ -65,7 +65,7 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 72),
+          height: 80,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           decoration: BoxDecoration(
             color: widget.isSelected

@@ -10,6 +10,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -588,6 +589,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         notifier.saveCurrentBuiltDua();
         ref.read(questsProvider.notifier).onBuiltDuaCompleted();
         checkAchievements(ref);
+        flushQuestNotifications(ref);
       });
     }
 
@@ -865,6 +867,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                         ref
                                             .read(questsProvider.notifier)
                                             .onDuaSaved();
+                                        flushQuestNotifications(ref);
                                       }
                                     },
                                     child: Padding(

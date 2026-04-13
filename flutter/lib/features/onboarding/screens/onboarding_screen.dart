@@ -10,6 +10,7 @@ import 'feature_dua_screen.dart';
 import 'feature_journal_screen.dart';
 import 'feature_names_screen.dart';
 import 'feature_quests_screen.dart';
+import 'feature_reflect_screen.dart';
 import 'first_checkin_screen.dart';
 import 'generating_screen.dart';
 import 'intention_screen.dart';
@@ -101,50 +102,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          // 0: Intention
-          IntentionScreen(onNext: _next, onBack: _back),
-          // 1: Encouragement
-          EncouragementScreen(onNext: _next, onBack: _back),
-          // 2: First Check-in (core loop — moved early)
+          // 0: First Check-in (core loop — first thing user sees)
           FirstCheckinScreen(
             onNext: _next,
             onBack: _back,
           ),
-          // 3: Feature — Collect 99 Names
+          // 1: Feature — Collect 99 Names
           FeatureNamesScreen(onNext: _next, onBack: _back),
-          // 4: Feature — Build a Dua
+          // 2: Feature — Reflect
+          FeatureReflectScreen(onNext: _next, onBack: _back),
+          // 3: Feature — Build a Dua
           FeatureDuaScreen(onNext: _next, onBack: _back),
-          // 5: Feature — Quests & Ranks
+          // 4: Feature — Quests & Ranks
           FeatureQuestsScreen(onNext: _next, onBack: _back),
-          // 6: Feature — Journal
+          // 5: Feature — Journal
           FeatureJournalScreen(onNext: _next, onBack: _back),
-          // 7: Struggles
-          StrugglesScreen(onNext: _next, onBack: _back),
-          // 8: Value Prop
-          ValuePropScreen(onNext: _next, onBack: _back),
-          // 9: Familiarity
-          FamiliarityScreen(onNext: _next, onBack: _back),
-          // 10: Quran Connection
-          QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 11: Attribution
-          AttributionScreen(onNext: _next, onBack: _back),
-          // 12: Social Proof
-          SocialProofScreen(onNext: _next, onBack: _back),
-          // 13: Notifications
-          NotificationScreen(onNext: _next, onBack: _back),
-          // 14: Sign-Up Choice
+          // 6: Sign-Up Choice
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
-            onSocialAuthComplete: _goToPaywall,
+            onSocialAuthComplete: _next,
           ),
-          // 15: Sign-Up Email
+          // 7: Sign-Up Email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 16: Sign-Up Password
+          // 8: Sign-Up Password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 17: Sign-Up Name
+          // 9: Sign-Up Name
           SignUpNameScreen(onNext: _next, onBack: _back),
-          // 18: Paywall
+          // 10: Encouragement (after account created)
+          EncouragementScreen(onNext: _next, onBack: _back),
+          // 11: Notifications
+          NotificationScreen(onNext: _next, onBack: _back),
+          // 12: Intention — What brings you here?
+          IntentionScreen(onNext: _next, onBack: _back),
+          // 13: Value Prop
+          ValuePropScreen(onNext: _next, onBack: _back),
+          // 14: Familiarity
+          FamiliarityScreen(onNext: _next, onBack: _back),
+          // 15: Quran Connection
+          QuranConnectionScreen(onNext: _next, onBack: _back),
+          // 16: Struggles
+          StrugglesScreen(onNext: _next, onBack: _back),
+          // 17: Attribution
+          AttributionScreen(onNext: _next, onBack: _back),
+          // 18: Social Proof
+          SocialProofScreen(onNext: _next, onBack: _back),
+          // 19: Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

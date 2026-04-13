@@ -94,6 +94,7 @@ class FamiliarityScreen extends ConsumerWidget {
             onPressed: onNext,
             enabled: state.familiarity != null,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

@@ -9,6 +9,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -89,6 +90,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       _questFired = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(questsProvider.notifier).onJournalVisited();
+        flushQuestNotifications(ref);
       });
     }
     final reflectState = ref.watch(reflectProvider);

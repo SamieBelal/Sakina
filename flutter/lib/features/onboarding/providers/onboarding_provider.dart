@@ -9,12 +9,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
+import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
 /// Last index in [OnboardingScreen]'s PageView (paywall). Inclusive range for
 /// persisted `currentPage` is `0.._onboardingLastPageIndex`.
-const int onboardingLastPageIndex = 18;
+const int onboardingLastPageIndex = 19;
 
 class OnboardingState {
   const OnboardingState({
@@ -311,6 +312,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     await resetDailyLaunchGate();
 
     await persistOnboardingToSupabase();
+
+    // Re-sync first steps now that user_profiles row exists
+    await syncFirstStepsFromSupabase();
 
     // Mark onboarded in the single source of truth
     await appSession.markOnboarded();

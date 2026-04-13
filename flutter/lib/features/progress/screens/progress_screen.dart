@@ -20,6 +20,7 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -667,22 +668,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            todaysName.arabic,
+          const SizedBox(height: 44),
+          AdjustedArabicDisplay(
+            text: todaysName.arabic,
             style: AppTypography.nameOfAllahDisplay.copyWith(
               color: AppColors.secondary,
               fontSize: 48,
             ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
-              begin: 0.9,
-              end: 1.0,
-              duration: 800.ms,
-              delay: 200.ms,
-              curve: Curves.easeOutBack),
-          const SizedBox(height: 6),
+          ),
+          const SizedBox(height: 20),
           Text(
             '${todaysName.transliteration} — ${todaysName.english}',
             style: AppTypography.labelLarge.copyWith(
@@ -1424,7 +1418,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               )
             else
               Text(
-                'Check in to claim today\'s reward',
+                'Complete a Muḥāsabah to claim today\'s reward',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondaryLight,
                 ),
@@ -2869,14 +2863,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(
-            name.arabic,
+          AdjustedArabicDisplay(
+            text: name.arabic,
             style: AppTypography.nameOfAllahDisplay.copyWith(
               color: AppColors.secondary,
               fontSize: 40,
             ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(

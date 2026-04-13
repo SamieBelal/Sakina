@@ -114,6 +114,7 @@ class ValuePropScreen extends StatelessWidget {
             label: AppStrings.continueButton,
             onPressed: onNext,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

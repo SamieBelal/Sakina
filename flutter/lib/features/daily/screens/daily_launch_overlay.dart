@@ -6,6 +6,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/core/constants/checkin_questions.dart';
@@ -252,17 +253,15 @@ class _StreakGreetingStep extends ConsumerWidget {
                     letterSpacing: 1.5,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  todaysName.arabic,
+                const SizedBox(height: 33),
+                AdjustedArabicDisplay(
+                  text: todaysName.arabic,
                   style: AppTypography.nameOfAllahDisplay.copyWith(
                     color: AppColors.secondary,
                     fontSize: 36,
                   ),
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 20),
                 Text(
                   '${todaysName.transliteration} — ${todaysName.english}',
                   style: AppTypography.bodySmall.copyWith(

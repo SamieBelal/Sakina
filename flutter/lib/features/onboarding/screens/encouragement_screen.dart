@@ -51,7 +51,10 @@ class EncouragementScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
-    final headline = _headlineForIntention(state.intention);
+    final name = state.signUpName ?? '';
+    final headline = name.isNotEmpty
+        ? 'Something beautiful awaits you, $name'
+        : 'Something beautiful awaits you';
     final subtitle = _subtitleForFamiliarity(state.familiarity);
 
     return OnboardingPageWrapper(
@@ -103,6 +106,7 @@ class EncouragementScreen extends ConsumerWidget {
             label: AppStrings.continueButton,
             onPressed: onNext,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

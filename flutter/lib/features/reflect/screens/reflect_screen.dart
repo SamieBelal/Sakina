@@ -12,6 +12,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/widgets/achievement_toast.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -95,6 +96,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         checkAchievements(ref);
         // Mark First Steps "Reflect on a Feeling" beginner quest.
         ref.read(questsProvider.notifier).onReflectCompleted();
+        // Flush queued quest notifications now that the flow is complete.
+        flushQuestNotifications(ref);
       });
     }
 

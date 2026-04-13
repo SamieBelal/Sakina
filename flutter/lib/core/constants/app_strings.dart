@@ -30,7 +30,7 @@ abstract final class AppStrings {
   static const intentionSpiritualGrowth = 'Spiritual Growth';
   static const intentionSpiritualGrowthDesc =
       'Deepen my connection with Allah';
-  static const intentionDifficultTime = 'Going Through a Difficult Time';
+  static const intentionDifficultTime = 'Difficult Time';
   static const intentionDifficultTimeDesc =
       'Find comfort in Allah\'s words';
   static const intentionBuildHabit = 'Build a Daily Habit';
@@ -54,7 +54,7 @@ abstract final class AppStrings {
   static const struggleMotivation = '\u{1F4AB} Motivation';
   static const struggleGratitude = '\u{1F932} Gratitude';
   static const struggleGrief = '\u{1F494} Grief';
-  static const struggleOverwhelm = '\u{1F629} Overwhelm';
+  static const struggleOverwhelm = '\u{1F629} Overwhelmed';
 
   // Screen 4: Social Proof
   static const socialProofTitle = 'Sakina was made for\nhearts like yours';
@@ -149,11 +149,9 @@ abstract final class AppStrings {
       'How familiar are you with the 99 Names of Allah?';
   static const familiaritySubtitle = 'No wrong answers here';
   static const familiarityBeginner = 'Just Getting Started';
-  static const familiarityBeginnerDesc =
-      'I know a few but want to learn more';
+  static const familiarityBeginnerDesc = 'I know a few, want to learn more';
   static const familiaritySomewhat = 'Somewhat Familiar';
-  static const familiaritySomewhatDesc =
-      'I know many and their meanings';
+  static const familiaritySomewhatDesc = 'I know many and their meanings';
   static const familiarityVeryFamiliar = 'Very Familiar';
   static const familiarityVeryFamiliarDesc =
       'I study them regularly';
@@ -252,9 +250,9 @@ abstract final class AppStrings {
   static const featureDuaHeadline = 'Craft your own\npersonal dua';
   static const featureDuaSubtitle =
       'Describe what you need — we\'ll build a dua following prophetic etiquette.';
-  static const featureDuaHeadlinePostLoop = 'Go deeper with\na personal dua';
+  static const featureDuaHeadlinePostLoop = 'Build';
   static const featureDuaSubtitlePostLoop =
-      'After each check-in you can craft a dua built around your feeling and the Name you just met.';
+      'Construct a custom dua for any personal need, rooted in the prophetic tradition.';
   static const featureDuaStep1 = 'Open with praise';
   static const featureDuaStep2 = 'Send salawāt';
   static const featureDuaStep3 = 'Make your ask';
@@ -267,9 +265,9 @@ abstract final class AppStrings {
   static const featureNamesHeadline = 'Collect the\n99 Names of Allah';
   static const featureNamesSubtitle =
       'Each reflection reveals a Name. Unlock deeper wisdom as you grow.';
-  static const featureNamesHeadlinePostLoop = 'That name\nis now yours';
+  static const featureNamesHeadlinePostLoop = 'Collect';
   static const featureNamesSubtitlePostLoop =
-      'Every check-in reveals a Name of Allah. Collect all 99 — each one in bronze, silver, and gold.';
+      'Every check-in reveals a Name of Allah. Collect all 99 — each one in bronze, silver, gold, and emerald.';
   static const featureNamesTierBronze = 'Meaning & Lesson';
   static const featureNamesTierSilver = 'Prophetic Teaching';
   static const featureNamesTierGold = 'Personal Dua';
@@ -287,9 +285,12 @@ abstract final class AppStrings {
   static const featureQuestsHeadline = 'Rise through\nthe ranks';
   static const featureQuestsSubtitle =
       'Complete daily quests, earn XP, and journey from Seeker to Friend of Allah.';
-  static const featureQuestsHeadlinePostLoop = 'Come back\nevery day';
+  static const featureQuestsHeadlinePostLoop = 'Ascend';
   static const featureQuestsSubtitlePostLoop =
-      'Daily quests, streaks, and ranks grow with your practice. The more you check in, the more you unlock.';
+      'Complete daily quests, protect your streak, and rise through the ranks — from Seeker all the way to Friend of Allah.';
+  static const featureReflectHeadline = 'Reflect';
+  static const featureReflectSubtitle =
+      "Tell us what's on your heart — we'll find the Name of Allah that speaks to it.";
   static const featureQuestsSample1 = 'Complete a reflection';
   static const featureQuestsSample2 = 'Build a personal dua';
   static const featureQuestsSample3 = 'Discover a new Name';
@@ -299,9 +300,9 @@ abstract final class AppStrings {
   static const featureQuestsRankEndArabic = 'وَلِيّ';
 
   // Feature: Journal
-  static const featureJournalHeadline = 'Your spiritual\njournal';
+  static const featureJournalHeadline = 'Journal';
   static const featureJournalSubtitle =
-      'Every reflection, dua, and discovery — saved in one beautiful place.';
+      'Every reflection, dua, and Name of Allah you\'ve discovered — saved and beautifully organized in one place.';
   static const featureJournalItem1Title = 'Reflection';
   static const featureJournalItem1Preview =
       '"I felt overwhelmed today..."';
@@ -312,4 +313,5 @@ abstract final class AppStrings {
 
   // Shared
   static const continueButton = 'Continue';
+  static const encouragementButton = 'Discover a Name of Allah';
 }

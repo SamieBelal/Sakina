@@ -100,6 +100,7 @@ class QuranConnectionScreen extends ConsumerWidget {
             onPressed: onNext,
             enabled: state.quranConnection != null,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

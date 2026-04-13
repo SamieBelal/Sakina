@@ -132,6 +132,7 @@ class IntentionScreen extends ConsumerWidget {
             onPressed: onNext,
             enabled: state.intention != null,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
               ),
             ),

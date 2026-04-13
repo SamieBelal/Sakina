@@ -132,6 +132,7 @@ class SocialProofScreen extends ConsumerWidget {
             label: AppStrings.continueButton,
             onPressed: onNext,
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
