@@ -44,8 +44,8 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
       ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
@@ -71,8 +71,8 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
       ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();

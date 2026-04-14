@@ -65,8 +65,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           );
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'email'});
       ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'email'});
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onNext();
