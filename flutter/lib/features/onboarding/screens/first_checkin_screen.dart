@@ -9,6 +9,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../widgets/demo_result_card.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -154,7 +156,13 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
         const Spacer(),
         OnboardingContinueButton(
           label: AppStrings.checkinReflectButton,
-          onPressed: () => notifier.completeDemoCheckin(),
+          onPressed: () {
+            ref.read(analyticsProvider).track(AnalyticsEvents.firstCheckinSubmitted, properties: {
+              'input_method': _controller.text.isEmpty ? 'chip' : 'typed',
+              'emotion_text': _controller.text,
+            });
+            notifier.completeDemoCheckin();
+          },
           enabled: hasInput,
         ),
         const SizedBox(height: AppSpacing.lg),

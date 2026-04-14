@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/keyboard.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -63,16 +65,20 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           );
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'email'});
+      ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onNext();
     } on AuthException catch (e) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'email', 'error': e.message});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
     } catch (_) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'email', 'error': 'unknown'});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Something went wrong. Please try again.')),

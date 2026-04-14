@@ -6,6 +6,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../widgets/intention_option_card.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -97,7 +99,10 @@ class QuranConnectionScreen extends ConsumerWidget {
           const Spacer(),
           OnboardingContinueButton(
             label: AppStrings.continueButton,
-            onPressed: onNext,
+            onPressed: () {
+              ref.read(analyticsProvider).trackSurveyAnswered('quran_connection', ref.read(onboardingProvider).quranConnection);
+              onNext();
+            },
             enabled: state.quranConnection != null,
           ),
           const SizedBox(height: AppSpacing.lg),

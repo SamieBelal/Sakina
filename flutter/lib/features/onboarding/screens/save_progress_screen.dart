@@ -8,6 +8,8 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -34,6 +36,7 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   bool _isLoading = false;
 
   Future<void> _signInWithApple() async {
+    ref.read(analyticsProvider).track(AnalyticsEvents.signupMethodSelected, properties: {'method': 'apple'});
     setState(() => _isLoading = true);
     ref.read(onboardingProvider.notifier).clearAuthError();
 
@@ -41,14 +44,18 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
+      ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
     } on AuthException catch (e) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'apple', 'error': e.message});
       ref.read(onboardingProvider.notifier).setAuthError(e.message);
     } catch (_) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'apple', 'error': 'unknown'});
       ref.read(onboardingProvider.notifier).setAuthError('Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -56,6 +63,7 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    ref.read(analyticsProvider).track(AnalyticsEvents.signupMethodSelected, properties: {'method': 'google'});
     setState(() => _isLoading = true);
     ref.read(onboardingProvider.notifier).clearAuthError();
 
@@ -63,14 +71,18 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
+      ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
     } on AuthException catch (e) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'google', 'error': e.message});
       ref.read(onboardingProvider.notifier).setAuthError(e.message);
     } catch (_) {
       if (!mounted) return;
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'google', 'error': 'unknown'});
       ref.read(onboardingProvider.notifier).setAuthError('Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -183,7 +195,10 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
           // Continue with Email
           OnboardingContinueButton(
             label: AppStrings.signUpChoiceEmail,
-            onPressed: _isLoading ? null : widget.onNext,
+            onPressed: _isLoading ? null : () {
+              ref.read(analyticsProvider).track(AnalyticsEvents.signupMethodSelected, properties: {'method': 'email'});
+              widget.onNext();
+            },
             enabled: !_isLoading,
           ),
           const Spacer(),

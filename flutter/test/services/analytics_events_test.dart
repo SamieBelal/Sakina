@@ -1,0 +1,81 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/services/analytics_service.dart';
+import 'package:sakina/services/analytics_events.dart';
+
+class TrackingSpy extends AnalyticsService {
+  final List<(String event, Map<String, dynamic>? props)> tracked = [];
+  final List<String> timedEvents = [];
+
+  @override
+  void track(String event, {Map<String, dynamic>? properties}) {
+    tracked.add((event, properties));
+  }
+
+  @override
+  void timeEvent(String event) {
+    timedEvents.add(event);
+  }
+}
+
+void main() {
+  late TrackingSpy spy;
+
+  setUp(() {
+    spy = TrackingSpy();
+  });
+
+  group('trackStepViewed', () {
+    test('fires timeEvent and track with correct properties', () {
+      spy.trackStepViewed(3);
+
+      expect(spy.timedEvents, [AnalyticsEvents.onboardingStepCompleted]);
+      expect(spy.tracked.length, 1);
+      expect(spy.tracked[0].$1, AnalyticsEvents.onboardingStepViewed);
+      expect(spy.tracked[0].$2, {'step_index': 3, 'step_name': 'feature_dua'});
+    });
+
+    test('uses unknown for unmapped index', () {
+      spy.trackStepViewed(99);
+      expect(spy.tracked[0].$2?['step_name'], 'unknown');
+    });
+  });
+
+  group('trackStepCompleted', () {
+    test('fires track with correct properties', () {
+      spy.trackStepCompleted(0);
+      expect(spy.tracked[0].$1, AnalyticsEvents.onboardingStepCompleted);
+      expect(spy.tracked[0].$2, {'step_index': 0, 'step_name': 'first_checkin'});
+    });
+  });
+
+  group('trackSurveyAnswered', () {
+    test('passes String answer directly', () {
+      spy.trackSurveyAnswered('intention', 'Spiritual Growth');
+      expect(spy.tracked[0].$2, {
+        'question': 'intention',
+        'answer': 'Spiritual Growth',
+      });
+    });
+
+    test('converts Set answer to List', () {
+      spy.trackSurveyAnswered('struggles', {'Anxiety', 'Grief'});
+      final answer = spy.tracked[0].$2?['answer'];
+      expect(answer, isA<List>());
+      expect(answer, containsAll(['Anxiety', 'Grief']));
+    });
+
+    test('handles null answer', () {
+      spy.trackSurveyAnswered('familiarity', null);
+      expect(spy.tracked[0].$2?['answer'], isNull);
+    });
+  });
+
+  group('AnalyticsEvents.stepNames', () {
+    test('covers all 20 onboarding pages', () {
+      for (int i = 0; i <= 19; i++) {
+        expect(AnalyticsEvents.stepNames[i], isNotNull,
+            reason: 'Missing step name for index $i');
+      }
+    });
+  });
+}

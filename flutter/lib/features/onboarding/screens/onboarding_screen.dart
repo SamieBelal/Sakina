@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/app_session.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../providers/onboarding_provider.dart';
 import 'attribution_screen.dart';
 import 'encouragement_screen.dart';
@@ -33,6 +35,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
+  bool _navigating = false;
 
   @override
   void initState() {
@@ -44,6 +47,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       Future(() =>
           ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(analyticsProvider).trackStepViewed(initialPage);
+      if (initialPage == 0) {
+        ref.read(analyticsProvider).timeEvent(AnalyticsEvents.onboardingCompleted);
+      }
+      if (initialPage == 19) {
+        ref.read(analyticsProvider).track(AnalyticsEvents.paywallViewed);
+        ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+      }
+    });
   }
 
   @override
@@ -53,19 +66,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _goToPage(int page) {
+    if (_navigating) return;
+    _navigating = true;
+
     final current = ref.read(onboardingProvider).currentPage;
     ref.read(onboardingProvider.notifier).setPage(page);
 
-    // Jump instantly when crossing multiple pages to avoid flickering through
-    // intermediate screens. Keep smooth animation for adjacent page transitions.
+    final analytics = ref.read(analyticsProvider);
+    // Only fire step_completed on forward navigation — back navigation is abandonment, not completion
+    if (page > current) {
+      analytics.trackStepCompleted(current);
+    }
+    analytics.trackStepViewed(page);
+    if (page == 19) {
+      analytics.track(AnalyticsEvents.paywallViewed);
+      analytics.track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+    }
+
     if ((page - current).abs() > 1) {
       _pageController.jumpToPage(page);
+      _navigating = false;
     } else {
       _pageController.animateToPage(
         page,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
-      );
+      ).whenComplete(() => _navigating = false);
     }
   }
 
@@ -84,6 +110,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
+    final analytics = ref.read(analyticsProvider);
+    analytics.track(AnalyticsEvents.onboardingCompleted);
+    analytics.setSuperProperties({'onboarding_completed': true});
+
+    final state = ref.read(onboardingProvider);
+    final profileProps = <String, dynamic>{};
+    if (state.intention != null) profileProps['intention'] = state.intention;
+    if (state.familiarity != null) profileProps['familiarity'] = state.familiarity;
+    if (state.quranConnection != null) profileProps['quran_connection'] = state.quranConnection;
+    if (state.struggles.isNotEmpty) profileProps['struggles'] = state.struggles.toList();
+    if (state.attribution.isNotEmpty) profileProps['attribution'] = state.attribution.toList();
+    if (profileProps.isNotEmpty) analytics.setUserProperties(profileProps);
+
+    analytics.flush();
+
     try {
       await ref.read(onboardingProvider.notifier).completeOnboarding(ref.read(appSessionProvider));
     } catch (_) {}

@@ -9,6 +9,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
@@ -23,9 +25,14 @@ class NotificationScreen extends ConsumerWidget {
   final VoidCallback onBack;
 
   Future<void> _requestPermission(WidgetRef ref) async {
+    bool granted = false;
     try {
-      await OneSignal.Notifications.requestPermission(true);
+      granted = await OneSignal.Notifications.requestPermission(true);
     } catch (_) {}
+    ref.read(analyticsProvider).track(AnalyticsEvents.notificationPermissionResult, properties: {
+      'granted': granted,
+      'action': 'enabled',
+    });
     ref.read(onboardingProvider.notifier).setNotificationPermission(true);
     onNext();
   }
@@ -142,7 +149,13 @@ class NotificationScreen extends ConsumerWidget {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              onPressed: onNext,
+              onPressed: () {
+                ref.read(analyticsProvider).track(AnalyticsEvents.notificationPermissionResult, properties: {
+                  'granted': false,
+                  'action': 'skipped',
+                });
+                onNext();
+              },
               child: Text(
                 AppStrings.notificationSkip,
                 style: AppTypography.labelLarge.copyWith(

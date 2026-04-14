@@ -6,6 +6,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 import '../widgets/struggle_chip.dart';
@@ -83,7 +85,10 @@ class StrugglesScreen extends ConsumerWidget {
           const Spacer(),
           OnboardingContinueButton(
             label: AppStrings.continueButton,
-            onPressed: onNext,
+            onPressed: () {
+              ref.read(analyticsProvider).trackSurveyAnswered('struggles', ref.read(onboardingProvider).struggles);
+              onNext();
+            },
             enabled: state.struggles.isNotEmpty,
           ),
           const SizedBox(height: AppSpacing.lg),

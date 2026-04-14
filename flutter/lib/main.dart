@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,9 @@ import 'core/app_session.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
+import 'services/analytics_events.dart';
+import 'services/analytics_provider.dart';
+import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/public_catalog_service.dart';
 // import 'services/purchase_service.dart';
@@ -45,6 +49,20 @@ Future<void> main() async {
   //   googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
   // );
 
+  // Initialize Mixpanel analytics
+  final analytics = AnalyticsService();
+  await analytics.initialize(dotenv.env['MIXPANEL_TOKEN'] ?? '');
+  analytics.setSuperPropertiesOnce({
+    'first_open_date': DateTime.now().toIso8601String(),
+  });
+  analytics.setSuperProperties({
+    'platform': defaultTargetPlatform.name,
+    'app_version': '1.0.0',
+  });
+  analytics.track(AnalyticsEvents.appOpened, properties: {
+    'is_first_open': !onboardingCompleted,
+  });
+
   final appSession = AppSessionNotifier(
     authService: AuthService(),
     initialOnboarded: onboardingCompleted,
@@ -55,6 +73,7 @@ Future<void> main() async {
       overrides: [
         appSessionProvider.overrideWithValue(appSession),
         cachedOnboardingStateProvider.overrideWithValue(cachedOnboardingState),
+        analyticsProvider.overrideWithValue(analytics),
       ],
       child: SakinaApp(appSession: appSession),
     ),

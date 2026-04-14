@@ -6,8 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/app_session.dart';
-import '../providers/onboarding_provider.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/analytics_events.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
@@ -26,6 +26,8 @@ enum _PlanType { annual, weekly }
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   _PlanType _selectedPlan = _PlanType.annual;
 
+  String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
+
   static const _benefits = [
     AppStrings.paywallBenefit1,
     AppStrings.paywallBenefit2,
@@ -34,13 +36,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   ];
 
   void _handleComplete() {
-    final notifier = ref.read(onboardingProvider.notifier);
-    () async {
-      try {
-        await notifier.completeOnboarding(ref.read(appSessionProvider));
-      } catch (_) {}
-      widget.onComplete();
-    }();
+    ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped, properties: {'plan': _planName});
+    widget.onComplete();
+  }
+
+  void _handleClose() {
+    ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+    widget.onComplete();
   }
 
   @override
@@ -64,7 +66,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  onPressed: _handleComplete,
+                  onPressed: _handleClose,
                   icon: const Icon(
                     Icons.close,
                     color: AppColors.textSecondaryLight,
@@ -170,8 +172,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 subPrice: AppStrings.paywallAnnualTotal,
                 badge: AppStrings.paywallAnnualBadge,
                 selected: _selectedPlan == _PlanType.annual,
-                onTap: () =>
-                    setState(() => _selectedPlan = _PlanType.annual),
+                onTap: () {
+                  setState(() => _selectedPlan = _PlanType.annual);
+                  ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': _planName});
+                },
               ),
               const SizedBox(height: AppSpacing.sm),
               _PricingCard(
@@ -179,8 +183,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 mainPrice: AppStrings.paywallWeeklyPrice,
                 mainPriceLabel: AppStrings.paywallWeeklyPerWeekLabel,
                 selected: _selectedPlan == _PlanType.weekly,
-                onTap: () =>
-                    setState(() => _selectedPlan = _PlanType.weekly),
+                onTap: () {
+                  setState(() => _selectedPlan = _PlanType.weekly);
+                  ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': _planName});
+                },
               ),
               const SizedBox(height: AppSpacing.sm),
 
