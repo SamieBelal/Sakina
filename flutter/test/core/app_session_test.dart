@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
+import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -34,6 +35,53 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(hydrateCalls, 1);
+    await controller.close();
+    session.dispose();
+  });
+
+  test('signed in session identifies notifications before hydration', () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = StreamController<AuthState>.broadcast();
+    final calls = <String>[];
+    var isAuthenticated = false;
+    final notificationService = _FakeNotificationService(
+      onIdentifyUser: (userId) async {
+        calls.add('identify:$userId');
+      },
+    );
+
+    final session = AppSessionNotifier(
+      initialOnboarded: false,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {
+        calls.add('hydrate');
+      },
+      hasCompletedOnboarding: () async => false,
+      notificationService: notificationService,
+    );
+
+    isAuthenticated = true;
+    controller.add(
+      AuthState(
+        AuthChangeEvent.signedIn,
+        Session(
+          accessToken: '',
+          tokenType: '',
+          user: const User(
+            id: 'user-1',
+            appMetadata: <String, dynamic>{},
+            userMetadata: <String, dynamic>{},
+            aud: '',
+            createdAt: '',
+          ),
+        ),
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(calls, <String>['identify:user-1', 'hydrate']);
     await controller.close();
     session.dispose();
   });
@@ -122,4 +170,20 @@ void main() {
     session.dispose();
     SupabaseSyncService.debugReset();
   });
+}
+
+class _FakeNotificationService extends NotificationService {
+  _FakeNotificationService({
+    this.onIdentifyUser,
+  });
+
+  final Future<void> Function(String userId)? onIdentifyUser;
+
+  @override
+  Future<void> identifyUser(String userId) async {
+    await onIdentifyUser?.call(userId);
+  }
+
+  @override
+  Future<void> logout() async {}
 }

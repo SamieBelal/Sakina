@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
 import '../services/launch_gate_service.dart';
+import '../services/notification_service.dart';
+import '../services/streak_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
 
@@ -15,6 +17,7 @@ import '../services/user_data_batch_sync_service.dart';
 class AppSessionNotifier extends ChangeNotifier {
   AppSessionNotifier({
     AuthService? authService,
+    NotificationService? notificationService,
     required bool initialOnboarded,
     Stream<AuthState>? authStateChanges,
     bool Function()? isAuthenticatedProvider,
@@ -22,6 +25,7 @@ class AppSessionNotifier extends ChangeNotifier {
     Future<bool> Function()? hasCompletedOnboarding,
     Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
+        _notificationService = notificationService ?? NotificationService(),
         _isAuthenticatedProvider = isAuthenticatedProvider ??
             (() => Supabase.instance.client.auth.currentUser != null),
         _hydrateEconomyCache = hydrateEconomyCache ?? _defaultHydrate,
@@ -35,6 +39,7 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   late final StreamSubscription<AuthState> _subscription;
+  final NotificationService _notificationService;
   final bool Function() _isAuthenticatedProvider;
   final Future<void> Function() _hydrateEconomyCache;
   final Future<bool> Function() _hasCompletedOnboarding;
@@ -61,7 +66,7 @@ class AppSessionNotifier extends ChangeNotifier {
       case AuthChangeEvent.initialSession:
       case AuthChangeEvent.tokenRefreshed:
         if (isAuthenticated) {
-          unawaited(_hydrateAndNotify());
+          unawaited(_handleAuthenticatedChange(data));
         }
         if (isAuthenticated && !_hasOnboarded) {
           unawaited(_checkOnboardingStatus());
@@ -69,6 +74,7 @@ class AppSessionNotifier extends ChangeNotifier {
         notifyListeners();
         break;
       case AuthChangeEvent.signedOut:
+        unawaited(_notificationService.logout());
         _hasOnboarded = false;
         _economyHydrated = false;
         _hydrationFailed = false;
@@ -80,7 +86,26 @@ class AppSessionNotifier extends ChangeNotifier {
     }
   }
 
-  Future<void> _hydrateAndNotify() async {
+  Future<void> _handleAuthenticatedChange(AuthState data) async {
+    var shouldRefreshNotificationTags = true;
+    final userId = data.session?.user.id;
+
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        await _notificationService.identifyUser(userId);
+      } catch (_) {
+        shouldRefreshNotificationTags = false;
+      }
+    }
+
+    await _hydrateAndNotify(
+      refreshNotificationTags: shouldRefreshNotificationTags,
+    );
+  }
+
+  Future<void> _hydrateAndNotify({
+    bool refreshNotificationTags = true,
+  }) async {
     if (_hydrating) return; // Avoid overlapping hydrations
     _hydrating = true;
     _hydrationFailed = false;
@@ -93,6 +118,9 @@ class AppSessionNotifier extends ChangeNotifier {
         ),
       );
       _economyHydrated = true;
+      if (refreshNotificationTags) {
+        await _refreshNotificationTags();
+      }
     } catch (_) {
       _hydrationFailed = true;
     } finally {
@@ -114,6 +142,22 @@ class AppSessionNotifier extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
       notifyListeners();
+    }
+  }
+
+  Future<void> _refreshNotificationTags() async {
+    try {
+      final streak = await getStreak();
+      final lastCheckinDate = streak.lastActive == null
+          ? null
+          : DateTime.tryParse(streak.lastActive!);
+
+      await _notificationService.refreshSessionTags(
+        streakCount: streak.currentStreak,
+        lastCheckinDate: lastCheckinDate,
+      );
+    } catch (_) {
+      // Non-critical — session hydration should not fail because tag sync failed.
     }
   }
 

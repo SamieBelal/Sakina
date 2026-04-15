@@ -188,11 +188,29 @@ class HomeScreen extends ConsumerWidget {
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    '${r.name} · ${r.nameArabic}',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.primary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        r.name,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        ' · ',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Text(
+                        r.nameArabic,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                        textDirection: TextDirection.rtl,
+                      ),
+                    ],
                   ),
                 ),
                 const Spacer(),

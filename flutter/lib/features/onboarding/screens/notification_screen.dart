@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
-import '../providers/onboarding_provider.dart';
-import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
+import '../../../services/notification_service.dart';
+import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
@@ -27,13 +27,26 @@ class NotificationScreen extends ConsumerWidget {
   Future<void> _requestPermission(WidgetRef ref) async {
     bool granted = false;
     try {
-      granted = await OneSignal.Notifications.requestPermission(true);
+      final notificationService = ref.read(notificationServiceProvider);
+      granted = await notificationService.requestPermission();
+      if (granted) {
+        await notificationService.setNotificationPreference(
+          notifyDailyTagKey,
+          true,
+        );
+        await notificationService.setNotificationPreference(
+          notifyStreakTagKey,
+          true,
+        );
+      }
     } catch (_) {}
-    ref.read(analyticsProvider).track(AnalyticsEvents.notificationPermissionResult, properties: {
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.notificationPermissionResult, properties: {
       'granted': granted,
       'action': 'enabled',
     });
-    ref.read(onboardingProvider.notifier).setNotificationPermission(true);
+    ref.read(onboardingProvider.notifier).setNotificationPermission(granted);
     onNext();
   }
 
@@ -80,21 +93,14 @@ class NotificationScreen extends ConsumerWidget {
                       'assets/illustrations/onboarding_notification.svg',
                       height: 180,
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 300.ms)
-                      .slideY(
-                          begin: 0.05,
-                          end: 0,
-                          duration: 600.ms,
-                          delay: 300.ms),
+                  ).animate().fadeIn(duration: 600.ms, delay: 300.ms).slideY(
+                      begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
                   const SizedBox(height: AppSpacing.xl),
                   ...benefits.asMap().entries.map((entry) {
                     final delay = (500 + entry.key * 100).ms;
                     final (icon, text) = entry.value;
                     return Padding(
-                      padding:
-                          const EdgeInsets.only(bottom: AppSpacing.md),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
                       child: Row(
                         children: [
                           Container(
@@ -121,10 +127,7 @@ class NotificationScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    )
-                        .animate()
-                        .fadeIn(duration: 400.ms, delay: delay)
-                        .slideX(
+                    ).animate().fadeIn(duration: 400.ms, delay: delay).slideX(
                           begin: 0.05,
                           end: 0,
                           duration: 400.ms,
@@ -150,10 +153,12 @@ class NotificationScreen extends ConsumerWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               onPressed: () {
-                ref.read(analyticsProvider).track(AnalyticsEvents.notificationPermissionResult, properties: {
-                  'granted': false,
-                  'action': 'skipped',
-                });
+                ref.read(analyticsProvider).track(
+                    AnalyticsEvents.notificationPermissionResult,
+                    properties: {
+                      'granted': false,
+                      'action': 'skipped',
+                    });
                 onNext();
               },
               child: Text(

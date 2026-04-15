@@ -16,11 +16,10 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
+import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
-import 'package:sakina/services/token_service.dart';
-import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/auth_service.dart';
@@ -46,7 +45,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _displayTitle = 'Seeker';
   String _displayTitleArabic = 'طَالِب';
   bool _isAutoTitle = true;
-  bool _notificationsEnabled = true;
+  bool _pushNotificationsEnabled = false;
+  bool _dailyReminderEnabled = true;
+  bool _streakReminderEnabled = true;
+  bool _notificationsBusy = false;
   bool _loading = true;
 
   @override
@@ -65,6 +67,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     final anchors = await loadSavedDiscoveryQuizAnchorNames();
+    final notificationService = ref.read(notificationServiceProvider);
+    final notificationPreferences =
+        await notificationService.getNotificationPreferences();
 
     if (!mounted) return;
     setState(() {
@@ -75,7 +80,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _displayTitle = displayTitle.title;
       _displayTitleArabic = displayTitle.titleArabic;
       _isAutoTitle = displayTitle.isAuto;
+      _pushNotificationsEnabled = notificationService.isOptedIn;
+      _dailyReminderEnabled =
+          notificationPreferences[notifyDailyTagKey] ?? true;
+      _streakReminderEnabled =
+          notificationPreferences[notifyStreakTagKey] ?? true;
       _loading = false;
+    });
+  }
+
+  Future<void> _setPushNotificationsEnabled(bool enabled) async {
+    if (_notificationsBusy) return;
+
+    final notificationService = ref.read(notificationServiceProvider);
+    setState(() => _notificationsBusy = true);
+
+    bool isOptedIn;
+    if (enabled) {
+      isOptedIn = await notificationService.optIn();
+    } else {
+      isOptedIn = await notificationService.optOut();
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pushNotificationsEnabled = isOptedIn;
+      _notificationsBusy = false;
+    });
+  }
+
+  Future<void> _setNotificationPreference(String key, bool enabled) async {
+    if (_notificationsBusy) return;
+
+    setState(() => _notificationsBusy = true);
+    await ref
+        .read(notificationServiceProvider)
+        .setNotificationPreference(key, enabled);
+
+    if (!mounted) return;
+    setState(() {
+      if (key == notifyDailyTagKey) {
+        _dailyReminderEnabled = enabled;
+      } else if (key == notifyStreakTagKey) {
+        _streakReminderEnabled = enabled;
+      }
+      _notificationsBusy = false;
     });
   }
 
@@ -769,36 +818,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             label: 'Store',
             onTap: () => context.push('/store'),
           ),
-          _buildSettingsRow(
-            icon: Icons.bug_report_rounded,
-            label: 'DEBUG: +100 Tokens & +100 Scrolls',
-            onTap: () async {
-              await earnTokens(100);
-              final scrollResult = await earnTierUpScrolls(100);
-              if (!scrollResult.success) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Couldn\'t save the debug scroll reward. Try again.',
-                      ),
-                    ),
-                  );
-                }
-                return;
-              }
-              final tokenState = await getTokens();
-              ref
-                  .read(dailyLoopProvider.notifier)
-                  .refreshTokenBalance(tokenState.balance);
-              await ref.read(tierUpScrollProvider.notifier).reload();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('+100 tokens, +100 scrolls')),
-                );
-              }
-            },
-          ),
         ]),
         const SizedBox(height: AppSpacing.lg),
 
@@ -853,16 +872,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Preferences
         _buildSectionLabel('Preferences'),
         const SizedBox(height: AppSpacing.sm),
-        _buildSettingsCard([
-          _buildToggleRow(
-            icon: Icons.notifications_outlined,
-            label: 'Notifications',
-            value: _notificationsEnabled,
-            onChanged: (val) {
-              setState(() => _notificationsEnabled = val);
-            },
-          ),
-        ]),
+        _buildNotificationsCard(),
         const SizedBox(height: AppSpacing.lg),
 
         // About
@@ -980,24 +990,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildToggleRow({
     required IconData icon,
     required String label,
+    String? subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
+    final labelColor = onChanged == null
+        ? AppColors.textTertiaryLight
+        : AppColors.textPrimaryLight;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: AppColors.textPrimaryLight),
+          Icon(icon, size: 22, color: labelColor),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              label,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textPrimaryLight,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.bodyMedium.copyWith(color: labelColor),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           Switch.adaptive(
@@ -1008,6 +1036,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildNotificationsCard() {
+    final subTogglesEnabled = _pushNotificationsEnabled && !_notificationsBusy;
+
+    return _buildSettingsCard([
+      _buildToggleRow(
+        icon: Icons.notifications_outlined,
+        label: 'Push Notifications',
+        value: _pushNotificationsEnabled,
+        onChanged: _notificationsBusy ? null : _setPushNotificationsEnabled,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.wb_sunny_outlined,
+        label: 'Daily Reminder',
+        subtitle: 'Check-in, rewards & quests',
+        value: _dailyReminderEnabled,
+        onChanged: subTogglesEnabled
+            ? (value) => _setNotificationPreference(
+                  notifyDailyTagKey,
+                  value,
+                )
+            : null,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.local_fire_department_outlined,
+        label: 'Streak Reminders',
+        subtitle: 'At-risk alerts & milestones',
+        value: _streakReminderEnabled,
+        onChanged: subTogglesEnabled
+            ? (value) => _setNotificationPreference(
+                  notifyStreakTagKey,
+                  value,
+                )
+            : null,
+      ),
+    ]);
   }
 
   Widget _buildDivider() {

@@ -171,9 +171,19 @@ class ReflectionDetailPage extends StatelessWidget {
                                   color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(
-                                  '${r['name']} · ${r['nameArabic']}',
-                                  style: AppTypography.bodySmall.copyWith(color: Colors.white),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${r['name']} · ',
+                                      style: AppTypography.bodySmall.copyWith(color: Colors.white),
+                                    ),
+                                    Text(
+                                      '${r['nameArabic']}',
+                                      style: AppTypography.bodySmall.copyWith(color: Colors.white),
+                                      textDirection: TextDirection.rtl,
+                                    ),
+                                  ],
                                 ),
                               )).toList(),
                             ),

@@ -1,20 +1,433 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class NotificationService {
-  Future<void> initialize(String appId) async {
-    if (appId.isEmpty) return;
-    OneSignal.initialize(appId);
+import '../widgets/achievement_toast.dart';
+import 'supabase_sync_service.dart';
+
+const String notifyDailyTagKey = 'notify_daily';
+const String notifyStreakTagKey = 'notify_streak';
+const String streakCountTagKey = 'streak_count';
+const String lastCheckinDateTagKey = 'last_checkin_date';
+
+const List<String> notificationPreferenceTagKeys = <String>[
+  notifyDailyTagKey,
+  notifyStreakTagKey,
+];
+
+const String _pushEnabledCacheKey = 'sakina_notifications_push_enabled';
+const String _preferenceCachePrefix = 'sakina_notification_pref_';
+
+typedef NotificationRouteNavigator = void Function(String route);
+
+class NotificationClickEventData {
+  const NotificationClickEventData({required this.additionalData});
+
+  final Map<String, dynamic>? additionalData;
+}
+
+class NotificationForegroundEventData {
+  const NotificationForegroundEventData({
+    required this.additionalData,
+    required this.preventDefault,
+    required this.display,
+  });
+
+  final Map<String, dynamic>? additionalData;
+  final VoidCallback preventDefault;
+  final VoidCallback display;
+}
+
+abstract class OneSignalClient {
+  Future<void> initialize(String appId);
+  Future<void> login(String userId);
+  Future<void> logout();
+  Future<bool> requestPermission(bool fallbackToSettings);
+  bool get isPermissionGranted;
+  Future<void> optIn();
+  Future<void> optOut();
+  bool? get isOptedIn;
+  Future<void> addTags(Map<String, String> tags);
+  Future<void> removeTags(List<String> keys);
+  Future<Map<String, String>> getTags();
+  void addForegroundListener(
+    void Function(NotificationForegroundEventData event) listener,
+  );
+  void addClickListener(
+      void Function(NotificationClickEventData event) listener);
+}
+
+class RealOneSignalClient implements OneSignalClient {
+  @override
+  Future<void> initialize(String appId) => OneSignal.initialize(appId);
+
+  @override
+  Future<void> login(String userId) => OneSignal.login(userId);
+
+  @override
+  Future<void> logout() => OneSignal.logout();
+
+  @override
+  Future<bool> requestPermission(bool fallbackToSettings) {
+    return OneSignal.Notifications.requestPermission(fallbackToSettings);
   }
 
-  Future<void> requestPermission() async {
-    await OneSignal.Notifications.requestPermission(true);
+  @override
+  bool get isPermissionGranted => OneSignal.Notifications.permission;
+
+  @override
+  Future<void> optIn() => OneSignal.User.pushSubscription.optIn();
+
+  @override
+  Future<void> optOut() => OneSignal.User.pushSubscription.optOut();
+
+  @override
+  bool? get isOptedIn => OneSignal.User.pushSubscription.optedIn;
+
+  @override
+  Future<void> addTags(Map<String, String> tags) =>
+      OneSignal.User.addTags(tags);
+
+  @override
+  Future<void> removeTags(List<String> keys) => OneSignal.User.removeTags(keys);
+
+  @override
+  Future<Map<String, String>> getTags() => OneSignal.User.getTags();
+
+  @override
+  void addForegroundListener(
+    void Function(NotificationForegroundEventData event) listener,
+  ) {
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      listener(
+        NotificationForegroundEventData(
+          additionalData: event.notification.additionalData,
+          preventDefault: event.preventDefault,
+          display: event.notification.display,
+        ),
+      );
+    });
   }
 
-  void setExternalUserId(String userId) {
-    OneSignal.login(userId);
-  }
-
-  void removeExternalUserId() {
-    OneSignal.logout();
+  @override
+  void addClickListener(
+      void Function(NotificationClickEventData event) listener) {
+    OneSignal.Notifications.addClickListener((event) {
+      listener(
+        NotificationClickEventData(
+          additionalData: event.notification.additionalData,
+        ),
+      );
+    });
   }
 }
+
+class NotificationService {
+  NotificationService({
+    OneSignalClient? client,
+    Future<SharedPreferences> Function()? sharedPreferencesLoader,
+    NotificationRouteNavigator? routeNavigator,
+  })  : _client = client ?? RealOneSignalClient(),
+        _sharedPreferencesLoader =
+            sharedPreferencesLoader ?? SharedPreferences.getInstance,
+        _routeNavigator = routeNavigator ?? _defaultRouteNavigator;
+
+  final OneSignalClient _client;
+  final Future<SharedPreferences> Function() _sharedPreferencesLoader;
+  final NotificationRouteNavigator _routeNavigator;
+
+  bool _initialized = false;
+  bool _foregroundListenerAdded = false;
+  bool _clickListenerAdded = false;
+  bool _cachedOptedIn = false;
+  String? _identifiedUserId;
+
+  Future<void> initialize(String appId) async {
+    _cachedOptedIn = await _readCachedPushEnabled();
+    if (appId.isEmpty) return;
+
+    await _client.initialize(appId);
+    _initialized = true;
+    _cachedOptedIn = _client.isOptedIn ?? _cachedOptedIn;
+    await _writeCachedPushEnabled(_cachedOptedIn);
+  }
+
+  Future<void> identifyUser(String userId) async {
+    if (!_initialized || userId.isEmpty) return;
+    if (_identifiedUserId == userId) return;
+
+    try {
+      await _client.login(userId);
+      _identifiedUserId = userId;
+    } catch (error) {
+      debugPrint('notification identifyUser failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> logout() async {
+    if (!_initialized) return;
+
+    try {
+      await _client.logout();
+      _identifiedUserId = null;
+    } catch (error) {
+      debugPrint('notification logout failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<bool> requestPermission() async {
+    if (!_initialized) return false;
+
+    try {
+      final granted = await _client.requestPermission(true);
+      if (granted) {
+        _cachedOptedIn = true;
+        await _writeCachedPushEnabled(true);
+      }
+      return granted;
+    } catch (error) {
+      debugPrint('notification requestPermission failed: $error');
+      return false;
+    }
+  }
+
+  bool get isPermissionGranted => _client.isPermissionGranted;
+
+  Future<bool> optIn() async {
+    if (!_initialized) return false;
+
+    var granted = _client.isPermissionGranted;
+    if (!granted) {
+      granted = await requestPermission();
+      if (!granted) {
+        _cachedOptedIn = false;
+        await _writeCachedPushEnabled(false);
+        return false;
+      }
+    }
+
+    try {
+      await _client.optIn();
+      _cachedOptedIn = true;
+      await _writeCachedPushEnabled(true);
+      return true;
+    } catch (error) {
+      debugPrint('notification optIn failed: $error');
+      _cachedOptedIn = _client.isOptedIn ?? false;
+      await _writeCachedPushEnabled(_cachedOptedIn);
+      return _cachedOptedIn;
+    }
+  }
+
+  Future<bool> optOut() async {
+    _cachedOptedIn = false;
+    await _writeCachedPushEnabled(false);
+    if (!_initialized) return false;
+
+    try {
+      await _client.optOut();
+    } catch (error) {
+      debugPrint('notification optOut failed: $error');
+    }
+    return false;
+  }
+
+  bool get isOptedIn => _client.isOptedIn ?? _cachedOptedIn;
+
+  Future<void> setTags(Map<String, String> tags) async {
+    if (!_initialized || tags.isEmpty) return;
+    await _client.addTags(tags);
+  }
+
+  Future<Map<String, String>> getTags() async {
+    if (!_initialized) return <String, String>{};
+    return _client.getTags();
+  }
+
+  Future<void> updateCheckinTags({
+    required int streakCount,
+    required DateTime lastCheckinDate,
+  }) async {
+    await setTags(<String, String>{
+      streakCountTagKey: streakCount.toString(),
+      lastCheckinDateTagKey: lastCheckinDate.toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> refreshSessionTags({
+    required int streakCount,
+    required DateTime? lastCheckinDate,
+  }) async {
+    if (!_initialized) return;
+
+    final tags = <String, String>{
+      streakCountTagKey: streakCount.toString(),
+    };
+    if (lastCheckinDate != null) {
+      tags[lastCheckinDateTagKey] = lastCheckinDate.toUtc().toIso8601String();
+    }
+
+    await _client.addTags(tags);
+    if (lastCheckinDate == null) {
+      await _client.removeTags(<String>[lastCheckinDateTagKey]);
+    }
+  }
+
+  Future<void> setNotificationPreference(String key, bool enabled) async {
+    if (!notificationPreferenceTagKeys.contains(key)) {
+      throw ArgumentError.value(
+          key, 'key', 'Unsupported notification preference');
+    }
+
+    final prefs = await _sharedPreferencesLoader();
+    await prefs.setBool(
+      _scopedPreferenceCacheKey(key),
+      enabled,
+    );
+
+    if (!_initialized) return;
+
+    try {
+      await _client.addTags(<String, String>{key: enabled.toString()});
+    } catch (error) {
+      debugPrint('notification setNotificationPreference failed: $error');
+    }
+  }
+
+  Future<Map<String, bool>> getNotificationPreferences() async {
+    final cached = await _readCachedNotificationPreferences();
+    if (!_initialized) return cached;
+
+    try {
+      final tags = await _client.getTags();
+      final preferences = <String, bool>{
+        notifyDailyTagKey: _parseBoolTag(
+          tags[notifyDailyTagKey],
+          defaultValue: cached[notifyDailyTagKey] ?? true,
+        ),
+        notifyStreakTagKey: _parseBoolTag(
+          tags[notifyStreakTagKey],
+          defaultValue: cached[notifyStreakTagKey] ?? true,
+        ),
+      };
+
+      final prefs = await _sharedPreferencesLoader();
+      for (final entry in preferences.entries) {
+        await prefs.setBool(_scopedPreferenceCacheKey(entry.key), entry.value);
+      }
+      return preferences;
+    } catch (error) {
+      debugPrint('notification getNotificationPreferences failed: $error');
+      return cached;
+    }
+  }
+
+  void addForegroundListener() {
+    if (!_initialized || _foregroundListenerAdded) return;
+    _foregroundListenerAdded = true;
+
+    _client.addForegroundListener((event) {
+      event.preventDefault();
+      event.display();
+    });
+  }
+
+  void addClickListener() {
+    if (!_initialized || _clickListenerAdded) return;
+    _clickListenerAdded = true;
+
+    _client.addClickListener((event) {
+      _routeNavigator(routeForNotificationType(_notificationTypeFromData(
+        event.additionalData,
+      )));
+    });
+  }
+
+  @visibleForTesting
+  static String routeForNotificationType(String? type) {
+    switch (type) {
+      case 'daily_reminder':
+      case 'streak_risk':
+      case 'streak_milestone':
+      default:
+        return '/';
+    }
+  }
+
+  String? _notificationTypeFromData(Map<String, dynamic>? additionalData) {
+    final rawType = additionalData?['type'];
+    if (rawType is String && rawType.isNotEmpty) return rawType;
+    if (rawType == null) return null;
+    return rawType.toString();
+  }
+
+  Future<bool> _readCachedPushEnabled() async {
+    final prefs = await _sharedPreferencesLoader();
+    return prefs.getBool(_scopedPushEnabledKey) ?? false;
+  }
+
+  Future<void> _writeCachedPushEnabled(bool enabled) async {
+    final prefs = await _sharedPreferencesLoader();
+    await prefs.setBool(_scopedPushEnabledKey, enabled);
+  }
+
+  String get _scopedPushEnabledKey =>
+      supabaseSyncService.scopedKey(_pushEnabledCacheKey);
+
+  Future<Map<String, bool>> _readCachedNotificationPreferences() async {
+    final prefs = await _sharedPreferencesLoader();
+    return <String, bool>{
+      notifyDailyTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyDailyTagKey)) ?? true,
+      notifyStreakTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyStreakTagKey)) ?? true,
+    };
+  }
+
+  String _scopedPreferenceCacheKey(String key) {
+    return supabaseSyncService.scopedKey('$_preferenceCachePrefix$key');
+  }
+
+  static bool _parseBoolTag(String? value, {required bool defaultValue}) {
+    if (value == null) return defaultValue;
+    switch (value.trim().toLowerCase()) {
+      case 'true':
+      case '1':
+      case 'yes':
+        return true;
+      case 'false':
+      case '0':
+      case 'no':
+        return false;
+      default:
+        return defaultValue;
+    }
+  }
+
+  static void _defaultRouteNavigator(String route) {
+    void navigate() {
+      final context = rootNavigatorKey.currentContext;
+      if (context == null) return;
+      GoRouter.of(context).go(route);
+    }
+
+    if (rootNavigatorKey.currentContext != null) {
+      navigate();
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      navigate();
+    });
+  }
+}
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
+});

@@ -14,6 +14,7 @@ import 'services/analytics_events.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 // import 'services/purchase_service.dart';
 
@@ -49,6 +50,11 @@ Future<void> main() async {
   //   googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
   // );
 
+  final notificationService = NotificationService();
+  await notificationService.initialize(dotenv.env['ONESIGNAL_APP_ID'] ?? '');
+  notificationService.addForegroundListener();
+  notificationService.addClickListener();
+
   // Initialize Mixpanel analytics
   final analytics = AnalyticsService();
   await analytics.initialize(dotenv.env['MIXPANEL_TOKEN'] ?? '');
@@ -65,6 +71,7 @@ Future<void> main() async {
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),
+    notificationService: notificationService,
     initialOnboarded: onboardingCompleted,
   );
 
@@ -74,6 +81,7 @@ Future<void> main() async {
         appSessionProvider.overrideWithValue(appSession),
         cachedOnboardingStateProvider.overrideWithValue(cachedOnboardingState),
         analyticsProvider.overrideWithValue(analytics),
+        notificationServiceProvider.overrideWithValue(notificationService),
       ],
       child: SakinaApp(appSession: appSession),
     ),

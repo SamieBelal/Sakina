@@ -404,21 +404,24 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                           ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
                           const SizedBox(height: 20),
 
-                          Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.3)),
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.buttonRadius),
-                              ),
-                              child: Text(
-                                'Continue',
-                                style: AppTypography.labelLarge.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.9)),
-                                textAlign: TextAlign.center,
-                              ),
+                          GestureDetector(
+                            onTap: _handleContinue,
+                            child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.3)),
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.buttonRadius),
+                                ),
+                                child: Text(
+                                  'Continue',
+                                  style: AppTypography.labelLarge.copyWith(
+                                      color: Colors.white.withValues(alpha: 0.9)),
+                                  textAlign: TextAlign.center,
+                                ),
+                            ),
                           ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
                         ],
                       ),
