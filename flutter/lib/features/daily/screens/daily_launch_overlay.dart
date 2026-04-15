@@ -600,7 +600,11 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
   bool _showingMatchTransition = false;
   bool _matchTransitionStarted = false;
 
-  void _runGachaReveal(DailyLoopState state) {
+  void _runGachaReveal() {
+    // Re-read fresh state so we don't act on an 800ms-stale snapshot from the
+    // matching transition closure. The provider could have updated during the
+    // delay (e.g. streak increment, card engage result finalised).
+    final state = ref.read(dailyLoopProvider);
     // Wire quest: update monthly streak
     ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
     // Check achievements (delayed to avoid during gacha reveal)
@@ -654,27 +658,37 @@ class _CheckInStepState extends ConsumerState<_CheckInStep> {
         !_revealShown &&
         !_matchTransitionStarted) {
       _matchTransitionStarted = true;
-      HapticFeedback.selectionClick();
-      // Defer setState until after the current build completes.
+      // Defer setState + side effects until after the current build completes
+      // so build stays pure.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        HapticFeedback.selectionClick();
         setState(() {
           _showingMatchTransition = true;
         });
         Future.delayed(const Duration(milliseconds: 800), () {
           if (!mounted) return;
+          // Keep _showingMatchTransition = true so the transition UI stays
+          // rendered until the gacha route actually covers the screen. If we
+          // cleared it here, the next rebuild would briefly render the normal
+          // question UI (e.g. q4 since checkinDone=true) for one frame before
+          // _runGachaReveal's post-frame callback pushes the opaque gacha
+          // route. Gacha is pushed opaque + !barrierDismissible, so it fully
+          // covers this widget; leaving the flag set is safe.
           setState(() {
-            _showingMatchTransition = false;
             _revealShown = true;
           });
-          _runGachaReveal(state);
+          _runGachaReveal();
         });
       });
     }
 
     // Show the "Finding your Name..." anticipation bridge between the
-    // check-in loading spinner and the gacha reveal overlay.
-    if (_showingMatchTransition) {
+    // check-in loading spinner and the gacha reveal overlay. Once the reveal
+    // has been scheduled (_revealShown), keep showing the transition UI until
+    // the gacha overlay is pushed / onDismiss navigates away — this prevents
+    // a one-frame flash of the normal question UI.
+    if (_showingMatchTransition || _revealShown) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
