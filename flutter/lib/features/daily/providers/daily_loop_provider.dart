@@ -73,6 +73,12 @@ class DailyLoopState {
   final int? newLevelNumber;
   final LevelUpRewards? levelUpRewards;
 
+  // Streak milestone event (consumed by UI to show overlay)
+  final bool streakMilestoneReached;
+  final int? streakMilestoneCount;
+  final int? streakMilestoneXp;
+  final int? streakMilestoneScrolls;
+
   // Card collection
   final CardEngageResult? cardEngageResult;
   final CollectibleName? engagedCard;
@@ -116,6 +122,10 @@ class DailyLoopState {
     this.newLevelTitleArabic,
     this.newLevelNumber,
     this.levelUpRewards,
+    this.streakMilestoneReached = false,
+    this.streakMilestoneCount,
+    this.streakMilestoneXp,
+    this.streakMilestoneScrolls,
     this.error,
   });
 
@@ -152,6 +162,10 @@ class DailyLoopState {
     String? newLevelTitleArabic,
     int? newLevelNumber,
     LevelUpRewards? levelUpRewards,
+    bool? streakMilestoneReached,
+    int? streakMilestoneCount,
+    int? streakMilestoneXp,
+    int? streakMilestoneScrolls,
     String? error,
   }) {
     return DailyLoopState(
@@ -187,6 +201,12 @@ class DailyLoopState {
       newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
       newLevelNumber: newLevelNumber ?? this.newLevelNumber,
       levelUpRewards: levelUpRewards ?? this.levelUpRewards,
+      streakMilestoneReached:
+          streakMilestoneReached ?? this.streakMilestoneReached,
+      streakMilestoneCount: streakMilestoneCount ?? this.streakMilestoneCount,
+      streakMilestoneXp: streakMilestoneXp ?? this.streakMilestoneXp,
+      streakMilestoneScrolls:
+          streakMilestoneScrolls ?? this.streakMilestoneScrolls,
       error: error,
     );
   }
@@ -359,6 +379,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         }
       }
       // Title unlocks are derived from streak on read — no persistence needed.
+    }
+
+    // Emit a single streak-milestone event for the UI overlay. If multiple
+    // milestones land at once (rare — only if the streak_service batches them),
+    // we show the highest-day milestone and sum the rewards.
+    if (milestones.isNotEmpty) {
+      final totalXp = milestones.fold<int>(
+        0,
+        (sum, m) => sum + m.milestone.xpReward,
+      );
+      final totalScrolls = milestones.fold<int>(
+        0,
+        (sum, m) => sum + m.milestone.scrollReward,
+      );
+      final topMilestone = milestones.last;
+      state = state.copyWith(
+        streakMilestoneReached: true,
+        streakMilestoneCount: topMilestone.milestone.days,
+        streakMilestoneXp: totalXp,
+        streakMilestoneScrolls: totalScrolls,
+      );
     }
   }
 
@@ -606,6 +647,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
   void clearLevelUp() {
     state = state.copyWith(leveledUp: false);
+  }
+
+  void clearStreakMilestone() {
+    state = state.copyWith(streakMilestoneReached: false);
   }
 
   void refreshTokenBalance(int balance) {

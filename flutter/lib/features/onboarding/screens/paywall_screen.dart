@@ -8,6 +8,8 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../providers/onboarding_provider.dart';
+import '../widgets/premium_celebration_overlay.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
@@ -37,7 +39,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   void _handleComplete() {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped, properties: {'plan': _planName});
-    widget.onComplete();
+    final userName = ref.read(onboardingProvider).signUpName ?? '';
+    Navigator.of(context, rootNavigator: true).push(
+      PageRouteBuilder<void>(
+        opaque: false,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, __, ___) => PremiumCelebrationOverlay(
+          userName: userName,
+          onContinue: () {
+            if (Navigator.of(context, rootNavigator: true).canPop()) {
+              Navigator.of(context, rootNavigator: true).pop();
+            }
+            widget.onComplete();
+          },
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
   }
 
   void _handleClose() {
