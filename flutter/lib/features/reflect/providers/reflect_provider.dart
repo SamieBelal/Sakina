@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -65,6 +66,7 @@ class SavedReflection {
   final String reframePreview;
   final String reframe;
   final String story;
+  final List<SavedVerse> verses;
   final String duaArabic;
   final String duaTransliteration;
   final String duaTranslation;
@@ -80,6 +82,7 @@ class SavedReflection {
     required this.reframePreview,
     this.reframe = '',
     this.story = '',
+    this.verses = const [],
     this.duaArabic = '',
     this.duaTransliteration = '',
     this.duaTranslation = '',
@@ -96,6 +99,7 @@ class SavedReflection {
         'reframePreview': reframePreview,
         'reframe': reframe,
         'story': story,
+        'verses': verses.map((v) => v.toJson()).toList(),
         'duaArabic': duaArabic,
         'duaTransliteration': duaTransliteration,
         'duaTranslation': duaTranslation,
@@ -113,6 +117,10 @@ class SavedReflection {
         reframePreview: json['reframePreview'] as String,
         reframe: json['reframe'] as String? ?? '',
         story: json['story'] as String? ?? '',
+        verses: (json['verses'] as List<dynamic>?)
+                ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
         duaArabic: json['duaArabic'] as String? ?? '',
         duaTransliteration: json['duaTransliteration'] as String? ?? '',
         duaTranslation: json['duaTranslation'] as String? ?? '',
@@ -134,6 +142,7 @@ class SavedReflection {
         'reframe_preview': reframePreview,
         'reframe': reframe,
         'story': story,
+        'verses': verses.map((v) => v.toJson()).toList(),
         'dua_arabic': duaArabic,
         'dua_transliteration': duaTransliteration,
         'dua_translation': duaTranslation,
@@ -152,6 +161,10 @@ class SavedReflection {
         reframePreview: row['reframe_preview'] as String? ?? '',
         reframe: row['reframe'] as String? ?? '',
         story: row['story'] as String? ?? '',
+        verses: (row['verses'] as List<dynamic>?)
+                ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
         duaArabic: row['dua_arabic'] as String? ?? '',
         duaTransliteration: row['dua_transliteration'] as String? ?? '',
         duaTranslation: row['dua_translation'] as String? ?? '',
@@ -489,6 +502,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       reframePreview: preview,
       reframe: response.reframe,
       story: response.story,
+      verses: response.verses,
       duaArabic: response.duaArabic,
       duaTransliteration: response.duaTransliteration,
       duaTranslation: response.duaTranslation,

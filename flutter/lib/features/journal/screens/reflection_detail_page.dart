@@ -8,7 +8,8 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/widgets/share_card.dart';
 
 class ReflectionDetailPage extends StatelessWidget {
-  const ReflectionDetailPage({required this.reflection, this.onRemove, super.key});
+  const ReflectionDetailPage(
+      {required this.reflection, this.onRemove, super.key});
 
   final SavedReflection reflection;
   final VoidCallback? onRemove;
@@ -40,45 +41,53 @@ class ReflectionDetailPage extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                        icon:
+                            const Icon(Icons.arrow_back_ios_rounded, size: 20),
                         color: AppColors.textSecondaryLight,
                       ),
                       const Spacer(),
-                  if (onRemove != null)
-                    IconButton(
-                      onPressed: () {
-                        HapticFeedback.mediumImpact();
-                        onRemove!();
-                        Navigator.of(context).pop();
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                      color: AppColors.textTertiaryLight,
-                    ),
-                  Builder(builder: (btnContext) => IconButton(
-                    onPressed: () async {
-                      HapticFeedback.mediumImpact();
-                      final box = btnContext.findRenderObject() as RenderBox;
-                      final origin = box.localToGlobal(Offset.zero) & box.size;
-                      try {
-                        await shareReflectionCard(
-                          context: context,
-                          nameArabic: reflection.nameArabic,
-                          nameEnglish: reflection.name,
-                          duaArabic: reflection.duaArabic,
-                          duaTransliteration: reflection.duaTransliteration,
-                          duaTranslation: reflection.duaTranslation,
-                          duaSource: reflection.duaSource,
-                          reframe: reflection.reframe,
-                          story: reflection.story,
-                          sharePositionOrigin: origin,
-                        );
-                      } catch (e) {
-                        debugPrint('[SHARE ERROR] $e');
-                      }
-                    },
-                    icon: const Icon(Icons.share_outlined, size: 20),
-                    color: AppColors.textSecondaryLight,
-                  )),
+                      if (onRemove != null)
+                        IconButton(
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            onRemove!();
+                            Navigator.of(context).pop();
+                          },
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 20),
+                          color: AppColors.textTertiaryLight,
+                        ),
+                      Builder(
+                          builder: (btnContext) => IconButton(
+                                onPressed: () async {
+                                  HapticFeedback.mediumImpact();
+                                  final box = btnContext.findRenderObject()
+                                      as RenderBox;
+                                  final origin =
+                                      box.localToGlobal(Offset.zero) & box.size;
+                                  try {
+                                    await shareReflectionCard(
+                                      context: context,
+                                      nameArabic: reflection.nameArabic,
+                                      nameEnglish: reflection.name,
+                                      verses: reflection.verses,
+                                      duaArabic: reflection.duaArabic,
+                                      duaTransliteration:
+                                          reflection.duaTransliteration,
+                                      duaTranslation: reflection.duaTranslation,
+                                      duaSource: reflection.duaSource,
+                                      reframe: reflection.reframe,
+                                      story: reflection.story,
+                                      sharePositionOrigin: origin,
+                                    );
+                                  } catch (e) {
+                                    debugPrint('[SHARE ERROR] $e');
+                                  }
+                                },
+                                icon:
+                                    const Icon(Icons.share_outlined, size: 20),
+                                color: AppColors.textSecondaryLight,
+                              )),
                     ],
                   ),
                 ],
@@ -96,11 +105,17 @@ class ReflectionDetailPage extends StatelessWidget {
                       children: List.generate(5, (i) {
                         return Icon(
                           Icons.auto_awesome,
-                          color: AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
+                          color: AppColors.secondary
+                              .withValues(alpha: i == 2 ? 1.0 : 0.6),
                           size: i == 2 ? 20 : 14,
                         )
                             .animate()
-                            .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut, duration: 600.ms, delay: (i * 80).ms)
+                            .scale(
+                                begin: const Offset(0, 0),
+                                end: const Offset(1, 1),
+                                curve: Curves.elasticOut,
+                                duration: 600.ms,
+                                delay: (i * 80).ms)
                             .fadeIn(duration: 400.ms, delay: (i * 80).ms);
                       }),
                     ),
@@ -121,7 +136,8 @@ class ReflectionDetailPage extends StatelessWidget {
                       padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.cardRadius),
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.primary.withValues(alpha: 0.3),
@@ -142,14 +158,16 @@ class ReflectionDetailPage extends StatelessWidget {
                           const SizedBox(height: 16),
                           Text(
                             reflection.nameArabic,
-                            style: AppTypography.nameOfAllahDisplay.copyWith(color: Colors.white),
+                            style: AppTypography.nameOfAllahDisplay
+                                .copyWith(color: Colors.white),
                             textDirection: TextDirection.rtl,
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 12),
                           Text(
                             reflection.name,
-                            style: AppTypography.headlineLarge.copyWith(color: Colors.white),
+                            style: AppTypography.headlineLarge
+                                .copyWith(color: Colors.white),
                             textAlign: TextAlign.center,
                           ),
                           if (reflection.relatedNames.isNotEmpty) ...[
@@ -165,32 +183,44 @@ class ReflectionDetailPage extends StatelessWidget {
                               alignment: WrapAlignment.center,
                               spacing: 8,
                               runSpacing: 8,
-                              children: reflection.relatedNames.map((r) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${r['name']} · ',
-                                      style: AppTypography.bodySmall.copyWith(color: Colors.white),
-                                    ),
-                                    Text(
-                                      '${r['nameArabic']}',
-                                      style: AppTypography.bodySmall.copyWith(color: Colors.white),
-                                      textDirection: TextDirection.rtl,
-                                    ),
-                                  ],
-                                ),
-                              )).toList(),
+                              children: reflection.relatedNames
+                                  .map((r) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '${r['name']} · ',
+                                              style: AppTypography.bodySmall
+                                                  .copyWith(
+                                                      color: Colors.white),
+                                            ),
+                                            Text(
+                                              '${r['nameArabic']}',
+                                              style: AppTypography.bodySmall
+                                                  .copyWith(
+                                                      color: Colors.white),
+                                              textDirection: TextDirection.rtl,
+                                            ),
+                                          ],
+                                        ),
+                                      ))
+                                  .toList(),
                             ),
                           ],
                         ],
                       ),
-                    ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.05, end: 0, duration: 600.ms),
+                    )
+                        .animate()
+                        .fadeIn(duration: 600.ms)
+                        .slideY(begin: 0.05, end: 0, duration: 600.ms),
 
                     if (hasFullData) ...[
                       const SizedBox(height: 24),
@@ -200,6 +230,10 @@ class ReflectionDetailPage extends StatelessWidget {
                         content: reflection.reframe,
                         delay: 200,
                       ),
+                      if (reflection.verses.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _verseCard(delay: 300),
+                      ],
                       const SizedBox(height: 16),
                       // Story section
                       if (reflection.story.isNotEmpty)
@@ -233,7 +267,8 @@ class ReflectionDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _sectionCard({required String label, required String content, int delay = 0}) {
+  Widget _sectionCard(
+      {required String label, required String content, int delay = 0}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -264,7 +299,8 @@ class ReflectionDetailPage extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                style: AppTypography.labelMedium
+                    .copyWith(color: AppColors.primary),
               ),
             ],
           ),
@@ -278,7 +314,10 @@ class ReflectionDetailPage extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms, delay: delay.ms).slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
+    )
+        .animate()
+        .fadeIn(duration: 600.ms, delay: delay.ms)
+        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
   }
 
   Widget _duaCard({int delay = 0}) {
@@ -313,7 +352,8 @@ class ReflectionDetailPage extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Dua',
-                style: AppTypography.labelMedium.copyWith(color: AppColors.primary),
+                style: AppTypography.labelMedium
+                    .copyWith(color: AppColors.primary),
               ),
             ],
           ),
@@ -349,11 +389,99 @@ class ReflectionDetailPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               reflection.duaSource,
-              style: AppTypography.bodySmall.copyWith(color: AppColors.textTertiaryLight),
+              style: AppTypography.bodySmall
+                  .copyWith(color: AppColors.textTertiaryLight),
             ),
           ],
         ],
       ),
-    ).animate().fadeIn(duration: 600.ms, delay: delay.ms).slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
+    )
+        .animate()
+        .fadeIn(duration: 600.ms, delay: delay.ms)
+        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
+  }
+
+  Widget _verseCard({int delay = 0}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Quran Verse',
+                style: AppTypography.labelMedium
+                    .copyWith(color: AppColors.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(reflection.verses.length, (index) {
+            final verse = reflection.verses[index];
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == reflection.verses.length - 1 ? 0 : 20,
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      verse.arabic,
+                      style: AppTypography.quranArabic.copyWith(fontSize: 24),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    verse.translation,
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontStyle: FontStyle.italic,
+                      height: 1.6,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    verse.reference,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textTertiaryLight,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 600.ms, delay: delay.ms)
+        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
   }
 }

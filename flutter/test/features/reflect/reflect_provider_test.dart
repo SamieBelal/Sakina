@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
@@ -21,6 +22,14 @@ void main() {
         nameArabic: 'السلام',
         reframe: 'Steadiness can return, even slowly.',
         story: 'A story of steadiness.',
+        verses: const [
+          ReflectVerse(
+            arabic: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+            translation:
+                'Verily, in the remembrance of Allah do hearts find rest.',
+            reference: 'Ar-Ra\'d 13:28',
+          ),
+        ],
         duaArabic: 'دعاء',
         duaTransliteration: 'dua',
         duaTranslation: 'supplication',
@@ -78,6 +87,7 @@ void main() {
 
     expect(notifier.state.savedReflections, hasLength(1));
     expect(notifier.state.savedReflections.single.name, 'As-Sabur');
+    expect(notifier.state.savedReflections.single.verses, isEmpty);
   });
 
   test('follow-up flow builds combined text and saves successful reflection',
@@ -124,6 +134,7 @@ void main() {
     expect(notifier.state.savedReflections.single.id, 'reflection-123');
     expect(notifier.state.savedReflections.single.date,
         fixedNow.toIso8601String());
+    expect(notifier.state.savedReflections.single.verses, hasLength(1));
 
     await notifier.continueStep();
     await notifier.continueStep();
@@ -137,6 +148,17 @@ void main() {
         .where((call) => call['table'] == 'user_reflections')
         .toList();
     expect(reflectionWrites, hasLength(1));
+    expect(
+      (reflectionWrites.single['data'] as Map<String, dynamic>)['verses'],
+      [
+        {
+          'arabic': 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+          'translation':
+              'Verily, in the remembrance of Allah do hearts find rest.',
+          'reference': 'Ar-Ra\'d 13:28',
+        },
+      ],
+    );
   });
 
   test('deleteReflection updates cache and removes remote row', () async {

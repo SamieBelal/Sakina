@@ -321,6 +321,14 @@ void main() {
           'reframePreview': 'Stay steady',
           'reframe': 'Stay steady',
           'story': 'Story',
+          'verses': [
+            {
+              'arabic': 'وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ',
+              'translation':
+                  'Those who restrain anger and pardon the people — and Allah loves the doers of good.',
+              'reference': 'Al-Imran 3:134',
+            },
+          ],
           'duaArabic': 'dua',
           'duaTransliteration': 'translit',
           'duaTranslation': 'translation',
@@ -339,6 +347,17 @@ void main() {
     final seedCall = fakeSync.batchInsertCalls.single;
     expect(seedCall['table'], 'user_reflections');
     expect((seedCall['rows'] as List), hasLength(1));
+    expect(
+      ((seedCall['rows'] as List).single as Map<String, dynamic>)['verses'],
+      [
+        {
+          'arabic': 'وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ',
+          'translation':
+              'Those who restrain anger and pardon the people — and Allah loves the doers of good.',
+          'reference': 'Al-Imran 3:134',
+        },
+      ],
+    );
   });
 
   test(

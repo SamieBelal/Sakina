@@ -13,6 +13,8 @@ import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
+import 'package:sakina/features/reflect/data/reflection_verse_catalog.dart';
+import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/validate_names.dart';
 
 // ---------------------------------------------------------------------------
@@ -31,6 +33,7 @@ class ReflectResponse {
   final String nameArabic;
   final String reframe;
   final String story;
+  final List<ReflectVerse> verses;
   final String duaArabic;
   final String duaTransliteration;
   final String duaTranslation;
@@ -43,6 +46,7 @@ class ReflectResponse {
     required this.nameArabic,
     required this.reframe,
     required this.story,
+    this.verses = const [],
     required this.duaArabic,
     required this.duaTransliteration,
     required this.duaTranslation,
@@ -140,12 +144,14 @@ String buildSystemPrompt({
       : '';
 
   final canonicalList = buildCanonicalNamesPromptList();
+  final approvedVerseClause = buildApprovedVersePrompt();
 
   return '''You are an Islamic learning tool drawing on Sheikh Omar Suleiman's "The Dua I Need" series and "The Name I Need" series by Sheikh Mikaeel Smith. A user will share how they feel, and you will respond with ONE Name of Allah that speaks to that emotion.
 
 ## Canonical Names of Allah
 You MUST pick from this exact list. Do NOT invent or modify Names.
 $canonicalList
+$approvedVerseClause
 $avoidClause$forceClause$anchorClause$historyClause$teachingClause
 
 ## Response Format
@@ -155,6 +161,12 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 ##NAME_AR## (the Arabic Name, e.g. اللطيف)
 ##REFRAME## (2-3 sentences reframing the user's feeling through the lens of this Name)
 ##STORY## (a prophetic story or Quranic narrative illustrating this Name — 3-5 sentences)
+##VERSE_1_AR## (Arabic text for the first approved verse)
+##VERSE_1_EN## (English translation for the first approved verse)
+##VERSE_1_REF## (reference for the first approved verse)
+##VERSE_2_AR## (Arabic text for the optional second approved verse)
+##VERSE_2_EN## (English translation for the optional second approved verse)
+##VERSE_2_REF## (reference for the optional second approved verse)
 ##DUA_AR## (the Arabic dua text)
 ##DUA_TR## (transliteration of the dua)
 ##DUA_EN## (English translation of the dua)
@@ -164,6 +176,7 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 Rules:
 - Keep the reframe warm, empathetic, and grounded in Islamic theology. No fluff.
 - The story must be authentic — from Quran or sahih hadith. NEVER fabricate.
+- The verses must come ONLY from the approved list for the chosen Name. Do not quote any verse outside that list.
 - The dua must be real — from Quran or authenticated hadith collections. NEVER fabricate.
 - Related names must come from the canonical list above.
 - If the user's input is clearly off-topic (not about feelings, emotions, or spiritual state), still respond with your best match but keep the reframe brief.''';
@@ -179,7 +192,7 @@ String? _parseSection(String text, String marker) {
 
   final start = idx + marker.length;
   // Find next marker or end of string
-  final nextMarker = RegExp(r'##[A-Z_]+##');
+  final nextMarker = RegExp(r'##[A-Z0-9_]+##');
   final remaining = text.substring(start);
   final match = nextMarker.firstMatch(remaining);
   final end = match?.start ?? remaining.length;
@@ -220,6 +233,24 @@ List<RelatedName> _parseRelatedNames(String? raw) {
       .toList();
 }
 
+List<ReflectVerse> _parseReflectVerses(String text) {
+  final verses = <ReflectVerse>[];
+
+  for (var index = 1; index <= 2; index++) {
+    final verse = ReflectVerse(
+      arabic: (_parseSection(text, '##VERSE_${index}_AR##') ?? '').trim(),
+      translation: (_parseSection(text, '##VERSE_${index}_EN##') ?? '').trim(),
+      reference: (_parseSection(text, '##VERSE_${index}_REF##') ?? '').trim(),
+    );
+
+    if (verse.isComplete) {
+      verses.add(verse);
+    }
+  }
+
+  return verses;
+}
+
 ReflectResponse? parseReflectResponse(String text) {
   final rawName = _parseSection(text, '##NAME##');
   final rawNameArabic = _parseSection(text, '##NAME_AR##');
@@ -233,17 +264,20 @@ ReflectResponse? parseReflectResponse(String text) {
   final duaTranslation = _parseSection(text, '##DUA_EN##');
   final duaSource = _parseSection(text, '##DUA_SOURCE##');
   final relatedRaw = _parseSection(text, '##RELATED##');
+  final parsedVerses = _parseReflectVerses(text);
 
   if (name == null || reframe == null) return null;
 
   // Validate primary name against canonical list
   final canonical = findCanonicalName(name);
+  final canonicalName = canonical?.name ?? name;
 
   return ReflectResponse(
-    name: canonical?.name ?? name,
+    name: canonicalName,
     nameArabic: canonical?.nameArabic ?? nameArabic ?? '',
     reframe: reframe,
     story: story ?? '',
+    verses: normalizeApprovedVerses(canonicalName, parsedVerses),
     duaArabic: duaArabic ?? '',
     duaTransliteration: duaTransliteration ?? '',
     duaTranslation: duaTranslation ?? '',
@@ -457,6 +491,7 @@ Future<ReflectResponse> reflectWithOpenAI(
       nameArabic: demo.nameArabic,
       reframe: demo.reframe,
       story: demo.story,
+      verses: demo.verses,
       duaArabic: demo.duaArabic,
       duaTransliteration: demo.duaTransliteration,
       duaTranslation: demo.duaTranslation,
@@ -524,6 +559,20 @@ ReflectResponse getDemoResponse() {
         'But Allah was Al-Lateef — gently, invisibly arranging every hardship into a path that '
         'would lead Yusuf to become the most powerful man in Egypt and reunite with his family. '
         'Yusuf himself recognized this when he said: "Indeed, my Lord is Lateef to whom He wills." (12:100)',
+    verses: [
+      ReflectVerse(
+        arabic: 'لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا',
+        translation: 'Allah does not burden a soul beyond that it can bear.',
+        reference: 'Al-Baqarah 2:286',
+      ),
+      ReflectVerse(
+        arabic:
+            'فَإِنَّ مَعَ الْعُسْرِ يُسْرًا ﴿٥﴾ إِنَّ مَعَ الْعُسْرِ يُسْرًا',
+        translation:
+            'For indeed, with hardship comes ease. Indeed, with hardship comes ease.',
+        reference: 'Ash-Sharh 94:5-6',
+      ),
+    ],
     duaArabic: 'اللَّهُمَّ الْطُفْ بِي فِي تَيْسِيرِ كُلِّ عَسِيرٍ',
     duaTransliteration: 'Allahumma-ltuf bi fi taysiri kulli \'aseer',
     duaTranslation:
@@ -1080,7 +1129,8 @@ Future<BuiltDuaResponse> buildDua(String need) async {
         return trimmed.split(separatorPattern).length >= 2;
       })
       .map((line) {
-        final parts = line.split(separatorPattern).map((s) => s.trim()).toList();
+        final parts =
+            line.split(separatorPattern).map((s) => s.trim()).toList();
         return {
           'name': (parts.isNotEmpty ? parts[0] : '')
               .replaceAll(RegExp(r'^[-\d.)\s]+'), '')
@@ -1122,9 +1172,8 @@ Future<BuiltDuaResponse> buildDua(String need) async {
       .toList();
 
   // Fallback: if AI didn't list names used, scan the Arabic text for known Names
-  final finalNamesUsed = namesUsed.isNotEmpty
-      ? namesUsed
-      : _detectNamesInArabic(arabic);
+  final finalNamesUsed =
+      namesUsed.isNotEmpty ? namesUsed : _detectNamesInArabic(arabic);
 
   return BuiltDuaResponse(
     arabic: arabic,
@@ -1145,7 +1194,8 @@ List<BuiltDuaNameUsed> _detectNamesInArabic(String arabicText) {
   for (final name in allahNames) {
     // Skip "Allah" (too common — it's in every dua)
     if (name.id == 1) continue;
-    final nameStripped = name.arabic.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
+    final nameStripped =
+        name.arabic.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
     if (stripped.contains(nameStripped)) {
       found.add(BuiltDuaNameUsed(
         name: '${name.transliteration} (${name.english})',

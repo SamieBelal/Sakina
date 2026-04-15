@@ -1099,6 +1099,101 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (result.verses.isNotEmpty) ...[
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 3,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.secondary,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ).animate().scaleY(
+                                        begin: 0,
+                                        end: 1,
+                                        duration: 300.ms,
+                                        delay: 200.ms,
+                                        curve: Curves.easeOut),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Verse',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: AppColors.primary,
+                                      ),
+                                    ).animate().fadeIn(
+                                        duration: 400.ms, delay: 200.ms),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                ...List.generate(result.verses.length, (index) {
+                                  final verse = result.verses[index];
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                        bottom:
+                                            index == result.verses.length - 1
+                                                ? 0
+                                                : 20),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: Text(
+                                            verse.arabic,
+                                            style: AppTypography.quranArabic
+                                                .copyWith(
+                                              fontSize: 24,
+                                            ),
+                                            textDirection: TextDirection.rtl,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        )
+                                            .animate()
+                                            .fadeIn(
+                                                duration: 800.ms,
+                                                delay: (200 + index * 80).ms)
+                                            .scaleXY(
+                                                begin: 0.92,
+                                                end: 1.0,
+                                                duration: 800.ms,
+                                                delay: (200 + index * 80).ms,
+                                                curve: Curves.easeOutBack),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          verse.translation,
+                                          style:
+                                              AppTypography.bodyLarge.copyWith(
+                                            color: AppColors.textPrimaryLight,
+                                            height: 1.6,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ).animate().fadeIn(
+                                            duration: 500.ms,
+                                            delay: (320 + index * 80).ms),
+                                        const SizedBox(height: 8),
+                                        Center(
+                                          child: Text(
+                                            verse.reference,
+                                            style: AppTypography.bodySmall
+                                                .copyWith(
+                                              color:
+                                                  AppColors.textTertiaryLight,
+                                            ),
+                                          ),
+                                        ).animate().fadeIn(
+                                            duration: 400.ms,
+                                            delay: (420 + index * 80).ms),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 20),
+                                const Divider(color: AppColors.dividerLight),
+                                const SizedBox(height: 20),
+                              ],
                               Row(
                                 children: [
                                   Container(
@@ -1193,6 +1288,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                                               context: context,
                                               nameArabic: result.nameArabic,
                                               nameEnglish: result.name,
+                                              verses: result.verses,
                                               duaArabic: result.duaArabic,
                                               duaTransliteration:
                                                   result.duaTransliteration,
