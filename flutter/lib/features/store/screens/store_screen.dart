@@ -11,6 +11,7 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/ornate_card_shimmer.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/onboarding/widgets/premium_celebration_overlay.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/subpage_header.dart';
@@ -80,7 +81,20 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         ref
             .read(dailyLoopProvider.notifier)
             .refreshTokenBalance(tokenState.balance);
-        if (mounted) _showSuccess('Welcome to Premium!');
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).push(
+            PageRouteBuilder<void>(
+              opaque: false,
+              barrierColor: Colors.transparent,
+              transitionDuration: const Duration(milliseconds: 400),
+              pageBuilder: (_, __, ___) => const PremiumCelebrationOverlay(
+                userName: '',
+              ),
+              transitionsBuilder: (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
+            ),
+          );
+        }
       }
     } catch (_) {
       // Purchase cancelled or failed — no action needed
