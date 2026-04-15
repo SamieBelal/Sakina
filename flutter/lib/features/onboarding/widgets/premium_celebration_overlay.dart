@@ -44,10 +44,10 @@ class PremiumCelebrationOverlay extends StatefulWidget {
       _PremiumCelebrationOverlayState();
 }
 
-class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
-    with TickerProviderStateMixin {
+class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
   // 0=anticipation orb, 1=burst rings, 2=title reveal, 3=perks + Begin button
   int _phase = 0;
+  bool _dismissed = false;
 
   static const _gold = AppColors.secondary;
   static const _bg = Color(0xFF0A0A12);
@@ -78,19 +78,26 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
   }
 
   void _handleContinue() {
+    if (_dismissed) return;
+    _dismissed = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();
     } else {
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _phase >= 3) _handleContinue();
+      },
+      child: Scaffold(
       backgroundColor: _bg,
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 800),
@@ -438,6 +445,7 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
             ],
           ),
         ),
+      ),
       ),
     );
   }

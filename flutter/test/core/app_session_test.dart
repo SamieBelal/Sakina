@@ -28,6 +28,7 @@ void main() {
         hydrateCalls += 1;
       },
       hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
     );
 
     isAuthenticated = true;
@@ -97,6 +98,7 @@ void main() {
       isAuthenticatedProvider: () => isAuthenticated,
       hydrateEconomyCache: () async {},
       hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
     );
 
     controller.add(const AuthState(AuthChangeEvent.signedOut, null));
@@ -186,4 +188,16 @@ class _FakeNotificationService extends NotificationService {
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<void> syncTimezone() async {}
+
+  @override
+  Future<void> requestPermissionIfPreviouslyEnabled() async {}
+
+  @override
+  Future<void> refreshSessionTags({
+    required int streakCount,
+    DateTime? lastCheckinDate,
+  }) async {}
 }

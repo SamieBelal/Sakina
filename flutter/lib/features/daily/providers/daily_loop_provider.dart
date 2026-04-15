@@ -650,7 +650,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   void clearStreakMilestone() {
-    state = state.copyWith(streakMilestoneReached: false);
+    state = state.copyWith(
+      streakMilestoneReached: false,
+      streakMilestoneCount: 0,
+      streakMilestoneXp: 0,
+      streakMilestoneScrolls: 0,
+    );
   }
 
   void refreshTokenBalance(int balance) {

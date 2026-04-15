@@ -3,7 +3,24 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
+import 'package:sakina/services/notification_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+class _FakeNotificationService extends NotificationService {
+  @override
+  Future<void> identifyUser(String userId) async {}
+  @override
+  Future<void> logout() async {}
+  @override
+  Future<void> syncTimezone() async {}
+  @override
+  Future<void> requestPermissionIfPreviouslyEnabled() async {}
+  @override
+  Future<void> refreshSessionTags({
+    required int streakCount,
+    DateTime? lastCheckinDate,
+  }) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +42,7 @@ void main() {
         }
       },
       hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
     );
 
     controller.add(const AuthState(AuthChangeEvent.signedIn, null));
@@ -57,6 +75,7 @@ void main() {
       hydrateEconomyCache: () => hangCompleter.future,
       hasCompletedOnboarding: () async => false,
       hydrationTimeout: const Duration(milliseconds: 50),
+      notificationService: _FakeNotificationService(),
     );
 
     controller.add(const AuthState(AuthChangeEvent.signedIn, null));
@@ -79,6 +98,7 @@ void main() {
       isAuthenticatedProvider: () => true,
       hydrateEconomyCache: () async => throw Exception('fail'),
       hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
     );
 
     controller.add(const AuthState(AuthChangeEvent.signedIn, null));

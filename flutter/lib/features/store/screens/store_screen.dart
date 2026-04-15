@@ -851,6 +851,13 @@ class _PurchaseToastWidget extends StatefulWidget {
 
 class _PurchaseToastWidgetState extends State<_PurchaseToastWidget> {
   bool _visible = false;
+  bool _removed = false;
+
+  void _dismiss() {
+    if (_removed) return;
+    _removed = true;
+    widget.onDismiss();
+  }
 
   @override
   void initState() {
@@ -862,7 +869,7 @@ class _PurchaseToastWidgetState extends State<_PurchaseToastWidget> {
       if (mounted) setState(() => _visible = false);
     });
     Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) widget.onDismiss();
+      if (mounted) _dismiss();
     });
   }
 

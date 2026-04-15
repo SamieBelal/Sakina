@@ -56,6 +56,7 @@ class StreakMilestoneOverlay extends StatefulWidget {
 class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
   // 0=anticipation orb, 1=burst rings, 2=number reveal, 3=rewards + continue
   int _phase = 0;
+  bool _dismissed = false;
 
   static const _amber = AppColors.streakAmber;
   static const _bg = Color(0xFF0A0A12);
@@ -86,19 +87,26 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
   }
 
   void _handleContinue() {
+    if (_dismissed) return;
+    _dismissed = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();
     } else {
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _phase >= 3) _handleContinue();
+      },
+      child: Scaffold(
       backgroundColor: _bg,
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 800),
@@ -449,6 +457,7 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
