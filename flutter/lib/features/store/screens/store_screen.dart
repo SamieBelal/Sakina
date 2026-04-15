@@ -127,7 +127,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         ref
             .read(dailyLoopProvider.notifier)
             .refreshTokenBalance(tokenState.balance);
-        if (mounted) _showSuccess('$amount Tokens added!');
+        if (mounted) {
+          _showPurchaseToast(
+              context, 'Tokens', amount, AppColors.secondary, Icons.toll);
+        }
       }
     } catch (_) {}
 
@@ -154,18 +157,31 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
       final success = await purchaseService.purchase(package);
       if (success) {
         await ref.read(tierUpScrollProvider.notifier).earn(amount);
-        if (mounted) _showSuccess('$amount Scrolls added!');
+        if (mounted) {
+          _showPurchaseToast(context, 'Scrolls', amount,
+              const Color(0xFF3B82F6), Icons.receipt_long);
+        }
       }
     } catch (_) {}
 
     if (mounted) setState(() => _purchasing = false);
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: AppColors.primary,
-    ));
+  void _showPurchaseToast(BuildContext context, String label, int amount,
+      Color color, IconData icon) {
+    HapticFeedback.mediumImpact();
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) => _PurchaseToastWidget(
+        label: label,
+        amount: amount,
+        color: color,
+        icon: icon,
+        onDismiss: () => entry.remove(),
+      ),
+    );
+    overlay.insert(entry);
   }
 
   void _showError(String message) {
@@ -806,6 +822,89 @@ class _IapItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Purchase Celebration Toast
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _PurchaseToastWidget extends StatefulWidget {
+  const _PurchaseToastWidget({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.icon,
+    required this.onDismiss,
+  });
+  final String label;
+  final int amount;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onDismiss;
+
+  @override
+  State<_PurchaseToastWidget> createState() => _PurchaseToastWidgetState();
+}
+
+class _PurchaseToastWidgetState extends State<_PurchaseToastWidget> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) widget.onDismiss();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: MediaQuery.of(context).size.height * 0.4,
+      left: 60,
+      right: 60,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: widget.color.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, color: widget.color, size: 36)
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scaleXY(begin: 0.9, end: 1.2, duration: 600.ms),
+              const SizedBox(height: 12),
+              Text(
+                '+${widget.amount} ${widget.label}',
+                style: AppTypography.headlineLarge.copyWith(
+                  color: Colors.white,
+                  fontSize: 22,
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .shimmer(
+                    delay: 200.ms,
+                    duration: 1000.ms,
+                    color: widget.color.withValues(alpha: 0.3),
+                  ),
+            ],
+          ),
+        )
+            .animate()
+            .fadeIn(duration: 300.ms)
+            .scaleXY(
+              begin: 0.8,
+              end: 1.0,
+              duration: 300.ms,
+              curve: Curves.easeOutBack,
+            ),
       ),
     );
   }
