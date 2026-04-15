@@ -597,55 +597,123 @@ class _CheckInStep extends ConsumerStatefulWidget {
 
 class _CheckInStepState extends ConsumerState<_CheckInStep> {
   bool _revealShown = false;
+  bool _showingMatchTransition = false;
+  bool _matchTransitionStarted = false;
+
+  void _runGachaReveal(DailyLoopState state) {
+    // Wire quest: update monthly streak
+    ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+    // Check achievements (delayed to avoid during gacha reveal)
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) checkAchievements(ref);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Only show gacha overlay for new cards or tier upgrades
+      if (state.cardEngageResult != null &&
+          state.cardEngageResult!.tierChanged) {
+        Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => NameRevealOverlay(
+              nameArabic:
+                  state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+              nameEnglish: state.engagedCard?.transliteration ??
+                  state.checkinName ??
+                  '',
+              nameEnglishMeaning: state.engagedCard?.english ?? '',
+              teaching: state.engagedCard?.lesson ?? '',
+              card: state.engagedCard,
+              engageResult: state.cardEngageResult,
+              onContinue: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                widget.onDismiss();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      } else {
+        // No new card / tier change — skip overlay, go straight to home
+        widget.onDismiss();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
 
-    // Fire the reveal exactly once when checkinDone becomes true and loading finishes.
-    if (state.checkinDone && !state.checkinLoading && !_revealShown) {
-      _revealShown = true;
-      // Wire quest: update monthly streak
-      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
-      // Check achievements (delayed to avoid during gacha reveal)
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) checkAchievements(ref);
-      });
+    // Fire the matching transition once, then the reveal once after 800ms.
+    if (state.checkinDone &&
+        !state.checkinLoading &&
+        !_revealShown &&
+        !_matchTransitionStarted) {
+      _matchTransitionStarted = true;
+      HapticFeedback.selectionClick();
+      // Defer setState until after the current build completes.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        // Only show gacha overlay for new cards or tier upgrades
-        if (state.cardEngageResult != null &&
-            state.cardEngageResult!.tierChanged) {
-          Navigator.of(context, rootNavigator: true).push(
-            PageRouteBuilder(
-              opaque: true,
-              barrierDismissible: false,
-              pageBuilder: (_, __, ___) => NameRevealOverlay(
-                nameArabic:
-                    state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
-                nameEnglish: state.engagedCard?.transliteration ??
-                    state.checkinName ??
-                    '',
-                nameEnglishMeaning: state.engagedCard?.english ?? '',
-                teaching: state.engagedCard?.lesson ?? '',
-                card: state.engagedCard,
-                engageResult: state.cardEngageResult,
-                onContinue: () {
-                  Navigator.of(context, rootNavigator: true).pop();
-                  widget.onDismiss();
-                },
-              ),
-              transitionsBuilder: (_, anim, __, child) =>
-                  FadeTransition(opacity: anim, child: child),
-              transitionDuration: const Duration(milliseconds: 300),
-            ),
-          );
-        } else {
-          // No new card / tier change — skip overlay, go straight to home
-          widget.onDismiss();
-        }
+        setState(() {
+          _showingMatchTransition = true;
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (!mounted) return;
+          setState(() {
+            _showingMatchTransition = false;
+            _revealShown = true;
+          });
+          _runGachaReveal(state);
+        });
       });
+    }
+
+    // Show the "Finding your Name..." anticipation bridge between the
+    // check-in loading spinner and the gacha reveal overlay.
+    if (_showingMatchTransition) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Finding your Name...',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+            ).animate().fadeIn(duration: 300.ms),
+            const SizedBox(height: 32),
+            Stack(
+              alignment: Alignment.center,
+              children: List.generate(3, (i) {
+                return Container(
+                  width: 120 - (i * 20.0),
+                  height: 120 - (i * 20.0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color:
+                          AppColors.primary.withValues(alpha: 0.3 + (i * 0.1)),
+                      width: 1.5,
+                    ),
+                  ),
+                )
+                    .animate(onPlay: (c) => c.repeat())
+                    .scaleXY(
+                      begin: 1.5,
+                      end: 0.8,
+                      duration: 800.ms,
+                      delay: (i * 150).ms,
+                    )
+                    .fadeOut(duration: 800.ms, delay: (i * 150).ms);
+              }),
+            ),
+          ],
+        ),
+      );
     }
 
     final idx = state.checkinQuestionIndex;
