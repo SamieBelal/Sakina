@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -285,14 +286,25 @@ class NotificationService {
           key, 'key', 'Unsupported notification preference');
     }
 
+    // Write to local cache first (always works, even offline)
     final prefs = await _sharedPreferencesLoader();
     await prefs.setBool(
       _scopedPreferenceCacheKey(key),
       enabled,
     );
 
-    if (!_initialized) return;
+    // Sync to Supabase (server-side truth for edge function targeting)
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.upsertRow(
+        'user_notification_preferences',
+        userId,
+        <String, dynamic>{key: enabled},
+      );
+    }
 
+    // Also sync to OneSignal tags (for segment-based dashboard sends)
+    if (!_initialized) return;
     try {
       await _client.addTags(<String, String>{key: enabled.toString()});
     } catch (error) {
@@ -302,29 +314,105 @@ class NotificationService {
 
   Future<Map<String, bool>> getNotificationPreferences() async {
     final cached = await _readCachedNotificationPreferences();
-    if (!_initialized) return cached;
+
+    // Try Supabase first (server truth), fall back to OneSignal tags, then local cache
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      try {
+        final row = await supabaseSyncService.fetchRow(
+          'user_notification_preferences',
+          userId,
+          columns: '$notifyDailyTagKey,$notifyStreakTagKey',
+        );
+        if (row != null) {
+          final preferences = <String, bool>{
+            notifyDailyTagKey: row[notifyDailyTagKey] as bool? ?? true,
+            notifyStreakTagKey: row[notifyStreakTagKey] as bool? ?? true,
+          };
+          // Update local cache
+          final prefs = await _sharedPreferencesLoader();
+          for (final entry in preferences.entries) {
+            await prefs.setBool(
+                _scopedPreferenceCacheKey(entry.key), entry.value);
+          }
+          return preferences;
+        }
+      } catch (error) {
+        debugPrint('notification getPreferences from Supabase failed: $error');
+      }
+    }
+
+    // Fallback to OneSignal tags
+    if (_initialized) {
+      try {
+        final tags = await _client.getTags();
+        final preferences = <String, bool>{
+          notifyDailyTagKey: _parseBoolTag(
+            tags[notifyDailyTagKey],
+            defaultValue: cached[notifyDailyTagKey] ?? true,
+          ),
+          notifyStreakTagKey: _parseBoolTag(
+            tags[notifyStreakTagKey],
+            defaultValue: cached[notifyStreakTagKey] ?? true,
+          ),
+        };
+        final prefs = await _sharedPreferencesLoader();
+        for (final entry in preferences.entries) {
+          await prefs.setBool(
+              _scopedPreferenceCacheKey(entry.key), entry.value);
+        }
+        return preferences;
+      } catch (error) {
+        debugPrint('notification getPreferences from OneSignal failed: $error');
+      }
+    }
+
+    return cached;
+  }
+
+  /// For returning users after reinstall: if the server shows they previously
+  /// had notifications enabled but the device doesn't have permission, request it.
+  Future<void> requestPermissionIfPreviouslyEnabled() async {
+    if (!_initialized) return;
+    if (_client.isPermissionGranted) return;
+
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return;
 
     try {
-      final tags = await _client.getTags();
-      final preferences = <String, bool>{
-        notifyDailyTagKey: _parseBoolTag(
-          tags[notifyDailyTagKey],
-          defaultValue: cached[notifyDailyTagKey] ?? true,
-        ),
-        notifyStreakTagKey: _parseBoolTag(
-          tags[notifyStreakTagKey],
-          defaultValue: cached[notifyStreakTagKey] ?? true,
-        ),
-      };
+      final row = await supabaseSyncService.fetchRow(
+        'user_notification_preferences',
+        userId,
+        columns: '$notifyDailyTagKey,$notifyStreakTagKey',
+      );
+      if (row == null) return;
 
-      final prefs = await _sharedPreferencesLoader();
-      for (final entry in preferences.entries) {
-        await prefs.setBool(_scopedPreferenceCacheKey(entry.key), entry.value);
-      }
-      return preferences;
+      final hadNotificationsOn =
+          (row[notifyDailyTagKey] as bool? ?? false) ||
+          (row[notifyStreakTagKey] as bool? ?? false);
+      if (!hadNotificationsOn) return;
+
+      await requestPermission();
     } catch (error) {
-      debugPrint('notification getNotificationPreferences failed: $error');
-      return cached;
+      debugPrint('notification requestPermissionIfPreviouslyEnabled failed: $error');
+    }
+  }
+
+  /// Sync the user's IANA timezone to Supabase for server-side scheduling.
+  /// Call on app open / after auth.
+  Future<void> syncTimezone() async {
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return;
+
+    try {
+      final timezone = (await FlutterTimezone.getLocalTimezone()).identifier;
+      await supabaseSyncService.upsertRow(
+        'user_notification_preferences',
+        userId,
+        <String, dynamic>{'timezone': timezone},
+      );
+    } catch (error) {
+      debugPrint('notification syncTimezone failed: $error');
     }
   }
 

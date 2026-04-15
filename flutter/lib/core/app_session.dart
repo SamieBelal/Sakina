@@ -120,6 +120,10 @@ class AppSessionNotifier extends ChangeNotifier {
       _economyHydrated = true;
       if (refreshNotificationTags) {
         await _refreshNotificationTags();
+        unawaited(_notificationService.syncTimezone());
+        if (_hasOnboarded) {
+          unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
+        }
       }
     } catch (_) {
       _hydrationFailed = true;
