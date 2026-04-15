@@ -850,9 +850,17 @@ class _PurchaseToastWidget extends StatefulWidget {
 }
 
 class _PurchaseToastWidgetState extends State<_PurchaseToastWidget> {
+  bool _visible = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _visible = true);
+    });
+    Future.delayed(const Duration(milliseconds: 2100), () {
+      if (mounted) setState(() => _visible = false);
+    });
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) widget.onDismiss();
     });
@@ -864,47 +872,52 @@ class _PurchaseToastWidgetState extends State<_PurchaseToastWidget> {
       top: MediaQuery.of(context).size.height * 0.4,
       left: 60,
       right: 60,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: widget.color.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(widget.icon, color: widget.color, size: 36)
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(begin: 0.9, end: 1.2, duration: 600.ms),
-              const SizedBox(height: 12),
-              Text(
-                '+${widget.amount} ${widget.label}',
-                style: AppTypography.headlineLarge.copyWith(
-                  color: Colors.white,
-                  fontSize: 22,
+      child: IgnorePointer(
+        child: AnimatedScale(
+          scale: _visible ? 1.0 : 0.8,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          child: AnimatedOpacity(
+            opacity: _visible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: widget.color.withValues(alpha: 0.3)),
                 ),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms)
-                  .shimmer(
-                    delay: 200.ms,
-                    duration: 1000.ms,
-                    color: widget.color.withValues(alpha: 0.3),
-                  ),
-            ],
-          ),
-        )
-            .animate()
-            .fadeIn(duration: 300.ms)
-            .scaleXY(
-              begin: 0.8,
-              end: 1.0,
-              duration: 300.ms,
-              curve: Curves.easeOutBack,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(widget.icon, color: widget.color, size: 36)
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .scaleXY(begin: 0.9, end: 1.2, duration: 600.ms),
+                    const SizedBox(height: 12),
+                    Text(
+                      '+${widget.amount} ${widget.label}',
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: Colors.white,
+                        fontSize: 22,
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(duration: 400.ms)
+                        .shimmer(
+                          delay: 200.ms,
+                          duration: 1000.ms,
+                          color: widget.color.withValues(alpha: 0.3),
+                        ),
+                  ],
+                ),
+              ),
             ),
+          ),
+        ),
       ),
     );
   }

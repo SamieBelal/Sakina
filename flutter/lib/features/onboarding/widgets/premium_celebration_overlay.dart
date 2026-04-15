@@ -284,42 +284,25 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
                             curve: Curves.easeOutBack,
                           ),
                       const SizedBox(height: 14),
-                      if (widget.userName.isNotEmpty)
-                        Text(
-                          'Your journey begins, ${widget.userName}',
-                          style: AppTypography.bodyLarge.copyWith(
-                            color: _gold,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                      Text(
+                        widget.userName.isNotEmpty
+                            ? 'Your journey begins, ${widget.userName}'
+                            : 'Your journey begins',
+                        style: AppTypography.bodyLarge.copyWith(
+                          color: _gold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      )
+                          .animate()
+                          .fadeIn(delay: 300.ms, duration: 500.ms)
+                          .slideY(
+                            begin: 0.3,
+                            end: 0,
+                            delay: 300.ms,
+                            duration: 500.ms,
                           ),
-                          textAlign: TextAlign.center,
-                        )
-                            .animate()
-                            .fadeIn(delay: 300.ms, duration: 500.ms)
-                            .slideY(
-                              begin: 0.3,
-                              end: 0,
-                              delay: 300.ms,
-                              duration: 500.ms,
-                            )
-                      else
-                        Text(
-                          'Your journey begins',
-                          style: AppTypography.bodyLarge.copyWith(
-                            color: _gold,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        )
-                            .animate()
-                            .fadeIn(delay: 300.ms, duration: 500.ms)
-                            .slideY(
-                              begin: 0.3,
-                              end: 0,
-                              delay: 300.ms,
-                              duration: 500.ms,
-                            ),
                     ],
                   ),
                 ),
