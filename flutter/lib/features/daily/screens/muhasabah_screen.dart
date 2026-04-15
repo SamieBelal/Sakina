@@ -10,6 +10,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
+import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/token_service.dart';
@@ -29,6 +30,7 @@ class MuhasabahScreen extends ConsumerStatefulWidget {
 class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   bool _revealShown = false;
   bool _levelUpShown = false;
+  bool _streakMilestoneShown = false;
   bool _discoverTriggered = false;
   bool _questsFlushed = false;
 
@@ -37,8 +39,39 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
 
-    // Level up overlay
-    if (state.leveledUp == true && !_levelUpShown) {
+    // Streak milestone overlay — fire BEFORE level-up if both trigger.
+    if (state.streakMilestoneReached && !_streakMilestoneShown) {
+      _streakMilestoneShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final nav = Navigator.of(context, rootNavigator: true);
+        nav.push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => StreakMilestoneOverlay(
+              streakCount: state.streakMilestoneCount ?? 0,
+              xpAwarded: state.streakMilestoneXp ?? 0,
+              scrollsAwarded: state.streakMilestoneScrolls ?? 0,
+              onContinue: () {
+                nav.pop();
+                notifier.clearStreakMilestone();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      });
+    }
+    if (!state.streakMilestoneReached) _streakMilestoneShown = false;
+
+    // Level up overlay — gated on streak milestone being cleared first so
+    // both overlays don't stack in the same frame.
+    if (state.leveledUp == true &&
+        !state.streakMilestoneReached &&
+        !_levelUpShown) {
       _levelUpShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
