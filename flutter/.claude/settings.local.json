@@ -3,7 +3,9 @@
     "allow": [
       "WebSearch",
       "Bash(flutter --version:*)",
-      "Bash(dart --version:*)"
+      "Bash(dart --version:*)",
+      "mcp__context7__query-docs",
+      "mcp__supabase__list_tables"
     ]
   }
 }
