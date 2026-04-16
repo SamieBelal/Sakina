@@ -1,0 +1,39 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.49.8": "fd72c6e822ed41d5fe7ad3bbe3a48420abbb21a579c73d532b36a6467f5b5f7d"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@anthropic-ai/sdk@0.81",
+        "npm:@expo-google-fonts/amiri@~0.4.1",
+        "npm:@expo/vector-icons@^15.0.3",
+        "npm:@react-native-async-storage/async-storage@2.2.0",
+        "npm:@supabase/supabase-js@^2.101.1",
+        "npm:@types/react@19.1",
+        "npm:babel-preset-expo@^55.0.13",
+        "npm:expo-font@~14.0.11",
+        "npm:expo-haptics@~15.0.8",
+        "npm:expo-linear-gradient@~15.0.8",
+        "npm:expo-linking@~8.0.11",
+        "npm:expo-media-library@~18.2.1",
+        "npm:expo-notifications@~0.32.16",
+        "npm:expo-router@~6.0.23",
+        "npm:expo-secure-store@~15.0.8",
+        "npm:expo-sharing@~14.0.8",
+        "npm:expo-splash-screen@~31.0.13",
+        "npm:expo-status-bar@~3.0.9",
+        "npm:expo@~54.0.33",
+        "npm:react-native-reanimated@~3.16.7",
+        "npm:react-native-safe-area-context@5.6",
+        "npm:react-native-screens@4.16",
+        "npm:react-native-url-polyfill@3",
+        "npm:react-native-view-shot@^4.0.3",
+        "npm:react-native@0.81.5",
+        "npm:react@19.1.0",
+        "npm:typescript@~5.9.2"
+      ]
+    }
+  }
+}

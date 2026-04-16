@@ -48,6 +48,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotificationsEnabled = false;
   bool _dailyReminderEnabled = true;
   bool _streakReminderEnabled = true;
+  bool _reengagementEnabled = true;
+  bool _weeklyReflectionEnabled = true;
+  bool _newContentEnabled = true;
   bool _notificationsBusy = false;
   bool _loading = true;
 
@@ -85,6 +88,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           notificationPreferences[notifyDailyTagKey] ?? true;
       _streakReminderEnabled =
           notificationPreferences[notifyStreakTagKey] ?? true;
+      _reengagementEnabled =
+          notificationPreferences[notifyReengagementTagKey] ?? true;
+      _weeklyReflectionEnabled =
+          notificationPreferences[notifyWeeklyTagKey] ?? true;
+      _newContentEnabled = notificationPreferences[notifyUpdatesTagKey] ?? true;
       _loading = false;
     });
   }
@@ -123,6 +131,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _dailyReminderEnabled = enabled;
       } else if (key == notifyStreakTagKey) {
         _streakReminderEnabled = enabled;
+      } else if (key == notifyReengagementTagKey) {
+        _reengagementEnabled = enabled;
+      } else if (key == notifyWeeklyTagKey) {
+        _weeklyReflectionEnabled = enabled;
+      } else if (key == notifyUpdatesTagKey) {
+        _newContentEnabled = enabled;
       }
       _notificationsBusy = false;
     });
@@ -1070,6 +1084,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         onChanged: subTogglesEnabled
             ? (value) => _setNotificationPreference(
                   notifyStreakTagKey,
+                  value,
+                )
+            : null,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.auto_stories_outlined,
+        label: 'Weekly Reflection',
+        subtitle: 'Friday evening lookback',
+        value: _weeklyReflectionEnabled,
+        onChanged: subTogglesEnabled
+            ? (value) => _setNotificationPreference(
+                  notifyWeeklyTagKey,
+                  value,
+                )
+            : null,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.favorite_border,
+        label: 'Come Back Nudge',
+        subtitle: 'Gentle reminder after a few days',
+        value: _reengagementEnabled,
+        onChanged: subTogglesEnabled
+            ? (value) => _setNotificationPreference(
+                  notifyReengagementTagKey,
+                  value,
+                )
+            : null,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.campaign_outlined,
+        label: 'New Content & Updates',
+        subtitle: 'Features & seasonal content',
+        value: _newContentEnabled,
+        onChanged: subTogglesEnabled
+            ? (value) => _setNotificationPreference(
+                  notifyUpdatesTagKey,
                   value,
                 )
             : null,

@@ -12,12 +12,16 @@ import 'supabase_sync_service.dart';
 
 const String notifyDailyTagKey = 'notify_daily';
 const String notifyStreakTagKey = 'notify_streak';
-const String streakCountTagKey = 'streak_count';
-const String lastCheckinDateTagKey = 'last_checkin_date';
+const String notifyReengagementTagKey = 'notify_reengagement';
+const String notifyWeeklyTagKey = 'notify_weekly';
+const String notifyUpdatesTagKey = 'notify_updates';
 
 const List<String> notificationPreferenceTagKeys = <String>[
   notifyDailyTagKey,
   notifyStreakTagKey,
+  notifyReengagementTagKey,
+  notifyWeeklyTagKey,
+  notifyUpdatesTagKey,
 ];
 
 const String _pushEnabledCacheKey = 'sakina_notifications_push_enabled';
@@ -52,9 +56,6 @@ abstract class OneSignalClient {
   Future<void> optIn();
   Future<void> optOut();
   bool? get isOptedIn;
-  Future<void> addTags(Map<String, String> tags);
-  Future<void> removeTags(List<String> keys);
-  Future<Map<String, String>> getTags();
   void addForegroundListener(
     void Function(NotificationForegroundEventData event) listener,
   );
@@ -88,16 +89,6 @@ class RealOneSignalClient implements OneSignalClient {
 
   @override
   bool? get isOptedIn => OneSignal.User.pushSubscription.optedIn;
-
-  @override
-  Future<void> addTags(Map<String, String> tags) =>
-      OneSignal.User.addTags(tags);
-
-  @override
-  Future<void> removeTags(List<String> keys) => OneSignal.User.removeTags(keys);
-
-  @override
-  Future<Map<String, String>> getTags() => OneSignal.User.getTags();
 
   @override
   void addForegroundListener(
@@ -200,6 +191,13 @@ class NotificationService {
 
   bool get isPermissionGranted => _client.isPermissionGranted;
 
+  /// Enable push delivery for this user. Server-side only — does NOT call
+  /// OneSignal's pushSubscription.optOut/optIn. The OneSignal SDK's opt-out
+  /// cycle orphans the external_id alias in a way we can't reliably recover
+  /// from in-session, so we keep the subscription permanently opted in and
+  /// gate delivery via the `push_enabled` column in Supabase.
+  ///
+  /// If the OS push permission isn't granted, this triggers the iOS prompt.
   Future<bool> optIn() async {
     if (!_initialized) return false;
 
@@ -209,75 +207,39 @@ class NotificationService {
       if (!granted) {
         _cachedOptedIn = false;
         await _writeCachedPushEnabled(false);
+        await _writePushEnabledToSupabase(false);
         return false;
       }
     }
 
-    try {
-      await _client.optIn();
-      _cachedOptedIn = true;
-      await _writeCachedPushEnabled(true);
-      return true;
-    } catch (error) {
-      debugPrint('notification optIn failed: $error');
-      _cachedOptedIn = _client.isOptedIn ?? false;
-      await _writeCachedPushEnabled(_cachedOptedIn);
-      return _cachedOptedIn;
-    }
+    _cachedOptedIn = true;
+    await _writeCachedPushEnabled(true);
+    await _writePushEnabledToSupabase(true);
+    return true;
   }
 
+  /// Disable push delivery for this user. Writes `push_enabled = false` to
+  /// Supabase. The edge function's RPC filters on `push_enabled`, so no
+  /// scheduled notifications reach this user. Dashboard-sent messages can
+  /// still reach the device unless they target a segment that filters on
+  /// `push_enabled` or similar.
   Future<bool> optOut() async {
     _cachedOptedIn = false;
     await _writeCachedPushEnabled(false);
-    if (!_initialized) return false;
-
-    try {
-      await _client.optOut();
-    } catch (error) {
-      debugPrint('notification optOut failed: $error');
-    }
+    await _writePushEnabledToSupabase(false);
     return false;
   }
 
-  bool get isOptedIn => _client.isOptedIn ?? _cachedOptedIn;
+  bool get isOptedIn => _cachedOptedIn;
 
-  Future<void> setTags(Map<String, String> tags) async {
-    if (!_initialized || tags.isEmpty) return;
-    await _client.addTags(tags);
-  }
-
-  Future<Map<String, String>> getTags() async {
-    if (!_initialized) return <String, String>{};
-    return _client.getTags();
-  }
-
-  Future<void> updateCheckinTags({
-    required int streakCount,
-    required DateTime lastCheckinDate,
-  }) async {
-    await setTags(<String, String>{
-      streakCountTagKey: streakCount.toString(),
-      lastCheckinDateTagKey: lastCheckinDate.toUtc().toIso8601String(),
-    });
-  }
-
-  Future<void> refreshSessionTags({
-    required int streakCount,
-    required DateTime? lastCheckinDate,
-  }) async {
-    if (!_initialized) return;
-
-    final tags = <String, String>{
-      streakCountTagKey: streakCount.toString(),
-    };
-    if (lastCheckinDate != null) {
-      tags[lastCheckinDateTagKey] = lastCheckinDate.toUtc().toIso8601String();
-    }
-
-    await _client.addTags(tags);
-    if (lastCheckinDate == null) {
-      await _client.removeTags(<String>[lastCheckinDateTagKey]);
-    }
+  Future<void> _writePushEnabledToSupabase(bool enabled) async {
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return;
+    await supabaseSyncService.upsertRow(
+      'user_notification_preferences',
+      userId,
+      <String, dynamic>{'push_enabled': enabled},
+    );
   }
 
   Future<void> setNotificationPreference(String key, bool enabled) async {
@@ -302,32 +264,39 @@ class NotificationService {
         <String, dynamic>{key: enabled},
       );
     }
-
-    // Also sync to OneSignal tags (for segment-based dashboard sends)
-    if (!_initialized) return;
-    try {
-      await _client.addTags(<String, String>{key: enabled.toString()});
-    } catch (error) {
-      debugPrint('notification setNotificationPreference failed: $error');
-    }
   }
 
   Future<Map<String, bool>> getNotificationPreferences() async {
     final cached = await _readCachedNotificationPreferences();
 
-    // Try Supabase first (server truth), fall back to OneSignal tags, then local cache
+    // Try Supabase first (server truth), then fall back to local cache.
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
       try {
         final row = await supabaseSyncService.fetchRow(
           'user_notification_preferences',
           userId,
-          columns: '$notifyDailyTagKey,$notifyStreakTagKey',
+          columns: [
+            'push_enabled',
+            notifyDailyTagKey,
+            notifyStreakTagKey,
+            notifyReengagementTagKey,
+            notifyWeeklyTagKey,
+            notifyUpdatesTagKey,
+          ].join(','),
         );
         if (row != null) {
+          final serverPushEnabled = row['push_enabled'] as bool? ?? true;
+          _cachedOptedIn = serverPushEnabled;
+          await _writeCachedPushEnabled(serverPushEnabled);
+
           final preferences = <String, bool>{
             notifyDailyTagKey: row[notifyDailyTagKey] as bool? ?? true,
             notifyStreakTagKey: row[notifyStreakTagKey] as bool? ?? true,
+            notifyReengagementTagKey:
+                row[notifyReengagementTagKey] as bool? ?? true,
+            notifyWeeklyTagKey: row[notifyWeeklyTagKey] as bool? ?? true,
+            notifyUpdatesTagKey: row[notifyUpdatesTagKey] as bool? ?? true,
           };
           // Update local cache
           final prefs = await _sharedPreferencesLoader();
@@ -339,31 +308,6 @@ class NotificationService {
         }
       } catch (error) {
         debugPrint('notification getPreferences from Supabase failed: $error');
-      }
-    }
-
-    // Fallback to OneSignal tags
-    if (_initialized) {
-      try {
-        final tags = await _client.getTags();
-        final preferences = <String, bool>{
-          notifyDailyTagKey: _parseBoolTag(
-            tags[notifyDailyTagKey],
-            defaultValue: cached[notifyDailyTagKey] ?? true,
-          ),
-          notifyStreakTagKey: _parseBoolTag(
-            tags[notifyStreakTagKey],
-            defaultValue: cached[notifyStreakTagKey] ?? true,
-          ),
-        };
-        final prefs = await _sharedPreferencesLoader();
-        for (final entry in preferences.entries) {
-          await prefs.setBool(
-              _scopedPreferenceCacheKey(entry.key), entry.value);
-        }
-        return preferences;
-      } catch (error) {
-        debugPrint('notification getPreferences from OneSignal failed: $error');
       }
     }
 
@@ -383,18 +327,27 @@ class NotificationService {
       final row = await supabaseSyncService.fetchRow(
         'user_notification_preferences',
         userId,
-        columns: '$notifyDailyTagKey,$notifyStreakTagKey',
+        columns: [
+          notifyDailyTagKey,
+          notifyStreakTagKey,
+          notifyReengagementTagKey,
+          notifyWeeklyTagKey,
+          notifyUpdatesTagKey,
+        ].join(','),
       );
       if (row == null) return;
 
-      final hadNotificationsOn =
-          (row[notifyDailyTagKey] as bool? ?? false) ||
-          (row[notifyStreakTagKey] as bool? ?? false);
+      final hadNotificationsOn = (row[notifyDailyTagKey] as bool? ?? false) ||
+          (row[notifyStreakTagKey] as bool? ?? false) ||
+          (row[notifyReengagementTagKey] as bool? ?? false) ||
+          (row[notifyWeeklyTagKey] as bool? ?? false) ||
+          (row[notifyUpdatesTagKey] as bool? ?? false);
       if (!hadNotificationsOn) return;
 
       await requestPermission();
     } catch (error) {
-      debugPrint('notification requestPermissionIfPreviouslyEnabled failed: $error');
+      debugPrint(
+          'notification requestPermissionIfPreviouslyEnabled failed: $error');
     }
   }
 
@@ -440,9 +393,13 @@ class NotificationService {
   @visibleForTesting
   static String routeForNotificationType(String? type) {
     switch (type) {
+      case 'weekly_reflection':
+        return '/journal';
       case 'daily_reminder':
       case 'streak_risk':
       case 'streak_milestone':
+      case 'reengagement':
+      case 'update':
       default:
         return '/';
     }
@@ -475,27 +432,18 @@ class NotificationService {
           prefs.getBool(_scopedPreferenceCacheKey(notifyDailyTagKey)) ?? true,
       notifyStreakTagKey:
           prefs.getBool(_scopedPreferenceCacheKey(notifyStreakTagKey)) ?? true,
+      notifyReengagementTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyReengagementTagKey)) ??
+              true,
+      notifyWeeklyTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyWeeklyTagKey)) ?? true,
+      notifyUpdatesTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyUpdatesTagKey)) ?? true,
     };
   }
 
   String _scopedPreferenceCacheKey(String key) {
     return supabaseSyncService.scopedKey('$_preferenceCachePrefix$key');
-  }
-
-  static bool _parseBoolTag(String? value, {required bool defaultValue}) {
-    if (value == null) return defaultValue;
-    switch (value.trim().toLowerCase()) {
-      case 'true':
-      case '1':
-      case 'yes':
-        return true;
-      case 'false':
-      case '0':
-      case 'no':
-        return false;
-      default:
-        return defaultValue;
-    }
   }
 
   static void _defaultRouteNavigator(String route) {

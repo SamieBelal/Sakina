@@ -8,7 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/launch_gate_service.dart';
 import '../services/notification_service.dart';
-import '../services/streak_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
 
@@ -87,25 +86,20 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   Future<void> _handleAuthenticatedChange(AuthState data) async {
-    var shouldRefreshNotificationTags = true;
     final userId = data.session?.user.id;
 
     if (userId != null && userId.isNotEmpty) {
       try {
         await _notificationService.identifyUser(userId);
       } catch (_) {
-        shouldRefreshNotificationTags = false;
+        // Non-critical — keep hydrating even if OneSignal login fails.
       }
     }
 
-    await _hydrateAndNotify(
-      refreshNotificationTags: shouldRefreshNotificationTags,
-    );
+    await _hydrateAndNotify();
   }
 
-  Future<void> _hydrateAndNotify({
-    bool refreshNotificationTags = true,
-  }) async {
+  Future<void> _hydrateAndNotify() async {
     if (_hydrating) return; // Avoid overlapping hydrations
     _hydrating = true;
     _hydrationFailed = false;
@@ -118,12 +112,9 @@ class AppSessionNotifier extends ChangeNotifier {
         ),
       );
       _economyHydrated = true;
-      if (refreshNotificationTags) {
-        await _refreshNotificationTags();
-        unawaited(_notificationService.syncTimezone());
-        if (_hasOnboarded) {
-          unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
-        }
+      unawaited(_notificationService.syncTimezone());
+      if (_hasOnboarded) {
+        unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
       }
     } catch (_) {
       _hydrationFailed = true;
@@ -146,22 +137,6 @@ class AppSessionNotifier extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
       notifyListeners();
-    }
-  }
-
-  Future<void> _refreshNotificationTags() async {
-    try {
-      final streak = await getStreak();
-      final lastCheckinDate = streak.lastActive == null
-          ? null
-          : DateTime.tryParse(streak.lastActive!);
-
-      await _notificationService.refreshSessionTags(
-        streakCount: streak.currentStreak,
-        lastCheckinDate: lastCheckinDate,
-      );
-    } catch (_) {
-      // Non-critical — session hydration should not fail because tag sync failed.
     }
   }
 

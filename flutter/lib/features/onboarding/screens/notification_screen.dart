@@ -30,14 +30,9 @@ class NotificationScreen extends ConsumerWidget {
       final notificationService = ref.read(notificationServiceProvider);
       granted = await notificationService.requestPermission();
       if (granted) {
-        await notificationService.setNotificationPreference(
-          notifyDailyTagKey,
-          true,
-        );
-        await notificationService.setNotificationPreference(
-          notifyStreakTagKey,
-          true,
-        );
+        for (final key in notificationPreferenceTagKeys) {
+          await notificationService.setNotificationPreference(key, true);
+        }
       }
     } catch (_) {}
     ref

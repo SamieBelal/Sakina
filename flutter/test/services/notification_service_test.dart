@@ -14,9 +14,7 @@ class FakeOneSignalClient implements OneSignalClient {
   bool optInCalled = false;
   bool optOutCalled = false;
   bool? optedIn = false;
-  bool throwOnGetTags = false;
   final Map<String, String> tags = <String, String>{};
-  final List<List<String>> removedTagCalls = <List<String>>[];
   void Function(NotificationClickEventData event)? clickListener;
   void Function(NotificationForegroundEventData event)? foregroundListener;
 
@@ -60,27 +58,6 @@ class FakeOneSignalClient implements OneSignalClient {
   bool? get isOptedIn => optedIn;
 
   @override
-  Future<void> addTags(Map<String, String> newTags) async {
-    tags.addAll(newTags);
-  }
-
-  @override
-  Future<void> removeTags(List<String> keys) async {
-    removedTagCalls.add(keys);
-    for (final key in keys) {
-      tags.remove(key);
-    }
-  }
-
-  @override
-  Future<Map<String, String>> getTags() async {
-    if (throwOnGetTags) {
-      throw Exception('OneSignal unreachable');
-    }
-    return Map<String, String>.from(tags);
-  }
-
-  @override
   void addForegroundListener(
     void Function(NotificationForegroundEventData event) listener,
   ) {
@@ -100,17 +77,31 @@ class FakeOneSignalClient implements OneSignalClient {
   }
 }
 
+class ThrowingFetchRowSupabaseSyncService extends FakeSupabaseSyncService {
+  ThrowingFetchRowSupabaseSyncService({super.userId});
+
+  @override
+  Future<Map<String, dynamic>?> fetchRow(
+    String table,
+    String userId, {
+    String columns = '*',
+  }) async {
+    throw Exception('Supabase unreachable');
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late FakeOneSignalClient client;
   late NotificationService service;
   late List<String> navigatedRoutes;
+  late FakeSupabaseSyncService syncService;
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    SupabaseSyncService.debugSetInstance(
-        FakeSupabaseSyncService(userId: 'user-1'));
+    syncService = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(syncService);
     client = FakeOneSignalClient();
     navigatedRoutes = <String>[];
     service = NotificationService(
@@ -121,36 +112,30 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
-  test('updateCheckinTags computes correct tag values from inputs', () async {
-    await service.initialize('app-id');
-    final checkin = DateTime.utc(2026, 4, 14, 14, 30);
-
-    await service.updateCheckinTags(
-      streakCount: 12,
-      lastCheckinDate: checkin,
-    );
-
-    expect(client.tags[streakCountTagKey], '12');
-    expect(client.tags[lastCheckinDateTagKey], checkin.toIso8601String());
-  });
-
-  test('getNotificationPreferences parses OneSignal tags correctly', () async {
-    await service.initialize('app-id');
-    client.tags.addAll(<String, String>{
-      notifyDailyTagKey: 'false',
-      notifyStreakTagKey: 'true',
-    });
+  test('getNotificationPreferences returns Supabase-backed preferences',
+      () async {
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      notifyDailyTagKey: false,
+      notifyStreakTagKey: true,
+      notifyReengagementTagKey: false,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: false,
+    };
 
     final preferences = await service.getNotificationPreferences();
 
     expect(preferences, <String, bool>{
       notifyDailyTagKey: false,
       notifyStreakTagKey: true,
+      notifyReengagementTagKey: false,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: false,
     });
   });
 
   test(
-      'getNotificationPreferences falls back to SharedPreferences when OneSignal is unreachable',
+      'getNotificationPreferences falls back to SharedPreferences when Supabase is unreachable',
       () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(
@@ -159,30 +144,115 @@ void main() {
       'sakina_notification_pref_$notifyStreakTagKey:user-1',
       true,
     );
-    await service.initialize('app-id');
-    client.throwOnGetTags = true;
+    await prefs.setBool(
+      'sakina_notification_pref_$notifyReengagementTagKey:user-1',
+      false,
+    );
+    await prefs.setBool(
+      'sakina_notification_pref_$notifyWeeklyTagKey:user-1',
+      true,
+    );
+    await prefs.setBool(
+      'sakina_notification_pref_$notifyUpdatesTagKey:user-1',
+      false,
+    );
+    SupabaseSyncService.debugSetInstance(
+      ThrowingFetchRowSupabaseSyncService(userId: 'user-1'),
+    );
 
     final preferences = await service.getNotificationPreferences();
 
     expect(preferences, <String, bool>{
       notifyDailyTagKey: false,
       notifyStreakTagKey: true,
+      notifyReengagementTagKey: false,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: false,
     });
   });
 
   test(
-      'setNotificationPreference writes to OneSignal tags and SharedPreferences',
+      'setNotificationPreference writes to Supabase and SharedPreferences without touching OneSignal tags',
       () async {
-    await service.initialize('app-id');
-
     await service.setNotificationPreference(notifyDailyTagKey, false);
 
     final prefs = await SharedPreferences.getInstance();
-    expect(client.tags[notifyDailyTagKey], 'false');
+    expect(
+      syncService.upsertCalls,
+      contains(
+        containsPair('table', 'user_notification_preferences'),
+      ),
+    );
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?[notifyDailyTagKey],
+      isFalse,
+    );
     expect(
       prefs.getBool('sakina_notification_pref_$notifyDailyTagKey:user-1'),
       isFalse,
     );
+    expect(client.tags, isEmpty);
+  });
+
+  test(
+      'setNotificationPreference for notify_reengagement writes to Supabase and SharedPreferences without touching OneSignal tags',
+      () async {
+    await service.setNotificationPreference(notifyReengagementTagKey, false);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?[notifyReengagementTagKey],
+      isFalse,
+    );
+    expect(
+      prefs.getBool(
+        'sakina_notification_pref_$notifyReengagementTagKey:user-1',
+      ),
+      isFalse,
+    );
+    expect(client.tags, isEmpty);
+  });
+
+  test(
+      'setNotificationPreference for notify_weekly writes to Supabase and SharedPreferences without touching OneSignal tags',
+      () async {
+    await service.setNotificationPreference(notifyWeeklyTagKey, false);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?[notifyWeeklyTagKey],
+      isFalse,
+    );
+    expect(
+      prefs.getBool(
+        'sakina_notification_pref_$notifyWeeklyTagKey:user-1',
+      ),
+      isFalse,
+    );
+    expect(client.tags, isEmpty);
+  });
+
+  test(
+      'setNotificationPreference for notify_updates writes to Supabase and SharedPreferences without touching OneSignal tags',
+      () async {
+    await service.setNotificationPreference(notifyUpdatesTagKey, false);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?[notifyUpdatesTagKey],
+      isFalse,
+    );
+    expect(
+      prefs.getBool(
+        'sakina_notification_pref_$notifyUpdatesTagKey:user-1',
+      ),
+      isFalse,
+    );
+    expect(client.tags, isEmpty);
   });
 
   test('click listener routes daily_reminder to home', () async {
@@ -212,6 +282,24 @@ void main() {
     expect(navigatedRoutes, <String>['/']);
   });
 
+  test('click listener routes weekly_reflection to journal', () async {
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    client.dispatchClick(<String, dynamic>{'type': 'weekly_reflection'});
+
+    expect(navigatedRoutes, <String>['/journal']);
+  });
+
+  test('click listener routes reengagement to home', () async {
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    client.dispatchClick(<String, dynamic>{'type': 'reengagement'});
+
+    expect(navigatedRoutes, <String>['/']);
+  });
+
   test('click listener routes unknown and null types to home', () async {
     await service.initialize('app-id');
     service.addClickListener();
@@ -222,23 +310,51 @@ void main() {
     expect(navigatedRoutes, <String>['/', '/']);
   });
 
-  test('optOut calls pushSubscription.optOut', () async {
+  test('optOut writes push_enabled=false to Supabase without touching OneSignal',
+      () async {
     await service.initialize('app-id');
 
     final isOptedIn = await service.optOut();
 
-    expect(client.optOutCalled, isTrue);
+    expect(client.optOutCalled, isFalse); // no SDK opt-out anymore
     expect(isOptedIn, isFalse);
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?['push_enabled'],
+      isFalse,
+    );
   });
 
-  test('optIn calls pushSubscription.optIn', () async {
+  test('optIn writes push_enabled=true to Supabase without touching OneSignal',
+      () async {
     await service.initialize('app-id');
     client.permissionGranted = true;
 
     final isOptedIn = await service.optIn();
 
-    expect(client.optInCalled, isTrue);
+    expect(client.optInCalled, isFalse); // no SDK opt-in anymore
     expect(isOptedIn, isTrue);
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?['push_enabled'],
+      isTrue,
+    );
+  });
+
+  test('optIn returns false and writes push_enabled=false when iOS denies permission',
+      () async {
+    await service.initialize('app-id');
+    client.permissionGranted = false;
+    client.requestPermissionResult = false; // user taps "Don't Allow"
+
+    final isOptedIn = await service.optIn();
+
+    expect(isOptedIn, isFalse);
+    expect(
+      syncService.rows['user_notification_preferences:user-1']
+          ?['push_enabled'],
+      isFalse,
+    );
   });
 
   test('identifyUser calls OneSignal.login with the correct userId', () async {
@@ -262,19 +378,5 @@ void main() {
     await service.initialize('');
 
     expect(client.initializedAppIds, isEmpty);
-  });
-
-  test('refreshSessionTags sets all expected tags', () async {
-    await service.initialize('app-id');
-    final checkin = DateTime.utc(2026, 4, 13, 22, 15);
-
-    await service.refreshSessionTags(
-      streakCount: 9,
-      lastCheckinDate: checkin,
-    );
-
-    expect(client.tags, containsPair(streakCountTagKey, '9'));
-    expect(client.tags,
-        containsPair(lastCheckinDateTagKey, checkin.toIso8601String()));
   });
 }

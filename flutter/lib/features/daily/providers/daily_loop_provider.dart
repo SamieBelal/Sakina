@@ -8,7 +8,6 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
-import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
@@ -217,11 +216,9 @@ class DailyLoopState {
 // ---------------------------------------------------------------------------
 
 class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
-  DailyLoopNotifier(this._ref) : super(const DailyLoopState()) {
+  DailyLoopNotifier() : super(const DailyLoopState()) {
     _initialize();
   }
-
-  final Ref _ref;
 
   String get _todayKey {
     final now = DateTime.now();
@@ -343,25 +340,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   // ---------------------------------------------------------------------------
-  // Streak + notification tag helpers
+  // Streak helpers
   // ---------------------------------------------------------------------------
 
-  /// Shared logic for both check-in flows: mark streak active, sync
-  /// notification tags, and award milestone rewards.
-  Future<void> _markStreakAndSyncTags() async {
+  /// Shared logic for both check-in flows: mark streak active and award
+  /// milestone rewards.
+  Future<void> _markStreakAndHandleMilestones() async {
     final streakResult = await markActiveToday();
     state = state.copyWith(streakCount: streakResult.currentStreak);
-    try {
-      final checkinDate = streakResult.lastActive != null
-          ? DateTime.tryParse(streakResult.lastActive!) ?? DateTime.now().toUtc()
-          : DateTime.now().toUtc();
-      await _ref.read(notificationServiceProvider).updateCheckinTags(
-            streakCount: streakResult.currentStreak,
-            lastCheckinDate: checkinDate,
-          );
-    } catch (_) {
-      // Non-critical — don't block streak rewards if tag sync fails.
-    }
     await _handleStreakMilestones(streakResult.currentStreak);
   }
 
@@ -457,7 +443,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Mark streak (XP is awarded once at Muhasabah completion, not here)
       try {
-        await _markStreakAndSyncTags();
+        await _markStreakAndHandleMilestones();
       } catch (_) {}
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
@@ -609,7 +595,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Mark streak (XP is awarded once at Muhasabah completion, not here)
       try {
-        await _markStreakAndSyncTags();
+        await _markStreakAndHandleMilestones();
       } catch (_) {
         // Non-critical — don't fail the check-in
       }
@@ -858,7 +844,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 final dailyLoopProvider =
     StateNotifierProvider<DailyLoopNotifier, DailyLoopState>(
   (ref) {
-    final notifier = DailyLoopNotifier(ref);
+    final notifier = DailyLoopNotifier();
     ref.listen<int>(
       publicCatalogRegistryProvider.select((registry) => registry.revision),
       (_, __) {

@@ -194,10 +194,4 @@ class _FakeNotificationService extends NotificationService {
 
   @override
   Future<void> requestPermissionIfPreviouslyEnabled() async {}
-
-  @override
-  Future<void> refreshSessionTags({
-    required int streakCount,
-    DateTime? lastCheckinDate,
-  }) async {}
 }

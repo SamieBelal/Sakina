@@ -15,11 +15,6 @@ class _FakeNotificationService extends NotificationService {
   Future<void> syncTimezone() async {}
   @override
   Future<void> requestPermissionIfPreviouslyEnabled() async {}
-  @override
-  Future<void> refreshSessionTags({
-    required int streakCount,
-    DateTime? lastCheckinDate,
-  }) async {}
 }
 
 void main() {
