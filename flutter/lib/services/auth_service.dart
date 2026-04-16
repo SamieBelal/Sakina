@@ -124,8 +124,16 @@ class AuthService {
       'onboarding_familiarity': familiarity,
       'onboarding_quran_connection': quranConnection,
       'onboarding_attribution': attribution,
-      'onboarding_completed': true,
     }).eq('id', userId);
+  }
+
+  Future<void> markOnboardingCompleted() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    await _supabase
+        .from('user_profiles')
+        .update({'onboarding_completed': true}).eq('id', userId);
   }
 
   /// Returns `true` if the current user has completed onboarding.

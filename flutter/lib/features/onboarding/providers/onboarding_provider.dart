@@ -313,6 +313,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
     await persistOnboardingToSupabase();
 
+    // Flip the server-side onboarding flag now that the user has actually
+    // finished onboarding. Doing this earlier (e.g. right after sign-up)
+    // causes `requestPermissionIfPreviouslyEnabled` to prompt for push
+    // permission before the user reaches the notification screen.
+    try {
+      await _authService.markOnboardingCompleted();
+    } catch (_) {}
+
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();
 

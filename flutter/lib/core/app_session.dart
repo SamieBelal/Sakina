@@ -154,7 +154,9 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// Called when a new user finishes onboarding (paywall dismiss).
-  /// Sets local + in-memory flag; server flag is already set by saveOnboardingData().
+  /// Sets local + in-memory flag. The server-side `onboarding_completed`
+  /// column is flipped by the onboarding provider's `completeOnboarding`
+  /// via `AuthService.markOnboardingCompleted()` just before this runs.
   Future<void> markOnboarded() async {
     _hasOnboarded = true;
     final prefs = await SharedPreferences.getInstance();
