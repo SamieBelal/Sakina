@@ -13,9 +13,9 @@ import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall). Inclusive range for
-/// persisted `currentPage` is `0.._onboardingLastPageIndex`.
-const int onboardingLastPageIndex = 19;
+/// Last index in [OnboardingScreen]'s PageView (paywall at index 27).
+/// PageView has 28 children; spec's 29th "screen" (gacha) is an overlay.
+const int onboardingLastPageIndex = 27;
 
 class OnboardingState {
   const OnboardingState({
@@ -34,6 +34,17 @@ class OnboardingState {
     this.authError,
     this.signUpName,
     this.signUpEmail,
+    // New in v3:
+    this.ageRange,
+    this.prayerFrequency,
+    this.resonantNameId,
+    this.duaTopics = const {},
+    this.duaTopicsOther,
+    this.commonEmotions = const {},
+    this.aspirations = const {},
+    this.dailyCommitmentMinutes,
+    this.reminderTime,
+    this.commitmentAccepted = false,
   });
 
   final int currentPage;
@@ -51,6 +62,16 @@ class OnboardingState {
   final String? authError;
   final String? signUpName;
   final String? signUpEmail;
+  final String? ageRange;
+  final String? prayerFrequency;
+  final String? resonantNameId;
+  final Set<String> duaTopics;
+  final String? duaTopicsOther;
+  final Set<String> commonEmotions;
+  final Set<String> aspirations;
+  final int? dailyCommitmentMinutes;
+  final String? reminderTime; // "HH:mm" 24h
+  final bool commitmentAccepted;
 
   OnboardingState copyWith({
     int? currentPage,
@@ -71,6 +92,17 @@ class OnboardingState {
     bool clearSignUpName = false,
     String? signUpEmail,
     bool clearSignUpEmail = false,
+    String? ageRange,
+    String? prayerFrequency,
+    String? resonantNameId,
+    Set<String>? duaTopics,
+    String? duaTopicsOther,
+    bool clearDuaTopicsOther = false,
+    Set<String>? commonEmotions,
+    Set<String>? aspirations,
+    int? dailyCommitmentMinutes,
+    String? reminderTime,
+    bool? commitmentAccepted,
   }) {
     return OnboardingState(
       currentPage: currentPage ?? this.currentPage,
@@ -89,11 +121,23 @@ class OnboardingState {
       authError: clearAuthError ? null : (authError ?? this.authError),
       signUpName: clearSignUpName ? null : (signUpName ?? this.signUpName),
       signUpEmail: clearSignUpEmail ? null : (signUpEmail ?? this.signUpEmail),
+      ageRange: ageRange ?? this.ageRange,
+      prayerFrequency: prayerFrequency ?? this.prayerFrequency,
+      resonantNameId: resonantNameId ?? this.resonantNameId,
+      duaTopics: duaTopics ?? this.duaTopics,
+      duaTopicsOther:
+          clearDuaTopicsOther ? null : (duaTopicsOther ?? this.duaTopicsOther),
+      commonEmotions: commonEmotions ?? this.commonEmotions,
+      aspirations: aspirations ?? this.aspirations,
+      dailyCommitmentMinutes:
+          dailyCommitmentMinutes ?? this.dailyCommitmentMinutes,
+      reminderTime: reminderTime ?? this.reminderTime,
+      commitmentAccepted: commitmentAccepted ?? this.commitmentAccepted,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 2,
+        'version': 3,
         'currentPage': currentPage,
         'intention': intention,
         'struggles': struggles.toList(),
@@ -104,42 +148,65 @@ class OnboardingState {
         'attribution': attribution.toList(),
         'signUpName': signUpName,
         'signUpEmail': signUpEmail,
+        'ageRange': ageRange,
+        'prayerFrequency': prayerFrequency,
+        'resonantNameId': resonantNameId,
+        'duaTopics': duaTopics.toList(),
+        'duaTopicsOther': duaTopicsOther,
+        'commonEmotions': commonEmotions.toList(),
+        'aspirations': aspirations.toList(),
+        'dailyCommitmentMinutes': dailyCommitmentMinutes,
+        'reminderTime': reminderTime,
+        'commitmentAccepted': commitmentAccepted,
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
+    // Spec §5: Sakina has no production users. Any blob with version < 3 is
+    // discarded and the user starts fresh.
+    final version = json['version'] as int? ?? 0;
+    if (version < 3) return const OnboardingState();
+
     var currentPage = json['currentPage'] as int? ?? 0;
-    if (json['version'] == null && currentPage > 0) {
-      currentPage -= 1;
-    }
     currentPage = currentPage.clamp(0, onboardingLastPageIndex);
+
+    Set<String> readSet(dynamic raw) =>
+        (raw as List<dynamic>?)?.map((e) => e as String).toSet() ?? const {};
+
     return OnboardingState(
       currentPage: currentPage,
       intention: json['intention'] as String?,
-      struggles: (json['struggles'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toSet() ??
-          const {},
+      struggles: readSet(json['struggles']),
       notificationPermissionGranted:
           json['notificationPermissionGranted'] as bool? ?? false,
       demoCheckinCompleted: json['demoCheckinCompleted'] as bool? ?? false,
       familiarity: json['familiarity'] as String?,
       quranConnection: json['quranConnection'] as String?,
-      attribution: (json['attribution'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toSet() ??
-          const {},
+      attribution: readSet(json['attribution']),
       signUpName: json['signUpName'] as String?,
       signUpEmail: json['signUpEmail'] as String?,
+      ageRange: json['ageRange'] as String?,
+      prayerFrequency: json['prayerFrequency'] as String?,
+      resonantNameId: json['resonantNameId'] as String?,
+      duaTopics: readSet(json['duaTopics']),
+      duaTopicsOther: json['duaTopicsOther'] as String?,
+      commonEmotions: readSet(json['commonEmotions']),
+      aspirations: readSet(json['aspirations']),
+      dailyCommitmentMinutes: json['dailyCommitmentMinutes'] as int?,
+      reminderTime: json['reminderTime'] as String?,
+      commitmentAccepted: json['commitmentAccepted'] as bool? ?? false,
     );
   }
 }
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
   OnboardingNotifier({OnboardingState? restored, AuthService? authService})
-      : _authService = authService ?? AuthService(),
+      : _authServiceOverride = authService,
         super(restored ?? const OnboardingState());
 
-  final AuthService _authService;
+  final AuthService? _authServiceOverride;
+  AuthService? _authServiceCached;
+  AuthService get _authService =>
+      _authServiceOverride ?? (_authServiceCached ??= AuthService());
 
   Timer? _generateTimer;
 
@@ -226,6 +293,73 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       updated.add(source);
     }
     state = state.copyWith(attribution: updated);
+    _saveToPrefs();
+  }
+
+  void setAgeRange(String value) {
+    state = state.copyWith(ageRange: value);
+    _saveToPrefs();
+  }
+
+  void setPrayerFrequency(String value) {
+    state = state.copyWith(prayerFrequency: value);
+    _saveToPrefs();
+  }
+
+  void setResonantNameId(String value) {
+    state = state.copyWith(resonantNameId: value);
+    _saveToPrefs();
+  }
+
+  void toggleDuaTopic(String topic) {
+    final updated = Set<String>.from(state.duaTopics);
+    updated.contains(topic) ? updated.remove(topic) : updated.add(topic);
+    state = state.copyWith(duaTopics: updated);
+    _saveToPrefs();
+  }
+
+  void setDuaTopicsOther(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      state = state.copyWith(clearDuaTopicsOther: true);
+    } else {
+      // Spec §5: 280-char cap on free text.
+      final trimmed = value.trim();
+      state = state.copyWith(
+        duaTopicsOther:
+            trimmed.length > 280 ? trimmed.substring(0, 280) : trimmed,
+      );
+    }
+    _saveToPrefs();
+  }
+
+  void toggleCommonEmotion(String emotion) {
+    final updated = Set<String>.from(state.commonEmotions);
+    updated.contains(emotion) ? updated.remove(emotion) : updated.add(emotion);
+    state = state.copyWith(commonEmotions: updated);
+    _saveToPrefs();
+  }
+
+  void toggleAspiration(String aspiration) {
+    final updated = Set<String>.from(state.aspirations);
+    updated.contains(aspiration)
+        ? updated.remove(aspiration)
+        : updated.add(aspiration);
+    state = state.copyWith(aspirations: updated);
+    _saveToPrefs();
+  }
+
+  void setDailyCommitmentMinutes(int minutes) {
+    state = state.copyWith(dailyCommitmentMinutes: minutes);
+    _saveToPrefs();
+  }
+
+  void setReminderTime(String hhmm) {
+    state = state.copyWith(reminderTime: hhmm);
+    _saveToPrefs();
+  }
+
+  void setCommitmentAccepted(bool accepted) {
+    state = state.copyWith(commitmentAccepted: accepted);
     _saveToPrefs();
   }
 
