@@ -42,7 +42,7 @@ No more passive feature-tour screens that exist only because the user hasn't rea
 | # | Screen | Type | Input schema |
 |---|---|---|---|
 | 3 | Your first name | **input** | `signUpName: String` (moved up from step 9) |
-| 4 | Age range | **input** (new) | `ageRange: enum { under18, 18_24, 25_34, 35_44, 45_54, 55plus }` |
+| 4 | Age range | **input** (new) | `ageRange: enum { 13_17, 18_24, 25_34, 35_44, 45_54, 55plus }` — app is 13+ per Apple minimum; no under-13 option |
 | 5 | Intention | **input** | `intention: enum { spiritualGrowth, difficultTime, justCurious, dailyHabit }` (keep) |
 | 6 | Prayer frequency | **input** (new) | `prayerFrequency: enum { fivePlus, someDaily, fridaysOnly, rarely, learning }` — non-judgmental labels |
 | 7 | Quran connection | **input** | `quranConnection: enum` (keep) |
@@ -68,9 +68,9 @@ No more passive feature-tour screens that exist only because the user hasn't rea
 |---|---|---|---|
 | 18 | Reminder time picker | **input** (new) | `reminderTime: TimeOfDay` |
 | 19 | Notification permission | system passive | — (iOS/Android prompt) |
-| 20 | Commitment pact | **micro-input** (new) | `commitmentAccepted: bool` (tap to sign; copy: "I commit to {dailyCommitmentMinutes} minutes a day") |
+| 20 | Commitment pact | **micro-input** (new) | `commitmentAccepted: bool` (tap to sign). Copy is conditional on #19 outcome: if notifications granted → "I commit to {dailyCommitmentMinutes} minutes a day, with a gentle reminder at {reminderTime}"; if denied → drop the reminder clause ("I commit to {dailyCommitmentMinutes} minutes a day") |
 | 21 | Generating your plan | earned passive | — (existing `runGeneratingTheater`, 3s) |
-| 22 | Your personalized plan | earned passive | — (the reveal — shows `intention`, `resonantName`, top struggle, `reminderTime` as a plan card) |
+| 22 | Your personalized plan | earned passive | — (the reveal — shows `intention`, `resonantName` or fallback `Ar-Rahman` if user didn't pick, top struggle or a generic "your path" label if none, `reminderTime` as a plan card) |
 
 ### Phase 5 — Auth & paywall (6 screens)
 
@@ -111,7 +111,9 @@ final String? reminderTime;              // "HH:mm" 24h
 final bool commitmentAccepted;
 ```
 
-`toJson` / `fromJson` bump to `version: 3`; a v2 → v3 migration leaves existing fields intact and defaults new fields to null / empty. v1 / legacy `currentPage` offset handling stays.
+`toJson` / `fromJson` bump to `version: 3`. **Sakina has no production users at the time of this refactor**, so no v2→v3 state-migration logic is required beyond defaulting new fields to null / empty on deserialize. `loadFromPrefs` may safely discard any pre-existing `v < 3` blob and start the user at page 0. v1 / legacy `currentPage` offset handling may be removed alongside this bump.
+
+**Free-text input sanitization:** all free-text fields (`demoFeelingInput`, `duaTopicsOther`, `commonEmotions` when in free-text mode, `signUpName`) are capped at **280 characters** client-side, trimmed, and the existing CLAUDE.md RTL-bleed rule (`TextDirection.rtl` on Arabic-only sub-widgets) applies to any downstream rendering.
 
 `onboardingLastPageIndex` is updated from `19` to `28` (0-indexed — 29 screens total).
 
@@ -121,6 +123,8 @@ Each field gets a corresponding `setX` / `toggleX` notifier method, mirroring ex
 
 ### Local
 SharedPreferences persistence already exists and survives resume mid-quiz. New fields ride along via the same `toJson`/`fromJson` path.
+
+**Zero server-side writes until sign-up (#25).** Quiz answers live only in `SharedPreferences` until the user authenticates. This is intentional (no PII written pre-consent). Consequence: if a user uninstalls between #3 and #25, their answers are lost — acceptable. Any downstream analytics or services that historically enriched events from `user_profiles` must tolerate the quiz fields being absent pre-auth.
 
 ### Supabase
 `AuthService.saveOnboardingData` (called from `persistOnboardingToSupabase`) is extended to accept and write the new columns on `user_profiles`:
@@ -144,7 +148,7 @@ The new inputs are not just captured — they drive:
 1. **Personalized plan reveal (#22)** — reads `intention`, `resonantNameId`, first `struggles` element, `reminderTime`, `dailyCommitmentMinutes` to render the plan card.
 2. **Value prop (#23)** — conditional copy blocks keyed on top `aspiration` and top `struggle`.
 3. **Paywall (#29)** — framing copy ("You told us you want to become **more patient**. Sakina helps in {dailyCommitmentMinutes} minutes a day.") keyed on `aspirations` + `dailyCommitmentMinutes`.
-4. **Scheduled notifications** — `reminderTime` seeds the existing notification-scheduling service's default daily reminder.
+4. **Scheduled notifications** — `reminderTime` seeds the existing notification-scheduling service's default daily reminder. Because notification permission (#19) is now requested *before* sign-up (#25), the OneSignal subscriber is initially anonymous. On successful auth at #25, the existing `AuthService` sign-up path must call OneSignal's external-user-id identify to bind the anon subscriber to the new user id; this binding already exists for the current flow and is preserved — it simply runs in a different position in the sequence.
 5. **Home screen first-load** — `resonantNameId` is pre-loaded as the user's "starred" Name of Allah (existing favorites model).
 
 These hooks are **thin**: each downstream consumer reads from `user_profiles` (Supabase) or `OnboardingState` directly. No new service layer.
@@ -157,6 +161,8 @@ Every new input screen emits:
 - `onboarding_answer_captured` with `{ key, value }` on answer (**new**)
 
 `setUserProperties` on `completeOnboarding` is extended to push the new fields to Mixpanel as user properties, so cohorting by `aspirations`, `dailyCommitmentMinutes`, etc. works out of the box.
+
+**Post-launch observability requirement:** build a **per-screen drop-off funnel dashboard** in Mixpanel keyed on `step_viewed` / `step_completed`. This is the primary instrument for judging whether the refactor moved the needle; without it, the refactor is un-measurable. Dashboard must render: per-step viewed count, per-step completed count, per-step conversion %, and end-to-end paywall-reached rate.
 
 ## 9. Copy & UX constraints
 
@@ -179,13 +185,19 @@ Every new input screen emits:
 9. Delete the 5 old feature screens.
 10. Extend analytics hooks.
 11. Update paywall copy renderer to consume new fields.
-12. Update widget tests; add tests for the new screens and the resume-mid-quiz flow.
+12. Update widget tests; add tests for the new screens, the resume-mid-quiz flow, and an integration test asserting every quiz field round-trips through `completeOnboarding` → `user_profiles`.
 
 ## 11. Open questions
 
 None blocking implementation. Copy polish and the exact Name carousel content (which 6 Names appear in screen #9) will be decided in the implementation plan.
 
-## 12. Out of scope / explicitly deferred
+## 12. Rollout posture
+
+Single-cutover deploy — **no feature flag, no kill switch.** Rollback if production conversion tanks requires a revert + App Store re-submission (24–48h worst case). This posture is acceptable because Sakina has no production users at the time of this refactor; the funnel-loss-per-hour cost of a bad launch is effectively zero. Post-launch this posture should be reconsidered for subsequent onboarding iterations.
+
+Supabase migration is additive / nullable / zero-downtime.
+
+## 13. Out of scope / explicitly deferred
 
 - Dynamic branching based on prior answers (e.g., showing different follow-ups for `prayerFrequency = rarely` vs `fivePlus`). Revisit after v1 ships.
 - A/B testing harness on quiz copy.
