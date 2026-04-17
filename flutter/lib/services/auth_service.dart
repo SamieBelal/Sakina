@@ -9,7 +9,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final _supabase = Supabase.instance.client;
+  late final _supabase = Supabase.instance.client;
 
   Future<AuthResponse> signUpWithEmail(
     String email,
@@ -114,6 +114,16 @@ class AuthService {
     String? familiarity,
     String? quranConnection,
     List<String> attribution = const [],
+    String? ageRange,
+    String? prayerFrequency,
+    String? resonantNameId,
+    List<String> duaTopics = const [],
+    String? duaTopicsOther,
+    List<String> commonEmotions = const [],
+    List<String> aspirations = const [],
+    int? dailyCommitmentMinutes,
+    String? reminderTime,
+    bool commitmentAccepted = false,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
@@ -124,6 +134,16 @@ class AuthService {
       'onboarding_familiarity': familiarity,
       'onboarding_quran_connection': quranConnection,
       'onboarding_attribution': attribution,
+      'age_range': ageRange,
+      'prayer_frequency': prayerFrequency,
+      'resonant_name_id': resonantNameId,
+      'dua_topics': duaTopics,
+      'dua_topics_other': duaTopicsOther,
+      'common_emotions': commonEmotions,
+      'aspirations': aspirations,
+      'daily_commitment_minutes': dailyCommitmentMinutes,
+      'reminder_time': reminderTime,
+      'commitment_accepted': commitmentAccepted,
     }).eq('id', userId);
   }
 

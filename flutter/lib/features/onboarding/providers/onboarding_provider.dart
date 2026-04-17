@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show VoidCallback;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -449,7 +450,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> persistOnboardingToSupabase() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+    await _persistQuizAnswers();
+  }
 
+  /// Test-only.
+  @visibleForTesting
+  Future<void> debugPersistOnboardingForTest() => _persistQuizAnswers();
+
+  Future<void> _persistQuizAnswers() async {
     try {
       await _authService.saveOnboardingData(
         intention: state.intention,
@@ -457,9 +465,19 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         familiarity: state.familiarity,
         quranConnection: state.quranConnection,
         attribution: state.attribution.toList(),
+        ageRange: state.ageRange,
+        prayerFrequency: state.prayerFrequency,
+        resonantNameId: state.resonantNameId,
+        duaTopics: state.duaTopics.toList(),
+        duaTopicsOther: state.duaTopicsOther,
+        commonEmotions: state.commonEmotions.toList(),
+        aspirations: state.aspirations.toList(),
+        dailyCommitmentMinutes: state.dailyCommitmentMinutes,
+        reminderTime: state.reminderTime,
+        commitmentAccepted: state.commitmentAccepted,
       );
     } catch (_) {
-      // Best-effort — don't block onboarding completion on DB failure
+      // Best-effort — don't block onboarding completion on DB failure.
     }
   }
 
