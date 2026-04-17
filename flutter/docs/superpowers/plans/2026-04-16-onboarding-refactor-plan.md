@@ -935,6 +935,18 @@ Add `import '../widgets/onboarding_question_scaffold.dart';` and remove the now-
 
 Apply the same shape (pull existing headline / subtitle / input body into the scaffold's `body` slot; compute `continueEnabled` based on the state for that screen). For multi-select screens (`struggles`, `attribution`), `continueEnabled` is `state.struggles.isNotEmpty` / `state.attribution.isNotEmpty`.
 
+**Progress segment per migrated screen (critical — update from the old values):**
+
+| Screen | Old `progressSegment` | New `progressSegment` |
+|---|---|---|
+| `IntentionScreen` | 12 | **5** |
+| `QuranConnectionScreen` | 15 | **7** |
+| `FamiliarityScreen` | 14 | **8** |
+| `StrugglesScreen` | 16 | **11** |
+| `AttributionScreen` | 17 | **16** |
+
+These values match the spec's 1-indexed screen numbers. See the `Page count reconciliation` note at the top of this plan for the relationship between spec-numbers and PageView indices.
+
 - [ ] **Step 5.3: Run the existing onboarding widget tests to verify no regression**
 
 Run: `flutter test test/features/onboarding/` (if the directory has any existing widget tests for these screens, they must still pass; failures mean the migration changed observable behavior).
@@ -1045,15 +1057,41 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
         padding: const EdgeInsets.only(bottom: AppSpacing.xl),
         child: OnboardingAutofocusTextField(
           controller: _controller,
-          hintText: 'Your first name',
-          maxLength: 50,
-          onChanged: (_) => setState(() {}),
+          shouldRequestFocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Your first name',
+            border: OutlineInputBorder(),
+            counterText: '',
+          ),
+          textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            if (name.isNotEmpty) {
+              ref.read(onboardingProvider.notifier).setSignUpName(name);
+              widget.onNext();
+            }
+          },
         ),
       ),
     );
   }
 }
 ```
+
+> Note: `OnboardingAutofocusTextField` does not have an `onChanged` hook. To drive the `continueEnabled` recomputation from keystrokes, listen to the controller in `initState`:
+>
+> ```dart
+> @override
+> void initState() {
+>   super.initState();
+>   _controller = TextEditingController(
+>     text: ref.read(onboardingProvider).signUpName ?? '',
+>   );
+>   _controller.addListener(() => setState(() {}));
+> }
+> ```
+>
+> Keep the existing `dispose()` — no extra cleanup needed beyond `_controller.dispose()`.
 
 - [ ] **Step 6.4: Run the test to verify it passes**
 
@@ -1538,7 +1576,7 @@ class _State extends ConsumerState<DuaTopicsScreen> {
             runSpacing: AppSpacing.sm,
             children: _topics.map((t) => StruggleChip(
               label: t.$2,
-              selected: state.duaTopics.contains(t.$1),
+              isSelected: state.duaTopics.contains(t.$1),
               onTap: () => ref
                   .read(onboardingProvider.notifier)
                   .toggleDuaTopic(t.$1),
@@ -1644,7 +1682,7 @@ class CommonEmotionsScreen extends ConsumerWidget {
         runSpacing: AppSpacing.sm,
         children: _emotions.map((e) => StruggleChip(
           label: _label(e),
-          selected: state.commonEmotions.contains(e),
+          isSelected: state.commonEmotions.contains(e),
           onTap: () => ref
               .read(onboardingProvider.notifier)
               .toggleCommonEmotion(e),
@@ -2816,6 +2854,7 @@ git commit -m "test(onboarding): integration test for full quiz → user_profile
 ## Pre-ship checklist (do NOT merge to main without these)
 
 - [ ] `flutter analyze` is clean.
+- [ ] `grep -rn "HookScreen\|hook_screen" lib/` confirms `hook_screen.dart` is still referenced only by `core/router.dart` (it's an entry screen, not part of the onboarding `PageView`; this refactor should not orphan it).
 - [ ] `flutter test` is all green.
 - [ ] Privacy policy updated per spec §13 and `TODOS.md`.
 - [ ] Manually walked the full 28-page flow on iOS simulator.
