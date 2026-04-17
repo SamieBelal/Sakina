@@ -8,6 +8,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../providers/onboarding_provider.dart';
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     required this.onComplete,
@@ -45,6 +46,22 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   void _handleClose() {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
     widget.onComplete();
+  }
+
+  String _personalizedHeadline() {
+    final s = ref.read(onboardingProvider);
+    final aspiration =
+        switch (s.aspirations.isNotEmpty ? s.aspirations.first : '') {
+      'morePatient' => 'more patient',
+      'moreGrateful' => 'more grateful',
+      'closerToAllah' => 'closer to Allah',
+      'morePresent' => 'more present',
+      'strongerFaith' => 'stronger in faith',
+      'moreConsistent' => 'more consistent',
+      _ => 'the person you want to be',
+    };
+    final mins = s.dailyCommitmentMinutes ?? 3;
+    return 'Become $aspiration in $mins min a day.';
   }
 
   @override
@@ -88,9 +105,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
 
-              // Headline
+              // Headline — personalized from quiz answers
               Text(
-                AppStrings.paywallTitle,
+                _personalizedHeadline(),
                 style: AppTypography.displaySmall.copyWith(
                   color: AppColors.textPrimaryLight,
                 ),
