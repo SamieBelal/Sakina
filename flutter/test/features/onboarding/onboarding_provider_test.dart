@@ -112,7 +112,7 @@ void main() {
 
     test('setDuaTopicsOther caps at 280 chars and trims', () {
       final notifier = OnboardingNotifier();
-      notifier.setDuaTopicsOther('  ' + ('x' * 500) + '  ');
+      notifier.setDuaTopicsOther('  ${'x' * 500}  ');
       expect(notifier.state.duaTopicsOther!.length, 280);
     });
 
