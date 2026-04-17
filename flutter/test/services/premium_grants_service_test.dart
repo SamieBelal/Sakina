@@ -11,7 +11,7 @@ import 'package:sakina/services/token_service.dart';
 import '../support/fake_supabase_sync_service.dart';
 
 class StubPurchaseService extends PurchaseService {
-  StubPurchaseService(this.premium);
+  StubPurchaseService(this.premium) : super.test();
 
   final bool premium;
 
@@ -48,6 +48,28 @@ void main() {
     expect(fakeSync.rpcCalls, isEmpty);
     expect((await getTierUpScrolls()).balance, 0);
     expect((await getTokens()).balance, startingTokens);
+  });
+
+  test('premium client with server not_premium response does not grant locally',
+      () async {
+    debugSetPremiumGrantPurchaseService(StubPurchaseService(true));
+    fakeSync.rpcHandlers['grant_premium_monthly'] = (params) async => {
+          'granted': false,
+          'reason': 'not_premium',
+          'grant_month': currentMonth(),
+          'tokens_granted': 0,
+          'scrolls_granted': 0,
+          'new_token_balance': 100,
+          'new_scroll_balance': 0,
+        };
+
+    final result = await checkPremiumMonthlyGrant();
+
+    expect(result.granted, isFalse);
+    expect(result.tokens, 0);
+    expect(result.scrolls, 0);
+    expect((await getTokens()).balance, 100);
+    expect((await getTierUpScrolls()).balance, 0);
   });
 
   test(

@@ -1,74 +1,143 @@
-// import 'dart:io';
+import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-const bool _purchasesTemporarilyDisabled = true;
-
 class PurchaseService {
+  PurchaseService._();
+
+  @visibleForTesting
+  PurchaseService.test();
+
+  static final PurchaseService instance = PurchaseService._();
+
+  factory PurchaseService() => _debugOverride ?? instance;
+
+  static PurchaseService? _debugOverride;
+
+  bool _initialized = false;
+  Future<void>? _initializationFuture;
+
   Future<void> initialize({
     required String appleApiKey,
     required String googleApiKey,
   }) async {
-    if (_purchasesTemporarilyDisabled) return;
+    if (_initialized) return;
 
-    // final apiKey = Platform.isIOS ? appleApiKey : googleApiKey;
-    // if (apiKey.isEmpty) return;
-    //
-    // final configuration = PurchasesConfiguration(apiKey);
-    // await Purchases.configure(configuration);
+    final apiKey = _platformApiKey(
+      appleApiKey: appleApiKey,
+      googleApiKey: googleApiKey,
+    );
+    if (apiKey.isEmpty) return;
+
+    final inFlightInitialization = _initializationFuture;
+    if (inFlightInitialization != null) {
+      await inFlightInitialization;
+      return;
+    }
+
+    final completer = Completer<void>();
+    _initializationFuture = completer.future;
+
+    try {
+      final configuration = PurchasesConfiguration(apiKey);
+      await Purchases.configure(configuration);
+      _initialized = true;
+      completer.complete();
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+      rethrow;
+    } finally {
+      _initializationFuture = null;
+    }
   }
 
   Future<bool> isPremium() async {
-    if (_purchasesTemporarilyDisabled) return false;
+    if (!_initialized) return false;
 
-    // try {
-    //   final customerInfo = await Purchases.getCustomerInfo();
-    //   return customerInfo.entitlements.active.containsKey('premium');
-    // } catch (_) {
-    //   return false;
-    // }
-    return false;
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      return customerInfo.entitlements.active.containsKey('premium');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Returns the ISO-8601 timestamp when RevenueCat last detected a billing
+  /// issue on the user's `premium` entitlement, or `null` if payment is
+  /// healthy or the user is not subscribed.
+  ///
+  /// We deliberately check `entitlements.all` (not `.active`) so we can show
+  /// a grace-period banner while the subscription is still technically
+  /// active but RevenueCat has flagged a payment failure.
+  Future<String?> getBillingIssueDetectedAt() async {
+    if (!_initialized) return null;
+
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final premium = customerInfo.entitlements.all['premium'];
+      return premium?.billingIssueDetectedAt;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<Package>> getOfferings() async {
-    if (_purchasesTemporarilyDisabled) return [];
+    if (!_initialized) return [];
 
-    // try {
-    //   final offerings = await Purchases.getOfferings();
-    //   return offerings.current?.availablePackages ?? [];
-    // } catch (_) {
-    //   return [];
-    // }
-    return [];
+    final offerings = await Purchases.getOfferings();
+    return offerings.current?.availablePackages ?? [];
   }
 
+  /// Purchases the given package and returns `true` if the `premium`
+  /// entitlement is now active.
   Future<bool> purchase(Package package) async {
-    if (_purchasesTemporarilyDisabled) return false;
-
-    // try {
-    //   final result = await Purchases.purchasePackage(package);
-    //   return result.entitlements.active.containsKey('premium');
-    // } catch (_) {
-    //   return false;
-    // }
-    return false;
+    _assertInitialized();
+    final customerInfo = await Purchases.purchasePackage(package);
+    return customerInfo.entitlements.active.containsKey('premium');
   }
 
-  Future<bool> restore() async {
-    if (_purchasesTemporarilyDisabled) return false;
-
-    // try {
-    //   final customerInfo = await Purchases.restorePurchases();
-    //   return customerInfo.entitlements.active.containsKey('premium');
-    // } catch (_) {
-    //   return false;
-    // }
-    return false;
+  /// Restores previous purchases and returns `true` if the `premium`
+  /// entitlement is now active.
+  Future<bool> restorePurchases() async {
+    _assertInitialized();
+    final customerInfo = await Purchases.restorePurchases();
+    return customerInfo.entitlements.active.containsKey('premium');
   }
 
   Future<void> setUserId(String userId) async {
-    if (_purchasesTemporarilyDisabled) return;
+    if (!_initialized || userId.isEmpty) return;
 
-    // await Purchases.logIn(userId);
+    await Purchases.logIn(userId);
+  }
+
+  String _platformApiKey({
+    required String appleApiKey,
+    required String googleApiKey,
+  }) {
+    if (Platform.isIOS) return appleApiKey;
+    if (Platform.isAndroid) return googleApiKey;
+    return '';
+  }
+
+  void _assertInitialized() {
+    if (_initialized) return;
+    throw StateError('RevenueCat has not been initialized.');
+  }
+
+  @visibleForTesting
+  static void debugSetOverride(PurchaseService service) {
+    _debugOverride = service;
+  }
+
+  @visibleForTesting
+  static void debugClearOverride() {
+    _debugOverride = null;
+  }
+
+  @visibleForTesting
+  void debugMarkInitialized({bool initialized = true}) {
+    _initialized = initialized;
   }
 }

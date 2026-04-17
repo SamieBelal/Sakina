@@ -15,6 +15,7 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
+import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 class ReflectScreen extends ConsumerStatefulWidget {
   const ReflectScreen({super.key});
@@ -83,6 +84,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         ).then((approved) {
           if (approved) notifier.submitWithToken();
         });
+      }
+      // Show upgrade sheet when the free journal limit is hit
+      if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {
+        UpgradeRequiredSheet.show(
+          context,
+          currentCount: next.savedReflections.length,
+          featureLabel: 'reflection',
+        ).then((_) => notifier.dismissUpgradePrompt());
       }
     });
 

@@ -206,6 +206,11 @@ class DuasState {
   /// True when build-a-dua hits the free daily limit and needs a token.
   final bool buildNeedsToken;
 
+  /// True when saving a built dua was blocked by the free-tier journal limit.
+  /// UI should show the upgrade sheet and call
+  /// [DuasNotifier.dismissUpgradePrompt] when acknowledged.
+  final bool needsUpgrade;
+
   /// Progress theater value (0.0 – 1.0) shown during dua generation.
   final double buildProgress;
 
@@ -225,6 +230,7 @@ class DuasState {
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
     this.buildNeedsToken = false,
+    this.needsUpgrade = false,
     this.buildProgress = 0.0,
   });
 
@@ -244,6 +250,7 @@ class DuasState {
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
     bool? buildNeedsToken,
+    bool? needsUpgrade,
     double? buildProgress,
   }) {
     return DuasState(
@@ -262,6 +269,7 @@ class DuasState {
       savedBuiltDuas: savedBuiltDuas ?? this.savedBuiltDuas,
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
       buildNeedsToken: buildNeedsToken ?? this.buildNeedsToken,
+      needsUpgrade: needsUpgrade ?? this.needsUpgrade,
       buildProgress: buildProgress ?? this.buildProgress,
     );
   }
@@ -408,6 +416,11 @@ class DuasNotifier extends StateNotifier<DuasState> {
     await _doBuild();
   }
 
+  /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
+  void dismissUpgradePrompt() {
+    state = state.copyWith(needsUpgrade: false);
+  }
+
   bool _isDuaOffTopic(String text) {
     final lower = text.toLowerCase().trim();
     if (lower.length < 5) return true;
@@ -539,7 +552,8 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // Check journal limit for free users
     final premium = await PurchaseService().isPremium();
     if (!premium && state.savedBuiltDuas.length >= freeJournalLimit) {
-      return; // silently skip — UI should show upgrade prompt
+      state = state.copyWith(needsUpgrade: true);
+      return;
     }
 
     final duaId = _dependencies.createId();

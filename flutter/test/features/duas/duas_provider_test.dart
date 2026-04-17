@@ -326,4 +326,59 @@ void main() {
     expect(notifier.state.findResult, isNull);
     expect(notifier.state.error, 'Something went wrong. Please try again.');
   });
+
+  test(
+      'saveCurrentBuiltDua sets needsUpgrade and does not save when free limit hit',
+      () async {
+    // Seed 5 saved duas (the freeJournalLimit) on a free user.
+    final savedPayload = List.generate(
+      DuasNotifier.freeJournalLimit,
+      (i) => {
+        'id': 'dua-$i',
+        'savedAt': fixedNow.toIso8601String(),
+        'need': 'need-$i',
+        'arabic': 'ar',
+        'transliteration': 'tr',
+        'translation': 'en',
+      },
+    );
+    SharedPreferences.setMockInitialValues({
+      'saved_built_duas:user-1': jsonEncode(savedPayload),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+
+    final notifier = DuasNotifier(
+      dependencies: DuasDependencies(
+        findDuas: (_) async => findResponse(),
+        buildDua: (_) async => buildResponse(),
+        now: () => fixedNow,
+        createId: () => 'dua-new',
+      ),
+      resultRevealDelay: Duration.zero,
+    );
+    addTearDown(notifier.dispose);
+
+    // Wait for loadSavedDuas to finish
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.state.savedBuiltDuas, hasLength(DuasNotifier.freeJournalLimit));
+
+    // Put something in state.buildResult so saveCurrentBuiltDua proceeds past
+    // its null guard
+    notifier.setBuildNeed('anything');
+    await notifier.submitBuild();
+
+    expect(notifier.state.needsUpgrade, isFalse);
+    await notifier.saveCurrentBuiltDua();
+
+    expect(notifier.state.needsUpgrade, isTrue);
+    expect(
+      notifier.state.savedBuiltDuas,
+      hasLength(DuasNotifier.freeJournalLimit),
+      reason: 'blocked save must not add to the list',
+    );
+
+    notifier.dismissUpgradePrompt();
+    expect(notifier.state.needsUpgrade, isFalse);
+  });
 }
