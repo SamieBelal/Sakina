@@ -91,14 +91,14 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isActive = ref.watch(
-      onboardingProvider.select((state) => state.currentPage == 17),
+      onboardingProvider.select((state) => state.currentPage == 25),
     );
 
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 8,
+        progressSegment: 25,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

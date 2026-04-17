@@ -31,7 +31,7 @@ void main() {
       expect(spy.timedEvents, [AnalyticsEvents.onboardingStepCompleted]);
       expect(spy.tracked.length, 1);
       expect(spy.tracked[0].$1, AnalyticsEvents.onboardingStepViewed);
-      expect(spy.tracked[0].$2, {'step_index': 3, 'step_name': 'feature_dua'});
+      expect(spy.tracked[0].$2, {'step_index': 3, 'step_name': 'intention'});
     });
 
     test('uses unknown for unmapped index', () {
@@ -100,8 +100,8 @@ void main() {
   });
 
   group('AnalyticsEvents.stepNames', () {
-    test('covers all 20 onboarding pages', () {
-      for (int i = 0; i <= 19; i++) {
+    test('covers all 28 onboarding pages', () {
+      for (int i = 0; i <= 27; i++) {
         expect(AnalyticsEvents.stepNames[i], isNotNull,
             reason: 'Missing step name for index $i');
       }

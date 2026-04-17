@@ -59,14 +59,14 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
   @override
   Widget build(BuildContext context) {
     final isActive = ref.watch(
-      onboardingProvider.select((state) => state.currentPage == 16),
+      onboardingProvider.select((state) => state.currentPage == 24),
     );
 
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 7,
+        progressSegment: 24,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();
