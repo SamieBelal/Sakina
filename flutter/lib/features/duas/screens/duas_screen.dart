@@ -14,6 +14,7 @@ import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
+import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 class DuasScreen extends ConsumerStatefulWidget {
   const DuasScreen({super.key});
@@ -81,6 +82,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         ).then((approved) {
           if (approved) notifier.submitBuildWithToken();
         });
+      }
+      // Show upgrade sheet when the free saved-dua limit is hit
+      if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {
+        UpgradeRequiredSheet.show(
+          context,
+          currentCount: next.savedBuiltDuas.length,
+          featureLabel: 'dua',
+        ).then((_) => notifier.dismissUpgradePrompt());
       }
     });
 

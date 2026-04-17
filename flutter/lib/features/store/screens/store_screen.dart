@@ -4,31 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
-import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
-import 'package:sakina/features/collection/widgets/ornate_card_shimmer.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
-import 'package:sakina/features/onboarding/widgets/premium_celebration_overlay.dart';
+import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
 
 // ── IAP product IDs ──────────────────────────────────────────────────────────
-const String _iapPremiumOnce = 'sakina_premium';
+// Note: sakina_premium (one-time SKU) was removed per the subscription-only
+// monetization decision on 2026-04-17 (docs/decisions/monetization-model.md).
+// Premium is sold exclusively through the onboarding paywall subscriptions.
 const String _iapTokens100 = 'sakina_tokens_100';
 const String _iapTokens250 = 'sakina_tokens_250';
 const String _iapTokens500 = 'sakina_tokens_500';
 const String _iapScrolls3 = 'sakina_scrolls_3';
 const String _iapScrolls10 = 'sakina_scrolls_10';
 const String _iapScrolls25 = 'sakina_scrolls_25';
-
-// ── Premium perks granted on purchase ───────────────────────────────────────
-const int _premiumTokenGrant = 10000;
-const int _premiumScrollGrant = 1000;
 
 class StoreScreen extends ConsumerStatefulWidget {
   const StoreScreen({super.key});
@@ -45,7 +43,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -56,51 +54,13 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
 
   // ── Purchase handlers ────────────────────────────────────────────────────
 
-  Future<void> _buyPremium() async {
-    setState(() => _purchasing = true);
-    HapticFeedback.mediumImpact();
-
-    try {
-      final purchaseService = PurchaseService();
-      final packages = await purchaseService.getOfferings();
-      final package = packages
-          .where((p) => p.storeProduct.identifier == _iapPremiumOnce)
-          .firstOrNull;
-
-      if (package == null) {
-        if (mounted) _showError('Premium not available yet. Try again later.');
-        if (mounted) setState(() => _purchasing = false);
-        return;
-      }
-
-      final success = await purchaseService.purchase(package);
-      if (success) {
-        await earnTokens(_premiumTokenGrant);
-        await ref.read(tierUpScrollProvider.notifier).earn(_premiumScrollGrant);
-        final tokenState = await getTokens();
-        ref
-            .read(dailyLoopProvider.notifier)
-            .refreshTokenBalance(tokenState.balance);
-        if (mounted) {
-          Navigator.of(context, rootNavigator: true).push(
-            PageRouteBuilder<void>(
-              opaque: false,
-              barrierColor: Colors.transparent,
-              transitionDuration: const Duration(milliseconds: 400),
-              pageBuilder: (_, __, ___) => const PremiumCelebrationOverlay(
-                userName: '',
-              ),
-              transitionsBuilder: (_, anim, __, child) =>
-                  FadeTransition(opacity: anim, child: child),
-            ),
-          );
-        }
-      }
-    } catch (_) {
-      // Purchase cancelled or failed — no action needed
-    }
-
-    if (mounted) setState(() => _purchasing = false);
+  /// Shared typed-error handler for all Store purchase flows.
+  /// Silences user-initiated cancellation; surfaces everything else.
+  void _handlePurchaseException(PlatformException error) {
+    final code = PurchasesErrorHelper.getErrorCode(error);
+    if (code == PurchasesErrorCode.purchaseCancelledError) return;
+    if (!mounted) return;
+    _showError('Purchase failed. Please try again.');
   }
 
   Future<void> _buyTokensIAP(int amount, String productId) async {
@@ -132,7 +92,11 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
               context, 'Tokens', amount, AppColors.secondary, Icons.toll);
         }
       }
-    } catch (_) {}
+    } on PlatformException catch (error) {
+      _handlePurchaseException(error);
+    } catch (_) {
+      if (mounted) _showError('Purchase failed. Please try again.');
+    }
 
     if (mounted) setState(() => _purchasing = false);
   }
@@ -162,7 +126,11 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
               const Color(0xFF3B82F6), Icons.receipt_long);
         }
       }
-    } catch (_) {}
+    } on PlatformException catch (error) {
+      _handlePurchaseException(error);
+    } catch (_) {
+      if (mounted) _showError('Purchase failed. Please try again.');
+    }
 
     if (mounted) setState(() => _purchasing = false);
   }
@@ -216,7 +184,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
                 children: [
                   const SubpageHeader(
                     title: 'Store',
-                    subtitle: 'Tokens, scrolls, and Premium.',
+                    subtitle: 'Tokens and scrolls.',
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   // Balance row
@@ -262,7 +230,6 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
                           .copyWith(fontWeight: FontWeight.w600),
                       unselectedLabelStyle: AppTypography.labelMedium,
                       tabs: const [
-                        Tab(text: 'Premium'),
                         Tab(text: 'Tokens'),
                         Tab(text: 'Scrolls'),
                       ],
@@ -277,10 +244,6 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _PremiumTab(
-                    purchasing: _purchasing,
-                    onBuy: _buyPremium,
-                  ),
                   _TokensTab(
                     purchasing: _purchasing,
                     onBuy: _buyTokensIAP,
@@ -292,229 +255,25 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Premium Tab
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _PremiumTab extends StatelessWidget {
-  const _PremiumTab({
-    required this.purchasing,
-    required this.onBuy,
-  });
-
-  final bool purchasing;
-  final VoidCallback onBuy;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.pagePadding,
-        AppSpacing.xl,
-        AppSpacing.pagePadding,
-        AppSpacing.xxxl,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Card fan hero ──────────────────────────────────────────────
-          const _CardFanHero().animate().fadeIn(duration: 600.ms).slideY(
-              begin: 0.06,
-              end: 0,
-              duration: 600.ms,
-              curve: Curves.easeOut),
-          const SizedBox(height: 28),
-
-          // ── Section label ──────────────────────────────────────────────
-          Text(
-            'SAKINA PREMIUM',
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2.0,
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-          const SizedBox(height: 6),
-          Text(
-            'Everything you need for a deeper practice.',
-            style: AppTypography.headlineMedium
-                .copyWith(color: AppColors.textPrimaryLight),
-          ).animate().fadeIn(duration: 400.ms, delay: 150.ms),
-          const SizedBox(height: 24),
-
-          // ── Perks list ─────────────────────────────────────────────────
-          const _PerksList()
-              .animate()
-              .fadeIn(duration: 400.ms, delay: 200.ms),
-          const SizedBox(height: 28),
-
-          // ── Price block ────────────────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'One-time purchase',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+            // Restore purchase link — users who bought a sub on another
+            // device or reinstalled the app need a way back to Premium.
+            Padding(
+              padding: const EdgeInsets.only(
+                bottom: AppSpacing.md,
+                top: AppSpacing.xs,
+              ),
+              child: Center(
+                child: GestureDetector(
+                  onTap: _restorePurchases,
+                  child: Text(
+                    'Restore purchase',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      decoration: TextDecoration.underline,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Yours forever. No subscription.',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  '\$50',
-                  style: AppTypography.displaySmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
-          const SizedBox(height: 28),
-
-          // ── CTA button ─────────────────────────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: purchasing ? null : onBuy,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                elevation: 0,
-              ),
-              child: purchasing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      'Get Premium',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 400.ms),
-          const SizedBox(height: 12),
-
-          // ── Restore link ───────────────────────────────────────────────
-          Center(
-            child: GestureDetector(
-              onTap: () async {
-                final success = await PurchaseService().restore();
-                if (success) {
-                  // ignore: use_build_context_synchronously
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Premium restored!'),
-                      backgroundColor: AppColors.primary,
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                'Restore purchase',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textSecondaryLight,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 450.ms),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Card fan with 3 emerald cards ──────────────────────────────────────────
-
-class _CardFanHero extends StatelessWidget {
-  const _CardFanHero();
-
-  @override
-  Widget build(BuildContext context) {
-    const cardWidth = 110.0;
-
-    return SizedBox(
-      height: 170,
-      child: Center(
-        child: Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            // Left card
-            Positioned(
-              left: 0,
-              child: Transform.rotate(
-                angle: -0.18,
-                child: const SizedBox(
-                  width: cardWidth,
-                  child: EmeraldPreviewTile(
-                    arabic: 'الرَّحْمَنُ',
-                    transliteration: 'Ar-Rahman',
-                  ),
-                ),
-              ),
-            ),
-            // Right card
-            Positioned(
-              right: 0,
-              child: Transform.rotate(
-                angle: 0.18,
-                child: const SizedBox(
-                  width: cardWidth,
-                  child: EmeraldPreviewTile(
-                    arabic: 'الرَّحِيمُ',
-                    transliteration: 'Ar-Rahim',
-                  ),
-                ),
-              ),
-            ),
-            // Center card (on top)
-            const SizedBox(
-              width: cardWidth + 16,
-              child: EmeraldPreviewTile(
-                arabic: 'المَلِكُ',
-                transliteration: 'Al-Malik',
-                shimmer: OrnateCardShimmer(enabled: true),
               ),
             ),
           ],
@@ -522,65 +281,48 @@ class _CardFanHero extends StatelessWidget {
       ),
     );
   }
-}
 
-// ── Perks list ─────────────────────────────────────────────────────────────
-
-class _PerksList extends StatelessWidget {
-  const _PerksList();
-
-  @override
-  Widget build(BuildContext context) {
-    final perks = [
-      (Icons.all_inclusive_rounded, AppColors.primary, 'Unlimited Reflect'),
-      (Icons.auto_awesome_rounded, AppColors.primary, 'Unlimited Build a Dua'),
-      (
-        Icons.style_rounded,
-        const Color(0xFF3CB371),
-        'Exclusive Emerald Card Collection'
-      ),
-      (Icons.toll_rounded, AppColors.secondary, '10,000 Tokens'),
-      (Icons.receipt_long_rounded, const Color(0xFF3B82F6), '1,000 Scrolls'),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        children: perks
-            .asMap()
-            .entries
-            .map((e) => Padding(
-                  padding: EdgeInsets.only(
-                      bottom: e.key < perks.length - 1 ? 14 : 0),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: e.value.$2.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(e.value.$1,
-                            color: e.value.$2, size: 17),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        e.value.$3,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textPrimaryLight,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ))
-            .toList(),
+  Future<void> _restorePurchases() async {
+    bool success;
+    try {
+      success = await PurchaseService().restorePurchases();
+    } on PlatformException catch (error) {
+      final code = PurchasesErrorHelper.getErrorCode(error);
+      if (code == PurchasesErrorCode.purchaseCancelledError) return;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Restore failed. Please try again.'),
+        ),
+      );
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Restore failed. Please try again.'),
+        ),
+      );
+      return;
+    }
+    if (!success) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No active premium subscription was found to restore.'),
+        ),
+      );
+      return;
+    }
+    ref.invalidate(isPremiumProvider);
+    try {
+      await checkPremiumMonthlyGrant();
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Premium restored!'),
+        backgroundColor: AppColors.primary,
       ),
     );
   }
