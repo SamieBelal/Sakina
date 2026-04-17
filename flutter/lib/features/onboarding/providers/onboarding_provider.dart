@@ -97,7 +97,6 @@ class OnboardingState {
     String? resonantNameId,
     Set<String>? duaTopics,
     String? duaTopicsOther,
-    bool clearDuaTopicsOther = false,
     Set<String>? commonEmotions,
     Set<String>? aspirations,
     int? dailyCommitmentMinutes,
@@ -125,8 +124,7 @@ class OnboardingState {
       prayerFrequency: prayerFrequency ?? this.prayerFrequency,
       resonantNameId: resonantNameId ?? this.resonantNameId,
       duaTopics: duaTopics ?? this.duaTopics,
-      duaTopicsOther:
-          clearDuaTopicsOther ? null : (duaTopicsOther ?? this.duaTopicsOther),
+      duaTopicsOther: duaTopicsOther ?? this.duaTopicsOther,
       commonEmotions: commonEmotions ?? this.commonEmotions,
       aspirations: aspirations ?? this.aspirations,
       dailyCommitmentMinutes:
@@ -311,19 +309,49 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     _saveToPrefs();
   }
 
+  Set<String> _toggled(Set<String> src, String v) =>
+      src.contains(v) ? (Set.of(src)..remove(v)) : (Set.of(src)..add(v));
+
   void toggleDuaTopic(String topic) {
-    final updated = Set<String>.from(state.duaTopics);
-    updated.contains(topic) ? updated.remove(topic) : updated.add(topic);
-    state = state.copyWith(duaTopics: updated);
+    state = state.copyWith(duaTopics: _toggled(state.duaTopics, topic));
     _saveToPrefs();
   }
 
   void setDuaTopicsOther(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      state = state.copyWith(clearDuaTopicsOther: true);
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      // Rebuild state with duaTopicsOther explicitly null since copyWith
+      // can't express nulling (no clear-flag, by design).
+      final s = state;
+      state = OnboardingState(
+        currentPage: s.currentPage,
+        intention: s.intention,
+        struggles: s.struggles,
+        notificationPermissionGranted: s.notificationPermissionGranted,
+        demoFeelingInput: s.demoFeelingInput,
+        demoCheckinCompleted: s.demoCheckinCompleted,
+        isLoadingDemoResult: s.isLoadingDemoResult,
+        familiarity: s.familiarity,
+        quranConnection: s.quranConnection,
+        attribution: s.attribution,
+        generateProgress: s.generateProgress,
+        isSignedUp: s.isSignedUp,
+        authError: s.authError,
+        signUpName: s.signUpName,
+        signUpEmail: s.signUpEmail,
+        ageRange: s.ageRange,
+        prayerFrequency: s.prayerFrequency,
+        resonantNameId: s.resonantNameId,
+        duaTopics: s.duaTopics,
+        // duaTopicsOther intentionally omitted → null
+        commonEmotions: s.commonEmotions,
+        aspirations: s.aspirations,
+        dailyCommitmentMinutes: s.dailyCommitmentMinutes,
+        reminderTime: s.reminderTime,
+        commitmentAccepted: s.commitmentAccepted,
+      );
     } else {
       // Spec §5: 280-char cap on free text.
-      final trimmed = value.trim();
       state = state.copyWith(
         duaTopicsOther:
             trimmed.length > 280 ? trimmed.substring(0, 280) : trimmed,
@@ -333,18 +361,16 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   void toggleCommonEmotion(String emotion) {
-    final updated = Set<String>.from(state.commonEmotions);
-    updated.contains(emotion) ? updated.remove(emotion) : updated.add(emotion);
-    state = state.copyWith(commonEmotions: updated);
+    state = state.copyWith(
+      commonEmotions: _toggled(state.commonEmotions, emotion),
+    );
     _saveToPrefs();
   }
 
   void toggleAspiration(String aspiration) {
-    final updated = Set<String>.from(state.aspirations);
-    updated.contains(aspiration)
-        ? updated.remove(aspiration)
-        : updated.add(aspiration);
-    state = state.copyWith(aspirations: updated);
+    state = state.copyWith(
+      aspirations: _toggled(state.aspirations, aspiration),
+    );
     _saveToPrefs();
   }
 

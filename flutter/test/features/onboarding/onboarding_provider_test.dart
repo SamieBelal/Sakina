@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 
@@ -109,6 +108,20 @@ void main() {
       expect(s.dailyCommitmentMinutes, 5);
       expect(s.reminderTime, '08:30');
       expect(s.commitmentAccepted, isTrue);
+    });
+
+    test('setDuaTopicsOther caps at 280 chars and trims', () {
+      final notifier = OnboardingNotifier();
+      notifier.setDuaTopicsOther('  ' + ('x' * 500) + '  ');
+      expect(notifier.state.duaTopicsOther!.length, 280);
+    });
+
+    test('setDuaTopicsOther with empty/whitespace clears', () {
+      final notifier = OnboardingNotifier();
+      notifier.setDuaTopicsOther('hello');
+      expect(notifier.state.duaTopicsOther, 'hello');
+      notifier.setDuaTopicsOther('   ');
+      expect(notifier.state.duaTopicsOther, isNull);
     });
   });
 }
