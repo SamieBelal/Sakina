@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/theme/app_typography.dart';
 import '../providers/onboarding_provider.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../widgets/intention_option_card.dart';
-import '../widgets/onboarding_continue_button.dart';
-import '../widgets/onboarding_page_wrapper.dart';
+import '../widgets/onboarding_question_scaffold.dart';
 
 class FamiliarityScreen extends ConsumerWidget {
   const FamiliarityScreen({
@@ -47,64 +44,38 @@ class FamiliarityScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
 
-    return OnboardingPageWrapper(
-      progressSegment: 14,
+    return OnboardingQuestionScaffold(
+      progressSegment: 8,
+      headline: AppStrings.familiarityTitle,
+      subtitle: AppStrings.familiaritySubtitle,
+      continueEnabled: state.familiarity != null,
       onBack: onBack,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackSurveyAnswered('familiarity', ref.read(onboardingProvider).familiarity);
+        onNext();
+      },
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.familiarityTitle,
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
+        children: List.generate(_options.length, (index) {
+          final option = _options[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: IntentionOptionCard(
+              icon: option.icon,
+              title: option.title,
+              subtitle: option.subtitle,
+              isSelected: state.familiarity == option.key,
+              onTap: () => ref
+                  .read(onboardingProvider.notifier)
+                  .setFamiliarity(option.key),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            AppStrings.familiaritySubtitle,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          ...List.generate(_options.length, (index) {
-            final option = _options[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: IntentionOptionCard(
-                icon: option.icon,
-                title: option.title,
-                subtitle: option.subtitle,
-                isSelected: state.familiarity == option.key,
-                onTap: () => ref
-                    .read(onboardingProvider.notifier)
-                    .setFamiliarity(option.key),
-              ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: (80 * index).ms)
-                .slideX(begin: 0.05, end: 0);
-          }),
-          const Spacer(),
-          OnboardingContinueButton(
-            label: AppStrings.continueButton,
-            onPressed: () {
-              ref.read(analyticsProvider).trackSurveyAnswered('familiarity', ref.read(onboardingProvider).familiarity);
-              onNext();
-            },
-            enabled: state.familiarity != null,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
-              ),
-            ),
-          ),
-        ),
+          )
+              .animate()
+              .fadeIn(duration: 400.ms, delay: (80 * index).ms)
+              .slideX(begin: 0.05, end: 0);
+        }),
       ),
     );
   }

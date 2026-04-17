@@ -9,8 +9,7 @@ import '../providers/onboarding_provider.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../widgets/intention_option_card.dart';
-import '../widgets/onboarding_continue_button.dart';
-import '../widgets/onboarding_page_wrapper.dart';
+import '../widgets/onboarding_question_scaffold.dart';
 
 class IntentionScreen extends ConsumerWidget {
   const IntentionScreen({
@@ -62,31 +61,21 @@ class IntentionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
 
-    return OnboardingPageWrapper(
-      progressSegment: 12,
+    return OnboardingQuestionScaffold(
+      progressSegment: 5,
+      headline: AppStrings.intentionTitle,
+      subtitle: AppStrings.intentionSubtitle,
+      continueEnabled: state.intention != null,
       onBack: onBack,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackSurveyAnswered('intention', ref.read(onboardingProvider).intention);
+        onNext();
+      },
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppStrings.intentionTitle,
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            AppStrings.intentionSubtitle,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
           ...List.generate(_options.length, (index) {
             final option = _options[index];
             return Padding(
@@ -128,21 +117,7 @@ class IntentionScreen extends ConsumerWidget {
                   )
                 : const SizedBox.shrink(),
           ),
-          const Spacer(),
-          OnboardingContinueButton(
-            label: AppStrings.continueButton,
-            onPressed: () {
-              ref.read(analyticsProvider).trackSurveyAnswered('intention', ref.read(onboardingProvider).intention);
-              onNext();
-            },
-            enabled: state.intention != null,
-          ),
-          const SizedBox(height: AppSpacing.lg),
         ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
