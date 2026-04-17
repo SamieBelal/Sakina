@@ -5,24 +5,32 @@ import '../../../core/app_session.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../providers/onboarding_provider.dart';
+import 'age_range_screen.dart';
+import 'aspirations_screen.dart';
 import 'attribution_screen.dart';
+import 'commitment_pact_screen.dart';
+import 'common_emotions_screen.dart';
+import 'daily_commitment_screen.dart';
+import 'dua_topics_screen.dart';
 import 'encouragement_screen.dart';
 import 'familiarity_screen.dart';
-import 'feature_dua_screen.dart';
-import 'feature_journal_screen.dart';
-import 'feature_names_screen.dart';
-import 'feature_quests_screen.dart';
-import 'feature_reflect_screen.dart';
 import 'first_checkin_screen.dart';
+import 'generating_screen.dart';
 import 'intention_screen.dart';
+import 'name_input_screen.dart';
 import 'notification_screen.dart';
 import 'paywall_screen.dart';
+import 'personalized_plan_screen.dart';
+import 'prayer_frequency_screen.dart';
 import 'quran_connection_screen.dart';
+import 'reminder_time_screen.dart';
+import 'resonant_name_screen.dart';
 import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
-import 'sign_up_name_screen.dart';
 import 'sign_up_password_screen.dart';
+import 'social_proof_interstitial_screen.dart';
 import 'social_proof_screen.dart';
+import 'struggle_support_interstitial_screen.dart';
 import 'struggles_screen.dart';
 import 'value_prop_screen.dart';
 
@@ -52,7 +60,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (initialPage == 0) {
         ref.read(analyticsProvider).timeEvent(AnalyticsEvents.onboardingCompleted);
       }
-      if (initialPage == 19) {
+      if (initialPage == onboardingLastPageIndex) {
         ref.read(analyticsProvider).track(AnalyticsEvents.paywallViewed);
         ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
       }
@@ -78,7 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       analytics.trackStepCompleted(current);
     }
     analytics.trackStepViewed(page);
-    if (page == 19) {
+    if (page == onboardingLastPageIndex) {
       analytics.track(AnalyticsEvents.paywallViewed);
       analytics.track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
     }
@@ -148,52 +156,65 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          // 0: First Check-in (core loop — first thing user sees)
-          FirstCheckinScreen(
-            onNext: _next,
-            onBack: _back,
-          ),
-          // 1: Feature — Collect 99 Names
-          FeatureNamesScreen(onNext: _next, onBack: _back),
-          // 2: Feature — Reflect
-          FeatureReflectScreen(onNext: _next, onBack: _back),
-          // 3: Feature — Build a Dua
-          FeatureDuaScreen(onNext: _next, onBack: _back),
-          // 4: Feature — Quests & Ranks
-          FeatureQuestsScreen(onNext: _next, onBack: _back),
-          // 5: Feature — Journal
-          FeatureJournalScreen(onNext: _next, onBack: _back),
-          // 6: Sign-Up Choice
+          // 0 — #1 First check-in hook (gacha overlay fires here, not a separate page)
+          FirstCheckinScreen(onNext: _next, onBack: _back),
+          // 1 — #3 Name input
+          NameInputScreen(onNext: _next, onBack: _back),
+          // 2 — #4 Age range
+          AgeRangeScreen(onNext: _next, onBack: _back),
+          // 3 — #5 Intention
+          IntentionScreen(onNext: _next, onBack: _back),
+          // 4 — #6 Prayer frequency
+          PrayerFrequencyScreen(onNext: _next, onBack: _back),
+          // 5 — #7 Quran connection
+          QuranConnectionScreen(onNext: _next, onBack: _back),
+          // 6 — #8 Familiarity with the 99 Names
+          FamiliarityScreen(onNext: _next, onBack: _back),
+          // 7 — #9 Resonant name carousel
+          ResonantNameScreen(onNext: _next, onBack: _back),
+          // 8 — #10 Dua topics
+          DuaTopicsScreen(onNext: _next, onBack: _back),
+          // 9 — #11 Struggles
+          StrugglesScreen(onNext: _next, onBack: _back),
+          // 10 — #12 Common emotions
+          CommonEmotionsScreen(onNext: _next, onBack: _back),
+          // 11 — #13 Aspirations
+          AspirationsScreen(onNext: _next, onBack: _back),
+          // 12 — #14 Daily commitment minutes
+          DailyCommitmentScreen(onNext: _next, onBack: _back),
+          // 13 — #15 Social proof interstitial
+          SocialProofInterstitialScreen(onNext: _next, onBack: _back),
+          // 14 — #16 Attribution
+          AttributionScreen(onNext: _next, onBack: _back),
+          // 15 — #17 "You're not alone" struggle support interstitial
+          StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
+          // 16 — #18 Reminder time
+          ReminderTimeScreen(onNext: _next, onBack: _back),
+          // 17 — #19 Notifications permission
+          NotificationScreen(onNext: _next, onBack: _back),
+          // 18 — #20 Commitment pact
+          CommitmentPactScreen(onNext: _next, onBack: _back),
+          // 19 — #21 Generating (loader)
+          GeneratingScreen(onNext: _next),
+          // 20 — #22 Personalized plan
+          PersonalizedPlanScreen(onNext: _next, onBack: _back),
+          // 21 — #23 Value prop
+          ValuePropScreen(onNext: _next, onBack: _back),
+          // 22 — #24 Social proof
+          SocialProofScreen(onNext: _next, onBack: _back),
+          // 23 — #25 Save progress (sign-up choice)
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _next,
           ),
-          // 7: Sign-Up Email
+          // 24 — #26 Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 8: Sign-Up Password
+          // 25 — #27 Sign-up password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 9: Sign-Up Name
-          SignUpNameScreen(onNext: _next, onBack: _back),
-          // 10: Encouragement (after account created)
+          // 26 — #28 Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 11: Notifications
-          NotificationScreen(onNext: _next, onBack: _back),
-          // 12: Intention — What brings you here?
-          IntentionScreen(onNext: _next, onBack: _back),
-          // 13: Value Prop
-          ValuePropScreen(onNext: _next, onBack: _back),
-          // 14: Familiarity
-          FamiliarityScreen(onNext: _next, onBack: _back),
-          // 15: Quran Connection
-          QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 16: Struggles
-          StrugglesScreen(onNext: _next, onBack: _back),
-          // 17: Attribution
-          AttributionScreen(onNext: _next, onBack: _back),
-          // 18: Social Proof
-          SocialProofScreen(onNext: _next, onBack: _back),
-          // 19: Paywall
+          // 27 — Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),
