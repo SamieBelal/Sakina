@@ -33,8 +33,19 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
   }
 
   TimeOfDay _parse(String hhmm) {
-    final p = hhmm.split(':');
-    return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+    try {
+      final p = hhmm.split(':');
+      if (p.length < 2) return const TimeOfDay(hour: 8, minute: 0);
+      final h = int.parse(p[0]);
+      final m = int.parse(p[1]);
+      if (h < 0 || h > 23 || m < 0 || m > 59) {
+        return const TimeOfDay(hour: 8, minute: 0);
+      }
+      return TimeOfDay(hour: h, minute: m);
+    } catch (_) {
+      // Corrupt prefs or future schema drift — fall back to 08:00 default.
+      return const TimeOfDay(hour: 8, minute: 0);
+    }
   }
 
   String _format(TimeOfDay t) =>

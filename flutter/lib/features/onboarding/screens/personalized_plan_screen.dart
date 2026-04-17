@@ -47,8 +47,11 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForId(state.resonantNameId);
-    final struggle =
-        state.struggles.isNotEmpty ? state.struggles.first : 'your path';
+    // Set.first has undefined iteration order — sort alphabetically for a
+    // deterministic plan card across renders.
+    final struggle = state.struggles.isNotEmpty
+        ? (state.struggles.toList()..sort()).first
+        : 'your path';
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)

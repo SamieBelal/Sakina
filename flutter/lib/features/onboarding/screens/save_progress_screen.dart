@@ -44,7 +44,13 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('[SaveProgress] currentUser null after Apple sign-in');
+        ref.read(onboardingProvider.notifier).setAuthError('Sign-in succeeded but session is not ready. Please try again.');
+        return;
+      }
+      ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
@@ -71,7 +77,13 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
       ref.read(onboardingProvider.notifier).setSignedUp(true);
-      ref.read(analyticsProvider).identify(Supabase.instance.client.auth.currentUser!.id);
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('[SaveProgress] currentUser null after Google sign-in');
+        ref.read(onboardingProvider.notifier).setAuthError('Sign-in succeeded but session is not ready. Please try again.');
+        return;
+      }
+      ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;

@@ -44,6 +44,15 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
   bool _navigating = false;
+  bool _paywallEventsFired = false;
+
+  void _firePaywallEventsOnce() {
+    if (_paywallEventsFired) return;
+    _paywallEventsFired = true;
+    final analytics = ref.read(analyticsProvider);
+    analytics.track(AnalyticsEvents.paywallViewed);
+    analytics.track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+  }
 
   @override
   void initState() {
@@ -61,8 +70,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ref.read(analyticsProvider).timeEvent(AnalyticsEvents.onboardingCompleted);
       }
       if (initialPage == onboardingLastPageIndex) {
-        ref.read(analyticsProvider).track(AnalyticsEvents.paywallViewed);
-        ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+        _firePaywallEventsOnce();
       }
     });
   }
@@ -87,8 +95,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     analytics.trackStepViewed(page);
     if (page == onboardingLastPageIndex) {
-      analytics.track(AnalyticsEvents.paywallViewed);
-      analytics.track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+      _firePaywallEventsOnce();
     }
 
     if ((page - current).abs() > 1) {

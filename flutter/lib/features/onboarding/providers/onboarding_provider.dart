@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show VoidCallback;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:characters/characters.dart';
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -352,10 +353,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         commitmentAccepted: s.commitmentAccepted,
       );
     } else {
-      // Spec §5: 280-char cap on free text.
+      // Spec §5: 280-grapheme cap on free text (use user-perceived characters
+      // so emoji and Arabic ligatures aren't split mid-code-unit).
+      final chars = trimmed.characters;
       state = state.copyWith(
         duaTopicsOther:
-            trimmed.length > 280 ? trimmed.substring(0, 280) : trimmed,
+            chars.length > 280 ? chars.take(280).toString() : trimmed,
       );
     }
     _saveToPrefs();
@@ -476,8 +479,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         reminderTime: state.reminderTime,
         commitmentAccepted: state.commitmentAccepted,
       );
-    } catch (_) {
-      // Best-effort — don't block onboarding completion on DB failure.
+    } catch (e, stack) {
+      // Best-effort — don't block onboarding completion on DB failure, but
+      // make the failure audible so the analytics/UX cost is visible.
+      debugPrint('[Onboarding] persist quiz answers failed: $e\n$stack');
     }
   }
 

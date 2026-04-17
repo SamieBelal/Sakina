@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
@@ -114,6 +115,17 @@ void main() {
       final notifier = OnboardingNotifier();
       notifier.setDuaTopicsOther('  ${'x' * 500}  ');
       expect(notifier.state.duaTopicsOther!.length, 280);
+    });
+
+    test('setDuaTopicsOther caps by graphemes (emoji not split)', () {
+      final notifier = OnboardingNotifier();
+      // Each 🤲 is 2 UTF-16 code units. 300 of them would be 600 code units.
+      // Grapheme-aware truncation must keep exactly 280 emoji (=560 code units).
+      final input = '🤲' * 300;
+      notifier.setDuaTopicsOther(input);
+      final out = notifier.state.duaTopicsOther!;
+      expect(out.characters.length, 280);
+      expect(out.length, 560); // 280 emoji × 2 UTF-16 units each
     });
 
     test('setDuaTopicsOther with empty/whitespace clears', () {
