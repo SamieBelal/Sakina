@@ -70,6 +70,35 @@ void main() {
     });
   });
 
+  group('trackOnboardingAnswer', () {
+    test('fires onboarding_answer_captured with key + value', () {
+      spy.trackOnboardingAnswer('age_range', '25_34');
+      expect(spy.tracked.length, 1);
+      expect(spy.tracked[0].$1, AnalyticsEvents.onboardingAnswerCaptured);
+      expect(spy.tracked[0].$2, {'key': 'age_range', 'value': '25_34'});
+    });
+
+    test('converts Set value to List', () {
+      spy.trackOnboardingAnswer('common_emotions', {'anxious', 'hopeful'});
+      final value = spy.tracked[0].$2?['value'];
+      expect(value, isA<List>());
+      expect(value, containsAll(['anxious', 'hopeful']));
+    });
+
+    test('handles null value', () {
+      spy.trackOnboardingAnswer('reminder_time', null);
+      expect(spy.tracked[0].$2, {'key': 'reminder_time', 'value': null});
+    });
+
+    test('passes int value through', () {
+      spy.trackOnboardingAnswer('daily_commitment_minutes', 5);
+      expect(spy.tracked[0].$2, {
+        'key': 'daily_commitment_minutes',
+        'value': 5,
+      });
+    });
+  });
+
   group('AnalyticsEvents.stepNames', () {
     test('covers all 20 onboarding pages', () {
       for (int i = 0; i <= 19; i++) {

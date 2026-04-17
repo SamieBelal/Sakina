@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
@@ -52,7 +54,11 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
       onBack: widget.onBack,
       continueEnabled: true,
       onContinue: () {
-        ref.read(onboardingProvider.notifier).setReminderTime(_format(_time));
+        final hhmm = _format(_time);
+        ref.read(onboardingProvider.notifier).setReminderTime(hhmm);
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('reminder_time', hhmm);
         widget.onNext();
       },
       body: GestureDetector(

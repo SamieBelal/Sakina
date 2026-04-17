@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../../../widgets/adjusted_arabic_display.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
@@ -88,7 +90,12 @@ class ResonantNameScreen extends ConsumerWidget {
       subtitle: 'This becomes the first Name in your collection.',
       onBack: onBack,
       continueEnabled: state.resonantNameId != null,
-      onContinue: onNext,
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('resonant_name_id', state.resonantNameId);
+        onNext();
+      },
       body: SizedBox(
         height: 340,
         child: PageView.builder(

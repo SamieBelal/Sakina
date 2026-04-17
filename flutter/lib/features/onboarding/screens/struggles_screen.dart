@@ -41,9 +41,9 @@ class StrugglesScreen extends ConsumerWidget {
       continueEnabled: state.struggles.isNotEmpty,
       onBack: onBack,
       onContinue: () {
-        ref
-            .read(analyticsProvider)
-            .trackSurveyAnswered('struggles', ref.read(onboardingProvider).struggles);
+        final value = ref.read(onboardingProvider).struggles;
+        ref.read(analyticsProvider).trackSurveyAnswered('struggles', value);
+        ref.read(analyticsProvider).trackOnboardingAnswer('struggles', value);
         onNext();
       },
       body: Wrap(

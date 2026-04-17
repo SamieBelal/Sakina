@@ -121,6 +121,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (state.quranConnection != null) profileProps['quran_connection'] = state.quranConnection;
     if (state.struggles.isNotEmpty) profileProps['struggles'] = state.struggles.toList();
     if (state.attribution.isNotEmpty) profileProps['attribution'] = state.attribution.toList();
+    if (state.ageRange != null) profileProps['age_range'] = state.ageRange;
+    if (state.prayerFrequency != null) profileProps['prayer_frequency'] = state.prayerFrequency;
+    if (state.resonantNameId != null) profileProps['resonant_name_id'] = state.resonantNameId;
+    if (state.duaTopics.isNotEmpty) profileProps['dua_topics'] = state.duaTopics.toList();
+    if (state.duaTopicsOther != null) profileProps['dua_topics_other'] = state.duaTopicsOther;
+    if (state.commonEmotions.isNotEmpty) profileProps['common_emotions'] = state.commonEmotions.toList();
+    if (state.aspirations.isNotEmpty) profileProps['aspirations'] = state.aspirations.toList();
+    if (state.dailyCommitmentMinutes != null) profileProps['daily_commitment_minutes'] = state.dailyCommitmentMinutes;
+    if (state.reminderTime != null) profileProps['reminder_time'] = state.reminderTime;
+    profileProps['commitment_accepted'] = state.commitmentAccepted;
     if (profileProps.isNotEmpty) analytics.setUserProperties(profileProps);
 
     analytics.flush();

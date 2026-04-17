@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/intention_option_card.dart';
 import '../widgets/onboarding_question_scaffold.dart';
@@ -28,7 +30,12 @@ class AgeRangeScreen extends ConsumerWidget {
       subtitle: 'So we can tune the tone for you.',
       onBack: onBack,
       continueEnabled: state.ageRange != null,
-      onContinue: onNext,
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('age_range', state.ageRange);
+        onNext();
+      },
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _options.map((opt) {

@@ -15,6 +15,7 @@ abstract final class AnalyticsEvents {
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
   static const onboardingCompleted = 'onboarding_completed';
+  static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
   static const stepNames = <int, String>{
     0: 'first_checkin',
@@ -62,6 +63,13 @@ extension AnalyticsHelpers on AnalyticsService {
     track(AnalyticsEvents.surveyAnswered, properties: {
       'question': question,
       'answer': answer is Set ? answer.toList() : answer,
+    });
+  }
+
+  void trackOnboardingAnswer(String key, Object? value) {
+    track(AnalyticsEvents.onboardingAnswerCaptured, properties: {
+      'key': key,
+      'value': value is Set ? value.toList() : value,
     });
   }
 }

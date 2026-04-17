@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 import '../widgets/struggle_chip.dart';
@@ -69,6 +71,13 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
         ref
             .read(onboardingProvider.notifier)
             .setDuaTopicsOther(_otherController.text);
+        final after = ref.read(onboardingProvider);
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('dua_topics', after.duaTopics);
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('dua_topics_other', after.duaTopicsOther);
         widget.onNext();
       },
       body: Column(

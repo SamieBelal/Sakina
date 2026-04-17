@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
@@ -26,7 +28,13 @@ class DailyCommitmentScreen extends ConsumerWidget {
       subtitle: 'You can change this later.',
       onBack: onBack,
       continueEnabled: state.dailyCommitmentMinutes != null,
-      onContinue: onNext,
+      onContinue: () {
+        ref.read(analyticsProvider).trackOnboardingAnswer(
+              'daily_commitment_minutes',
+              state.dailyCommitmentMinutes,
+            );
+        onNext();
+      },
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _options.map((m) {

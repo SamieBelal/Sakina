@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 import '../widgets/struggle_chip.dart';
@@ -41,7 +43,12 @@ class CommonEmotionsScreen extends ConsumerWidget {
       subtitle: "We'll tailor your first reflections around these.",
       onBack: onBack,
       continueEnabled: state.commonEmotions.isNotEmpty,
-      onContinue: onNext,
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('common_emotions', state.commonEmotions);
+        onNext();
+      },
       body: Wrap(
         spacing: AppSpacing.sm,
         runSpacing: AppSpacing.sm,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/intention_option_card.dart';
 import '../widgets/onboarding_question_scaffold.dart';
@@ -31,7 +33,12 @@ class PrayerFrequencyScreen extends ConsumerWidget {
       subtitle: 'Honesty helps us meet you where you are.',
       onBack: onBack,
       continueEnabled: state.prayerFrequency != null,
-      onContinue: onNext,
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('prayer_frequency', state.prayerFrequency);
+        onNext();
+      },
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _options

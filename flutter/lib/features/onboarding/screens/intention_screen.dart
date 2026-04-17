@@ -68,9 +68,9 @@ class IntentionScreen extends ConsumerWidget {
       continueEnabled: state.intention != null,
       onBack: onBack,
       onContinue: () {
-        ref
-            .read(analyticsProvider)
-            .trackSurveyAnswered('intention', ref.read(onboardingProvider).intention);
+        final value = ref.read(onboardingProvider).intention;
+        ref.read(analyticsProvider).trackSurveyAnswered('intention', value);
+        ref.read(analyticsProvider).trackOnboardingAnswer('intention', value);
         onNext();
       },
       body: Column(

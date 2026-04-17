@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
@@ -34,7 +36,12 @@ class CommitmentPactScreen extends ConsumerWidget {
       subtitle: 'A small daily promise to yourself.',
       onBack: onBack,
       continueEnabled: state.commitmentAccepted,
-      onContinue: onNext,
+      onContinue: () {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('commitment_accepted', state.commitmentAccepted);
+        onNext();
+      },
       body: Column(
         children: [
           Container(

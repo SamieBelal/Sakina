@@ -57,10 +57,13 @@ class QuranConnectionScreen extends ConsumerWidget {
       continueEnabled: state.quranConnection != null,
       onBack: onBack,
       onContinue: () {
-        ref.read(analyticsProvider).trackSurveyAnswered(
-              'quran_connection',
-              ref.read(onboardingProvider).quranConnection,
-            );
+        final value = ref.read(onboardingProvider).quranConnection;
+        ref
+            .read(analyticsProvider)
+            .trackSurveyAnswered('quran_connection', value);
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswer('quran_connection', value);
         onNext();
       },
       body: Column(

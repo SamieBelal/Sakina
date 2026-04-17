@@ -41,9 +41,9 @@ class AttributionScreen extends ConsumerWidget {
       continueEnabled: state.attribution.isNotEmpty,
       onBack: onBack,
       onContinue: () {
-        ref
-            .read(analyticsProvider)
-            .trackSurveyAnswered('attribution', ref.read(onboardingProvider).attribution);
+        final value = ref.read(onboardingProvider).attribution;
+        ref.read(analyticsProvider).trackSurveyAnswered('attribution', value);
+        ref.read(analyticsProvider).trackOnboardingAnswer('attribution', value);
         onNext();
       },
       body: Wrap(
