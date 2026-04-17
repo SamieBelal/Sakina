@@ -12,7 +12,7 @@ This diverges from how the best-converting onboarding flows work — Cal AI, Duo
 
 ## 2. Goal
 
-Refactor onboarding into an input-driven flow (~28 screens, ~15 input screens) modeled on Cal AI and Duolingo. Every screen either:
+Refactor onboarding into an input-driven flow (~29 screens, ~15 input screens) modeled on Cal AI and Duolingo. Every screen either:
 
 1. **Takes input** from the user (preferred), or
 2. **Is an earned passive** — a reward, reveal, commitment moment, social-proof interstitial, or system prompt that follows directly from a prior input.
@@ -28,7 +28,7 @@ No more passive feature-tour screens that exist only because the user hasn't rea
 - Changing auth providers (Apple / Google / Email stay).
 - RevenueCat/Superwall integration changes.
 
-## 4. New flow (28 screens)
+## 4. New flow (29 screens)
 
 ### Phase 1 — Hook (2 screens)
 
@@ -84,7 +84,7 @@ No more passive feature-tour screens that exist only because the user hasn't rea
 | 28 | Encouragement | earned passive | — ("Ahlan, {signUpName}") |
 | 29 | Paywall | paywall | (personalized framing referencing `struggles`, `aspirations`, `dailyCommitmentMinutes`) |
 
-> Note: numbering counts screens, not `PageView` indices. The final `onboardingLastPageIndex` will be **28** (paywall at index 28, quiz spans 0–27).
+> Note: numbering above is 1-indexed for readability; `PageView` is 0-indexed. The final `onboardingLastPageIndex` will be **28** (paywall at `PageView` index 28, quiz spans 0–27).
 
 ### Screens deleted
 - `feature_names_screen.dart` (replaced by screen #9)
@@ -113,7 +113,7 @@ final bool commitmentAccepted;
 
 `toJson` / `fromJson` bump to `version: 3`; a v2 → v3 migration leaves existing fields intact and defaults new fields to null / empty. v1 / legacy `currentPage` offset handling stays.
 
-`onboardingLastPageIndex` is updated from `19` to `28`.
+`onboardingLastPageIndex` is updated from `19` to `28` (0-indexed — 29 screens total).
 
 Each field gets a corresponding `setX` / `toggleX` notifier method, mirroring existing patterns (`setIntention`, `toggleStruggle`, etc.).
 
