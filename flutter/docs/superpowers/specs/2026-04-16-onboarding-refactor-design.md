@@ -171,6 +171,24 @@ Every new input screen emits:
 - **Progress bar** updates to reflect 28 total segments. Paywall (#29) still hides the bar.
 - **Back button** allowed on every quiz screen until #25 (save-progress). Once authed, back is disabled to avoid auth state drift.
 - Arabic calligraphy on screen #9 (Name selection) uses `AdjustedArabicDisplay` per CLAUDE.md.
+- **No skip on quiz questions.** Continue is disabled until the user selects / types an answer on every input screen (Cal AI / Duolingo pattern). The only exceptions are the free-text-with-optional-other fields (`duaTopicsOther`, `commonEmotions` free-text variant) which are genuinely optional extensions to a required multi-select. This eliminates null-branch proliferation across every downstream personalization consumer.
+
+## 9a. Shared input-screen scaffold (`OnboardingQuestionScaffold`)
+
+To keep the 8 new input screens DRY, a single reusable widget is introduced:
+
+```dart
+class OnboardingQuestionScaffold extends StatelessWidget {
+  final String headline;          // required
+  final String? subtitle;          // optional caption below headline
+  final Widget body;              // the input (chips, cards, text field, time wheel)
+  final VoidCallback onContinue;
+  final bool continueEnabled;     // false until answer selected (see §9 "no skip" rule)
+  final VoidCallback onBack;
+}
+```
+
+All new input screens (#3, #4, #6, #9, #10, #12, #13, #14, #18, #20) compose through this scaffold. Existing input screens (`IntentionScreen`, `FamiliarityScreen`, `QuranConnectionScreen`, `StrugglesScreen`, `AttributionScreen`) are migrated to it in the same refactor so all quiz screens share one layout contract. Estimated reduction: ~400 lines of duplicated scaffolding across the 13 quiz screens.
 
 ## 10. Migration plan (order of work for the implementation plan)
 
@@ -185,7 +203,13 @@ Every new input screen emits:
 9. Delete the 5 old feature screens.
 10. Extend analytics hooks.
 11. Update paywall copy renderer to consume new fields.
-12. Update widget tests; add tests for the new screens, the resume-mid-quiz flow, and an integration test asserting every quiz field round-trips through `completeOnboarding` → `user_profiles`.
+12. Update widget tests; add tests for:
+    - each new input screen (pick → Continue becomes enabled → tapping advances);
+    - the resume-mid-quiz flow;
+    - an integration test asserting every quiz field round-trips through `completeOnboarding` → `user_profiles`;
+    - conditional commitment-pact copy (notifications granted vs denied paths);
+    - fallback Ar-Rahman rendering on screen #22 when `resonantNameId` is null;
+    - a regression test for OneSignal external-user-id binding on sign-up (#25) — the binding must still fire correctly now that notification permission is requested at #19 pre-auth.
 
 ## 11. Open questions
 
@@ -197,7 +221,22 @@ Single-cutover deploy — **no feature flag, no kill switch.** Rollback if produ
 
 Supabase migration is additive / nullable / zero-downtime.
 
-## 13. Out of scope / explicitly deferred
+## 13. Pre-ship gate: privacy policy
+
+Before App Store submission of the build containing this refactor, the privacy policy **must** be updated to disclose the following additional Mixpanel user properties and Supabase `user_profiles` columns, all of which are religious-behavior, health-adjacent, or demographic signals:
+
+- `aspirations`
+- `prayer_frequency`
+- `age_range`
+- `common_emotions`
+- `dua_topics` (and `dua_topics_other`)
+- `resonant_name_id`
+- `daily_commitment_minutes`
+- `reminder_time`
+
+This extends the existing pre-launch privacy-policy item in `TODOS.md`. This spec does not ship until the policy is updated.
+
+## 14. Out of scope / explicitly deferred
 
 - Dynamic branching based on prior answers (e.g., showing different follow-ups for `prayerFrequency = rarely` vs `fivePlus`). Revisit after v1 ships.
 - A/B testing harness on quiz copy.
