@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/personalized_plan_screen.dart';
 
+import '_test_utils.dart';
+
 void main() {
   Widget harness(ProviderContainer container,
       {VoidCallback? onNext, VoidCallback? onBack}) {
@@ -19,12 +21,14 @@ void main() {
   }
 
   testWidgets('renders selected resonant Name when set', (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(onboardingProvider.notifier).setResonantNameId('as-salam');
     container.read(onboardingProvider.notifier).toggleStruggle('anxiety');
 
     await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('As-Salam'), findsOneWidget);
     // fallback text should NOT appear
@@ -33,16 +37,19 @@ void main() {
 
   testWidgets('falls back to Ar-Rahman when resonantNameId is null',
       (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
     await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('Ar-Rahman'), findsOneWidget);
   });
 
   testWidgets('plan card renders commitment minutes, reminder time, intention',
       (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(onboardingProvider.notifier);
@@ -53,6 +60,7 @@ void main() {
     notifier.toggleStruggle('loneliness');
 
     await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
 
     // Commitment + reminder rendered together
     expect(find.textContaining('5 min'), findsOneWidget);
@@ -66,14 +74,16 @@ void main() {
   });
 
   testWidgets('continue is always enabled (reveal screen)', (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     var advanced = 0;
 
     await tester.pumpWidget(harness(container, onNext: () => advanced++));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Continue'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(advanced, 1);
   });
 

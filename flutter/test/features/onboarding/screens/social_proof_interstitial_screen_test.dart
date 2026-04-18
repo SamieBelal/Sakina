@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/screens/social_proof_interstitial_screen.dart';
 
+import '_test_utils.dart';
+
 void main() {
   testWidgets('social proof interstitial shows count + continue advances',
       (tester) async {
+    useOnboardingViewport(tester);
     var advanced = 0;
     await tester.pumpWidget(
       ProviderScope(
@@ -17,9 +20,10 @@ void main() {
         ),
       ),
     );
-    expect(find.textContaining('40,000'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('10,000'), findsOneWidget);
     await tester.tap(find.text('Continue'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(advanced, 1);
   });
 }

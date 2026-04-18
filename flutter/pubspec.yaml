@@ -38,6 +38,9 @@ dependencies:
 
   # UI
   flutter_animate: ^4.5.2
+  # characters is re-exported by the Flutter SDK; declare it explicitly so
+  # analyzer doesn't warn (depend_on_referenced_packages).
+  characters: ^1.4.0
   google_fonts: ^8.0.0
   flutter_svg: ^2.0.17
   cached_network_image: ^3.4.1

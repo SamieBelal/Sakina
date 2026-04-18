@@ -37,23 +37,28 @@ class CommitmentPactScreen extends ConsumerWidget {
     return OnboardingPageWrapper(
       progressSegment: 18,
       onBack: onBack,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Your commitment.',
-            style: AppTypography.displaySmall.copyWith(
-              color: AppColors.textPrimaryLight,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'A small daily promise to yourself.',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const Spacer(flex: 2),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Your commitment.',
+                    style: AppTypography.displaySmall.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'A small daily promise to yourself.',
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  const Spacer(flex: 2),
           Center(
             child: Container(
               width: 88,
@@ -153,8 +158,12 @@ class CommitmentPactScreen extends ConsumerWidget {
             },
             enabled: state.commitmentAccepted,
           ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

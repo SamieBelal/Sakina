@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/commitment_pact_screen.dart';
 
+import '_test_utils.dart';
+
 void main() {
   testWidgets('includes reminder clause when notifications granted',
       (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container
@@ -21,11 +24,13 @@ void main() {
         home: CommitmentPactScreen(onNext: () {}, onBack: () {}),
       ),
     ));
+    await tester.pumpAndSettle();
     expect(find.textContaining('reminder'), findsOneWidget);
   });
 
   testWidgets('omits reminder clause when notifications denied',
       (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container
@@ -39,10 +44,12 @@ void main() {
         home: CommitmentPactScreen(onNext: () {}, onBack: () {}),
       ),
     ));
+    await tester.pumpAndSettle();
     expect(find.textContaining('reminder'), findsNothing);
   });
 
   testWidgets('tapping commit enables continue', (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(onboardingProvider.notifier).setDailyCommitmentMinutes(3);
@@ -53,10 +60,11 @@ void main() {
         home: CommitmentPactScreen(onNext: () {}, onBack: () {}),
       ),
     ));
+    await tester.pumpAndSettle();
 
     expect(container.read(onboardingProvider).commitmentAccepted, isFalse);
     await tester.tap(find.text('Tap to commit'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(container.read(onboardingProvider).commitmentAccepted, isTrue);
   });
 }

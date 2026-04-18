@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/struggle_support_interstitial_screen.dart';
 
+import '_test_utils.dart';
+
 void main() {
   testWidgets('struggle support names a picked struggle', (tester) async {
+    useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(onboardingProvider.notifier).toggleStruggle('anxiety');
@@ -21,10 +24,12 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     expect(find.textContaining('anxiety'), findsOneWidget);
   });
 
   testWidgets('struggle support continue advances', (tester) async {
+    useOnboardingViewport(tester);
     var advanced = 0;
     await tester.pumpWidget(
       ProviderScope(
@@ -36,8 +41,9 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(advanced, 1);
   });
 }

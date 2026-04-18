@@ -99,6 +99,7 @@ class OnboardingState {
     String? resonantNameId,
     Set<String>? duaTopics,
     String? duaTopicsOther,
+    bool clearDuaTopicsOther = false,
     Set<String>? commonEmotions,
     Set<String>? aspirations,
     int? dailyCommitmentMinutes,
@@ -126,7 +127,8 @@ class OnboardingState {
       prayerFrequency: prayerFrequency ?? this.prayerFrequency,
       resonantNameId: resonantNameId ?? this.resonantNameId,
       duaTopics: duaTopics ?? this.duaTopics,
-      duaTopicsOther: duaTopicsOther ?? this.duaTopicsOther,
+      duaTopicsOther:
+          clearDuaTopicsOther ? null : (duaTopicsOther ?? this.duaTopicsOther),
       commonEmotions: commonEmotions ?? this.commonEmotions,
       aspirations: aspirations ?? this.aspirations,
       dailyCommitmentMinutes:
@@ -322,36 +324,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   void setDuaTopicsOther(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      // Rebuild state with duaTopicsOther explicitly null since copyWith
-      // can't express nulling (no clear-flag, by design).
-      final s = state;
-      state = OnboardingState(
-        currentPage: s.currentPage,
-        intention: s.intention,
-        struggles: s.struggles,
-        notificationPermissionGranted: s.notificationPermissionGranted,
-        demoFeelingInput: s.demoFeelingInput,
-        demoCheckinCompleted: s.demoCheckinCompleted,
-        isLoadingDemoResult: s.isLoadingDemoResult,
-        familiarity: s.familiarity,
-        quranConnection: s.quranConnection,
-        attribution: s.attribution,
-        generateProgress: s.generateProgress,
-        isSignedUp: s.isSignedUp,
-        authError: s.authError,
-        signUpName: s.signUpName,
-        signUpEmail: s.signUpEmail,
-        ageRange: s.ageRange,
-        prayerFrequency: s.prayerFrequency,
-        resonantNameId: s.resonantNameId,
-        duaTopics: s.duaTopics,
-        // duaTopicsOther intentionally omitted → null
-        commonEmotions: s.commonEmotions,
-        aspirations: s.aspirations,
-        dailyCommitmentMinutes: s.dailyCommitmentMinutes,
-        reminderTime: s.reminderTime,
-        commitmentAccepted: s.commitmentAccepted,
-      );
+      state = state.copyWith(clearDuaTopicsOther: true);
     } else {
       // Spec §5: 280-grapheme cap on free text (use user-perceived characters
       // so emoji and Arabic ligatures aren't split mid-code-unit).

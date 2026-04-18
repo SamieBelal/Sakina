@@ -136,7 +136,7 @@ class AuthService {
       'onboarding_attribution': attribution,
       'age_range': ageRange,
       'prayer_frequency': prayerFrequency,
-      'resonant_name_id': resonantNameId,
+      'resonant_name_slug': resonantNameId,
       'dua_topics': duaTopics,
       'dua_topics_other': duaTopicsOther,
       'common_emotions': commonEmotions,

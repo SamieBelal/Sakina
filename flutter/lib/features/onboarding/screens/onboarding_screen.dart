@@ -138,7 +138,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (state.attribution.isNotEmpty) profileProps['attribution'] = state.attribution.toList();
     if (state.ageRange != null) profileProps['age_range'] = state.ageRange;
     if (state.prayerFrequency != null) profileProps['prayer_frequency'] = state.prayerFrequency;
-    if (state.resonantNameId != null) profileProps['resonant_name_id'] = state.resonantNameId;
+    if (state.resonantNameId != null) profileProps['resonant_name_slug'] = state.resonantNameId;
     if (state.duaTopics.isNotEmpty) profileProps['dua_topics'] = state.duaTopics.toList();
     if (state.duaTopicsOther != null) profileProps['dua_topics_other'] = state.duaTopicsOther;
     if (state.commonEmotions.isNotEmpty) profileProps['common_emotions'] = state.commonEmotions.toList();
