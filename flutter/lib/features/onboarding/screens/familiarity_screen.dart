@@ -45,7 +45,7 @@ class FamiliarityScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 8,
+      progressSegment: 6,
       headline: AppStrings.familiarityTitle,
       subtitle: AppStrings.familiaritySubtitle,
       continueEnabled: state.familiarity != null,

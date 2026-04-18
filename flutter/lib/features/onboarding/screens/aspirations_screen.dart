@@ -32,7 +32,7 @@ class AspirationsScreen extends ConsumerWidget {
     // Note: copy says "Pick up to three" but the plan does not enforce a
     // 3-item cap in code. Following the plan: no cap.
     return OnboardingQuestionScaffold(
-      progressSegment: 13,
+      progressSegment: 11,
       headline: 'Who do you want to become?',
       subtitle: 'Pick up to three.',
       onBack: onBack,

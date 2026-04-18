@@ -35,7 +35,7 @@ class StrugglesScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 11,
+      progressSegment: 9,
       headline: AppStrings.strugglesTitle,
       subtitle: AppStrings.strugglesSubtitle,
       continueEnabled: state.struggles.isNotEmpty,

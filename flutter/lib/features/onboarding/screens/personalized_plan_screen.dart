@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -8,11 +9,6 @@ import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
 /// Task 17 / Screen #22 — "Your personalized plan."
-///
-/// Assembles a visual summary of the user's quiz answers: the Name they
-/// resonated with (or Ar-Rahman as a fallback per spec §4), their top
-/// struggle, their daily commitment, and their reminder time. Continue is
-/// always enabled — this is a reveal screen, not a question.
 class PersonalizedPlanScreen extends ConsumerWidget {
   const PersonalizedPlanScreen({
     required this.onNext,
@@ -23,8 +19,6 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  /// Mirrors the curated list in [ResonantNameScreen]. The fallback branch
-  /// (`null` or unknown id) returns Ar-Rahman per spec §4.
   static String translitForId(String? id) {
     switch (id) {
       case 'ar-rahim':
@@ -43,14 +37,19 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     }
   }
 
+  static String _stripLeadingEmoji(String raw) {
+    final chars = raw.characters.toList();
+    final idx = chars.indexOf(' ');
+    if (idx <= 0 || idx >= chars.length - 1) return raw;
+    return chars.sublist(idx + 1).join();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForId(state.resonantNameId);
-    // Set.first has undefined iteration order — sort alphabetically for a
-    // deterministic plan card across renders.
     final struggle = state.struggles.isNotEmpty
-        ? (state.struggles.toList()..sort()).first
+        ? _stripLeadingEmoji((state.struggles.toList()..sort()).first)
         : 'your path';
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
@@ -59,110 +58,124 @@ class PersonalizedPlanScreen extends ConsumerWidget {
         : 'friend';
     final intention = state.intention ?? 'growing closer to Allah';
 
+    final tiles = <Widget>[
+      _PlanTile(
+        icon: Icons.auto_awesome_rounded,
+        label: 'First Name in your collection',
+        value: translit,
+        emphasize: true,
+      ),
+      _PlanTile(
+        icon: Icons.favorite_rounded,
+        label: "What we'll meet you with",
+        value: struggle,
+      ),
+      _PlanTile(
+        icon: Icons.schedule_rounded,
+        label: 'Your daily check-in',
+        value: '$minutes min  ·  $reminder',
+      ),
+      _PlanTile(
+        icon: Icons.spa_rounded,
+        label: "Why you're here",
+        value: intention,
+      ),
+    ];
+
     return OnboardingQuestionScaffold(
-      progressSegment: 22,
+      progressSegment: 20,
       headline: 'Your plan, $name.',
       subtitle: 'Everything you need, one tap away.',
       onBack: onBack,
       continueEnabled: true,
       onContinue: onNext,
-      body: _PlanCard(
-        translit: translit,
-        struggle: struggle,
-        reminder: reminder,
-        minutes: minutes,
-        intention: intention,
-      ),
-    );
-  }
-}
-
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({
-    required this.translit,
-    required this.struggle,
-    required this.reminder,
-    required this.minutes,
-    required this.intention,
-  });
-
-  final String translit;
-  final String struggle;
-  final String reminder;
-  final int minutes;
-  final String intention;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PlanRow(
-            label: 'First Name in your collection:',
-            value: translit,
-            emphasize: true,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _PlanRow(
-            label: 'What we\'ll meet you with:',
-            value: struggle,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _PlanRow(
-            label: 'Your daily check-in:',
-            value: '$minutes min · $reminder',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _PlanRow(
-            label: 'Why you\'re here:',
-            value: intention,
-          ),
+          for (var i = 0; i < tiles.length; i++) ...[
+            tiles[i]
+                .animate()
+                .fadeIn(duration: 400.ms, delay: (100 * i).ms)
+                .slideY(begin: 0.04, end: 0, duration: 400.ms),
+            if (i < tiles.length - 1) const SizedBox(height: AppSpacing.sm),
+          ],
         ],
       ),
     );
   }
 }
 
-class _PlanRow extends StatelessWidget {
-  const _PlanRow({
+class _PlanTile extends StatelessWidget {
+  const _PlanTile({
+    required this.icon,
     required this.label,
     required this.value,
     this.emphasize = false,
   });
 
+  final IconData icon;
   final String label;
   final String value;
   final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondaryLight,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          value,
-          style: emphasize
-              ? AppTypography.headlineMedium.copyWith(color: AppColors.primary)
-              : AppTypography.labelLarge.copyWith(
-                  color: AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.w600,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primaryLight,
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
                 ),
-        ),
-      ],
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: emphasize
+                      ? AppTypography.headlineMedium.copyWith(
+                          color: AppColors.primary,
+                        )
+                      : AppTypography.labelLarge.copyWith(
+                          color: AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

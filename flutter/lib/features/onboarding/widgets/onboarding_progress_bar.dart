@@ -5,7 +5,7 @@ import '../../../core/constants/app_spacing.dart';
 class OnboardingProgressBar extends StatelessWidget {
   const OnboardingProgressBar({
     required this.currentSegment,
-    this.totalSegments = 18,
+    this.totalSegments = 27,
     super.key,
   });
 
@@ -16,7 +16,7 @@ class OnboardingProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: List.generate(totalSegments, (index) {
-        final isActive = index < currentSegment;
+        final isActive = index <= currentSegment;
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(

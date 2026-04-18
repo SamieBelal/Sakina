@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
@@ -51,15 +53,26 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
   String _format(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  Future<void> _pick() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
+  String _periodLabel(TimeOfDay t) {
+    final h = t.hour;
+    if (h >= 5 && h < 12) return 'Morning';
+    if (h >= 12 && h < 17) return 'Afternoon';
+    if (h >= 17 && h < 21) return 'Evening';
+    return 'Night';
+  }
+
+  IconData _periodIcon(TimeOfDay t) {
+    final h = t.hour;
+    if (h >= 5 && h < 12) return Icons.wb_twilight_rounded;
+    if (h >= 12 && h < 17) return Icons.wb_sunny_rounded;
+    if (h >= 17 && h < 21) return Icons.brightness_4_rounded;
+    return Icons.nightlight_round;
   }
 
   @override
   Widget build(BuildContext context) {
     return OnboardingQuestionScaffold(
-      progressSegment: 18,
+      progressSegment: 16,
       headline: 'When should we check in with you?',
       subtitle: 'A gentle reminder, once a day.',
       onBack: widget.onBack,
@@ -72,22 +85,76 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
             .trackOnboardingAnswer('reminder_time', hhmm);
         widget.onNext();
       },
-      body: GestureDetector(
-        onTap: _pick,
-        child: Container(
-          height: 120,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            _time.format(context),
-            style: AppTypography.displayLarge.copyWith(
-              color: AppColors.primary,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  _periodIcon(_time),
+                  size: 32,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _time.format(context),
+                  style: AppTypography.displayLarge.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _periodLabel(_time),
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.primary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.lg),
+          Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: CupertinoTheme(
+              data: CupertinoThemeData(
+                textTheme: CupertinoTextThemeData(
+                  dateTimePickerTextStyle: AppTypography.headlineMedium
+                      .copyWith(color: AppColors.textPrimaryLight),
+                ),
+              ),
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                initialDateTime: DateTime(
+                  2026,
+                  1,
+                  1,
+                  _time.hour,
+                  _time.minute,
+                ),
+                use24hFormat: false,
+                minuteInterval: 5,
+                onDateTimeChanged: (dt) {
+                  setState(
+                    () => _time = TimeOfDay(hour: dt.hour, minute: dt.minute),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

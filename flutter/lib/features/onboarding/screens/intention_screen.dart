@@ -62,7 +62,7 @@ class IntentionScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 5,
+      progressSegment: 3,
       headline: AppStrings.intentionTitle,
       subtitle: AppStrings.intentionSubtitle,
       continueEnabled: state.intention != null,

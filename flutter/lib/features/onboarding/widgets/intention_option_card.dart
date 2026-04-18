@@ -58,6 +58,9 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
 
   @override
   Widget build(BuildContext context) {
+    final noIcon = widget.icon == null;
+    final compact = noIcon && widget.subtitle.isEmpty;
+    final height = compact ? 56.0 : (noIcon ? 68.0 : 80.0);
     return ScaleTransition(
       scale: _bounceAnimation,
       child: GestureDetector(
@@ -65,7 +68,7 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: double.infinity,
-          height: 80,
+          height: height,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           decoration: BoxDecoration(
             color: widget.isSelected
@@ -111,25 +114,35 @@ class _IntentionOptionCardState extends State<IntentionOptionCard>
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: widget.icon != null
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
                   children: [
                     Text(
                       widget.title,
+                      textAlign: widget.icon != null
+                          ? TextAlign.start
+                          : TextAlign.center,
                       style: AppTypography.labelLarge.copyWith(
                         color: AppColors.textPrimaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      widget.subtitle,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textSecondaryLight,
+                    if (widget.subtitle.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        widget.subtitle,
+                        textAlign: widget.icon != null
+                            ? TextAlign.start
+                            : TextAlign.center,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondaryLight,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              if (widget.icon != null) const SizedBox(width: AppSpacing.sm),
             ],
           ),
         ),

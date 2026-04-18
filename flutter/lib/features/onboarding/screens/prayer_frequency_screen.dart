@@ -28,7 +28,7 @@ class PrayerFrequencyScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     return OnboardingQuestionScaffold(
-      progressSegment: 6,
+      progressSegment: 4,
       headline: 'How often do you pray right now?',
       subtitle: 'Honesty helps us meet you where you are.',
       onBack: onBack,
@@ -45,7 +45,6 @@ class PrayerFrequencyScreen extends ConsumerWidget {
             .map((opt) => Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: IntentionOptionCard(
-                    icon: Icons.mosque_outlined,
                     title: opt.$2,
                     subtitle: opt.$3,
                     isSelected: state.prayerFrequency == opt.$1,

@@ -341,44 +341,42 @@ class _FocusAwareTextField extends StatefulWidget {
 }
 
 class _FocusAwareTextFieldState extends State<_FocusAwareTextField> {
-  bool _hasFocus = false;
-
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (focused) {
-        setState(() => _hasFocus = focused);
-      },
-      child: TextField(
-        controller: widget.controller,
-        maxLines: 3,
-        autofocus: widget.autofocus,
-        onChanged: widget.onChanged,
-        decoration: InputDecoration(
-          hintText: AppStrings.typeYourFeeling,
-          hintStyle: AppTypography.bodyMedium.copyWith(
-            color: AppColors.textTertiaryLight,
-          ),
-          filled: true,
-          fillColor:
-              _hasFocus ? AppColors.primaryLight : AppColors.surfaceLight,
-          contentPadding: const EdgeInsets.all(AppSpacing.md),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-            borderSide: const BorderSide(color: AppColors.borderLight),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-            borderSide: const BorderSide(color: AppColors.borderLight),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-            borderSide: const BorderSide(color: AppColors.primary),
-          ),
+    return TextField(
+      controller: widget.controller,
+      maxLines: 2,
+      minLines: 2,
+      autofocus: widget.autofocus,
+      onChanged: widget.onChanged,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        hintText: AppStrings.typeYourFeeling,
+        hintStyle: AppTypography.bodyLarge.copyWith(
+          color: AppColors.textTertiaryLight,
         ),
-        style: AppTypography.bodyLarge.copyWith(
-          color: AppColors.textPrimaryLight,
+        filled: true,
+        fillColor: AppColors.surfaceLight,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
         ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+          borderSide:
+              const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+      style: AppTypography.bodyLarge.copyWith(
+        color: AppColors.textPrimaryLight,
       ),
     );
   }

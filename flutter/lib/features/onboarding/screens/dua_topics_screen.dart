@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
@@ -62,7 +64,7 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
     final canContinue = state.duaTopics.isNotEmpty || hasFreeText;
 
     return OnboardingQuestionScaffold(
-      progressSegment: 10,
+      progressSegment: 8,
       headline: 'What would you most want to dua for?',
       subtitle: 'Pick as many as feel true.',
       onBack: widget.onBack,
@@ -98,15 +100,64 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
                 )
                 .toList(),
           ),
+          const SizedBox(height: AppSpacing.xl),
+          Container(
+            height: 1,
+            color: AppColors.dividerLight,
+          ),
           const SizedBox(height: AppSpacing.lg),
-          TextField(
-            controller: _otherController,
-            maxLength: 280,
-            decoration: const InputDecoration(
-              labelText: 'Anything else? (optional)',
-              border: OutlineInputBorder(),
+          Text(
+            'Something else on your heart?',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              border: Border.all(color: AppColors.borderLight, width: 1),
+            ),
+            child: TextField(
+              controller: _otherController,
+              maxLength: 280,
+              minLines: 1,
+              maxLines: 3,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+              ),
+              decoration: InputDecoration(
+                hintText: 'A quiet intention, a name, a worry…',
+                hintStyle: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                counterText: '',
+              ),
+            ),
+          ),
+          if (hasFreeText)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs, right: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${_otherController.text.characters.length}/280',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiaryLight,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

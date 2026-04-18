@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/constants/app_spacing.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
@@ -25,7 +24,7 @@ class AgeRangeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     return OnboardingQuestionScaffold(
-      progressSegment: 4,
+      progressSegment: 2,
       headline: 'How old are you?',
       subtitle: 'So we can tune the tone for you.',
       onBack: onBack,
@@ -40,9 +39,8 @@ class AgeRangeScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _options.map((opt) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: const EdgeInsets.only(bottom: 10),
             child: IntentionOptionCard(
-              icon: Icons.person_outline,
               title: opt.$2,
               subtitle: '',
               isSelected: state.ageRange == opt.$1,

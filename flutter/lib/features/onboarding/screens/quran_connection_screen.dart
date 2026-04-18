@@ -51,7 +51,7 @@ class QuranConnectionScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 7,
+      progressSegment: 5,
       headline: AppStrings.quranConnectionTitle,
       subtitle: AppStrings.quranConnectionSubtitle,
       continueEnabled: state.quranConnection != null,
