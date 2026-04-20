@@ -9,7 +9,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('OnboardingState v3', () {
+  group('OnboardingState v4', () {
     test('defaults all new fields to null/empty', () {
       const s = OnboardingState();
       expect(s.ageRange, isNull);
@@ -38,7 +38,7 @@ void main() {
         commitmentAccepted: true,
       );
       final json = original.toJson();
-      expect(json['version'], 3);
+      expect(json['version'], 4);
       final decoded = OnboardingState.fromJson(json);
       expect(decoded.ageRange, '25_34');
       expect(decoded.prayerFrequency, 'someDaily');
@@ -52,32 +52,32 @@ void main() {
       expect(decoded.commitmentAccepted, isTrue);
     });
 
-    test('fromJson with version < 3 discards stored state and starts fresh', () {
-      // Pre-refactor (v2) blob. Per spec: no users, no migration logic; drop it.
+    test('fromJson with version < 4 discards stored state and starts fresh', () {
+      // Pre-refactor (v3) blob. Per spec: no users, no migration logic; drop it.
       final legacy = {
-        'version': 2,
+        'version': 3,
         'currentPage': 5,
         'intention': 'legacy',
-        'struggles': ['anxiety'],
+        'commonEmotions': ['anxious'],
       };
       final decoded = OnboardingState.fromJson(legacy);
       expect(decoded.currentPage, 0);
       expect(decoded.intention, isNull);
-      expect(decoded.struggles, isEmpty);
+      expect(decoded.commonEmotions, isEmpty);
     });
 
-    test('fromJson accepts v3 blob as authoritative', () {
-      final v3 = {
-        'version': 3,
+    test('fromJson accepts v4 blob as authoritative', () {
+      final v4 = {
+        'version': 4,
         'currentPage': 5,
         'intention': 'spiritualGrowth',
-        'struggles': ['anxiety'],
+        'commonEmotions': ['anxious'],
         'ageRange': '25_34',
       };
-      final decoded = OnboardingState.fromJson(v3);
+      final decoded = OnboardingState.fromJson(v4);
       expect(decoded.currentPage, 5);
       expect(decoded.intention, 'spiritualGrowth');
-      expect(decoded.struggles, {'anxiety'});
+      expect(decoded.commonEmotions, {'anxious'});
       expect(decoded.ageRange, '25_34');
     });
   });

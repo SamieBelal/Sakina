@@ -22,7 +22,7 @@ class SocialProofScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return OnboardingPageWrapper(
-      progressSegment: 22,
+      progressSegment: 21,
       onBack: onBack,
       child: Column(
         children: [

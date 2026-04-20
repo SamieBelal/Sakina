@@ -58,10 +58,10 @@ void main() {
     });
 
     test('converts Set answer to List', () {
-      spy.trackSurveyAnswered('struggles', {'Anxiety', 'Grief'});
+      spy.trackSurveyAnswered('common_emotions', {'anxious', 'grief'});
       final answer = spy.tracked[0].$2?['answer'];
       expect(answer, isA<List>());
-      expect(answer, containsAll(['Anxiety', 'Grief']));
+      expect(answer, containsAll(['anxious', 'grief']));
     });
 
     test('handles null answer', () {
@@ -100,8 +100,8 @@ void main() {
   });
 
   group('AnalyticsEvents.stepNames', () {
-    test('covers all 28 onboarding pages', () {
-      for (int i = 0; i <= 27; i++) {
+    test('covers all 27 onboarding pages', () {
+      for (int i = 0; i <= 26; i++) {
         expect(AnalyticsEvents.stepNames[i], isNotNull,
             reason: 'Missing step name for index $i');
       }

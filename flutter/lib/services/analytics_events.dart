@@ -17,7 +17,7 @@ abstract final class AnalyticsEvents {
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
-  // Keep in sync with the PageView in onboarding_screen.dart (28 pages, 0-27).
+  // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26).
   static const stepNames = <int, String>{
     0: 'first_checkin',
     1: 'name_input',
@@ -28,25 +28,24 @@ abstract final class AnalyticsEvents {
     6: 'familiarity',
     7: 'resonant_name',
     8: 'dua_topics',
-    9: 'struggles',
-    10: 'common_emotions',
-    11: 'aspirations',
-    12: 'daily_commitment',
-    13: 'social_proof_interstitial',
-    14: 'attribution',
-    15: 'struggle_support_interstitial',
-    16: 'reminder_time',
-    17: 'notifications',
-    18: 'commitment_pact',
-    19: 'generating',
-    20: 'personalized_plan',
-    21: 'value_prop',
-    22: 'social_proof',
-    23: 'save_progress',
-    24: 'signup_email',
-    25: 'signup_password',
-    26: 'encouragement',
-    27: 'paywall',
+    9: 'common_emotions',
+    10: 'aspirations',
+    11: 'daily_commitment',
+    12: 'social_proof_interstitial',
+    13: 'attribution',
+    14: 'struggle_support_interstitial',
+    15: 'reminder_time',
+    16: 'notifications',
+    17: 'commitment_pact',
+    18: 'generating',
+    19: 'personalized_plan',
+    20: 'value_prop',
+    21: 'social_proof',
+    22: 'save_progress',
+    23: 'signup_email',
+    24: 'signup_password',
+    25: 'encouragement',
+    26: 'paywall',
   };
 }
 

@@ -31,7 +31,6 @@ import 'sign_up_password_screen.dart';
 import 'social_proof_interstitial_screen.dart';
 import 'social_proof_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
-import 'struggles_screen.dart';
 import 'value_prop_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -134,7 +133,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (state.intention != null) profileProps['intention'] = state.intention;
     if (state.familiarity != null) profileProps['familiarity'] = state.familiarity;
     if (state.quranConnection != null) profileProps['quran_connection'] = state.quranConnection;
-    if (state.struggles.isNotEmpty) profileProps['struggles'] = state.struggles.toList();
     if (state.attribution.isNotEmpty) profileProps['attribution'] = state.attribution.toList();
     if (state.ageRange != null) profileProps['age_range'] = state.ageRange;
     if (state.prayerFrequency != null) profileProps['prayer_frequency'] = state.prayerFrequency;
@@ -179,49 +177,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           FamiliarityScreen(onNext: _next, onBack: _back),
           // 7 — #9 Resonant name carousel
           ResonantNameScreen(onNext: _next, onBack: _back),
-          // 8 — #10 Dua topics
+          // 8 — Dua topics
           DuaTopicsScreen(onNext: _next, onBack: _back),
-          // 9 — #11 Struggles
-          StrugglesScreen(onNext: _next, onBack: _back),
-          // 10 — #12 Common emotions
+          // 9 — Common emotions
           CommonEmotionsScreen(onNext: _next, onBack: _back),
-          // 11 — #13 Aspirations
+          // 10 — Aspirations
           AspirationsScreen(onNext: _next, onBack: _back),
-          // 12 — #14 Daily commitment minutes
+          // 11 — Daily commitment minutes
           DailyCommitmentScreen(onNext: _next, onBack: _back),
-          // 13 — #15 Social proof interstitial
+          // 12 — Social proof interstitial
           SocialProofInterstitialScreen(onNext: _next, onBack: _back),
-          // 14 — #16 Attribution
+          // 13 — Attribution
           AttributionScreen(onNext: _next, onBack: _back),
-          // 15 — #17 "You're not alone" struggle support interstitial
+          // 14 — "You're not alone" support interstitial
           StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
-          // 16 — #18 Reminder time
+          // 15 — Reminder time
           ReminderTimeScreen(onNext: _next, onBack: _back),
-          // 17 — #19 Notifications permission
+          // 16 — Notifications permission
           NotificationScreen(onNext: _next, onBack: _back),
-          // 18 — #20 Commitment pact
+          // 17 — Commitment pact
           CommitmentPactScreen(onNext: _next, onBack: _back),
-          // 19 — #21 Generating (loader)
+          // 18 — Generating (loader)
           GeneratingScreen(onNext: _next),
-          // 20 — #22 Personalized plan
+          // 19 — Personalized plan
           PersonalizedPlanScreen(onNext: _next, onBack: _back),
-          // 21 — #23 Value prop
+          // 20 — Value prop
           ValuePropScreen(onNext: _next, onBack: _back),
-          // 22 — #24 Social proof
+          // 21 — Social proof
           SocialProofScreen(onNext: _next, onBack: _back),
-          // 23 — #25 Save progress (sign-up choice)
+          // 22 — Save progress (sign-up choice)
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _next,
           ),
-          // 24 — #26 Sign-up email
+          // 23 — Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 25 — #27 Sign-up password
+          // 24 — Sign-up password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 26 — #28 Encouragement
+          // 25 — Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 27 — Paywall
+          // 26 — Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

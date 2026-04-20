@@ -35,7 +35,7 @@ class AttributionScreen extends ConsumerWidget {
     final state = ref.watch(onboardingProvider);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 14,
+      progressSegment: 13,
       headline: AppStrings.attributionTitle,
       subtitle: AppStrings.attributionSubtitle,
       continueEnabled: state.attribution.isNotEmpty,

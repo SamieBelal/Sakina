@@ -15,15 +15,14 @@ import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall at index 27).
-/// PageView has 28 children; spec's 29th "screen" (gacha) is an overlay.
-const int onboardingLastPageIndex = 27;
+/// Last index in [OnboardingScreen]'s PageView (paywall at index 26).
+/// PageView has 27 children; gacha on first_checkin is an overlay, not a page.
+const int onboardingLastPageIndex = 26;
 
 class OnboardingState {
   const OnboardingState({
     this.currentPage = 0,
     this.intention,
-    this.struggles = const {},
     this.notificationPermissionGranted = false,
     this.demoFeelingInput,
     this.demoCheckinCompleted = false,
@@ -51,7 +50,6 @@ class OnboardingState {
 
   final int currentPage;
   final String? intention;
-  final Set<String> struggles;
   final bool notificationPermissionGranted;
   final String? demoFeelingInput;
   final bool demoCheckinCompleted;
@@ -78,7 +76,6 @@ class OnboardingState {
   OnboardingState copyWith({
     int? currentPage,
     String? intention,
-    Set<String>? struggles,
     bool? notificationPermissionGranted,
     String? demoFeelingInput,
     bool? demoCheckinCompleted,
@@ -109,7 +106,6 @@ class OnboardingState {
     return OnboardingState(
       currentPage: currentPage ?? this.currentPage,
       intention: intention ?? this.intention,
-      struggles: struggles ?? this.struggles,
       notificationPermissionGranted:
           notificationPermissionGranted ?? this.notificationPermissionGranted,
       demoFeelingInput: demoFeelingInput ?? this.demoFeelingInput,
@@ -139,10 +135,9 @@ class OnboardingState {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 3,
+        'version': 4,
         'currentPage': currentPage,
         'intention': intention,
-        'struggles': struggles.toList(),
         'notificationPermissionGranted': notificationPermissionGranted,
         'demoCheckinCompleted': demoCheckinCompleted,
         'familiarity': familiarity,
@@ -163,10 +158,10 @@ class OnboardingState {
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
-    // Spec §5: Sakina has no production users. Any blob with version < 3 is
+    // Spec §5: Sakina has no production users. Any blob with version < 4 is
     // discarded and the user starts fresh.
     final version = json['version'] as int? ?? 0;
-    if (version < 3) return const OnboardingState();
+    if (version < 4) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
     currentPage = currentPage.clamp(0, onboardingLastPageIndex);
@@ -177,7 +172,6 @@ class OnboardingState {
     return OnboardingState(
       currentPage: currentPage,
       intention: json['intention'] as String?,
-      struggles: readSet(json['struggles']),
       notificationPermissionGranted:
           json['notificationPermissionGranted'] as bool? ?? false,
       demoCheckinCompleted: json['demoCheckinCompleted'] as bool? ?? false,
@@ -243,17 +237,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void setIntention(String intention) {
     state = state.copyWith(intention: intention);
-    _saveToPrefs();
-  }
-
-  void toggleStruggle(String struggle) {
-    final updated = Set<String>.from(state.struggles);
-    if (updated.contains(struggle)) {
-      updated.remove(struggle);
-    } else {
-      updated.add(struggle);
-    }
-    state = state.copyWith(struggles: updated);
     _saveToPrefs();
   }
 
@@ -437,7 +420,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await _authService.saveOnboardingData(
         intention: state.intention,
-        struggles: state.struggles.toList(),
         familiarity: state.familiarity,
         quranConnection: state.quranConnection,
         attribution: state.attribution.toList(),

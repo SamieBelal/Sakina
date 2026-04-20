@@ -8,7 +8,6 @@ class _FakeAuthService extends AuthService {
   @override
   Future<void> saveOnboardingData({
     String? intention,
-    List<String> struggles = const [],
     String? familiarity,
     String? quranConnection,
     List<String> attribution = const [],
@@ -25,7 +24,6 @@ class _FakeAuthService extends AuthService {
   }) async {
     captured = {
       'intention': intention,
-      'struggles': struggles,
       'familiarity': familiarity,
       'quranConnection': quranConnection,
       'attribution': attribution,
@@ -55,7 +53,6 @@ void main() {
     final notifier = OnboardingNotifier(authService: fake);
     notifier
       ..setIntention('spiritualGrowth')
-      ..toggleStruggle('anxiety')
       ..setFamiliarity('some')
       ..setQuranConnection('weak')
       ..toggleAttribution('tiktok')

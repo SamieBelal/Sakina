@@ -44,18 +44,6 @@ abstract final class AppStrings {
   static const affirmBuildHabit = 'Consistency is everything';
   static const affirmCurious = 'Let\'s explore together';
 
-  // Screen 3: Struggles
-  static const strugglesTitle = 'What do you struggle with most?';
-  static const strugglesSubtitle = 'Select all that apply';
-  static const struggleAnxiety = '\u{1F630} Anxiety';
-  static const struggleSadness = '\u{1F622} Sadness';
-  static const struggleAnger = '\u{1F624} Anger';
-  static const struggleLoneliness = '\u{1FAC2} Loneliness';
-  static const struggleMotivation = '\u{1F4AB} Motivation';
-  static const struggleGratitude = '\u{1F932} Gratitude';
-  static const struggleGrief = '\u{1F494} Grief';
-  static const struggleOverwhelm = '\u{1F629} Overwhelmed';
-
   // Screen 4: Social Proof
   static const socialProofTitle = 'Sakina was made for\nhearts like yours';
   static const socialProofUserCount = '10,000';

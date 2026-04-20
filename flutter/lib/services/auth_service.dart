@@ -110,7 +110,6 @@ class AuthService {
 
   Future<void> saveOnboardingData({
     String? intention,
-    List<String> struggles = const [],
     String? familiarity,
     String? quranConnection,
     List<String> attribution = const [],
@@ -130,7 +129,6 @@ class AuthService {
 
     await _supabase.from('user_profiles').update({
       'onboarding_intention': intention,
-      'onboarding_struggles': struggles,
       'onboarding_familiarity': familiarity,
       'onboarding_quran_connection': quranConnection,
       'onboarding_attribution': attribution,

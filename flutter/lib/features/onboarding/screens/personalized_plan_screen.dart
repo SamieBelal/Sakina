@@ -37,20 +37,29 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     }
   }
 
-  static String _stripLeadingEmoji(String raw) {
-    final chars = raw.characters.toList();
-    final idx = chars.indexOf(' ');
-    if (idx <= 0 || idx >= chars.length - 1) return raw;
-    return chars.sublist(idx + 1).join();
-  }
+  // Emotions most likely to anchor "what we'll meet you with" in the plan
+  // preview. Positive states (grateful/joyful/hopeful) don't read right here,
+  // so we prefer the heavier ones when the user picked at least one.
+  static const _focusEmotions = {
+    'overwhelmed',
+    'anxious',
+    'grief',
+    'sad',
+    'lonely',
+    'numb',
+    'angry',
+  };
+
+  static String _titleCase(String id) =>
+      '${id.substring(0, 1).toUpperCase()}${id.substring(1)}';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForId(state.resonantNameId);
-    final struggle = state.struggles.isNotEmpty
-        ? _stripLeadingEmoji((state.struggles.toList()..sort()).first)
-        : 'your path';
+    final focus = (state.commonEmotions.toList()..sort())
+        .firstWhere(_focusEmotions.contains, orElse: () => '');
+    final struggle = focus.isNotEmpty ? _titleCase(focus) : 'your path';
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
@@ -83,7 +92,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     ];
 
     return OnboardingQuestionScaffold(
-      progressSegment: 20,
+      progressSegment: 19,
       headline: 'Your plan, $name.',
       subtitle: 'Everything you need, one tap away.',
       onBack: onBack,

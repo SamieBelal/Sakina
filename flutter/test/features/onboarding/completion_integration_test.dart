@@ -17,7 +17,6 @@ class _FakeAuthService extends AuthService {
   @override
   Future<void> saveOnboardingData({
     String? intention,
-    List<String> struggles = const [],
     String? familiarity,
     String? quranConnection,
     List<String> attribution = const [],
@@ -35,7 +34,6 @@ class _FakeAuthService extends AuthService {
     callCount += 1;
     captured = {
       'intention': intention,
-      'struggles': struggles,
       'familiarity': familiarity,
       'quranConnection': quranConnection,
       'attribution': attribution,
@@ -70,8 +68,6 @@ void main() {
     // does pressing Continue on each of the new-flow pages.
     notifier
       ..setIntention('spiritualGrowth')
-      ..toggleStruggle('anxiety')
-      ..toggleStruggle('loneliness')
       ..setFamiliarity('some')
       ..setQuranConnection('weak')
       ..toggleAttribution('tiktok')
@@ -100,7 +96,6 @@ void main() {
     // Every expected key is present.
     for (final key in const [
       'intention',
-      'struggles',
       'familiarity',
       'quranConnection',
       'attribution',
@@ -120,7 +115,6 @@ void main() {
 
     // Every value is carried through unchanged.
     expect(fake.captured!['intention'], 'spiritualGrowth');
-    expect(fake.captured!['struggles'], ['anxiety', 'loneliness']);
     expect(fake.captured!['familiarity'], 'some');
     expect(fake.captured!['quranConnection'], 'weak');
     expect(fake.captured!['attribution'], ['tiktok', 'friend']);
@@ -158,7 +152,6 @@ void main() {
 
     expect(fake.captured, isNotNull);
     expect(fake.captured!['intention'], 'justCurious');
-    expect(fake.captured!['struggles'], isEmpty);
     expect(fake.captured!['attribution'], isEmpty);
     expect(fake.captured!['duaTopics'], isEmpty);
     expect(fake.captured!['duaTopicsOther'], isNull);

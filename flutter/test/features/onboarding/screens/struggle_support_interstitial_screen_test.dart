@@ -7,11 +7,11 @@ import 'package:sakina/features/onboarding/screens/struggle_support_interstitial
 import '_test_utils.dart';
 
 void main() {
-  testWidgets('struggle support names a picked struggle', (tester) async {
+  testWidgets('struggle support names a picked emotion', (tester) async {
     useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container.read(onboardingProvider.notifier).toggleStruggle('anxiety');
+    container.read(onboardingProvider.notifier).toggleCommonEmotion('anxious');
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -25,7 +25,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.textContaining('anxiety'), findsOneWidget);
+    expect(find.textContaining('anxious'), findsOneWidget);
   });
 
   testWidgets('struggle support continue advances', (tester) async {

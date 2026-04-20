@@ -86,7 +86,7 @@ class _DailyCommitmentScreenState extends ConsumerState<DailyCommitmentScreen> {
         : selected != null && _presets.contains(selected);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 12,
+      progressSegment: 11,
       headline: 'How much time a day feels right?',
       subtitle: 'You can change this later.',
       onBack: widget.onBack,

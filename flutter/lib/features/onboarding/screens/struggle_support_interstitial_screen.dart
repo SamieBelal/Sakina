@@ -20,24 +20,29 @@ class StruggleSupportInterstitialScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  static String _stripLeadingEmoji(String raw) {
-    // Struggle options are stored as "😰 Anxiety" — strip the leading
-    // emoji + space so it flows in a sentence.
-    final chars = raw.characters.toList();
-    final idx = chars.indexOf(' ');
-    if (idx <= 0 || idx >= chars.length - 1) return raw;
-    return chars.sublist(idx + 1).join();
-  }
+  // Only heavy/negative emotions land right in "Many who started with {X}
+  // found peace here." — skip grateful/joyful/hopeful.
+  static const _focusEmotions = {
+    'overwhelmed',
+    'anxious',
+    'grief',
+    'sad',
+    'lonely',
+    'numb',
+    'angry',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final struggles = ref.watch(onboardingProvider).struggles;
-    final focus = struggles.isNotEmpty
-        ? _stripLeadingEmoji(struggles.first).toLowerCase()
-        : "what you're carrying";
+    final emotions = ref.watch(onboardingProvider).commonEmotions;
+    final picked = emotions.firstWhere(
+      _focusEmotions.contains,
+      orElse: () => '',
+    );
+    final focus = picked.isNotEmpty ? picked : "what you're carrying";
 
     return OnboardingPageWrapper(
-      progressSegment: 15,
+      progressSegment: 14,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

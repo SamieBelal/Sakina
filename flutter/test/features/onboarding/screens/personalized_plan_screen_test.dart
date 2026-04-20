@@ -25,7 +25,7 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(onboardingProvider.notifier).setResonantNameId('as-salam');
-    container.read(onboardingProvider.notifier).toggleStruggle('anxiety');
+    container.read(onboardingProvider.notifier).toggleCommonEmotion('anxious');
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     notifier.setDailyCommitmentMinutes(5);
     notifier.setReminderTime('07:30');
     notifier.setIntention('spiritual-growth');
-    notifier.toggleStruggle('loneliness');
+    notifier.toggleCommonEmotion('lonely');
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
@@ -67,8 +67,8 @@ void main() {
     expect(find.textContaining('07:30'), findsOneWidget);
     // Intention phrase rendered
     expect(find.textContaining('spiritual-growth'), findsOneWidget);
-    // Struggle rendered
-    expect(find.text('loneliness'), findsOneWidget);
+    // Focus emotion rendered, title-cased
+    expect(find.text('Lonely'), findsOneWidget);
     // Name translit rendered
     expect(find.textContaining('Al-Wadud'), findsOneWidget);
   });
