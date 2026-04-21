@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -236,6 +237,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           _purchasing = false;
         });
       }
+    }
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    final launched =
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the page. Try again.')),
+      );
     }
   }
 
@@ -496,9 +508,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                 : _handleRestore,
                           ),
                           _dot(),
-                          const _LegalLink(label: AppStrings.paywallTerms),
+                          _LegalLink(
+                            label: AppStrings.paywallTerms,
+                            onPressed: () =>
+                                _openLegalUrl(AppStrings.termsOfServiceUrl),
+                          ),
                           _dot(),
-                          const _LegalLink(label: AppStrings.paywallPrivacy),
+                          _LegalLink(
+                            label: AppStrings.paywallPrivacy,
+                            onPressed: () =>
+                                _openLegalUrl(AppStrings.privacyPolicyUrl),
+                          ),
                         ],
                       ),
                       const SizedBox(height: AppSpacing.sm),

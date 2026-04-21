@@ -1,7 +1,7 @@
 name: sakina
 description: "Islamic spiritual wellness app. Feel → Allah's Names → Quran → Dua."
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.6.0
@@ -77,6 +77,20 @@ dev_dependencies:
   build_runner: ^2.4.14
   freezed: ^2.5.7
   json_serializable: ^6.8.0
+
+  # Launch screen generation (dev-time only)
+  flutter_native_splash: ^2.4.4
+
+# Launch screen config — regenerate with:
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#FBF7F2"
+  image: assets/splash/logo.png
+  color_dark: "#1C1917"
+  image_dark: assets/splash/logo.png
+  android: true
+  ios: true
+  web: false
 
 flutter:
   uses-material-design: true

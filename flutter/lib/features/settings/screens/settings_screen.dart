@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/constants/app_strings.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
@@ -160,6 +162,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await context.push('/discovery-quiz');
     if (!mounted) return;
     await _loadData();
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    final launched =
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the page. Try again.')),
+      );
+    }
   }
 
   Future<void> _resetDailyLoop() async {
@@ -902,17 +915,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildSettingsRow(
             icon: Icons.privacy_tip_outlined,
             label: 'Privacy Policy',
-            onTap: () {
-              // TODO: open privacy policy
-            },
+            onTap: () => _openLegalUrl(AppStrings.privacyPolicyUrl),
           ),
           _buildDivider(),
           _buildSettingsRow(
             icon: Icons.description_outlined,
             label: 'Terms of Service',
-            onTap: () {
-              // TODO: open terms
-            },
+            onTap: () => _openLegalUrl(AppStrings.termsOfServiceUrl),
           ),
         ]),
         const SizedBox(height: AppSpacing.lg),

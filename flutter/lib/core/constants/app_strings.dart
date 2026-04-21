@@ -121,6 +121,14 @@ abstract final class AppStrings {
   static const paywallTerms = 'Terms';
   static const paywallPrivacy = 'Privacy';
 
+  // ── Legal URLs ──
+  // Hosted on GitHub Pages via the public `ibrahim7860/sakina-legal` repo.
+  // Update when the legal repo moves to a custom domain (e.g. legal.sakina.app).
+  static const privacyPolicyUrl =
+      'https://ibrahim7860.github.io/sakina-legal/privacy.html';
+  static const termsOfServiceUrl =
+      'https://ibrahim7860.github.io/sakina-legal/terms.html';
+
   // ── New Onboarding Screens ──
 
   // Screen 3: Value Prop
