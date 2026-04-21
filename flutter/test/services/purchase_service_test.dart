@@ -8,52 +8,46 @@ import 'package:sakina/services/purchase_service.dart';
 // spinning up the real SDK.
 const MethodChannel _channel = MethodChannel('purchases_flutter');
 
-Map<String, dynamic> _buildCustomerInfo({required bool premiumActive}) {
+Map<String, dynamic> _premiumEntitlement({String? billingIssueDetectedAt}) {
+  return <String, dynamic>{
+    'identifier': 'premium',
+    'isActive': true,
+    'willRenew': true,
+    'periodType': 'normal',
+    'latestPurchaseDate': '2026-04-13T12:00:00.000Z',
+    'latestPurchaseDateMillis': 1776384000000,
+    'originalPurchaseDate': '2026-04-13T12:00:00.000Z',
+    'originalPurchaseDateMillis': 1776384000000,
+    'productIdentifier': 'sakina_sub_annual',
+    'isSandbox': true,
+    'store': 'APP_STORE',
+    'expirationDate': '2026-05-13T12:00:00.000Z',
+    'expirationDateMillis': 1778976000000,
+    'ownershipType': 'PURCHASED',
+    'verification': 'NOT_REQUESTED',
+    if (billingIssueDetectedAt != null)
+      'billingIssueDetectedAt': billingIssueDetectedAt,
+  };
+}
+
+Map<String, dynamic> _buildCustomerInfo({
+  required bool premiumActive,
+  Map<String, dynamic>? entitlementsAllOverride,
+  Map<String, dynamic>? entitlementsActiveOverride,
+}) {
+  final activeEntitlements = entitlementsActiveOverride ??
+      (premiumActive
+          ? <String, dynamic>{'premium': _premiumEntitlement()}
+          : <String, dynamic>{});
+  final allEntitlements = entitlementsAllOverride ??
+      (premiumActive
+          ? <String, dynamic>{'premium': _premiumEntitlement()}
+          : <String, dynamic>{});
   return <String, dynamic>{
     'originalAppUserId': 'test-user',
     'entitlements': <String, dynamic>{
-      'all': premiumActive
-          ? <String, dynamic>{
-              'premium': <String, dynamic>{
-                'identifier': 'premium',
-                'isActive': true,
-                'willRenew': true,
-                'periodType': 'normal',
-                'latestPurchaseDate': '2026-04-13T12:00:00.000Z',
-                'latestPurchaseDateMillis': 1776384000000,
-                'originalPurchaseDate': '2026-04-13T12:00:00.000Z',
-                'originalPurchaseDateMillis': 1776384000000,
-                'productIdentifier': 'sakina_sub_annual',
-                'isSandbox': true,
-                'store': 'APP_STORE',
-                'expirationDate': '2026-05-13T12:00:00.000Z',
-                'expirationDateMillis': 1778976000000,
-                'ownershipType': 'PURCHASED',
-                'verification': 'NOT_REQUESTED',
-              },
-            }
-          : <String, dynamic>{},
-      'active': premiumActive
-          ? <String, dynamic>{
-              'premium': <String, dynamic>{
-                'identifier': 'premium',
-                'isActive': true,
-                'willRenew': true,
-                'periodType': 'normal',
-                'latestPurchaseDate': '2026-04-13T12:00:00.000Z',
-                'latestPurchaseDateMillis': 1776384000000,
-                'originalPurchaseDate': '2026-04-13T12:00:00.000Z',
-                'originalPurchaseDateMillis': 1776384000000,
-                'productIdentifier': 'sakina_sub_annual',
-                'isSandbox': true,
-                'store': 'APP_STORE',
-                'expirationDate': '2026-05-13T12:00:00.000Z',
-                'expirationDateMillis': 1778976000000,
-                'ownershipType': 'PURCHASED',
-                'verification': 'NOT_REQUESTED',
-              },
-            }
-          : <String, dynamic>{},
+      'all': allEntitlements,
+      'active': activeEntitlements,
       'verification': 'NOT_REQUESTED',
     },
     'activeSubscriptions': premiumActive ? <String>['sakina_sub_annual'] : <String>[],
@@ -92,15 +86,23 @@ void main() {
   final methodLog = <MethodCall>[];
   dynamic mockResponse;
   Object? mockError;
+  // Optional per-method responses; falls back to [mockResponse] when not set.
+  // Used for flows like setUserId where we need distinct replies to
+  // `getAppUserID` and `logIn`.
+  final methodResponses = <String, dynamic>{};
 
   setUp(() {
     methodLog.clear();
     mockResponse = null;
     mockError = null;
+    methodResponses.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, (call) async {
       methodLog.add(call);
       if (mockError != null) throw mockError!;
+      if (methodResponses.containsKey(call.method)) {
+        return methodResponses[call.method];
+      }
       return mockResponse;
     });
   });
@@ -231,19 +233,125 @@ void main() {
       expect(methodLog, isEmpty);
     });
 
-    test('calls Purchases.logIn when initialized with a non-empty id',
+    test('calls Purchases.logIn when appUserID differs from requested id',
         () async {
       final service = PurchaseService.test();
       service.debugMarkInitialized();
-      mockResponse = <String, dynamic>{
+      methodResponses['getAppUserID'] = 'anon-previous';
+      methodResponses['logIn'] = <String, dynamic>{
         'customerInfo': _buildCustomerInfo(premiumActive: false),
         'created': false,
       };
 
       await service.setUserId('user-1');
 
-      expect(methodLog.single.method, 'logIn');
-      expect(methodLog.single.arguments, containsPair('appUserID', 'user-1'));
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, contains('getAppUserID'));
+      expect(methods, contains('logIn'));
+      final logInCall = methodLog.firstWhere((c) => c.method == 'logIn');
+      expect(logInCall.arguments, containsPair('appUserID', 'user-1'));
+    });
+
+    test('skips Purchases.logIn when appUserID already matches (B3 regression)',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      methodResponses['getAppUserID'] = 'user-1';
+      // If logIn is ever called, the handler will return null — but the
+      // assertion below proves it isn't.
+      await service.setUserId('user-1');
+
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, contains('getAppUserID'));
+      expect(methods, isNot(contains('logIn')));
+    });
+
+    test('falls through to logIn when appUserID read throws', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // A bare throw from the channel on getAppUserID — our code should
+      // still proceed to logIn rather than silently dropping the identify.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (call) async {
+        methodLog.add(call);
+        if (call.method == 'getAppUserID') {
+          throw PlatformException(code: 'CHANNEL_DOWN');
+        }
+        if (call.method == 'logIn') {
+          return <String, dynamic>{
+            'customerInfo': _buildCustomerInfo(premiumActive: false),
+            'created': false,
+          };
+        }
+        return null;
+      });
+
+      await service.setUserId('user-1');
+
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, contains('logIn'));
+    });
+  });
+
+  group('getBillingIssueDetectedAt()', () {
+    test('returns null when not initialized', () async {
+      final service = PurchaseService.test();
+      expect(await service.getBillingIssueDetectedAt(), isNull);
+      expect(methodLog, isEmpty);
+    });
+
+    test(
+        'returns the timestamp when premium is in entitlements.active with a '
+        'billing issue (grace period)', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsActiveOverride: {
+          'premium': _premiumEntitlement(
+            billingIssueDetectedAt: '2026-04-17T12:00:00.000Z',
+          ),
+        },
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(
+            billingIssueDetectedAt: '2026-04-17T12:00:00.000Z',
+          ),
+        },
+      );
+
+      expect(
+        await service.getBillingIssueDetectedAt(),
+        '2026-04-17T12:00:00.000Z',
+      );
+    });
+
+    test(
+        'returns null when premium is only in entitlements.all (expired) — '
+        'B1 regression: expired subs must not keep showing the banner',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // Simulate an expired sub: present in .all (with a historical
+      // billingIssueDetectedAt) but absent from .active.
+      mockResponse = _buildCustomerInfo(
+        premiumActive: false,
+        entitlementsActiveOverride: const <String, dynamic>{},
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(
+            billingIssueDetectedAt: '2026-01-01T12:00:00.000Z',
+          ),
+        },
+      );
+
+      expect(await service.getBillingIssueDetectedAt(), isNull);
+    });
+
+    test('returns null when SDK throws', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockError = PlatformException(code: 'UNKNOWN');
+
+      expect(await service.getBillingIssueDetectedAt(), isNull);
     });
   });
 

@@ -341,4 +341,23 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+      'Empty offerings list surfaces the error on first pump — B6 regression',
+      (tester) async {
+    purchaseService.offerings = <Package>[];
+
+    await tester.pumpWidget(buildSubject());
+    await tester.pumpAndSettle();
+
+    // The user must see the error BEFORE tapping the CTA; that's the point
+    // of B6. We don't tap anything in this test.
+    expect(
+      find.text(
+        'Unable to load subscription options right now. Please try again.',
+      ),
+      findsOneWidget,
+    );
+    expect(completed, isFalse);
+  });
 }

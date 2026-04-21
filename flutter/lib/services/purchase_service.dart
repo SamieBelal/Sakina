@@ -68,15 +68,18 @@ class PurchaseService {
   /// issue on the user's `premium` entitlement, or `null` if payment is
   /// healthy or the user is not subscribed.
   ///
-  /// We deliberately check `entitlements.all` (not `.active`) so we can show
-  /// a grace-period banner while the subscription is still technically
-  /// active but RevenueCat has flagged a payment failure.
+  /// We read `entitlements.active` (not `.all`) because RevenueCat keeps
+  /// grace-period entitlements in `.active` by design — that is how the
+  /// "still has premium but payment is failing" state is represented.
+  /// `.all` additionally contains long-expired entitlements, which would
+  /// cause the billing banner to stick around for users whose subs lapsed
+  /// months ago.
   Future<String?> getBillingIssueDetectedAt() async {
     if (!_initialized) return null;
 
     try {
       final customerInfo = await Purchases.getCustomerInfo();
-      final premium = customerInfo.entitlements.all['premium'];
+      final premium = customerInfo.entitlements.active['premium'];
       return premium?.billingIssueDetectedAt;
     } catch (_) {
       return null;
@@ -106,8 +109,20 @@ class PurchaseService {
     return customerInfo.entitlements.active.containsKey('premium');
   }
 
+  /// Identifies the user to RevenueCat. No-op when already logged in with the
+  /// same id — this matters because Supabase's `tokenRefreshed` event fires
+  /// roughly hourly while the app is running; without the guard, each refresh
+  /// would trigger a `Purchases.logIn` backend round-trip and a redundant
+  /// `CustomerInfo` listener update.
   Future<void> setUserId(String userId) async {
     if (!_initialized || userId.isEmpty) return;
+
+    try {
+      final current = await Purchases.appUserID;
+      if (current == userId) return;
+    } catch (_) {
+      // Fall through to logIn if the current id can't be read.
+    }
 
     await Purchases.logIn(userId);
   }

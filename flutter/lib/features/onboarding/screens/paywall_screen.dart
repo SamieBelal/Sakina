@@ -92,6 +92,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (mounted) {
         setState(() {
           _offerings = offerings;
+          // An empty list means the current offering is misconfigured or the
+          // cold cache returned nothing. Surface the error up front so the
+          // user doesn't tap a CTA that looks priced (via the static fallback
+          // strings) only to see an error afterwards.
+          if (offerings.isEmpty) {
+            _errorMessage = _offeringsErrorMessage;
+          }
         });
       }
     } catch (_) {
