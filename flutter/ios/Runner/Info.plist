@@ -6,6 +6,8 @@
 		<true/>
 		<key>ITSAppUsesNonExemptEncryption</key>
 		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Sakina does not use your location. This permission is referenced by our notification SDK (OneSignal) and we do not enable location-based features.</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
