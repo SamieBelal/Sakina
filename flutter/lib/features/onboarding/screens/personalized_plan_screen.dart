@@ -92,7 +92,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     ];
 
     return OnboardingQuestionScaffold(
-      progressSegment: 19,
+      progressSegment: 18,
       headline: 'Your plan, $name.',
       subtitle: 'Everything you need, one tap away.',
       onBack: onBack,

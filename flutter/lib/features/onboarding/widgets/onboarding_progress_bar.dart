@@ -5,7 +5,7 @@ import '../../../core/constants/app_spacing.dart';
 class OnboardingProgressBar extends StatelessWidget {
   const OnboardingProgressBar({
     required this.currentSegment,
-    this.totalSegments = 26,
+    this.totalSegments = 25,
     super.key,
   });
 

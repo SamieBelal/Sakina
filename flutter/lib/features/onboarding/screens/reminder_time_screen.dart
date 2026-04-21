@@ -72,7 +72,7 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingQuestionScaffold(
-      progressSegment: 15,
+      progressSegment: 14,
       headline: 'When should we check in with you?',
       subtitle: 'A gentle reminder, once a day.',
       onBack: widget.onBack,

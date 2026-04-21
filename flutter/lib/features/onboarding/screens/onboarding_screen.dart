@@ -28,7 +28,6 @@ import 'resonant_name_screen.dart';
 import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
 import 'sign_up_password_screen.dart';
-import 'social_proof_interstitial_screen.dart';
 import 'social_proof_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
@@ -185,39 +184,37 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           AspirationsScreen(onNext: _next, onBack: _back),
           // 11 — Daily commitment minutes
           DailyCommitmentScreen(onNext: _next, onBack: _back),
-          // 12 — Social proof interstitial
-          SocialProofInterstitialScreen(onNext: _next, onBack: _back),
-          // 13 — Attribution
+          // 12 — Attribution
           AttributionScreen(onNext: _next, onBack: _back),
-          // 14 — "You're not alone" support interstitial
+          // 13 — "You're not alone" support interstitial
           StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
-          // 15 — Reminder time
+          // 14 — Reminder time
           ReminderTimeScreen(onNext: _next, onBack: _back),
-          // 16 — Notifications permission
+          // 15 — Notifications permission
           NotificationScreen(onNext: _next, onBack: _back),
-          // 17 — Commitment pact
+          // 16 — Commitment pact
           CommitmentPactScreen(onNext: _next, onBack: _back),
-          // 18 — Generating (loader)
+          // 17 — Generating (loader)
           GeneratingScreen(onNext: _next),
-          // 19 — Personalized plan
+          // 18 — Personalized plan
           PersonalizedPlanScreen(onNext: _next, onBack: _back),
-          // 20 — Value prop
+          // 19 — Value prop
           ValuePropScreen(onNext: _next, onBack: _back),
-          // 21 — Social proof
+          // 20 — Social proof (pre-signup)
           SocialProofScreen(onNext: _next, onBack: _back),
-          // 22 — Save progress (sign-up choice)
+          // 21 — Save progress (sign-up choice)
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _next,
           ),
-          // 23 — Sign-up email
+          // 22 — Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 24 — Sign-up password
+          // 23 — Sign-up password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 25 — Encouragement
+          // 24 — Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 26 — Paywall
+          // 25 — Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

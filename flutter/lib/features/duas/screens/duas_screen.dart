@@ -622,7 +622,13 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
     // Auto-save on first render. Built duas are auto-saved into the journal,
     // so the "save" quest fires from related-dua hearts only — not here.
-    if (!notifier.isBuiltDuaSaved()) {
+    //
+    // Gate on buildResultSaveHandled: when a free user hits the journal cap,
+    // saveCurrentBuiltDua() raises needsUpgrade without persisting, so
+    // isBuiltDuaSaved() stays false. Without this flag the widget rebuild
+    // (triggered by dismissUpgradePrompt flipping needsUpgrade back to false)
+    // would re-enter this branch and re-raise the upgrade sheet in a loop.
+    if (!state.buildResultSaveHandled && !notifier.isBuiltDuaSaved()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         notifier.saveCurrentBuiltDua();
         ref.read(questsProvider.notifier).onBuiltDuaCompleted();

@@ -381,4 +381,74 @@ void main() {
     notifier.dismissUpgradePrompt();
     expect(notifier.state.needsUpgrade, isFalse);
   });
+
+  test(
+      'save-handled flag prevents the Ameen auto-save loop after cap rejection',
+      () async {
+    // Regression guard for the infinite-loop bug: when a free user hits the
+    // journal cap, the Ameen screen's auto-save was re-running on every
+    // widget rebuild (triggered by dismissUpgradePrompt flipping
+    // needsUpgrade back to false), re-raising the upgrade sheet forever.
+    // The fix sets buildResultSaveHandled=true on cap rejection so the
+    // widget can gate the auto-save on it. This test pins that flag's
+    // lifecycle at the provider level.
+    final savedPayload = List.generate(
+      DuasNotifier.freeJournalLimit,
+      (i) => {
+        'id': 'dua-$i',
+        'savedAt': fixedNow.toIso8601String(),
+        'need': 'need-$i',
+        'arabic': 'ar',
+        'transliteration': 'tr',
+        'translation': 'en',
+      },
+    );
+    SharedPreferences.setMockInitialValues({
+      'saved_built_duas:user-1': jsonEncode(savedPayload),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+
+    final notifier = DuasNotifier(
+      dependencies: DuasDependencies(
+        findDuas: (_) async => findResponse(),
+        buildDua: (_) async => buildResponse(),
+        now: () => fixedNow,
+        createId: () => 'dua-new',
+      ),
+      resultRevealDelay: Duration.zero,
+    );
+    addTearDown(notifier.dispose);
+
+    await Future<void>.delayed(Duration.zero);
+
+    notifier.setBuildNeed('anything');
+    await notifier.submitBuild();
+
+    // A freshly produced build result has not yet been handled by auto-save.
+    expect(notifier.state.buildResultSaveHandled, isFalse);
+
+    await notifier.saveCurrentBuiltDua();
+
+    // Cap rejection path marks the attempt as handled AND raises the sheet.
+    expect(notifier.state.needsUpgrade, isTrue);
+    expect(notifier.state.buildResultSaveHandled, isTrue);
+
+    // Dismissing the upgrade sheet must NOT reset buildResultSaveHandled,
+    // otherwise the Ameen rebuild would re-enter the auto-save branch.
+    notifier.dismissUpgradePrompt();
+    expect(notifier.state.needsUpgrade, isFalse);
+    expect(
+      notifier.state.buildResultSaveHandled,
+      isTrue,
+      reason:
+          'dismissing the upgrade sheet must keep buildResultSaveHandled=true '
+          'so the Ameen widget does not retry the auto-save in a loop',
+    );
+
+    // Starting a new build resets the flag so the next result can auto-save.
+    notifier.setBuildNeed('another intention');
+    await notifier.submitBuild();
+    expect(notifier.state.buildResultSaveHandled, isFalse);
+  });
 }

@@ -211,6 +211,13 @@ class DuasState {
   /// [DuasNotifier.dismissUpgradePrompt] when acknowledged.
   final bool needsUpgrade;
 
+  /// True once the auto-save attempt for the current [buildResult] has been
+  /// made, whether the save succeeded or was rejected by the cap. The Ameen
+  /// screen reads this to avoid retrying the auto-save in a loop after the
+  /// user dismisses the upgrade sheet. Reset to false when a new build
+  /// starts.
+  final bool buildResultSaveHandled;
+
   /// Progress theater value (0.0 – 1.0) shown during dua generation.
   final double buildProgress;
 
@@ -231,6 +238,7 @@ class DuasState {
     this.savedRelatedDuas = const [],
     this.buildNeedsToken = false,
     this.needsUpgrade = false,
+    this.buildResultSaveHandled = false,
     this.buildProgress = 0.0,
   });
 
@@ -251,6 +259,7 @@ class DuasState {
     List<SavedRelatedDua>? savedRelatedDuas,
     bool? buildNeedsToken,
     bool? needsUpgrade,
+    bool? buildResultSaveHandled,
     double? buildProgress,
   }) {
     return DuasState(
@@ -270,6 +279,8 @@ class DuasState {
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
       buildNeedsToken: buildNeedsToken ?? this.buildNeedsToken,
       needsUpgrade: needsUpgrade ?? this.needsUpgrade,
+      buildResultSaveHandled:
+          buildResultSaveHandled ?? this.buildResultSaveHandled,
       buildProgress: buildProgress ?? this.buildProgress,
     );
   }
@@ -467,6 +478,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       error: () => null,
       buildResult: () => null,
       buildCurrentSection: 0,
+      buildResultSaveHandled: false,
     );
 
     // Start progress theater — eases out so it decelerates naturally.
@@ -552,7 +564,14 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // Check journal limit for free users
     final premium = await PurchaseService().isPremium();
     if (!premium && state.savedBuiltDuas.length >= freeJournalLimit) {
-      state = state.copyWith(needsUpgrade: true);
+      // Mark the attempt as handled so the Ameen screen doesn't loop: after
+      // the user dismisses the upgrade sheet, needsUpgrade goes back to false
+      // — without this flag, the widget rebuild would re-enter the auto-save
+      // path, re-hit this cap, and re-raise the sheet immediately.
+      state = state.copyWith(
+        needsUpgrade: true,
+        buildResultSaveHandled: true,
+      );
       return;
     }
 
@@ -567,7 +586,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
     );
 
     final updated = [...state.savedBuiltDuas, dua];
-    state = state.copyWith(savedBuiltDuas: updated);
+    state = state.copyWith(
+      savedBuiltDuas: updated,
+      buildResultSaveHandled: true,
+    );
     await _persistBuiltDuas(updated);
 
     // Write to Supabase
