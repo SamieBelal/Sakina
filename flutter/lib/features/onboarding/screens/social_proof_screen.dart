@@ -22,7 +22,7 @@ class SocialProofScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return OnboardingPageWrapper(
-      progressSegment: 21,
+      progressSegment: 20,
       onBack: onBack,
       child: Column(
         children: [
@@ -63,10 +63,13 @@ class SocialProofScreen extends ConsumerWidget {
                             color: AppColors.textSecondaryLight,
                           ),
                         ),
-                        Text(
-                          AppStrings.socialProofRatingLabel,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textSecondaryLight,
+                        Flexible(
+                          child: Text(
+                            AppStrings.socialProofRatingLabel,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textSecondaryLight,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

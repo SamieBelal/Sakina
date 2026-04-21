@@ -167,6 +167,16 @@ class DailyRewardClaimResult {
   final int? newTokenBalance;
   final int? newScrollBalance;
 
+  /// Server-authoritative premium state at the moment of claim. Sourced from
+  /// `has_active_premium_entitlement(auth.uid())` in the RPC, not from the
+  /// client — so a tampered client can't fake the premium celebration.
+  /// `null` when the result came from the offline fallback path.
+  final bool? isPremium;
+
+  /// Multiplier applied to the base reward amount. `1` for free users,
+  /// `5` for premium. `null` on the offline fallback path.
+  final int? multiplier;
+
   const DailyRewardClaimResult({
     required this.day,
     this.tokensAwarded = 0,
@@ -176,6 +186,8 @@ class DailyRewardClaimResult {
     this.alreadyClaimed = false,
     this.newTokenBalance,
     this.newScrollBalance,
+    this.isPremium,
+    this.multiplier,
   });
 }
 
@@ -384,6 +396,10 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       alreadyClaimed: rpcResult['already_claimed'] as bool? ?? false,
       newTokenBalance: tokenBalance,
       newScrollBalance: scrollBalance,
+      isPremium: rpcResult['is_premium'] as bool?,
+      multiplier: rpcResult['multiplier'] == null
+          ? null
+          : _readRpcInt(rpcResult, 'multiplier'),
     );
   }
 

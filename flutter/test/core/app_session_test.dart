@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/services/notification_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -11,8 +12,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../support/fake_supabase_sync_service.dart';
 
+class TrackingPurchaseService extends PurchaseService {
+  TrackingPurchaseService() : super.test();
+
+  final List<String> identifiedUserIds = [];
+
+  @override
+  Future<void> setUserId(String userId) async {
+    identifiedUserIds.add(userId);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  tearDown(PurchaseService.debugClearOverride);
 
   test('auth events trigger economy hydration', () async {
     SharedPreferences.setMockInitialValues({});
@@ -171,6 +185,95 @@ void main() {
     await controller.close();
     session.dispose();
     SupabaseSyncService.debugReset();
+  });
+
+  test('signedIn identifies the current RevenueCat user once', () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = StreamController<AuthState>.broadcast();
+    final purchaseService = TrackingPurchaseService();
+    PurchaseService.debugSetOverride(purchaseService);
+    var isAuthenticated = false;
+
+    final session = AppSessionNotifier(
+      initialOnboarded: false,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      currentUserIdProvider: () => 'user-signed-in',
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
+    );
+
+    isAuthenticated = true;
+    controller.add(const AuthState(AuthChangeEvent.signedIn, null));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(purchaseService.identifiedUserIds, ['user-signed-in']);
+
+    await controller.close();
+    session.dispose();
+  });
+
+  test('initialSession identifies the existing RevenueCat user', () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = StreamController<AuthState>.broadcast();
+    final purchaseService = TrackingPurchaseService();
+    PurchaseService.debugSetOverride(purchaseService);
+    const isAuthenticated = true;
+
+    final session = AppSessionNotifier(
+      initialOnboarded: false,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      currentUserIdProvider: () => 'user-initial-session',
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.initialSession, null));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(purchaseService.identifiedUserIds, ['user-initial-session']);
+
+    await controller.close();
+    session.dispose();
+  });
+
+  test('signedOut does not attempt a RevenueCat logout path', () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = StreamController<AuthState>.broadcast();
+    final purchaseService = TrackingPurchaseService();
+    PurchaseService.debugSetOverride(purchaseService);
+    var isAuthenticated = false;
+    String? currentUserId = 'user-before-signout';
+
+    final session = AppSessionNotifier(
+      initialOnboarded: false,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      currentUserIdProvider: () => currentUserId,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => false,
+      notificationService: _FakeNotificationService(),
+    );
+
+    isAuthenticated = true;
+    controller.add(const AuthState(AuthChangeEvent.signedIn, null));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    isAuthenticated = false;
+    currentUserId = null;
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(purchaseService.identifiedUserIds, ['user-before-signout']);
+
+    await controller.close();
+    session.dispose();
   });
 }
 

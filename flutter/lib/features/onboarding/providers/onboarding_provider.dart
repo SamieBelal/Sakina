@@ -15,9 +15,9 @@ import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall at index 26).
-/// PageView has 27 children; gacha on first_checkin is an overlay, not a page.
-const int onboardingLastPageIndex = 26;
+/// Last index in [OnboardingScreen]'s PageView (paywall at index 25).
+/// PageView has 26 children; gacha on first_checkin is an overlay, not a page.
+const int onboardingLastPageIndex = 25;
 
 class OnboardingState {
   const OnboardingState({

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/launch_gate_service.dart';
 import '../services/notification_service.dart';
+import '../services/purchase_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
 
@@ -20,6 +21,7 @@ class AppSessionNotifier extends ChangeNotifier {
     required bool initialOnboarded,
     Stream<AuthState>? authStateChanges,
     bool Function()? isAuthenticatedProvider,
+    String? Function()? currentUserIdProvider,
     Future<void> Function()? hydrateEconomyCache,
     Future<bool> Function()? hasCompletedOnboarding,
     Duration? hydrationTimeout,
@@ -27,6 +29,7 @@ class AppSessionNotifier extends ChangeNotifier {
         _notificationService = notificationService ?? NotificationService(),
         _isAuthenticatedProvider = isAuthenticatedProvider ??
             (() => Supabase.instance.client.auth.currentUser != null),
+        _currentUserIdProvider = currentUserIdProvider ?? _defaultCurrentUserId,
         _hydrateEconomyCache = hydrateEconomyCache ?? _defaultHydrate,
         _hasCompletedOnboarding = hasCompletedOnboarding ??
             authService?.hasCompletedOnboarding ??
@@ -40,6 +43,7 @@ class AppSessionNotifier extends ChangeNotifier {
   late final StreamSubscription<AuthState> _subscription;
   final NotificationService _notificationService;
   final bool Function() _isAuthenticatedProvider;
+  final String? Function() _currentUserIdProvider;
   final Future<void> Function() _hydrateEconomyCache;
   final Future<bool> Function() _hasCompletedOnboarding;
   final Duration _hydrationTimeout;
@@ -86,13 +90,22 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   Future<void> _handleAuthenticatedChange(AuthState data) async {
-    final userId = data.session?.user.id;
+    final sessionUserId = data.session?.user.id;
 
-    if (userId != null && userId.isNotEmpty) {
+    if (sessionUserId != null && sessionUserId.isNotEmpty) {
       try {
-        await _notificationService.identifyUser(userId);
+        await _notificationService.identifyUser(sessionUserId);
       } catch (_) {
         // Non-critical — keep hydrating even if OneSignal login fails.
+      }
+    }
+
+    final purchaseUserId = _currentUserIdProvider();
+    if (purchaseUserId != null && purchaseUserId.isNotEmpty) {
+      try {
+        await PurchaseService().setUserId(purchaseUserId);
+      } catch (e) {
+        debugPrint('app_session: RevenueCat setUserId failed: $e');
       }
     }
 
@@ -154,9 +167,7 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// Called when a new user finishes onboarding (paywall dismiss).
-  /// Sets local + in-memory flag. The server-side `onboarding_completed`
-  /// column is flipped by the onboarding provider's `completeOnboarding`
-  /// via `AuthService.markOnboardingCompleted()` just before this runs.
+  /// Sets local + in-memory flag; server flag is already set by saveOnboardingData().
   Future<void> markOnboarded() async {
     _hasOnboarded = true;
     final prefs = await SharedPreferences.getInstance();
@@ -207,4 +218,12 @@ final appSessionProvider = Provider<AppSessionNotifier>((ref) {
 
 Future<void> _defaultHydrate() async {
   await hydrateUserDataFromBatchRpc();
+}
+
+String? _defaultCurrentUserId() {
+  try {
+    return Supabase.instance.client.auth.currentUser?.id;
+  } catch (_) {
+    return null;
+  }
 }

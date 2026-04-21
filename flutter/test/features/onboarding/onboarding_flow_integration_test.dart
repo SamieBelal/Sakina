@@ -22,9 +22,9 @@ void main() {
     final pv = tester.widget<PageView>(find.byType(PageView));
     expect(
       (pv.childrenDelegate as SliverChildListDelegate).children.length,
-      27,
+      26,
     );
-    expect(onboardingLastPageIndex, 26);
+    expect(onboardingLastPageIndex, 25);
 
     // Drain pending animation timers from flutter_animate so the test can
     // tear down cleanly.

@@ -12,6 +12,7 @@ import '../features/daily/screens/muhasabah_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
+import '../features/onboarding/screens/paywall_screen.dart';
 import '../widgets/achievement_toast.dart';
 import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
@@ -50,6 +51,17 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         path: '/onboarding',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // Standalone paywall (for already-onboarded users hitting the upgrade
+      // sheet from journal save limits, etc). Does NOT fire completeOnboarding.
+      GoRoute(
+        path: '/paywall',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => PaywallScreen(
+          inOnboardingFlow: false,
+          onComplete: () => GoRouter.of(context).pop(),
+        ),
       ),
 
       // Welcome / auth landing (full screen, no bottom nav)

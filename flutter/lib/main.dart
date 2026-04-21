@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/app_lifecycle_observer.dart';
 import 'core/app_session.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
@@ -16,7 +17,8 @@ import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
-// import 'services/purchase_service.dart';
+import 'services/purchase_service.dart';
+import 'widgets/billing_issue_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,11 +46,15 @@ Future<void> main() async {
     unawaited(refreshPublicCatalogsFromSupabase());
   }
 
-  // Temporarily disabled until RevenueCat is set up.
-  // await PurchaseService().initialize(
-  //   appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
-  //   googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
-  // );
+  try {
+    await PurchaseService().initialize(
+      appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
+      googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
+    );
+  } catch (_) {
+    // Best-effort — app should launch even if RevenueCat is unavailable.
+    // PurchaseService methods will return safe defaults when not initialized.
+  }
 
   final notificationService = NotificationService();
   await notificationService.initialize(dotenv.env['ONESIGNAL_APP_ID'] ?? '');
@@ -83,7 +89,9 @@ Future<void> main() async {
         analyticsProvider.overrideWithValue(analytics),
         notificationServiceProvider.overrideWithValue(notificationService),
       ],
-      child: SakinaApp(appSession: appSession),
+      child: AppLifecycleObserver(
+        child: SakinaApp(appSession: appSession),
+      ),
     ),
   );
 }
@@ -102,6 +110,12 @@ class SakinaApp extends StatelessWidget {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.light,
       routerConfig: buildRouter(appSession: appSession),
+      builder: (context, child) => Column(
+        children: [
+          const BillingIssueBanner(),
+          Expanded(child: child ?? const SizedBox.shrink()),
+        ],
+      ),
     );
   }
 }

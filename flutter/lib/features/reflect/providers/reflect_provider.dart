@@ -229,6 +229,11 @@ class ReflectState {
   /// True when the user has hit the free daily limit and must spend a token.
   final bool needsToken;
 
+  /// True when a save was blocked by the free-tier journal limit. UI should
+  /// surface the upgrade sheet and call [ReflectNotifier.dismissUpgradePrompt]
+  /// when the user acknowledges. Previously this case was a silent no-op.
+  final bool needsUpgrade;
+
   const ReflectState({
     this.screenState = ReflectScreenState.input,
     this.userText = '',
@@ -241,6 +246,7 @@ class ReflectState {
     this.selectedEmotions = const {},
     this.savedReflections = const [],
     this.needsToken = false,
+    this.needsUpgrade = false,
   });
 
   ReflectState copyWith({
@@ -255,6 +261,7 @@ class ReflectState {
     Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
     bool? needsToken,
+    bool? needsUpgrade,
     bool clearResult = false,
     bool clearError = false,
   }) {
@@ -270,6 +277,7 @@ class ReflectState {
       selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
       needsToken: needsToken ?? this.needsToken,
+      needsUpgrade: needsUpgrade ?? this.needsUpgrade,
     );
   }
 }
@@ -481,11 +489,17 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
 
   static const int freeJournalLimit = 5;
 
+  /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
+  void dismissUpgradePrompt() {
+    state = state.copyWith(needsUpgrade: false);
+  }
+
   Future<void> _saveReflection(ai.ReflectResponse response) async {
     // Check journal limit for free users
     final premium = await PurchaseService().isPremium();
     if (!premium && state.savedReflections.length >= freeJournalLimit) {
-      return; // silently skip — UI should show upgrade prompt
+      state = state.copyWith(needsUpgrade: true);
+      return;
     }
 
     final preview = response.reframe.length > 150

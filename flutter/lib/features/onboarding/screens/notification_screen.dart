@@ -54,7 +54,7 @@ class NotificationScreen extends ConsumerWidget {
     ];
 
     return OnboardingPageWrapper(
-      progressSegment: 16,
+      progressSegment: 15,
       onBack: onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
