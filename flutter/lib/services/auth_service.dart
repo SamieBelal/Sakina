@@ -109,6 +109,7 @@ class AuthService {
   }
 
   Future<void> saveOnboardingData({
+    String? displayName,
     String? intention,
     String? familiarity,
     String? quranConnection,
@@ -128,13 +129,15 @@ class AuthService {
     if (userId == null) return;
 
     await _supabase.from('user_profiles').update({
+      if (displayName != null && displayName.isNotEmpty)
+        'display_name': displayName,
       'onboarding_intention': intention,
       'onboarding_familiarity': familiarity,
       'onboarding_quran_connection': quranConnection,
       'onboarding_attribution': attribution,
       'age_range': ageRange,
       'prayer_frequency': prayerFrequency,
-      'resonant_name_slug': resonantNameId,
+      'resonant_name_id': resonantNameId,
       'dua_topics': duaTopics,
       'dua_topics_other': duaTopicsOther,
       'common_emotions': commonEmotions,

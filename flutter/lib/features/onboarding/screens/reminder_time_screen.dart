@@ -82,7 +82,7 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
         ref.read(onboardingProvider.notifier).setReminderTime(hhmm);
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('reminder_time', hhmm);
+            .trackOnboardingAnswerWithRef(ref, 'reminder_time', hhmm);
         widget.onNext();
       },
       body: Column(

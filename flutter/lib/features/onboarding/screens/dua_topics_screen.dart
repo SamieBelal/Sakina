@@ -76,10 +76,10 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
         final after = ref.read(onboardingProvider);
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('dua_topics', after.duaTopics);
+            .trackOnboardingAnswerWithRef(ref, 'dua_topics', after.duaTopics);
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('dua_topics_other', after.duaTopicsOther);
+            .trackOnboardingAnswerWithRef(ref, 'dua_topics_other', after.duaTopicsOther);
         widget.onNext();
       },
       body: Column(

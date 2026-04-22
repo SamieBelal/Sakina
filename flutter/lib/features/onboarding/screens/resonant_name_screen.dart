@@ -188,7 +188,7 @@ class _ResonantNameScreenState extends ConsumerState<ResonantNameScreen> {
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('resonant_name_slug', state.resonantNameId);
+            .trackOnboardingAnswerWithRef(ref, 'resonant_name_slug', state.resonantNameId);
         widget.onNext();
       },
       body: SizedBox(

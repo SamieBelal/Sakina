@@ -419,6 +419,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> _persistQuizAnswers() async {
     try {
       await _authService.saveOnboardingData(
+        displayName: state.signUpName,
         intention: state.intention,
         familiarity: state.familiarity,
         quranConnection: state.quranConnection,

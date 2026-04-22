@@ -18,6 +18,8 @@ class AnalyticsService {
 
   void identify(String userId) {
     _mixpanel?.identify(userId);
+    _mixpanel?.registerSuperProperties({'user_id': userId});
+    _mixpanel?.getPeople().set(r'$user_id', userId);
   }
 
   void reset() {

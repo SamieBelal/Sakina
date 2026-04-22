@@ -70,7 +70,7 @@ class IntentionScreen extends ConsumerWidget {
       onContinue: () {
         final value = ref.read(onboardingProvider).intention;
         ref.read(analyticsProvider).trackSurveyAnswered('intention', value);
-        ref.read(analyticsProvider).trackOnboardingAnswer('intention', value);
+        ref.read(analyticsProvider).trackOnboardingAnswerWithRef(ref, 'intention', value);
         onNext();
       },
       body: Column(

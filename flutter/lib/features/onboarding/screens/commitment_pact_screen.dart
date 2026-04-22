@@ -150,7 +150,8 @@ class CommitmentPactScreen extends ConsumerWidget {
           OnboardingContinueButton(
             label: AppStrings.continueButton,
             onPressed: () {
-              ref.read(analyticsProvider).trackOnboardingAnswer(
+              ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
+                    ref,
                     'commitment_accepted',
                     state.commitmentAccepted,
                   );

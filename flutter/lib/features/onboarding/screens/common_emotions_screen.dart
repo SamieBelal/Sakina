@@ -47,7 +47,7 @@ class CommonEmotionsScreen extends ConsumerWidget {
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('common_emotions', state.commonEmotions);
+            .trackOnboardingAnswerWithRef(ref, 'common_emotions', state.commonEmotions);
         onNext();
       },
       body: Wrap(

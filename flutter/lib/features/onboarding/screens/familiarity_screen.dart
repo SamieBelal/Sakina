@@ -53,7 +53,7 @@ class FamiliarityScreen extends ConsumerWidget {
       onContinue: () {
         final value = ref.read(onboardingProvider).familiarity;
         ref.read(analyticsProvider).trackSurveyAnswered('familiarity', value);
-        ref.read(analyticsProvider).trackOnboardingAnswer('familiarity', value);
+        ref.read(analyticsProvider).trackOnboardingAnswerWithRef(ref, 'familiarity', value);
         onNext();
       },
       body: Column(

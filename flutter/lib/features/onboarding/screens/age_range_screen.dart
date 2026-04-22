@@ -32,7 +32,7 @@ class AgeRangeScreen extends ConsumerWidget {
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('age_range', state.ageRange);
+            .trackOnboardingAnswerWithRef(ref, 'age_range', state.ageRange);
         onNext();
       },
       body: Column(

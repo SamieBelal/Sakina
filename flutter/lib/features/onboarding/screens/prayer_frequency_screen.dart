@@ -36,7 +36,7 @@ class PrayerFrequencyScreen extends ConsumerWidget {
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('prayer_frequency', state.prayerFrequency);
+            .trackOnboardingAnswerWithRef(ref, 'prayer_frequency', state.prayerFrequency);
         onNext();
       },
       body: Column(

@@ -92,7 +92,8 @@ class _DailyCommitmentScreenState extends ConsumerState<DailyCommitmentScreen> {
       onBack: widget.onBack,
       continueEnabled: canContinue,
       onContinue: () {
-        ref.read(analyticsProvider).trackOnboardingAnswer(
+        ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
+              ref,
               'daily_commitment_minutes',
               selected,
             );

@@ -43,6 +43,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final PageController _pageController;
   bool _navigating = false;
   bool _paywallEventsFired = false;
+  final Set<int> _viewedEmitted = <int>{};
+  final Set<int> _completedEmitted = <int>{};
+
+  void _emitStepViewedOnce(int index) {
+    if (!_viewedEmitted.add(index)) return;
+    ref.read(analyticsProvider).trackStepViewed(index);
+  }
+
+  void _emitStepCompletedOnce(int index) {
+    if (!_completedEmitted.add(index)) return;
+    ref.read(analyticsProvider).trackStepCompleted(index);
+  }
 
   void _firePaywallEventsOnce() {
     if (_paywallEventsFired) return;
@@ -63,7 +75,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(analyticsProvider).trackStepViewed(initialPage);
+      _emitStepViewedOnce(initialPage);
       if (initialPage == 0) {
         ref.read(analyticsProvider).timeEvent(AnalyticsEvents.onboardingCompleted);
       }
@@ -86,12 +98,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final current = ref.read(onboardingProvider).currentPage;
     ref.read(onboardingProvider.notifier).setPage(page);
 
-    final analytics = ref.read(analyticsProvider);
     // Only fire step_completed on forward navigation — back navigation is abandonment, not completion
     if (page > current) {
-      analytics.trackStepCompleted(current);
+      _emitStepCompletedOnce(current);
     }
-    analytics.trackStepViewed(page);
+    _emitStepViewedOnce(page);
     if (page == onboardingLastPageIndex) {
       _firePaywallEventsOnce();
     }

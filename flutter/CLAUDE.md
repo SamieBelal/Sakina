@@ -22,8 +22,8 @@ Everything in the app serves this loop or retains users around it. If a feature 
 - **Frontend:** Flutter (Dart)
 - **Backend:** Supabase (auth, Postgres DB, edge functions, storage)
 - **AI:** OpenAI Chat Completions (`gpt-4o-mini`) for emotion → content matching
-- **Payments:** RevenueCat (currently disabled — pending Superwall paywall setup)
-- **Paywall:** Superwall SDK (planned, not yet integrated)
+- **Payments:** RevenueCat (enabled; purchases do not work on iOS simulator — test on a physical device)
+- **Paywall:** RevenueCat Paywalls (native, integrated)
 - **Analytics:** Mixpanel
 - **Push Notifications:** OneSignal
 - **State Management:** Riverpod
@@ -190,40 +190,48 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 **Titles:** User badges/display names earned from achievements, synced to Supabase via the title service.
 
-**Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is currently disabled; the token economy is the active monetization layer. Superwall paywall is planned but not yet integrated.
+**Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is enabled and drives subscription entitlement; the token economy layers on top. Simulator cannot complete StoreKit purchases — verify purchase flows on a physical device.
 
 ## Onboarding Flow
 
-Page index → screen (`onboarding_screen.dart`):
+Canonical page order (confirmed 2026-04-22; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
 
-0. **First Check-in** — "How are you feeling today?" (headline + SVG + auto-focused text field + emotion chips). Submitting triggers gacha reveal overlay (NameRevealOverlay), then advances.
-1. **Collect** — Feature showcase: card fan animation, 99 Names collectible system
-2. **Reflect** — Feature showcase: AI reflection flow preview
-3. **Build** — Feature showcase: Dua builder preview
-4. **Ascend** — Feature showcase: Quests & ranks preview
-5. **Journal** — Feature showcase: saved reflections
-6. **Save Progress** — Sign-up choice (email or social auth)
-7. **Sign-Up Email**
-8. **Sign-Up Password**
-9. **Sign-Up Name**
-10. **Encouragement** — "Something beautiful awaits you, [Full Name]" — personalized with the name just entered. Continue button.
-11. **Notifications** — Permission request
-12. **Intention** — "What brings you here?" (single select: Spiritual Growth / Difficult Time / Just Curious / Build a Daily Habit)
-13. **Value Prop** — What Sakina does (3 feature pills)
-14. **Familiarity** — "How familiar are you with the 99 Names?" (single select)
-15. **Quran Connection** — How connected do you feel to Quran? (single select)
-16. **Struggles** — "What do you struggle with most?" (multi-select chips)
-17. **Attribution** — "How did you hear about us?" (multi-select chips)
-18. **Social Proof** — User count + rating + testimonials
-19. **Paywall**
+0. **First Check-in** — "How are you feeling today?" + emotion chips → `NameRevealOverlay` → "Your Reflection" result teaser
+1. **Name** — "What should we call you?"
+2. **Age range** — 13–17 / 18–24 / 25–34 / 35–44 / 45–54 / 55+
+3. **Intention** — "What brings you here?" (Spiritual Growth / Difficult Time / Just Curious / Build a Daily Habit)
+4. **Prayer frequency** — 5 options with warm copy
+5. **Quran connection** — Daily / Weekly / Occasionally / Rarely
+6. **99 Names familiarity** — Just Getting Started / Somewhat Familiar / Very Familiar
+7. **Resonant Name picker** — horizontal card carousel; selection becomes first card in collection
+8. **Dua topics** — multi-select chips + optional "something else on your heart" text field
+9. **Common emotions** — multi-select chips
+10. **Aspirations** — pick up to 3 (More patient / More grateful / Closer to Allah / More present / Stronger faith / More consistent)
+11. **Daily commitment minutes** — 1 / 3 / 5 / 10 / Custom
+12. **Attribution** — "Where did you hear about Sakina?" (multi-select)
+13. **Encouragement interstitial** — "You're not alone in this."
+14. **Reminder time** — time picker (default 08:00 AM)
+15. **Notifications** — OS permission ask ("Enable Notifications" / "Not now")
+16. **Commitment pact** — "I commit to X min a day" + Tap to commit
+17. **Personalization plan** — "Your plan, <name>" summary
+18. **Value prop** — Daily check-in / 99 Names / Journal
+19. **Social proof** — 4.9 stars + testimonials
+20. **Save Your Progress** — Apple / Google / Continue with Email
+21. **Email** — enter email
+22. **Password** — ≥6 chars, `Create Account` triggers Supabase signup + analytics identify + onboarding-data persist
+23. **Encouragement** — "Something beautiful awaits you, <name>"
+24. **Paywall** — RevenueCat (annual + weekly offerings); close X routes to home
 
-**Progress bar:** each screen's `progressSegment` matches its page index (0–18). Total segments = 20 (index 19 = paywall, no bar shown).
+Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView has 26 children; gacha on page 0 is an overlay, not a page).
+
+**Progress bar:** segments show page index 0…22 (paywall + both encouragement interstitials sit outside the bar).
 
 **Key onboarding notes:**
-- `onboardingLastPageIndex = 19` in `onboarding_provider.dart`
 - Social auth (`onSocialAuthComplete`) calls `_next`, not `_goToPaywall` — keeps user in flow
-- `IntentionOptionCard` uses fixed `height: 80` so all option cards are uniform
+- Password screen calls `persistOnboardingToSupabase` immediately after `authService.signUpWithEmail` (so RLS-authorized writes succeed); `completeOnboarding` also calls it as a belt-and-braces flush
+- `saveOnboardingData` in `auth_service.dart` writes to `user_profiles` and must use exact column names: `display_name`, `onboarding_intention`, `onboarding_familiarity`, `onboarding_quran_connection`, `onboarding_attribution`, `age_range`, `prayer_frequency`, **`resonant_name_id`** (NOT `resonant_name_slug`), `dua_topics`, `dua_topics_other`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`. A single mis-named column will silently fail the whole UPDATE.
 - All survey/feature screens end with `SizedBox(height: AppSpacing.lg)` after `OnboardingContinueButton` for consistent button positioning
+- Any text-entry screen must wrap its `Column` in `LayoutBuilder → SingleChildScrollView → ConstrainedBox(minHeight: constraints.maxHeight) → IntrinsicHeight` so the keyboard doesn't cause bottom overflow. `first_checkin_screen`, `sign_up_email_screen`, `sign_up_password_screen` use this pattern.
 
 ## Code Conventions
 

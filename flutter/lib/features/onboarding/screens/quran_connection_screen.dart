@@ -63,7 +63,7 @@ class QuranConnectionScreen extends ConsumerWidget {
             .trackSurveyAnswered('quran_connection', value);
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('quran_connection', value);
+            .trackOnboardingAnswerWithRef(ref, 'quran_connection', value);
         onNext();
       },
       body: Column(

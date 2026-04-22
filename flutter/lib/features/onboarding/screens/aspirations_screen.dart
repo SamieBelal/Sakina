@@ -40,7 +40,7 @@ class AspirationsScreen extends ConsumerWidget {
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswer('aspirations', state.aspirations);
+            .trackOnboardingAnswerWithRef(ref, 'aspirations', state.aspirations);
         onNext();
       },
       body: Wrap(

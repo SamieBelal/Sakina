@@ -88,8 +88,13 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
         state.demoFeelingInput != null && state.demoFeelingInput!.isNotEmpty;
     final currentInput = state.demoFeelingInput ?? '';
 
-    return Column(
+    return LayoutBuilder(
       key: const ValueKey('input'),
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -166,7 +171,11 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
           enabled: hasInput,
         ),
         const SizedBox(height: AppSpacing.lg),
-      ],
+            ],
+          ),
+        ),
+      ),
+    ),
     );
   }
 

@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/onboarding/providers/onboarding_provider.dart';
 import 'analytics_service.dart';
 
 abstract final class AnalyticsEvents {
@@ -73,10 +75,20 @@ extension AnalyticsHelpers on AnalyticsService {
     });
   }
 
-  void trackOnboardingAnswer(String key, Object? value) {
-    track(AnalyticsEvents.onboardingAnswerCaptured, properties: {
+  void trackOnboardingAnswerWithRef(WidgetRef ref, String key, Object? value) {
+    final stepIndex = ref.read(onboardingProvider).currentPage;
+    trackOnboardingAnswer(key, value, stepIndex: stepIndex);
+  }
+
+  void trackOnboardingAnswer(String key, Object? value, {int? stepIndex}) {
+    final props = <String, dynamic>{
       'key': key,
       'value': value is Set ? value.toList() : value,
-    });
+    };
+    if (stepIndex != null) {
+      props['step_index'] = stepIndex;
+      props['step_name'] = AnalyticsEvents.stepNames[stepIndex] ?? 'unknown';
+    }
+    track(AnalyticsEvents.onboardingAnswerCaptured, properties: props);
   }
 }

@@ -115,6 +115,15 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
                         color: AppColors.textPrimaryLight,
                       ),
                     ),
+                    if (_controller.text.trim().isNotEmpty && !_isValidEmail) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Please enter a valid email',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.xxl),
                     OnboardingContinueButton(
                       label: AppStrings.continueButton,
