@@ -46,24 +46,30 @@ Future<void> main() async {
     unawaited(refreshPublicCatalogsFromSupabase());
   }
 
-  try {
-    await PurchaseService().initialize(
-      appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
-      googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
-    );
-  } catch (_) {
-    // Best-effort — app should launch even if RevenueCat is unavailable.
-    // PurchaseService methods will return safe defaults when not initialized.
+  if (!kIsWeb) {
+    try {
+      await PurchaseService().initialize(
+        appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
+        googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
+      );
+    } catch (_) {
+      // Best-effort — app should launch even if RevenueCat is unavailable.
+      // PurchaseService methods will return safe defaults when not initialized.
+    }
   }
 
   final notificationService = NotificationService();
-  await notificationService.initialize(dotenv.env['ONESIGNAL_APP_ID'] ?? '');
-  notificationService.addForegroundListener();
-  notificationService.addClickListener();
+  if (!kIsWeb) {
+    await notificationService.initialize(dotenv.env['ONESIGNAL_APP_ID'] ?? '');
+    notificationService.addForegroundListener();
+    notificationService.addClickListener();
+  }
 
-  // Initialize Mixpanel analytics
+  // Initialize Mixpanel analytics (not supported on web)
   final analytics = AnalyticsService();
-  await analytics.initialize(dotenv.env['MIXPANEL_TOKEN'] ?? '');
+  if (!kIsWeb) {
+    await analytics.initialize(dotenv.env['MIXPANEL_TOKEN'] ?? '');
+  }
   analytics.setSuperPropertiesOnce({
     'first_open_date': DateTime.now().toIso8601String(),
   });

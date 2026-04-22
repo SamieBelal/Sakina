@@ -8,9 +8,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
-import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
-import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 
 class QuestsScreen extends ConsumerStatefulWidget {
@@ -64,38 +62,7 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
     final state = ref.watch(questsProvider);
     final tokenState = ref.watch(tokenProvider);
 
-    // Bundle celebration: when First Steps bundle is awarded, push the
-    // level-up overlay (reused) to celebrate. Then clear the pending flag.
-    ref.listen<QuestsState>(questsProvider, (prev, next) {
-      final celebration = next.pendingBundleCelebration;
-      if (celebration != null && prev?.pendingBundleCelebration == null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          final navigator = Navigator.of(context, rootNavigator: true);
-          navigator
-              .push(
-                MaterialPageRoute(
-                  fullscreenDialog: true,
-                  builder: (_) => LevelUpOverlay(
-                    levelNumber: 1,
-                    title: 'FIRST STEPS COMPLETE',
-                    titleArabic: 'بِدَايَة',
-                    rewards: LevelUpRewards(
-                      tokensAwarded: celebration.tokens,
-                      scrollsAwarded: celebration.scrolls,
-                      titleUnlocked: false,
-                    ),
-                  ),
-                ),
-              )
-              .whenComplete(() {
-                ref
-                    .read(questsProvider.notifier)
-                    .clearPendingBundleCelebration();
-              });
-        });
-      }
-    });
+    // Bundle celebration listener is in AppShell so it fires from any tab.
 
     if (!state.loaded) {
       return SakinaLoader.fullScreen();

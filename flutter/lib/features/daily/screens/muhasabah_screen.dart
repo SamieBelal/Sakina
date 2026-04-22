@@ -32,7 +32,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   bool _levelUpShown = false;
   bool _streakMilestoneShown = false;
   bool _discoverTriggered = false;
-  bool _questsFlushed = false;
+
 
   @override
   Widget build(BuildContext context) {
@@ -103,15 +103,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (!state.checkinDone) {
       _revealShown = false;
       _discoverTriggered = false;
-      _questsFlushed = false;
-    }
-
-    // Flush quest notifications once when landing on the completion screen.
-    if (state.currentStep == DailyLoopStep.completed && !_questsFlushed) {
-      _questsFlushed = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) flushQuestNotifications(ref);
-      });
     }
 
     // Gacha reveal after check-in

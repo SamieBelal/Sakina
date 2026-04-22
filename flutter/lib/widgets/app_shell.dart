@@ -1,15 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../core/theme/app_typography.dart';
+import '../features/quests/providers/quests_provider.dart';
+import '../features/quests/widgets/first_steps_overlay.dart';
+import '../widgets/quest_completion_toast.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({required this.child, super.key});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Bundle celebration: show overlay no matter which tab the user is on.
+    ref.listen<QuestsState>(questsProvider, (prev, next) {
+      final celebration = next.pendingBundleCelebration;
+      if (celebration != null && prev?.pendingBundleCelebration == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final navigator = Navigator.of(context, rootNavigator: true);
+          navigator
+              .push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => FirstStepsOverlay(
+                    tokensAwarded: celebration.tokens,
+                    scrollsAwarded: celebration.scrolls,
+                  ),
+                ),
+              )
+              .whenComplete(() {
+                ref
+                    .read(questsProvider.notifier)
+                    .clearPendingBundleCelebration();
+              });
+        });
+      }
+    });
+
+    // Quest completion toasts: react when pendingCompletions becomes non-empty.
+    ref.listen<QuestsState>(questsProvider, (prev, next) {
+      if (next.pendingCompletions.isNotEmpty &&
+          (prev?.pendingCompletions.isEmpty ?? true)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final quests =
+              ref.read(questsProvider.notifier).consumePendingCompletions();
+          for (final quest in quests) {
+            showQuestCompletionToast(quest);
+          }
+        });
+      }
+    });
+
+    // First Steps beginner quest completion toasts.
+    ref.listen<QuestsState>(questsProvider, (prev, next) {
+      final beginner = next.pendingBeginnerCompletion;
+      if (beginner != null && prev?.pendingBeginnerCompletion == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showQuestCompletionToast(Quest(
+            id: beginner.id.key,
+            cadence: QuestCadence.daily,
+            title: beginner.title,
+            description: beginner.description,
+            icon: beginner.icon,
+            xpReward: beginner.xpReward,
+            tokenReward: beginner.tokenReward,
+            scrollReward: beginner.scrollReward,
+            poolIndex: -1,
+            target: 0,
+          ));
+          ref
+              .read(questsProvider.notifier)
+              .clearPendingBeginnerCompletion();
+        });
+      }
+    });
+
     return Scaffold(
       body: child,
       bottomNavigationBar: BottomNavigationBar(

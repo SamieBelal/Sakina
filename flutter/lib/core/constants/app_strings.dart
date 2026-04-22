@@ -16,8 +16,9 @@ abstract final class AppStrings {
   // Screen 1: Hook
   static const sakinaArabic = 'سكينة';
   static const sakinaTagline = 'Peace for your soul';
-  static const hookSubtitle1 = 'Tell me how you feel.';
-  static const hookSubtitle2 = 'I\'ll show you what Allah says.';
+  static const hookAyahArabic = 'فَإِنَّ مَعَ ٱلْعُسْرِ يُسْرًا';
+  static const hookAyahEnglish = 'Indeed, with hardship comes ease.';
+  static const hookSubtitle2 = 'Make sense of life through Allah\'s Names.';
   static const hookCta = 'Get Started';
   static const hookLoginLink = 'I Already Have an Account';
   static const hookDemoFeeling = 'I feel anxious and overwhelmed';

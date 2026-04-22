@@ -76,6 +76,13 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
 
     // Show token gate sheet when the free limit is hit
     ref.listen<ReflectState>(reflectProvider, (prev, next) {
+      // Clear text field when returning to input screen
+      if (next.screenState == ReflectScreenState.input &&
+          prev?.screenState != ReflectScreenState.input) {
+        _textController.clear();
+        _achievementChecked = false;
+      }
+
       if (next.needsToken && !(prev?.needsToken ?? false)) {
         showTokenGateSheet(
           context,
@@ -103,8 +110,6 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         checkAchievements(ref);
         // Mark First Steps "Reflect on a Feeling" beginner quest.
         ref.read(questsProvider.notifier).onReflectCompleted();
-        // Flush queued quest notifications now that the flow is complete.
-        flushQuestNotifications(ref);
       });
     }
 

@@ -115,7 +115,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       _questFired = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(questsProvider.notifier).onCollectionVisited();
-        flushQuestNotifications(ref);
       });
     }
 
@@ -457,7 +456,6 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       CardTier tier, bool isMaxTier, CardCollectionState collection) {
     HapticFeedback.lightImpact();
     ref.read(questsProvider.notifier).onNameExplored();
-    flushQuestNotifications(ref);
     ref
         .read(cardCollectionProvider.notifier)
         .markSeen(card.id, tierNumber: tier.number);
@@ -1194,7 +1192,6 @@ class _CardDetailSheet extends ConsumerWidget {
                                 engageResult: engageResult,
                                 onContinue: () {
                                   rootNav.pop();
-                                  flushQuestNotifications(ref);
                                 },
                               ),
                               transitionsBuilder: (_, anim, __, child) =>

@@ -4,33 +4,25 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/features/quests/providers/quests_provider.dart';
 
-class LevelUpOverlay extends StatefulWidget {
-  const LevelUpOverlay({
+class FirstStepsOverlay extends StatefulWidget {
+  const FirstStepsOverlay({
     super.key,
-    this.levelNumber,
-    required this.title,
-    required this.titleArabic,
-    this.bannerText = 'RANK UP!',
-    this.subtitle = 'New rank unlocked',
-    this.rewards,
+    required this.tokensAwarded,
+    required this.scrollsAwarded,
     this.onContinue,
   });
 
-  final int? levelNumber;
-  final String title;
-  final String titleArabic;
-  final String bannerText;
-  final String subtitle;
-  final LevelUpRewards? rewards;
+  final int tokensAwarded;
+  final int scrollsAwarded;
   final VoidCallback? onContinue;
 
   @override
-  State<LevelUpOverlay> createState() => _LevelUpOverlayState();
+  State<FirstStepsOverlay> createState() => _FirstStepsOverlayState();
 }
 
-class _LevelUpOverlayState extends State<LevelUpOverlay> {
+class _FirstStepsOverlayState extends State<FirstStepsOverlay> {
   int _phase = 0; // 0=glow buildup, 1=burst, 2=reveal
 
   @override
@@ -40,13 +32,11 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   }
 
   Future<void> _runSequence() async {
-    // Phase 0: glow buildup
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     setState(() => _phase = 1);
 
-    // Phase 1: burst
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     HapticFeedback.mediumImpact();
@@ -77,7 +67,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
               end: Alignment.bottomCenter,
               colors: _phase >= 1
                   ? [
-                      const Color(0xFF1B3A2A), // dark emerald
+                      const Color(0xFF1B3A2A),
                       const Color(0xFF0A0A12),
                       Color.lerp(
                         const Color(0xFF0A0A12),
@@ -168,7 +158,8 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppColors.secondary.withValues(alpha: 0.3),
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -180,7 +171,8 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                                 duration: 1200.ms,
                                 delay: (i * 250).ms,
                               )
-                              .fadeOut(duration: 1200.ms, delay: (i * 250).ms);
+                              .fadeOut(
+                                  duration: 1200.ms, delay: (i * 250).ms);
                         }),
                         Container(
                           width: 50,
@@ -196,7 +188,8 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.secondary.withValues(alpha: 0.6),
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.6),
                                 blurRadius: 50,
                                 spreadRadius: 20,
                               )
@@ -211,138 +204,77 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
 
                 // ── Phase 2: Full reveal ──
                 if (_phase >= 2) ...[
-                  // "RANK UP" banner at top
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.10,
-                    left: 24,
-                    right: 24,
+                    top: MediaQuery.of(context).size.height * 0.12,
+                    left: 32,
+                    right: 32,
                     child: Column(
                       children: [
-                        // Banner ribbon effect
+                        // Trophy icon
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 28, vertical: 10),
+                          width: 88,
+                          height: 88,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
                               colors: [
-                                AppColors.secondary.withValues(alpha: 0.9),
-                                const Color(0xFFD4A44C),
-                                AppColors.secondary.withValues(alpha: 0.9),
+                                AppColors.secondary.withValues(alpha: 0.3),
+                                AppColors.secondary.withValues(alpha: 0.05),
                               ],
                             ),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.secondary.withValues(alpha: 0.4),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                              ),
-                            ],
                           ),
-                          child: Text(
-                            widget.bannerText,
-                            style: AppTypography.headlineLarge.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 4,
-                              fontSize: 28,
-                            ),
+                          child: Icon(
+                            Icons.emoji_events_rounded,
+                            size: 48,
+                            color: AppColors.secondary,
                           ),
                         )
                             .animate()
-                            .fadeIn(duration: 400.ms)
                             .scaleXY(
-                              begin: 0.5,
+                              begin: 0.0,
                               end: 1.0,
-                              duration: 500.ms,
+                              duration: 600.ms,
                               curve: Curves.easeOutBack,
                             )
-                            .shimmer(
-                              delay: 500.ms,
-                              duration: 1500.ms,
-                              color: Colors.white.withValues(alpha: 0.3),
-                            ),
-                      ],
-                    ),
-                  ),
+                            .then()
+                            .animate(onPlay: (c) => c.repeat(reverse: true))
+                            .scaleXY(begin: 1.0, end: 1.06, duration: 1500.ms),
+                        const SizedBox(height: 16),
 
-                  // Hexagonal badge area (level number)
-                  Positioned(
-                    top: MediaQuery.of(context).size.height * 0.20,
-                    left: 24,
-                    right: 24,
-                    child: Column(
-                      children: [
-                        // Hexagon-like badge (only for rank-ups)
-                        if (widget.levelNumber != null) ...[
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: RadialGradient(
-                                colors: [
-                                  AppColors.primary,
-                                  AppColors.primary.withValues(alpha: 0.8),
-                                ],
-                              ),
-                              border: Border.all(
-                                color: AppColors.secondary.withValues(alpha: 0.6),
-                                width: 3,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.secondary.withValues(alpha: 0.4),
-                                  blurRadius: 30,
-                                  spreadRadius: 5,
-                                ),
-                                BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${widget.levelNumber}',
-                                style: AppTypography.displayLarge.copyWith(
-                                  color: Colors.white,
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                          )
-                              .animate()
-                              .fadeIn(delay: 200.ms, duration: 500.ms)
-                              .scaleXY(
-                                begin: 0.3,
-                                end: 1.0,
-                                delay: 200.ms,
-                                duration: 600.ms,
-                                curve: Curves.easeOutBack,
-                              ),
-                          const SizedBox(height: 20),
-                        ],
+                        // "QUEST LINE COMPLETE"
+                        Text(
+                          'QUEST LINE COMPLETE',
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.secondary,
+                            letterSpacing: 3,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(delay: 200.ms, duration: 400.ms),
+                        const SizedBox(height: 20),
 
-                        // Arabic calligraphy — the hero
+                        // Arabic calligraphy
                         SizedBox(
-                          height: 100,
+                          height: 80,
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              widget.titleArabic,
-                              style: AppTypography.nameOfAllahDisplay.copyWith(
-                                fontSize: 72,
+                              'بِدَايَة',
+                              style:
+                                  AppTypography.nameOfAllahDisplay.copyWith(
+                                fontSize: 64,
                                 color: Colors.white,
                                 shadows: [
                                   Shadow(
-                                    color: AppColors.secondary.withValues(alpha: 0.6),
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.6),
                                     blurRadius: 30,
                                   ),
                                   Shadow(
-                                    color: AppColors.secondary.withValues(alpha: 0.3),
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 60,
                                   ),
                                 ],
@@ -353,86 +285,107 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                           ),
                         )
                             .animate()
-                            .fadeIn(delay: 400.ms, duration: 800.ms)
+                            .fadeIn(delay: 300.ms, duration: 700.ms)
                             .scaleXY(
-                              begin: 0.5,
+                              begin: 0.6,
                               end: 1.0,
-                              delay: 400.ms,
-                              duration: 700.ms,
+                              delay: 300.ms,
+                              duration: 600.ms,
                               curve: Curves.easeOutBack,
                             ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
 
-                        // English title pill
+                        // "First Steps" pill
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 8),
+                              horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.25),
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Text(
-                            widget.title,
-                            style: AppTypography.labelLarge.copyWith(
-                              color: Colors.white.withValues(alpha: 0.95),
-                              letterSpacing: 2,
+                            'First Steps',
+                            style: AppTypography.labelMedium.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              letterSpacing: 1,
                             ),
                           ),
                         )
                             .animate()
-                            .fadeIn(delay: 600.ms, duration: 500.ms)
-                            .slideY(
-                              begin: 0.3,
-                              end: 0,
-                              delay: 600.ms,
-                              duration: 500.ms,
-                            ),
-                        const SizedBox(height: 8),
+                            .fadeIn(delay: 500.ms, duration: 400.ms),
+                        const SizedBox(height: 24),
 
-                        // Subtitle
-                        Text(
-                          widget.subtitle,
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.secondary.withValues(alpha: 0.8),
-                          ),
-                        ).animate().fadeIn(delay: 700.ms, duration: 400.ms),
+                        // Completed quests checklist
+                        ...beginnerQuests.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final quest = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primary,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  quest.title,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.85),
+                                  ),
+                                ),
+                              ],
+                            )
+                                .animate()
+                                .fadeIn(
+                                  delay: (600 + i * 150).ms,
+                                  duration: 400.ms,
+                                )
+                                .slideX(
+                                  begin: -0.15,
+                                  end: 0,
+                                  delay: (600 + i * 150).ms,
+                                  duration: 400.ms,
+                                ),
+                          );
+                        }),
+                        const SizedBox(height: 16),
 
                         // Rewards
-                        if (widget.rewards != null) ...[
-                          const SizedBox(height: 16),
+                        _buildRewardRow(
+                          Icons.toll,
+                          AppColors.secondary,
+                          '+${widget.tokensAwarded} Tokens',
+                          1100,
+                        ),
+                        if (widget.scrollsAwarded > 0) ...[
+                          const SizedBox(height: 10),
                           _buildRewardRow(
-                            Icons.toll,
-                            AppColors.secondary,
-                            '+${widget.rewards!.tokensAwarded} Tokens',
-                            800,
+                            Icons.receipt_long,
+                            const Color(0xFF3B82F6),
+                            '+${widget.scrollsAwarded} Scrolls',
+                            1250,
                           ),
-                          if (widget.rewards!.scrollsAwarded > 0) ...[
-                            const SizedBox(height: 10),
-                            _buildRewardRow(
-                              Icons.receipt_long,
-                              const Color(0xFF3B82F6),
-                              '+${widget.rewards!.scrollsAwarded} Scrolls',
-                              1000,
-                            ),
-                          ],
-                          if (widget.rewards!.titleUnlocked) ...[
-                            const SizedBox(height: 10),
-                            _buildRewardRow(
-                              Icons.star_rounded,
-                              const Color(0xFFFBBF24),
-                              'New Title Unlocked!',
-                              1200,
-                            ),
-                          ],
                         ],
                       ],
                     ),
                   ),
 
-                  // Continue button at bottom
+                  // Continue button
                   Positioned(
                     bottom: 60,
                     left: 32,
@@ -466,10 +419,10 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                    ).animate().fadeIn(delay: 900.ms, duration: 500.ms),
+                    ).animate().fadeIn(delay: 1400.ms, duration: 500.ms),
                   ),
 
-                  // "Tap anywhere to continue" hint
+                  // Tap hint
                   Positioned(
                     bottom: 32,
                     left: 0,
@@ -481,7 +434,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                         fontSize: 11,
                       ),
                       textAlign: TextAlign.center,
-                    ).animate().fadeIn(delay: 1200.ms, duration: 400.ms),
+                    ).animate().fadeIn(delay: 1600.ms, duration: 400.ms),
                   ),
                 ],
 
@@ -500,8 +453,9 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                         height: 3 + (i % 4) * 1.5,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: (isGold ? AppColors.secondary : AppColors.primary)
-                              .withValues(alpha: 0.7 - (i * 0.03)),
+                          color:
+                              (isGold ? AppColors.secondary : AppColors.primary)
+                                  .withValues(alpha: 0.7 - (i * 0.03)),
                         ),
                       )
                           .animate()
@@ -532,7 +486,8 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     );
   }
 
-  Widget _buildRewardRow(IconData icon, Color color, String label, int delayMs) {
+  Widget _buildRewardRow(
+      IconData icon, Color color, String label, int delayMs) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -553,6 +508,9 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
           ),
         ),
       ],
-    ).animate().fadeIn(delay: delayMs.ms, duration: 400.ms).slideX(begin: -0.2, end: 0, delay: delayMs.ms, duration: 400.ms);
+    )
+        .animate()
+        .fadeIn(delay: delayMs.ms, duration: 400.ms)
+        .slideX(begin: -0.2, end: 0, delay: delayMs.ms, duration: 400.ms);
   }
 }

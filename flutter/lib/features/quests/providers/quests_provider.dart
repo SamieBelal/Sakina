@@ -472,6 +472,9 @@ class QuestsState {
   /// Quests completed since last flush. UI consumes via flushQuestNotifications.
   final List<Quest> pendingCompletions;
 
+  /// Beginner quest just completed; UI consumes and clears after showing toast.
+  final BeginnerQuest? pendingBeginnerCompletion;
+
   const QuestsState({
     this.daily = const [],
     this.weekly = const [],
@@ -485,6 +488,7 @@ class QuestsState {
     this.firstStepsBundleClaimed = false,
     this.pendingBundleCelebration,
     this.pendingCompletions = const [],
+    this.pendingBeginnerCompletion,
   });
 
   List<Quest> get all => [...daily, ...weekly, ...monthly];
@@ -520,6 +524,8 @@ class QuestsState {
     FirstStepsBundleCelebration? pendingBundleCelebration,
     bool clearPendingBundleCelebration = false,
     List<Quest>? pendingCompletions,
+    BeginnerQuest? pendingBeginnerCompletion,
+    bool clearPendingBeginnerCompletion = false,
   }) {
     return QuestsState(
       daily: daily ?? this.daily,
@@ -537,6 +543,9 @@ class QuestsState {
           ? null
           : (pendingBundleCelebration ?? this.pendingBundleCelebration),
       pendingCompletions: pendingCompletions ?? this.pendingCompletions,
+      pendingBeginnerCompletion: clearPendingBeginnerCompletion
+          ? null
+          : (pendingBeginnerCompletion ?? this.pendingBeginnerCompletion),
     );
   }
 }
@@ -882,6 +891,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       firstStepsCompleted: updatedCompleted,
       firstStepsBundleClaimed: bundleClaimed,
       pendingBundleCelebration: celebration,
+      pendingBeginnerCompletion: quest,
     );
 
     await _persistFirstSteps(
@@ -894,6 +904,12 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   void clearPendingBundleCelebration() {
     if (state.pendingBundleCelebration == null) return;
     state = state.copyWith(clearPendingBundleCelebration: true);
+  }
+
+  /// UI calls this after showing the beginner quest completion toast.
+  void clearPendingBeginnerCompletion() {
+    if (state.pendingBeginnerCompletion == null) return;
+    state = state.copyWith(clearPendingBeginnerCompletion: true);
   }
 
   /// Returns and clears pending quest completions for the UI to show toasts.

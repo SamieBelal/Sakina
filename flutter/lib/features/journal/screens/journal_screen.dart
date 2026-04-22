@@ -90,7 +90,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
       _questFired = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(questsProvider.notifier).onJournalVisited();
-        flushQuestNotifications(ref);
       });
     }
     final reflectState = ref.watch(reflectProvider);

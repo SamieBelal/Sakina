@@ -633,7 +633,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         notifier.saveCurrentBuiltDua();
         ref.read(questsProvider.notifier).onBuiltDuaCompleted();
         checkAchievements(ref);
-        flushQuestNotifications(ref);
       });
     }
 
@@ -918,7 +917,6 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                         ref
                                             .read(questsProvider.notifier)
                                             .onDuaSaved();
-                                        flushQuestNotifications(ref);
                                       }
                                     },
                                     child: Padding(
