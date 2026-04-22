@@ -8,51 +8,19 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/widgets/achievement_toast.dart';
 
-// ---------------------------------------------------------------------------
-// Queue-based quest completion toast
-// ---------------------------------------------------------------------------
-
-final _questToastQueue = <Quest>[];
-bool _isShowingQuestToast = false;
-
-/// Show a quest completion toast. If one is already showing, queues it.
+/// Show a quest completion toast. Delegates to the unified queue in
+/// `achievement_toast.dart` so quests and achievements never overlap.
 void showQuestCompletionToast(Quest quest) {
-  _questToastQueue.add(quest);
-  _processQuestQueue();
-}
-
-void _processQuestQueue() {
-  if (_isShowingQuestToast || _questToastQueue.isEmpty) return;
-
-  final context = rootNavigatorKey.currentContext;
-  if (context == null) return;
-
-  final overlay = Overlay.of(context);
-  final quest = _questToastQueue.removeAt(0);
-
-  _isShowingQuestToast = true;
-
-  late OverlayEntry entry;
-  entry = OverlayEntry(
-    builder: (context) => _QuestToastWidget(
-      quest: quest,
-      onDismissed: () {
-        entry.remove();
-        _isShowingQuestToast = false;
-        Future.delayed(const Duration(milliseconds: 300), _processQuestQueue);
-      },
-    ),
-  );
-
-  overlay.insert(entry);
+  enqueueQuestToast(quest);
 }
 
 // ---------------------------------------------------------------------------
-// Toast widget
+// Quest toast widget (public so the unified queue can render it)
 // ---------------------------------------------------------------------------
 
-class _QuestToastWidget extends StatefulWidget {
-  const _QuestToastWidget({
+class QuestToastWidget extends StatefulWidget {
+  const QuestToastWidget({
+    super.key,
     required this.quest,
     required this.onDismissed,
   });
@@ -61,10 +29,10 @@ class _QuestToastWidget extends StatefulWidget {
   final VoidCallback onDismissed;
 
   @override
-  State<_QuestToastWidget> createState() => _QuestToastWidgetState();
+  State<QuestToastWidget> createState() => _QuestToastWidgetState();
 }
 
-class _QuestToastWidgetState extends State<_QuestToastWidget> {
+class _QuestToastWidgetState extends State<QuestToastWidget> {
   bool _visible = false;
 
   @override

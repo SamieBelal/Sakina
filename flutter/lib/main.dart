@@ -23,8 +23,15 @@ import 'widgets/billing_issue_banner.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: '.env');
+  // Prefer real `.env` if the developer has added it to pubspec assets.
+  // Otherwise fall back to the committed `.env.example` so clean checkouts
+  // still build. flutter_dotenv's `load()` clears the env map before parsing,
+  // so we use a simple try/catch rather than layering mergeWith.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {
+    await dotenv.load(fileName: '.env.example');
+  }
 
   // Load onboarding flag and cached onboarding state
   final prefs = await SharedPreferences.getInstance();

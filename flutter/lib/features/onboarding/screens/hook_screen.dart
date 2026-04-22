@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/theme/app_typography.dart';
 
 class HookScreen extends StatelessWidget {
   const HookScreen({
@@ -19,7 +17,6 @@ class HookScreen extends StatelessWidget {
   final VoidCallback? onSignIn;
 
   static const _green = Color(0xFF0B3528);
-  static const _midGreen = Color(0xFF0E4032);
   static const _gold = Color(0xFFD4A574);
   static const _goldBright = Color(0xFFE6BC88);
 

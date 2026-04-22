@@ -223,7 +223,7 @@ class _FirstStepsOverlayState extends State<FirstStepsOverlay> {
                               ],
                             ),
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.emoji_events_rounded,
                             size: 48,
                             color: AppColors.secondary,
@@ -330,7 +330,7 @@ class _FirstStepsOverlayState extends State<FirstStepsOverlay> {
                                 Container(
                                   width: 24,
                                   height: 24,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: AppColors.primary,
                                   ),

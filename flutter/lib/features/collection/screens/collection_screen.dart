@@ -1190,9 +1190,7 @@ class _CardDetailSheet extends ConsumerWidget {
                                 teaching: card.lesson,
                                 card: card,
                                 engageResult: engageResult,
-                                onContinue: () {
-                                  rootNav.pop();
-                                },
+                                onContinue: rootNav.pop,
                               ),
                               transitionsBuilder: (_, anim, __, child) =>
                                   FadeTransition(opacity: anim, child: child),
