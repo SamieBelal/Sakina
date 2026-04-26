@@ -457,12 +457,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   // ---------------------------------------------------------------------------
-  // Step 1: Check-in (legacy — used by deeper reflection)
+  // Step 1: Check-in (DEPRECATED multi-question flow)
+  //
+  // The launch overlay no longer renders question UI (the `_CheckInStep`
+  // widget was removed 2026-04-26). The only remaining muhasabah path is
+  // `discoverName()`. This `answerCheckin` is preserved as a reference
+  // for the AI-context shape and for the latent re-entry-guard fix; delete
+  // with the next muhasabah refactor unless a multi-question UI returns.
+  // See finding 2026-04-26-launch-overlay-dead-checkinstep.md.
   // ---------------------------------------------------------------------------
 
   /// Called when the user taps an answer on any of the 4 check-in questions.
   /// Advances the question index until all 4 are answered, then calls the AI.
+  ///
+  /// Re-entry guard: returns early if a previous invocation is mid-flight on
+  /// the final question (checkinLoading=true). Without this, two rapid taps
+  /// on the final answer both pass `currentIndex == 3`, both run the AI/save
+  /// path, and produce duplicate `user_checkin_history` rows + double streak
+  /// marks. See finding 2026-04-26-answercheckin-no-reentry-guard.md.
   Future<void> answerCheckin(String answer) async {
+    if (state.checkinLoading) return;
     final currentIndex = state.checkinQuestionIndex;
     final updatedAnswers = [...state.checkinAnswers, answer];
 
@@ -621,6 +635,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         error: 'Something went wrong. Please try again.',
       );
     }
+  }
+
+  /// Test seam — lets the re-entry-guard test put the notifier into a
+  /// `checkinLoading=true` state without driving the full AI flow. Not
+  /// callable from production code paths.
+  @visibleForTesting
+  void debugSetCheckinLoading(bool value) {
+    state = state.copyWith(checkinLoading: value);
   }
 
   /// Reset today's daily loop so the user can redo it.

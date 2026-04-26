@@ -148,14 +148,18 @@ Edge: multiple quest completions in one frame each grant once, broken streak →
 
 ### 11. Settings and notifications
 
+- Profile card renders `user_profiles.display_name` (not email twice). Falls back to `auth.userMetadata['full_name']` then email then `'Guest'`. Pure resolver `resolveProfileDisplayName` in `lib/features/settings/screens/settings_screen.dart` covered by `test/features/settings/resolve_profile_display_name_test.dart` (F1 fix landed 2026-04-26).
 - Notification toggle reads server state.
 - Toggle writes local + Supabase.
 - Push opt-in/out updates delivery state.
+- **Push enabled reconciles with iOS perm (F2 fix 2026-04-26)**: when `getNotificationPreferences` finds `push_enabled=true` on the server but `OneSignal.Notifications.permission == false` locally, the client writes `push_enabled=false` back. Stops the cron from dispatching ghost pushes after OS-level permission revocation. Tests in `test/services/notification_service_test.dart` cover both branches.
+- **Option B verified_at stamping (2026-04-26)**: client stamps `push_enabled_last_verified_at = now()` from `optIn()` on success and from `getNotificationPreferences` when push is enabled and iOS perm is granted. Cron RPC `get_eligible_notification_users` requires the stamp to be within 7 days. Schema migration `add_push_enabled_last_verified_at_with_cron_filter` applied + 4 unit tests.
+- Sign-out clears scoped SharedPrefs (F3 fix 2026-04-26). `AuthService.signOut` calls `clearScopedPreferencesForUser(prefs, uid)`; covered by `test/services/auth_service_signout_clear_prefs_test.dart`.
 - Timezone sync runs after auth.
 - Reset daily loop + clear collection confirmations work.
-- Delete account requires explicit confirmation and clears local state.
+- Delete account requires explicit type-DELETE confirmation (2-step dialog: warning + type-confirm; button stays disabled until trimmed input equals `DELETE`). Dialog helpers extracted to `lib/features/settings/widgets/delete_account_dialogs.dart` with 8 widget tests covering both Cancel paths, button-enable gating, and trim behavior.
 
-Edge: Supabase unavailable during toggle, notification tap routes to correct screen, foreground notification does not crash current screen.
+Edge: Supabase unavailable during toggle, notification tap routes to correct screen (verified 2026-04-26 for daily/streak/weekly/reengagement), foreground notification does not crash current screen.
 
 ### 12. Share and export
 
@@ -173,15 +177,24 @@ Edge: native share cancel, long content still fits core card content.
 
 ### 14. Edge functions and SQL
 
+Automated coverage:
+- `flutter/supabase/tests/rpc_eligibility_test.sql` (pgTAP, runs via `supabase test db`) — scheduled notification eligibility + dedup windows.
+- `flutter/supabase/tests/backend_rls_test.sql` (plain SQL, runs via `mcp__supabase__execute_sql` — no CLI/pgTAP needed) — 47 assertions covering `sync_all_user_data` payload contract + auth gate, `delete_own_account` FK cascade across 18 scoped tables, `grant_premium_monthly` (grant / idempotent / non-premium / unauth + token+scroll deltas), public catalog anon read, cross-user RLS, and the RLS-on + has-policy audit.
+- `flutter/supabase/functions/revenuecat-webhook/index.test.ts` (Deno, `deno test --no-check`) — 14 cases including 401/405/400, anonymous + non-premium skip, INITIAL_PURCHASE upsert, alias-fallback user resolution, CANCELLATION + BILLING_ISSUE access semantics, EXPIRATION inactive, stale-event rejection, RPC throw → 500, plus a regression guard for the EXPIRATION→`canceled_at` clobber (P3 in `docs/qa/findings/2026-04-26-backend-rls-pass.md` — flip the assertion when the upsert is fixed to coalesce missing keys).
+
+Latest live verification: 2026-04-26 — see `docs/qa/findings/2026-04-26-backend-rls-pass.md`. All 47 SQL assertions and 14 Deno tests green.
+
+Targets:
 - Scheduled notification eligibility for daily, streak, re-engagement, weekly.
-- Deduplication windows work.
+- **`push_enabled_last_verified_at` 7-day freshness filter (Option B, added 2026-04-26)**: the cron RPC requires the stamp to be non-null AND newer than `now() - interval '7 days'`. Catches `push_enabled=true` rows that drifted without recent client-side reverification. Verified end-to-end 2026-04-26: aging the column to 8 days excludes the user even when all other gates pass; restoring to `now()` makes them eligible again. Tracked in `docs/qa/findings/2026-04-26-push-cron-defense-in-depth-followup.md`.
+- Deduplication windows work — daily / streak / weekly use `last_*_sent_at` per-day comparison in user's local timezone; reengagement uses 7-day dedup. Verified 2026-04-26 (sent_today=ineligible, sent_yesterday=eligible, never_sent=eligible for daily).
 - Partial OneSignal send failure tolerated.
-- `delete_own_account` removes dependent data.
-- `sync_all_user_data()` returns complete, stable payloads.
-- `revenuecat-webhook` rejects unauthorized requests.
+- `delete_own_account` removes dependent data (FK CASCADE-only — schema relies entirely on cascade).
+- `sync_all_user_data()` returns complete, stable payloads with the documented 11-key contract: `xp, tokens, streak, daily_rewards, profile, built_duas, reflections, achievements, card_collection, checkin_history, discovery_results`.
+- `revenuecat-webhook` rejects unauthorized requests (401) and non-POST (405).
 - Webhook resolves stable user id via alias / `original_app_user_id` fallback.
-- Initial purchase, cancellation, billing issue, expiration events persist correct subscription state.
-- `grant_premium_monthly()` grants only to active premium users, only once per month, rejects non-premium callers.
+- Initial purchase, cancellation, billing issue, expiration events persist correct `public.user_subscriptions` state. Cancellation history (`canceled_at`) is preserved through EXPIRATION (key-presence-aware upsert in migration `20260426000000_preserve_canceled_at_on_absent_key.sql`).
+- `grant_premium_monthly()` grants only to active premium users, only once per month (keyed on `user_daily_rewards.last_premium_grant_month`), rejects non-premium callers, raises on unauthenticated.
 
 ## Automated gate before shipping
 
@@ -191,6 +204,18 @@ On every PR:
 flutter analyze
 flutter test
 ```
+
+Plus a fresh-checkout build (manual-test-plan §18) on any PR that touches
+`pubspec.yaml`, `.env*`, or `lib/main.dart` dotenv loading:
+
+```bash
+DEST=/tmp/sakina-fresh-$(date +%Y%m%d-%H%M%S)
+git clone <repo> "$DEST" && cd "$DEST/flutter"
+flutter pub get
+flutter build web --debug   # must NOT fail with "No file or variants found for asset: .env"
+```
+
+Last verified 2026-04-26 against HEAD `3fc53d0` — see `docs/manual-test-plan.md` §18 for the full runbook and the regression that drove this gate (the `.env`-as-gitignored-but-listed-as-asset bug).
 
 Focused E2E smoke coverage:
 - Welcome → onboarding → Home.
