@@ -54,7 +54,7 @@ Edge: invalid email, weak password, duplicate email, social auth cancellation.
 
 ### 3. Onboarding flow
 
-Pages are enumerated in `CLAUDE.md` (0–19). For every page test:
+Pages are enumerated in `docs/manual-test-plan.md` §3 (0–24). For every page test:
 - Initial render.
 - Back + continue behavior.
 - Validation rules.
@@ -67,7 +67,8 @@ Flow-level:
 - Resume from mid-onboarding after force close.
 - Backtracking edits prior answers.
 - Social auth stays in-flow (calls `_next`, not `_goToPaywall`).
-- Paywall (index 19) sits outside the progress bar.
+- Paywall (last index) sits outside the progress bar.
+- After paywall dismiss/complete, verify `user_profiles` row has ALL fields populated: `display_name`, `onboarding_intention`, `age_range`, `prayer_frequency`, `onboarding_quran_connection`, `onboarding_familiarity`, `resonant_name_id`, `dua_topics`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`, `onboarding_attribution`. Regression guard against the 2026-04 silent-write-failure bug where a bad column name caused the whole UPDATE to fail.
 
 ### 4. Daily core loop
 

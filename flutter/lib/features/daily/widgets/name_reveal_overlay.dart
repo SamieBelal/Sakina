@@ -101,7 +101,10 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A12),
       body: GestureDetector(
-        onTap: _phase >= 2 ? _handleContinue : null,
+        // Only accept taps once the Continue button is rendered (phase 3).
+        // Earlier taps during phase 2 were advancing before the user could
+        // see the reward details — see docs/qa/findings/2026-04-22-*.
+        onTap: _phase >= 3 ? _handleContinue : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 800),
           curve: Curves.easeInOut,

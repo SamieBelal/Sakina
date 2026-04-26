@@ -8,6 +8,11 @@ class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
   }
 
   Future<void> reload() async {
+    // Reconcile local SharedPrefs cache from server before reading state.
+    // Without this, server-side resets (admin wipes user_daily_rewards, or
+    // multi-device claims happening on Device A) never reach the local
+    // overlay gate — see F1/F5 in docs/qa/findings/2026-04-22-*.
+    await reconcileDailyRewardsFromServer();
     state = await getDailyRewards();
   }
 

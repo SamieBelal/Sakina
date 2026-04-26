@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
@@ -793,7 +795,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 const SizedBox(height: 24),
                 // Return home
                 GestureDetector(
-                  onTap: () => context.go('/'),
+                  onTap: () {
+                    // Invalidate economy providers so Home reads fresh
+                    // values after muhasabah rewards are granted (fixes the
+                    // "token pill shows stale 1004 while DB has 1059" bug).
+                    ref.invalidate(dailyLoopProvider);
+                    ref.invalidate(tierUpScrollProvider);
+                    ref.invalidate(dailyRewardsProvider);
+                    context.go('/');
+                  },
                   child: Text(
                     'Return to Home',
                     style: AppTypography.bodySmall.copyWith(

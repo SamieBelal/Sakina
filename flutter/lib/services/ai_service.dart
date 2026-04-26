@@ -4,9 +4,10 @@
 /// parses structured responses, and provides follow-up question generation.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
@@ -15,6 +16,7 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
 import 'package:sakina/features/reflect/data/reflection_verse_catalog.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/validate_names.dart';
 
 // ---------------------------------------------------------------------------
@@ -292,25 +294,113 @@ ReflectResponse? parseReflectResponse(String text) {
 // ---------------------------------------------------------------------------
 
 bool isOffTopic(String text) {
+  return classifyOffTopic(text).isOffTopic;
+}
+
+/// Result of off-topic classification — exposes which pattern (if any) matched
+/// so callers can log the decision for tuning the regex over time.
+class OffTopicResult {
+  final bool isOffTopic;
+  final String? matchedPattern;
+  const OffTopicResult({required this.isOffTopic, this.matchedPattern});
+}
+
+/// Same logic as [isOffTopic] but returns the matching pattern label so we
+/// can log it to `reflect_classifier_log` for review. Pure function — does
+/// no IO. Caller is responsible for fire-and-forget logging.
+OffTopicResult classifyOffTopic(String text) {
   final lower = text.toLowerCase().trim();
 
   // Too short to be meaningful
-  if (lower.length < 3) return true;
+  if (lower.length < 3) {
+    return const OffTopicResult(isOffTopic: true, matchedPattern: 'too_short');
+  }
 
   // Patterns that indicate non-emotional input.
   // Be conservative — it's better to let a borderline input through to the model
-  // than to block a genuine emotional expression.
-  final offTopicPatterns = [
-    RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$',
-        caseSensitive: false),
-    RegExp(r'^(test|testing|asdf|aaa|123)\s*$', caseSensitive: false),
-    RegExp(r'^(what is|who is|where is|when is|how do i|how to)\s+\w',
-        caseSensitive: false),
-    RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)',
-        caseSensitive: false),
+  // than to block a genuine emotional expression. These patterns target clear
+  // practical / task / entertainment requests with no emotional content.
+  final offTopicPatterns = <(String, RegExp)>[
+    ('greeting', RegExp(r'^(hi|hello|hey|salam|assalam|salaam)\s*[!.?]*\s*$',
+        caseSensitive: false)),
+    ('placeholder',
+        RegExp(r'^(test|testing|asdf|aaa|123)\s*$', caseSensitive: false)),
+    ('factual_lookup',
+        RegExp(r'^(what is|who is|where is|when is|how do i|how to)\s+\w',
+            caseSensitive: false)),
+    ('entertainment_request',
+        RegExp(r'^(tell me a joke|sing|write a poem|make me laugh)',
+            caseSensitive: false)),
+    // Recipe / cooking / food prep — emotion-free practical content.
+    ('recipe',
+        RegExp(r'\b(recipe|cook|bake|ingredient|marinate|saute|simmer)\b',
+            caseSensitive: false)),
+    // Weather queries.
+    ('weather',
+        RegExp(
+            r'\b(weather|forecast|temperature|rain|snow)\b\s+(today|tomorrow|this|in)\b',
+            caseSensitive: false)),
+    // Code / software help.
+    ('code',
+        RegExp(
+            r'\b(python|javascript|typescript|java|rust|code|function|bug|compile|stack trace|git commit)\b',
+            caseSensitive: false)),
+    // Entertainment suggestions.
+    ('entertainment_picks',
+        RegExp(
+            r'\b(movie|netflix|show|series|song|playlist|game)\s+(recommend|to watch|to play|suggestion)\b',
+            caseSensitive: false)),
+    // Shopping / travel planning.
+    ('shopping',
+        RegExp(r'\b(flight|hotel|book|order|buy|cheap|discount)\s+\w+',
+            caseSensitive: false)),
+    // Academic / factual lookup: explain X, define X, summarize X, calculate X.
+    ('academic_command',
+        RegExp(
+            r'^(explain|define|summarize|calculate|solve|compute|translate)\s+\w',
+            caseSensitive: false)),
+    // Math problems: digits with operators, variables.
+    ('math_expression',
+        RegExp(r'^\s*[\d().+\-*/=x ]+\s*[=?]\s*$', caseSensitive: false)),
+    // Hard-science / academic topic words used as a query.
+    ('academic_topic',
+        RegExp(
+            r'\b(quantum|calculus|algebra|physics|chemistry|biology|history of)\b',
+            caseSensitive: false)),
+    // Itineraries / event planning.
+    ('event_planning',
+        RegExp(r'\b(itinerary|plan a|plan my|agenda for|schedule for)\b',
+            caseSensitive: false)),
+    // Direct AI-as-search queries.
+    ('search_command',
+        RegExp(r'^(google|search|look up|find me)\s+\w',
+            caseSensitive: false)),
   ];
 
-  return offTopicPatterns.any((p) => p.hasMatch(lower));
+  for (final pattern in offTopicPatterns) {
+    if (pattern.$2.hasMatch(lower)) {
+      return OffTopicResult(isOffTopic: true, matchedPattern: pattern.$1);
+    }
+  }
+  return const OffTopicResult(isOffTopic: false);
+}
+
+Future<void> _logClassifierDecision(
+  String rawUserText,
+  OffTopicResult classification,
+) async {
+  try {
+    await supabaseSyncService.insertRow('reflect_classifier_log', {
+      'user_id': supabaseSyncService.currentUserId,
+      'user_text': rawUserText,
+      'off_topic': classification.isOffTopic,
+      'matched_pattern': classification.matchedPattern,
+    });
+  } catch (e) {
+    // Swallow — logging must never block reflect. Surface in debug builds
+    // so a misconfigured table / RLS rule is at least visible locally.
+    debugPrint('reflect_classifier_log insert failed: $e');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -484,7 +574,19 @@ Future<ReflectResponse> reflectWithOpenAI(
   // Off-topic detection — only check the raw user text (first line),
   // not the combined text which includes AI-generated follow-up questions.
   final rawUserText = userText.split('\n').first.trim();
-  if (isOffTopic(rawUserText)) {
+  final classification = classifyOffTopic(rawUserText);
+
+  // Fire-and-forget log of classifier decisions for tuning. We only log
+  // the cases worth reviewing — every off-topic block (so we can audit
+  // false positives) and on-topic decisions in debug builds (so devs can
+  // sanity-check locally). Skipping on-topic in release keeps the table
+  // from ballooning with rows nobody reads.
+  // Failures here must never block the user-facing flow.
+  if (classification.isOffTopic || kDebugMode) {
+    unawaited(_logClassifierDecision(rawUserText, classification));
+  }
+
+  if (classification.isOffTopic) {
     final demo = getDemoResponse();
     return ReflectResponse(
       name: demo.name,

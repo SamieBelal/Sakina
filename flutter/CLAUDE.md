@@ -244,6 +244,15 @@ Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView
 - All user-facing strings must be extracted for future localization (Arabic, Urdu, Malay, Turkish, French are priority languages).
 - Write unit tests for all service classes and core business logic. Widget tests for critical flows (onboarding, emotion check-in, paywall).
 
+## Daily flow — two muhasabah paths
+
+There are two entry points with intentionally different behavior:
+
+1. **DailyLaunchOverlay** (`lib/features/daily/screens/daily_launch_overlay.dart`) → calls `answerCheckin()` in `daily_loop_provider.dart:465`. Walks the user through 4 check-in questions, then AI-generates a Name match. Used on the "fresh launch of the day" path.
+2. **Home's `Begin Muḥāsabah` CTA** routes to `/muhasabah` (`lib/features/daily/screens/muhasabah_screen.dart:173-178`) which auto-triggers `discoverName()` in `daily_loop_provider.dart:402`. **Skips questions entirely**, picks an undiscovered/lowest-tier card, jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty. This is **intentional** — empty q2/q3/q4 in the DB on this path is not a bug.
+
+`answerCheckin` is referred to as "legacy — used by deeper reflection" in code comments but is still the live multi-question path on the launch overlay.
+
 ## Gotchas
 
 - NEVER generate or fabricate Quran verses, hadith, or scholarly content. All Islamic content must come from the pre-verified database. The AI selects from existing entries only.
@@ -255,7 +264,7 @@ Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView
 
 ## Known Bugs
 
-- **Gacha continue double-tap** (`flutter/lib/features/daily/widgets/name_reveal_overlay.dart`): The "Continue" button at the end of gacha is a plain `Container` with no `GestureDetector` — it relies on the parent overlay's tap handler. First tap registers on the button (no-op), second tap hits the overlay background. Fix: wrap the Continue `Container` in a `GestureDetector` with `onTap: _handleContinue`.
+- **Gacha overlay eager-dismiss** (`flutter/lib/features/daily/widgets/name_reveal_overlay.dart`): The outer `GestureDetector` at line ~103 calls `_handleContinue` on *any* tap once `_phase >= 2` — which starts ~1600ms after mount and is ~1200ms before the Continue button is actually rendered (phase 3 at ~2800ms). A user who taps during that window can advance before seeing the reward details. The Continue button *does* have its own `GestureDetector` (line ~407), so tapping the button directly at phase 3 works as expected. Fix option: gate the outer handler on `_phase >= 3` instead of `>= 2`, so taps before the Continue button renders are absorbed. (The prior note about "plain Container with no GestureDetector" is stale — a `GestureDetector` was added; the remaining issue is the phase-2 window.)
 - **Arabic text bleeding into header** (e.g. `flutter/lib/features/feelings/screens/home_screen.dart:192`): Mixed Arabic + English in a single `Text` widget causes RTL rendering to bleed into surrounding UI. Fix: split into two separate `Text` widgets with explicit `textDirection` on the Arabic one.
 
 ## Aref Ruqaa Font Metric Fix

@@ -27,7 +27,7 @@ Each section has:
 Seed these in Supabase dev project so you can jump between states without re-running onboarding:
 
 1. `fresh@test.sakina` — no rows anywhere. Used for full new-user flow.
-2. `onboarded@test.sakina` — `profiles.onboarding_completed = true`, no check-ins, no cards, no entitlement.
+2. `onboarded@test.sakina` — `user_profiles.onboarding_completed = true`, no check-ins, no cards, no entitlement.
 3. `daily-user@test.sakina` — 7-day streak, ~500 tokens, 10 cards across tiers, 3 journal entries, 1 saved dua.
 4. `premium@test.sakina` — same as #3 plus active RevenueCat entitlement.
 5. `expired@test.sakina` — previously premium, entitlement lapsed.
@@ -36,7 +36,7 @@ Reset script (run before each full pass):
 ```sql
 -- Supabase MCP: reset non-premium test users
 select delete_own_account() -- call from client as each user, OR:
-delete from profiles where email like '%@test.sakina';
+delete from auth.users where email like '%@test.sakina';  -- cascades to user_profiles and scoped tables
 ```
 
 ---
@@ -54,7 +54,7 @@ delete from profiles where email like '%@test.sakina';
 
 **DB checks (Supabase MCP):**
 ```sql
-select id, onboarding_completed, created_at from profiles where id = auth.uid();
+select id, onboarding_completed, created_at from user_profiles where id = auth.uid();
 select count(*) from checkin_history where user_id = auth.uid();
 ```
 
@@ -71,20 +71,23 @@ select count(*) from checkin_history where user_id = auth.uid();
 
 **Steps:**
 - Hook screen: "Get Started" → `/onboarding`, "Sign In" → `/signin`.
-- Email sign-up happy path: valid email + 8+ char password + name → account created.
+- Email sign-up happy path: valid email + 6+ char password + name → account created.
 - Google sign-in → returns to in-flow onboarding (NOT paywall) if onboarding incomplete.
 - Apple sign-in → same.
 
 **UI checks:**
 - Invalid email → inline error "Please enter a valid email".
-- Password < 8 chars → inline error.
+- Password < 6 chars → Create Account button disabled.
 - Duplicate email → snackbar "An account with this email already exists".
 - Social auth cancel → user stays on Save Progress screen, no crash.
 
 **DB checks:**
 ```sql
-select email, full_name, auth_provider, onboarding_completed from profiles where email = '<email>';
+select u.email, p.display_name, p.onboarding_completed
+from auth.users u left join public.user_profiles p on p.id = u.id
+where u.email = '<email>';
 -- After social auth resume, onboarding_completed should still be false and user should be mid-flow.
+-- auth provider: inspect auth.identities.provider for the user, not user_profiles.
 ```
 
 **Analytics (Mixpanel MCP):**
@@ -99,11 +102,39 @@ Each should fire exactly once.
 
 ---
 
-## 3. Onboarding (20 pages)
+## 3. Onboarding (20+ pages)
 
 **Preconditions:** fresh signup, `onboarding_completed = false`.
 
-Walk each page 0→19. For every page:
+Canonical page order (confirmed 2026-04-22 via sim walkthrough):
+
+0. First Check-in (emotion input + NameRevealOverlay + Result teaser)
+1. Name (display name)
+2. Age range
+3. Intention
+4. Prayer frequency
+5. Quran connection
+6. 99 Names familiarity
+7. Resonant Name picker (becomes first card)
+8. Dua topics (multi + "on your heart" text)
+9. Common emotions (multi)
+10. Aspirations (pick up to 3)
+11. Daily commitment minutes
+12. Attribution (multi)
+13. Encouragement interstitial ("You're not alone…")
+14. Reminder time
+15. Notifications opt-in
+16. Commitment pact ("Tap to commit")
+17. Personalization plan summary ("Your plan, <name>")
+18. Value prop (Daily check-in / 99 Names / Journal)
+19. Social proof (4.9 stars + testimonials)
+20. Save Your Progress (Apple / Google / Email)
+21. Email input
+22. Password input
+23. Encouragement ("Something beautiful awaits you, <name>")
+24. Paywall
+
+Walk each page in order. For every page:
 
 **Per-screen checks:**
 - Headline + illustration render.
@@ -114,27 +145,32 @@ Walk each page 0→19. For every page:
 
 **Special per-page notes:**
 - **Page 0 (First Check-in):** text field auto-focuses, emotion chips tappable, submit triggers `NameRevealOverlay`. Continue only after reveal dismissed.
-- **Page 9 (Name):** entered name must appear on page 10 ("Something beautiful awaits you, <name>").
-- **Page 11 (Notifications):** tapping "Allow" triggers iOS system prompt exactly once. Tapping "Not now" does NOT trigger it. Skip still advances.
-- **Page 19 (Paywall):** see §4.
+- **Page 1 (Name):** entered display name must appear on page 17 ("Your plan, <name>") and page 23 ("Something beautiful awaits you, <name>").
+- **Page 15 (Notifications):** tapping "Enable Notifications" triggers iOS system prompt exactly once (only if OS permission not already granted). Tapping "Not now" does NOT trigger it. Skip still advances.
+- **Page 24 (Paywall):** see §4.
 
 **DB checks after completing onboarding:**
 ```sql
-select onboarding_completed, intention, quran_connection, familiarity,
-       struggles, attribution_sources, full_name, notification_opt_in
-from profiles where id = auth.uid();
+select onboarding_completed, display_name, onboarding_intention,
+       onboarding_quran_connection, onboarding_familiarity,
+       onboarding_struggles, onboarding_attribution,
+       age_range, prayer_frequency, resonant_name_id,
+       dua_topics, common_emotions, aspirations,
+       daily_commitment_minutes, reminder_time, commitment_accepted
+from public.user_profiles where id = auth.uid();
 
-select segment, count(*) from onboarding_answers where user_id = auth.uid() group by segment;
+select notif_daily_checkin, notif_streak, notif_weekly, notif_reengage, timezone
+from public.user_notification_preferences where user_id = auth.uid();
 ```
 All survey answers must be persisted.
 
 **Analytics:** one `onboarding_page_viewed` event per page (no duplicates on back-then-forward).
 
 **Edge cases:**
-- Force close on page 14, relaunch → same page, selections preserved.
-- Back from Encouragement (page 10) → returns to Name (page 9) with name still typed.
-- Social auth on page 6 → lands on page 10 (Encouragement) or wherever `_next` logic points, NOT paywall.
-- Notification permission denied at OS level → app still advances, `notification_opt_in=false` persisted.
+- Force close mid-flow, relaunch → same page, selections preserved (via SharedPreferences).
+- Back from Encouragement (page 23) → returns to Password (page 22).
+- Social auth on Save Progress (page 20) → completes signup + lands in-flow (encouragement/paywall), NOT direct to home unless already onboarded.
+- Notification permission denied at OS level → app still advances, `user_notification_preferences` reflects the state.
 
 ---
 
@@ -150,7 +186,7 @@ All survey answers must be persisted.
 
 **DB + MCP checks:**
 - RevenueCat MCP: `get-customer <supabase-user-id>` → `original_app_user_id` matches Supabase id.
-- After successful sandbox purchase: `list-subscriptions` shows active entitlement; `profiles.is_premium = true` (via webhook).
+- After successful sandbox purchase: `list-subscriptions` shows active entitlement; `select public.has_active_premium_entitlement('<uid>');` returns `true` (via webhook-populated `subscriptions` row).
 - Analytics: `paywall_viewed`, `paywall_plan_selected`, `paywall_purchase_succeeded` / `paywall_purchase_cancelled` fire.
 
 **Edge cases:**
@@ -404,12 +440,12 @@ select current_streak, longest_streak, freezes_available from streaks where user
 **Preconditions:** signed-in user.
 
 **Steps:**
-- Settings → profile info (name, email, title, level) correct.
-- Notification toggles (Daily check-in / Streak / Weekly / Re-engagement) → each toggles local + server state.
-- Sign out → returns to `/welcome`, local caches cleared.
-- "Reset Daily Loop" → confirmation → clears today's check-in only.
-- "Clear Card Collection" → confirmation → wipes `user_cards`.
-- "Delete Account" → confirmation + re-confirmation → calls `delete_own_account` RPC → returns to `/welcome`, all user rows gone.
+- Settings → profile info (display_name, email, title, level) correct.
+- **Account section** → Sign Out (confirm dialog) → returns to `/welcome`, local caches cleared.
+- **Preferences** toggles (Push Notifications / Daily Reminder / Streak Reminders / Weekly Reflection / Come Back Nudge / New Content & Updates) → each toggles local + server state.
+- **Danger Zone** → "Reset Daily Loop" → confirmation → clears today's check-in only.
+- **Danger Zone** → "Clear Card Collection" → confirmation → wipes `user_card_collection`.
+- **Danger Zone** → "Delete Account" → confirmation + re-confirmation → calls `delete_own_account` RPC → returns to `/welcome`, all user rows gone.
 
 **DB checks after notification toggle:**
 ```sql
@@ -419,7 +455,7 @@ from notification_preferences where user_id = auth.uid();
 
 **DB checks after delete account:**
 ```sql
-select count(*) from profiles where id = '<old-uid>';  -- expect 0
+select count(*) from user_profiles where id = '<old-uid>';  -- expect 0
 select count(*) from checkin_history where user_id = '<old-uid>';  -- expect 0
 select count(*) from reflections where user_id = '<old-uid>';  -- expect 0
 ```
@@ -454,7 +490,7 @@ mcp__onesignal__send_push_notification
 - `view_message_history` shows delivered.
 
 **Edge cases:**
-- User revoked OS permission → send succeeds server-side but no delivery. `notification_opt_in` reflects revoked state on next app launch (verify via MCP `view_user`).
+- User revoked OS permission → send succeeds server-side but no delivery. `user_notification_preferences.notify_daily` (and related flags) reflect revoked state on next app launch (verify via MCP `view_user`).
 - User signed out → no push sent (subscription disabled).
 - Scheduled daily notification does NOT fire twice in same 24h window.
 
@@ -478,9 +514,9 @@ Payload has all sections: profile, streaks, tokens, xp, cards, quests, journal, 
 - Call as non-premium → rejected.
 
 **RevenueCat webhook:**
-- Trigger sandbox purchase → webhook fires → `profiles.is_premium = true`, `subscriptions` row inserted.
-- Trigger cancel → webhook → `is_premium` may stay true until period end (verify).
-- Trigger expiration → webhook → `is_premium = false`.
+- Trigger sandbox purchase → webhook fires → `subscriptions` row inserted; `public.has_active_premium_entitlement('<uid>')` returns `true`.
+- Trigger cancel → webhook → entitlement may stay active until period end (verify via `has_active_premium_entitlement`).
+- Trigger expiration → webhook → `has_active_premium_entitlement` returns `false`.
 - Trigger unauthorized POST to webhook URL → 401/403.
 
 ---
@@ -525,3 +561,18 @@ Before every TestFlight/App Store push, run this condensed flow on **one physica
 8. Settings → delete account → confirm DB rows gone via Supabase MCP.
 
 If all eight pass with no visual or DB anomalies, ship.
+
+## 18. Fresh-checkout build
+
+Regression guard for the `.env`-as-gitignored-but-required-asset bug.
+
+1. `git clone` the repo into a temp directory.
+2. `cd flutter && flutter pub get`
+3. `flutter build web --debug` must succeed — no "No file or variants
+   found for asset: .env" error. (`.env` is no longer a pubspec asset;
+   `.env.example` is bundled as the always-loaded fallback.)
+4. `flutter build ios --debug` — same expectation.
+5. Launching the app should not crash during `dotenv.load`; the app
+   boots on placeholder values from `.env.example`. To run against real
+   Supabase/RevenueCat, add `- .env` back to `pubspec.yaml` locally and
+   provide the secrets in `.env`.

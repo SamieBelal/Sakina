@@ -7,6 +7,7 @@ class _FakeAuthService extends AuthService {
   Map<String, dynamic>? captured;
   @override
   Future<void> saveOnboardingData({
+    String? displayName,
     String? intention,
     String? familiarity,
     String? quranConnection,
@@ -23,6 +24,7 @@ class _FakeAuthService extends AuthService {
     bool commitmentAccepted = false,
   }) async {
     captured = {
+      'displayName': displayName,
       'intention': intention,
       'familiarity': familiarity,
       'quranConnection': quranConnection,

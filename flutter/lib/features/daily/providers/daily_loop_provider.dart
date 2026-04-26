@@ -347,6 +347,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   /// milestone rewards.
   Future<void> _markStreakAndHandleMilestones() async {
     final streakResult = await markActiveToday();
+    // Log user_activity_log + local cache so downstream analytics /
+    // retention queries see the daily check-in. Previously only the
+    // reflect flow hit logActivity(); muhasabah was silent.
+    await logActivity();
     state = state.copyWith(streakCount: streakResult.currentStreak);
     await _handleStreakMilestones(streakResult.currentStreak);
   }

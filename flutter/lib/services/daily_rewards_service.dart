@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/launch_gate_state.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -266,6 +267,92 @@ Future<void> _persist(DailyRewardsState state) async {
 
 Future<void> prepareDailyRewardsCacheForHydration() async {
   await getDailyRewards();
+}
+
+/// Wipes the server-side `user_daily_rewards` row for the current user so a
+/// dev/QA reset on Settings actually re-triggers the daily-launch overlay
+/// across devices. Without this, "Reset Daily Loop" only clears local
+/// SharedPrefs while the server still says "claimed today" — and the next
+/// reconcile would re-hydrate the local cache from that stale server state.
+///
+/// No-op for unauthenticated users.
+Future<void> resetDailyRewardsOnServer() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+  // Intentionally does NOT touch `streak_freeze_owned` — that's paid /
+  // earned inventory and a dev reset shouldn't wipe it.
+  await supabaseSyncService.upsertRow(
+    'user_daily_rewards',
+    userId,
+    {
+      'current_day': 0,
+      'last_claim_date': null,
+    },
+  );
+}
+
+/// Reads the canonical daily-rewards row from Supabase and writes it back to
+/// the local SharedPrefs cache. Server is the source of truth — this fixes
+/// the "DB reset doesn't re-trigger the launch overlay" bug (F1/F5 in
+/// docs/qa/findings/2026-04-22-core-loop-fixes.md). Called from
+/// shouldShowDailyLaunch() and DailyRewardsNotifier.reload() so the local
+/// cache is always reconciled with what the server thinks before any UI
+/// gate reads it.
+///
+/// Important: the launch gate is only reset when there is a clear conflict —
+/// local cache previously thought the user had claimed today, but the
+/// server now says otherwise. Without that check we'd clobber the gate on
+/// every cold launch where the user merely dismissed the overlay without
+/// claiming, re-triggering it every time. (Regression caught by
+/// test/services/launch_gate_service_test.dart.)
+///
+/// No-op for unauthenticated users.
+Future<void> reconcileDailyRewardsFromServer() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+
+  // Read what the local cache currently thinks before fetching server,
+  // so we can detect a real conflict.
+  final localBefore = await getDailyRewards();
+
+  final row = await supabaseSyncService.fetchRow(
+    'user_daily_rewards',
+    userId,
+    columns: 'current_day,last_claim_date,streak_freeze_owned',
+  );
+
+  // No row on server. Clear the local rewards cache so the next read
+  // returns a fresh state. Only reset the launch gate if the local cache
+  // previously believed the user had claimed today — that's the genuine
+  // "server got wiped while we still think we claimed" case.
+  if (row == null) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(supabaseSyncService.scopedKey(_rewardsKey));
+    if (localBefore.claimedToday) {
+      await resetDailyLaunchGate();
+    }
+    return;
+  }
+
+  final serverDay = row['current_day'] as int? ?? 0;
+  final serverLastClaim = row['last_claim_date'] as String?;
+  final serverFreeze = row['streak_freeze_owned'] as bool? ?? false;
+
+  await _persist(
+    DailyRewardsState(
+      currentDay: serverDay,
+      lastClaimDate: serverLastClaim,
+      streakFreezeOwned: serverFreeze,
+      claimedToday: serverLastClaim == _today(),
+    ),
+  );
+
+  // Conflict: local thought today was claimed but server disagrees.
+  // Reset the launch gate so the overlay can fire again on this cold
+  // launch — admin reset, multi-device claim rollback, etc.
+  if (localBefore.claimedToday && serverLastClaim != _today()) {
+    await resetDailyLaunchGate();
+  }
 }
 
 Future<void> hydrateDailyRewardsCache({

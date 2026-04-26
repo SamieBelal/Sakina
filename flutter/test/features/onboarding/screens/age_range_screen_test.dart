@@ -49,6 +49,10 @@ void main() {
         .where((e) => e.$1 == AnalyticsEvents.onboardingAnswerCaptured)
         .toList();
     expect(events.length, 1);
-    expect(events.first.$2, {'key': 'age_range', 'value': '25_34'});
+    // The analytics helper enriches the payload with step_index/step_name
+    // when a stepIndex is provided. Assert on the core key/value the test
+    // cares about; tolerate the helper's additional metadata.
+    expect(events.first.$2, containsPair('key', 'age_range'));
+    expect(events.first.$2, containsPair('value', '25_34'));
   });
 }

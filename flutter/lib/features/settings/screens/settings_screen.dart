@@ -17,6 +17,7 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -184,6 +185,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed != true) return;
 
+    // Wipe both local AND server state so the overlay actually re-fires.
+    // Previously only local was cleared, which made the next reconcile
+    // re-hydrate from the stale server row. F1/F5 fix items #3 in
+    // docs/qa/findings/2026-04-22-core-loop-fixes.md.
+    await resetDailyRewardsOnServer();
     await ref.read(dailyLoopProvider.notifier).resetToday();
     await resetDailyLaunchGate();
     if (mounted) {

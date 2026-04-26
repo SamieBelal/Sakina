@@ -1,47 +1,28 @@
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/launch_gate_state.dart';
 
-const String _launchGateKey = 'sakina_launch_gate';
-
-// In-memory guard so only one overlay is ever pushed per app session.
-bool _overlayPushedThisSession = false;
-
-String _today() {
-  final now = DateTime.now();
-  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-}
+// Re-export the gate primitives so existing callers that import
+// `launch_gate_service.dart` keep working unchanged. The underlying state
+// lives in `launch_gate_state.dart` to avoid a cycle with
+// `daily_rewards_service.dart`.
+export 'package:sakina/services/launch_gate_state.dart';
 
 /// Returns true if the daily launch overlay should be shown (first open today).
+///
+/// Reconciles the local rewards cache with the server FIRST so admin/QA-driven
+/// resets to `user_daily_rewards` (or multi-device claims) actually re-trigger
+/// the overlay. Without this, the local SharedPref gate could lie about
+/// "shown today" even when the server says nothing was claimed. See F1/F5
+/// in docs/qa/findings/2026-04-22-core-loop-fixes.md.
 Future<bool> shouldShowDailyLaunch() async {
-  if (_overlayPushedThisSession) return false;
-  final prefs = await SharedPreferences.getInstance();
-  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
-  final last = prefs.getString(scopedKey);
-  return last != _today();
-}
+  if (launchGateOverlayPushedThisSession) return false;
 
-/// Call this after the overlay has been presented so subsequent opens skip it.
-Future<void> markDailyLaunchShown() async {
-  _overlayPushedThisSession = true;
-  final prefs = await SharedPreferences.getInstance();
-  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
-  await prefs.setString(scopedKey, _today());
-}
+  // Best-effort server reconcile — if the network is down we fall through
+  // to the cached value (better to skip the overlay than to crash).
+  try {
+    await reconcileDailyRewardsFromServer();
+  } catch (_) {}
 
-/// Call this when the user resets the daily loop from Settings.
-Future<void> resetDailyLaunchGate() async {
-  _overlayPushedThisSession = false;
-  final prefs = await SharedPreferences.getInstance();
-  final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
-  await prefs.remove(scopedKey);
-}
-
-void resetLaunchGateSessionState() {
-  _overlayPushedThisSession = false;
-}
-
-@visibleForTesting
-void resetLaunchGateMemoryGuard() {
-  resetLaunchGateSessionState();
+  final last = await readLaunchGateMarker();
+  return last != launchGateTodayMarker();
 }
