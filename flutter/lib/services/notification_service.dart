@@ -215,6 +215,11 @@ class NotificationService {
     _cachedOptedIn = true;
     await _writeCachedPushEnabled(true);
     await _writePushEnabledToSupabase(true);
+    // Defense in depth (Option B follow-up to F2 fix, 2026-04-26):
+    // stamp push_enabled_last_verified_at so the cron's 7-day freshness
+    // filter in get_eligible_notification_users keeps dispatching to
+    // this user. See docs/qa/findings/2026-04-26-push-cron-defense-in-depth-followup.md
+    await _writePushEnabledVerifiedAtToSupabase();
     return true;
   }
 
@@ -239,6 +244,24 @@ class NotificationService {
       'user_notification_preferences',
       userId,
       <String, dynamic>{'push_enabled': enabled},
+    );
+  }
+
+  /// Stamp `push_enabled_last_verified_at = now()` so the cron freshness
+  /// filter (added 2026-04-26 alongside Option B defense in depth) keeps
+  /// the user eligible. Called whenever the client confirms iOS perm is
+  /// genuinely granted: from optIn() and from getNotificationPreferences
+  /// when the server reports push_enabled=true and the device permission
+  /// is currently granted.
+  Future<void> _writePushEnabledVerifiedAtToSupabase() async {
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return;
+    await supabaseSyncService.upsertRow(
+      'user_notification_preferences',
+      userId,
+      <String, dynamic>{
+        'push_enabled_last_verified_at': DateTime.now().toUtc().toIso8601String(),
+      },
     );
   }
 
@@ -286,9 +309,47 @@ class NotificationService {
           ].join(','),
         );
         if (row != null) {
-          final serverPushEnabled = row['push_enabled'] as bool? ?? true;
+          var serverPushEnabled = row['push_enabled'] as bool? ?? true;
+
+          // F2 fix (2026-04-26): reconcile push_enabled with iOS-level
+          // notification permission. If the device permission is denied
+          // but the server believes the user is enabled, the backend cron
+          // dispatches pushes that never arrive and writes
+          // last_*_sent_at as if successful — funnel-blinding. Force the
+          // server to false here so the cron stops dispatching until the
+          // user re-enables in Settings (which goes through optIn() and
+          // re-checks iOS perm).
+          if (_initialized &&
+              serverPushEnabled &&
+              !_client.isPermissionGranted) {
+            try {
+              await _writePushEnabledToSupabase(false);
+              serverPushEnabled = false;
+            } catch (error) {
+              debugPrint(
+                  'notification push_enabled reconcile to false failed: $error');
+            }
+          }
+
           _cachedOptedIn = serverPushEnabled;
           await _writeCachedPushEnabled(serverPushEnabled);
+
+          // Defense in depth: if server says push is enabled AND iOS
+          // perm is genuinely granted right now, stamp
+          // push_enabled_last_verified_at so the cron's 7-day freshness
+          // filter keeps dispatching. The F2 reconcile branch above
+          // already wrote push_enabled=false in the perm-denied case, so
+          // here we only need to handle the still-eligible case.
+          if (_initialized &&
+              serverPushEnabled &&
+              _client.isPermissionGranted) {
+            try {
+              await _writePushEnabledVerifiedAtToSupabase();
+            } catch (error) {
+              debugPrint(
+                  'notification verified_at stamp failed: $error');
+            }
+          }
 
           final preferences = <String, bool>{
             notifyDailyTagKey: row[notifyDailyTagKey] as bool? ?? true,

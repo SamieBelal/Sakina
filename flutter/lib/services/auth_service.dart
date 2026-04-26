@@ -5,8 +5,26 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// F3 fix (2026-04-26): clears all SharedPreferences keys scoped to the given
+/// user. supabase_sync_service writes scoped keys with the suffix `:<uid>`;
+/// this mirrors that contract. Cross-user safety is preserved by the suffix
+/// so this only ever removes keys belonging to the signing-out user. Top
+/// level so it can be unit-tested without instantiating an AuthService.
+Future<int> clearScopedPreferencesForUser(
+    SharedPreferences prefs, String userId) async {
+  if (userId.isEmpty) return 0;
+  final suffix = ':$userId';
+  final scopedKeys =
+      prefs.getKeys().where((k) => k.endsWith(suffix)).toList(growable: false);
+  for (final key in scopedKeys) {
+    await prefs.remove(key);
+  }
+  return scopedKeys.length;
+}
 
 class AuthService {
   late final _supabase = Supabase.instance.client;
@@ -172,7 +190,15 @@ class AuthService {
     return row?['onboarding_completed'] == true;
   }
 
-  Future<void> signOut() async => _supabase.auth.signOut();
+  Future<void> signOut() async {
+    // Capture uid BEFORE signOut — afterwards currentUser is null.
+    final userId = _supabase.auth.currentUser?.id;
+    await _supabase.auth.signOut();
+    if (userId != null && userId.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await clearScopedPreferencesForUser(prefs, userId);
+    }
+  }
 
   Future<void> deleteAccount() async {
     await _supabase.rpc('delete_own_account');

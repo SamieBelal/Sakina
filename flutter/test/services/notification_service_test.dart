@@ -112,6 +112,165 @@ void main() {
 
   tearDown(SupabaseSyncService.debugReset);
 
+  test(
+      'getNotificationPreferences reconciles push_enabled=false when iOS permission is denied (F2)',
+      () async {
+    // Regression for finding 2026-04-26-push-enabled-drift.
+    // Server believes the user is enabled but the device permission has
+    // been revoked (or was never granted). The cron would otherwise
+    // dispatch undeliverable pushes and write last_*_sent_at as if
+    // successful. getNotificationPreferences must force push_enabled to
+    // false on the server so dispatch stops until the user re-enables.
+    await service.initialize('test-app');
+    client.permissionGranted = false;
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      'push_enabled': true,
+      notifyDailyTagKey: true,
+      notifyStreakTagKey: true,
+      notifyReengagementTagKey: true,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: true,
+    };
+
+    await service.getNotificationPreferences();
+
+    expect(
+      syncService.rows['user_notification_preferences:user-1']?['push_enabled'],
+      isFalse,
+      reason:
+          'reconcile must overwrite push_enabled to false when iOS perm denied',
+    );
+    expect(service.isOptedIn, isFalse,
+        reason: 'cached opt-in state must reflect reconciled value');
+  });
+
+  test(
+      'getNotificationPreferences leaves push_enabled=true intact when iOS permission is granted',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = true;
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      'push_enabled': true,
+      notifyDailyTagKey: true,
+      notifyStreakTagKey: true,
+      notifyReengagementTagKey: true,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: true,
+    };
+
+    await service.getNotificationPreferences();
+
+    expect(
+      syncService.rows['user_notification_preferences:user-1']?['push_enabled'],
+      isTrue,
+      reason: 'reconcile must NOT touch push_enabled when iOS perm is granted',
+    );
+    expect(service.isOptedIn, isTrue);
+  });
+
+  test(
+      'getNotificationPreferences stamps push_enabled_last_verified_at when push_enabled=true and iOS perm is granted (Option B defense in depth)',
+      () async {
+    // Regression for the cron 7-day freshness filter added 2026-04-26.
+    // When client confirms server push_enabled=true AND iOS perm is
+    // currently granted, the verified_at stamp must move forward so the
+    // RPC keeps the user eligible.
+    await service.initialize('test-app');
+    client.permissionGranted = true;
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      'push_enabled': true,
+      notifyDailyTagKey: true,
+      notifyStreakTagKey: true,
+      notifyReengagementTagKey: true,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: true,
+    };
+
+    final before = DateTime.now().toUtc();
+    await service.getNotificationPreferences();
+    final after = DateTime.now().toUtc();
+
+    final stamp = syncService
+            .rows['user_notification_preferences:user-1']
+        ?['push_enabled_last_verified_at'] as String?;
+    expect(stamp, isNotNull,
+        reason: 'verified_at must be written when perm is granted');
+    final parsed = DateTime.parse(stamp!).toUtc();
+    expect(
+      parsed.isAtSameMomentAs(before) || parsed.isAfter(before),
+      isTrue,
+      reason: 'verified_at must be >= test start time',
+    );
+    expect(
+      parsed.isAtSameMomentAs(after) || parsed.isBefore(after),
+      isTrue,
+      reason: 'verified_at must be <= test end time',
+    );
+  });
+
+  test(
+      'getNotificationPreferences does NOT stamp verified_at when iOS perm is denied',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = false;
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      'push_enabled': true,
+      notifyDailyTagKey: true,
+      notifyStreakTagKey: true,
+      notifyReengagementTagKey: true,
+      notifyWeeklyTagKey: true,
+      notifyUpdatesTagKey: true,
+    };
+
+    await service.getNotificationPreferences();
+
+    expect(
+      syncService
+              .rows['user_notification_preferences:user-1']
+          ?['push_enabled_last_verified_at'],
+      isNull,
+      reason:
+          'verified_at must NOT be stamped when reconcile flips push_enabled=false',
+    );
+  });
+
+  test('optIn stamps push_enabled_last_verified_at on success', () async {
+    await service.initialize('test-app');
+    client.permissionGranted = true;
+
+    final before = DateTime.now().toUtc();
+    final result = await service.optIn();
+    expect(result, isTrue);
+
+    final stamp = syncService
+            .rows['user_notification_preferences:user-1']
+        ?['push_enabled_last_verified_at'] as String?;
+    expect(stamp, isNotNull,
+        reason: 'optIn() must stamp verified_at after granting perm');
+    expect(DateTime.parse(stamp!).toUtc().isBefore(before), isFalse);
+  });
+
+  test('optIn does NOT stamp verified_at when iOS denies permission',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = false;
+    client.requestPermissionResult = false;
+
+    final result = await service.optIn();
+    expect(result, isFalse);
+    expect(
+      syncService
+              .rows['user_notification_preferences:user-1']
+          ?['push_enabled_last_verified_at'],
+      isNull,
+      reason: 'verified_at must NOT be stamped when permission is denied',
+    );
+  });
+
   test('getNotificationPreferences returns Supabase-backed preferences',
       () async {
     syncService.rows['user_notification_preferences:user-1'] =

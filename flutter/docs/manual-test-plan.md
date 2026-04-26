@@ -307,7 +307,8 @@ select id, saved_at, need, arabic, transliteration, translation from public.user
 ```
 
 **Edge cases:**
-- Build-a-dua with off-topic input → off-topic response, no usage decrement.
+- Build-a-dua with off-topic input → off-topic response, no usage decrement. Verify `select built_dua_uses from public.user_daily_usage where user_id=auth.uid() and usage_date=current_date;` is unchanged.
+- **Off-topic + Try Again → input field is cleared** (regression for `2026-04-26-build-dua-tryagain-no-clear`). Same applies to "Build Another Dua" on the result screen.
 - Build-a-dua AI failure → prior state intact, no ghost row.
 - Favorite a dua, sign out, sign in → still favorited.
 - Token gate after free builds exhausted.
@@ -344,7 +345,13 @@ select anchor_names, completed_at from discovery_results where user_id = auth.ui
 - Journal tab → shows mixed list (reflections + duas) newest first.
 - Tap reflection → detail page renders story, Name, verses, dua.
 - Tap dua → detail page renders.
-- Swipe/tap delete → confirmation → removes only that item.
+- **Delete confirmation flow** (regression for `2026-04-26-journal-delete-no-confirm`). Test all 3 delete sites:
+  1. Reflection detail page → header trash icon
+  2. Dua detail page → header trash icon
+  3. Inline "Remove" pill on Journal list cards (covers reflection + built-dua + saved-related-dua variants)
+  For each: tap delete → "Delete this {reflection|dua|entry}?" dialog appears with **Cancel + Delete** buttons.
+  - Tap **Cancel** → dialog closes, row preserved (verify count unchanged in `user_reflections` / `user_built_duas`).
+  - Tap delete again → tap **Delete** → row removed, only that item gone (verify by id).
 - Empty state: `fresh@test.sakina` → "No reflections yet" CTA.
 
 **DB:**

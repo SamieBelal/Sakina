@@ -28,10 +28,30 @@ import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
+import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// F1 fix (2026-04-26): pure resolver for the Settings profile-card display
+/// name. Tries `user_profiles.display_name` first (canonical onboarding
+/// value), then auth metadata `full_name` (set on social sign-up), then
+/// email, then 'Guest'. Top-level so it can be unit tested without
+/// instantiating SettingsScreen.
+String resolveProfileDisplayName({
+  String? profileDisplayName,
+  String? fullName,
+  String? email,
+}) {
+  final cached = profileDisplayName?.trim();
+  if (cached != null && cached.isNotEmpty) return cached;
+  final meta = fullName?.trim();
+  if (meta != null && meta.isNotEmpty) return meta;
+  final mail = email?.trim();
+  if (mail != null && mail.isNotEmpty) return mail;
+  return 'Guest';
+}
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -56,6 +76,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _newContentEnabled = true;
   bool _notificationsBusy = false;
   bool _loading = true;
+  // F1 fix (2026-04-26): cache display_name from user_profiles so the
+  // profile card shows the user's name instead of email-twice. Email is
+  // pulled from auth.user.email and shown as the subtitle.
+  String? _profileDisplayName;
 
   @override
   void initState() {
@@ -77,6 +101,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final notificationPreferences =
         await notificationService.getNotificationPreferences();
 
+    // F1 fix: pull display_name from user_profiles (saveOnboardingData
+    // writes it there). userMetadata['full_name'] is only set on social
+    // sign-up, so email-flow users always fell back to email. This is
+    // best-effort — failure leaves _profileDisplayName null and the email
+    // fallback still renders.
+    String? profileDisplayName;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        final row = await Supabase.instance.client
+            .from('user_profiles')
+            .select('display_name')
+            .eq('id', user.id)
+            .maybeSingle();
+        final value = row?['display_name'] as String?;
+        if (value != null && value.trim().isNotEmpty) {
+          profileDisplayName = value.trim();
+        }
+      } catch (_) {
+        // Network failure / RLS denial — silent fallback to email.
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _xpState = xp;
@@ -96,6 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _weeklyReflectionEnabled =
           notificationPreferences[notifyWeeklyTagKey] ?? true;
       _newContentEnabled = notificationPreferences[notifyUpdatesTagKey] ?? true;
+      _profileDisplayName = profileDisplayName;
       _loading = false;
     });
   }
@@ -249,86 +297,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    // Step 1: Warning dialog
-    final warned = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
-          'This will permanently delete your account and all associated data — '
-          'streaks, saved reflections, journal entries, and preferences. '
-          'This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Continue',
-              style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (warned != true || !mounted) return;
+    // 2-step confirmation extracted to delete_account_dialogs.dart so the
+    // flow can be widget-tested in isolation. Step 1 is a plain warning
+    // (Cancel / Continue); Step 2 requires the user to type DELETE before
+    // the destructive button enables.
+    final warned = await showDeleteAccountWarningDialog(context);
+    if (!warned || !mounted) return;
 
-    // Step 2: Type DELETE to confirm
-    final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final isValid = controller.text.trim() == 'DELETE';
-            return AlertDialog(
-              title: const Text('Are you sure?'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Type DELETE to confirm account deletion.'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    onChanged: (_) => setDialogState(() {}),
-                    decoration: const InputDecoration(
-                      hintText: 'DELETE',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: isValid ? () => Navigator.pop(ctx, true) : null,
-                  child: Text(
-                    'Delete My Account',
-                    style: AppTypography.bodyMedium.copyWith(
-                      color: isValid
-                          ? AppColors.error
-                          : AppColors.textTertiaryLight,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    // Don't dispose controller here — the dialog's dismiss animation may still
-    // reference it when signOut() triggers a synchronous GoRouter rebuild.
-    // It will be garbage collected when this method returns.
-    if (confirmed != true || !mounted) return;
+    final confirmed = await showDeleteAccountConfirmDialog(context);
+    if (!confirmed || !mounted) return;
 
     // Step 3: Perform deletion
     try {
@@ -393,12 +370,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   String get _displayName {
     final user = _currentUser;
-    if (user == null) return 'Guest';
-    final meta = user.userMetadata;
-    if (meta != null && meta['full_name'] != null) {
-      return meta['full_name'] as String;
-    }
-    return user.email ?? 'Guest';
+    return resolveProfileDisplayName(
+      profileDisplayName: _profileDisplayName,
+      fullName: user?.userMetadata?['full_name'] as String?,
+      email: user?.email,
+    );
   }
 
   String get _subtitle {

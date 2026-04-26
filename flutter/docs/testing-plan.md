@@ -111,6 +111,8 @@ Edge: AI failure does not consume free usage, off-topic does not consume free us
 - Related duas save/unsave.
 - Names-invoked tracking updates.
 - Token gate after free limit.
+- **Off-topic build does NOT consume free usage.** Off-topic is signaled by `BuiltDuaResponse.breakdown.isEmpty` (server-side filter or unparseable response). The same signal drives the off-topic UI (`duas_screen.dart _buildStepViewer`) and the `incrementBuiltDuaUsage()` gate in `duas_provider.dart submitBuild`. Test both stay in sync. Regression for `2026-04-26-build-dua-offtopic-counter`.
+- **`resetBuild()` clears the input controller.** Try Again on the off-topic UI and Build Another Dua on the result screen both call `resetBuild()`, which wipes provider `buildNeed`. The UI listens via `ref.listen<DuasState>` and clears `_buildController` when buildNeed transitions non-empty → empty. Regression for `2026-04-26-build-dua-tryagain-no-clear`.
 
 Edge: AI failure leaves state intact, off-topic doesn't consume usage, saved/built duas survive relaunch, cross-user cache isolation.
 
@@ -119,6 +121,7 @@ Edge: AI failure leaves state intact, off-topic doesn't consume usage, saved/bui
 - Empty state.
 - Mixed saved content.
 - Reflection and dua detail pages render correctly.
+- **Delete confirmation dialog appears before destructive action** at all 5 entry points: reflection detail header, dua detail header, and the inline `_removeButton` on Journal list cards (3 callers: reflection / built dua / saved related dua). Cancel preserves the row, Delete removes it. Regression for `2026-04-26-journal-delete-no-confirm`. Backed by `confirm_delete_dialog.dart` shared helper — widget tests should assert the dialog appears, Cancel does NOT invoke `onRemove`, and Delete invokes `onRemove` exactly once.
 - Delete removes only the tapped item.
 
 Edge: long content truncates in list but shows full on detail, share failures surface safely.
