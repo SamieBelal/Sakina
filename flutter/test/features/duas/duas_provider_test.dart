@@ -220,6 +220,74 @@ void main() {
     expect(await getBuiltDuaUsageToday(), 0);
   });
 
+  test('resetBuild clears buildNeed so the screen can sync the text controller',
+      () async {
+    // Regression for finding 2026-04-26-build-dua-tryagain-no-clear.
+    // The screen's ref.listen watches buildNeed transitioning from non-empty
+    // to empty as its signal to clear the TextEditingController. If
+    // resetBuild ever stops setting buildNeed to '', the input field on
+    // Try Again will silently start preserving stale text again.
+    final notifier = DuasNotifier(
+      loadOnInit: false,
+      dependencies: DuasDependencies(
+        findDuas: (_) async => findResponse(),
+        buildDua: (_) async => buildResponse(),
+        now: () => fixedNow,
+        createId: () => 'dua-reset',
+      ),
+      resultRevealDelay: Duration.zero,
+    );
+    addTearDown(notifier.dispose);
+
+    notifier.setBuildNeed('a previous, possibly off-topic, request');
+    expect(notifier.state.buildNeed, isNotEmpty);
+
+    notifier.resetBuild();
+    expect(notifier.state.buildNeed, isEmpty,
+        reason:
+            'Try Again handler relies on buildNeed clearing to wipe the text controller');
+    expect(notifier.state.buildResult, isNull);
+    expect(notifier.state.error, isNull);
+  });
+
+  test(
+      'build that returns empty breakdown (server-side off-topic) does not consume free usage',
+      () async {
+    // Regression for finding 2026-04-26-build-dua-offtopic-counter:
+    // when the regex pre-filter passes but the AI returns an unparseable /
+    // empty response (off-topic equivalent), the counter must NOT increment.
+    const emptyBreakdownResponse = BuiltDuaResponse(
+      arabic: '',
+      transliteration: '',
+      translation: '',
+      breakdown: [],
+      namesUsed: [],
+      relatedDuas: [],
+    );
+
+    final notifier = DuasNotifier(
+      loadOnInit: false,
+      dependencies: DuasDependencies(
+        findDuas: (_) async => findResponse(),
+        buildDua: (_) async => emptyBreakdownResponse,
+        now: () => fixedNow,
+        createId: () => 'dua-empty',
+      ),
+      resultRevealDelay: Duration.zero,
+    );
+    addTearDown(notifier.dispose);
+
+    // "pizza recipe" passes the regex pre-filter, hits the AI, gets back
+    // an empty breakdown (the server's way of saying "off-topic").
+    notifier.setBuildNeed('pizza recipe with pepperoni and extra cheese');
+    await notifier.submitBuild();
+
+    expect(notifier.state.buildResult?.breakdown, isEmpty);
+    expect(await getBuiltDuaUsageToday(), 0,
+        reason:
+            'Empty breakdown means the user got no dua; free usage must not decrement.');
+  });
+
   test(
       'successful build tracks names, supports section navigation, and saves built duas',
       () async {

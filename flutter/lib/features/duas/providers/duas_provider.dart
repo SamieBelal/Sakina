@@ -499,7 +499,13 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
     try {
       final result = await _dependencies.buildDua(state.buildNeed);
-      if (consumeFreeUsage) {
+      // Only consume free usage when we got a real, parseable dua back.
+      // An empty breakdown means OpenAI either rejected the input as off-topic
+      // or returned an unparseable response. Either way, the user got no value
+      // and shouldn't be charged a free build. The off-topic UI in
+      // duas_screen.dart `_buildStepViewer` keys off `breakdown.isEmpty`, so
+      // this gate is the same signal — keep them in sync.
+      if (consumeFreeUsage && result.breakdown.isNotEmpty) {
         await incrementBuiltDuaUsage();
       }
       _progressTimer?.cancel();

@@ -74,6 +74,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
     // Show token gate sheet when build-a-dua hits free limit
     ref.listen<DuasState>(duasProvider, (prev, next) {
+      // Sync the text controller when the provider clears `buildNeed` —
+      // resetBuild() (called from Try Again on the off-topic UI and from
+      // Build Another Dua on the result screen) wipes the provider state but
+      // not the controller. Without this, the previous (rejected) text
+      // sticks around in the input on retry. See finding
+      // 2026-04-26-build-dua-tryagain-no-clear.md.
+      if ((prev?.buildNeed.isNotEmpty ?? false) && next.buildNeed.isEmpty) {
+        _buildController.clear();
+      }
       if (next.buildNeedsToken && !(prev?.buildNeedsToken ?? false)) {
         showTokenGateSheet(
           context,

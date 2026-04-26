@@ -15,6 +15,7 @@ import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
+import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 
 // ---------------------------------------------------------------------------
@@ -779,7 +780,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           const SizedBox(height: 12),
           _removeButton(() {
             ref.read(reflectProvider.notifier).deleteReflection(r.id);
-          }),
+          }, confirmTitle: 'Delete this reflection?'),
         ],
       ),
     );
@@ -840,7 +841,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           const SizedBox(height: 12),
           _removeButton(() {
             ref.read(duasProvider.notifier).removeSavedBuiltDua(d.id);
-          }),
+          }, confirmTitle: 'Delete this dua?'),
         ],
       ),
     );
@@ -904,7 +905,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
           const SizedBox(height: 12),
           _removeButton(() {
             ref.read(duasProvider.notifier).removeSavedRelatedDua(d.id);
-          }),
+          }, confirmTitle: 'Delete this dua?'),
         ],
       ),
     );
@@ -1003,10 +1004,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     );
   }
 
-  Widget _removeButton(VoidCallback onTap) {
+  Widget _removeButton(VoidCallback onTap, {String confirmTitle = 'Delete this entry?'}) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         HapticFeedback.lightImpact();
+        final confirmed = await confirmDeleteDialog(
+          context,
+          title: confirmTitle,
+        );
+        if (!confirmed) return;
         onTap();
       },
       child: Container(

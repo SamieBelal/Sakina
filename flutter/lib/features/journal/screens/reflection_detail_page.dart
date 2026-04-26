@@ -5,6 +5,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/share_card.dart';
 
 class ReflectionDetailPage extends StatelessWidget {
@@ -48,10 +49,15 @@ class ReflectionDetailPage extends StatelessWidget {
                       const Spacer(),
                       if (onRemove != null)
                         IconButton(
-                          onPressed: () {
+                          onPressed: () async {
                             HapticFeedback.mediumImpact();
+                            final confirmed = await confirmDeleteDialog(
+                              context,
+                              title: 'Delete this reflection?',
+                            );
+                            if (!confirmed) return;
                             onRemove!();
-                            Navigator.of(context).pop();
+                            if (context.mounted) Navigator.of(context).pop();
                           },
                           icon: const Icon(Icons.delete_outline_rounded,
                               size: 20),

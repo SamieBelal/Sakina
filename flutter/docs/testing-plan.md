@@ -93,11 +93,13 @@ Edge: double-tap answer/continue, background during loading, midnight boundary (
 
 ### 6. Reflect
 
-- Input / loading / follow-up / result / off-topic states.
+- Input / loading / follow-up (slider + multi-choice) / result / off-topic states.
 - Follow-up answers feed back into the final prompt.
-- Saved reflections render in Journal.
-- Delete updates local + remote.
-- Token gate after free limit.
+- **Reflections auto-save on AI completion** — there is no explicit Save button. Every completed reflect appends a row to `public.user_reflections` and increments `public.user_daily_usage.reflect_uses`.
+- Saved reflections render in **Journal tab** (not Home). Detail screen has Share + Delete in the header.
+- Delete updates local + remote (`user_reflections` row removed).
+- Token gate at `reflect_uses >= 3`: "Daily limit reached / Spend 50 tokens to continue" overlay; "Not now" dismisses without state change.
+- Off-topic detection lives in `ai_service.dart` `isOffTopic()` (regex pre-filter + system-prompt fallback). On match, returns demo response + does NOT call `incrementReflectUsage()`.
 - Context uses saved anchors and recent journal/check-in data.
 
 Edge: AI failure does not consume free usage, off-topic does not consume free usage, very long input, duplicate tap while loading, share/export graceful failure.

@@ -55,7 +55,7 @@ delete from auth.users where email like '%@test.sakina';  -- cascades to user_pr
 **DB checks (Supabase MCP):**
 ```sql
 select id, onboarding_completed, created_at from user_profiles where id = auth.uid();
-select count(*) from checkin_history where user_id = auth.uid();
+select count(*) from public.user_checkin_history where user_id = auth.uid();
 ```
 
 **Edge cases:**
@@ -203,14 +203,24 @@ All survey answers must be persisted.
 **Preconditions:** `daily-user@test.sakina`, no check-in today.
 
 **Steps:**
-- App launch → `DailyLaunchOverlay` shows check-in CTA.
-- Tap → `/muhasabah` screen.
-- Answer each muhasabah question.
-- Final answer → loading → AI result (Name + verse(s) + dua).
-- Result saves automatically to journal.
+
+There are TWO paths into the daily flow with different question behavior. Test both.
+
+**Path A — DailyLaunchOverlay (multi-question check-in):**
+- App launch on a fresh day → `DailyLaunchOverlay` shows streak greeting + check-in CTA.
+- Tap → 4 check-in questions (`answerCheckin` in `daily_loop_provider.dart:465`). Answer each.
+- Final answer → loading → AI result (Name + verses + dua). q1-q4 land in `user_checkin_history`.
 - `NameRevealOverlay` (gacha) appears with a card.
-- Continue → daily rewards claimed (tokens + XP).
-- Achievement check fires if thresholds crossed.
+- Continue through reflection → story → dua → Ameen → completion.
+- Daily rewards claimed (tokens + XP). Achievement check fires.
+
+**Path B — Home "Begin Muḥāsabah" CTA (discover-only, NO questions):**
+- Tap from Home (after the launch overlay was claimed/dismissed earlier).
+- Routes to `/muhasabah`. The screen auto-calls `discoverName()` (`daily_loop_provider.dart:402`) which **skips questions entirely** and jumps to gacha.
+- `user_checkin_history` row is written with `q1='discover'` sentinel and q2/q3/q4 empty — this is **intentional**, not a bug.
+- Continue through reflection → story → dua → Ameen → completion.
+
+Both paths fire `_markStreakAndHandleMilestones` which now (post 2026-04 fix) inserts a `user_activity_log` row.
 
 **UI checks:**
 - Streak flame shows correct count on Home before/after.
@@ -219,14 +229,15 @@ All survey answers must be persisted.
 
 **DB checks (Supabase MCP):**
 ```sql
-select id, created_at, feeling_input, matched_name_id
-from checkin_history where user_id = auth.uid() order by created_at desc limit 1;
+select id, checked_in_at, q1, q2, q3, q4, name_returned, name_arabic
+from public.user_checkin_history where user_id = auth.uid() order by checked_in_at desc limit 1;
 
-select current_streak, longest_streak, last_checkin_date from streaks where user_id = auth.uid();
-select balance from tokens where user_id = auth.uid();
-select current_xp, level from xp where user_id = auth.uid();
-select card_id, tier, copies from user_cards where user_id = auth.uid() order by updated_at desc limit 5;
-select quest_id, progress, completed_at from user_quests where user_id = auth.uid();
+select current_streak, longest_streak, last_active from public.user_streaks where user_id = auth.uid();
+select balance, total_spent, tier_up_scrolls from public.user_tokens where user_id = auth.uid();
+select total_xp from public.user_xp where user_id = auth.uid();
+select id, name_id, tier, discovered_at, last_engaged_at from public.user_card_collection where user_id = auth.uid() order by last_engaged_at desc limit 5;
+select quest_id, cadence, progress, completed, period_start from public.user_quest_progress where user_id = auth.uid();
+select count(*) from public.user_activity_log where user_id = auth.uid() and active_date = current_date;
 ```
 
 All should reflect the single check-in (no duplicates).
@@ -246,23 +257,30 @@ All should reflect the single check-in (no duplicates).
 **Preconditions:** onboarded user.
 
 **Steps:**
-- Home shows streak, tokens, XP, "How are you feeling?" input, featured quest.
-- Type a feeling or tap emotion chip → navigate to reflect.
-- Reflect: loading → result card (Name + Arabic + translit + English meaning + 1–2 verses + dua).
-- Save button persists to journal. Share button opens preview.
-- Follow-up question appears → answer → refined result.
+- Home shows streak, tokens, XP, level/title pill (top card on Home/Progress route), and "Begin Muḥāsabah" CTA. Free-text reflect input lives on the **Reflect tab** (bottom nav, slot 3), not on Home.
+- Reflect tab → enter feeling text or tap emotion chip → tap Reflect button.
+- Two AI-generated follow-up prompts appear (one slider, one multi-choice) before the final reflect call. Continue to advance.
+- Final loading → result card (Name + Arabic + transliteration + English meaning + 2 related Names + reflection paragraph).
+- **Reflection auto-saves the moment AI completes** — there is no Save button in the live reflect flow. Saved entries appear in **Journal tab** (bottom nav slot 5).
+- Share happens from Journal detail screen header (top-right share icon), not on the live reflect.
 
 **DB:**
 ```sql
-select id, user_input, matched_name_id, verse_ids, dua_id, saved
-from reflections where user_id = auth.uid() order by created_at desc limit 3;
+-- Schema: id, user_id, user_text, name, name_arabic, reframe / reframe_preview / story,
+-- verses (jsonb), dua_arabic / dua_transliteration / dua_translation / dua_source, related_names (jsonb).
+select id, saved_at, user_text, name, name_arabic
+from public.user_reflections where user_id = auth.uid() order by saved_at desc limit 3;
+
+-- Free-reflect counter (resets midnight). dailyFreeReflects=3.
+select reflect_uses from public.user_daily_usage
+where user_id = auth.uid() and usage_date = current_date;
 ```
 
 **Edge cases:**
-- Off-topic input ("pizza recipe") → off-topic response, does NOT decrement free usage counter. Check `daily_usage` table.
+- Off-topic input ("pizza recipe") → off-topic response ("This space is for your heart…"), does NOT decrement free usage counter. Check `public.user_daily_usage` (composite key `user_id, usage_date`, columns `reflect_uses`, `built_dua_uses`).
 - Very long input (500+ chars) → still processes, no truncation visible.
 - AI failure (toggle airplane mid-request) → error snackbar, no row created, usage not decremented.
-- Free-limit hit → paywall/token gate with upgrade CTA.
+- Free-limit hit (`reflect_uses >= 3` for today) → "Daily limit reached / You've used your 3 free Reflect sessions today. Spend 50 tokens to continue." overlay with "Spend 50 tokens to continue" + "Not now". Counter does NOT increment on a blocked attempt.
 - Duplicate tap while loading → only one request.
 - Arabic text never bleeds into English (known gotcha from CLAUDE.md).
 
@@ -281,8 +299,11 @@ from reflections where user_id = auth.uid() order by created_at desc limit 3;
 
 **DB:**
 ```sql
-select dua_id from favorite_duas where user_id = auth.uid();
-select id, topic, generated_at from built_duas where user_id = auth.uid();
+-- Built (AI-generated) duas land here:
+select id, saved_at, need, arabic, transliteration, translation from public.user_built_duas where user_id = auth.uid();
+-- "Favorite" / saved browse + related duas are SharedPreferences-only on device
+-- (keys: saved_built_duas, saved_related_duas, saved_browse_dua_ids — scoped per user).
+-- No server-side favorite_duas table exists today.
 ```
 
 **Edge cases:**
@@ -328,8 +349,10 @@ select anchor_names, completed_at from discovery_results where user_id = auth.ui
 
 **DB:**
 ```sql
-select count(*) from reflections where user_id = auth.uid() and saved = true;
-select count(*) from favorite_duas where user_id = auth.uid();
+-- All rows in user_reflections are saved (auto-save on AI complete; no `saved` flag column).
+select count(*) from public.user_reflections where user_id = auth.uid();
+-- Built duas (from "Build a Dua" flow) live separately:
+select count(*) from public.user_built_duas where user_id = auth.uid();
 ```
 Count matches UI list length.
 
@@ -352,7 +375,8 @@ Count matches UI list length.
 
 **DB:**
 ```sql
-select card_id, tier, copies from user_cards where user_id = auth.uid();
+select id, name_id, tier, discovered_at, last_engaged_at from public.user_card_collection where user_id = auth.uid();
+select tier_up_scrolls from public.user_tokens where user_id = auth.uid();  -- scrolls live on user_tokens, not a separate table
 select balance from tier_up_scrolls where user_id = auth.uid();
 ```
 After tier-up: tier + copies update, scrolls decremented by correct amount.
@@ -401,9 +425,13 @@ select item_id, acquired_at from user_inventory where user_id = auth.uid();
 
 **DB:**
 ```sql
-select quest_id, progress, completed_at, reward_claimed_at from user_quests where user_id = auth.uid();
-select current_xp, level, active_title_id, auto_title_enabled from xp where user_id = auth.uid();
-select current_streak, longest_streak, freezes_available from streaks where user_id = auth.uid();
+select quest_id, cadence, progress, completed, period_start from public.user_quest_progress where user_id = auth.uid();
+select total_xp from public.user_xp where user_id = auth.uid();
+-- Title selection lives on user_profiles:
+select selected_title, is_auto_title from public.user_profiles where id = auth.uid();
+select current_streak, longest_streak, last_active from public.user_streaks where user_id = auth.uid();
+-- Streak freeze is a BOOLEAN flag on user_daily_rewards (not an integer count):
+select current_day, last_claim_date, streak_freeze_owned from public.user_daily_rewards where user_id = auth.uid();
 ```
 
 **Edge cases:**
@@ -456,8 +484,8 @@ from notification_preferences where user_id = auth.uid();
 **DB checks after delete account:**
 ```sql
 select count(*) from user_profiles where id = '<old-uid>';  -- expect 0
-select count(*) from checkin_history where user_id = '<old-uid>';  -- expect 0
-select count(*) from reflections where user_id = '<old-uid>';  -- expect 0
+select count(*) from public.user_checkin_history where user_id = '<old-uid>';  -- expect 0
+select count(*) from public.user_reflections where user_id = '<old-uid>';  -- expect 0
 ```
 
 **OneSignal MCP:**
@@ -529,7 +557,7 @@ Payload has all sections: profile, streaks, tokens, xp, cards, quests, journal, 
 - Public content (99 Names, duas, quiz questions) loads anonymously — sign out, content still browsable.
 - User A creates reflection. User B on second device — query as User B:
 ```sql
-select * from reflections where user_id = '<user-A-uid>';  -- expect 0 rows (RLS block)
+select * from public.user_reflections where user_id = '<user-A-uid>';  -- expect 0 rows (RLS block)
 ```
 
 **Edge cases:**
