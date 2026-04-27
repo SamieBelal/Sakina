@@ -15,7 +15,6 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/widgets/achievement_toast.dart' as toasts;
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';

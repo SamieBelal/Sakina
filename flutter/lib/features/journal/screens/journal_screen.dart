@@ -93,6 +93,28 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ref.read(questsProvider.notifier).onJournalVisited();
       });
     }
+    // Surface delete failures: deleteReflection rolls back state on server
+    // error and sets state.error, but the Reflect screen is the only place
+    // that renders that error. Listen here so users see a snackbar when a
+    // delete reverts (e.g. offline). Same for duasProvider after the
+    // removeSavedBuiltDua try/catch landed.
+    ref.listen<ReflectState>(reflectProvider, (prev, next) {
+      final err = next.error;
+      if (err != null && err != prev?.error) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(err)));
+      }
+    });
+    ref.listen<DuasState>(duasProvider, (prev, next) {
+      final err = next.error;
+      if (err != null && err != prev?.error) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(err)));
+      }
+    });
+
     final reflectState = ref.watch(reflectProvider);
     final duasState = ref.watch(duasProvider);
 

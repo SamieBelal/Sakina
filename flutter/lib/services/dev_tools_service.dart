@@ -150,6 +150,10 @@ Future<void> devUnlockAllAchievements() async {
   );
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
+    // Clear existing rows first so the insert doesn't conflict on the
+    // (user_id, achievement_id) unique constraint when run repeatedly or
+    // when the user already has some unlocks.
+    await supabaseSyncService.deleteRow('user_achievements', 'user_id', userId);
     await supabaseSyncService.batchInsertRows(
       'user_achievements',
       ids.map((id) => {'user_id': userId, 'achievement_id': id}).toList(),

@@ -314,6 +314,8 @@ select id, saved_at, need, arabic, transliteration, translation from public.user
 - Build-a-dua AI failure → prior state intact, no ghost row.
 - Favorite a dua, sign out, sign in → still favorited.
 - Token gate after free builds exhausted.
+- **Duplicate tap on Build (D-E5)** — re-entry guard at `duas_provider.dart:425` (free path) and `:441` (token-spend path) using a synchronous instance flag `_submitInFlight` (set BEFORE any `await`, cleared in `finally`). The earlier `state.buildLoading` guard alone was insufficient: `buildLoading` is only set inside `_doBuild` AFTER the async `canBuildDuaFree()` check, so two taps fired in the same microtask both passed it and both incremented the counter (sim-caught 2026-04-26 with `built_dua_uses=2`). The synchronous flag closes that race. Two rapid taps must produce exactly **one** AI call, **one** counter increment (free) or **one** 50-token spend (paid). Live PASS 2026-04-26: free-path counter +1 only on rebuilt app (post `_submitInFlight` upgrade), token-spend balance 235→185 in earlier run. Unit tests in `test/features/duas/submit_build_reentry_guard_test.dart` (3/3, including the synchronous-microtask pre-loading race that the original guard missed). Run logs: `docs/qa/runs/2026-04-26-build-dua-de5-live.md` (initial), follow-up sim verification of the upgraded fix in this session.
+- **AI failure mid-build (D-E2)** — server delete or `_dependencies.buildDua` throws → `_doBuild` catch arm clears `buildLoading`, `buildResult`, `buildProgress`; sets error to `'Something went wrong. Please try again.'`. **No** `incrementBuiltDuaUsage()` call (consume only fires on `result.breakdown.isNotEmpty` after success). Covered by unit test in `test/features/duas/duas_provider_test.dart:203-220`. Live sim verification not run this session — `xcrun simctl` has no reliable airplane-mode toggle (status_bar spoof only) and the unit test is deterministic against this exact path.
 
 ---
 
@@ -333,8 +335,8 @@ select anchor_names, completed_at from discovery_results where user_id = auth.ui
 ```
 
 **Edge cases:**
-- Quit mid-quiz → next entry resumes at last question (or restarts cleanly — confirm intended behavior).
-- Retake → overwrites prior anchors, doesn't duplicate rows.
+- **Quit mid-quiz (DQ-E1)** → restarts cleanly. `selectedAnswers` lives in `DiscoveryQuizNotifier` memory only (StateNotifier), not persisted to SharedPreferences. Cold-launch reads `loadSavedDiscoveryQuizResults` from server; if no row exists, the quiz is in `initialized: true, completed: false, quizStarted: false` and `ensureQuizReady()` calls `startQuiz()` which resets to question 0. Live PASS 2026-04-26: answered Q1+Q2 → `xcrun simctl terminate booted com.sakina.app.sakina` → relaunch → Home (no resume), `select count(*) from public.user_discovery_results where user_id=auth.uid()` returns 0.
+- **Retake (DQ-Retake)** → overwrites prior anchors, doesn't duplicate rows. `completeQuiz()` (`discovery_quiz_provider.dart:120-132`) calls `saveDiscoveryQuizResults(results)` → `supabaseSyncService.upsertRow('user_discovery_results', userId, {'anchor_names': encodedResults}, onConflict: 'user_id')`. The unique constraint on `user_id` + `onConflict: 'user_id'` guarantees count cannot exceed 1 by DB invariant. **Live overwrite PASS 2026-04-26** (`docs/qa/runs/2026-04-26-discovery-retake-quit.md`): pre-clear → completed full quiz with new answers → `count(*)=1` unchanged, `anchor_names` fully overwritten (As-Sabur/Al-Mujib/Al-Latif → Al-Wakil/Ar-Rabb/Al-Qayyum). **UX gap (not a code regression)**: there is no user-visible Retake CTA after completion. Home `Discover Your Anchor Names` row disappears once anchors exist; Settings shows static anchor chips with no retake action. To retake today, a user has to clear the row server-side (this run did so to surface the existing-empty-state CTA). File a product question: should retake live in Settings as a "Retake quiz" button under Your Anchor Names?
 - Anchors feed into Reflect context (verify in AI prompt via server logs if accessible).
 
 ---
@@ -368,7 +370,8 @@ Count matches UI list length.
 **Edge cases:**
 - Delete a reflection also referenced by Collection → card progress intact.
 - Long user input truncates in list card but shows full on detail.
-- Share from detail works (see §13).
+- **Share from detail (J-E2)** works — see §13. Last live PASS in `docs/qa/findings/2026-04-26-share-export-pass.md` (T1 reflection share preview, T2 personal dua share, T6.5 reflect result share, T7 native share-sheet cancel-no-crash). The share/export code path (`lib/widgets/share_card.dart`, `lib/features/journal/screens/reflection_detail_page.dart`) was not touched by D-E5/J-E4 fixes; re-verification on each subsequent commit only required if `share_card.dart` or detail page changes.
+- **Network failure mid-delete (J-E4)** — `ReflectNotifier.deleteReflection` (`reflect_provider.dart:411-431`) snapshots `previous = state.savedReflections` synchronously, optimistically mutates local + persists, then awaits `supabaseSyncService.deleteRow('user_reflections', 'id', id)` inside a `try/catch`. On exception (airplane / RLS reject / 5xx), restores `state.savedReflections = previous`, re-persists, and sets `state.error = "Couldn't delete the reflection. Please try again."` for the UI snackbar. **Reliable sim-level toggle of mid-request airplane mode is not available** (`xcrun simctl status_bar` only spoofs the icon; Network Link Conditioner is manual-only). Verified by 2 unit tests in `test/features/reflect/delete_reflection_network_failure_test.dart` (throwing fake → revert + error; happy path → row removed, no error). `@visibleForTesting void debugSeedReflections(...)` added to skip the load path. **Known limitation:** the catch arm uses `catch (_)` and does not log the underlying error type; future debuggability could be improved with a `debugPrint` of `e`.
 
 ---
 
@@ -470,7 +473,7 @@ select current_day, last_claim_date, streak_freeze_owned from public.user_daily_
 **Edge cases:**
 - Very long dua → card still fits key content (may truncate secondary text gracefully).
 - Native share cancelled → no crash, returns to preview.
-- Export failure (e.g., low disk space simulated) → error snackbar.
+- Export failure → user-facing snackbar "Couldn't share that — please try again." (F6 fix landed 2026-04-26 in `lib/widgets/share_card.dart:210-218`; the catch block now calls `ScaffoldMessenger.of(context).showSnackBar(...)` in addition to `debugPrint`, and the `finally` block always cleans up the overlay + `_exporting` state).
 
 ---
 

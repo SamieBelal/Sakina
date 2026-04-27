@@ -100,7 +100,6 @@ flutter:
     # Real values are loaded at runtime from --dart-define or a local .env
     # added back to this list by the developer. .env.example is bundled as
     # the always-available fallback (placeholder values).
-    - .env
     - .env.example
     - assets/content/
     - assets/images/

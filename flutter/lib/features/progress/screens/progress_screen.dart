@@ -22,7 +22,6 @@ import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/widgets/achievement_toast.dart' as toasts;
 
 class ProgressScreen extends ConsumerStatefulWidget {
   const ProgressScreen({super.key});

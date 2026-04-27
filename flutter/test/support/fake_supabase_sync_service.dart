@@ -24,6 +24,11 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   /// exercise the failure path in sync-service callers.
   bool nextUpsertShouldFail = false;
 
+  /// When set, the next delete will throw a [StateError] without touching
+  /// storage, then reset to `false`. Use to exercise rollback paths in
+  /// callers that wrap deletes in try/catch.
+  bool nextDeleteShouldThrow = false;
+
   @override
   String? get currentUserId => userId;
 
@@ -164,6 +169,10 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       'column': column,
       'value': value,
     });
+    if (nextDeleteShouldThrow) {
+      nextDeleteShouldThrow = false;
+      throw StateError('fake delete failure');
+    }
     final list = rowLists[table];
     if (list != null) {
       list.removeWhere((row) => row[column] == value);

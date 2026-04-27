@@ -630,13 +630,22 @@ class DuasNotifier extends StateNotifier<DuasState> {
   }
 
   Future<void> removeSavedBuiltDua(String id) async {
-    final updated = state.savedBuiltDuas.where((d) => d.id != id).toList();
-    state = state.copyWith(savedBuiltDuas: updated);
+    final previous = List<SavedBuiltDua>.from(state.savedBuiltDuas);
+    final updated = previous.where((d) => d.id != id).toList();
+    state = state.copyWith(savedBuiltDuas: updated, error: () => null);
     await _persistBuiltDuas(updated);
 
     final userId = supabaseSyncService.currentUserId;
-    if (userId != null) {
+    if (userId == null) return;
+
+    try {
       await supabaseSyncService.deleteRow('user_built_duas', 'id', id);
+    } catch (_) {
+      state = state.copyWith(
+        savedBuiltDuas: previous,
+        error: () => "Couldn't delete the dua. Please try again.",
+      );
+      await _persistBuiltDuas(previous);
     }
   }
 
