@@ -428,6 +428,20 @@ After tier-up: the row's `tier` advances by exactly one step, `tier_up_scrolls` 
 
 **Preconditions:** any onboarded user. iOS simulator **cannot complete StoreKit purchases** (per `CLAUDE.md`) — actual purchase flows require a physical device with sandbox account. The simulator is useful only for render checks and the restore-no-entitlement path.
 
+**What's testable where:**
+
+| Bullet | Sim | Widget test | Physical device |
+|---|---|---|---|
+| §11-A tabs render (Tokens/Scrolls) | ✓ live PASS 2026-04-26 | ✓ pinned | n/a |
+| §11-B empty offerings → snackbar | partial (hard to deterministically force on sim) | ✓ pinned | n/a |
+| §11-C `getOfferings` throws → generic error | partial | ✓ pinned | n/a |
+| §11-D purchase cancellation silent | ✓ (cancel StoreKit dialog) | ✓ pinned | preferred |
+| §11-E double-tap idempotency | ✗ (sub-millisecond timing not deterministic) | ✓ pinned | ✗ |
+| §11-F restore — no entitlement | tap-fires PASS 2026-04-26 (snackbar visibility flaky on sim — see UX note below) | ✓ pinned | preferred |
+| §11-G balance pill refreshes after consumable purchase | ✗ — REQUIRES DEVICE | ✓ pinned | **REQUIRED before TestFlight** |
+| §11-H restore success ("Premium restored!") | ✗ — REQUIRES DEVICE WITH SANDBOX SUB | ✓ pinned | **REQUIRED before TestFlight** |
+| Consumable bug end-to-end (Apple charges → user_tokens.balance increments) | ✗ — REQUIRES DEVICE | regression-test pinned only | **REQUIRED before TestFlight** |
+
 **Steps:**
 - Store tab → confirm "Tokens" and "Scrolls" sub-tabs (NOT "Free"/"Premium" — doc-drift canary, asserted by §11-A).
 - Tokens tab: 100 / 250 / 500 packs at $1.99 / $3.99 / $6.99.
@@ -451,9 +465,30 @@ select balance, tier_up_scrolls from public.user_tokens where user_id = auth.uid
 - `getOfferings()` throws → "Purchase failed. Please try again." snackbar. Pinned by §11-C.
 
 **Bug history (consumable purchase silent loss — fixed 2026-04-26):**
-Prior to 2026-04-26, `PurchaseService.purchase()` (now removed) returned `customerInfo.entitlements.active.containsKey('premium')`. Consumable purchases (tokens, scrolls) never flip a premium entitlement, so the return was always `false` and `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received zero tokens locally — Apple charged them, balance never moved.** Fix split the API into `purchaseSubscription()` (used by paywall) and `purchaseConsumable()` (verifies via `customerInfo.allPurchasedProductIdentifiers`). Regression pinned by the `purchaseConsumable()` group in `test/services/purchase_service_test.dart`.
+Prior to 2026-04-26, `PurchaseService.purchase()` (now removed) returned `customerInfo.entitlements.active.containsKey('premium')`. Consumable purchases (tokens, scrolls) never flip a premium entitlement, so the return was always `false` and `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received zero tokens locally — Apple charged them, balance never moved.** Fix split the API into `purchaseSubscription()` (used by paywall — entitlement check correct for subs) and `purchaseConsumable()` (used by Store — trusts RC's throw-on-failure / return-on-success contract; no entitlement gate). Regression pinned by the `purchaseConsumable()` group in `test/services/purchase_service_test.dart`.
+
+**Orphan recovery on app launch (added 2026-04-26):**
+`main.dart` registers a `Purchases.addCustomerInfoUpdateListener` after RC init and calls `Purchases.syncPurchases()` to flush pending receipts. The listener routes through `ConsumableGrantsService.processCustomerInfo`, which compares `nonSubscriptionTransactions` against a SharedPreferences-backed credited set (scoped per user, capped at 200, atomic via a module-level `Completer` lock). Any transaction not yet credited gets a fresh `earnTokens` / `earnTierUpScrolls` call. If the user kills the app between `Purchases.purchasePackage` and the synchronous `earnTokens` call, the next launch's listener fire reconciles. **Manual repro on physical device:** initiate a 100-token purchase → force-quit during the StoreKit success animation → relaunch the app → in-app token balance should show pre+100 within a few seconds of signin (the listener fires after `setUserId` + post-baseline). DB check: `select balance from public.user_tokens where user_id = auth.uid();` should reflect the credited grant. Note: on FIRST signin to a device, the user's lifetime nonSubscriptionTransactions are baselined (marked credited without granting) by `app_session.dart`'s call to `ConsumableGrantsService().initializeForUser(...)` — historical purchases aren't re-granted.
+
+**Refund clawback (added 2026-04-26):**
+Apple refund → RC fires CANCELLATION webhook for the consumable SKU → `revenuecat-webhook` edge function calls `clawback_consumable_grant(...)` RPC → user's `user_tokens.balance` (or `tier_up_scrolls`) decrements by the SKU's amount, clamping at 0. Audit row written to `consumable_clawback_events` with `applied_amount` and `clawback_deficit` (the un-clawed-back portion if the user already spent the refunded tokens). Idempotent on `transaction_id`. **Manual repro:** request a sandbox refund for a consumable purchase → wait for RC to deliver the webhook (typically <1 min in sandbox) → assert `select balance from public.user_tokens where user_id = '<uid>';` decreased by the SKU amount AND `select * from public.consumable_clawback_events where transaction_id = '<rc-txn-id>';` returns one row with `status='applied'`. See §16 for the RPC contract.
 
 **Observation (UX gap, file separately):** at narrow widths (≤400 logical px), the "Best Value" badge rows in `_IapItem` cause a horizontal RenderFlex overflow. Reproducible at iPhone SE-class widths in widget tests; needs Wrap or shorter badge copy.
+
+**Observation (UX gap — restore snackbar position):** the "Restore purchase" link sits at y=749 logical px and the bottom nav starts at y=784, leaving ~35 logical px of vertical space for the Material SnackBar to render. Sim verification on 2026-04-26 confirmed the tap fires without crash but the snackbar text was not captured in the AX tree across multiple capture cycles — likely because the SnackBar is being rendered into a window smaller than its default ~48 logical px height, OR is dismissed before the next 1s poll. File for product/UX: lift the SnackBar out of the inner Scaffold (use a root `ScaffoldMessenger`), or switch the link from a bottom-of-screen GestureDetector to an inline button higher in the layout.
+
+**Device-required gate (BEFORE every TestFlight push):**
+
+The Store cannot be considered ready for release on widget-test signal alone. The consumable purchase bug fixed on 2026-04-26 only exhibits when StoreKit completes a real transaction, and that path is unreachable on iOS simulator. Run all four of these on a physical iOS device with a sandbox account before pushing a build that touches `purchase_service.dart`, `store_screen.dart`, or RC offerings config:
+
+1. **Consumable purchase end-to-end (token pack):** sign in as a non-premium sandbox user → Store → tap "100 Tokens / $1.99" → complete StoreKit dialog → verify (a) `user_tokens.balance` in Supabase incremented by 100; (b) the in-app balance pill updated to `pre + 100` within one frame; (c) the celebration toast rendered with "+100 Tokens"; (d) no error snackbar.
+2. **Consumable purchase end-to-end (scroll pack):** repeat for "3 Scrolls / $0.99" → assert `user_tokens.tier_up_scrolls` += 3 and the Scrolls pill updates.
+3. **Restore success (§11-H):** sign in as a sandbox user with an active annual sub → Store → "Restore purchase" → verify "Premium restored!" snackbar AND `has_active_premium_entitlement('<uid>')` returns `true` AND `isPremiumProvider` flipped (premium UI surfaces unlock).
+4. **Cancel mid-purchase (§11-D):** Store → tap any pack → in StoreKit dialog tap Cancel → verify no error snackbar, `_purchasing` flag resets (re-tappable).
+5. **Orphan recovery (consumable mid-purchase app kill):** initiate a 100-token purchase → after Apple confirms but before the app's celebration toast renders, force-quit the app via the iOS app switcher → relaunch → assert `user_tokens.balance` reflects pre+100 within ~5 seconds of signin (the listener fires post-baseline). Verifies the orphan-recovery path in `ConsumableGrantsService.processCustomerInfo`. If balance does NOT update, check sandbox account in RC dashboard for the pending transaction and the app's debug log for `[ConsumableGrants] Recovered grant: ...`.
+6. **Refund clawback (consumable):** complete a 100-token purchase. Then request an Apple refund (Settings → tap your name → Subscriptions / Purchases → Report a Problem, sandbox account workflow) → wait for the RC webhook (typically <1 min in sandbox) → assert `select balance from public.user_tokens where user_id = '<uid>';` decreased by 100 AND `select status from public.consumable_clawback_events where transaction_id = '<rc-txn-id>';` returns `applied`. The credit on the user's Apple side and the local balance both reflect the refund.
+
+Only after all six pass on device may the build progress to TestFlight.
 
 ---
 
@@ -616,12 +651,16 @@ Payload has **exactly 11 keys**: `xp`, `tokens`, `streak`, `daily_rewards`, `pro
 
 **RevenueCat webhook (`revenuecat-webhook` edge function):**
 - Auth header is `Authorization: Bearer $REVENUECAT_WEBHOOK_SECRET`. Persistence target is `public.user_subscriptions` (not `subscriptions`). Persistence goes through `upsert_user_subscription_if_newer`, which **rejects events with `event_timestamp_ms` ≤ stored `last_event_at`** — sequence forged events with strictly increasing timestamps.
-- The function silently returns 200 `{status:"skipped"}` when: event `type` not in {INITIAL_PURCHASE, RENEWAL, PRODUCT_CHANGE, UNCANCELLATION, CANCELLATION, BILLING_ISSUE, EXPIRATION}; `entitlement_ids` doesn't include `premium`; `app_user_id` (or `original_app_user_id` / first non-anonymous alias) isn't a UUID.
+- The function returns 200 `{status:"skipped"}` when neither the subscription path nor the consumable-clawback path matches the event. Subscription path filters: type must be in {INITIAL_PURCHASE, RENEWAL, PRODUCT_CHANGE, UNCANCELLATION, CANCELLATION, BILLING_ISSUE, EXPIRATION}, `entitlement_ids` includes `premium`, and `app_user_id` (or fallback) is a UUID. Consumable-clawback path filters: type must be `CANCELLATION`, `product_id` must be in the consumable SKU map, user must resolve to a UUID, transaction_id (or event id) must be present.
 - Trigger via real sandbox purchase (physical device only) **or** forged `curl` against the function URL (MCP-friendly).
   - INITIAL_PURCHASE → 200 `{status:"ok"}`, `user_subscriptions` row inserted, `has_active_premium_entitlement('<uid>')` → `true`.
-  - CANCELLATION (with future `expiration_at_ms`) → 200, `canceled_at` set, `expires_at` unchanged, entitlement still active until period end.
+  - CANCELLATION subscription (premium entitlement, future `expiration_at_ms`) → 200, `canceled_at` set, `expires_at` unchanged, entitlement still active until period end.
+  - **CANCELLATION consumable** (no premium entitlement, product_id is a token / scroll SKU) → 200, `clawback_consumable_grant` RPC fires, `user_tokens.balance` (or `tier_up_scrolls`) decrements by SKU amount, audit row in `consumable_clawback_events` with `transaction_id` PK, idempotent on retries.
   - EXPIRATION (with past `expiration_at_ms`) → 200, `has_active_premium_entitlement` → `false`. After CANCELLATION → EXPIRATION the `canceled_at` timestamp is **preserved** (per migration `20260426000000_preserve_canceled_at_on_absent_key.sql` — the upsert is key-presence-aware: absent JSON keys preserve stored values, explicit nulls still clear). Regression test in `supabase/tests/backend_rls_test.sql`.
-- Unauthorized POST → 401. GET → 405.
+- Unauthorized POST → 401. GET → 405. RPC failure (clawback or upsert) → 500 so RC retries.
+
+**`clawback_consumable_grant()` RPC (added 2026-04-26):**
+Service-role only (called from the edge function). Signature: `clawback_consumable_grant(p_user_id uuid, p_sku text, p_kind text, p_amount int, p_transaction_id text, p_event_timestamp timestamptz)`. Returns `jsonb` with `status` (`'applied'` or `'already_processed'`), `transaction_id`, `applied_amount`, `clawback_deficit`. Idempotent on `transaction_id` via the `consumable_clawback_events` PK; serialized per user via `SELECT ... FOR UPDATE` on `user_tokens` (concurrent refunds for the same user can't underflow the balance). Raises on unknown `kind` (must be `tokens` or `scrolls`) or non-positive `p_amount`. SQL smoke verified 2026-04-26 against dev DB: balance 185 → 85 after a 100-token clawback, idempotent on second call, deficit case clamps at 0 and records `clawback_deficit=415` when balance < amount.
 
 ---
 

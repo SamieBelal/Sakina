@@ -264,7 +264,7 @@ There are two entry points with intentionally different behavior:
 
 ## Known Bugs
 
-- **Gacha overlay eager-dismiss** (`flutter/lib/features/daily/widgets/name_reveal_overlay.dart`): The outer `GestureDetector` at line ~103 calls `_handleContinue` on *any* tap once `_phase >= 2` — which starts ~1600ms after mount and is ~1200ms before the Continue button is actually rendered (phase 3 at ~2800ms). A user who taps during that window can advance before seeing the reward details. The Continue button *does* have its own `GestureDetector` (line ~407), so tapping the button directly at phase 3 works as expected. Fix option: gate the outer handler on `_phase >= 3` instead of `>= 2`, so taps before the Continue button renders are absorbed. (The prior note about "plain Container with no GestureDetector" is stale — a `GestureDetector` was added; the remaining issue is the phase-2 window.)
+- ~~**Gacha overlay eager-dismiss**~~ (FIXED 2026-04-27 — `name_reveal_overlay.dart:107` now gates the outer `GestureDetector` on `_phase >= 3` so phase-2 taps are absorbed. Regression-pinned by `test/features/daily/name_reveal_overlay_phase_gate_test.dart` — a structural test that fails if the gate is loosened back to `>= 2`.)
 - **Arabic text bleeding into header** (e.g. `flutter/lib/features/feelings/screens/home_screen.dart:192`): Mixed Arabic + English in a single `Text` widget causes RTL rendering to bleed into surrounding UI. Fix: split into two separate `Text` widgets with explicit `textDirection` on the Arabic one.
 
 ## Aref Ruqaa Font Metric Fix

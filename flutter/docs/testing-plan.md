@@ -176,11 +176,53 @@ All 8 widget tests live in `test/features/store/store_screen_test.dart` and use 
 
 **Critical: `publicCatalogRegistryProvider` override.** `lib/services/public_catalog_service.dart:39` exposes a top-level singleton `PublicCatalogRegistry` ChangeNotifier. The first ProviderScope teardown disposes it, leaving subsequent tests with a dead notifier ("PublicCatalogRegistry was used after being disposed"). The Store widget tests override the provider per-test with a fresh instance — any future widget test that uses providers transitively reading the registry needs the same override.
 
-**Consumable purchase regression (P0 fixed 2026-04-26):** `PurchaseService.purchase()` was renamed and split into `purchaseSubscription()` (paywall) and `purchaseConsumable()` (Store). The pre-fix method returned `customerInfo.entitlements.active.containsKey('premium')` — `false` after a successful consumable purchase since RC consumables don't activate entitlements, so `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received no tokens.** `purchaseConsumable()` verifies via `customerInfo.allPurchasedProductIdentifiers.contains(package.storeProduct.identifier)`. Regression pinned by the new `purchaseConsumable()` group in `test/services/purchase_service_test.dart` (3 tests, including the explicit pre-fix-was-false case).
+**Consumable purchase regression (P0 fixed 2026-04-26):** `PurchaseService.purchase()` was renamed and split into `purchaseSubscription()` (paywall) and `purchaseConsumable()` (Store). The pre-fix method returned `customerInfo.entitlements.active.containsKey('premium')` — `false` after a successful consumable purchase since RC consumables don't activate entitlements, so `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received no tokens.** `purchaseConsumable()` now trusts RC's throw-on-failure / return-on-success contract: `await Purchases.purchasePackage(package); return true;`. A non-throwing return means StoreKit recorded the transaction; cancellation and payment errors propagate as `PlatformException`. Regression pinned by the `purchaseConsumable()` group in `test/services/purchase_service_test.dart`: the canonical regression case asserts that `premium=false` + empty `allPurchasedProductIdentifiers` (i.e., a first-time consumable buyer with no prior receipt history) still returns `true` — exactly the configuration that the old entitlement check would have failed.
 
-**Sim limitation (per `CLAUDE.md`):** iOS simulator cannot complete StoreKit purchases. Real purchase verification requires a physical device with sandbox account. Widget tests cover the contract; sim covers render + restore-no-entitlement only.
+**Subscription false-negative retry (added 2026-04-26):** `purchaseSubscription` now falls back to `Purchases.getCustomerInfo()` once if the immediate post-purchase customerInfo doesn't show `entitlements.active['premium']`. RevenueCat's docs say the post-purchase state is current, but Apple's server-to-server validation can lag — without the retry, a successful purchase showed "purchase failed" to the user, who would retry and risk double-charge. Fallback errors do not propagate; treated as genuine failure. Pinned by 3 tests in `purchase_service_test.dart purchaseSubscription()` group: stale-then-fresh succeeds, both-stale fails, fallback throw doesn't corrupt failure UX.
+
+**Orphan recovery — ConsumableGrantsService (added 2026-04-26):** `lib/services/consumable_grants_service.dart` is the dedup primitive for consumable grants. Two callers race to credit a transaction: the synchronous `_buyTokensIAP`/`_buyScrollsIAP` (fast UX), and the `Purchases.addCustomerInfoUpdateListener` registered in `main.dart` (orphan recovery for app-killed-mid-purchase). Both paths go through `markCredited(transactionId)` — atomic compare-and-set on a SharedPreferences-backed credited set, scoped per user, capped at 200 entries. Whichever wins runs the grant; the loser is a no-op.
+
+Critical invariants pinned by 17 tests in `test/services/consumable_grants_service_test.dart`:
+
+- **markCredited dedup** — first call returns `true`, second returns `false`. Different ids tracked independently. Scoped per user (different uids see independent sets).
+- **Concurrent markCredited lock** — 50 concurrent calls all persist; without the module-level `Completer` lock at `consumable_grants_service.dart:13`, the read-modify-write race on SharedPreferences would lose entries and cause double-grant on the next listener fire.
+- **200-entry cap** — oldest dropped from front when exceeded. Bounded storage.
+- **Pre-baseline gate (race fix)** — `processCustomerInfo` called BEFORE `initializeForUser` flips the baseline flag must mark transactions WITHOUT granting. Without this gate, the listener firing on `setUserId` (before `app_session.dart` baselines) would re-grant the user's lifetime history. Pinned by 2 tests: pre-baseline marks-without-granting, then post-baseline grants only a NEW txn.
+- **Grant-failure rollback** — when `earn_tokens` throws (transient RPC failure), the credited mark is rolled back via `_unmarkCredited` so the next listener fire retries. Without rollback, the user would be paid-but-not-credited with no recovery path. Pinned by `test/services/consumable_grants_service_test.dart` `grant-failure rollback` group.
+- **Idempotent processCustomerInfo across listener fires** — second call with the same customerInfo grants 0 (already credited).
+- **Mixed sync-then-listener race** — sync path credits txn-A; listener fires later with both A (already credited) and B (orphan). Only B grants.
+- **Unknown SKUs** — logged but not credited. Future SKU additions stay recoverable.
+- **initializeForUser** — first call baselines without granting; second call is a no-op. After baseline, `processCustomerInfo` grants only NEW transactions (orphan recovery).
+
+`grantForMostRecentPurchase(productId)` — used by `_buyTokensIAP`/`_buyScrollsIAP` after `purchaseConsumable` returns. Fetches customerInfo, finds the latest matching SKU's transactionIdentifier, runs the same atomic mark+grant as the listener path. If the listener won the race, returns `false` and the caller still refreshes the balance pill (the listener already credited).
+
+Bootstrap wiring lives in `main.dart:62-83`: register the listener after `PurchaseService().initialize()`, then call `Purchases.syncPurchases()` to flush pending receipts. Baseline runs in `app_session.dart` after `setUserId(uid)` — see `_handleAuthenticatedChange` for the call. The listener-fires-pre-baseline race is handled inside the service via the baseline gate (above), not by sequencing the registration.
+
+**Sim limitation (per `CLAUDE.md`):** iOS simulator cannot complete StoreKit purchases. Real purchase verification requires a physical device with sandbox account. Widget tests cover the contract; sim covers render + restore-no-entitlement-tap-fires only.
+
+**Sim verification 2026-04-26 (live PASS — partial):**
+- §11-A tabs render — confirmed on iPhone 17 sim, signed in as the daily-user account: Store route shows "Tokens" + "Scrolls" tabs, balance cards (185 tokens / 16 scrolls), three Tokens IAPs at $1.99 / $3.99 / $6.99, three Scrolls IAPs at $0.99 / $2.49 / $4.99 (verified by switching tabs), "Best Value" badge present on the 500/25 packs, "Restore purchase" link bottom-center.
+- §11-F restore tap fires — tap on "Restore purchase" link executes without crash. Snackbar text was NOT visible in screenshot or AX tree across multiple capture cycles, likely because the SnackBar renders into the ~35 logical-px gap between the link (y=749) and the bottom nav (y=784) and is either clipped or dismisses before the next 1s poll. The widget test is the authoritative pin; file the snackbar-position issue as a separate UX/layout fix (lift to root `ScaffoldMessenger` or move the link inline).
+
+**Sim limitations (cannot verify on iOS simulator regardless of effort):**
+- §11-G — successful consumable purchase grant. Requires StoreKit to complete a transaction; sim cannot.
+- §11-H — restore-success path with "Premium restored!" snackbar. Requires an active sandbox subscription; sim cannot accept one.
+- The 2026-04-26 consumable bug fix end-to-end (Apple charges → `user_tokens.balance` increments). Same reason.
+
+**Device-required gate (BEFORE every TestFlight push that touches Store/RC code):**
+
+Run all four on a physical iOS device with a sandbox sub account, against a real Supabase test user. Block the TestFlight push if any fail.
+
+1. **Consumable token purchase end-to-end** — sign in as non-premium sandbox user → Store → tap "100 Tokens / $1.99" → complete StoreKit dialog → assert `select balance from public.user_tokens where user_id = auth.uid();` returned `pre + 100`; in-app balance pill text matches; celebration toast rendered; no error snackbar.
+2. **Consumable scroll purchase end-to-end** — same flow for "3 Scrolls / $0.99" → assert `tier_up_scrolls += 3` server-side, Scrolls pill updates client-side.
+3. **§11-H restore success** — sandbox user with an active annual sub → Store → "Restore purchase" → "Premium restored!" snackbar + `has_active_premium_entitlement('<uid>')` returns `true` + premium UI surfaces unlock.
+4. **§11-D cancel mid-purchase** — tap a pack → cancel the StoreKit dialog → no error snackbar, item re-tappable.
+
+Without device verification, the consumable bug fix (`purchase()` → `purchaseSubscription`/`purchaseConsumable` split) is only proven by the widget-test contract and the regression unit test. The actual end-to-end Apple-charges-and-tokens-land path is **never exercised by CI**; only a sandbox transaction on a real device proves it.
 
 **UX gap (file separately):** at narrow widths (≤400 logical px), the "Best Value" badge rows in `_IapItem` overflow the inner Row. Production layout bug; needs Wrap or shorter badge copy. Test viewport bumped to 500 wide to bypass.
+
+**UX gap (file separately):** the "Restore purchase" link's SnackBar appears in too small a vertical window — only ~35 logical px between the link and the bottom nav. Lift to root `ScaffoldMessenger` or relocate the link.
 
 ### 10. Quests, XP, titles, streaks
 
@@ -227,9 +269,9 @@ Edge: native share cancel, long content still fits core card content.
 Automated coverage:
 - `flutter/supabase/tests/rpc_eligibility_test.sql` (pgTAP, runs via `supabase test db`) — scheduled notification eligibility + dedup windows.
 - `flutter/supabase/tests/backend_rls_test.sql` (plain SQL, runs via `mcp__supabase__execute_sql` — no CLI/pgTAP needed) — 47 assertions covering `sync_all_user_data` payload contract + auth gate, `delete_own_account` FK cascade across 18 scoped tables, `grant_premium_monthly` (grant / idempotent / non-premium / unauth + token+scroll deltas), public catalog anon read, cross-user RLS, and the RLS-on + has-policy audit.
-- `flutter/supabase/functions/revenuecat-webhook/index.test.ts` (Deno, `deno test --no-check`) — 14 cases including 401/405/400, anonymous + non-premium skip, INITIAL_PURCHASE upsert, alias-fallback user resolution, CANCELLATION + BILLING_ISSUE access semantics, EXPIRATION inactive, stale-event rejection, RPC throw → 500, plus a regression guard for the EXPIRATION→`canceled_at` clobber (P3 in `docs/qa/findings/2026-04-26-backend-rls-pass.md` — flip the assertion when the upsert is fixed to coalesce missing keys).
+- `flutter/supabase/functions/revenuecat-webhook/index.test.ts` (Deno, `deno test --no-check`) — 24 cases (was 14 pre-2026-04-26): 401/405/400, anonymous + non-premium skip, INITIAL_PURCHASE upsert, alias-fallback user resolution, CANCELLATION + BILLING_ISSUE access semantics, EXPIRATION inactive, stale-event rejection, RPC throw → 500, regression guard for the EXPIRATION→`canceled_at` clobber, **plus 10 new clawback cases** covering `buildConsumableClawback` (each branch: known token SKU, scroll SKU, unknown SKU returns null, non-CANCELLATION type returns null, anonymous user returns null, falls back to event id when transaction_id missing, both missing returns null), end-to-end consumable refund routes through `clawbackConsumable` and NOT `upsertSubscription`, subscription CANCELLATION still routes to `upsertSubscription`, and clawback RPC failure → 500 (so RC retries).
 
-Latest live verification: 2026-04-26 — see `docs/qa/findings/2026-04-26-backend-rls-pass.md`. All 47 SQL assertions and 14 Deno tests green.
+Latest live verification: 2026-04-26 — see `docs/qa/findings/2026-04-26-backend-rls-pass.md`. All 47 SQL assertions and 24 Deno tests green.
 
 Targets:
 - Scheduled notification eligibility for daily, streak, re-engagement, weekly.
@@ -242,6 +284,7 @@ Targets:
 - Webhook resolves stable user id via alias / `original_app_user_id` fallback.
 - Initial purchase, cancellation, billing issue, expiration events persist correct `public.user_subscriptions` state. Cancellation history (`canceled_at`) is preserved through EXPIRATION (key-presence-aware upsert in migration `20260426000000_preserve_canceled_at_on_absent_key.sql`).
 - `grant_premium_monthly()` grants only to active premium users, only once per month (keyed on `user_daily_rewards.last_premium_grant_month`), rejects non-premium callers, raises on unauthenticated.
+- **Consumable refund clawback (added 2026-04-26):** when RC fires CANCELLATION for a consumable SKU (token / scroll pack), the webhook calls `clawback_consumable_grant(p_user_id, p_sku, p_kind, p_amount, p_transaction_id, p_event_timestamp)` to reverse the local credit. The RPC is idempotent on `transaction_id` (insert-into the `consumable_clawback_events` audit table; second fire returns `{status: 'already_processed'}`), uses `SELECT ... FOR UPDATE` on the user's `user_tokens` row to serialize concurrent refunds for the same user, clamps the decrement at 0 (records `clawback_deficit` in the audit table when the user already spent the refunded balance), and rejects unknown `kind` values. SKU→amount map mirrors the Flutter map in `consumable_grants_service.dart`; both files must update together. Subscription CANCELLATION (`entitlement_ids: ['premium']`) still routes through `upsertSubscription`, unchanged. Live SQL verification 2026-04-26: 185 → 85 after first call (delta 100), idempotent on second call (no double-decrement), deficit case clamps at 0 and records `clawback_deficit=415` for support reconciliation. Migration `20260427000000_consumable_clawback.sql` (with FOR UPDATE applied via follow-up migration `consumable_clawback_for_update`).
 
 ## Automated gate before shipping
 

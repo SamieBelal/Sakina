@@ -187,6 +187,24 @@ void main() {
       final expected = xpLevels.firstWhere((l) => l.level == 2);
       expect(display.title, expected.title);
     });
+
+    test(
+        'manual selection survives a level read past every unlocked level '
+        '(case 3: new auto title would unlock but manual stays sticky)',
+        () async {
+      // User picks 'Seeker' manually at level 1.
+      await selectTitle('Seeker');
+
+      // Level reads at every higher level still return 'Seeker' — never
+      // promote to whatever level title would unlock at that rank.
+      for (final level in [2, 5, 10, 25, 50]) {
+        final display = await getDisplayTitle(level);
+        expect(display.title, 'Seeker',
+            reason:
+                'Manual selection must override auto-promotion at level $level');
+        expect(display.isAuto, false);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------

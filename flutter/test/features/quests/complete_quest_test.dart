@@ -22,7 +22,14 @@ void main() {
 
     // Default xp / tokens RPC handlers — return something non-null so earn
     // paths don't spuriously fail the test. completeQuest() awaits these.
-    fakeSync.rpcHandlers['earn_xp'] = (_) async => 0;
+    // award_xp must return the {total_xp, token_balance, scroll_balance}
+    // shape that xp_service.awardXp parses; otherwise the function early-
+    // returns with gained=0 and silently skips the level-up branch.
+    fakeSync.rpcHandlers['award_xp'] = (_) async => {
+          'total_xp': 0,
+          'token_balance': null,
+          'scroll_balance': null,
+        };
     fakeSync.rpcHandlers['earn_tokens'] = (_) async => 0;
   });
 

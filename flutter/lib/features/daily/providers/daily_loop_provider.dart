@@ -645,6 +645,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(checkinLoading: value);
   }
 
+  /// Test seam — exposes `_handleXpAward` so the level-up celebration branch
+  /// can be exercised without driving the full muhasabah/discovery flow.
+  /// Production callsites all go through `_handleStreakMilestones` /
+  /// `discoverName` / `answerCheckin`.
+  @visibleForTesting
+  Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
+
   /// Reset today's daily loop so the user can redo it.
   Future<void> resetToday() async {
     final prefs = await SharedPreferences.getInstance();
