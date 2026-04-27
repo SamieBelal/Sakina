@@ -412,19 +412,40 @@ class DuasNotifier extends StateNotifier<DuasState> {
     state = state.copyWith(buildNeed: value);
   }
 
+  /// Synchronous re-entry flag. Flipped true at the very top of
+  /// [submitBuild] / [submitBuildWithToken] BEFORE any `await`, so a second
+  /// tap that lands while the first is still inside `canBuildDuaFree()` is
+  /// rejected. Using `state.buildLoading` for this is not enough: that flag
+  /// is only set inside `_doBuild`, which runs after the async free-check —
+  /// so two taps race past it and both increment the counter. Regression for
+  /// §7 D-E5 (verified failing on sim 2026-04-26 with `built_dua_uses=2`).
+  bool _submitInFlight = false;
+
   Future<void> submitBuild() async {
+    if (_submitInFlight || state.buildLoading) return;
     if (state.buildNeed.trim().isEmpty) return;
-    final isFree = await canBuildDuaFree();
-    if (!isFree) {
-      state = state.copyWith(buildNeedsToken: true);
-      return;
+    _submitInFlight = true;
+    try {
+      final isFree = await canBuildDuaFree();
+      if (!isFree) {
+        state = state.copyWith(buildNeedsToken: true);
+        return;
+      }
+      await _doBuild(consumeFreeUsage: true);
+    } finally {
+      _submitInFlight = false;
     }
-    await _doBuild(consumeFreeUsage: true);
   }
 
   Future<void> submitBuildWithToken() async {
-    state = state.copyWith(buildNeedsToken: false);
-    await _doBuild();
+    if (_submitInFlight || state.buildLoading) return;
+    _submitInFlight = true;
+    try {
+      state = state.copyWith(buildNeedsToken: false);
+      await _doBuild();
+    } finally {
+      _submitInFlight = false;
+    }
   }
 
   /// Called by the UI after the upgrade sheet is dismissed or acknowledged.

@@ -408,16 +408,34 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   }
 
   /// Delete a saved reflection.
+  ///
+  /// Optimistic + reconciling: removes locally first, then attempts the server
+  /// delete. If the server call throws (airplane / RLS / 5xx), restores the
+  /// local list and re-persists, then surfaces an error string the UI can
+  /// show as a snackbar. Regression for §9 J-E4 (2026-04-26).
   Future<void> deleteReflection(String id) async {
-    final updated = state.savedReflections.where((r) => r.id != id).toList();
-    state = state.copyWith(savedReflections: updated);
+    final previous = List<SavedReflection>.from(state.savedReflections);
+    final updated = previous.where((r) => r.id != id).toList();
+    state = state.copyWith(savedReflections: updated, clearError: true);
     await _persistReflections(updated);
 
-    // Delete from Supabase
     final userId = supabaseSyncService.currentUserId;
-    if (userId != null) {
+    if (userId == null) return;
+
+    try {
       await supabaseSyncService.deleteRow('user_reflections', 'id', id);
+    } catch (_) {
+      state = state.copyWith(
+        savedReflections: previous,
+        error: "Couldn't delete the reflection. Please try again.",
+      );
+      await _persistReflections(previous);
     }
+  }
+
+  @visibleForTesting
+  void debugSeedReflections(List<SavedReflection> reflections) {
+    state = state.copyWith(savedReflections: reflections);
   }
 
   /// Reset to input state (preserves saved reflections).
