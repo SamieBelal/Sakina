@@ -15,6 +15,7 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/widgets/achievement_toast.dart' as toasts;
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -114,14 +115,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         state.cardEngageResult != null &&
         state.cardEngageResult!.tierChanged) {
       _revealShown = true;
-      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) checkAchievements(ref);
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
+        ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
         final rootNav = Navigator.of(context, rootNavigator: true);
-        rootNav.push(
+        await rootNav.push(
           PageRouteBuilder(
             opaque: true,
             barrierDismissible: false,
@@ -141,6 +139,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             transitionDuration: const Duration(milliseconds: 300),
           ),
         );
+        // Check achievements & flush quest toasts after the gacha overlay
+        // is dismissed so toasts appear on the muhasabah screen (visible).
+        if (!mounted) return;
+        await checkAchievements(ref);
       });
     }
 

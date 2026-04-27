@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,15 +8,8 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
-import 'package:sakina/features/daily/providers/daily_question_provider.dart';
-import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
-import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
-import 'package:sakina/features/duas/providers/duas_provider.dart';
-import 'package:sakina/features/quests/providers/quests_provider.dart';
-import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
@@ -23,10 +17,10 @@ import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/title_service.dart';
-import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/core/app_session.dart';
+import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -194,17 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _invalidateAllUserProviders(WidgetRef ref) {
-    ref.invalidate(reflectProvider);
-    ref.invalidate(duasProvider);
-    ref.invalidate(cardCollectionProvider);
-    ref.invalidate(dailyRewardsProvider);
-    ref.invalidate(questsProvider);
-    ref.invalidate(dailyLoopProvider);
-    ref.invalidate(tokenProvider);
-    ref.invalidate(tierUpScrollProvider);
-    ref.invalidate(discoveryQuizProvider);
-    ref.invalidate(dailyQuestionProvider);
-    ref.invalidate(isPremiumProvider);
+    invalidateAllUserProviders(ref);
   }
 
   Future<void> _openDiscoveryQuiz() async {
@@ -907,6 +891,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ]),
         const SizedBox(height: AppSpacing.lg),
+
+        // Developer (debug builds only)
+        if (kDebugMode) ...[
+          _buildSectionLabel('Developer'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildSettingsCard([
+            _buildSettingsRow(
+              icon: Icons.bug_report_rounded,
+              label: 'Dev Tools',
+              onTap: () => context.push('/dev-tools'),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.lg),
+        ],
 
         // Danger Zone
         _buildSectionLabel('Danger Zone'),

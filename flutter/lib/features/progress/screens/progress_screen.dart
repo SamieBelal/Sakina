@@ -22,6 +22,7 @@ import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/widgets/achievement_toast.dart' as toasts;
 
 class ProgressScreen extends ConsumerStatefulWidget {
   const ProgressScreen({super.key});
@@ -91,14 +92,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         state.checkinName != null &&
         !_revealDone) {
       _revealDone = true;
-      // Wire quest: update monthly streak
-      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
-      // Check achievements (delayed to avoid during gacha)
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) checkAchievements(ref);
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showFullScreenReveal(state);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Wire quest: update monthly streak (must be outside build)
+        ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+        await _showFullScreenReveal(state);
+        // Check achievements & flush quest toasts after the gacha overlay
+        // is dismissed so toasts appear on top of the home screen.
+        if (!mounted) return;
+        await checkAchievements(ref);
       });
     }
     _wasLoading = state.checkinLoading;
@@ -1049,11 +1050,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // Full-Screen Name Reveal
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showFullScreenReveal(DailyLoopState state) {
+  Future<void> _showFullScreenReveal(DailyLoopState state) {
     final engageResult = state.cardEngageResult;
     final engagedCard = state.engagedCard;
 
-    Navigator.of(context, rootNavigator: true).push(
+    return Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder(
         opaque: true,
         barrierDismissible: false,

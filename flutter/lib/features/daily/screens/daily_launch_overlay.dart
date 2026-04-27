@@ -579,6 +579,274 @@ class _ClaimSuccess extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Step 2 — Check-in (wraps existing loop UI inline)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CheckInStep extends ConsumerStatefulWidget {
+  const _CheckInStep({super.key, required this.onDismiss});
+  final VoidCallback onDismiss;
+
+  @override
+  ConsumerState<_CheckInStep> createState() => _CheckInStepState();
+}
+
+class _CheckInStepState extends ConsumerState<_CheckInStep> {
+  bool _revealShown = false;
+  bool _showingMatchTransition = false;
+  bool _matchTransitionStarted = false;
+
+  void _runGachaReveal() {
+    // Re-read fresh state so we don't act on an 800ms-stale snapshot from the
+    // matching transition closure. The provider could have updated during the
+    // delay (e.g. streak increment, card engage result finalised).
+    final state = ref.read(dailyLoopProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      // Wire quest: update monthly streak (must be outside build)
+      ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+      // Only show gacha overlay for new cards or tier upgrades
+      if (state.cardEngageResult != null &&
+          state.cardEngageResult!.tierChanged) {
+        await Navigator.of(context, rootNavigator: true).push(
+          PageRouteBuilder(
+            opaque: true,
+            barrierDismissible: false,
+            pageBuilder: (_, __, ___) => NameRevealOverlay(
+              nameArabic:
+                  state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+              nameEnglish: state.engagedCard?.transliteration ??
+                  state.checkinName ??
+                  '',
+              nameEnglishMeaning: state.engagedCard?.english ?? '',
+              teaching: state.engagedCard?.lesson ?? '',
+              card: state.engagedCard,
+              engageResult: state.cardEngageResult,
+              onContinue: () {
+                Navigator.of(context, rootNavigator: true).pop();
+              },
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+        // Check achievements & flush quest toasts after gacha overlay dismissed
+        if (mounted) await checkAchievements(ref);
+        widget.onDismiss();
+      } else {
+        // No new card / tier change — skip overlay, go straight to home
+        if (mounted) await checkAchievements(ref);
+        widget.onDismiss();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(dailyLoopProvider);
+    final notifier = ref.read(dailyLoopProvider.notifier);
+
+    // Fire the matching transition once, then the reveal once after 800ms.
+    if (state.checkinDone &&
+        !state.checkinLoading &&
+        !_revealShown &&
+        !_matchTransitionStarted) {
+      _matchTransitionStarted = true;
+      // Defer setState + side effects until after the current build completes
+      // so build stays pure.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        HapticFeedback.selectionClick();
+        setState(() {
+          _showingMatchTransition = true;
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (!mounted) return;
+          // Keep _showingMatchTransition = true so the transition UI stays
+          // rendered until the gacha route actually covers the screen. If we
+          // cleared it here, the next rebuild would briefly render the normal
+          // question UI (e.g. q4 since checkinDone=true) for one frame before
+          // _runGachaReveal's post-frame callback pushes the opaque gacha
+          // route. Gacha is pushed opaque + !barrierDismissible, so it fully
+          // covers this widget; leaving the flag set is safe.
+          setState(() {
+            _revealShown = true;
+          });
+          _runGachaReveal();
+        });
+      });
+    }
+
+    // Show the "Finding your Name..." anticipation bridge between the
+    // check-in loading spinner and the gacha reveal overlay. Once the reveal
+    // has been scheduled (_revealShown), keep showing the transition UI until
+    // the gacha overlay is pushed / onDismiss navigates away — this prevents
+    // a one-frame flash of the normal question UI.
+    if (_showingMatchTransition || _revealShown) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Finding your Name...',
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+            ).animate().fadeIn(duration: 300.ms),
+            const SizedBox(height: 32),
+            Stack(
+              alignment: Alignment.center,
+              children: List.generate(3, (i) {
+                return Container(
+                  width: 120 - (i * 20.0),
+                  height: 120 - (i * 20.0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color:
+                          AppColors.primary.withValues(alpha: 0.3 + (i * 0.1)),
+                      width: 1.5,
+                    ),
+                  ),
+                )
+                    .animate(onPlay: (c) => c.repeat())
+                    .scaleXY(
+                      begin: 1.5,
+                      end: 0.8,
+                      duration: 800.ms,
+                      delay: (i * 150).ms,
+                    )
+                    .fadeOut(duration: 800.ms, delay: (i * 150).ms);
+              }),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final idx = state.checkinQuestionIndex;
+    final answers = state.checkinAnswers;
+    final CheckInQuestion question = switch (idx) {
+      0 => q1,
+      1 => getQ2(answers.isNotEmpty ? answers[0] : ''),
+      2 => getQ3(
+          answers.isNotEmpty ? answers[0] : '',
+          answers.length > 1 ? answers[1] : '',
+        ),
+      _ => q4,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 4-dot progress
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(4, (i) {
+              final filled = i <= idx && !state.checkinLoading;
+              return Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: filled ? AppColors.primary : Colors.transparent,
+                  border: Border.all(
+                    color: filled ? AppColors.primary : AppColors.borderLight,
+                    width: 1.5,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 32),
+
+          if (state.checkinLoading)
+            const ReflectLoading().animate().fadeIn(duration: 300.ms)
+          else
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.06, 0),
+                    end: Offset.zero,
+                  ).animate(
+                      CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  child: child,
+                ),
+              ),
+              child: Column(
+                key: ValueKey(idx),
+                children: [
+                  Text(
+                    question.question,
+                    style: AppTypography.headlineMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  ...question.options.map((option) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            notifier.answerCheckin(option);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.borderLight),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              option,
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.textPrimaryLight,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )),
+                ],
+              ),
+            ),
+
+          if (!state.checkinLoading) ...[
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: widget.onDismiss,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Skip for now',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.textTertiaryLight,
+                  ),
+                ),
+              ),
+            ).animate().fadeIn(duration: 300.ms, delay: 500.ms),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared — Primary button
 // ─────────────────────────────────────────────────────────────────────────────
 
