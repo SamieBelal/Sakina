@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -19,6 +20,7 @@ import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
 import '../features/collection/widgets/bronze_card_preview.dart';
 import '../features/collection/widgets/emerald_card_preview.dart';
+import '../features/settings/screens/dev_tools_screen.dart';
 import '../features/store/screens/store_screen.dart';
 import 'app_session.dart';
 
@@ -116,6 +118,14 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const EmeraldCardPreviewScreen(),
       ),
+
+      // DEBUG: Dev tools (debug builds only)
+      if (kDebugMode)
+        GoRoute(
+          path: '/dev-tools',
+          parentNavigatorKey: rootNavigatorKey,
+          builder: (context, state) => const DevToolsScreen(),
+        ),
 
       // Main app with bottom navigation
       ShellRoute(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
@@ -121,14 +122,19 @@ Future<void> checkAchievements(WidgetRef ref) async {
       namesInvokedCount: namesInvoked.length,
     );
 
+    debugPrint('[AchievementChecker] discoveredNames=${data.discoveredNames}, '
+        'level=${data.level}, streak=${data.longestStreak}, '
+        'reflections=${data.reflectionCount}, duas=${data.builtDuaCount}');
+
     final newlyUnlocked = await checkAndUnlockAchievements(data);
+    debugPrint('[AchievementChecker] newlyUnlocked=$newlyUnlocked');
 
     // Show toast for each new achievement
     for (final id in newlyUnlocked) {
       final achievement = allAchievements.firstWhere((a) => a.id == id);
       showAchievementToast(achievement);
     }
-  } catch (_) {
-    // Non-critical — silently fail
+  } catch (e, st) {
+    debugPrint('[AchievementChecker] FAILED: $e\n$st');
   }
 }
