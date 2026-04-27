@@ -92,6 +92,7 @@ class DuaDetailPage extends StatelessWidget {
                         ),
                       Builder(builder: (btnContext) => IconButton(
                         onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           HapticFeedback.mediumImpact();
                           final box = btnContext.findRenderObject() as RenderBox;
                           final origin = box.localToGlobal(Offset.zero) & box.size;
@@ -108,6 +109,7 @@ class DuaDetailPage extends StatelessWidget {
                         );
                       } catch (e) {
                         debugPrint('[SHARE ERROR] $e');
+                        showShareErrorSnackBar(messenger);
                       }
                     },
                     icon: const Icon(Icons.share_outlined, size: 20),

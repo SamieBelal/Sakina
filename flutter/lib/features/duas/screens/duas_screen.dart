@@ -656,6 +656,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               child: Builder(
                   builder: (btnContext) => GestureDetector(
                         onTap: () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           HapticFeedback.mediumImpact();
                           final box =
                               btnContext.findRenderObject() as RenderBox;
@@ -671,6 +672,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                             );
                           } catch (e) {
                             debugPrint('[SHARE ERROR] $e');
+                            showShareErrorSnackBar(messenger);
                           }
                         },
                         child: Icon(Icons.share_outlined,

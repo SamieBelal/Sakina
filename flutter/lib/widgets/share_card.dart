@@ -38,12 +38,45 @@ Future<void> _exportAndShare({
   );
 }
 
+// Shows a uniform "couldn't share" SnackBar. Called by every share IconButton's
+// catch block so the user sees consistent feedback when share fails.
+void showShareErrorSnackBar(ScaffoldMessengerState messenger) {
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(content: Text("Couldn't share. Please try again.")),
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Reflection share — opens a full-screen preview, then shares on tap
 // ---------------------------------------------------------------------------
 
+/// Signature of [shareReflectionCard]. Exposed so tests can swap in a
+/// throwing fake to exercise the catch-block snackbar wiring on every share
+/// IconButton without needing a real Navigator+RepaintBoundary export.
+typedef ShareReflectionFn = Future<void> Function({
+  required BuildContext context,
+  required String nameArabic,
+  required String nameEnglish,
+  required String duaArabic,
+  required String duaTransliteration,
+  required String duaTranslation,
+  required String duaSource,
+  List<ReflectVerse> verses,
+  String? story,
+  String? reframe,
+  Rect? sharePositionOrigin,
+});
+
 /// Opens a full-screen preview of the share card. User taps "Share" to export.
-Future<void> shareReflectionCard({
+///
+/// This is a top-level *variable* (not a function declaration) so tests can
+/// override it via the [ShareReflectionFn] typedef. Production code keeps
+/// calling `shareReflectionCard(...)` exactly as before.
+ShareReflectionFn shareReflectionCard = _defaultShareReflectionCard;
+
+Future<void> _defaultShareReflectionCard({
   required BuildContext context,
   required String nameArabic,
   required String nameEnglish,
@@ -107,7 +140,19 @@ Future<void> shareReflectionCard({
 // Built Dua share — same full-screen preview pattern
 // ---------------------------------------------------------------------------
 
-Future<void> shareBuiltDuaCard({
+/// Signature of [shareBuiltDuaCard]. Mirrors [ShareReflectionFn] so tests can
+/// inject a throwing fake.
+typedef ShareBuiltDuaFn = Future<void> Function({
+  required BuildContext context,
+  required String need,
+  required List<DuaShareSection> sections,
+  required String translation,
+  Rect? sharePositionOrigin,
+});
+
+ShareBuiltDuaFn shareBuiltDuaCard = _defaultShareBuiltDuaCard;
+
+Future<void> _defaultShareBuiltDuaCard({
   required BuildContext context,
   required String need,
   required List<DuaShareSection> sections,
@@ -210,11 +255,7 @@ class _SharePreviewScreenState extends State<_SharePreviewScreen> {
     } catch (e) {
       debugPrint('[SHARE ERROR] $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Couldn't share that — please try again."),
-          ),
-        );
+        showShareErrorSnackBar(ScaffoldMessenger.of(context));
       }
     } finally {
       overlay.remove();

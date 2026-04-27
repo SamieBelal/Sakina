@@ -16,6 +16,7 @@ import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
+import 'package:sakina/widgets/provider_error_listener.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 
 // ---------------------------------------------------------------------------
@@ -93,28 +94,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ref.read(questsProvider.notifier).onJournalVisited();
       });
     }
-    // Surface delete failures: deleteReflection rolls back state on server
-    // error and sets state.error, but the Reflect screen is the only place
-    // that renders that error. Listen here so users see a snackbar when a
-    // delete reverts (e.g. offline). Same for duasProvider after the
-    // removeSavedBuiltDua try/catch landed.
-    ref.listen<ReflectState>(reflectProvider, (prev, next) {
-      final err = next.error;
-      if (err != null && err != prev?.error) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(err)));
-      }
-    });
-    ref.listen<DuasState>(duasProvider, (prev, next) {
-      final err = next.error;
-      if (err != null && err != prev?.error) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(err)));
-      }
-    });
-
     final reflectState = ref.watch(reflectProvider);
     final duasState = ref.watch(duasProvider);
 
@@ -143,6 +122,29 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
     final totalCount = reflections.length + builtDuas.length + savedDuas.length;
 
+    // Surface delete failures: deleteReflection / removeSavedBuiltDua roll back
+    // state on server error and set state.error. Without these listeners, the
+    // Reflect screen is the only place that renders the error, so a delete
+    // while offline in Journal would silently revert with no UI feedback.
+    return ProviderErrorSnackBarListener<ReflectState>(
+      provider: reflectProvider,
+      errorOf: (s) => s.error,
+      child: ProviderErrorSnackBarListener<DuasState>(
+        provider: duasProvider,
+        errorOf: (s) => s.error,
+        child: _buildScaffold(reflections, builtDuas, savedDuas, allEntries,
+            totalCount),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(
+    List<SavedReflection> reflections,
+    List<SavedBuiltDua> builtDuas,
+    List<SavedRelatedDua> savedDuas,
+    List<_JournalEntry> allEntries,
+    int totalCount,
+  ) {
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7F2),
       body: SafeArea(

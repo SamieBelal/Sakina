@@ -1315,11 +1315,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                                             );
                                           } catch (e) {
                                             debugPrint('[SHARE ERROR] $e');
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                  content:
-                                                      Text('Share failed: $e')),
-                                            );
+                                            showShareErrorSnackBar(messenger);
                                           }
                                         },
                                         icon: const Icon(

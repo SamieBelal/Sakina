@@ -43,4 +43,56 @@ void main() {
     expect(find.text('Ar-Rahman 55:13'), findsNothing);
     expect(find.text('"supplication"'), findsOneWidget);
   });
+
+  // Regression: every share button's catch block now routes through
+  // showShareErrorSnackBar so all four entry points (reflect_screen,
+  // reflection_detail_page, dua_detail_page, duas_screen built-dua result)
+  // surface the same parity copy. Previously only reflect_screen showed any
+  // toast on share failure; the other three silently swallowed the error.
+  testWidgets('showShareErrorSnackBar renders parity copy', (tester) async {
+    final scaffoldKey = GlobalKey<ScaffoldMessengerState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        scaffoldMessengerKey: scaffoldKey,
+        home: const Scaffold(body: SizedBox.shrink()),
+      ),
+    );
+
+    showShareErrorSnackBar(scaffoldKey.currentState!);
+    await tester.pump();
+
+    expect(
+      find.text("Couldn't share. Please try again."),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'showShareErrorSnackBar replaces an existing snackbar (no stacking)',
+      (tester) async {
+    final scaffoldKey = GlobalKey<ScaffoldMessengerState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        scaffoldMessengerKey: scaffoldKey,
+        home: const Scaffold(body: SizedBox.shrink()),
+      ),
+    );
+
+    scaffoldKey.currentState!.showSnackBar(
+      const SnackBar(content: Text('previous toast')),
+    );
+    await tester.pump();
+    expect(find.text('previous toast'), findsOneWidget);
+
+    showShareErrorSnackBar(scaffoldKey.currentState!);
+    await tester.pump();
+
+    expect(find.text('previous toast'), findsNothing);
+    expect(
+      find.text("Couldn't share. Please try again."),
+      findsOneWidget,
+    );
+  });
 }

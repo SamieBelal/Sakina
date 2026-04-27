@@ -66,6 +66,8 @@ class ReflectionDetailPage extends StatelessWidget {
                       Builder(
                           builder: (btnContext) => IconButton(
                                 onPressed: () async {
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
                                   HapticFeedback.mediumImpact();
                                   final box = btnContext.findRenderObject()
                                       as RenderBox;
@@ -88,6 +90,7 @@ class ReflectionDetailPage extends StatelessWidget {
                                     );
                                   } catch (e) {
                                     debugPrint('[SHARE ERROR] $e');
+                                    showShareErrorSnackBar(messenger);
                                   }
                                 },
                                 icon:

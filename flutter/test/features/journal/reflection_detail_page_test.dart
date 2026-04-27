@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/widgets/share_card.dart';
 
 void main() {
   SavedReflection buildReflection({List<ReflectVerse> verses = const []}) {
@@ -99,5 +100,46 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(removeCallCount, 1, reason: 'Delete must confirm and fire onRemove once');
+  });
+
+  testWidgets(
+      'share button surfaces parity SnackBar when shareReflectionCard throws',
+      (tester) async {
+    // Regression: catch block in reflection_detail_page must invoke
+    // showShareErrorSnackBar so users see feedback when share fails. Prior
+    // behavior was a silent debugPrint.
+    final original = shareReflectionCard;
+    shareReflectionCard = ({
+      required BuildContext context,
+      required String nameArabic,
+      required String nameEnglish,
+      required String duaArabic,
+      required String duaTransliteration,
+      required String duaTranslation,
+      required String duaSource,
+      List<ReflectVerse> verses = const [],
+      String? story,
+      String? reframe,
+      Rect? sharePositionOrigin,
+    }) async {
+      throw StateError('forced share failure');
+    };
+    addTearDown(() => shareReflectionCard = original);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReflectionDetailPage(reflection: buildReflection()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.share_outlined));
+    await tester.pump();
+
+    expect(
+      find.text("Couldn't share. Please try again."),
+      findsOneWidget,
+      reason: 'share error must surface a parity SnackBar',
+    );
   });
 }
