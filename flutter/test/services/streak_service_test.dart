@@ -88,13 +88,61 @@ void main() {
     expect(fakeSync.upsertCalls, isEmpty);
   });
 
-  test('logActivity keeps the local log idempotent', () async {
+  test('logActivity is idempotent locally and on the server within a day',
+      () async {
     await logActivity();
     await logActivity();
 
     final activity = await getActivityLog();
-    expect(activity.length, 1);
-    expect(fakeSync.insertCalls.length, 2);
+    expect(activity.length, 1, reason: 'local log dedupes by date');
+
+    // Server must be written via an upsert with the composite-unique
+    // onConflict — otherwise a second same-day write hits 23505 in prod.
+    expect(
+      fakeSync.insertCalls.where((c) => c['table'] == 'user_activity_log'),
+      isEmpty,
+      reason:
+          'plain insertRow on user_activity_log violates the (user_id, active_date) '
+          'unique constraint on the second same-day write',
+    );
+    final activityUpserts = fakeSync.upsertCalls
+        .where((c) => c['table'] == 'user_activity_log')
+        .toList();
+    expect(
+      activityUpserts.length,
+      1,
+      reason:
+          'when the local cache shows today is already logged, no server write '
+          'should fire on subsequent calls',
+    );
+    expect(activityUpserts.single['onConflict'], 'user_id,active_date');
+  });
+
+  test(
+      'logActivity does not 23505 when server already has today (fresh device, '
+      'stale cache)', () async {
+    // Simulate a device where local prefs are empty but the server already
+    // has today's row (e.g. user signed in on a new device after logging
+    // activity elsewhere, or local prefs were cleared).
+    final today = DateTime.now().toUtc();
+    final todayString =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    fakeSync.rowLists['user_activity_log'] = [
+      {
+        'id': 'preexisting',
+        'user_id': 'user-1',
+        'active_date': todayString,
+      },
+    ];
+
+    await logActivity();
+
+    // The single row remains; the upsert resolved by conflict, no duplicate.
+    expect(fakeSync.rowLists['user_activity_log']!.length, 1);
+    expect(
+      fakeSync.insertCalls.where((c) => c['table'] == 'user_activity_log'),
+      isEmpty,
+    );
   });
 
   test(

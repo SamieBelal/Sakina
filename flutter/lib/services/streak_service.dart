@@ -324,18 +324,29 @@ Future<void> logActivity() async {
   final today = _todayString();
   final logSet = await _getCachedActivityLogSet(prefs);
 
-  if (!logSet.contains(today)) {
-    logSet.add(today);
-    await prefs.setStringList(
-      supabaseSyncService.scopedKey(_activityLogKey),
-      logSet.toList(),
-    );
-  }
+  // Local cache is authoritative for "did this device already log today?"
+  // — `_markStreakAndHandleMilestones` and the reflect flow both call this,
+  // so a single check-in followed by a reflection on the same day would
+  // otherwise re-write the row and 23505 on the (user_id, active_date)
+  // unique constraint.
+  if (logSet.contains(today)) return;
+
+  logSet.add(today);
+  await prefs.setStringList(
+    supabaseSyncService.scopedKey(_activityLogKey),
+    logSet.toList(),
+  );
 
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
-  await supabaseSyncService.insertRow('user_activity_log', {
-    'user_id': userId,
-    'active_date': today,
-  });
+
+  // Upsert (not insert) so a stale local cache — fresh install on a new
+  // device, signed-in-elsewhere, cleared prefs — still resolves cleanly
+  // against an existing server row instead of throwing 23505.
+  await supabaseSyncService.upsertRow(
+    'user_activity_log',
+    userId,
+    {'active_date': today},
+    onConflict: 'user_id,active_date',
+  );
 }

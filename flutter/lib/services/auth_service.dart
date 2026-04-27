@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sakina/core/env.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -88,8 +88,8 @@ class AuthService {
   }
 
   Future<AuthResponse> signInWithGoogle() async {
-    final webClientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
-    final iosClientId = dotenv.env['GOOGLE_IOS_CLIENT_ID'] ?? '';
+    const webClientId = Env.googleWebClientId;
+    const iosClientId = Env.googleIosClientId;
 
     if (webClientId.isEmpty || (Platform.isIOS && iosClientId.isEmpty)) {
       throw const AuthException(

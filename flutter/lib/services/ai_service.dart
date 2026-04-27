@@ -8,12 +8,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
+import 'package:sakina/core/env.dart';
 import 'package:sakina/features/reflect/data/reflection_verse_catalog.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -448,8 +448,8 @@ Future<Map<String, dynamic>?> _callOpenAiChat({
   required String userMessage,
   required int maxCompletionTokens,
 }) async {
-  final apiKey = dotenv.env['OPENAI_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) return null;
+  const apiKey = Env.openAiApiKey;
+  if (apiKey.isEmpty) return null;
 
   final response = await http.post(
     Uri.parse(_openAiChatUrl),
@@ -604,8 +604,8 @@ Future<ReflectResponse> reflectWithOpenAI(
   }
 
   // Check for API key — fallback to demo if missing
-  final apiKey = dotenv.env['OPENAI_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
+  const apiKey = Env.openAiApiKey;
+  if (apiKey.isEmpty) {
     return getDemoResponse();
   }
 
@@ -893,8 +893,8 @@ Future<FindDuasResponse> findDuas(String need) async {
 }
 
 Future<List<FindDuasNameEntry>> _findNamesForNeed(String need) async {
-  final apiKey = dotenv.env['OPENAI_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
+  const apiKey = Env.openAiApiKey;
+  if (apiKey.isEmpty) {
     return const [
       FindDuasNameEntry(
         name: 'Al-Mujeeb',
@@ -1013,8 +1013,8 @@ class BuiltDuaResponse {
 }
 
 Future<BuiltDuaResponse> buildDua(String need) async {
-  final apiKey = dotenv.env['OPENAI_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
+  const apiKey = Env.openAiApiKey;
+  if (apiKey.isEmpty) {
     return const BuiltDuaResponse(
       arabic: 'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
       transliteration: 'Bismillahi r-rahmani r-rahim',
@@ -1332,8 +1332,8 @@ Future<DailyReflectResponse> getDailyResponse(
   List<String> recentNames = const [],
   List<String> discoveredNames = const [],
 }) async {
-  final apiKey = dotenv.env['OPENAI_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
+  const apiKey = Env.openAiApiKey;
+  if (apiKey.isEmpty) {
     return const DailyReflectResponse(
       name: 'Al-Wakeel',
       nameArabic: 'الْوَكِيلُ',

@@ -19,6 +19,14 @@ const _prefsKey = 'onboarding_state';
 /// PageView has 26 children; gacha on first_checkin is an overlay, not a page.
 const int onboardingLastPageIndex = 25;
 
+/// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
+const int onboardingPasswordPageIndex = 23;
+
+/// Where social-auth (Apple/Google) users land after OAuth succeeds. They are
+/// already authenticated, so the email (22) and password (23) screens are
+/// skipped — the user goes straight to the Encouragement interstitial.
+const int onboardingEncouragementPageIndex = 24;
+
 class OnboardingState {
   const OnboardingState({
     this.currentPage = 0,

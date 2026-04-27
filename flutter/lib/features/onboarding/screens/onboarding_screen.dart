@@ -124,6 +124,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (current < onboardingLastPageIndex) _goToPage(current + 1);
   }
 
+  void _skipToEncouragement() => _goToPage(onboardingEncouragementPageIndex);
+
   void _back() {
     final current = ref.read(onboardingProvider).currentPage;
     if (current > 0) {
@@ -217,7 +219,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
-            onSocialAuthComplete: _next,
+            onSocialAuthComplete: _skipToEncouragement,
           ),
           // 22 — Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),

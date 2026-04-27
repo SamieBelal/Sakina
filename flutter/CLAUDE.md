@@ -57,17 +57,17 @@ lib/
 ## Commands
 
 ```bash
-# Run app
-flutter run
+# Run app (always pass env.json — see Environment Configuration below)
+flutter run --dart-define-from-file=env.json
 
 # Run on specific device
-flutter run -d <device_id>
+flutter run -d <device_id> --dart-define-from-file=env.json
 
-# Build release
-flutter build ios --release
-flutter build appbundle --release
+# Build release for TestFlight / App Store
+flutter build ios --release --dart-define-from-file=env.json
+flutter build appbundle --release --dart-define-from-file=env.json
 
-# Run tests
+# Run tests (no env values needed for most)
 flutter test
 
 # Run single test file
@@ -79,6 +79,39 @@ dart run build_runner build --delete-conflicting-outputs
 # Lint
 flutter analyze
 ```
+
+## Environment Configuration
+
+All env values (Supabase, OpenAI, RevenueCat, Mixpanel, OneSignal, Google Sign-In) are compile-time constants injected via `--dart-define-from-file=env.json`. There is no `flutter_dotenv`, no `.env` asset, and no runtime asset load.
+
+**How to read env values:** import `lib/core/env.dart` and use `Env.openAiApiKey`, `Env.supabaseUrl`, etc. Each field is `static const String = String.fromEnvironment('KEY')` and falls back to empty string when the build wasn't given the key.
+
+```dart
+import 'package:sakina/core/env.dart';
+
+const apiKey = Env.openAiApiKey;
+if (apiKey.isEmpty) return getDemoResponse();
+```
+
+**Files:**
+- `env.json` — gitignored. Holds real values for local dev + TestFlight builds.
+- `env.example.json` — committed. Placeholder shape so clean checkouts know which keys to fill in.
+- `lib/core/env.dart` — the `Env` constants class. Add a new `static const` field here when introducing a new key.
+- `pubspec.yaml` — does NOT list `env.json` or `.env` under `assets:`. Bundling them as assets would leak secrets in the IPA.
+
+**Adding a new env value:** add the key to `env.json` and `env.example.json`, add a matching `static const` to `Env` in `lib/core/env.dart`, and reference it as `Env.<fieldName>` at the call site. Never use `String.fromEnvironment` inline at random call sites — keep it centralized in `Env`.
+
+**Server-only secrets that must NOT go in `env.json`** (would otherwise be baked into every IPA):
+- `SUPABASE_SERVICE_ROLE_KEY` — bypasses RLS; server-only.
+- `REVENUECAT_WEBHOOK_SECRET` — only the `revenuecat-webhook` Edge Function reads this; configure as a Supabase Edge Function secret.
+
+These stay in a local `.env` for backend tools/scripts, never referenced from Dart code.
+
+**Security caveat:** `String.fromEnvironment` values are baked into the compiled Dart snapshot. Harder to extract than a plain text asset, but a determined attacker with `strings` / Hopper / Ghidra still gets them. **Any key that costs money to abuse (currently `OPENAI_API_KEY`) should move behind a Supabase Edge Function before an external TestFlight or App Store release** — the function holds the key in its server-side env, validates the user JWT, and proxies to OpenAI. Pattern is already proven by `revenuecat-webhook`.
+
+The `SUPABASE_ANON_KEY` and RevenueCat public SDK keys are *designed* to be public — security on those comes from Supabase RLS and RevenueCat's server-side entitlement model, not from key secrecy. Safe to ship.
+
+**Why this pattern:** Confirmed canonical via [Flutter docs](https://docs.flutter.dev/) + [Code with Andrea](https://codewithandrea.com/articles/flutter-api-keys-dart-define-env-files/). The previous `flutter_dotenv` setup bundled `.env` as a Flutter asset, meaning anyone who unpacked the signed IPA could read all keys in plaintext.
 
 ## Design System & UI
 
@@ -227,7 +260,7 @@ Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView
 **Progress bar:** segments show page index 0…22 (paywall + both encouragement interstitials sit outside the bar).
 
 **Key onboarding notes:**
-- Social auth (`onSocialAuthComplete`) calls `_next`, not `_goToPaywall` — keeps user in flow
+- Social auth (`onSocialAuthComplete`) calls `_skipToEncouragement`, jumping from page 21 (Save Progress) to page 24 (Encouragement). Pages 22 (Email) and 23 (Password) only exist to create a Supabase account via `signUpWithEmail`, so Apple/Google users — who already have a session — must skip them. Pinned by `test/features/onboarding/onboarding_auth_routing_test.dart`.
 - Password screen calls `persistOnboardingToSupabase` immediately after `authService.signUpWithEmail` (so RLS-authorized writes succeed); `completeOnboarding` also calls it as a belt-and-braces flush
 - `saveOnboardingData` in `auth_service.dart` writes to `user_profiles` and must use exact column names: `display_name`, `onboarding_intention`, `onboarding_familiarity`, `onboarding_quran_connection`, `onboarding_attribution`, `age_range`, `prayer_frequency`, **`resonant_name_id`** (NOT `resonant_name_slug`), `dua_topics`, `dua_topics_other`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`. A single mis-named column will silently fail the whole UPDATE.
 - All survey/feature screens end with `SizedBox(height: AppSpacing.lg)` after `OnboardingContinueButton` for consistent button positioning

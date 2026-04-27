@@ -100,7 +100,9 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final isActive = ref.watch(
-      onboardingProvider.select((state) => state.currentPage == 25),
+      onboardingProvider.select(
+        (state) => state.currentPage == onboardingPasswordPageIndex,
+      ),
     );
 
     return GestureDetector(

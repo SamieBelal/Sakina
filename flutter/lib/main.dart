@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_lifecycle_observer.dart';
 import 'core/app_session.dart';
+import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
@@ -25,24 +25,15 @@ import 'widgets/billing_issue_banner.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Prefer real `.env` if the developer has added it to pubspec assets.
-  // Otherwise fall back to the committed `.env.example` so clean checkouts
-  // still build. flutter_dotenv's `load()` clears the env map before parsing,
-  // so we use a simple try/catch rather than layering mergeWith.
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (_) {
-    await dotenv.load(fileName: '.env.example');
-  }
-
   // Load onboarding flag and cached onboarding state
   final prefs = await SharedPreferences.getInstance();
   final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
   final cachedOnboardingState = await OnboardingNotifier.loadFromPrefs();
 
-  // Initialize Supabase
-  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  // Env values are compile-time constants, fed by --dart-define-from-file.
+  // See lib/core/env.dart for the full list.
+  const supabaseUrl = Env.supabaseUrl;
+  const supabaseAnonKey = Env.supabaseAnonKey;
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(
       url: supabaseUrl,
@@ -58,8 +49,8 @@ Future<void> main() async {
   if (!kIsWeb) {
     try {
       await PurchaseService().initialize(
-        appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
-        googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
+        appleApiKey: Env.revenueCatApiKeyApple,
+        googleApiKey: Env.revenueCatApiKeyGoogle,
       );
       // Register the consumable orphan-recovery listener. Fires every time
       // RC's customerInfo updates (purchase, restore, login, syncPurchases).
@@ -85,7 +76,7 @@ Future<void> main() async {
 
   final notificationService = NotificationService();
   if (!kIsWeb) {
-    await notificationService.initialize(dotenv.env['ONESIGNAL_APP_ID'] ?? '');
+    await notificationService.initialize(Env.oneSignalAppId);
     notificationService.addForegroundListener();
     notificationService.addClickListener();
   }
@@ -93,7 +84,7 @@ Future<void> main() async {
   // Initialize Mixpanel analytics (not supported on web)
   final analytics = AnalyticsService();
   if (!kIsWeb) {
-    await analytics.initialize(dotenv.env['MIXPANEL_TOKEN'] ?? '');
+    await analytics.initialize(Env.mixpanelToken);
   }
   analytics.setSuperPropertiesOnce({
     'first_open_date': DateTime.now().toIso8601String(),
