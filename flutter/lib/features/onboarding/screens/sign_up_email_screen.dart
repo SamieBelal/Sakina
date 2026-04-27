@@ -94,6 +94,8 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
                       shouldRequestFocus: isActive,
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         hintText: AppStrings.signUpEmailHint,

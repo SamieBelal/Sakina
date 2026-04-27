@@ -13,6 +13,7 @@ enum CardTier {
   bronze, // Tier 1: Name + meaning
   silver, // Tier 2: + hadith/prophetic teaching
   gold, // Tier 3: + dua
+  emerald, // Tier 4: rare/special variant (DB enum value added 2026-04-26)
 }
 
 extension CardTierX on CardTier {
@@ -24,6 +25,8 @@ extension CardTierX on CardTier {
         return 'Silver';
       case CardTier.gold:
         return 'Gold';
+      case CardTier.emerald:
+        return 'Emerald';
     }
   }
 
@@ -35,6 +38,8 @@ extension CardTierX on CardTier {
         return 2;
       case CardTier.gold:
         return 3;
+      case CardTier.emerald:
+        return 4;
     }
   }
 
@@ -46,6 +51,8 @@ extension CardTierX on CardTier {
         return 0xFFA8A9AD;
       case CardTier.gold:
         return 0xFFC8985E;
+      case CardTier.emerald:
+        return 0xFF50C878;
     }
   }
 
@@ -57,6 +64,8 @@ extension CardTierX on CardTier {
         return CardTier.silver;
       case 3:
         return CardTier.gold;
+      case 4:
+        return CardTier.emerald;
       default:
         return CardTier.bronze;
     }
@@ -1823,9 +1832,10 @@ CollectibleName pickNextCard(CardCollectionState collection) {
 // ---------------------------------------------------------------------------
 
 String tierToEnum(int t) =>
-    const {1: 'bronze', 2: 'silver', 3: 'gold'}[t] ?? 'bronze';
+    const {1: 'bronze', 2: 'silver', 3: 'gold', 4: 'emerald'}[t] ?? 'bronze';
 
-int enumToTier(String e) => const {'bronze': 1, 'silver': 2, 'gold': 3}[e] ?? 1;
+int enumToTier(String e) =>
+    const {'bronze': 1, 'silver': 2, 'gold': 3, 'emerald': 4}[e] ?? 1;
 
 String _datePrefix(dynamic value) {
   final text = value?.toString() ?? '';
@@ -1889,6 +1899,7 @@ class CardCollectionState {
       if (maxTier >= 1) CardTier.bronze,
       if (maxTier >= 2) CardTier.silver,
       if (maxTier >= 3) CardTier.gold,
+      if (maxTier >= 4) CardTier.emerald,
     ];
   }
 
@@ -1896,6 +1907,7 @@ class CardCollectionState {
     return discoveredIds.where((id) => (tiers[id] ?? 0) >= tier.number).length;
   }
 
+  int get totalEmerald => countByTier(CardTier.emerald);
   int get totalGold => countByTier(CardTier.gold);
   int get totalSilver => countByTier(CardTier.silver);
   int get totalBronze => countByTier(CardTier.bronze);

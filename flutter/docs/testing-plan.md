@@ -72,15 +72,15 @@ Flow-level:
 
 ### 4. Daily core loop
 
-- Daily launch overlay shows only when expected.
+- Daily launch overlay shows only when expected. As of 2026-04-26, the overlay has TWO live steps (`_step` 0 = streak greeting, `_step` 1 = reward claim). The legacy `_step` 2 multi-question check-in widget (`_CheckInStep`) was removed; the only muhasabah path is now Home → "Begin Muḥāsabah" → `/muhasabah` → `discoverName()`.
 - Home loads streak, XP, tokens, quests.
-- Muhasabah questions advance.
-- Final answer triggers AI response → saves to history.
+- ~~Muhasabah questions advance.~~ (REMOVED — see above. `discoverName` skips questions and goes straight to gacha.)
+- ~~Final answer triggers AI response → saves to history.~~ (REMOVED — `discoverName` writes a sentinel `q1='discover'` row with q2/q3/q4 empty.)
 - Gacha reveal shows correct card with working Continue.
 - Reward claims update balances.
 - Achievement checks fire after completion.
 
-Edge: double-tap answer/continue, background during loading, midnight boundary (local vs UTC), same-day repeat does not duplicate rewards, streak freeze consumed only when needed.
+Edge: ~~double-tap answer~~ (latent — `answerCheckin` has a `if (state.checkinLoading) return;` guard added 2026-04-26 with regression test in `test/features/daily/answer_checkin_reentry_guard_test.dart`; the multi-question UI is gone but the function is preserved against future reintroduction), double-tap continue on gacha, ~~background during AI loading~~ (no AI call in `discoverName`; obsolete until a meaningful loading window is reintroduced), midnight boundary (local vs UTC — verified 2026-04-26 via DB-driven date-rewind), same-day repeat does not duplicate rewards, streak freeze consumed only when needed (consume happens in `streak_service.dart markActiveToday` not in claim — verified 2026-04-26 with seed `streak_freeze_owned=true`, `last_active=current_date-2`, `current_streak=N` → post `streak=N+1`, `streak_freeze_owned=false`).
 
 ### 5. Discovery quiz
 
@@ -240,3 +240,18 @@ See `manual-test-plan.md` for full on-device steps, DB assertions, and MCP calls
 - Account deletion.
 
 When premium is enabled, also: purchase, restore, relaunch with entitlement, monthly premium grant, webhook-driven subscription refresh.
+
+### Daily-loop edge cases — last verified 2026-04-26
+
+Run log: `docs/qa/runs/2026-04-26-daily-loop-edges.md`. Coverage on iPhone 17 sim against `qa20260426@sakinaqa.test`:
+
+- B1 (double-tap final answer): **OBSOLETE_BY_DESIGN**. UI removed; latent guard added to `answerCheckin` and pinned by `test/features/daily/answer_checkin_reentry_guard_test.dart` (2 tests).
+- B3 (background during AI loading): **OBSOLETE_BY_DESIGN**. `discoverName` has no AI call.
+- B4 (midnight boundary): **PASS**. Server + plist forced to yesterday → cold-launch re-shows overlay → completion → streak +1, `last_active`/`last_claim_date` advance to today, +1 history row.
+- B6 (streak freeze auto-consume): **PASS**. Seeded `streak_freeze_owned=true` + 2-day gap → post-muhasabah, freeze=false, streak=pre+1 (NOT reset to 1).
+
+Mechanism notes (apply to future date-driven runs):
+
+- Use Python `plistlib` to mutate scoped SharedPrefs keys with `:` in them (`plutil -remove` mishandles colon-containing keys). Always `xcrun simctl terminate booted <bundle>` before plist surgery.
+- `user_daily_rewards.last_claim_date` is `date`, not text — write `current_date - 1`, no `::text` cast.
+- After rebuild, `xcrun simctl get_app_container booted <bundle> data` returns a new container UUID; re-resolve before each plist edit.

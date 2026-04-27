@@ -260,6 +260,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.none,
                 decoration: InputDecoration(
                   hintText: AppStrings.signInEmailLabel,
                   hintStyle: AppTypography.bodyMedium.copyWith(
@@ -295,6 +298,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
                 decoration: InputDecoration(
                   hintText: AppStrings.signInPasswordLabel,
                   hintStyle: AppTypography.bodyMedium.copyWith(

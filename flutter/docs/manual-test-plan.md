@@ -42,6 +42,8 @@ delete from auth.users where email like '%@test.sakina' or email like '%@sakinaq
 
 **Re-creating a test user via SQL (no app onboarding needed):** the QA run on 2026-04-26 used a direct insert into `auth.users` + `auth.identities` (plus a backfill of `user_profiles.display_name`, `onboarding_completed=true`, and `user_notification_preferences` with `push_enabled=true, push_enabled_last_verified_at=now()`). Pattern is documented in the run log at `docs/qa/runs/2026-04-26-settings-push.md`. Note `auth.identities.email` is a generated column — do NOT include it in the insert column list. Password must be bcrypt'd via `crypt(plaintext, gen_salt('bf'))`.
 
+**GoTrue NULL-token pitfall (F4 from `2026-04-26-share-export-pass.md`):** direct `INSERT INTO auth.users` writes leave these token columns NULL by default. GoTrue's user-fetch path then 500s with `Scan error … converting NULL to string is unsupported` on sign-in. **Always set them to `''` (empty string), never NULL:** `confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change`, `phone_change`, `phone_change_token`, `email_change_token_current`, `reauthentication_token`.
+
 ---
 
 ## 1. Launch, routing, session hydration
@@ -207,23 +209,20 @@ All survey answers must be persisted.
 
 **Steps:**
 
-There are TWO paths into the daily flow with different question behavior. Test both.
+The shipping muhasabah path is **discover-only**. The multi-question check-in
+that previously lived inside the launch overlay was removed 2026-04-26 (see
+`docs/qa/findings/2026-04-26-launch-overlay-dead-checkinstep.md`).
 
-**Path A — DailyLaunchOverlay (multi-question check-in):**
-- App launch on a fresh day → `DailyLaunchOverlay` shows streak greeting + check-in CTA.
-- Tap → 4 check-in questions (`answerCheckin` in `daily_loop_provider.dart:465`). Answer each.
-- Final answer → loading → AI result (Name + verses + dua). q1-q4 land in `user_checkin_history`.
-- `NameRevealOverlay` (gacha) appears with a card.
-- Continue through reflection → story → dua → Ameen → completion.
-- Daily rewards claimed (tokens + XP). Achievement check fires.
+**Live flow:**
+1. App launch on a fresh day → `DailyLaunchOverlay` step 0 (streak greeting). Tap Begin.
+2. Step 1 (reward claim). Tap Claim Reward → claim animates inline. Tap Continue → overlay dismisses to Home.
+3. Home → tap "Begin Muḥāsabah" → routes to `/muhasabah`.
+4. `MuhasabahScreen.initState` calls `discoverName()` (`daily_loop_provider.dart:402`) which picks an undiscovered/lowest-tier card and jumps straight to gacha.
+5. `user_checkin_history` row written with `q1='discover'` sentinel and q2/q3/q4 empty — **intentional**, not a bug.
+6. Gacha Continue → reflection → story → dua → Ameen → completion.
+7. `_markStreakAndHandleMilestones` runs (logs `user_activity_log`, calls `markActiveToday`, fires milestone overlay if at threshold). `claimDailyReward` runs idempotently.
 
-**Path B — Home "Begin Muḥāsabah" CTA (discover-only, NO questions):**
-- Tap from Home (after the launch overlay was claimed/dismissed earlier).
-- Routes to `/muhasabah`. The screen auto-calls `discoverName()` (`daily_loop_provider.dart:402`) which **skips questions entirely** and jumps to gacha.
-- `user_checkin_history` row is written with `q1='discover'` sentinel and q2/q3/q4 empty — this is **intentional**, not a bug.
-- Continue through reflection → story → dua → Ameen → completion.
-
-Both paths fire `_markStreakAndHandleMilestones` which now (post 2026-04 fix) inserts a `user_activity_log` row.
+**`answerCheckin` is preserved in the provider but has no live UI surface.** The function holds a known re-entry race that is fixed defensively with `if (state.checkinLoading) return;` (2026-04-26) but is currently unreachable. See finding F1 in the 2026-04-26 run log.
 
 **UI checks:**
 - Streak flame shows correct count on Home before/after.
@@ -246,12 +245,12 @@ select count(*) from public.user_activity_log where user_id = auth.uid() and act
 All should reflect the single check-in (no duplicates).
 
 **Edge cases (major, realistic):**
-- Double-tap final answer → only ONE check-in row created.
+- ~~Double-tap final answer~~ — **OBSOLETE** (multi-question UI removed). Latent race in `answerCheckin` is guarded by an early-return on `checkinLoading`. Reintroduce as a regression case if a multi-question UI returns.
 - Double-tap gacha Continue (known bug) → still only one reward claim. Verify `daily_rewards_claimed_at` date not double-written.
-- Background app during AI loading → returns, completes or shows retry, no duplicate save.
-- Complete loop at 11:58pm, open next day → new check-in allowed, streak incremented by 1 (not reset).
+- ~~Background app during AI loading~~ — **OBSOLETE** (no AI call in `discoverName`). Re-instate against the muhasabah card-pick path only if a meaningful loading window is reintroduced.
+- Complete loop at 11:58pm, open next day → new check-in allowed, streak incremented by 1 (not reset). Verified 2026-04-26 via DB-driven date-rewind. **Schema note**: `user_daily_rewards.last_claim_date` is `date`, not text — write `current_date - 1`, not `(current_date - 1)::text`.
 - Complete loop today, close, reopen same day → launch overlay does NOT re-prompt, Home shows "Come back tomorrow".
-- Streak freeze auto-consumed if user missed yesterday but freezes available → streak preserved, freeze count decremented.
+- Streak freeze auto-consumed if user missed yesterday but freezes available → streak preserved, freeze decremented. Verified 2026-04-26 (B6): seed `streak_freeze_owned=true`, `last_claim_date=current_date-2`, `last_active=current_date-2` → after muhasabah, `current_streak=pre+1`, `streak_freeze_owned=false`. Note: the consume happens in `streak_service.dart markActiveToday`, NOT in the daily reward claim.
 
 ---
 

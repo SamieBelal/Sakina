@@ -15,6 +15,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
+import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:go_router/go_router.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
@@ -549,6 +550,7 @@ class _CardTile extends StatelessWidget {
             unseen: unseen),
         CardTier.silver => _SilverOrnateTile(card: card, unseen: unseen),
         CardTier.gold => GoldOrnateTile(card: card, unseen: unseen),
+        CardTier.emerald => EmeraldOrnateTile(card: card, unseen: unseen),
       };
       return GestureDetector(onTap: onTap, child: ornateTile);
     }
@@ -1243,6 +1245,7 @@ class _CardDetailSheet extends ConsumerWidget {
           isMaxTier: isMaxTier,
         ),
       CardTier.gold => GoldOrnateDetailSheet(card: card, tier: tier),
+      CardTier.emerald => EmeraldOrnateDetailSheet(card: card, tier: tier),
     };
   }
 }

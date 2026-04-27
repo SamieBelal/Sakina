@@ -209,6 +209,13 @@ class _SharePreviewScreenState extends State<_SharePreviewScreen> {
       );
     } catch (e) {
       debugPrint('[SHARE ERROR] $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't share that — please try again."),
+          ),
+        );
+      }
     } finally {
       overlay.remove();
       if (mounted) setState(() => _exporting = false);

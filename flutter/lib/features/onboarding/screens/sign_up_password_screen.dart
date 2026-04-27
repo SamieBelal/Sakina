@@ -141,6 +141,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
                       controller: _controller,
                       shouldRequestFocus: isActive,
                       obscureText: true,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(

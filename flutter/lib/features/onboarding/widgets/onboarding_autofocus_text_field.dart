@@ -10,6 +10,8 @@ class OnboardingAutofocusTextField extends StatefulWidget {
     this.textInputAction,
     this.textCapitalization = TextCapitalization.none,
     this.obscureText = false,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
     this.onSubmitted,
     this.autofocusDelay = const Duration(milliseconds: 350),
     super.key,
@@ -23,6 +25,8 @@ class OnboardingAutofocusTextField extends StatefulWidget {
   final TextInputAction? textInputAction;
   final TextCapitalization textCapitalization;
   final bool obscureText;
+  final bool autocorrect;
+  final bool enableSuggestions;
   final ValueChanged<String>? onSubmitted;
   final Duration autofocusDelay;
 
@@ -75,6 +79,8 @@ class _OnboardingAutofocusTextFieldState
       textInputAction: widget.textInputAction,
       textCapitalization: widget.textCapitalization,
       obscureText: widget.obscureText,
+      autocorrect: widget.autocorrect,
+      enableSuggestions: widget.enableSuggestions,
       onSubmitted: widget.onSubmitted,
       decoration: widget.decoration,
       style: widget.style,
