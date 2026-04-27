@@ -377,27 +377,39 @@ Count matches UI list length.
 
 ## 10. Collection + Card economy
 
-**Preconditions:** `daily-user@test.sakina` with 10 cards.
+**Preconditions:** `daily-user@test.sakina` with 10 cards. Last sim verification: `docs/qa/runs/2026-04-26-collection-§10.md` against `shareqa@sakinaqa.test`.
+
+**Schema reality (verified 2026-04-26):**
+- `user_card_collection` columns: `id, user_id, name_id, tier, discovered_at, last_engaged_at`. There is **no `copies` column** — tier upgrades replace the row's `tier` value via `upsertRow` keyed on `(user_id, name_id)`. The same row's tier moves bronze → silver → gold; emerald is gacha-only.
+- `tier_up_scrolls` is an integer column on `public.user_tokens` (not its own table).
+- Costs: `scrollCostBronzeToSilver = 5`, `scrollCostSilverToGold = 10` (`lib/services/tier_up_scroll_service.dart:10-11`).
 
 **Steps:**
 - Collection tab → grid of 99 slots, obtained cards show tier visuals (bronze/silver/gold/emerald), locked ones show silhouette.
-- Tap obtained card → detail page with Name, tier, copies, upgrade option.
-- If enough tier-up scrolls → "Upgrade to Silver" button → consume scrolls, tier increments once.
-- Tier-up preview routes (`/silver-preview` etc) render correctly.
+- Tap obtained card → `_CardDetailSheet` shows tier badge, description, lesson, and (when applicable) `Upgrade (N Scrolls)` CTA.
+- Upgrade gate: `showUpgrade = isMaxTier && tier.number < 3` (`collection_screen.dart:986`) — CTA only appears on bronze (1) and silver (2). Gold (3) and emerald (4) intentionally have no upgrade button.
+- Tap Upgrade → confirm sheet → `spendTierUpScrolls(cost)` → on success `engageById(card.id)` → `NameRevealOverlay` plays.
+- Tier-up preview routes (`/silver-preview` etc, registered in `lib/core/router.dart:101-120`) render correctly. Marked DEBUG/temporary in router.
 
 **DB:**
 ```sql
-select id, name_id, tier, discovered_at, last_engaged_at from public.user_card_collection where user_id = auth.uid();
-select tier_up_scrolls from public.user_tokens where user_id = auth.uid();  -- scrolls live on user_tokens, not a separate table
-select balance from tier_up_scrolls where user_id = auth.uid();
+select id, name_id, tier::text as tier, discovered_at, last_engaged_at
+from public.user_card_collection where user_id = auth.uid();
+-- scrolls live on user_tokens (not a separate table):
+select balance, tier_up_scrolls from public.user_tokens where user_id = auth.uid();
 ```
-After tier-up: tier + copies update, scrolls decremented by correct amount.
+After tier-up: the row's `tier` advances by exactly one step, `tier_up_scrolls` decrements by `scrollCost`, no new rows inserted.
 
 **Edge cases:**
-- Double-tap upgrade → only ONE tier jump and ONE scroll spend.
-- Upgrade with exactly the required scrolls → succeeds, balance becomes 0.
+- **C1 tier-up scroll spend (live PASS 2026-04-26)** — bronze → silver flow on `shareqa@sakinaqa.test`: pre `tier=bronze, tier_up_scrolls=21`; tap Upgrade (5 Scrolls) → confirm → post `tier=silver, tier_up_scrolls=16` (delta=5, exact). Single row mutated in place. Run log: `docs/qa/runs/2026-04-26-collection-§10.md`.
+- **C2 double-tap idempotency** — `spendTierUpScrolls` (`tier_up_scroll_service.dart:148`) holds a module-level `Completer<void>?` lock (`_spendTierUpScrollsLock` at `:13`). Second tap waits on first's Completer (line 149-151), reads post-first balance, and returns `insufficientBalance` once the cache is depleted. Verified by 5 unit tests in `test/services/tier_up_scroll_service_test.dart` §10 group: exact-balance success, spend(0) no-op, two-call serialize, three-call exactly-two-succeed, and lock-cleanup-on-early-return. Sim-level double-tap is not run (timing too flaky to be authoritative; the lock is a synchronous in-process guard, not a UI-debounce concern).
+- **C3 exact-balance edge** — spend balance==cost → `success=true, newBalance=0`. Spend(0) on balance=0 → success no-op (caller must guard 0-cost upgrades). Covered by §10 unit tests.
+- **C4 lock cleanup on insufficient early-return** — `try/finally` at `tier_up_scroll_service.dart:156-192` releases the lock even when the early-return at :159 fires. Without this, a single failed spend would deadlock all future spends in-process. Pinned by `'C4 insufficient-balance early-return clears the lock'` test.
+- **C5 DB-seeded emerald renders (live PASS 2026-04-26)** — emerald `Ar-Rasheed` (name_id=99) already seeded in user's collection → Collection grid → scroll to bottom → `EmeraldOrnateTile` (`emerald_ornate_card.dart:266`) renders with green radial gradient + Islamic interlace pattern at low opacity. Tap → `EmeraldOrnateDetailSheet` (`:516`) renders Arabic calligraphy, EMERALD badge, transliteration, meaning, description, lesson, prophetic teaching, and Share CTA. No RTL bleed, no overflow, no upgrade button (gate correctly hides for tier.number=4). Widget-level smoke also covered by `EmeraldOrnateTile` and `EmeraldOrnateDetailSheet` pump tests in `test/features/collection/collection_screen_test.dart` §10 C5b group.
+- **Preview-route registration** — Bronze/Silver/Gold/EmeraldCardPreviewScreen are const-constructible and registered (`router.dart:101-120`). Visual fidelity is sim-only because previews use `flutter_animate` `.repeat()` continuous loops that `pumpAndSettle` cannot drain. Const-constructibility pinned in §10 C4 group.
 - First-time unlock from gacha shows celebration overlay. Already-owned card shows "+1 copy" only.
 - Premium celebration overlay ONLY after verified premium entitlement (not just selecting a plan).
+- **Observation (UX gap, not regression):** the filter-chip rail does not include an `Emerald` chip even when the user owns an emerald card. Filed for product review.
 
 ---
 

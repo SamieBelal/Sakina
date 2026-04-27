@@ -9,7 +9,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
-import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../../support/fake_supabase_sync_service.dart';

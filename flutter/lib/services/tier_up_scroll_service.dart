@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -190,6 +191,19 @@ Future<TierUpScrollSpendResult> spendTierUpScrolls(int amount) async {
     _spendTierUpScrollsLock = null;
     lock.complete();
   }
+}
+
+/// Test seam: clears the module-level `_spendTierUpScrollsLock` so each
+/// test case starts from a known state. The `finally` block in
+/// [spendTierUpScrolls] already releases the lock on the success and
+/// `insufficientBalance` paths, but a thrown `SharedPreferences` or RPC
+/// call in production would surface as an unhandled exception that propagates
+/// past `finally` only if the throw happens *before* line 154 (`_spendTier
+/// UpScrollsLock = lock`). Tests that fake-throw mid-spend rely on this hook
+/// to keep cases isolated.
+@visibleForTesting
+void debugResetTierUpScrollLock() {
+  _spendTierUpScrollsLock = null;
 }
 
 Future<bool> hasTierUpScrolls() async {

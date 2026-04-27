@@ -1171,9 +1171,55 @@ class _CardDetailSheet extends ConsumerWidget {
                           return;
                         }
 
-                        final engageResult = await ref
-                            .read(cardCollectionProvider.notifier)
-                            .engageById(card.id);
+                        // Refund-on-throw: scrolls were already decremented
+                        // by `spend(scrollCost)`. If `engageById` throws
+                        // (e.g. SharedPreferences write fault, scoped-key
+                        // collision, transient IO), the user paid for an
+                        // upgrade that didn't apply. Re-credit via
+                        // `earnTierUpScrolls` and surface a snackbar.
+                        //
+                        // The refund itself can fail too: when authenticated,
+                        // `earn_scrolls` is an RPC that returns null on sync
+                        // failure (`tier_up_scroll_service.dart:120-126`).
+                        // We branch the snackbar copy so we don't lie about
+                        // a refund that didn't land.
+                        late final CardEngageResult engageResult;
+                        try {
+                          engageResult = await ref
+                              .read(cardCollectionProvider.notifier)
+                              .engageById(card.id);
+                        } catch (e) {
+                          debugPrint(
+                              '[Collection] engageById failed after spend: $e');
+                          final refund = await ref
+                              .read(tierUpScrollProvider.notifier)
+                              .earn(scrollCost);
+                          if (refund.success) {
+                            debugPrint(
+                                '[Collection] refunded $scrollCost scrolls after engage failure');
+                          } else {
+                            // Both engage AND refund-RPC failed. Vanishingly
+                            // rare in production, but we need to be honest:
+                            // server already debited the spend, refund RPC
+                            // returned null, so nothing the client does on
+                            // its own will restore the balance. Log loud so
+                            // it's visible in any crash/log reporter.
+                            debugPrint(
+                                '[Collection] CRITICAL: refund failed after engage failure. '
+                                'User lost $scrollCost scrolls. reason=${refund.failureReason}');
+                          }
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                refund.success
+                                    ? "Couldn't upgrade. Your scrolls were refunded."
+                                    : "Couldn't upgrade and your $scrollCost scrolls couldn't be refunded. Please contact support.",
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         if (engageResult.tierChanged) {
                           ref.read(questsProvider.notifier).onCardTieredUp();
                         }
