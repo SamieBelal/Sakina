@@ -206,7 +206,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         return;
       }
 
-      final premiumActive = await PurchaseService().purchase(selectedPackage);
+      final premiumActive =
+          await PurchaseService().purchaseSubscription(selectedPackage);
       if (!premiumActive) {
         if (mounted) {
           setState(() {

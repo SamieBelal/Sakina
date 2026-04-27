@@ -93,12 +93,42 @@ class PurchaseService {
     return offerings.current?.availablePackages ?? [];
   }
 
-  /// Purchases the given package and returns `true` if the `premium`
-  /// entitlement is now active.
-  Future<bool> purchase(Package package) async {
+  /// Purchases a subscription package and returns `true` if the `premium`
+  /// entitlement is now active. Use this for the paywall; subscriptions
+  /// flip the entitlement on success.
+  ///
+  /// Includes a single fallback fetch via [Purchases.getCustomerInfo] when
+  /// the immediate `customerInfo` from `purchasePackage` doesn't yet show
+  /// `premium` active. RevenueCat's docs say the post-purchase customerInfo
+  /// is current, but Apple's server-to-server validation can lag in rare
+  /// cases — surfacing a false "purchase failed" then leads to a retry +
+  /// double-charge attempt. The fallback closes that window. If the
+  /// fallback also returns no entitlement, treat as genuinely failed.
+  Future<bool> purchaseSubscription(Package package) async {
     _assertInitialized();
     final customerInfo = await Purchases.purchasePackage(package);
-    return customerInfo.entitlements.active.containsKey('premium');
+    if (customerInfo.entitlements.active.containsKey('premium')) {
+      return true;
+    }
+    try {
+      final fresh = await Purchases.getCustomerInfo();
+      return fresh.entitlements.active.containsKey('premium');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Purchases a consumable package (tokens, scrolls). Returns `true` on
+  /// success — RevenueCat's contract is throw-on-failure (cancellation,
+  /// payment error) and return-on-success, so a non-throwing return means
+  /// StoreKit recorded the transaction and the user has been charged.
+  /// Consumables do NOT flip any entitlement, so the entitlement check used
+  /// by [purchaseSubscription] is wrong here and would silently skip the
+  /// local grant — that was the 2026-04-26 P0 bug.
+  Future<bool> purchaseConsumable(Package package) async {
+    _assertInitialized();
+    await Purchases.purchasePackage(package);
+    return true;
   }
 
   /// Restores previous purchases and returns `true` if the `premium`

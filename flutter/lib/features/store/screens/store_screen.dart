@@ -10,6 +10,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -80,9 +81,16 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         return;
       }
 
-      final success = await purchaseService.purchase(package);
+      final success = await purchaseService.purchaseConsumable(package);
       if (success) {
-        await earnTokens(amount);
+        // Route the local grant through ConsumableGrantsService — it shares
+        // the credited-set dedup primitive with the orphan-recovery
+        // listener registered in main.dart, so neither path can
+        // double-credit a single transaction. Whichever wins the
+        // compare-and-set wins the grant; the loser is a no-op.
+        await ConsumableGrantsService().grantForMostRecentPurchase(productId);
+        // Refresh the balance pill regardless of who granted (us or the
+        // listener) — the user paid, the balance is now correct.
         final tokenState = await getTokens();
         ref
             .read(dailyLoopProvider.notifier)
@@ -118,9 +126,15 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         return;
       }
 
-      final success = await purchaseService.purchase(package);
+      final success = await purchaseService.purchaseConsumable(package);
       if (success) {
-        await ref.read(tierUpScrollProvider.notifier).earn(amount);
+        // Route the grant through ConsumableGrantsService for atomic dedup
+        // with the orphan-recovery listener (see _buyTokensIAP for the
+        // same comment). Service writes directly to the underlying
+        // earnTierUpScrolls; the provider notifier just needs a reload to
+        // reflect the new balance in the UI.
+        await ConsumableGrantsService().grantForMostRecentPurchase(productId);
+        await ref.read(tierUpScrollProvider.notifier).reload();
         if (mounted) {
           _showPurchaseToast(context, 'Scrolls', amount,
               const Color(0xFF3B82F6), Icons.receipt_long);

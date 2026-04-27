@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_lifecycle_observer.dart';
@@ -15,6 +16,7 @@ import 'services/analytics_events.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
+import 'services/consumable_grants_service.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
@@ -59,6 +61,22 @@ Future<void> main() async {
         appleApiKey: dotenv.env['REVENUECAT_API_KEY_APPLE'] ?? '',
         googleApiKey: dotenv.env['REVENUECAT_API_KEY_GOOGLE'] ?? '',
       );
+      // Register the consumable orphan-recovery listener. Fires every time
+      // RC's customerInfo updates (purchase, restore, login, syncPurchases).
+      // It detects un-credited consumable transactions and replays the
+      // local grant — covers the "app killed mid-purchase" scenario where
+      // Apple charged the user but `_buyTokensIAP` never reached the
+      // synchronous earnTokens call.
+      final consumableGrants = ConsumableGrantsService();
+      Purchases.addCustomerInfoUpdateListener((customerInfo) {
+        // Don't await — listener must not block the SDK callback. Errors
+        // are logged inside processCustomerInfo.
+        unawaited(consumableGrants.processCustomerInfo(customerInfo));
+      });
+      // Flush any pending receipts (e.g., StoreKit had a transaction in its
+      // queue from a prior session that never fully completed). This will
+      // trigger the listener if anything is pending.
+      unawaited(Purchases.syncPurchases());
     } catch (_) {
       // Best-effort — app should launch even if RevenueCat is unavailable.
       // PurchaseService methods will return safe defaults when not initialized.

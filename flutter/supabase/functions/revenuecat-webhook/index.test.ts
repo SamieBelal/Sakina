@@ -1,7 +1,9 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
+  buildConsumableClawback,
   buildUserSubscriptionUpsert,
+  type ConsumableClawbackPayload,
   handleRevenueCatWebhook,
   hasActivePremiumAccess,
   type RevenueCatEvent,
@@ -47,6 +49,7 @@ Deno.test("Unauthorized request returns 401", async () => {
     }),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         throw new Error("should not be called");
       },
@@ -66,6 +69,7 @@ Deno.test("Anonymous user id returns 200 skipped", async () => {
     })),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
         return true;
@@ -84,6 +88,7 @@ Deno.test("INITIAL_PURCHASE with premium entitlement upserts a future expiry row
     authorizedRequest(baseEvent()),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async (nextPayload) => {
         payloads.push(nextPayload);
         return true;
@@ -113,6 +118,7 @@ Deno.test("Stale event (RPC returns false) yields skipped: stale_event", async (
     authorizedRequest(baseEvent()),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
         return false;
@@ -133,6 +139,7 @@ Deno.test("Upsert throwing yields 500", async () => {
     authorizedRequest(baseEvent()),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         throw new Error("db down");
       },
@@ -189,6 +196,7 @@ Deno.test("GET request returns 405 method-not-allowed", async () => {
     new Request("http://localhost/revenuecat-webhook", { method: "GET" }),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         throw new Error("should not be called");
       },
@@ -209,6 +217,7 @@ Deno.test("Invalid JSON body returns 400", async () => {
     }),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         throw new Error("should not be called");
       },
@@ -229,6 +238,7 @@ Deno.test("Missing event field returns 400", async () => {
     }),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         throw new Error("should not be called");
       },
@@ -243,6 +253,7 @@ Deno.test("Non-premium entitlement returns 200 skipped (no DB write)", async () 
     authorizedRequest(baseEvent({ entitlement_ids: ["other"] })),
     {
       webhookSecret,
+      clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
         return true;
@@ -304,4 +315,163 @@ Deno.test("original_app_user_id and aliases fallback paths resolve the stable us
 
   assert(aliasFallback);
   assertEquals(aliasFallback.user_id, aliasFallbackId);
+});
+
+// ── Consumable refund clawback (added 2026-04-26) ─────────────────────────
+//
+// CANCELLATION events whose product_id is a consumable SKU (tokens / scrolls)
+// represent a refund. The webhook calls clawback_consumable_grant via the
+// `clawbackConsumable` option to reverse the local credit. Subscription
+// CANCELLATION events (with entitlement_ids: ['premium']) keep going through
+// buildUserSubscriptionUpsert, unchanged.
+
+function consumableRefundEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "CANCELLATION",
+    id: "rc-event-id-abc",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [], // consumables don't carry entitlements
+    product_id: "sakina_tokens_100",
+    transaction_id: "apple-txn-12345",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+Deno.test("buildConsumableClawback maps a known token SKU", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent());
+  assert(payload);
+  assertEquals(payload.user_id, userId);
+  assertEquals(payload.sku, "sakina_tokens_100");
+  assertEquals(payload.kind, "tokens");
+  assertEquals(payload.amount, 100);
+  assertEquals(payload.transaction_id, "apple-txn-12345");
+});
+
+Deno.test("buildConsumableClawback maps a known scroll SKU", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    product_id: "sakina_scrolls_25",
+  }));
+  assert(payload);
+  assertEquals(payload.kind, "scrolls");
+  assertEquals(payload.amount, 25);
+});
+
+Deno.test("buildConsumableClawback returns null for unknown SKU", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    product_id: "unknown_sku_999",
+  }));
+  assertEquals(payload, null);
+});
+
+Deno.test("buildConsumableClawback returns null for non-CANCELLATION type", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    type: "INITIAL_PURCHASE",
+  }));
+  assertEquals(payload, null);
+});
+
+Deno.test("buildConsumableClawback returns null for anonymous user", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    app_user_id: "$RCAnonymousID:anon-a",
+    original_app_user_id: "$RCAnonymousID:anon-b",
+    aliases: ["$RCAnonymousID:anon-c"],
+  }));
+  assertEquals(payload, null);
+});
+
+Deno.test("buildConsumableClawback falls back to event id when transaction_id missing", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    transaction_id: null,
+    id: "rc-event-fallback-id",
+  }));
+  assert(payload);
+  assertEquals(payload.transaction_id, "rc-event-fallback-id");
+});
+
+Deno.test("buildConsumableClawback returns null when both transaction_id AND event id are missing", () => {
+  const payload = buildConsumableClawback(consumableRefundEvent({
+    transaction_id: null,
+    id: null,
+  }));
+  assertEquals(payload, null);
+});
+
+Deno.test("Consumable refund triggers clawbackConsumable, not upsertSubscription", async () => {
+  const clawbackPayloads: ConsumableClawbackPayload[] = [];
+  let upsertCalls = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(consumableRefundEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async (payload) => {
+        clawbackPayloads.push(payload);
+      },
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return true;
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(clawbackPayloads.length, 1);
+  assertEquals(clawbackPayloads[0].kind, "tokens");
+  assertEquals(clawbackPayloads[0].amount, 100);
+  assertEquals(
+    upsertCalls,
+    0,
+    "consumable refund must NOT touch user_subscriptions",
+  );
+});
+
+Deno.test("Subscription CANCELLATION still routes through upsertSubscription, not clawback", async () => {
+  // Existing subscription cancellation behavior must not regress.
+  let clawbackCalls = 0;
+  let upsertCalls = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "CANCELLATION",
+      product_id: "sakina_sub_annual", // subscription SKU, NOT in consumable map
+      entitlement_ids: ["premium"],
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {
+        clawbackCalls += 1;
+      },
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return true;
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(clawbackCalls, 0);
+  assertEquals(upsertCalls, 1);
+});
+
+Deno.test("Clawback RPC failure returns 500 so RevenueCat retries", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(consumableRefundEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {
+        throw new Error("simulated DB outage");
+      },
+      upsertSubscription: async () => true,
+    },
+  );
+
+  assertEquals(response.status, 500);
 });

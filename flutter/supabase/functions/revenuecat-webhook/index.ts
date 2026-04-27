@@ -22,5 +22,22 @@ serve((request) =>
 
       return data === true;
     },
+    clawbackConsumable: async (payload) => {
+      // The RPC is idempotent on transaction_id, so retries from RC are
+      // safe. Errors propagate to the caller, which converts them into a
+      // 500 so RC will retry.
+      const { error } = await supabase.rpc("clawback_consumable_grant", {
+        p_user_id: payload.user_id,
+        p_sku: payload.sku,
+        p_kind: payload.kind,
+        p_amount: payload.amount,
+        p_transaction_id: payload.transaction_id,
+        p_event_timestamp: payload.event_timestamp,
+      });
+
+      if (error != null) {
+        throw error;
+      }
+    },
   })
 );

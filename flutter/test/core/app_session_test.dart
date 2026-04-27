@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
@@ -11,6 +12,12 @@ import 'package:sakina/services/xp_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../support/fake_supabase_sync_service.dart';
+
+// app_session calls `Purchases.getCustomerInfo()` after `setUserId` to
+// baseline the consumable-grants credited set. Stub the channel to return
+// an empty customerInfo so the baseline succeeds quickly without making
+// real platform calls.
+const MethodChannel _purchasesChannel = MethodChannel('purchases_flutter');
 
 class TrackingPurchaseService extends PurchaseService {
   TrackingPurchaseService() : super.test();
@@ -26,7 +33,37 @@ class TrackingPurchaseService extends PurchaseService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  tearDown(PurchaseService.debugClearOverride);
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_purchasesChannel, (call) async {
+      if (call.method == 'getCustomerInfo') {
+        return <String, dynamic>{
+          'originalAppUserId': 'test-user',
+          'entitlements': <String, dynamic>{
+            'all': <String, dynamic>{},
+            'active': <String, dynamic>{},
+            'verification': 'NOT_REQUESTED',
+          },
+          'activeSubscriptions': <String>[],
+          'latestExpirationDate': null,
+          'allExpirationDates': <String, dynamic>{},
+          'allPurchasedProductIdentifiers': <String>[],
+          'firstSeen': '2026-04-01T12:00:00.000Z',
+          'requestDate': '2026-04-26T12:00:00.000Z',
+          'allPurchaseDates': <String, dynamic>{},
+          'originalApplicationVersion': '1.0.0',
+          'nonSubscriptionTransactions': <dynamic>[],
+        };
+      }
+      return null;
+    });
+  });
+
+  tearDown(() {
+    PurchaseService.debugClearOverride();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_purchasesChannel, null);
+  });
 
   test('auth events trigger economy hydration', () async {
     SharedPreferences.setMockInitialValues({});

@@ -17,8 +17,29 @@ export const HANDLED_EVENT_TYPES = new Set([
   "EXPIRATION",
 ]);
 
+// SKU -> consumable mapping. Mirrors the Flutter map in
+// `lib/services/consumable_grants_service.dart`. When SKUs change, BOTH
+// places must update.
+//
+// On a CANCELLATION event for one of these product ids, the webhook treats
+// it as a refund and calls `clawback_consumable_grant` to reverse the
+// local credit. The migration `20260427000000_consumable_clawback.sql`
+// creates the RPC and the idempotency table.
+export const CONSUMABLE_SKU_TO_AMOUNT: Record<
+  string,
+  { kind: "tokens" | "scrolls"; amount: number }
+> = {
+  "sakina_tokens_100": { kind: "tokens", amount: 100 },
+  "sakina_tokens_250": { kind: "tokens", amount: 250 },
+  "sakina_tokens_500": { kind: "tokens", amount: 500 },
+  "sakina_scrolls_3": { kind: "scrolls", amount: 3 },
+  "sakina_scrolls_10": { kind: "scrolls", amount: 10 },
+  "sakina_scrolls_25": { kind: "scrolls", amount: 25 },
+};
+
 export interface RevenueCatEvent {
   type?: string | null;
+  id?: string | null;
   app_user_id?: string | null;
   original_app_user_id?: string | null;
   aliases?: string[] | null;
@@ -29,6 +50,16 @@ export interface RevenueCatEvent {
   environment?: string | null;
   expiration_at_ms?: number | null;
   event_timestamp_ms?: number | null;
+  transaction_id?: string | null;
+}
+
+export interface ConsumableClawbackPayload {
+  user_id: string;
+  sku: string;
+  kind: "tokens" | "scrolls";
+  amount: number;
+  transaction_id: string;
+  event_timestamp: string;
 }
 
 export interface UserSubscriptionUpsert {
@@ -53,6 +84,11 @@ interface HandleWebhookOptions {
   // Returns true if the upsert wrote/updated a row, false if the incoming
   // event was older than the stored last_event_at and therefore ignored.
   upsertSubscription: (payload: UserSubscriptionUpsert) => Promise<boolean>;
+  // Reverses a consumable IAP grant on refund. The handler calls this for
+  // CANCELLATION events whose product_id is in CONSUMABLE_SKU_TO_AMOUNT.
+  // Implementation should call the `clawback_consumable_grant` RPC.
+  // Idempotent on transaction_id (the RPC handles dedup).
+  clawbackConsumable: (payload: ConsumableClawbackPayload) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -169,6 +205,59 @@ export function buildUserSubscriptionUpsert(
   return payload;
 }
 
+/**
+ * Builds a clawback payload from a CANCELLATION event whose product_id
+ * matches a consumable SKU. Returns null for non-consumable events
+ * (subscription cancellations, unknown SKUs, missing transaction id, etc.).
+ *
+ * Detection logic:
+ *   - type must be "CANCELLATION"
+ *   - product_id must be in CONSUMABLE_SKU_TO_AMOUNT
+ *   - user must resolve to a UUID (not anonymous)
+ *   - transaction_id must be present (RC's id for the original purchase
+ *     that's being refunded)
+ *
+ * Subscription CANCELLATION events have entitlement_ids: ['premium'] and
+ * subscription product ids — they're handled by buildUserSubscriptionUpsert
+ * and don't reach here. The two paths are independent: a single event
+ * builds at most one of (subscription upsert, consumable clawback).
+ */
+export function buildConsumableClawback(
+  event: RevenueCatEvent,
+): ConsumableClawbackPayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "CANCELLATION") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+
+  const mapping = CONSUMABLE_SKU_TO_AMOUNT[productId];
+  if (mapping == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
+    user_id: userId,
+    sku: productId,
+    kind: mapping.kind,
+    amount: mapping.amount,
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+  };
+}
+
 export function hasActivePremiumAccess(
   subscription: Pick<UserSubscriptionUpsert, "expires_at">,
   now: Date = new Date(),
@@ -206,21 +295,44 @@ export async function handleRevenueCatWebhook(
     return jsonResponse(400, { error: "Missing event payload" });
   }
 
-  const payload = buildUserSubscriptionUpsert(event);
-  if (payload == null) {
+  // A single event maps to at most one of these payloads. Subscription
+  // events carry entitlement_ids: ['premium']; consumable refunds carry a
+  // consumable product id with no premium entitlement. The two builders
+  // both filter independently, so we dispatch each non-null payload.
+  const subscriptionPayload = buildUserSubscriptionUpsert(event);
+  const clawbackPayload = buildConsumableClawback(event);
+
+  if (subscriptionPayload == null && clawbackPayload == null) {
     return jsonResponse(200, { status: "skipped" });
   }
 
-  let written: boolean;
-  try {
-    written = await options.upsertSubscription(payload);
-  } catch (error) {
-    console.error("revenuecat-webhook upsert failed", error);
-    return jsonResponse(500, { error: "Failed to persist subscription event" });
+  if (clawbackPayload != null) {
+    try {
+      await options.clawbackConsumable(clawbackPayload);
+    } catch (error) {
+      console.error("revenuecat-webhook clawback failed", error);
+      return jsonResponse(
+        500,
+        { error: "Failed to process consumable refund" },
+      );
+    }
   }
 
-  if (!written) {
-    return jsonResponse(200, { status: "skipped", reason: "stale_event" });
+  if (subscriptionPayload != null) {
+    let written: boolean;
+    try {
+      written = await options.upsertSubscription(subscriptionPayload);
+    } catch (error) {
+      console.error("revenuecat-webhook upsert failed", error);
+      return jsonResponse(
+        500,
+        { error: "Failed to persist subscription event" },
+      );
+    }
+
+    if (!written) {
+      return jsonResponse(200, { status: "skipped", reason: "stale_event" });
+    }
   }
 
   return jsonResponse(200, { status: "ok" });

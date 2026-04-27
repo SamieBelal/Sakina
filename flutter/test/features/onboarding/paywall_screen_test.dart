@@ -35,10 +35,21 @@ class FakePurchaseService extends PurchaseService {
   }
 
   @override
-  Future<bool> purchase(Package package) async {
+  Future<bool> purchaseSubscription(Package package) async {
     lastPurchasedPackageType = package.packageType;
     if (purchaseError != null) throw purchaseError!;
     return purchaseResult!.entitlements.active.containsKey('premium');
+  }
+
+  @override
+  Future<bool> purchaseConsumable(Package package) async {
+    // Matches prod's contract: trust RC's throw-on-failure / return-on-success.
+    // Returning a `purchaseResult`-derived bool here would diverge from the
+    // simplified prod implementation and mask real behavior. (Flagged during
+    // /review adversarial pass.)
+    lastPurchasedPackageType = package.packageType;
+    if (purchaseError != null) throw purchaseError!;
+    return true;
   }
 
   @override

@@ -424,13 +424,16 @@ After tier-up: the row's `tier` advances by exactly one step, `tier_up_scrolls` 
 
 ## 11. Store
 
-**Preconditions:** any onboarded user.
+**Reality block (post-2026-04-26 rewrite):** The original spec described a "Free + Premium" Store with items priced in tokens. That design was retired — the shipped Store at `lib/features/store/screens/store_screen.dart` has two tabs (**Tokens** and **Scrolls**) and **every item is a real-money IAP** sold via RevenueCat. No item is purchasable with the in-app token balance, so the original "Insufficient tokens → button disabled" bullet does not apply. Subscriptions (Premium) are sold only through the onboarding paywall after the SKU change on 2026-04-17 (`docs/decisions/monetization-model.md`).
+
+**Preconditions:** any onboarded user. iOS simulator **cannot complete StoreKit purchases** (per `CLAUDE.md`) — actual purchase flows require a physical device with sandbox account. The simulator is useful only for render checks and the restore-no-entitlement path.
 
 **Steps:**
-- Store tab → Free + Premium sub-tabs.
-- Free tab: items purchasable with tokens. Purchase disabled if balance < price.
-- Premium tab: items require entitlement OR tokens (confirm per-item gating).
-- Purchase → tokens deducted, inventory updated, success toast.
+- Store tab → confirm "Tokens" and "Scrolls" sub-tabs (NOT "Free"/"Premium" — doc-drift canary, asserted by §11-A).
+- Tokens tab: 100 / 250 / 500 packs at $1.99 / $3.99 / $6.99.
+- Scrolls tab: 3 / 10 / 25 packs at $0.99 / $2.49 / $4.99.
+- Tap any pack → StoreKit dialog (physical device only) → on success: balance pill updates, celebration toast appears.
+- Tap "Restore purchase" → if no active sub: "No active premium subscription was found" snackbar. If active: `isPremiumProvider` invalidates, monthly grant runs, "Premium restored!" snackbar.
 
 **DB:**
 ```sql
@@ -441,9 +444,16 @@ select balance, tier_up_scrolls from public.user_tokens where user_id = auth.uid
 ```
 
 **Edge cases:**
-- Insufficient tokens → button disabled with "Not enough tokens" hint.
-- Double-tap purchase → only ONE deduction.
-- Offerings unavailable → buttons fail safely, no crash.
+- ~~Insufficient tokens → button disabled with "Not enough tokens" hint.~~ **N/A** — Store items are not token-priced, so this gate does not exist.
+- Double-tap purchase → only ONE call to `Purchases.purchasePackage` (gated by the `_purchasing` flag at `store_screen.dart:41`). Pinned by §11-E in `test/features/store/store_screen_test.dart`.
+- Offerings unavailable → buttons fail safely, no crash. `package == null` branch (`store_screen.dart:77-81, 115-119`) shows "Pack not available yet. Try again later." Pinned by §11-B.
+- Purchase cancelled by user → silent (no snackbar). Pinned by §11-D.
+- `getOfferings()` throws → "Purchase failed. Please try again." snackbar. Pinned by §11-C.
+
+**Bug history (consumable purchase silent loss — fixed 2026-04-26):**
+Prior to 2026-04-26, `PurchaseService.purchase()` (now removed) returned `customerInfo.entitlements.active.containsKey('premium')`. Consumable purchases (tokens, scrolls) never flip a premium entitlement, so the return was always `false` and `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received zero tokens locally — Apple charged them, balance never moved.** Fix split the API into `purchaseSubscription()` (used by paywall) and `purchaseConsumable()` (verifies via `customerInfo.allPurchasedProductIdentifiers`). Regression pinned by the `purchaseConsumable()` group in `test/services/purchase_service_test.dart`.
+
+**Observation (UX gap, file separately):** at narrow widths (≤400 logical px), the "Best Value" badge rows in `_IapItem` cause a horizontal RenderFlex overflow. Reproducible at iPhone SE-class widths in widget tests; needs Wrap or shorter badge copy.
 
 ---
 

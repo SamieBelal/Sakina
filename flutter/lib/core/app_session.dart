@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
+import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
 import '../services/notification_service.dart';
 import '../services/purchase_service.dart';
@@ -104,6 +106,18 @@ class AppSessionNotifier extends ChangeNotifier {
     if (purchaseUserId != null && purchaseUserId.isNotEmpty) {
       try {
         await PurchaseService().setUserId(purchaseUserId);
+        // Baseline the consumable-grants credited set for this user on
+        // first signin to this device. Without this, the orphan-recovery
+        // listener would treat every transaction in the user's lifetime
+        // history as "new" and re-grant them all on the first listener
+        // fire (e.g., after `Purchases.syncPurchases()` in main.dart
+        // pulled the full state). Idempotent — second call is a no-op.
+        try {
+          final customerInfo = await Purchases.getCustomerInfo();
+          await ConsumableGrantsService().initializeForUser(customerInfo);
+        } catch (e) {
+          debugPrint('app_session: ConsumableGrants baseline failed: $e');
+        }
       } catch (e) {
         debugPrint('app_session: RevenueCat setUserId failed: $e');
       }

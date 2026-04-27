@@ -34,6 +34,7 @@ Map<String, dynamic> _buildCustomerInfo({
   required bool premiumActive,
   Map<String, dynamic>? entitlementsAllOverride,
   Map<String, dynamic>? entitlementsActiveOverride,
+  List<String>? allPurchasedProductIdentifiersOverride,
 }) {
   final activeEntitlements = entitlementsActiveOverride ??
       (premiumActive
@@ -43,6 +44,8 @@ Map<String, dynamic> _buildCustomerInfo({
       (premiumActive
           ? <String, dynamic>{'premium': _premiumEntitlement()}
           : <String, dynamic>{});
+  final purchasedIds = allPurchasedProductIdentifiersOverride ??
+      (premiumActive ? <String>['sakina_sub_annual'] : <String>[]);
   return <String, dynamic>{
     'originalAppUserId': 'test-user',
     'entitlements': <String, dynamic>{
@@ -54,8 +57,7 @@ Map<String, dynamic> _buildCustomerInfo({
     'latestExpirationDate':
         premiumActive ? '2026-05-13T12:00:00.000Z' : '2026-04-10T12:00:00.000Z',
     'allExpirationDates': <String, dynamic>{},
-    'allPurchasedProductIdentifiers':
-        premiumActive ? <String>['sakina_sub_annual'] : <String>[],
+    'allPurchasedProductIdentifiers': purchasedIds,
     'firstSeen': '2026-04-01T12:00:00.000Z',
     'requestDate': '2026-04-13T12:00:00.000Z',
     'allPurchaseDates': <String, dynamic>{},
@@ -74,6 +76,22 @@ Package _fakePackage() {
       'Annual',
       49.99,
       '\$49.99',
+      'USD',
+    ),
+    PresentedOfferingContext('default', null, null),
+  );
+}
+
+Package _fakeConsumablePackage() {
+  return const Package(
+    'tokens_100',
+    PackageType.custom,
+    StoreProduct(
+      'sakina_tokens_100',
+      '100 Tokens',
+      '100 Tokens',
+      1.99,
+      '\$1.99',
       'USD',
     ),
     PresentedOfferingContext('default', null, null),
@@ -181,12 +199,142 @@ void main() {
     });
   });
 
-  group('purchase()', () {
+  group('purchaseSubscription()', () {
     test('throws StateError when not initialized', () async {
       final service = PurchaseService.test();
       await expectLater(
-        () => service.purchase(_fakePackage()),
+        () => service.purchaseSubscription(_fakePackage()),
         throwsA(isA<StateError>()),
+      );
+    });
+
+    test('returns true when premium entitlement is active after purchase',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // purchasePackage wraps customerInfo in {'customerInfo': ...} per the
+      // SDK's _invokeReturningCustomerInfo helper, unlike getCustomerInfo /
+      // restorePurchases which return it directly.
+      methodResponses['purchasePackage'] = <String, dynamic>{
+        'customerInfo': _buildCustomerInfo(premiumActive: true),
+      };
+
+      expect(await service.purchaseSubscription(_fakePackage()), isTrue);
+      expect(methodLog.single.method, 'purchasePackage');
+    });
+
+    test(
+        'returns true via fallback getCustomerInfo when first purchasePackage '
+        'response is stale (Apple S2S validation lag) — retries once before '
+        'declaring failure', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // First purchasePackage call returns stale customerInfo (no premium
+      // entitlement yet). The fallback getCustomerInfo returns fresh state
+      // showing premium IS active. Without the fallback, the user would see
+      // "purchase failed" on a successful purchase and retry → double-charge.
+      methodResponses['purchasePackage'] = <String, dynamic>{
+        'customerInfo': _buildCustomerInfo(premiumActive: false),
+      };
+      methodResponses['getCustomerInfo'] =
+          _buildCustomerInfo(premiumActive: true);
+
+      expect(await service.purchaseSubscription(_fakePackage()), isTrue);
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, ['purchasePackage', 'getCustomerInfo']);
+    });
+
+    test(
+        'returns false when both purchasePackage AND fallback getCustomerInfo '
+        'show no premium entitlement (genuine failure)', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      methodResponses['purchasePackage'] = <String, dynamic>{
+        'customerInfo': _buildCustomerInfo(premiumActive: false),
+      };
+      methodResponses['getCustomerInfo'] =
+          _buildCustomerInfo(premiumActive: false);
+
+      expect(await service.purchaseSubscription(_fakePackage()), isFalse);
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, ['purchasePackage', 'getCustomerInfo']);
+    });
+
+    test(
+        'returns false (does not throw) when fallback getCustomerInfo errors '
+        '— fallback failure must not corrupt the failure UX', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // First call succeeds with stale state. Fallback throws (network
+      // hiccup, etc.). We treat the throw as "still no entitlement" rather
+      // than propagating, so the paywall shows the standard failure copy.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(_channel, (call) async {
+        methodLog.add(call);
+        if (call.method == 'purchasePackage') {
+          return <String, dynamic>{
+            'customerInfo': _buildCustomerInfo(premiumActive: false),
+          };
+        }
+        if (call.method == 'getCustomerInfo') {
+          throw PlatformException(code: 'NETWORK_ERROR');
+        }
+        return null;
+      });
+
+      expect(await service.purchaseSubscription(_fakePackage()), isFalse);
+    });
+  });
+
+  group('purchaseConsumable()', () {
+    test('throws StateError when not initialized', () async {
+      final service = PurchaseService.test();
+      await expectLater(
+        () => service.purchaseConsumable(_fakeConsumablePackage()),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test(
+        'returns true on a non-throwing SDK return — premium is NOT active '
+        '(regression: pre-fix `purchase()` returned the premium entitlement '
+        'check, which was `false` for consumables, so `_buyTokensIAP` skipped '
+        '`earnTokens()` and users lost paid-for tokens silently)', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      // Premium is NOT active — consumable purchases never flip an entitlement.
+      // The new contract: a non-throwing `purchasePackage` means StoreKit
+      // recorded the transaction, so the local grant must run. We do NOT
+      // gate on `allPurchasedProductIdentifiers` (which would have been
+      // empty for a first-time consumable buyer pre-fix).
+      methodResponses['purchasePackage'] = <String, dynamic>{
+        'customerInfo': _buildCustomerInfo(
+          premiumActive: false,
+          allPurchasedProductIdentifiersOverride: const <String>[],
+        ),
+      };
+
+      expect(
+        await service.purchaseConsumable(_fakeConsumablePackage()),
+        isTrue,
+        reason: 'no-throw = success per RC contract; local grant must run',
+      );
+      expect(methodLog.single.method, 'purchasePackage');
+    });
+
+    test(
+        'propagates SDK PlatformException — RC contract is throw-on-failure, '
+        'so callers handle cancellation/payment errors via try/catch',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockError = PlatformException(
+        code: PurchasesErrorCode.purchaseCancelledError.index.toString(),
+      );
+
+      await expectLater(
+        () => service.purchaseConsumable(_fakeConsumablePackage()),
+        throwsA(isA<PlatformException>()),
       );
     });
   });

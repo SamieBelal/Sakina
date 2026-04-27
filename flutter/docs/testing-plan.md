@@ -159,6 +159,29 @@ Real-world likelihood of `engageById` throwing is low (no network call; local ca
 
 **Quest-progress-on-tier-up coverage (added 2026-04-26):** `test/features/quests/tier_up_event_test.dart` (5 tests). Pins that `onCardTieredUp` appends exactly one ISO-8601 timestamp to the scoped `tier_ups_log_v1:<userId>` SharedPreferences key, that three calls produce three entries (no de-dup), that `tierUpsThisWeek` / `tierUpsThisMonth` correctly window-filter, and that the 200-entry cap drops the **oldest** entries (not the newest) when seeded chronologically — explicit assertion that `stale[0]` is dropped and `stale[1]` shifts to index 0 (`quests_provider.dart:1166-1170`).
 
+### Store (added 2026-04-26 — corrects stale §11 from manual-test-plan.md)
+
+The shipped Store sells real-money IAPs only (Tokens / Scrolls tabs), not token-priced items. Every spec bullet in the original §11 was rewritten because the "Free + Premium tabs / insufficient tokens" model never shipped — see `docs/manual-test-plan.md` §11 reality block.
+
+- **§11-A tabs render** — `Tokens` and `Scrolls`, NOT `Free`/`Premium`. Doc-drift canary.
+- **§11-B offerings unavailable** — `getOfferings()` returns `[]` → "Pack not available yet. Try again later." snackbar; no crash; no `purchaseConsumable` call.
+- **§11-C offerings throws** — `getOfferings()` throws non-`PlatformException` → "Purchase failed. Please try again." snackbar; `_purchasing` flag resets.
+- **§11-D cancellation** — `purchaseConsumable` throws a `PlatformException` mapping to `purchaseCancelledError` → no snackbar (silent by design).
+- **§11-E double-tap idempotency** — `_purchasing` flag (`store_screen.dart:41`) absorbs the second tap before it reaches the SDK. Pinned via Completer-gated fake whose `purchaseConsumable` is held in-flight; assertion: `consumableCalls == 1`.
+- **§11-F restore — no entitlement** — `restorePurchases()` returns `false` → "No active premium subscription was found to restore." snackbar.
+- **§11-G balance pill refreshes** — successful 100-token purchase → `earnTokens(100)` + `dailyLoopProvider.refreshTokenBalance(100)` propagates to the `SummaryMetricCard`. Pre-state shows `0`, post-state shows `100`.
+- **§11-H restore success** — `restorePurchases()` returns `true` → `isPremiumProvider` invalidated, `checkPremiumMonthlyGrant()` runs, "Premium restored!" snackbar.
+
+All 8 widget tests live in `test/features/store/store_screen_test.dart` and use a fake `PurchaseService` registered via `debugSetOverride`. Each test calls `pumpStore(tester)` which drains the `.animate().fadeIn()` entrance Tweens (~600ms longest) before the body runs, so finite Tweens don't leak `flutter_animate` Timers across tests. Success-path tests additionally call `drainPurchaseToast(tester)` to advance past the `Future.delayed(2500ms)` that removes `_PurchaseToastWidget`'s OverlayEntry.
+
+**Critical: `publicCatalogRegistryProvider` override.** `lib/services/public_catalog_service.dart:39` exposes a top-level singleton `PublicCatalogRegistry` ChangeNotifier. The first ProviderScope teardown disposes it, leaving subsequent tests with a dead notifier ("PublicCatalogRegistry was used after being disposed"). The Store widget tests override the provider per-test with a fresh instance — any future widget test that uses providers transitively reading the registry needs the same override.
+
+**Consumable purchase regression (P0 fixed 2026-04-26):** `PurchaseService.purchase()` was renamed and split into `purchaseSubscription()` (paywall) and `purchaseConsumable()` (Store). The pre-fix method returned `customerInfo.entitlements.active.containsKey('premium')` — `false` after a successful consumable purchase since RC consumables don't activate entitlements, so `_buyTokensIAP` skipped `earnTokens()`. **Non-premium users paying $1.99 received no tokens.** `purchaseConsumable()` verifies via `customerInfo.allPurchasedProductIdentifiers.contains(package.storeProduct.identifier)`. Regression pinned by the new `purchaseConsumable()` group in `test/services/purchase_service_test.dart` (3 tests, including the explicit pre-fix-was-false case).
+
+**Sim limitation (per `CLAUDE.md`):** iOS simulator cannot complete StoreKit purchases. Real purchase verification requires a physical device with sandbox account. Widget tests cover the contract; sim covers render + restore-no-entitlement only.
+
+**UX gap (file separately):** at narrow widths (≤400 logical px), the "Best Value" badge rows in `_IapItem` overflow the inner Row. Production layout bug; needs Wrap or shorter badge copy. Test viewport bumped to 500 wide to bypass.
+
 ### 10. Quests, XP, titles, streaks
 
 - First Steps quests progress on correct actions.
