@@ -1,7 +1,7 @@
 name: sakina
 description: "Islamic spiritual wellness app. Feel → Allah's Names → Quran → Dua."
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ^3.6.0

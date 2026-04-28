@@ -35,6 +35,9 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
   ];
 
   late final TextEditingController _otherController;
+  late final FocusNode _otherFocusNode;
+  final _otherFieldKey = GlobalKey();
+  double _lastKeyboardInset = 0;
 
   @override
   void initState() {
@@ -42,7 +45,9 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
     _otherController = TextEditingController(
       text: ref.read(onboardingProvider).duaTopicsOther ?? '',
     );
+    _otherFocusNode = FocusNode();
     _otherController.addListener(_onOtherChanged);
+    _otherFocusNode.addListener(_handleOtherFocusChange);
   }
 
   void _onOtherChanged() {
@@ -50,9 +55,34 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
     setState(() {});
   }
 
+  void _handleOtherFocusChange() {
+    if (_otherFocusNode.hasFocus) {
+      _scheduleOtherFieldScroll();
+    }
+  }
+
+  void _scheduleOtherFieldScroll() {
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollOtherFieldIntoView());
+  }
+
+  void _scrollOtherFieldIntoView() {
+    final fieldContext = _otherFieldKey.currentContext;
+    if (fieldContext == null) return;
+
+    Scrollable.ensureVisible(
+      fieldContext,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    );
+  }
+
   @override
   void dispose() {
+    _otherFocusNode.removeListener(_handleOtherFocusChange);
     _otherController.removeListener(_onOtherChanged);
+    _otherFocusNode.dispose();
     _otherController.dispose();
     super.dispose();
   }
@@ -62,6 +92,15 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
     final state = ref.watch(onboardingProvider);
     final hasFreeText = _otherController.text.trim().isNotEmpty;
     final canContinue = state.duaTopics.isNotEmpty || hasFreeText;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    if (keyboardInset == 0) {
+      _lastKeyboardInset = 0;
+    } else if (_otherFocusNode.hasFocus &&
+        keyboardInset != _lastKeyboardInset) {
+      _lastKeyboardInset = keyboardInset;
+      _scheduleOtherFieldScroll();
+    }
 
     return OnboardingQuestionScaffold(
       progressSegment: 8,
@@ -69,6 +108,7 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
       subtitle: 'Pick as many as feel true.',
       onBack: widget.onBack,
       continueEnabled: canContinue,
+      resizeToAvoidBottomInset: false,
       onContinue: () {
         ref
             .read(onboardingProvider.notifier)
@@ -77,9 +117,8 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
         ref
             .read(analyticsProvider)
             .trackOnboardingAnswerWithRef(ref, 'dua_topics', after.duaTopics);
-        ref
-            .read(analyticsProvider)
-            .trackOnboardingAnswerWithRef(ref, 'dua_topics_other', after.duaTopicsOther);
+        ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
+            ref, 'dua_topics_other', after.duaTopicsOther);
         widget.onNext();
       },
       body: Column(
@@ -115,6 +154,7 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           DecoratedBox(
+            key: _otherFieldKey,
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
@@ -122,9 +162,15 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
             ),
             child: TextField(
               controller: _otherController,
+              focusNode: _otherFocusNode,
               maxLength: 280,
               minLines: 1,
               maxLines: 3,
+              scrollPadding: const EdgeInsets.only(bottom: AppSpacing.md),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+              onTapOutside: (_) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textPrimaryLight,
               ),

@@ -53,4 +53,65 @@ void main() {
     expect(advanced, 1);
     expect(container.read(onboardingProvider).duaTopicsOther, 'my sick mother');
   });
+
+  testWidgets('continue button is not lifted by keyboard insets',
+      (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: DuaTopicsScreen(onNext: () {}, onBack: () {}),
+      ),
+    ));
+    await tester.pump();
+
+    final continueButton = find.widgetWithText(ElevatedButton, 'Continue');
+    expect(continueButton, findsOneWidget);
+    final closedKeyboardPosition = tester.getTopLeft(continueButton);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 900);
+    await tester.pump();
+
+    expect(tester.getTopLeft(continueButton), closedKeyboardPosition);
+  });
+
+  testWidgets('free-text input scrolls above keyboard insets', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: DuaTopicsScreen(onNext: () {}, onBack: () {}),
+      ),
+    ));
+    await tester.pump();
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 336);
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
+
+    final keyboardTop = tester.view.physicalSize.height -
+        tester.view.viewInsets.bottom / tester.view.devicePixelRatio;
+    final inputBottom = tester.getRect(find.byType(TextField)).bottom;
+
+    expect(inputBottom, lessThanOrEqualTo(keyboardTop));
+    expect(keyboardTop - inputBottom, lessThanOrEqualTo(56));
+  });
 }

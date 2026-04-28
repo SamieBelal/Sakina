@@ -14,8 +14,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(home: const OnboardingScreen()),
+      const ProviderScope(
+        child: MaterialApp(home: OnboardingScreen()),
       ),
     );
 
@@ -25,6 +25,35 @@ void main() {
       26,
     );
     expect(onboardingLastPageIndex, 25);
+
+    // Drain pending animation timers from flutter_animate so the test can
+    // tear down cleanly.
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+  });
+
+  testWidgets('first check-in Reflect button is not lifted by keyboard insets',
+      (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pump();
+
+    final reflectButton = find.widgetWithText(ElevatedButton, 'Reflect');
+    expect(reflectButton, findsOneWidget);
+    final closedKeyboardPosition = tester.getTopLeft(reflectButton);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 900);
+    await tester.pump();
+
+    expect(tester.getTopLeft(reflectButton), closedKeyboardPosition);
 
     // Drain pending animation timers from flutter_animate so the test can
     // tear down cleanly.

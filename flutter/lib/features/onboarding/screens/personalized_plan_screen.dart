@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../data/resonant_names.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
@@ -19,23 +20,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  static String translitForId(String? id) {
-    switch (id) {
-      case 'ar-rahim':
-        return 'Ar-Rahim';
-      case 'as-salam':
-        return 'As-Salam';
-      case 'al-wadud':
-        return 'Al-Wadud';
-      case 'al-hafiz':
-        return 'Al-Hafiz';
-      case 'al-karim':
-        return 'Al-Karim';
-      case 'ar-rahman':
-      default:
-        return 'Ar-Rahman';
-    }
-  }
+  static String translitForId(String? id) => resonantTranslitForId(id);
 
   // Emotions most likely to anchor "what we'll meet you with" in the plan
   // preview. Positive states (grateful/joyful/hopeful) don't read right here,
@@ -56,7 +41,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
-    final translit = translitForId(state.resonantNameId);
+    final translit = resonantTranslitForId(state.resonantNameId);
     final focus = (state.commonEmotions.toList()..sort())
         .firstWhere(_focusEmotions.contains, orElse: () => '');
     final struggle = focus.isNotEmpty ? _titleCase(focus) : 'your path';

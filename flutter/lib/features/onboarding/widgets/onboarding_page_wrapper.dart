@@ -9,6 +9,7 @@ class OnboardingPageWrapper extends StatelessWidget {
     required this.onBack,
     required this.child,
     this.contentTopPadding,
+    this.resizeToAvoidBottomInset = true,
     super.key,
   });
 
@@ -16,12 +17,15 @@ class OnboardingPageWrapper extends StatelessWidget {
   final VoidCallback onBack;
   final Widget child;
   final double? contentTopPadding;
+  final bool resizeToAvoidBottomInset;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       body: SafeArea(
+        maintainBottomViewPadding: !resizeToAvoidBottomInset,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(

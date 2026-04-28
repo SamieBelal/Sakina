@@ -61,7 +61,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _paywallEventsFired = true;
     final analytics = ref.read(analyticsProvider);
     analytics.track(AnalyticsEvents.paywallViewed);
-    analytics.track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': 'annual'});
+    analytics.track(AnalyticsEvents.paywallPlanSelected,
+        properties: {'plan': 'annual'});
   }
 
   @override
@@ -71,13 +72,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final initialPage = restoredPage.clamp(0, onboardingLastPageIndex);
     _pageController = PageController(initialPage: initialPage);
     if (initialPage != restoredPage) {
-      Future(() =>
-          ref.read(onboardingProvider.notifier).setPage(initialPage));
+      Future(() => ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _emitStepViewedOnce(initialPage);
       if (initialPage == 0) {
-        ref.read(analyticsProvider).timeEvent(AnalyticsEvents.onboardingCompleted);
+        ref
+            .read(analyticsProvider)
+            .timeEvent(AnalyticsEvents.onboardingCompleted);
       }
       if (initialPage == onboardingLastPageIndex) {
         _firePaywallEventsOnce();
@@ -95,6 +97,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_navigating) return;
     _navigating = true;
 
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final current = ref.read(onboardingProvider).currentPage;
     ref.read(onboardingProvider.notifier).setPage(page);
 
@@ -111,11 +115,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _pageController.jumpToPage(page);
       _navigating = false;
     } else {
-      _pageController.animateToPage(
-        page,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      ).whenComplete(() => _navigating = false);
+      _pageController
+          .animateToPage(
+            page,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          )
+          .whenComplete(() => _navigating = false);
     }
   }
 
@@ -143,32 +149,61 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final state = ref.read(onboardingProvider);
     final profileProps = <String, dynamic>{};
     if (state.intention != null) profileProps['intention'] = state.intention;
-    if (state.familiarity != null) profileProps['familiarity'] = state.familiarity;
-    if (state.quranConnection != null) profileProps['quran_connection'] = state.quranConnection;
-    if (state.attribution.isNotEmpty) profileProps['attribution'] = state.attribution.toList();
+    if (state.familiarity != null) {
+      profileProps['familiarity'] = state.familiarity;
+    }
+    if (state.quranConnection != null) {
+      profileProps['quran_connection'] = state.quranConnection;
+    }
+    if (state.attribution.isNotEmpty) {
+      profileProps['attribution'] = state.attribution.toList();
+    }
     if (state.ageRange != null) profileProps['age_range'] = state.ageRange;
-    if (state.prayerFrequency != null) profileProps['prayer_frequency'] = state.prayerFrequency;
-    if (state.resonantNameId != null) profileProps['resonant_name_slug'] = state.resonantNameId;
-    if (state.duaTopics.isNotEmpty) profileProps['dua_topics'] = state.duaTopics.toList();
-    if (state.duaTopicsOther != null) profileProps['dua_topics_other'] = state.duaTopicsOther;
-    if (state.commonEmotions.isNotEmpty) profileProps['common_emotions'] = state.commonEmotions.toList();
-    if (state.aspirations.isNotEmpty) profileProps['aspirations'] = state.aspirations.toList();
-    if (state.dailyCommitmentMinutes != null) profileProps['daily_commitment_minutes'] = state.dailyCommitmentMinutes;
-    if (state.reminderTime != null) profileProps['reminder_time'] = state.reminderTime;
+    if (state.prayerFrequency != null) {
+      profileProps['prayer_frequency'] = state.prayerFrequency;
+    }
+    if (state.resonantNameId != null) {
+      profileProps['resonant_name_slug'] = state.resonantNameId;
+    }
+    if (state.duaTopics.isNotEmpty) {
+      profileProps['dua_topics'] = state.duaTopics.toList();
+    }
+    if (state.duaTopicsOther != null) {
+      profileProps['dua_topics_other'] = state.duaTopicsOther;
+    }
+    if (state.commonEmotions.isNotEmpty) {
+      profileProps['common_emotions'] = state.commonEmotions.toList();
+    }
+    if (state.aspirations.isNotEmpty) {
+      profileProps['aspirations'] = state.aspirations.toList();
+    }
+    if (state.dailyCommitmentMinutes != null) {
+      profileProps['daily_commitment_minutes'] = state.dailyCommitmentMinutes;
+    }
+    if (state.reminderTime != null) {
+      profileProps['reminder_time'] = state.reminderTime;
+    }
     profileProps['commitment_accepted'] = state.commitmentAccepted;
     if (profileProps.isNotEmpty) analytics.setUserProperties(profileProps);
 
     analytics.flush();
 
     try {
-      await ref.read(onboardingProvider.notifier).completeOnboarding(ref.read(appSessionProvider));
+      await ref
+          .read(onboardingProvider.notifier)
+          .completeOnboarding(ref.read(appSessionProvider));
     } catch (_) {}
     if (mounted) context.go('/');
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentPage = ref.watch(
+      onboardingProvider.select((state) => state.currentPage),
+    );
+
     return Scaffold(
+      resizeToAvoidBottomInset: currentPage != 0 && currentPage != 8,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),

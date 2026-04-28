@@ -85,39 +85,112 @@ class _DailyCommitmentScreenState extends ConsumerState<DailyCommitmentScreen> {
         ? _customValid
         : selected != null && _presets.contains(selected);
 
-    return OnboardingQuestionScaffold(
-      progressSegment: 11,
-      headline: 'How much time a day feels right?',
-      subtitle: 'You can change this later.',
-      onBack: widget.onBack,
-      continueEnabled: canContinue,
-      onContinue: () {
-        ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
-              ref,
-              'daily_commitment_minutes',
-              selected,
-            );
-        widget.onNext();
-      },
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final m in _presets) ...[
-            _PresetTile(
-              minutes: m,
-              selected: !_customMode && selected == m,
-              onTap: () => _selectPreset(m),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          _CustomTile(
-            active: _customMode,
-            controller: _customController,
-            focusNode: _customFocus,
-            onActivate: _enterCustom,
-            onChanged: _onCustomChanged,
+    return Stack(
+      children: [
+        OnboardingQuestionScaffold(
+          progressSegment: 11,
+          headline: 'How much time a day feels right?',
+          subtitle: 'You can change this later.',
+          onBack: widget.onBack,
+          continueEnabled: canContinue,
+          onContinue: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
+                  ref,
+                  'daily_commitment_minutes',
+                  selected,
+                );
+            widget.onNext();
+          },
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final m in _presets) ...[
+                _PresetTile(
+                  minutes: m,
+                  selected: !_customMode && selected == m,
+                  onTap: () => _selectPreset(m),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+              _CustomTile(
+                active: _customMode,
+                controller: _customController,
+                focusNode: _customFocus,
+                onActivate: _enterCustom,
+                onChanged: _onCustomChanged,
+              ),
+            ],
           ),
-        ],
+        ),
+        _KeyboardDoneBar(focusNode: _customFocus),
+      ],
+    );
+  }
+}
+
+class _KeyboardDoneBar extends StatefulWidget {
+  const _KeyboardDoneBar({required this.focusNode});
+  final FocusNode focusNode;
+
+  @override
+  State<_KeyboardDoneBar> createState() => _KeyboardDoneBarState();
+}
+
+class _KeyboardDoneBarState extends State<_KeyboardDoneBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChanged);
+    super.dispose();
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+    if (!widget.focusNode.hasFocus || viewInsets <= 0) {
+      return const SizedBox.shrink();
+    }
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: viewInsets,
+      child: Material(
+        color: const Color(0xFFD1D4DB),
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+              child: Text(
+                'Done',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -208,6 +281,10 @@ class _CustomTile extends StatelessWidget {
                       ],
                       textAlign: TextAlign.center,
                       textInputAction: TextInputAction.done,
+                      onSubmitted: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
+                      onTapOutside: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       style: AppTypography.headlineMedium.copyWith(
                         color: AppColors.textPrimaryLight,
                       ),

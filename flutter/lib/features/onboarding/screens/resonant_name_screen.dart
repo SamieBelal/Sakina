@@ -8,68 +8,9 @@ import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../widgets/adjusted_arabic_display.dart';
+import '../data/resonant_names.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
-
-class _ResonantName {
-  const _ResonantName({
-    required this.id,
-    required this.arabic,
-    required this.translit,
-    required this.english,
-    required this.emotion,
-  });
-  final String id;
-  final String arabic;
-  final String translit;
-  final String english;
-  final String emotion;
-}
-
-const _names = <_ResonantName>[
-  _ResonantName(
-    id: 'ar-rahman',
-    arabic: 'الرَّحْمَنُ',
-    translit: 'Ar-Rahman',
-    english: 'The Most Merciful',
-    emotion: 'For when you need warmth.',
-  ),
-  _ResonantName(
-    id: 'ar-rahim',
-    arabic: 'الرَّحِيمُ',
-    translit: 'Ar-Rahim',
-    english: 'The Especially Merciful',
-    emotion: 'For when you need closeness.',
-  ),
-  _ResonantName(
-    id: 'as-salam',
-    arabic: 'السَّلَامُ',
-    translit: 'As-Salam',
-    english: 'The Source of Peace',
-    emotion: 'For when your mind is racing.',
-  ),
-  _ResonantName(
-    id: 'al-wadud',
-    arabic: 'الْوَدُودُ',
-    translit: 'Al-Wadud',
-    english: 'The Most Loving',
-    emotion: 'For when you feel unseen.',
-  ),
-  _ResonantName(
-    id: 'al-hafiz',
-    arabic: 'الْحَفِيظُ',
-    translit: 'Al-Hafiz',
-    english: 'The Preserver',
-    emotion: 'For when you feel afraid.',
-  ),
-  _ResonantName(
-    id: 'al-karim',
-    arabic: 'الْكَرِيمُ',
-    translit: 'Al-Karim',
-    english: 'The Most Generous',
-    emotion: 'For when you feel small.',
-  ),
-];
 
 class ResonantNameScreen extends ConsumerStatefulWidget {
   const ResonantNameScreen({
@@ -107,7 +48,7 @@ class _ResonantNameScreenState extends ConsumerState<ResonantNameScreen> {
     return 0;
   }
 
-  Widget _card(_ResonantName n, bool selected) {
+  Widget _card(ResonantName n, bool selected) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
@@ -195,7 +136,7 @@ class _ResonantNameScreenState extends ConsumerState<ResonantNameScreen> {
         height: 360,
         child: PageView.builder(
           controller: _controller,
-          itemCount: _names.length,
+          itemCount: kResonantNames.length,
           onPageChanged: (i) {
             if (i != _lastHapticPage) {
               _lastHapticPage = i;
@@ -203,10 +144,10 @@ class _ResonantNameScreenState extends ConsumerState<ResonantNameScreen> {
             }
             ref
                 .read(onboardingProvider.notifier)
-                .setResonantNameId(_names[i].id);
+                .setResonantNameId(kResonantNames[i].id);
           },
           itemBuilder: (context, index) {
-            final n = _names[index];
+            final n = kResonantNames[index];
             final selected = state.resonantNameId == n.id;
             return AnimatedBuilder(
               animation: _controller,
