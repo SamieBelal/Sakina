@@ -93,6 +93,21 @@ class PurchaseService {
     return offerings.current?.availablePackages ?? [];
   }
 
+  /// Returns packages from the `consumables` offering — the token and scroll
+  /// SKUs the Store screen sells. Lives in a non-current offering on purpose:
+  /// the paywall reads `offerings.current` (subscriptions only), and mixing
+  /// consumables into that offering would surface them on the paywall.
+  ///
+  /// Returns an empty list when the SDK isn't initialized or when the
+  /// `consumables` offering is missing — callers handle the empty case as
+  /// "pack not available" rather than crashing.
+  Future<List<Package>> getConsumablePackages() async {
+    if (!_initialized) return [];
+
+    final offerings = await Purchases.getOfferings();
+    return offerings.all['consumables']?.availablePackages ?? [];
+  }
+
   /// Purchases a subscription package and returns `true` if the `premium`
   /// entitlement is now active. Use this for the paywall; subscriptions
   /// flip the entitlement on success.
@@ -118,17 +133,25 @@ class PurchaseService {
     }
   }
 
-  /// Purchases a consumable package (tokens, scrolls). Returns `true` on
-  /// success — RevenueCat's contract is throw-on-failure (cancellation,
-  /// payment error) and return-on-success, so a non-throwing return means
-  /// StoreKit recorded the transaction and the user has been charged.
+  /// Purchases a consumable package (tokens, scrolls) and returns the fresh
+  /// [CustomerInfo] that StoreKit + RevenueCat produced for the transaction.
+  /// RevenueCat's contract is throw-on-failure (cancellation, payment
+  /// error) and return-on-success, so reaching the return statement means
+  /// the user has been charged and `customerInfo.nonSubscriptionTransactions`
+  /// contains the just-completed transaction.
+  ///
   /// Consumables do NOT flip any entitlement, so the entitlement check used
   /// by [purchaseSubscription] is wrong here and would silently skip the
   /// local grant — that was the 2026-04-26 P0 bug.
-  Future<bool> purchaseConsumable(Package package) async {
+  ///
+  /// Callers MUST pass the returned [CustomerInfo] to
+  /// `ConsumableGrantsService.grantForMostRecentPurchase` — otherwise the
+  /// service re-fetches via `Purchases.getCustomerInfo()`, which races
+  /// with RC's internal cache update and often returns stale data,
+  /// reproducing the 2026-04-28 stale-balance bug.
+  Future<CustomerInfo> purchaseConsumable(Package package) async {
     _assertInitialized();
-    await Purchases.purchasePackage(package);
-    return true;
+    return await Purchases.purchasePackage(package);
   }
 
   /// Restores previous purchases and returns `true` if the `premium`

@@ -34,24 +34,41 @@ import 'package:sakina/widgets/summary_metric_card.dart';
 import '../../support/fake_supabase_sync_service.dart';
 
 // `purchases_flutter` exposes static methods (`Purchases.getCustomerInfo`)
-// that bypass our PurchaseService DI seam. ConsumableGrantsService calls
-// `Purchases.getCustomerInfo()` directly from `grantForMostRecentPurchase`,
-// so widget tests must mock the MethodChannel to return a customerInfo
-// containing the just-purchased SKU as a non-subscription transaction.
+// that bypass our PurchaseService DI seam. After the 2026-04-28 fix the
+// synchronous purchase path passes the fresh `CustomerInfo` from
+// `purchaseConsumable` straight to `grantForMostRecentPurchase`, so widget
+// tests no longer rely on the channel mock to satisfy `getCustomerInfo`.
+// The handler is kept as a defensive net for any path that still falls
+// through to a fetch (orphan-recovery listener, etc. — not exercised here).
 const MethodChannel _purchasesChannel = MethodChannel('purchases_flutter');
 
 /// Test double for [PurchaseService] that:
-///   - returns whatever offerings list is configured (or throws)
+///   - returns the configured `consumablePackages` list (or throws) for
+///     `getConsumablePackages()`
+///   - returns a [CustomerInfo] built by `consumableCustomerInfoBuilder`
+///     for `purchaseConsumable` — production now passes that customerInfo
+///     into `grantForMostRecentPurchase` to skip the racy refetch
 ///   - gates `purchaseConsumable` on a Completer when `gatePurchases=true`,
 ///     so we can hold a purchase in-flight to test double-tap idempotency
 ///   - records every call so tests can assert exact counts
 class FakeStorePurchaseService extends PurchaseService {
   FakeStorePurchaseService() : super.test();
 
-  List<Package> offerings = <Package>[];
-  Object? offeringsError;
+  /// Packages the Store screen sees — backs `getConsumablePackages()`.
+  /// Renamed from `offerings` after the Store screen moved off the
+  /// `getOfferings()` (subscription) path onto the dedicated consumables
+  /// offering — the prior name was misleading.
+  List<Package> consumablePackages = <Package>[];
+  Object? consumablePackagesError;
 
-  bool consumableResult = true;
+  /// Builds the `CustomerInfo` returned by `purchaseConsumable`. Tests
+  /// assign this so the returned customerInfo contains the just-completed
+  /// transaction (matches RC's real `Purchases.purchasePackage` contract).
+  /// Production code now passes this CustomerInfo through to
+  /// `ConsumableGrantsService.grantForMostRecentPurchase`, eliminating
+  /// the redundant `Purchases.getCustomerInfo()` round-trip that caused
+  /// the 2026-04-28 stale-balance bug.
+  CustomerInfo Function()? consumableCustomerInfoBuilder;
   Object? consumableError;
   int consumableCalls = 0;
 
@@ -63,20 +80,28 @@ class FakeStorePurchaseService extends PurchaseService {
   Completer<void>? _purchaseGate;
 
   @override
-  Future<List<Package>> getOfferings() async {
-    if (offeringsError != null) throw offeringsError!;
-    return offerings;
+  Future<List<Package>> getConsumablePackages() async {
+    if (consumablePackagesError != null) throw consumablePackagesError!;
+    return consumablePackages;
   }
 
   @override
-  Future<bool> purchaseConsumable(Package package) async {
+  Future<CustomerInfo> purchaseConsumable(Package package) async {
     consumableCalls += 1;
     if (gatePurchases) {
       _purchaseGate ??= Completer<void>();
       await _purchaseGate!.future;
     }
     if (consumableError != null) throw consumableError!;
-    return consumableResult;
+    final builder = consumableCustomerInfoBuilder;
+    if (builder == null) {
+      throw StateError(
+        'consumableCustomerInfoBuilder not set — tests that exercise the '
+        'purchase path must seed a CustomerInfo via this builder so that '
+        'grantForMostRecentPurchase has a transaction to find',
+      );
+    }
+    return builder();
   }
 
   @override
@@ -181,7 +206,14 @@ void main() {
     PurchaseService.debugSetOverride(purchaseService);
     debugSetPremiumGrantPurchaseService(purchaseService);
 
-    purchaseService.offerings = [
+    // Default: return a CustomerInfo built from `mockedTransactions`.
+    // §11-G appends the just-purchased SKU to that list before tapping
+    // Buy; tests that don't exercise the purchase path leave it empty
+    // and the builder still returns a valid (transaction-less) CustomerInfo.
+    purchaseService.consumableCustomerInfoBuilder = () =>
+        CustomerInfo.fromJson(buildCustomerInfoJson());
+
+    purchaseService.consumablePackages = [
       _pkg('sakina_tokens_100', 1.99),
       _pkg('sakina_tokens_250', 3.99),
       _pkg('sakina_tokens_500', 6.99),
@@ -298,7 +330,7 @@ void main() {
   group('§11-B offerings unavailable', () {
     testWidgets('empty offerings → "Pack not available yet" snackbar',
         (tester) async {
-      purchaseService.offerings = <Package>[];
+      purchaseService.consumablePackages = <Package>[];
 
       await pumpStore(tester);
 
@@ -317,7 +349,8 @@ void main() {
   group('§11-C offerings throws', () {
     testWidgets('getOfferings throws → generic "Purchase failed" snackbar',
         (tester) async {
-      purchaseService.offeringsError = StateError('offerings fetch failed');
+      purchaseService.consumablePackagesError =
+          StateError('consumables fetch failed');
 
       await pumpStore(tester);
 
@@ -412,13 +445,17 @@ void main() {
 
   group('§11-G balance pill refreshes', () {
     testWidgets(
-        'successful token purchase → balance pill text reflects the grant',
+        'successful token purchase → balance pill text reflects the grant '
+        '(via the ConsumableGrantsService.grants stream that '
+        'DailyLoopNotifier subscribes to — the 2026-04-28 fix; the prior '
+        'manual `refreshTokenBalance(getTokens())` path raced RC\'s '
+        'customerInfo cache and frequently left the pill stale)',
         (tester) async {
-      purchaseService.consumableResult = true;
-      // Seed a transaction record that `grantForMostRecentPurchase` will
-      // pick up when it calls `Purchases.getCustomerInfo()`. Without this
-      // the grant path can't find the txn to credit and the balance stays
-      // at startingTokens=50.
+      // Seed a transaction record on the fresh CustomerInfo that
+      // `purchaseConsumable` will return. Production code now reads
+      // `customerInfo.nonSubscriptionTransactions` directly from the
+      // `Purchases.purchasePackage` return value, so the SKU MUST be
+      // present in this list for `grantForMostRecentPurchase` to credit it.
       mockedTransactions.add(<String, dynamic>{
         'transactionIdentifier': 'sim-txn-tokens-100',
         'revenueCatIdentifier': 'sim-txn-tokens-100',
@@ -440,25 +477,28 @@ void main() {
       // Pre-state: token_service defaults a fresh cache to `startingTokens =
       // 50` (token_service.dart:8). The fake earn_tokens RPC returns the
       // requested amount (100) directly — so post-purchase the pill should
-      // flip to '100', proving refreshTokenBalance() propagated. Pre and
-      // post are distinct values, so the test catches a stuck pill.
+      // flip to '100', proving the grants stream propagated. Pre and post
+      // are distinct values, so the test catches a stuck pill.
       expect(tokensPill().value, '50',
           reason:
               'tokens pill should start at startingTokens=50 with fresh prefs');
 
       await tapVisible(tester, find.text('100 Tokens'));
       // Pump enough times to:
-      //   1. resolve getOfferings
-      //   2. resolve purchaseConsumable
-      //   3. resolve earnTokens (which calls earn_tokens RPC → returns 100)
-      //   4. resolve getTokens
-      //   5. dispatch refreshTokenBalance(100) → state rebuild
+      //   1. resolve getConsumablePackages
+      //   2. resolve purchaseConsumable (returns CustomerInfo)
+      //   3. resolve grantForMostRecentPurchase → earn_tokens RPC (returns 100)
+      //   4. emit ConsumableGrantEvent on the broadcast stream
+      //   5. DailyLoopNotifier listener runs → state.copyWith(tokenBalance: 100)
+      //   6. widget rebuild
       for (var i = 0; i < 6; i++) {
         await tester.pump();
       }
 
       expect(tokensPill().value, '100',
-          reason: 'refreshTokenBalance(100) must propagate to the tokens pill');
+          reason:
+              'ConsumableGrantsService.grants → DailyLoopNotifier subscription '
+              'must propagate the new balance to the tokens pill');
 
       await drainPurchaseToast(tester);
     });

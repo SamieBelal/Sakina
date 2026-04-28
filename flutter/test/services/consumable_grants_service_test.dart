@@ -4,13 +4,24 @@
 //
 // Coverage:
 //   - markCredited dedup (atomic compare-and-set)
-//   - processCustomerInfo grants tokens for known SKUs and skips already-
-//     credited transactions
-//   - processCustomerInfo grants scrolls for scroll SKUs
+//   - processCustomerInfo grants tokens / scrolls for known SKUs and skips
+//     already-credited transactions
 //   - Unknown SKUs are logged but not granted (no crash, no false credit)
 //   - initializeForUser baselines existing transactions WITHOUT granting,
 //     and is a no-op on second call (one baseline per user/device)
 //   - 200-entry credited-set cap drops oldest entries
+//   - Concurrency: markCredited lock guards the credited-set read-write
+//   - Pre-baseline race: listener-only path marks but does not grant
+//   - Grant-failure rollback: failed earn_tokens RPC un-marks the txn so
+//     the next listener fire retries
+//   - 2026-04-28 stale-balance fix:
+//       * grantForMostRecentPurchase accepts an explicit CustomerInfo and
+//         skips the racy `Purchases.getCustomerInfo()` round-trip
+//       * Successful grants emit ConsumableGrantEvent on the broadcast
+//         `grants` stream — both processCustomerInfo and the synchronous
+//         purchase path publish there
+//       * Pre-baseline marks and failed RPCs do NOT emit (UI must not
+//         flicker to a phantom balance)
 
 import 'dart:convert';
 
@@ -554,6 +565,213 @@ void main() {
         contains('txn-flaky'),
         reason: 'successful retry leaves the txn credited',
       );
+    });
+  });
+
+  // 2026-04-28: the synchronous purchase path used to call this method
+  // without `customerInfo`, which forced a `Purchases.getCustomerInfo()`
+  // round-trip. RC's customerInfo cache is updated AFTER the
+  // `purchasePackage` future resolves on the JS side, so that fetch
+  // commonly returned a stale customerInfo missing the just-completed
+  // transaction → "no transaction found" → no local grant → balance pill
+  // stale until the listener fired several seconds later (and the
+  // listener didn't notify the UI either). Both bugs are fixed by
+  // passing the fresh customerInfo through and by emitting on the
+  // [grants] stream.
+  group('grantForMostRecentPurchase with explicit customerInfo: skips the '
+      'redundant getCustomerInfo round-trip and grants from the passed-in '
+      'CustomerInfo (2026-04-28 stale-balance fix)', () {
+    test('with explicit customerInfo: grants tokens AND emits on the '
+        'grants stream with the new server-confirmed balance', () async {
+      // Post-baseline.
+      await service.initializeForUser(_customerInfoWithTransactions([]));
+      // Server returns 100 from earn_tokens (mocked above) — that's what
+      // the grants event must surface as `newBalance`.
+
+      final fresh = _customerInfoWithTransactions([
+        (
+          txnId: 'txn-fresh',
+          productId: 'sakina_tokens_100',
+          purchaseDate: '2026-04-28T19:42:00.000Z',
+        ),
+      ]);
+
+      final eventsFuture = ConsumableGrantsService.grants
+          .where((e) => e.transactionId == 'txn-fresh')
+          .first;
+
+      final granted = await service.grantForMostRecentPurchase(
+        'sakina_tokens_100',
+        customerInfo: fresh,
+      );
+
+      expect(granted, isTrue);
+      final event = await eventsFuture.timeout(const Duration(seconds: 1));
+      expect(event.kind, ConsumableGrantKind.tokens);
+      expect(event.amount, 100);
+      expect(event.newBalance, 100,
+          reason: 'newBalance is the post-RPC server-confirmed balance');
+    });
+
+    test('with explicit customerInfo: scrolls SKU emits scrolls event',
+        () async {
+      await service.initializeForUser(_customerInfoWithTransactions([]));
+
+      final fresh = _customerInfoWithTransactions([
+        (
+          txnId: 'txn-scrolls',
+          productId: 'sakina_scrolls_3',
+          purchaseDate: '2026-04-28T19:42:00.000Z',
+        ),
+      ]);
+
+      final eventsFuture = ConsumableGrantsService.grants
+          .where((e) => e.transactionId == 'txn-scrolls')
+          .first;
+
+      final granted = await service.grantForMostRecentPurchase(
+        'sakina_scrolls_3',
+        customerInfo: fresh,
+      );
+
+      expect(granted, isTrue);
+      final event = await eventsFuture.timeout(const Duration(seconds: 1));
+      expect(event.kind, ConsumableGrantKind.scrolls);
+      expect(event.amount, 3);
+      expect(event.newBalance, 3);
+    });
+
+    test('with explicit customerInfo: second call for the same txn is a '
+        'no-op (dedup primitive) and emits NO event', () async {
+      await service.initializeForUser(_customerInfoWithTransactions([]));
+
+      final fresh = _customerInfoWithTransactions([
+        (
+          txnId: 'txn-dup',
+          productId: 'sakina_tokens_100',
+          purchaseDate: '2026-04-28T19:42:00.000Z',
+        ),
+      ]);
+
+      // First grant — emits.
+      final firstEventF = ConsumableGrantsService.grants
+          .where((e) => e.transactionId == 'txn-dup')
+          .first;
+      expect(
+        await service.grantForMostRecentPurchase(
+          'sakina_tokens_100',
+          customerInfo: fresh,
+        ),
+        isTrue,
+      );
+      await firstEventF.timeout(const Duration(seconds: 1));
+
+      // Second grant for the same txn — must be a no-op AND emit nothing.
+      var sawSecondEvent = false;
+      final sub = ConsumableGrantsService.grants
+          .where((e) => e.transactionId == 'txn-dup')
+          .listen((_) => sawSecondEvent = true);
+      try {
+        expect(
+          await service.grantForMostRecentPurchase(
+            'sakina_tokens_100',
+            customerInfo: fresh,
+          ),
+          isFalse,
+          reason: 'duplicate grant returns false',
+        );
+        // Drain any in-flight microtasks.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(sawSecondEvent, isFalse,
+            reason: 'no event for an already-credited txn — '
+                'subscribers must not double-update the balance');
+      } finally {
+        await sub.cancel();
+      }
+    });
+  });
+
+  group('processCustomerInfo emits on the grants stream — orphan-recovery '
+      'path also notifies the UI (Fix B for 2026-04-28 stale-balance bug)',
+      () {
+    test('emits a tokens event with the post-RPC balance after a successful '
+        'orphan-recovery grant', () async {
+      await service.initializeForUser(_customerInfoWithTransactions([]));
+
+      final eventF = ConsumableGrantsService.grants
+          .where((e) => e.transactionId == 'txn-orphan-tokens')
+          .first;
+
+      final granted =
+          await service.processCustomerInfo(_customerInfoWithTransactions([
+        (
+          txnId: 'txn-orphan-tokens',
+          productId: 'sakina_tokens_250',
+          purchaseDate: '2026-04-28T19:00:00.000Z',
+        ),
+      ]));
+
+      expect(granted, 1);
+      final event = await eventF.timeout(const Duration(seconds: 1));
+      expect(event.kind, ConsumableGrantKind.tokens);
+      expect(event.amount, 250);
+      expect(event.newBalance, 250);
+    });
+
+    test('does NOT emit when grants are skipped pre-baseline — UI must not '
+        'flicker from a baseline-only mark', () async {
+      // Skip initializeForUser → not baselined.
+      var sawAnyEvent = false;
+      final sub = ConsumableGrantsService.grants.listen((_) {
+        sawAnyEvent = true;
+      });
+      try {
+        final granted =
+            await service.processCustomerInfo(_customerInfoWithTransactions([
+          (
+            txnId: 'txn-baseline',
+            productId: 'sakina_tokens_100',
+            purchaseDate: '2026-04-28T19:00:00.000Z',
+          ),
+        ]));
+        expect(granted, 0,
+            reason: 'pre-baseline path marks but does not grant');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(sawAnyEvent, isFalse,
+            reason: 'no grant happened, so no event');
+      } finally {
+        await sub.cancel();
+      }
+    });
+
+    test('does NOT emit when the grant RPC fails — failed grants must '
+        'leave subscribers untouched (rollback restores credited-set, '
+        'next fire retries)', () async {
+      await service.initializeForUser(_customerInfoWithTransactions([]));
+      fakeSync.rpcHandlers['earn_tokens'] = (args) async {
+        throw StateError('simulated earn_tokens failure');
+      };
+
+      var sawAnyEvent = false;
+      final sub = ConsumableGrantsService.grants.listen((_) {
+        sawAnyEvent = true;
+      });
+      try {
+        final granted =
+            await service.processCustomerInfo(_customerInfoWithTransactions([
+          (
+            txnId: 'txn-fails',
+            productId: 'sakina_tokens_100',
+            purchaseDate: '2026-04-28T19:00:00.000Z',
+          ),
+        ]));
+        expect(granted, 0);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(sawAnyEvent, isFalse,
+            reason: 'a failed RPC must not bump the UI to a phantom balance');
+      } finally {
+        await sub.cancel();
+      }
     });
   });
 }

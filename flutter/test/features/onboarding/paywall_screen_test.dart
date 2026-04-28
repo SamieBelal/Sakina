@@ -42,14 +42,14 @@ class FakePurchaseService extends PurchaseService {
   }
 
   @override
-  Future<bool> purchaseConsumable(Package package) async {
+  Future<CustomerInfo> purchaseConsumable(Package package) async {
     // Matches prod's contract: trust RC's throw-on-failure / return-on-success.
-    // Returning a `purchaseResult`-derived bool here would diverge from the
-    // simplified prod implementation and mask real behavior. (Flagged during
-    // /review adversarial pass.)
+    // Returns the seeded `purchaseResult` (or a minimal stand-in) — the
+    // paywall screen does not exercise this path, but the override must
+    // remain in shape with PurchaseService's signature.
     lastPurchasedPackageType = package.packageType;
     if (purchaseError != null) throw purchaseError!;
-    return true;
+    return purchaseResult ?? buildCustomerInfo(premiumActive: false);
   }
 
   @override

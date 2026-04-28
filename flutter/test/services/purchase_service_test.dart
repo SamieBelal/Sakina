@@ -199,6 +199,97 @@ void main() {
     });
   });
 
+  group('getConsumablePackages()', () {
+    // Minimal Offerings payload the SDK accepts — see
+    // purchases_flutter/Offerings.fromJson. `current` references the
+    // subscription offering by id; `all` keys are offering identifiers
+    // (RC's `lookup_key`), values include `availablePackages`.
+    Map<String, dynamic> buildOfferingsResponse({
+      required bool includeConsumables,
+    }) {
+      Map<String, dynamic> packageJson(String id, String productId) {
+        return <String, dynamic>{
+          'identifier': id,
+          'packageType': 'CUSTOM',
+          'product': <String, dynamic>{
+            'identifier': productId,
+            'description': productId,
+            'title': productId,
+            'price': 1.99,
+            'priceString': '\$1.99',
+            'currencyCode': 'USD',
+          },
+          'offeringIdentifier':
+              includeConsumables ? 'consumables' : 'default',
+          'presentedOfferingContext': <String, dynamic>{
+            'offeringIdentifier':
+                includeConsumables ? 'consumables' : 'default',
+            'placementIdentifier': null,
+            'targetingContext': null,
+          },
+        };
+      }
+
+      final defaultOffering = <String, dynamic>{
+        'identifier': 'default',
+        'serverDescription': 'subs',
+        'metadata': <String, dynamic>{},
+        'availablePackages': <Map<String, dynamic>>[
+          packageJson('annual', 'sakina_sub_annual'),
+        ],
+      };
+      final consumablesOffering = <String, dynamic>{
+        'identifier': 'consumables',
+        'serverDescription': 'consumables',
+        'metadata': <String, dynamic>{},
+        'availablePackages': <Map<String, dynamic>>[
+          packageJson('tokens_100', 'sakina_tokens_100'),
+          packageJson('scrolls_3', 'sakina_scrolls_3'),
+        ],
+      };
+      return <String, dynamic>{
+        'current': defaultOffering,
+        'all': <String, dynamic>{
+          'default': defaultOffering,
+          if (includeConsumables) 'consumables': consumablesOffering,
+        },
+      };
+    }
+
+    test('returns empty list when not initialized', () async {
+      final service = PurchaseService.test();
+      expect(await service.getConsumablePackages(), isEmpty);
+      expect(methodLog, isEmpty);
+    });
+
+    test('returns the consumables offering packages, NOT the current offering — '
+        'subscription packages must never leak into the Store screen list',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = buildOfferingsResponse(includeConsumables: true);
+
+      final packages = await service.getConsumablePackages();
+
+      expect(packages.map((p) => p.storeProduct.identifier).toList(), [
+        'sakina_tokens_100',
+        'sakina_scrolls_3',
+      ]);
+      expect(methodLog.single.method, 'getOfferings');
+    });
+
+    test(
+        'returns empty list when the `consumables` offering is missing — '
+        'callers surface "pack not available" rather than crashing',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = buildOfferingsResponse(includeConsumables: false);
+
+      expect(await service.getConsumablePackages(), isEmpty);
+    });
+  });
+
   group('purchaseSubscription()', () {
     test('throws StateError when not initialized', () async {
       final service = PurchaseService.test();
@@ -296,30 +387,36 @@ void main() {
     });
 
     test(
-        'returns true on a non-throwing SDK return — premium is NOT active '
-        '(regression: pre-fix `purchase()` returned the premium entitlement '
-        'check, which was `false` for consumables, so `_buyTokensIAP` skipped '
-        '`earnTokens()` and users lost paid-for tokens silently)', () async {
+        'returns the fresh CustomerInfo from purchasePackage — callers pass '
+        'this through to ConsumableGrantsService so the just-completed '
+        'transaction is visible without a second getCustomerInfo round-trip '
+        '(2026-04-28 stale-balance fix: the second fetch races RC\'s cache '
+        'and frequently misses the new transaction)', () async {
       final service = PurchaseService.test();
       service.debugMarkInitialized();
       // Premium is NOT active — consumable purchases never flip an entitlement.
-      // The new contract: a non-throwing `purchasePackage` means StoreKit
-      // recorded the transaction, so the local grant must run. We do NOT
-      // gate on `allPurchasedProductIdentifiers` (which would have been
-      // empty for a first-time consumable buyer pre-fix).
+      // RC's contract: no-throw = success, so reaching the assertion means
+      // the user has been charged.
       methodResponses['purchasePackage'] = <String, dynamic>{
         'customerInfo': _buildCustomerInfo(
           premiumActive: false,
-          allPurchasedProductIdentifiersOverride: const <String>[],
+          allPurchasedProductIdentifiersOverride: const <String>['sakina_tokens_100'],
         ),
       };
 
+      final customerInfo =
+          await service.purchaseConsumable(_fakeConsumablePackage());
+
+      expect(customerInfo.originalAppUserId, 'test-user');
       expect(
-        await service.purchaseConsumable(_fakeConsumablePackage()),
-        isTrue,
-        reason: 'no-throw = success per RC contract; local grant must run',
+        customerInfo.allPurchasedProductIdentifiers,
+        ['sakina_tokens_100'],
+        reason: 'returned customerInfo is the one purchasePackage produced',
       );
-      expect(methodLog.single.method, 'purchasePackage');
+      // Critically: only purchasePackage is called. A redundant
+      // getCustomerInfo here would race with RC's cache update and was
+      // the root cause of the 2026-04-28 stale-balance bug.
+      expect(methodLog.map((c) => c.method).toList(), ['purchasePackage']);
     });
 
     test(

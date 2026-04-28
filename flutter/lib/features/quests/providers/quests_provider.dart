@@ -609,12 +609,24 @@ const Set<String> _firstStepsQuestKeys = {
 
 class QuestsNotifier extends StateNotifier<QuestsState> {
   QuestsNotifier() : super(const QuestsState()) {
-    _load();
+    _loadingFuture = _load();
   }
+
+  /// Tracks any in-flight `_load()`. Without this, the unawaited constructor
+  /// call could resume in the middle of a later `completeQuest` /
+  /// `_markBeginnerComplete` and clobber freshly written state with stale
+  /// data from prefs (idempotency lost; second call re-grants rewards).
+  Future<void>? _loadingFuture;
 
   /// Re-runs `_load()`. Called from app session after a fresh sign-in /
   /// hydration so that newly synced First Steps state lands in the UI.
-  Future<void> reload() => _load();
+  /// Serialized — waits for any in-flight load before starting a new one.
+  Future<void> reload() async {
+    final previous = _loadingFuture;
+    if (previous != null) await previous;
+    _loadingFuture = _load();
+    await _loadingFuture;
+  }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();

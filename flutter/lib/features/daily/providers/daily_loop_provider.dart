@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -217,7 +219,33 @@ class DailyLoopState {
 
 class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   DailyLoopNotifier() : super(const DailyLoopState()) {
+    // Subscribe BEFORE _initialize so consumable grants that fire while
+    // initial hydration is in flight (e.g., the customerInfo listener in
+    // main.dart firing on app boot with a pending receipt) update the
+    // balance pill without racing _initialize's `getTokens` read.
+    //
+    // Known low-probability race: if a stream event applies a fresh
+    // tokenBalance AFTER `_initialize` reads `getTokens()` but BEFORE
+    // `_initialize`'s `state.copyWith(...)` writes its hydrated state,
+    // the listener's value is overwritten by the pre-grant cached value.
+    // This requires a pending-receipt sync to land mid-init, which is
+    // rare; subsequent refreshes (`refreshEconomyState`, pull-to-refresh)
+    // re-read cache and reconcile. Not worth the complexity of an
+    // init-vs-listener fence today; revisit if this surfaces in the wild.
+    _grantsSub = ConsumableGrantsService.grants.listen((event) {
+      if (event.kind == ConsumableGrantKind.tokens) {
+        state = state.copyWith(tokenBalance: event.newBalance);
+      }
+    });
     _initialize();
+  }
+
+  StreamSubscription<ConsumableGrantEvent>? _grantsSub;
+
+  @override
+  void dispose() {
+    _grantsSub?.cancel();
+    super.dispose();
   }
 
   String get _todayKey {
