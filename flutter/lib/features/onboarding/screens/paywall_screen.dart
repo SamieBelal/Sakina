@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -58,11 +60,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   String? _errorMessage;
   List<Package>? _offerings;
 
+  // Delayed close-button enable. The X fades in (and becomes tappable) after
+  // 3s so the user takes a real look at the offer before dismissing — a
+  // well-established paywall best practice that lifts conversion without
+  // hiding the dismiss path entirely (App Review requires a clear close).
+  bool _canClose = false;
+  Timer? _closeButtonTimer;
+  static const _closeButtonRevealDelay = Duration(seconds: 3);
+
+  // Exit offer shown at most once per session. If the user declines weekly
+  // and taps X again, we close immediately — no second nag.
+  bool _exitOfferShown = false;
+
   String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
 
+  // Trimmed to 3. Audio recitation (benefit2) is secondary to the core
+  // emotion → Name → verse loop, so it's the cut. Cal AI / Hallow / Calm
+  // all show 3 short benefits max.
   static const _benefits = [
     AppStrings.paywallBenefit1,
-    AppStrings.paywallBenefit2,
     AppStrings.paywallBenefit3,
     AppStrings.paywallBenefit4,
   ];
@@ -81,15 +97,52 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         orElse: () => null,
       );
 
+  /// True when the StoreKit/RevenueCat product for [plan] has a free
+  /// introductory offer (price == 0). When false, StoreKit will charge
+  /// immediately on tap, so we hide the trial timeline and switch the CTA
+  /// from "Start Free Trial" to "Subscribe" — the paywall must not promise
+  /// a trial the OS won't grant. Configure introductory offers in App Store
+  /// Connect (Subscriptions → product → Introductory Offers) and Google
+  /// Play Console for this to flip true in production.
+  bool _planHasTrial(_PlanType plan) {
+    final pkg = plan == _PlanType.annual ? _annualPackage : _weeklyPackage;
+    final intro = pkg?.storeProduct.introductoryPrice;
+    return intro != null && intro.price == 0;
+  }
+
   @override
   void initState() {
     super.initState();
+    _closeButtonTimer = Timer(_closeButtonRevealDelay, () {
+      if (mounted) setState(() => _canClose = true);
+    });
     _loadOfferings();
+  }
+
+  @override
+  void dispose() {
+    _closeButtonTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadOfferings() async {
     try {
       final offerings = await PurchaseService().getOfferings();
+      // TEMP diagnostic: log what RC is actually handing us so we can tell
+      // whether `introductoryPrice` is missing because of (a) App Store
+      // Connect not yet propagated to RC, (b) the local SDK still serving
+      // stale cache, or (c) a sandbox / simulator quirk. Remove once the
+      // trial UI is verified end-to-end on TestFlight.
+      for (final pkg in offerings) {
+        final intro = pkg.storeProduct.introductoryPrice;
+        debugPrint(
+          '[paywall] ${pkg.identifier} '
+          '(${pkg.storeProduct.identifier}) '
+          'intro=${intro == null ? 'null' : '${intro.priceString} '
+              'for ${intro.periodNumberOfUnits} ${intro.periodUnit.name} '
+              '(cycles=${intro.cycles})'}',
+        );
+      }
       if (mounted) {
         setState(() {
           _offerings = offerings;
@@ -121,9 +174,52 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     widget.onComplete();
   }
 
-  void _handleClose() {
+  Future<void> _handleClose() async {
+    // Eligible for the exit offer: never shown this session, currently
+    // looking at annual, weekly SKU is loaded, and we're not mid-flight.
+    final eligibleForExitOffer = !_exitOfferShown &&
+        _selectedPlan == _PlanType.annual &&
+        _weeklyPackage != null &&
+        !_purchasing &&
+        !_restoring;
+    if (eligibleForExitOffer) {
+      await _showExitOffer();
+      return;
+    }
+    _doClose();
+  }
+
+  void _doClose() {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
     widget.onComplete();
+  }
+
+  Future<void> _showExitOffer() async {
+    setState(() => _exitOfferShown = true);
+    ref.read(analyticsProvider).track(AnalyticsEvents.paywallExitOfferShown);
+    final accepted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => _ExitOfferSheet(
+        weeklyPrice: _weeklyPackage?.storeProduct.priceString ??
+            AppStrings.paywallWeeklyPrice,
+        weeklyHasTrial: _planHasTrial(_PlanType.weekly),
+      ),
+    );
+    if (!mounted) return;
+    if (accepted == true) {
+      ref
+          .read(analyticsProvider)
+          .track(AnalyticsEvents.paywallExitOfferAccepted);
+      setState(() => _selectedPlan = _PlanType.weekly);
+      await _handlePurchase();
+    } else {
+      _doClose();
+    }
   }
 
   String _personalizedHeadline() {
@@ -303,16 +399,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
-                      // Close button
+                      // Close button — fades in after 3s. App Review still
+                      // sees a visible (greyed) X immediately, but users get
+                      // forced exposure to the offer before they can dismiss.
                       Align(
                         alignment: Alignment.centerRight,
-                        child: IconButton(
-                          onPressed: (_purchasing || _restoring)
-                              ? null
-                              : _handleClose,
-                          icon: const Icon(
-                            Icons.close,
-                            color: AppColors.textSecondaryLight,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 400),
+                          opacity: _canClose ? 1.0 : 0.25,
+                          child: IgnorePointer(
+                            ignoring: !_canClose,
+                            child: IconButton(
+                              onPressed: (_purchasing || _restoring)
+                                  ? null
+                                  : _handleClose,
+                              icon: const Icon(
+                                Icons.close,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -337,20 +442,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.md),
 
-                      // Subtitle
-                      Text(
-                        AppStrings.paywallSubtitle,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.textSecondaryLight,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      const Spacer(flex: 2),
-
-                      // 4 compact benefit rows
+                      // 3 compact benefit rows
                       ...List.generate(_benefits.length, (i) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -387,25 +481,54 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       }),
                       const SizedBox(height: AppSpacing.sm),
 
-                      // Social proof
+                      // Social proof — single inline line with stars and
+                      // review count. Cal AI / Hallow / Calm all keep this
+                      // to one line; a paragraph testimonial here doubled
+                      // the vertical real estate without earning it.
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: AppColors.streakAmber,
-                            size: 16,
+                          ...List.generate(
+                            5,
+                            (_) => const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 1),
+                              child: Icon(
+                                Icons.star_rounded,
+                                color: AppColors.streakAmber,
+                                size: 14,
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Text(
-                            AppStrings.paywallSocialProof,
+                            '${AppStrings.paywallStarsLabel} \u00B7 '
+                            '${AppStrings.paywallReviewsCount}',
                             style: AppTypography.bodySmall.copyWith(
                               color: AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppSpacing.md),
+
+                      // Honest trial timeline — Today / Day 2 / Day 3.
+                      // Only render when the selected plan actually has a
+                      // free trial configured on the underlying StoreKit
+                      // product. Otherwise the strip would lie to the user
+                      // about being charged "Day 3" when the OS will charge
+                      // them today.
+                      if (_planHasTrial(_selectedPlan)) ...[
+                        _TrialTimelineStrip(
+                          chargeOnDay3:
+                              _selectedPlan == _PlanType.annual
+                                  ? (_annualPackage?.storeProduct.priceString ??
+                                      AppStrings.paywallAnnualPrice)
+                                  : (_weeklyPackage?.storeProduct.priceString ??
+                                      AppStrings.paywallWeeklyPrice),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
 
                       // Pricing cards — stacked, yearly first
                       _PricingCard(
@@ -413,7 +536,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         mainPrice: _annualPackage?.storeProduct.priceString ??
                             AppStrings.paywallAnnualPerWeek,
                         mainPriceLabel: 'per year',
-                        subPrice: AppStrings.paywallAnnualBadge,
+                        // Drop the subPrice — the SAVE 81% badge under the
+                        // label already carries this. Rendering it twice
+                        // (left and right side of the same card) reads as
+                        // clutter, not emphasis.
                         badge: AppStrings.paywallAnnualBadge,
                         selected: _selectedPlan == _PlanType.annual,
                         onTap: () {
@@ -433,19 +559,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': _planName});
                         },
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      // Trial terms — updates based on selected plan
-                      Text(
-                        _selectedPlan == _PlanType.annual
-                            ? AppStrings.paywallTrialTermsAnnual
-                            : AppStrings.paywallTrialTermsWeekly,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiaryLight,
-                          fontSize: 12,
+                      // No-trial billing note. Only renders when the selected
+                      // plan has no introductory free offer — keeps the
+                      // paywall honest about immediate billing in that case.
+                      if (!_planHasTrial(_selectedPlan)) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          AppStrings.paywallNoTrialNote,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textTertiaryLight,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
+                      ],
                       if (_errorMessage != null) ...[
                         const SizedBox(height: AppSpacing.sm),
                         Text(
@@ -486,7 +613,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   ),
                                 )
                               : Text(
-                                  AppStrings.paywallCta,
+                                  _planHasTrial(_selectedPlan)
+                                      ? AppStrings.paywallCta
+                                      : AppStrings.paywallCtaSubscribe,
                                   style: AppTypography.labelLarge.copyWith(
                                     color: AppColors.textOnPrimary,
                                     fontSize: 16,
@@ -580,14 +709,12 @@ class _PricingCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
-    this.subPrice,
   });
 
   final String label;
   final String mainPrice;
   final String mainPriceLabel;
   final String? badge;
-  final String? subPrice;
   final bool selected;
   final VoidCallback onTap;
 
@@ -689,18 +816,202 @@ class _PricingCard extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
-                if (subPrice != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subPrice!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Honest paywall" trial timeline. Three small cards: Today (full access),
+/// Day 2 (reminder), Day 3 (charged or cancel). Lifts trust and conversion
+/// over the tiny gray legal-line approach.
+class _TrialTimelineStrip extends StatelessWidget {
+  const _TrialTimelineStrip({required this.chargeOnDay3});
+
+  /// Localized price string for the selected plan ("$49.99", "$4.99", etc.).
+  final String chargeOnDay3;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Expanded(
+          child: _TimelineStep(
+            icon: Icons.lock_open_rounded,
+            iconColor: AppColors.primary,
+            heading: AppStrings.paywallTimelineTodayHeading,
+            label: AppStrings.paywallTimelineTodayLabel,
+          ),
+        ),
+        const Expanded(
+          child: _TimelineStep(
+            icon: Icons.notifications_active_rounded,
+            iconColor: AppColors.streakAmber,
+            heading: AppStrings.paywallTimelineDay2Heading,
+            label: AppStrings.paywallTimelineDay2Label,
+          ),
+        ),
+        Expanded(
+          child: _TimelineStep(
+            icon: Icons.payments_rounded,
+            iconColor: AppColors.textSecondaryLight,
+            heading: AppStrings.paywallTimelineDay3Heading,
+            label: '$chargeOnDay3 ${AppStrings.paywallTimelineDay3Label}',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimelineStep extends StatelessWidget {
+  const _TimelineStep({
+    required this.icon,
+    required this.iconColor,
+    required this.heading,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String heading;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: iconColor),
+        const SizedBox(height: 4),
+        Text(
+          heading,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textPrimaryLight,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          label,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textTertiaryLight,
+            fontSize: 11,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet shown when the user taps X with annual selected. Offers the
+/// weekly plan (a price alternative, NOT a different product) so we stay
+/// inside Apple guideline 5.6 — no second full paywall, no bait-and-switch.
+class _ExitOfferSheet extends StatelessWidget {
+  const _ExitOfferSheet({
+    required this.weeklyPrice,
+    required this.weeklyHasTrial,
+  });
+
+  final String weeklyPrice;
+  final bool weeklyHasTrial;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.pagePadding,
+          AppSpacing.lg,
+          AppSpacing.pagePadding,
+          AppSpacing.md,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              AppStrings.paywallExitOfferTitle,
+              style: AppTypography.displaySmall.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontSize: 22,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              weeklyHasTrial
+                  ? AppStrings.paywallExitOfferBody
+                  : 'Not ready for a year? Try the weekly plan — '
+                      '$weeklyPrice/week, cancel anytime.',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (weeklyHasTrial) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '$weeklyPrice / week after trial',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textOnPrimary,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+                child: Text(
+                  weeklyHasTrial
+                      ? AppStrings.paywallExitOfferAccept
+                      : 'Try weekly',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: AppColors.textOnPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                AppStrings.paywallExitOfferDecline,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
             ),
           ],
         ),

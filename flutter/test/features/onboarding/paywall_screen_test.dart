@@ -112,7 +112,10 @@ CustomerInfo buildCustomerInfo({
   );
 }
 
-StoreProduct buildStoreProduct(String productId) {
+StoreProduct buildStoreProduct(
+  String productId, {
+  bool withTrial = true,
+}) {
   return StoreProduct(
     productId,
     'Test description',
@@ -120,6 +123,16 @@ StoreProduct buildStoreProduct(String productId) {
     4.99,
     '\$4.99',
     'USD',
+    introductoryPrice: withTrial
+        ? const IntroductoryPrice(
+            0,
+            'Free',
+            'P3D',
+            1,
+            PeriodUnit.day,
+            3,
+          )
+        : null,
   );
 }
 
@@ -247,7 +260,10 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text(AppStrings.paywallWeeklyLabel));
+    // Weekly card sits below the fold on the 800x600 test viewport once the
+    // honest-trial timeline and richer social-proof block are in place. Real
+    // users scroll; mirror that here.
+    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text(AppStrings.paywallCta));
     await tester.pump();
@@ -273,10 +289,10 @@ void main() {
 
     expect(completed, isFalse);
     // Headline is dynamic (personalized from quiz answers), so assert the
-    // still-on-paywall signal via the paywall CTA and subtitle — both remain
-    // visible only while the PaywallScreen is mounted.
+    // still-on-paywall signal via the CTA and a static benefit row — both
+    // remain visible only while the PaywallScreen is mounted.
     expect(find.text(AppStrings.paywallCta), findsOneWidget);
-    expect(find.text(AppStrings.paywallSubtitle), findsOneWidget);
+    expect(find.text(AppStrings.paywallBenefit1), findsOneWidget);
   });
 
   testWidgets('Restore success completes onboarding', (tester) async {
@@ -341,7 +357,11 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCta));
+    // CTA text varies (Start Free Trial vs Subscribe) based on whether the
+    // selected plan has an introductory offer. Offerings failed to load in
+    // this test, so `_planHasTrial` is false and the CTA reads "Subscribe".
+    // Tap by widget type to stay decoupled from copy.
+    await tapVisible(tester, find.byType(ElevatedButton));
     await tester.pumpAndSettle();
 
     expect(completed, isFalse);

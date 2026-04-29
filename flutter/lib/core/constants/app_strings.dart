@@ -117,10 +117,35 @@ abstract final class AppStrings {
   static const paywallTrialTermsWeekly =
       '3-day free trial, then \$4.99/week. Cancel anytime.';
   static const paywallSocialProof = '4.9 \u00B7 Loved by 10,000+ Muslims';
+  static const paywallStarsLabel = '4.9';
+  static const paywallReviewsCount = 'from 10,000+ reviews';
   static const paywallCta = 'Start Free Trial';
+  // Used when the selected plan has no introductory free trial configured
+  // (or when the user is no longer eligible for one). The honest-trial
+  // timeline strip hides in that mode and we billed-today copy below the
+  // cards instead. Keeps the paywall from claiming a trial that StoreKit
+  // won't actually grant.
+  static const paywallCtaSubscribe = 'Subscribe';
+  static const paywallNoTrialNote = 'Billed today \u00B7 Cancel anytime';
   static const paywallRestore = 'Restore Purchase';
   static const paywallTerms = 'Terms';
   static const paywallPrivacy = 'Privacy';
+
+  // Honest trial timeline strip (above pricing cards). Labels stay one
+  // word each so the strip reads at a glance instead of as paragraph copy.
+  static const paywallTimelineTodayHeading = 'Today';
+  static const paywallTimelineTodayLabel = 'Free';
+  static const paywallTimelineDay2Heading = 'Day 2';
+  static const paywallTimelineDay2Label = 'Reminder';
+  static const paywallTimelineDay3Heading = 'Day 3';
+  static const paywallTimelineDay3Label = 'Charged';
+
+  // Exit offer bottom sheet (shown when user taps X on annual selection).
+  static const paywallExitOfferTitle = 'Wait — try weekly first?';
+  static const paywallExitOfferBody =
+      'Not ready for a year? Start with the weekly plan and your 3-day free trial. Cancel anytime.';
+  static const paywallExitOfferAccept = 'Start 3-day free trial';
+  static const paywallExitOfferDecline = 'No thanks';
 
   // ── Legal URLs ──
   // Hosted on GitHub Pages via the public `ibrahim7860/sakina-legal` repo.

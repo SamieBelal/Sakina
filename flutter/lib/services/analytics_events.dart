@@ -16,6 +16,8 @@ abstract final class AnalyticsEvents {
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
+  static const paywallExitOfferShown = 'paywall_exit_offer_shown';
+  static const paywallExitOfferAccepted = 'paywall_exit_offer_accepted';
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
