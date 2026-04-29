@@ -77,6 +77,11 @@ Future<bool> showDeleteAccountConfirmDialog(BuildContext context) async {
                   controller: controller,
                   autofocus: true,
                   onChanged: (_) => setDialogState(() {}),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
                   decoration: const InputDecoration(
                     hintText: 'DELETE',
                     border: OutlineInputBorder(),

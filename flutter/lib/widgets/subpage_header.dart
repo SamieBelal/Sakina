@@ -9,10 +9,16 @@ class SubpageHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.trailing,
   });
 
   final String title;
   final String? subtitle;
+
+  /// Optional widget rendered to the right of the title row (e.g. a token
+  /// balance chip on the Quests screen). Aligned to the top so it sits in
+  /// line with the title rather than centered against the subtitle.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +58,13 @@ class SubpageHeader extends StatelessWidget {
             ],
           ),
         ),
+        if (trailing != null) ...[
+          const SizedBox(width: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: trailing!,
+          ),
+        ],
       ],
     );
   }

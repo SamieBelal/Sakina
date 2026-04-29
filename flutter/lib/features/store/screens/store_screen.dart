@@ -186,108 +186,110 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Stack so the Restore Purchase pill floats over the scrolling tab
+        // content instead of sitting in its own full-width strip below it
+        // (which read as a beige band stretched across the screen).
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pagePadding,
-                AppSpacing.lg,
-                AppSpacing.pagePadding,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SubpageHeader(
-                    title: 'Store',
-                    subtitle: 'Tokens and scrolls.',
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pagePadding,
+                    AppSpacing.lg,
+                    AppSpacing.pagePadding,
+                    0,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  // Balance row
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: SummaryMetricCard(
-                          icon: Icons.toll_rounded,
-                          iconColor: AppColors.secondary,
-                          label: 'Tokens',
-                          value: '$tokenBalance',
-                        ),
+                      const SubpageHeader(
+                        title: 'Store',
+                        subtitle: 'Tokens and scrolls.',
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SummaryMetricCard(
-                          icon: Icons.receipt_long_rounded,
-                          iconColor: const Color(0xFF3B82F6),
-                          label: 'Scrolls',
-                          value: '$scrollBalance',
-                        ),
+                      const SizedBox(height: AppSpacing.lg),
+                      // Balance row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SummaryMetricCard(
+                              icon: Icons.toll_rounded,
+                              iconColor: AppColors.secondary,
+                              label: 'Tokens',
+                              value: '$tokenBalance',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SummaryMetricCard(
+                              icon: Icons.receipt_long_rounded,
+                              iconColor: const Color(0xFF3B82F6),
+                              label: 'Scrolls',
+                              value: '$scrollBalance',
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(duration: 400.ms),
+                      const SizedBox(height: AppSpacing.xl),
+                      // Tab bar — pill-style segmented control. Replaces
+                      // the earlier hard-divider underline, which felt
+                      // heavy against the warm cream background.
+                      _StoreTabSelector(controller: _tabController),
+                    ],
+                  ),
+                ),
+
+                // Tab content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _TokensTab(
+                        purchasing: _purchasing,
+                        onBuy: _buyTokensIAP,
+                      ),
+                      _ScrollsTab(
+                        purchasing: _purchasing,
+                        onBuy: _buyScrollsIAP,
                       ),
                     ],
-                  ).animate().fadeIn(duration: 400.ms),
-                  const SizedBox(height: AppSpacing.lg),
-                  // Tab bar
-                  Container(
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.borderLight,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorColor: AppColors.primary,
-                      indicatorWeight: 2,
-                      labelColor: AppColors.primary,
-                      unselectedLabelColor: AppColors.textSecondaryLight,
-                      labelStyle: AppTypography.labelMedium
-                          .copyWith(fontWeight: FontWeight.w600),
-                      unselectedLabelStyle: AppTypography.labelMedium,
-                      tabs: const [
-                        Tab(text: 'Tokens'),
-                        Tab(text: 'Scrolls'),
-                      ],
-                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _TokensTab(
-                    purchasing: _purchasing,
-                    onBuy: _buyTokensIAP,
-                  ),
-                  _ScrollsTab(
-                    purchasing: _purchasing,
-                    onBuy: _buyScrollsIAP,
-                  ),
-                ],
-              ),
-            ),
-
-            // Restore purchase link — users who bought a sub on another
-            // device or reinstalled the app need a way back to Premium.
-            Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppSpacing.md,
-                top: AppSpacing.xs,
-              ),
+            // Floating Restore Purchase pill — overlays the scrollable
+            // content. The tab bodies add bottom padding equal to the pill
+            // height so the last card stays visible when scrolled all the
+            // way down.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: AppSpacing.lg,
               child: Center(
-                child: GestureDetector(
-                  onTap: _restorePurchases,
-                  child: Text(
+                child: TextButton.icon(
+                  onPressed: _restorePurchases,
+                  icon: const Icon(
+                    Icons.restart_alt_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                  label: Text(
                     'Restore purchase',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondaryLight,
-                      decoration: TextDecoration.underline,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
+                    ),
+                    backgroundColor: AppColors.primaryLight,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
@@ -358,60 +360,55 @@ class _TokensTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      // Bottom inset = floating Restore pill height (~48) + matching
+      // breathing space above and below it (AppSpacing.lg ×2 = 48), so
+      // when scrolled to the end the last card has the same gap from the
+      // pill that the pill has from the bottom nav bar.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.pagePadding,
         AppSpacing.xl,
         AppSpacing.pagePadding,
-        AppSpacing.xxxl,
+        AppSpacing.xxxl + AppSpacing.xl,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Buy Tokens',
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              fontWeight: FontWeight.w700,
-            ),
+          const _SectionHeader(
+            title: 'Buy Tokens',
+            subtitle: 'Use tokens for extra reflections and duas.',
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Use tokens for extra reflections and duas.',
-            style: AppTypography.bodySmall
-                .copyWith(color: AppColors.textSecondaryLight),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _IapItem(
             icon: Icons.toll_rounded,
             iconColor: AppColors.secondary,
             title: '100 Tokens',
+            subtitle: 'Starter pack',
             price: '\$1.99',
+            highlighted: false,
             badge: null,
-            onTap: purchasing
-                ? null
-                : () => onBuy(100, _iapTokens100),
+            onTap: purchasing ? null : () => onBuy(100, _iapTokens100),
           ).animate().fadeIn(duration: 400.ms, delay: 50.ms),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           _IapItem(
             icon: Icons.toll_rounded,
             iconColor: AppColors.secondary,
             title: '250 Tokens',
+            subtitle: 'Most popular',
             price: '\$3.99',
+            highlighted: false,
             badge: null,
-            onTap: purchasing
-                ? null
-                : () => onBuy(250, _iapTokens250),
+            onTap: purchasing ? null : () => onBuy(250, _iapTokens250),
           ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           _IapItem(
             icon: Icons.toll_rounded,
             iconColor: AppColors.secondary,
             title: '500 Tokens',
+            subtitle: 'Save 30%',
             price: '\$6.99',
+            highlighted: true,
             badge: 'Best Value',
-            onTap: purchasing
-                ? null
-                : () => onBuy(500, _iapTokens500),
+            onTap: purchasing ? null : () => onBuy(500, _iapTokens500),
           ).animate().fadeIn(duration: 400.ms, delay: 150.ms),
         ],
       ),
@@ -431,61 +428,57 @@ class _ScrollsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const scrollColor = Color(0xFF3B82F6);
     return SingleChildScrollView(
+      // Bottom inset = floating Restore pill height (~48) + matching
+      // breathing space above and below it (AppSpacing.lg ×2 = 48), so
+      // when scrolled to the end the last card has the same gap from the
+      // pill that the pill has from the bottom nav bar.
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.pagePadding,
         AppSpacing.xl,
         AppSpacing.pagePadding,
-        AppSpacing.xxxl,
+        AppSpacing.xxxl + AppSpacing.xl,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Buy Scrolls',
-            style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              fontWeight: FontWeight.w700,
-            ),
+          const _SectionHeader(
+            title: 'Buy Scrolls',
+            subtitle: 'Upgrade cards from Bronze to Silver, Silver to Gold.',
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Upgrade your cards from Bronze to Silver or Silver to Gold.',
-            style: AppTypography.bodySmall
-                .copyWith(color: AppColors.textSecondaryLight),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           _IapItem(
             icon: Icons.receipt_long_rounded,
-            iconColor: const Color(0xFF3B82F6),
+            iconColor: scrollColor,
             title: '3 Scrolls',
+            subtitle: 'Starter pack',
             price: '\$0.99',
+            highlighted: false,
             badge: null,
-            onTap: purchasing
-                ? null
-                : () => onBuy(3, _iapScrolls3),
+            onTap: purchasing ? null : () => onBuy(3, _iapScrolls3),
           ).animate().fadeIn(duration: 400.ms, delay: 50.ms),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           _IapItem(
             icon: Icons.receipt_long_rounded,
-            iconColor: const Color(0xFF3B82F6),
+            iconColor: scrollColor,
             title: '10 Scrolls',
+            subtitle: 'Most popular',
             price: '\$2.49',
+            highlighted: false,
             badge: null,
-            onTap: purchasing
-                ? null
-                : () => onBuy(10, _iapScrolls10),
+            onTap: purchasing ? null : () => onBuy(10, _iapScrolls10),
           ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           _IapItem(
             icon: Icons.receipt_long_rounded,
-            iconColor: const Color(0xFF3B82F6),
+            iconColor: scrollColor,
             title: '25 Scrolls',
+            subtitle: 'Save 40%',
             price: '\$4.99',
+            highlighted: true,
             badge: 'Best Value',
-            onTap: purchasing
-                ? null
-                : () => onBuy(25, _iapScrolls25),
+            onTap: purchasing ? null : () => onBuy(25, _iapScrolls25),
           ).animate().fadeIn(duration: 400.ms, delay: 150.ms),
         ],
       ),
@@ -497,12 +490,140 @@ class _ScrollsTab extends StatelessWidget {
 // Shared IAP item widget
 // ═══════════════════════════════════════════════════════════════════════════════
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppTypography.headlineMedium.copyWith(
+            color: AppColors.textPrimaryLight,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: AppTypography.bodyMedium
+              .copyWith(color: AppColors.textSecondaryLight),
+        ),
+      ],
+    );
+  }
+}
+
+/// Pill-style segmented control. Replaces the previous TabBar-with-underline
+/// because the solid divider beneath it felt heavy on the warm cream
+/// background. The selected pill is filled primary; the unselected pill is
+/// transparent with muted text. Single tap = animated swap.
+class _StoreTabSelector extends StatefulWidget {
+  const _StoreTabSelector({required this.controller});
+
+  final TabController controller;
+
+  @override
+  State<_StoreTabSelector> createState() => _StoreTabSelectorState();
+}
+
+class _StoreTabSelectorState extends State<_StoreTabSelector> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = widget.controller.index;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAltLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          _segment(label: 'Tokens', selected: index == 0, onTap: () {
+            HapticFeedback.selectionClick();
+            widget.controller.animateTo(0);
+          }),
+          _segment(label: 'Scrolls', selected: index == 1, onTap: () {
+            HapticFeedback.selectionClick();
+            widget.controller.animateTo(1);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x1A0F172A),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: AppTypography.labelLarge.copyWith(
+                color: selected
+                    ? AppColors.textOnPrimary
+                    : AppColors.textSecondaryLight,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _IapItem extends StatelessWidget {
   const _IapItem({
     required this.icon,
     required this.iconColor,
     required this.title,
+    required this.subtitle,
     required this.price,
+    required this.highlighted,
     required this.badge,
     required this.onTap,
   });
@@ -510,78 +631,153 @@ class _IapItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
+  final String subtitle;
   final String price;
+  final bool highlighted;
   final String? badge;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Row(
-                children: [
-                  Text(
-                    title,
-                    style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w600),
-                  ),
-                  if (badge != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        badge!,
-                        style: AppTypography.labelSmall.copyWith(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                price,
-                style: AppTypography.labelSmall.copyWith(
-                    color: Colors.white, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
+    final cardBg =
+        highlighted ? AppColors.primaryLight : AppColors.surfaceLight;
+    final borderColor =
+        highlighted ? AppColors.primary : AppColors.borderLight;
+    final borderWidth = highlighted ? 1.5 : 1.0;
+
+    final card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor, width: borderWidth),
+        boxShadow: [
+          BoxShadow(
+            color: highlighted
+                ? AppColors.primary.withValues(alpha: 0.12)
+                : const Color(0x0F0F172A),
+            blurRadius: highlighted ? 20 : 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: iconColor, size: 28),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 19,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: highlighted
+                        ? AppColors.primary
+                        : AppColors.textSecondaryLight,
+                    fontWeight:
+                        highlighted ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              price,
+              style: AppTypography.labelLarge.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final tappable = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: card,
+      ),
+    );
+
+    if (badge == null) return tappable;
+
+    // Floating "Best Value" ribbon — sits above the card so it reads as a
+    // tag, not part of the title row. Negative top offset on a Padding so
+    // it overlaps the card border.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: tappable,
+        ),
+        Positioned(
+          top: 0,
+          right: 18,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              badge!,
+              style: AppTypography.labelSmall.copyWith(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

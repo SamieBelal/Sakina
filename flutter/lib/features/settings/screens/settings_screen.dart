@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/app_strings.dart';
+import 'package:sakina/core/constants/discovery_quiz.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
@@ -46,6 +47,25 @@ String resolveProfileDisplayName({
   return 'Guest';
 }
 
+/// Wipes the user's card collection AND today's daily-loop state on both
+/// local prefs and the server. Top-level so it can be unit tested without
+/// pumping the Settings widget.
+///
+/// Why server-side `resetDailyRewardsOnServer` matters: if the user already
+/// claimed today, the `user_daily_rewards` row marks today complete. Without
+/// resetting it, the next reconcile re-hydrates the stale "today claimed"
+/// state and the launch overlay refuses to re-fire — same F1/F5 bug fixed
+/// for `_resetDailyLoop`. Pinned by
+/// `test/features/settings/reset_card_collection_test.dart`.
+Future<void> performCardCollectionDangerReset({
+  required Future<void> Function() resetDailyLoopState,
+}) async {
+  await clearCardCollection();
+  await resetDailyRewardsOnServer();
+  await resetDailyLoopState();
+  await resetDailyLaunchGate();
+}
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -56,7 +76,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   XpState? _xpState;
   StreakState? _streakState;
-  List<String> _anchorNames = [];
+  List<AnchorResult> _anchorResults = [];
   List<String> _unlockedTitles = [];
   String _displayTitle = 'Seeker';
   String _displayTitleArabic = 'طَالِب';
@@ -67,7 +87,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _reengagementEnabled = true;
   bool _weeklyReflectionEnabled = true;
   bool _newContentEnabled = true;
-  bool _notificationsBusy = false;
   bool _loading = true;
   // F1 fix (2026-04-26): cache display_name from user_profiles so the
   // profile card shows the user's name instead of email-twice. Email is
@@ -89,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       longestStreak: streak.longestStreak,
     );
 
-    final anchors = await loadSavedDiscoveryQuizAnchorNames();
+    final anchorResults = await loadSavedDiscoveryQuizResults();
     final notificationService = ref.read(notificationServiceProvider);
     final notificationPreferences =
         await notificationService.getNotificationPreferences();
@@ -121,7 +140,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _xpState = xp;
       _streakState = streak;
-      _anchorNames = anchors;
+      _anchorResults = anchorResults;
       _unlockedTitles = unlockedTitles;
       _displayTitle = displayTitle.title;
       _displayTitleArabic = displayTitle.titleArabic;
@@ -142,48 +161,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _setPushNotificationsEnabled(bool enabled) async {
-    if (_notificationsBusy) return;
+    if (_pushNotificationsEnabled == enabled) return;
 
     final notificationService = ref.read(notificationServiceProvider);
-    setState(() => _notificationsBusy = true);
+    final previousValue = _pushNotificationsEnabled;
+    setState(() => _pushNotificationsEnabled = enabled);
 
-    bool isOptedIn;
-    if (enabled) {
-      isOptedIn = await notificationService.optIn();
-    } else {
-      isOptedIn = await notificationService.optOut();
+    try {
+      final isOptedIn = enabled
+          ? await notificationService.optIn()
+          : await notificationService.optOut();
+
+      if (!mounted || _pushNotificationsEnabled != enabled) return;
+      if (_pushNotificationsEnabled != isOptedIn) {
+        setState(() => _pushNotificationsEnabled = isOptedIn);
+        // User toggled ON but the OS denied permission. OneSignal's
+        // requestPermission(fallbackToSettings: true) already opens iOS
+        // Settings in this case — surface a snackbar so the silent
+        // snap-back to OFF isn't mysterious.
+        if (enabled && !isOptedIn) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Notifications are blocked in your device settings. '
+                'Enable them there to turn this on.',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (!mounted || _pushNotificationsEnabled != enabled) return;
+      setState(() => _pushNotificationsEnabled = previousValue);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update notifications. Please try again.'),
+        ),
+      );
     }
-
-    if (!mounted) return;
-    setState(() {
-      _pushNotificationsEnabled = isOptedIn;
-      _notificationsBusy = false;
-    });
   }
 
   Future<void> _setNotificationPreference(String key, bool enabled) async {
-    if (_notificationsBusy) return;
+    final previousValue = _notificationPreferenceValue(key);
+    if (previousValue == enabled) return;
 
-    setState(() => _notificationsBusy = true);
-    await ref
-        .read(notificationServiceProvider)
-        .setNotificationPreference(key, enabled);
+    setState(() => _setLocalNotificationPreference(key, enabled));
 
-    if (!mounted) return;
-    setState(() {
-      if (key == notifyDailyTagKey) {
-        _dailyReminderEnabled = enabled;
-      } else if (key == notifyStreakTagKey) {
-        _streakReminderEnabled = enabled;
-      } else if (key == notifyReengagementTagKey) {
-        _reengagementEnabled = enabled;
-      } else if (key == notifyWeeklyTagKey) {
-        _weeklyReflectionEnabled = enabled;
-      } else if (key == notifyUpdatesTagKey) {
-        _newContentEnabled = enabled;
-      }
-      _notificationsBusy = false;
-    });
+    try {
+      await ref
+          .read(notificationServiceProvider)
+          .setNotificationPreference(key, enabled);
+    } catch (_) {
+      if (!mounted || _notificationPreferenceValue(key) != enabled) return;
+      setState(() => _setLocalNotificationPreference(key, previousValue));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update notification preference.'),
+        ),
+      );
+    }
+  }
+
+  bool _notificationPreferenceValue(String key) {
+    if (key == notifyDailyTagKey) return _dailyReminderEnabled;
+    if (key == notifyStreakTagKey) return _streakReminderEnabled;
+    if (key == notifyReengagementTagKey) return _reengagementEnabled;
+    if (key == notifyWeeklyTagKey) return _weeklyReflectionEnabled;
+    if (key == notifyUpdatesTagKey) return _newContentEnabled;
+    throw ArgumentError.value(
+        key, 'key', 'Unsupported notification preference');
+  }
+
+  void _setLocalNotificationPreference(String key, bool enabled) {
+    if (key == notifyDailyTagKey) {
+      _dailyReminderEnabled = enabled;
+    } else if (key == notifyStreakTagKey) {
+      _streakReminderEnabled = enabled;
+    } else if (key == notifyReengagementTagKey) {
+      _reengagementEnabled = enabled;
+    } else if (key == notifyWeeklyTagKey) {
+      _weeklyReflectionEnabled = enabled;
+    } else if (key == notifyUpdatesTagKey) {
+      _newContentEnabled = enabled;
+    } else {
+      throw ArgumentError.value(
+          key, 'key', 'Unsupported notification preference');
+    }
   }
 
   void _invalidateAllUserProviders(WidgetRef ref) {
@@ -198,8 +261,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _openLegalUrl(String url) async {
     final uri = Uri.parse(url);
-    final launched =
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the page. Try again.')),
@@ -240,9 +302,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed != true) return;
 
-    await clearCardCollection();
-    await ref.read(dailyLoopProvider.notifier).resetToday();
-    await resetDailyLaunchGate();
+    await performCardCollectionDangerReset(
+      resetDailyLoopState: () =>
+          ref.read(dailyLoopProvider.notifier).resetToday(),
+    );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -720,6 +783,109 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Future<void> _showAnchorNameDetails(
+    AnchorResult anchor,
+    int index,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final maxHeight = MediaQuery.sizeOf(dialogContext).height * 0.78;
+
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xl,
+          ),
+          backgroundColor: AppColors.surfaceLight,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '#${index + 1}',
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.textOnPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          anchor.name,
+                          style: AppTypography.headlineLarge.copyWith(
+                            color: AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Center(
+                    child: Text(
+                      anchor.arabic,
+                      textAlign: TextAlign.center,
+                      style: AppTypography.nameOfAllahDisplay.copyWith(
+                        fontSize: 36,
+                        color: AppColors.secondary,
+                      ),
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    anchor.anchor,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    anchor.detail,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildAnchorNamesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -731,7 +897,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        if (_anchorNames.isEmpty)
+        if (_anchorResults.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -776,20 +942,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: _anchorNames.map((name) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
+            children: _anchorResults.asMap().entries.map((entry) {
+              final index = entry.key;
+              final anchor = entry.value;
+
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  name,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.primary,
+                  onTap: () => _showAnchorNameDetails(anchor, index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      anchor.name,
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ),
               );
@@ -1045,14 +1221,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildNotificationsCard() {
-    final subTogglesEnabled = _pushNotificationsEnabled && !_notificationsBusy;
+    final subTogglesEnabled = _pushNotificationsEnabled;
 
     return _buildSettingsCard([
       _buildToggleRow(
         icon: Icons.notifications_outlined,
         label: 'Push Notifications',
         value: _pushNotificationsEnabled,
-        onChanged: _notificationsBusy ? null : _setPushNotificationsEnabled,
+        onChanged: _setPushNotificationsEnabled,
       ),
       _buildDivider(),
       _buildToggleRow(

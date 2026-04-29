@@ -263,6 +263,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textCapitalization: TextCapitalization.none,
+                textInputAction: TextInputAction.next,
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 decoration: InputDecoration(
                   hintText: AppStrings.signInEmailLabel,
                   hintStyle: AppTypography.bodyMedium.copyWith(
@@ -300,6 +303,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 obscureText: true,
                 autocorrect: false,
                 enableSuggestions: false,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  if (!_isLoading) _signInWithEmail();
+                },
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 decoration: InputDecoration(
                   hintText: AppStrings.signInPasswordLabel,
                   hintStyle: AppTypography.bodyMedium.copyWith(

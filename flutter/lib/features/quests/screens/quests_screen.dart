@@ -10,6 +10,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
+import 'package:sakina/widgets/subpage_header.dart';
 
 class QuestsScreen extends ConsumerStatefulWidget {
   const QuestsScreen({super.key});
@@ -78,39 +79,23 @@ class _QuestsScreenState extends ConsumerState<QuestsScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.pagePadding,
-                  32,
+                  AppSpacing.lg,
                   AppSpacing.pagePadding,
                   0,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Quests',
-                            style: AppTypography.displayLarge.copyWith(
-                              color: AppColors.textPrimaryLight,
-                            ),
-                          ),
-                        ),
-                        // Token balance chip
-                        _TokenChip(balance: tokenState.balance),
-                      ],
+                    SubpageHeader(
+                      title: 'Quests',
+                      subtitle: 'Complete quests to earn XP and tokens.',
+                      trailing: _TokenChip(balance: tokenState.balance),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Complete quests to earn XP and tokens.',
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
 
                     // Daily progress bar
                     _DailyProgressBar(state: state),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
               ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),

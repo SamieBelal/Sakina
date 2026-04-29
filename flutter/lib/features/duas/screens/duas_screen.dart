@@ -213,6 +213,11 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                   minLines: 6,
                   maxLines: 8,
                   onChanged: notifier.setBuildNeed,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.transparent,

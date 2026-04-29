@@ -419,7 +419,16 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
+              SizedBox(
+                height: 36,
+                child: step > 1
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: _backButton(notifier),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 8),
               Center(child: _sparkleRow()),
               const SizedBox(height: 16),
               // Card container
@@ -534,11 +543,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     ),
                   ),
                 ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-              // Back button
-              if (step > 0) ...[
-                const SizedBox(height: 16),
-                _backButton(notifier),
-              ],
             ],
           ),
         )
@@ -643,37 +647,33 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   }
 
   Widget _backButton(DailyLoopNotifier notifier) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          // Go back one step
-          final current = ref.read(dailyLoopProvider).reflectStep;
-          if (current > 1) {
-            notifier.setReflectStep(current - 1);
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceAltLight,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.arrow_back_ios_rounded,
-                  size: 14, color: AppColors.textSecondaryLight),
-              const SizedBox(width: 4),
-              Text('Back',
-                  style: AppTypography.labelSmall
-                      .copyWith(color: AppColors.textSecondaryLight)),
-            ],
-          ),
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        // startDeeper() lands the user on step 1 (skipping step 0, which is
+        // the name-display the user just saw in the gacha overlay). Block
+        // navigating back into step 0 — there's no value re-showing the
+        // name, and the rendering path assumes reflectResult is non-null.
+        final current = ref.read(dailyLoopProvider).reflectStep;
+        if (current > 1) {
+          notifier.setReflectStep(current - 1);
+        }
+      },
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.surfaceLight,
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          size: 16,
+          color: AppColors.textSecondaryLight,
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+    ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

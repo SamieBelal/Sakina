@@ -127,8 +127,7 @@ class EmeraldPreviewTile extends StatelessWidget {
                                     Size(medallionSize + 8, medallionSize + 8),
                                 painter: _TrefoilFramePainter(
                                   color: _goldAccent.withValues(alpha: 0.5),
-                                  gemColor:
-                                      _emeraldCore.withValues(alpha: 0.6),
+                                  gemColor: _emeraldCore.withValues(alpha: 0.6),
                                 ),
                               ),
                               Container(
@@ -142,8 +141,7 @@ class EmeraldPreviewTile extends StatelessWidget {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color:
-                                          _glowColor.withValues(alpha: 0.25),
+                                      color: _glowColor.withValues(alpha: 0.25),
                                       blurRadius: 12,
                                       spreadRadius: 2,
                                     ),
@@ -192,15 +190,15 @@ class EmeraldPreviewTile extends StatelessWidget {
                               return Container(
                                 width: 4,
                                 height: 4,
-                                margin: const EdgeInsets.symmetric(
-                                    horizontal: 2),
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 2),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: _goldBright,
                                   boxShadow: [
                                     BoxShadow(
-                                        color: _goldAccent.withValues(
-                                            alpha: 0.5),
+                                        color:
+                                            _goldAccent.withValues(alpha: 0.5),
                                         blurRadius: 4),
                                   ],
                                 ),
@@ -215,8 +213,7 @@ class EmeraldPreviewTile extends StatelessWidget {
                                 color: _emeraldBright,
                                 boxShadow: [
                                   BoxShadow(
-                                      color:
-                                          _glowColor.withValues(alpha: 0.6),
+                                      color: _glowColor.withValues(alpha: 0.6),
                                       blurRadius: 4),
                                 ],
                               ),
@@ -462,8 +459,7 @@ class EmeraldOrnateTile extends StatelessWidget {
                                 color: _emeraldBright,
                                 boxShadow: [
                                   BoxShadow(
-                                      color:
-                                          _glowColor.withValues(alpha: 0.6),
+                                      color: _glowColor.withValues(alpha: 0.6),
                                       blurRadius: 4),
                                 ],
                               ),
@@ -522,514 +518,530 @@ class EmeraldOrnateDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      constraints:
-          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: _glowColor.withValues(alpha: 0.2),
-              blurRadius: 32,
-              spreadRadius: 3),
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 18,
-              offset: const Offset(0, 8)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Dark emerald gradient
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [_bgMid, _bgDark, Color(0xFF0A1710)],
-                ),
-              ),
-            ),
+    final media = MediaQuery.of(context);
+    final verticalInset = (media.padding.top + 28).clamp(56.0, 96.0);
 
-            // Interlace pattern — kept subtle
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _EmeraldInterlacePatternPainter(
-                  color: _emeraldDim.withValues(alpha: 0.04),
-                  scale: 1.8,
-                ),
-              ),
-            ),
-
-            // Ornate detail border
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _EmeraldOrnateDetailBorderPainter(
-                  borderColor: _goldAccent.withValues(alpha: 0.4),
-                  accentColor: _goldBright.withValues(alpha: 0.5),
-                  gemColor: _emeraldCore.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-
-            // Content + sticky footer
-            Column(
+    return SizedBox(
+      height: media.size.height,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, verticalInset, 12, verticalInset),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: _glowColor.withValues(alpha: 0.2),
+                  blurRadius: 32,
+                  spreadRadius: 3),
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Handle
-                        Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: _emeraldDim.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-
-                        // Large medallion
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: _goldAccent.withValues(alpha: 0.6),
-                                width: 2.5),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: _glowColor.withValues(alpha: 0.25),
-                                  blurRadius: 28,
-                                  spreadRadius: 5),
-                              BoxShadow(
-                                  color: _emeraldCore.withValues(alpha: 0.15),
-                                  blurRadius: 16),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Inner glow
-                              Container(
-                                width: 110,
-                                height: 110,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      _glowColor.withValues(alpha: 0.15),
-                                      _glowColor.withValues(alpha: 0.0),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              // Trefoil frame behind text
-                              CustomPaint(
-                                size: const Size(100, 100),
-                                painter: _TrefoilFramePainter(
-                                  color: _goldAccent.withValues(alpha: 0.3),
-                                  gemColor:
-                                      _emeraldCore.withValues(alpha: 0.4),
-                                ),
-                              ),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Text(
-                                    card.arabic,
-                                    style: AppTypography.nameOfAllahDisplay
-                                        .copyWith(
-                                      fontSize: 40,
-                                      color: _emeraldBright,
-                                      shadows: [
-                                        Shadow(
-                                            color: _glowColor.withValues(
-                                                alpha: 0.8),
-                                            blurRadius: 18),
-                                        Shadow(
-                                            color: _glowColor.withValues(
-                                                alpha: 0.4),
-                                            blurRadius: 36),
-                                      ],
-                                    ),
-                                    textDirection: TextDirection.rtl,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ).animate().fadeIn(duration: 800.ms).scaleXY(
-                            begin: 0.85,
-                            end: 1.0,
-                            duration: 800.ms,
-                            curve: Curves.easeOutBack),
-                        const SizedBox(height: 16),
-
-                        // Tier badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 5),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: _goldAccent.withValues(alpha: 0.35)),
-                            color: _emeraldDim.withValues(alpha: 0.15),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ...List.generate(
-                                  3,
-                                  (i) => Container(
-                                        width: 5,
-                                        height: 5,
-                                        margin: const EdgeInsets.only(right: 3),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: i < tier.number
-                                              ? _goldBright
-                                              : _emeraldDim.withValues(
-                                                  alpha: 0.3),
-                                          boxShadow: i < tier.number
-                                              ? [
-                                                  BoxShadow(
-                                                      color: _goldAccent
-                                                          .withValues(
-                                                              alpha: 0.4),
-                                                      blurRadius: 3),
-                                                ]
-                                              : null,
-                                        ),
-                                      )),
-                              // Extra emerald dot
-                              Container(
-                                width: 5,
-                                height: 5,
-                                margin: const EdgeInsets.only(right: 6),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _emeraldBright,
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color:
-                                            _glowColor.withValues(alpha: 0.5),
-                                        blurRadius: 3),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                'EMERALD',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: _emeraldCore,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2.5,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                        const SizedBox(height: 16),
-
-                        Text(card.transliteration,
-                                style: AppTypography.headlineMedium
-                                    .copyWith(color: _emeraldBright))
-                            .animate()
-                            .fadeIn(duration: 500.ms, delay: 300.ms)
-                            .slideY(
-                                begin: 0.1,
-                                end: 0,
-                                duration: 500.ms,
-                                delay: 300.ms),
-                        const SizedBox(height: 4),
-                        Text(card.english,
-                                style: AppTypography.bodyMedium.copyWith(
-                                    color:
-                                        _emeraldBright.withValues(alpha: 0.7)))
-                            .animate()
-                            .fadeIn(duration: 500.ms, delay: 400.ms),
-                        const SizedBox(height: 24),
-
-                        // Ornate divider
-                        _buildOrnateDivider(),
-                        const SizedBox(height: 16),
-
-                        // ── Meaning tile ──
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: _bgDark.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: _emeraldDim.withValues(alpha: 0.15)),
-                          ),
-                          child: Text(
-                            card.meaning,
-                            style: AppTypography.bodyMedium.copyWith(
-                                color: _emeraldBright.withValues(alpha: 0.9),
-                                height: 1.7),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // ── Lesson tile ──
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F2A1C),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: _emeraldCore.withValues(alpha: 0.2)),
-                          ),
-                          child: Text(
-                            card.lesson,
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: const Color(0xFFA8DCBE),
-                              fontStyle: FontStyle.italic,
-                              height: 1.6,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
-                        // ── Tier 2+: Hadith ──
-                        if (tier.number >= 2) ...[
-                          const SizedBox(height: 24),
-                          _buildOrnateDivider(),
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: _bgDark.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: _emeraldDim.withValues(alpha: 0.15)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 3,
-                                      height: 16,
-                                      decoration: BoxDecoration(
-                                        color: _goldBright,
-                                        borderRadius: BorderRadius.circular(2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color: _goldAccent.withValues(
-                                                  alpha: 0.4),
-                                              blurRadius: 4),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'PROPHETIC TEACHING',
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: _goldAccent,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                if (card.hasTier2Content)
-                                  Text(
-                                    card.hadith,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      color: _emeraldBright.withValues(
-                                          alpha: 0.85),
-                                      height: 1.7,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  )
-                                else
-                                  Text(
-                                    'Coming soon...',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: _emeraldDim,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-
-                        // ── Tier 3: Dua ──
-                        if (tier.number >= 3 && card.hasTier3Content) ...[
-                          const SizedBox(height: 24),
-                          _buildOrnateDivider(),
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: _bgDark.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: _emeraldDim.withValues(alpha: 0.15)),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _emeraldCore,
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color: _glowColor.withValues(
-                                                  alpha: 0.5),
-                                              blurRadius: 6),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'DUA',
-                                      style: AppTypography.labelSmall.copyWith(
-                                        color: _emeraldBright,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 2.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  card.duaArabic,
-                                  style: AppTypography.quranArabic.copyWith(
-                                    color: _emeraldBright,
-                                    fontSize: 22,
-                                    shadows: [
-                                      Shadow(
-                                          color: _glowColor.withValues(
-                                              alpha: 0.4),
-                                          blurRadius: 10),
-                                    ],
-                                  ),
-                                  textDirection: TextDirection.rtl,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  card.duaTransliteration,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                      color: _emeraldBright.withValues(
-                                          alpha: 0.8),
-                                      fontStyle: FontStyle.italic),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  card.duaTranslation,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                      color: _emeraldBright.withValues(
-                                          alpha: 0.75)),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
+                // Dark emerald gradient
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [_bgMid, _bgDark, Color(0xFF0A1710)],
                     ),
                   ),
                 ),
-                // Sticky footer
-                if (tier.number < 3)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                    child: Text(
-                      'Encounter this Name again to unlock the Dua',
-                      style: AppTypography.bodySmall
-                          .copyWith(color: _emeraldDim),
-                      textAlign: TextAlign.center,
+
+                // Interlace pattern — kept subtle
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _EmeraldInterlacePatternPainter(
+                      color: _emeraldDim.withValues(alpha: 0.04),
+                      scale: 1.8,
                     ),
-                  )
-                else if (tier.number >= 3 && card.hasTier3Content)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          shareReflectionCard(
-                            context: context,
-                            nameArabic: card.arabic,
-                            nameEnglish: card.english,
-                            duaArabic: card.duaArabic,
-                            duaTransliteration: card.duaTransliteration,
-                            duaTranslation: card.duaTranslation,
-                            duaSource: '',
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.share_outlined,
-                          size: 18,
-                          color: _emeraldBright,
-                        ),
-                        label: const Text(
-                          'Share this Name',
-                          style: TextStyle(color: _emeraldBright),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: _goldAccent.withValues(alpha: 0.4)),
-                          backgroundColor: _bgDark.withValues(alpha: 0.7),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+
+                // Ornate detail border
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _EmeraldOrnateDetailBorderPainter(
+                      borderColor: _goldAccent.withValues(alpha: 0.4),
+                      accentColor: _goldBright.withValues(alpha: 0.5),
+                      gemColor: _emeraldCore.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+
+                // Content + sticky footer
+                Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(28, 28, 28, 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Handle
+                            Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: _emeraldDim.withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Large medallion
+                            Container(
+                              width: 130,
+                              height: 130,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: _goldAccent.withValues(alpha: 0.6),
+                                    width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: _glowColor.withValues(alpha: 0.25),
+                                      blurRadius: 28,
+                                      spreadRadius: 5),
+                                  BoxShadow(
+                                      color:
+                                          _emeraldCore.withValues(alpha: 0.15),
+                                      blurRadius: 16),
+                                ],
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  // Inner glow
+                                  Container(
+                                    width: 110,
+                                    height: 110,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(
+                                        colors: [
+                                          _glowColor.withValues(alpha: 0.15),
+                                          _glowColor.withValues(alpha: 0.0),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  // Trefoil frame behind text
+                                  CustomPaint(
+                                    size: const Size(100, 100),
+                                    painter: _TrefoilFramePainter(
+                                      color: _goldAccent.withValues(alpha: 0.3),
+                                      gemColor:
+                                          _emeraldCore.withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Text(
+                                        card.arabic,
+                                        style: AppTypography.nameOfAllahDisplay
+                                            .copyWith(
+                                          fontSize: 40,
+                                          color: _emeraldBright,
+                                          shadows: [
+                                            Shadow(
+                                                color: _glowColor.withValues(
+                                                    alpha: 0.8),
+                                                blurRadius: 18),
+                                            Shadow(
+                                                color: _glowColor.withValues(
+                                                    alpha: 0.4),
+                                                blurRadius: 36),
+                                          ],
+                                        ),
+                                        textDirection: TextDirection.rtl,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ).animate().fadeIn(duration: 800.ms).scaleXY(
+                                begin: 0.85,
+                                end: 1.0,
+                                duration: 800.ms,
+                                curve: Curves.easeOutBack),
+                            const SizedBox(height: 16),
+
+                            // Tier badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 5),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: _goldAccent.withValues(alpha: 0.35)),
+                                color: _emeraldDim.withValues(alpha: 0.15),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...List.generate(
+                                      3,
+                                      (i) => Container(
+                                            width: 5,
+                                            height: 5,
+                                            margin:
+                                                const EdgeInsets.only(right: 3),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: i < tier.number
+                                                  ? _goldBright
+                                                  : _emeraldDim.withValues(
+                                                      alpha: 0.3),
+                                              boxShadow: i < tier.number
+                                                  ? [
+                                                      BoxShadow(
+                                                          color: _goldAccent
+                                                              .withValues(
+                                                                  alpha: 0.4),
+                                                          blurRadius: 3),
+                                                    ]
+                                                  : null,
+                                            ),
+                                          )),
+                                  // Extra emerald dot
+                                  Container(
+                                    width: 5,
+                                    height: 5,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _emeraldBright,
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: _glowColor.withValues(
+                                                alpha: 0.5),
+                                            blurRadius: 3),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    'EMERALD',
+                                    style: AppTypography.labelSmall.copyWith(
+                                      color: _emeraldCore,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 2.5,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
+                            const SizedBox(height: 16),
+
+                            Text(card.transliteration,
+                                    style: AppTypography.headlineMedium
+                                        .copyWith(color: _emeraldBright))
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 300.ms)
+                                .slideY(
+                                    begin: 0.1,
+                                    end: 0,
+                                    duration: 500.ms,
+                                    delay: 300.ms),
+                            const SizedBox(height: 4),
+                            Text(card.english,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                        color: _emeraldBright.withValues(
+                                            alpha: 0.7)))
+                                .animate()
+                                .fadeIn(duration: 500.ms, delay: 400.ms),
+                            const SizedBox(height: 24),
+
+                            // Ornate divider
+                            _buildOrnateDivider(),
+                            const SizedBox(height: 16),
+
+                            // ── Meaning tile ──
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _bgDark.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: _emeraldDim.withValues(alpha: 0.15)),
+                              ),
+                              child: Text(
+                                card.meaning,
+                                style: AppTypography.bodyMedium.copyWith(
+                                    color:
+                                        _emeraldBright.withValues(alpha: 0.9),
+                                    height: 1.7),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // ── Lesson tile ──
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F2A1C),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: _emeraldCore.withValues(alpha: 0.2)),
+                              ),
+                              child: Text(
+                                card.lesson,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: const Color(0xFFA8DCBE),
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.6,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+
+                            // ── Tier 2+: Hadith ──
+                            if (tier.number >= 2) ...[
+                              const SizedBox(height: 24),
+                              _buildOrnateDivider(),
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _bgDark.withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color:
+                                          _emeraldDim.withValues(alpha: 0.15)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 3,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            color: _goldBright,
+                                            borderRadius:
+                                                BorderRadius.circular(2),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                  color: _goldAccent.withValues(
+                                                      alpha: 0.4),
+                                                  blurRadius: 4),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'PROPHETIC TEACHING',
+                                          style:
+                                              AppTypography.labelSmall.copyWith(
+                                            color: _goldAccent,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (card.hasTier2Content)
+                                      Text(
+                                        card.hadith,
+                                        style:
+                                            AppTypography.bodyMedium.copyWith(
+                                          color: _emeraldBright.withValues(
+                                              alpha: 0.85),
+                                          height: 1.7,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        'Coming soon...',
+                                        style: AppTypography.bodySmall.copyWith(
+                                          color: _emeraldDim,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
+                            // ── Tier 3: Dua ──
+                            if (tier.number >= 3 && card.hasTier3Content) ...[
+                              const SizedBox(height: 24),
+                              _buildOrnateDivider(),
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _bgDark.withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color:
+                                          _emeraldDim.withValues(alpha: 0.15)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _emeraldCore,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                  color: _glowColor.withValues(
+                                                      alpha: 0.5),
+                                                  blurRadius: 6),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          'DUA',
+                                          style:
+                                              AppTypography.labelSmall.copyWith(
+                                            color: _emeraldBright,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 2.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      card.duaArabic,
+                                      style: AppTypography.quranArabic.copyWith(
+                                        color: _emeraldBright,
+                                        fontSize: 22,
+                                        shadows: [
+                                          Shadow(
+                                              color: _glowColor.withValues(
+                                                  alpha: 0.4),
+                                              blurRadius: 10),
+                                        ],
+                                      ),
+                                      textDirection: TextDirection.rtl,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      card.duaTransliteration,
+                                      style: AppTypography.bodyMedium.copyWith(
+                                          color: _emeraldBright.withValues(
+                                              alpha: 0.8),
+                                          fontStyle: FontStyle.italic),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      card.duaTranslation,
+                                      style: AppTypography.bodyMedium.copyWith(
+                                          color: _emeraldBright.withValues(
+                                              alpha: 0.75)),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                  )
-                else
-                  const SizedBox(height: 24),
+                    // Sticky footer
+                    if (tier.number < 3)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                        child: Text(
+                          'Encounter this Name again to unlock the Dua',
+                          style: AppTypography.bodySmall
+                              .copyWith(color: _emeraldDim),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else if (tier.number >= 3 && card.hasTier3Content)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              shareReflectionCard(
+                                context: context,
+                                nameArabic: card.arabic,
+                                nameEnglish: card.english,
+                                duaArabic: card.duaArabic,
+                                duaTransliteration: card.duaTransliteration,
+                                duaTranslation: card.duaTranslation,
+                                duaSource: '',
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.share_outlined,
+                              size: 18,
+                              color: _emeraldBright,
+                            ),
+                            label: const Text(
+                              'Share this Name',
+                              style: TextStyle(color: _emeraldBright),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                  color: _goldAccent.withValues(alpha: 0.4)),
+                              backgroundColor: _bgDark.withValues(alpha: 0.7),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 24),
+                  ],
+                ),
+
+                // Dismiss button
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.4),
+                      ),
+                      child: Icon(Icons.keyboard_arrow_down_rounded,
+                          color: _emeraldBright.withValues(alpha: 0.8),
+                          size: 22),
+                    ),
+                  ),
+                ),
               ],
             ),
-
-            // Dismiss button
-            Positioned(
-              top: 12,
-              right: 12,
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black.withValues(alpha: 0.4),
-                  ),
-                  child: Icon(Icons.keyboard_arrow_down_rounded,
-                      color: _emeraldBright.withValues(alpha: 0.8), size: 22),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     )
@@ -1333,8 +1345,7 @@ class _TrefoilFramePainter extends CustomPainter {
 
       // Small arch/bump at each point
       final archPath = Path();
-      archPath.addOval(
-          Rect.fromCircle(center: Offset(px, py), radius: archR));
+      archPath.addOval(Rect.fromCircle(center: Offset(px, py), radius: archR));
       canvas.drawPath(archPath, archPaint);
     }
 

@@ -241,9 +241,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   StreamSubscription<ConsumableGrantEvent>? _grantsSub;
+  Future<ReflectResponse>? _deeperReflectFuture;
+  ReflectResponse? _deeperReflectResult;
+  String? _deeperReflectKey;
+  int _deeperReflectGeneration = 0;
 
   @override
   void dispose() {
+    _deeperReflectGeneration++;
     _grantsSub?.cancel();
     super.dispose();
   }
@@ -456,6 +461,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         cardEngageResult: cardResult,
         engagedCard: card,
       );
+      _prefetchDeeperReflection();
 
       // Save to history
       try {
@@ -620,6 +626,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         cardEngageResult: cardEngageResult,
         engagedCard: engagedCard,
       );
+      _prefetchDeeperReflection();
 
       // Save check-in to history
       try {
@@ -682,6 +689,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
   /// Reset today's daily loop so the user can redo it.
   Future<void> resetToday() async {
+    _deeperReflectGeneration++;
+    _deeperReflectFuture = null;
+    _deeperReflectResult = null;
+    _deeperReflectKey = null;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_todayKey);
     state = const DailyLoopState();
@@ -734,7 +746,122 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // Step 2: Deeper reflect
   // ---------------------------------------------------------------------------
 
+  ({String key, String contextText, String forceName})? _deeperRequestFor(
+    DailyLoopState source,
+  ) {
+    final forceName = source.checkinName?.trim();
+    if (forceName == null || forceName.isEmpty) return null;
+
+    final contextText = _deeperContextText(source);
+    return (
+      key: jsonEncode([forceName, contextText]),
+      contextText: contextText,
+      forceName: forceName,
+    );
+  }
+
+  String _deeperContextText(DailyLoopState source) {
+    if (source.checkinAnswers.isNotEmpty) {
+      return source.checkinAnswers.join(' / ');
+    }
+
+    final card = source.engagedCard;
+    if (card != null) {
+      return [
+        'The user just discovered ${card.transliteration} (${card.arabic}).',
+        if (card.english.isNotEmpty) 'Meaning: ${card.english}.',
+        if (card.lesson.isNotEmpty) 'Teaching shown: ${card.lesson}',
+      ].join('\n');
+    }
+
+    final answer = source.checkinAnswer?.trim();
+    if (answer != null && answer.isNotEmpty) {
+      return "I answered '$answer'.";
+    }
+
+    return 'The user wants to go deeper with this Name of Allah.';
+  }
+
+  Future<ReflectResponse> _startDeeperReflectionRequest(
+    ({String key, String contextText, String forceName}) request,
+  ) {
+    return reflectWithOpenAI(
+      request.contextText,
+      forceName: request.forceName,
+    );
+  }
+
+  void _prefetchDeeperReflection() {
+    final request = _deeperRequestFor(state);
+    if (request == null) return;
+    if (_deeperReflectKey == request.key &&
+        (_deeperReflectResult != null || _deeperReflectFuture != null)) {
+      return;
+    }
+
+    final generation = ++_deeperReflectGeneration;
+    _deeperReflectKey = request.key;
+    _deeperReflectResult = null;
+    final future = _startDeeperReflectionRequest(request);
+    _deeperReflectFuture = future;
+
+    future.then(
+      (result) {
+        if (generation != _deeperReflectGeneration ||
+            _deeperReflectKey != request.key) {
+          return;
+        }
+        _deeperReflectResult = result;
+        _deeperReflectFuture = null;
+      },
+      onError: (_) {
+        if (generation != _deeperReflectGeneration ||
+            _deeperReflectKey != request.key) {
+          return;
+        }
+        _deeperReflectFuture = null;
+      },
+    );
+  }
+
+  Future<ReflectResponse> _loadDeeperReflection(
+    ({String key, String contextText, String forceName}) request,
+  ) async {
+    if (_deeperReflectKey == request.key && _deeperReflectResult != null) {
+      return _deeperReflectResult!;
+    }
+
+    if (_deeperReflectKey == request.key && _deeperReflectFuture != null) {
+      return _deeperReflectFuture!;
+    }
+
+    _prefetchDeeperReflection();
+    if (_deeperReflectKey == request.key && _deeperReflectFuture != null) {
+      return _deeperReflectFuture!;
+    }
+
+    return _startDeeperReflectionRequest(request);
+  }
+
   Future<void> startDeeper() async {
+    final request = _deeperRequestFor(state);
+    if (request == null) {
+      state =
+          state.copyWith(error: 'Could not load reflection. Please try again.');
+      return;
+    }
+
+    if (_deeperReflectKey == request.key && _deeperReflectResult != null) {
+      state = state.copyWith(
+        currentStep: DailyLoopStep.deeper,
+        reflectResult: _deeperReflectResult,
+        reflectLoading: false,
+        reflectStep: 1,
+        error: null,
+      );
+      return;
+    }
+
     // Always free. The 50-token unlock for additional muhasabahs is charged
     // up front at the "Seek Another Name" / "Discover a New Name" entry
     // CTAs, so once the user is inside a muhasabah cycle every step — the
@@ -748,14 +875,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     );
 
     try {
-      final contextText = state.checkinAnswers.isNotEmpty
-          ? state.checkinAnswers.join(' / ')
-          : "I answered '${state.checkinAnswer}'.";
-
-      final result = await reflectWithOpenAI(
-        contextText,
-        forceName: state.checkinName,
-      );
+      final result = await _loadDeeperReflection(request);
 
       state = state.copyWith(
         reflectResult: result,
@@ -892,6 +1012,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         checkinNameArabic: data['checkinNameArabic'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,
       );
+
+      if (checkinDone && !deeperDone) {
+        _prefetchDeeperReflection();
+      }
     } catch (_) {
       // Non-critical — start fresh
     }

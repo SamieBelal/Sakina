@@ -164,6 +164,14 @@ class AppSessionNotifier extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
       notifyListeners();
+      // Reinstall recovery: a returning user starts the session with
+      // `initialOnboarded = false` (fresh prefs after a fresh install), so
+      // _hydrateAndNotify's gate on `_hasOnboarded` races with this method
+      // and usually loses. Fire the permission request here too — it's
+      // idempotent (no-op if already granted, or if prefs row shows none
+      // were ever enabled). Without this, reinstalled users never see the
+      // iOS push prompt and have to enable in Settings manually.
+      unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
     }
   }
 
@@ -177,6 +185,7 @@ class AppSessionNotifier extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
       notifyListeners();
+      unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
     }
   }
 

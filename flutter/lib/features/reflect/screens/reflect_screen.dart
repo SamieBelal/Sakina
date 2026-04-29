@@ -226,6 +226,11 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                   minLines: 6,
                   maxLines: 8,
                   onChanged: (value) => notifier.setUserText(value),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                  onTapOutside: (_) =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.transparent,

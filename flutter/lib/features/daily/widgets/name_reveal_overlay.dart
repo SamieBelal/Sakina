@@ -54,7 +54,8 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
   @override
   void initState() {
     super.initState();
-    debugPrint('[REVEAL] nameArabic="${widget.nameArabic}" nameEnglish="${widget.nameEnglish}" card.arabic="${widget.card?.arabic}"');
+    debugPrint(
+        '[REVEAL] nameArabic="${widget.nameArabic}" nameEnglish="${widget.nameEnglish}" card.arabic="${widget.card?.arabic}"');
     _runSequence();
   }
 
@@ -115,8 +116,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
               colors: _phase >= 1
                   ? [
                       const Color(0xFF0A0A12),
-                      Color.lerp(
-                          const Color(0xFF0A0A12), _tierColor, 0.15)!,
+                      Color.lerp(const Color(0xFF0A0A12), _tierColor, 0.15)!,
                       const Color(0xFF0A0A12),
                     ]
                   : [
@@ -170,8 +170,8 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _tierColor
-                                .withValues(alpha: 0.4 - (i * 0.08)),
+                            color:
+                                _tierColor.withValues(alpha: 0.4 - (i * 0.08)),
                             width: 2,
                           ),
                         ),
@@ -200,8 +200,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color:
-                                    _tierColor.withValues(alpha: 0.3),
+                                color: _tierColor.withValues(alpha: 0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -212,9 +211,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                   end: 2.0,
                                   duration: 1500.ms,
                                   delay: (i * 300).ms)
-                              .fadeOut(
-                                  duration: 1500.ms,
-                                  delay: (i * 300).ms);
+                              .fadeOut(duration: 1500.ms, delay: (i * 300).ms);
                         }),
                         Container(
                           width: 40,
@@ -259,8 +256,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                               color: _tierColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                  color:
-                                      _tierColor.withValues(alpha: 0.4)),
+                                  color: _tierColor.withValues(alpha: 0.4)),
                             ),
                             child: Text(
                               _tierLabel.toUpperCase(),
@@ -274,47 +270,39 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                           )
                               .animate()
                               .fadeIn(duration: 400.ms)
-                              .slideY(
-                                  begin: -0.5,
-                                  end: 0,
-                                  duration: 400.ms),
-                        const SizedBox(height: 32),
+                              .slideY(begin: -0.5, end: 0, duration: 400.ms),
+                        SizedBox(height: _tierLabel.isNotEmpty ? 46 : 28),
                         SizedBox(
-                          height: 110,
+                          height: 124,
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                          widget.nameArabic.isNotEmpty
-                              ? widget.nameArabic
-                              : widget.card?.arabic ?? '',
-                          style: AppTypography.nameOfAllahDisplay.copyWith(
-                            fontSize: 80,
-                            color: Colors.white,
-                            fontFamilyFallback: const ['Arial', 'Tahoma'],
-                            shadows: [
-                              Shadow(
-                                  color:
-                                      _tierColor.withValues(alpha: 0.6),
-                                  blurRadius: 30),
-                              Shadow(
-                                  color:
-                                      _tierColor.withValues(alpha: 0.3),
-                                  blurRadius: 60),
-                            ],
+                              widget.nameArabic.isNotEmpty
+                                  ? widget.nameArabic
+                                  : widget.card?.arabic ?? '',
+                              style: AppTypography.nameOfAllahDisplay.copyWith(
+                                fontSize: 80,
+                                color: Colors.white,
+                                fontFamilyFallback: const ['Arial', 'Tahoma'],
+                                shadows: [
+                                  Shadow(
+                                      color: _tierColor.withValues(alpha: 0.6),
+                                      blurRadius: 30),
+                                  Shadow(
+                                      color: _tierColor.withValues(alpha: 0.3),
+                                      blurRadius: 60),
+                                ],
+                              ),
+                              textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.center,
-                        ),
-                          ),
-                        )
-                            .animate()
-                            .fadeIn(duration: 800.ms)
-                            .scaleXY(
-                                begin: 0.3,
-                                end: 1.0,
-                                duration: 800.ms,
-                                curve: Curves.easeOutBack),
-                        const SizedBox(height: 16),
+                        ).animate().fadeIn(duration: 800.ms).scaleXY(
+                            begin: 0.3,
+                            end: 1.0,
+                            duration: 800.ms,
+                            curve: Curves.easeOutBack),
+                        const SizedBox(height: 12),
                         Text(
                           widget.nameEnglish,
                           style: AppTypography.headlineLarge.copyWith(
@@ -336,8 +324,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                             style: AppTypography.bodyLarge.copyWith(
                                 color: _tierColor.withValues(alpha: 0.8)),
                             textAlign: TextAlign.center,
-                          ).animate().fadeIn(
-                              delay: 500.ms, duration: 500.ms),
+                          ).animate().fadeIn(delay: 500.ms, duration: 500.ms),
                       ],
                     ),
                   ),
@@ -387,13 +374,10 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                                     ),
                                   ),
                                 ],
-                              )
-                                  .animate()
-                                  .fadeIn(duration: 400.ms)
-                                  .shimmer(
-                                      delay: 200.ms,
-                                      duration: 1500.ms,
-                                      color: _tierColor.withValues(alpha: 0.3)),
+                              ).animate().fadeIn(duration: 400.ms).shimmer(
+                                  delay: 200.ms,
+                                  duration: 1500.ms,
+                                  color: _tierColor.withValues(alpha: 0.3)),
                             ),
                           Text(
                             widget.teaching,
@@ -406,24 +390,23 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                             overflow: TextOverflow.ellipsis,
                           ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
                           const SizedBox(height: 20),
-
                           GestureDetector(
                             onTap: _handleContinue,
                             child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.3)),
-                                  borderRadius: BorderRadius.circular(
-                                      AppSpacing.buttonRadius),
-                                ),
-                                child: Text(
-                                  'Continue',
-                                  style: AppTypography.labelLarge.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.9)),
-                                  textAlign: TextAlign.center,
-                                ),
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3)),
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.buttonRadius),
+                              ),
+                              child: Text(
+                                'Continue',
+                                style: AppTypography.labelLarge.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9)),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
                         ],
@@ -445,13 +428,11 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                         height: 4 + (i % 3) * 2.0,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _tierColor
-                              .withValues(alpha: 0.6 - (i * 0.04)),
+                          color: _tierColor.withValues(alpha: 0.6 - (i * 0.04)),
                         ),
                       )
                           .animate()
-                          .fadeIn(
-                              delay: (i * 100).ms, duration: 400.ms)
+                          .fadeIn(delay: (i * 100).ms, duration: 400.ms)
                           .slideY(
                               begin: 0.5,
                               end: -2.0,
@@ -463,8 +444,7 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                               delay: (i * 100).ms,
                               duration: 2500.ms)
                           .fadeOut(
-                              delay: (1500 + i * 100).ms,
-                              duration: 800.ms),
+                              delay: (1500 + i * 100).ms, duration: 800.ms),
                     );
                   }),
               ],
@@ -475,4 +455,3 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
     );
   }
 }
-

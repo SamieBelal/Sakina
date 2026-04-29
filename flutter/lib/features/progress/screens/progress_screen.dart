@@ -11,9 +11,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
-import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
-import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -21,7 +19,6 @@ import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
-import 'package:sakina/services/achievement_checker.dart';
 
 class ProgressScreen extends ConsumerStatefulWidget {
   const ProgressScreen({super.key});
@@ -32,8 +29,6 @@ class ProgressScreen extends ConsumerStatefulWidget {
 
 class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _showDiscoveryQuiz = true;
-  bool _revealDone = false;
-  bool _wasLoading = false;
   bool _rewardCalendarExpanded = false;
   bool _levelUpShown = false;
   bool _launchGateReady = false;
@@ -84,25 +79,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final notifier = ref.read(dailyLoopProvider.notifier);
     final todaysName = getTodaysName();
 
-    // Detect transition from loading → checkin done to trigger full-screen reveal
-    if (_wasLoading &&
-        !state.checkinLoading &&
-        state.checkinDone &&
-        state.checkinName != null &&
-        !_revealDone) {
-      _revealDone = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        // Wire quest: update monthly streak (must be outside build)
-        ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
-        await _showFullScreenReveal(state);
-        // Check achievements & flush quest toasts after the gacha overlay
-        // is dismissed so toasts appear on top of the home screen.
-        if (!mounted) return;
-        await checkAchievements(ref);
-      });
-    }
-    _wasLoading = state.checkinLoading;
-
     // Detect level-up event and show overlay
     // Level-up overlay is shown from muhasabah_screen only —
     // clear the flag here so it doesn't re-trigger.
@@ -135,9 +111,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
               // 2. Unified dashboard card
               _buildDashboardCard(state, todaysName),
-              const SizedBox(height: AppSpacing.xl),
-
-              const SizedBox(height: AppSpacing.xxl),
+              // Just enough to breathe above the bottom nav. The
+              // SingleChildScrollView's pagePadding already adds ~24px
+              // on its own, and the Scaffold's bottomNavigationBar
+              // provides the visual separator — anything more here was
+              // dead space (was AppSpacing.xl + AppSpacing.xxl = 80px).
+              const SizedBox(height: AppSpacing.sm),
             ],
           ),
         ),
@@ -1045,33 +1024,4 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Full-Screen Name Reveal
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Future<void> _showFullScreenReveal(DailyLoopState state) {
-    final engageResult = state.cardEngageResult;
-    final engagedCard = state.engagedCard;
-
-    return Navigator.of(context, rootNavigator: true).push(
-      PageRouteBuilder(
-        opaque: true,
-        barrierDismissible: false,
-        pageBuilder: (_, __, ___) => NameRevealOverlay(
-          nameArabic: state.checkinNameArabic ?? '',
-          nameEnglish: state.checkinName ?? '',
-          nameEnglishMeaning: engagedCard?.english ?? '',
-          teaching: engagedCard?.lesson ?? '',
-          card: engagedCard,
-          engageResult: engageResult,
-        ),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-  }
-
 }
-
-// (NameRevealOverlay lives in features/daily/widgets/name_reveal_overlay.dart)
