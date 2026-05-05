@@ -148,7 +148,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                         : AppColors.borderLight),
               ),
               child: Icon(
-                _showOnlyDiscovered ? Icons.auto_stories : Icons.menu_book,
+                _showOnlyDiscovered
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
                 size: 20,
                 color: _showOnlyDiscovered
                     ? Colors.white

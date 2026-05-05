@@ -54,7 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('the person you want to be'),
+      find.textContaining('your best self'),
       findsOneWidget,
     );
     // Default commitment fallback.

@@ -58,15 +58,17 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Email screen sits at index 21 (was 22 before the single-Name refactor
+    // shifted everything down by 1). Autofocus only when actually displayed.
     final isActive = ref.watch(
-      onboardingProvider.select((state) => state.currentPage == 24),
+      onboardingProvider.select((state) => state.currentPage == 21),
     );
 
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 22,
+        progressSegment: 21,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();
@@ -93,10 +95,15 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
                       controller: _controller,
                       shouldRequestFocus: isActive,
                       keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
+                      textInputAction: TextInputAction.done,
                       autocorrect: false,
                       enableSuggestions: false,
-                      onSubmitted: (_) => _submit(),
+                      // Keyboard's return key only dismisses — matches the
+                      // dominant pattern across the app (dua_topics,
+                      // first_checkin, reflect, etc.). Continue button is the
+                      // single source of truth for advancing.
+                      onSubmitted: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       decoration: InputDecoration(
                         hintText: AppStrings.signUpEmailHint,
                         hintStyle: AppTypography.bodyLarge.copyWith(

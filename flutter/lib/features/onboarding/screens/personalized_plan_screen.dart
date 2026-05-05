@@ -5,11 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../data/resonant_names.dart';
+import '../../../services/card_collection_service.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
-/// Task 17 / Screen #22 — "Your personalized plan."
+/// "Your personalized plan." Renders the user's starter Name (selected on
+/// the first check-in screen) as the anchor of the plan preview.
 class PersonalizedPlanScreen extends ConsumerWidget {
   const PersonalizedPlanScreen({
     required this.onNext,
@@ -20,20 +21,15 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  static String translitForId(String? id) => resonantTranslitForId(id);
-
-  // Emotions most likely to anchor "what we'll meet you with" in the plan
-  // preview. Positive states (grateful/joyful/hopeful) don't read right here,
-  // so we prefer the heavier ones when the user picked at least one.
-  static const _focusEmotions = {
-    'overwhelmed',
-    'anxious',
-    'grief',
-    'sad',
-    'lonely',
-    'numb',
-    'angry',
-  };
+  /// Resolves a `starter_name_id` (catalog int) to its transliteration. Falls
+  /// back to Ar-Rahman if the id is null or not present in the catalog.
+  static String translitForCatalogId(int? id) {
+    if (id == null) return 'Ar-Rahman';
+    for (final n in allCollectibleNames) {
+      if (n.id == id) return n.transliteration;
+    }
+    return 'Ar-Rahman';
+  }
 
   static String _titleCase(String id) =>
       '${id.substring(0, 1).toUpperCase()}${id.substring(1)}';
@@ -41,10 +37,17 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
-    final translit = resonantTranslitForId(state.resonantNameId);
-    final focus = (state.commonEmotions.toList()..sort())
-        .firstWhere(_focusEmotions.contains, orElse: () => '');
-    final struggle = focus.isNotEmpty ? _titleCase(focus) : 'your path';
+    final translit = translitForCatalogId(state.starterNameId);
+    // Mirror back the emotions the user actually selected on the common
+    // emotions screen, capped at 3 so the tile stays readable. Reads as
+    // "You often feel: Anxious, Sad, Lonely" — natural English, no awkward
+    // "we'll meet you with anxiety" framing where the app sounds like the
+    // emotion delivery service.
+    final emotions = (state.commonEmotions.toList()..sort())
+        .take(3)
+        .map(_titleCase)
+        .join(', ');
+    final struggle = emotions.isNotEmpty ? emotions : 'Whatever comes up';
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
@@ -61,7 +64,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
       ),
       _PlanTile(
         icon: Icons.favorite_rounded,
-        label: "What we'll meet you with",
+        label: 'You often feel',
         value: struggle,
       ),
       _PlanTile(
@@ -77,7 +80,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     ];
 
     return OnboardingQuestionScaffold(
-      progressSegment: 18,
+      progressSegment: 17,
       headline: 'Your plan, $name.',
       subtitle: 'Everything you need, one tap away.',
       onBack: onBack,

@@ -384,7 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   AppSpacing.pagePadding,
                   AppSpacing.lg,
                   AppSpacing.pagePadding,
-                  AppSpacing.xxl,
+                  AppSpacing.lg,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

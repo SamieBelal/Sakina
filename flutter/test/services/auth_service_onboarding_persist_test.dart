@@ -14,7 +14,7 @@ class _FakeAuthService extends AuthService {
     List<String> attribution = const [],
     String? ageRange,
     String? prayerFrequency,
-    String? resonantNameId,
+    int? starterNameId,
     List<String> duaTopics = const [],
     String? duaTopicsOther,
     List<String> commonEmotions = const [],
@@ -31,7 +31,7 @@ class _FakeAuthService extends AuthService {
       'attribution': attribution,
       'ageRange': ageRange,
       'prayerFrequency': prayerFrequency,
-      'resonantNameId': resonantNameId,
+      'starterNameId': starterNameId,
       'duaTopics': duaTopics,
       'duaTopicsOther': duaTopicsOther,
       'commonEmotions': commonEmotions,
@@ -60,7 +60,7 @@ void main() {
       ..toggleAttribution('tiktok')
       ..setAgeRange('25_34')
       ..setPrayerFrequency('someDaily')
-      ..setResonantNameId('ar-rahman-id')
+      ..setStarterName(2)
       ..toggleDuaTopic('health')
       ..setDuaTopicsOther('exam success')
       ..toggleCommonEmotion('anxiety')
@@ -73,7 +73,7 @@ void main() {
 
     expect(fake.captured!['ageRange'], '25_34');
     expect(fake.captured!['prayerFrequency'], 'someDaily');
-    expect(fake.captured!['resonantNameId'], 'ar-rahman-id');
+    expect(fake.captured!['starterNameId'], 2);
     expect(fake.captured!['duaTopics'], ['health']);
     expect(fake.captured!['duaTopicsOther'], 'exam success');
     expect(fake.captured!['commonEmotions'], ['anxiety']);

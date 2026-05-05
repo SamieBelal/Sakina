@@ -9,12 +9,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('OnboardingState v4', () {
+  group('OnboardingState v5', () {
     test('defaults all new fields to null/empty', () {
       const s = OnboardingState();
       expect(s.ageRange, isNull);
       expect(s.prayerFrequency, isNull);
-      expect(s.resonantNameId, isNull);
+      expect(s.starterNameId, isNull);
       expect(s.duaTopics, isEmpty);
       expect(s.duaTopicsOther, isNull);
       expect(s.commonEmotions, isEmpty);
@@ -28,7 +28,7 @@ void main() {
       const original = OnboardingState(
         ageRange: '25_34',
         prayerFrequency: 'someDaily',
-        resonantNameId: 'ar-rahman-id',
+        starterNameId: 6,
         duaTopics: {'health', 'family'},
         duaTopicsOther: 'success in school',
         commonEmotions: {'anxiety', 'gratitude'},
@@ -38,11 +38,11 @@ void main() {
         commitmentAccepted: true,
       );
       final json = original.toJson();
-      expect(json['version'], 4);
+      expect(json['version'], 5);
       final decoded = OnboardingState.fromJson(json);
       expect(decoded.ageRange, '25_34');
       expect(decoded.prayerFrequency, 'someDaily');
-      expect(decoded.resonantNameId, 'ar-rahman-id');
+      expect(decoded.starterNameId, 6);
       expect(decoded.duaTopics, {'health', 'family'});
       expect(decoded.duaTopicsOther, 'success in school');
       expect(decoded.commonEmotions, {'anxiety', 'gratitude'});
@@ -52,33 +52,37 @@ void main() {
       expect(decoded.commitmentAccepted, isTrue);
     });
 
-    test('fromJson with version < 4 discards stored state and starts fresh', () {
-      // Pre-refactor (v3) blob. Per spec: no users, no migration logic; drop it.
+    test('fromJson with version < 5 discards stored state and starts fresh', () {
+      // Pre-refactor (v4) blob. Per spec: no users, no migration logic; drop it.
       final legacy = {
-        'version': 3,
+        'version': 4,
         'currentPage': 5,
         'intention': 'legacy',
         'commonEmotions': ['anxious'],
+        'resonantNameId': 'ar-rahman',
       };
       final decoded = OnboardingState.fromJson(legacy);
       expect(decoded.currentPage, 0);
       expect(decoded.intention, isNull);
       expect(decoded.commonEmotions, isEmpty);
+      expect(decoded.starterNameId, isNull);
     });
 
-    test('fromJson accepts v4 blob as authoritative', () {
-      final v4 = {
-        'version': 4,
+    test('fromJson accepts v5 blob as authoritative', () {
+      final v5 = {
+        'version': 5,
         'currentPage': 5,
         'intention': 'spiritualGrowth',
         'commonEmotions': ['anxious'],
         'ageRange': '25_34',
+        'starterNameId': 28,
       };
-      final decoded = OnboardingState.fromJson(v4);
+      final decoded = OnboardingState.fromJson(v5);
       expect(decoded.currentPage, 5);
       expect(decoded.intention, 'spiritualGrowth');
       expect(decoded.commonEmotions, {'anxious'});
       expect(decoded.ageRange, '25_34');
+      expect(decoded.starterNameId, 28);
     });
   });
 
@@ -87,7 +91,7 @@ void main() {
       final notifier = OnboardingNotifier();
       notifier.setAgeRange('25_34');
       notifier.setPrayerFrequency('someDaily');
-      notifier.setResonantNameId('ar-rahman-id');
+      notifier.setStarterName(2);
       notifier.toggleDuaTopic('health');
       notifier.toggleDuaTopic('family');
       notifier.toggleDuaTopic('health'); // toggle off
@@ -101,7 +105,7 @@ void main() {
       final s = notifier.state;
       expect(s.ageRange, '25_34');
       expect(s.prayerFrequency, 'someDaily');
-      expect(s.resonantNameId, 'ar-rahman-id');
+      expect(s.starterNameId, 2);
       expect(s.duaTopics, {'family'});
       expect(s.duaTopicsOther, 'school');
       expect(s.commonEmotions, {'anxiety'});

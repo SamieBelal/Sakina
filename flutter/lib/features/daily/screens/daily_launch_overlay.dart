@@ -10,6 +10,7 @@ import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -167,7 +168,32 @@ class _StreakGreetingStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dailyLoopProvider);
     final streak = state.streakCount;
-    final todaysName = getTodaysName();
+
+    // On day 0 (no streak yet), surface the user's starter Name from
+    // onboarding so the home greeting names the same Name they just bonded
+    // with on the first check-in. From day 1 onward the daily rotation takes
+    // over.
+    final String displayArabic;
+    final String displayTransliteration;
+    final String displayEnglish;
+    if (streak == 0) {
+      final starter = ref.watch(starterNameProvider).valueOrNull;
+      if (starter != null) {
+        displayArabic = starter.arabic;
+        displayTransliteration = starter.transliteration;
+        displayEnglish = starter.english;
+      } else {
+        final fallback = getTodaysName();
+        displayArabic = fallback.arabic;
+        displayTransliteration = fallback.transliteration;
+        displayEnglish = fallback.english;
+      }
+    } else {
+      final todays = getTodaysName();
+      displayArabic = todays.arabic;
+      displayTransliteration = todays.transliteration;
+      displayEnglish = todays.english;
+    }
 
     final greeting = _timeGreeting();
 
@@ -230,7 +256,7 @@ class _StreakGreetingStep extends ConsumerWidget {
 
           const SizedBox(height: 40),
 
-          // Today's Name teaser
+          // Day 0 → "Your Starting Name" (from onboarding); else "Today's Name".
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
@@ -242,7 +268,7 @@ class _StreakGreetingStep extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  "Today's Name",
+                  streak == 0 ? 'Your Starting Name' : "Today's Name",
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.secondary,
                     letterSpacing: 1.5,
@@ -250,7 +276,7 @@ class _StreakGreetingStep extends ConsumerWidget {
                 ),
                 const SizedBox(height: 33),
                 AdjustedArabicDisplay(
-                  text: todaysName.arabic,
+                  text: displayArabic,
                   style: AppTypography.nameOfAllahDisplay.copyWith(
                     color: AppColors.secondary,
                     fontSize: 36,
@@ -258,7 +284,7 @@ class _StreakGreetingStep extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  '${todaysName.transliteration} — ${todaysName.english}',
+                  '$displayTransliteration — $displayEnglish',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),

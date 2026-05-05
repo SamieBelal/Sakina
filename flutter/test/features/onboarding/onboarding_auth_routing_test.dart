@@ -11,8 +11,8 @@ import 'screens/_test_utils.dart';
 
 void main() {
   testWidgets(
-    'social auth on Save Progress jumps to Encouragement (page 24), '
-    'skipping Email (22) and Password (23)',
+    'social auth on Save Progress jumps to Encouragement (page 23), '
+    'skipping Email (21) and Password (22)',
     (tester) async {
       useOnboardingViewport(tester);
 
@@ -20,7 +20,7 @@ void main() {
         ProviderScope(
           overrides: [
             cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: 21),
+              const OnboardingState(currentPage: 20),
             ),
           ],
           child: const MaterialApp(home: OnboardingScreen()),
@@ -31,7 +31,7 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(OnboardingScreen)),
       );
-      expect(container.read(onboardingProvider).currentPage, 21,
+      expect(container.read(onboardingProvider).currentPage, 20,
           reason: 'precondition: starts on Save Progress page');
 
       // Invoke the wiring under test directly. Exercising the actual Apple/
@@ -49,7 +49,7 @@ void main() {
 
       expect(
         container.read(onboardingProvider).currentPage,
-        24,
+        onboardingEncouragementPageIndex,
         reason:
             'Social-auth users are already authenticated; the email + password '
             'screens are redundant and must be skipped.',
@@ -69,7 +69,7 @@ void main() {
         ProviderScope(
           overrides: [
             cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: 23),
+              const OnboardingState(currentPage: onboardingPasswordPageIndex),
             ),
           ],
           child: const MaterialApp(home: OnboardingScreen()),
@@ -88,7 +88,7 @@ void main() {
         field.shouldRequestFocus,
         isTrue,
         reason:
-            'On the password screen (page 23) the text field must autofocus. '
+            'On the password screen the text field must autofocus. '
             'A stale page-index check silently disables focus.',
       );
 

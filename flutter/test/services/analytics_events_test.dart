@@ -100,17 +100,26 @@ void main() {
   });
 
   group('AnalyticsEvents.stepNames', () {
-    test('covers all 26 onboarding pages', () {
-      for (int i = 0; i <= 25; i++) {
+    test('covers all 25 onboarding pages', () {
+      for (int i = 0; i <= 24; i++) {
         expect(AnalyticsEvents.stepNames[i], isNotNull,
             reason: 'Missing step name for index $i');
       }
+      expect(AnalyticsEvents.stepNames[25], isNull,
+          reason: 'No step at index 25 after resonant_name removal');
     });
 
     test('does not include the removed social_proof_interstitial step', () {
       expect(
         AnalyticsEvents.stepNames.values,
         isNot(contains('social_proof_interstitial')),
+      );
+    });
+
+    test('does not include the removed resonant_name step', () {
+      expect(
+        AnalyticsEvents.stepNames.values,
+        isNot(contains('resonant_name')),
       );
     });
   });

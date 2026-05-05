@@ -20,22 +20,23 @@ void main() {
     );
   }
 
-  testWidgets('renders selected resonant Name when set', (tester) async {
+  testWidgets('renders selected starter Name when set', (tester) async {
     useOnboardingViewport(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container.read(onboardingProvider.notifier).setResonantNameId('as-salam');
+    // 6 = As-Salam in collectible_names catalog.
+    container.read(onboardingProvider.notifier).setStarterName(6);
     container.read(onboardingProvider.notifier).toggleCommonEmotion('anxious');
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('As-Salam'), findsOneWidget);
-    // fallback text should NOT appear
+    // Fallback should NOT appear when a specific starter is set.
     expect(find.textContaining('Ar-Rahman'), findsNothing);
   });
 
-  testWidgets('falls back to Ar-Rahman when resonantNameId is null',
+  testWidgets('falls back to Ar-Rahman when starterNameId is null',
       (tester) async {
     useOnboardingViewport(tester);
     final container = ProviderContainer();
@@ -53,7 +54,8 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(onboardingProvider.notifier);
-    notifier.setResonantNameId('al-wadud');
+    // 28 = Ash-Shakur in catalog.
+    notifier.setStarterName(28);
     notifier.setDailyCommitmentMinutes(5);
     notifier.setReminderTime('07:30');
     notifier.setIntention('spiritual-growth');
@@ -62,15 +64,15 @@ void main() {
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
 
-    // Commitment + reminder rendered together
+    // Commitment + reminder rendered together.
     expect(find.textContaining('5 min'), findsOneWidget);
     expect(find.textContaining('07:30'), findsOneWidget);
-    // Intention phrase rendered
+    // Intention phrase rendered.
     expect(find.textContaining('spiritual-growth'), findsOneWidget);
-    // Focus emotion rendered, title-cased
+    // Focus emotion rendered as a title-cased adjective.
     expect(find.text('Lonely'), findsOneWidget);
-    // Name translit rendered
-    expect(find.textContaining('Al-Wadud'), findsOneWidget);
+    // Name translit rendered.
+    expect(find.textContaining('Ash-Shakur'), findsOneWidget);
   });
 
   testWidgets('continue is always enabled (reveal screen)', (tester) async {
@@ -87,14 +89,15 @@ void main() {
     expect(advanced, 1);
   });
 
-  test('translitForId maps known ids and falls back to Ar-Rahman', () {
-    expect(PersonalizedPlanScreen.translitForId('ar-rahman'), 'Ar-Rahman');
-    expect(PersonalizedPlanScreen.translitForId('ar-rahim'), 'Ar-Rahim');
-    expect(PersonalizedPlanScreen.translitForId('as-salam'), 'As-Salam');
-    expect(PersonalizedPlanScreen.translitForId('al-wadud'), 'Al-Wadud');
-    expect(PersonalizedPlanScreen.translitForId('al-hafiz'), 'Al-Hafiz');
-    expect(PersonalizedPlanScreen.translitForId('al-karim'), 'Al-Karim');
-    expect(PersonalizedPlanScreen.translitForId(null), 'Ar-Rahman');
-    expect(PersonalizedPlanScreen.translitForId('unknown'), 'Ar-Rahman');
+  test('translitForCatalogId maps known ids and falls back to Ar-Rahman', () {
+    expect(PersonalizedPlanScreen.translitForCatalogId(2), 'Ar-Rahman');
+    expect(PersonalizedPlanScreen.translitForCatalogId(6), 'As-Salam');
+    expect(PersonalizedPlanScreen.translitForCatalogId(9), 'Al-Jabbar');
+    expect(PersonalizedPlanScreen.translitForCatalogId(28), 'Ash-Shakur');
+    expect(PersonalizedPlanScreen.translitForCatalogId(32), 'As-Sabur');
+    expect(PersonalizedPlanScreen.translitForCatalogId(33), 'Al-Hadi');
+    expect(PersonalizedPlanScreen.translitForCatalogId(35), 'Al-Wakeel');
+    expect(PersonalizedPlanScreen.translitForCatalogId(null), 'Ar-Rahman');
+    expect(PersonalizedPlanScreen.translitForCatalogId(99999), 'Ar-Rahman');
   });
 }

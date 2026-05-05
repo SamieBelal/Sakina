@@ -42,7 +42,7 @@ class StruggleSupportInterstitialScreen extends ConsumerWidget {
     final focus = picked.isNotEmpty ? picked : "what you're carrying";
 
     return OnboardingPageWrapper(
-      progressSegment: 13,
+      progressSegment: 12,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

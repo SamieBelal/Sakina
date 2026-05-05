@@ -109,7 +109,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 23,
+        progressSegment: 22,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();
@@ -146,7 +146,11 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
                       autocorrect: false,
                       enableSuggestions: false,
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _submit(),
+                      // Keyboard's return key only dismisses — matches the
+                      // dominant pattern across the app. Create Account button
+                      // is the single source of truth for submission.
+                      onSubmitted: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       decoration: InputDecoration(
                         hintText: AppStrings.signUpPasswordHint,
                         hintStyle: AppTypography.bodyLarge.copyWith(

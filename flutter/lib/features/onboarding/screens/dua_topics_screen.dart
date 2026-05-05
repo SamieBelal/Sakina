@@ -103,7 +103,7 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
     }
 
     return OnboardingQuestionScaffold(
-      progressSegment: 8,
+      progressSegment: 7,
       headline: 'What would you most want to dua for?',
       subtitle: 'Pick as many as feel true.',
       onBack: widget.onBack,

@@ -97,7 +97,10 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                       shouldRequestFocus: isActive,
                       textCapitalization: TextCapitalization.words,
                       textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _submit(),
+                      // Keyboard return only dismisses; Continue button is the
+                      // single source of truth for advancing.
+                      onSubmitted: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       decoration: InputDecoration(
                         hintText: 'Your first name',
                         hintStyle: AppTypography.bodyLarge.copyWith(

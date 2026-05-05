@@ -170,109 +170,179 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     ];
 
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 32,
-            AppSpacing.pagePadding, AppSpacing.pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title — staggered entrance
-            Text(
-              'Reflect',
-              style: AppTypography.displayLarge.copyWith(
-                color: AppColors.textPrimaryLight,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding,
+                32,
+                AppSpacing.pagePadding,
+                AppSpacing.md,
               ),
-            )
-                .animate()
-                .fadeIn(duration: 500.ms)
-                .slideY(begin: 0.05, end: 0, duration: 500.ms),
-            const SizedBox(height: 8),
-            // Subtitle — delayed entrance
-            Text(
-              'Share what is on your heart. This space is yours.',
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-            const SizedBox(height: AppSpacing.lg),
-            Center(
-              child: SvgPicture.asset(
-                'assets/illustrations/onboarding_checkin.svg',
-                height:
-                    (MediaQuery.sizeOf(context).height * 0.16).clamp(100, 150),
-              ),
-            )
-                .animate()
-                .fadeIn(duration: 600.ms, delay: 300.ms)
-                .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
-            const SizedBox(height: AppSpacing.lg),
-            // Text field with focus feedback
-            Focus(
-              onFocusChange: (focused) => setState(() => _hasFocus = focused),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-                  color: _hasFocus
-                      ? AppColors.primaryLight
-                      : AppColors.surfaceLight,
-                  border: Border.all(
-                    color: _hasFocus ? AppColors.primary : Colors.transparent,
-                    width: 1.5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Editorial header
+                  Text(
+                    'Reflect',
+                    style: AppTypography.displayLarge.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 500.ms)
+                      .slideY(begin: 0.05, end: 0, duration: 500.ms),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Share what is on your heart. This space is yours.',
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      height: 1.5,
+                    ),
+                  ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  // Text field — warm white card with soft shadow
+                  Focus(
+                    onFocusChange: (focused) =>
+                        setState(() => _hasFocus = focused),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.cardRadius),
+                        color: AppColors.surfaceLight,
+                        border: Border.all(
+                          color: _hasFocus
+                              ? AppColors.primary
+                              : AppColors.borderLight,
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                                alpha: _hasFocus ? 0.06 : 0.03),
+                            blurRadius: _hasFocus ? 18 : 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _textController,
+                        minLines: 5,
+                        maxLines: 7,
+                        onChanged: (value) => notifier.setUserText(value),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        onTapOutside: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        style: AppTypography.bodyLarge.copyWith(
+                          color: AppColors.textPrimaryLight,
+                          height: 1.5,
+                        ),
+                        decoration: InputDecoration(
+                          contentPadding:
+                              const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                          filled: false,
+                          hintText: 'What are you carrying today...',
+                          hintStyle: AppTypography.bodyLarge.copyWith(
+                            color: AppColors.textTertiaryLight,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms, delay: 350.ms)
+                      .slideY(
+                          begin: 0.02,
+                          end: 0,
+                          duration: 400.ms,
+                          delay: 350.ms),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  // "Or pick a feeling" hint
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 1,
+                        color: AppColors.secondary.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'OR TAP A FEELING',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.secondary,
+                          letterSpacing: 1.4,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                  const SizedBox(height: 12),
+
+                  // Emotion chips — warm pills, staggered wave
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: List.generate(emotions.length, (i) {
+                      return _buildEmotionChip(emotions[i], state, notifier)
+                          .animate()
+                          .fadeIn(
+                              duration: 300.ms, delay: (550 + i * 50).ms);
+                    }),
                   ),
-                ),
-                child: TextField(
-                  controller: _textController,
-                  minLines: 6,
-                  maxLines: 8,
-                  onChanged: (value) => notifier.setUserText(value),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) =>
-                      FocusManager.instance.primaryFocus?.unfocus(),
-                  onTapOutside: (_) =>
-                      FocusManager.instance.primaryFocus?.unfocus(),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    hintText: 'What are you carrying today...',
-                    hintStyle: AppTypography.bodyMedium
-                        .copyWith(color: AppColors.textTertiaryLight),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
+
+                  if (state.error != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorBackground,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        state.error!,
+                        style: AppTypography.bodyMedium
+                            .copyWith(color: AppColors.error),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+                  ],
+                ],
               ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 400.ms)
-                .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 400.ms),
-            const SizedBox(height: 16),
-            // Emotion chips — staggered wave entrance
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(emotions.length, (i) {
-                return _buildEmotionChip(emotions[i], state, notifier)
-                    .animate()
-                    .fadeIn(duration: 300.ms, delay: (600 + i * 60).ms);
-              }),
             ),
-            const SizedBox(height: 24),
-            // Submit button — AnimatedOpacity + shadow
-            AnimatedOpacity(
+          ),
+
+          // Sticky CTA with cream gradient fade above
+          Container(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              12,
+              AppSpacing.pagePadding,
+              16,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.backgroundLight.withValues(alpha: 0),
+                  AppColors.backgroundLight,
+                  AppColors.backgroundLight,
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
+            ),
+            child: AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: enabled ? 1.0 : 0.5,
               child: GestureDetector(
@@ -293,44 +363,38 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                     boxShadow: enabled
                         ? [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.32),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
                             ),
                           ]
                         : null,
                   ),
-                  child: Text(
-                    'Reflect',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome,
+                          color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Reflect',
+                        style: AppTypography.labelLarge.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-            if (state.error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.errorBackground,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  state.error!,
-                  style:
-                      AppTypography.bodyMedium.copyWith(color: AppColors.error),
-                ),
-              ),
-            ],
-          ],
-        ),
+            ),
+          ).animate().fadeIn(duration: 400.ms, delay: 600.ms),
+        ],
       ),
     );
   }
+
 
   Widget _buildEmotionChip(
       String emotion, ReflectState state, ReflectNotifier notifier) {

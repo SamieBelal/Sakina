@@ -35,7 +35,7 @@ class CommitmentPactScreen extends ConsumerWidget {
         : 'I commit to $mins minutes a day.';
 
     return OnboardingPageWrapper(
-      progressSegment: 16,
+      progressSegment: 15,
       onBack: onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

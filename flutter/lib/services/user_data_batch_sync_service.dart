@@ -9,6 +9,7 @@ import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
+import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
@@ -186,6 +187,12 @@ Future<void> hydrateUserDataFromBatchRpc() async {
   if (!payload.containsKey('quest_progress')) {
     await syncQuestProgressFromSupabase();
   }
+
+  // Prime the scoped starter Name pref so the home greeting renders the
+  // user's starter Name synchronously on day 0 without waiting for a
+  // separate round-trip. `sync_all_user_data` does not include this column
+  // yet, so it's a small extra select on hydration.
+  await hydrateStarterNameFromSupabase();
 }
 
 Future<void> _hydrateOrSeedListSection({

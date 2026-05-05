@@ -52,7 +52,7 @@ class ValuePropScreen extends ConsumerWidget {
         : aspirationPhrase(null);
 
     return OnboardingQuestionScaffold(
-      progressSegment: 19,
+      progressSegment: 18,
       headline: 'Sakina helps you become $aspiration.',
       subtitle: 'In the time you already have — even 1 minute a day.',
       onBack: onBack,

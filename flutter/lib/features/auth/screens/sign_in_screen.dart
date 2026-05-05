@@ -304,10 +304,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  if (!_isLoading) _signInWithEmail();
-                },
+                // Keyboard return only dismisses; the Sign In button is the
+                // single source of truth for submission.
+                onSubmitted: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 onTapOutside: (_) =>
                     FocusManager.instance.primaryFocus?.unfocus(),
                 decoration: InputDecoration(

@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
+import 'package:sakina/services/starter_name_cache.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -134,7 +135,7 @@ class AuthService {
     List<String> attribution = const [],
     String? ageRange,
     String? prayerFrequency,
-    String? resonantNameId,
+    int? starterNameId,
     List<String> duaTopics = const [],
     String? duaTopicsOther,
     List<String> commonEmotions = const [],
@@ -155,7 +156,7 @@ class AuthService {
       'onboarding_attribution': attribution,
       'age_range': ageRange,
       'prayer_frequency': prayerFrequency,
-      'resonant_name_id': resonantNameId,
+      'starter_name_id': starterNameId,
       'dua_topics': duaTopics,
       'dua_topics_other': duaTopicsOther,
       'common_emotions': commonEmotions,
@@ -164,6 +165,35 @@ class AuthService {
       'reminder_time': reminderTime,
       'commitment_accepted': commitmentAccepted,
     }).eq('id', userId);
+  }
+
+  /// Seed the user's collection with the starter Name they got from the
+  /// first check-in. Check-then-insert pattern so we don't depend on a
+  /// specific named unique constraint in the schema (older dev DBs may have
+  /// only the index, not the constraint, which makes `onConflict` upserts
+  /// fail). The user_id+name_id read is RLS-safe.
+  ///
+  /// Also writes the catalog id to a scoped SharedPreferences key so the
+  /// home greeting can render the starter Name synchronously without waiting
+  /// for the next Supabase round-trip (the previous behavior caused a
+  /// noticeable "today's Name" flicker on the day-0 home greeting).
+  Future<void> seedStarterCard(int nameId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+    final existing = await _supabase
+        .from('user_card_collection')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name_id', nameId)
+        .maybeSingle();
+    if (existing == null) {
+      await _supabase.from('user_card_collection').insert({
+        'user_id': userId,
+        'name_id': nameId,
+        'tier': 'bronze',
+      });
+    }
+    await writeCachedStarterNameId(nameId);
   }
 
   Future<void> markOnboardingCompleted() async {

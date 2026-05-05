@@ -128,21 +128,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Future<void> _loadOfferings() async {
     try {
       final offerings = await PurchaseService().getOfferings();
-      // TEMP diagnostic: log what RC is actually handing us so we can tell
-      // whether `introductoryPrice` is missing because of (a) App Store
-      // Connect not yet propagated to RC, (b) the local SDK still serving
-      // stale cache, or (c) a sandbox / simulator quirk. Remove once the
-      // trial UI is verified end-to-end on TestFlight.
-      for (final pkg in offerings) {
-        final intro = pkg.storeProduct.introductoryPrice;
-        debugPrint(
-          '[paywall] ${pkg.identifier} '
-          '(${pkg.storeProduct.identifier}) '
-          'intro=${intro == null ? 'null' : '${intro.priceString} '
-              'for ${intro.periodNumberOfUnits} ${intro.periodUnit.name} '
-              '(cycles=${intro.cycles})'}',
-        );
-      }
       if (mounted) {
         setState(() {
           _offerings = offerings;
@@ -232,10 +217,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       'morePresent' => 'more present',
       'strongerFaith' => 'stronger in faith',
       'moreConsistent' => 'more consistent',
-      _ => 'the person you want to be',
+      // Shorter fallback so the headline still wraps to 2 lines (not 3).
+      // "the person you want to be" was the longest variant and the only
+      // one that pushed the layout off-screen.
+      _ => 'your best self',
     };
     final mins = s.dailyCommitmentMinutes ?? 3;
-    return 'Become $aspiration in $mins min a day.';
+    final minLabel = mins == 1 ? '1 minute' : '$mins minutes';
+    // Reframe so the time is the commitment, not the deadline. The old
+    // shape ("Become X in 3 min a day") read as if the user becomes X
+    // *within* 3 minutes — wrong scope. New shape leads with the daily
+    // promise: "$mins minutes a day to become X."
+    return 'Just $minLabel a day to become $aspiration.';
   }
 
   Package? _findSelectedPackage(List<Package> offerings) {
@@ -385,281 +378,350 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasTrial = _planHasTrial(_selectedPlan);
+    final mediaQueryPadding = MediaQuery.of(context).padding;
     return Scaffold(
+      // Match the image's warm-cream top so any 1px banding between the
+      // status-bar area and the hero is invisible. The page background
+      // is the same cream — both blend.
       backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding,
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(
-                    children: [
-                      // Close button — fades in after 3s. App Review still
-                      // sees a visible (greyed) X immediately, but users get
-                      // forced exposure to the offer before they can dismiss.
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 400),
-                          opacity: _canClose ? 1.0 : 0.25,
-                          child: IgnorePointer(
-                            ignoring: !_canClose,
-                            child: IconButton(
-                              onPressed: (_purchasing || _restoring)
-                                  ? null
-                                  : _handleClose,
-                              icon: const Icon(
-                                Icons.close,
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
+      // No SafeArea wrapper at the top — the hero image bleeds into the
+      // status-bar region for that "edge-to-edge" treatment Cal AI / Hallow
+      // use. Top safe-area padding is re-added below where it matters
+      // (close X position) instead of as a global child constraint.
+      body: Stack(
+          children: [
+            // Main scrollable content. The hero block bleeds full-width past
+            // the page padding for visual impact; everything else respects
+            // the standard horizontal page padding via inner wrappers.
+            //
+            // LayoutBuilder + ConstrainedBox(minHeight) + IntrinsicHeight
+            // gives the inner Column bounded vertical space equal to at
+            // least the viewport height, which lets the Spacer below the
+            // pricing cards push the CTA + legal block down so it sits
+            // vertically centered in the remaining cream space.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                  const _PaywallHero(),
+
+                  // Breathing room between the hero's faded tail and the
+                  // headline. Without this the body content reads as
+                  // jammed against the image instead of as a separate
+                  // section that flows naturally below it.
+                  const SizedBox(height: AppSpacing.sm),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pagePadding,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Personalized headline — DM Serif Display.
+                        Text(
+                          _personalizedHeadline(),
+                          style: AppTypography.displaySmall.copyWith(
+                            color: AppColors.textPrimaryLight,
+                            height: 1.12,
+                            fontSize: 26,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
+                        const SizedBox(height: AppSpacing.md),
 
-                      // Decorative Arabic calligraphy
-                      Text(
-                        '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650',
-                        style: AppTypography.displaySmall.copyWith(
-                          color: AppColors.secondary.withAlpha(191),
-                          fontFamily: 'Amiri',
-                          fontSize: 28,
-                        ),
-                        textDirection: TextDirection.rtl,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      // Headline — personalized from quiz answers
-                      Text(
-                        _personalizedHeadline(),
-                        style: AppTypography.displaySmall.copyWith(
-                          color: AppColors.textPrimaryLight,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      // 3 compact benefit rows
-                      ...List.generate(_benefits.length, (i) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  _benefits[i],
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.textPrimaryLight,
+                        // 3 benefit rows — staggered fade/slide on first
+                        // paint so the eye lands here after the hero.
+                        ...List.generate(_benefits.length, (i) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 5),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.primaryLight,
                                   ),
+                                  child: const Icon(
+                                    Icons.check_rounded,
+                                    color: AppColors.primary,
+                                    size: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm + 2),
+                                Expanded(
+                                  child: Text(
+                                    _benefits[i],
+                                    style:
+                                        AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.textPrimaryLight,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                              .animate()
+                              .fadeIn(
+                                delay: Duration(milliseconds: 90 * i + 120),
+                                duration: 380.ms,
+                              )
+                              .slideX(
+                                begin: -0.04,
+                                end: 0,
+                                delay: Duration(milliseconds: 90 * i + 120),
+                                duration: 380.ms,
+                              );
+                        }),
+                        const SizedBox(height: AppSpacing.md),
+
+                        // Honest trial timeline — only when the selected
+                        // plan actually has a free intro on its StoreKit
+                        // product. Otherwise the timeline would lie about
+                        // a "Day 3 charged" event that won't happen.
+                        if (hasTrial) ...[
+                          _TrialTimelineStrip(
+                            chargeOnDay3:
+                                _selectedPlan == _PlanType.annual
+                                    ? (_annualPackage
+                                            ?.storeProduct.priceString ??
+                                        AppStrings.paywallAnnualPrice)
+                                    : (_weeklyPackage
+                                            ?.storeProduct.priceString ??
+                                        AppStrings.paywallWeeklyPrice),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+
+                        // Side-by-side pricing — Cal AI pattern. Annual on
+                        // the left (default-selected, "best value"), weekly
+                        // on the right.
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _PricingCard(
+                                  label: AppStrings.paywallAnnualLabel,
+                                  mainPrice: _annualPackage
+                                          ?.storeProduct.priceString ??
+                                      AppStrings.paywallAnnualPrice,
+                                  mainPriceLabel: 'per year',
+                                  // Per-week breakdown — Cal AI's value
+                                  // framing. Makes annual feel cheap
+                                  // relative to weekly.
+                                  footerLine:
+                                      'Only ${AppStrings.paywallAnnualPerWeek} / week',
+                                  footerHighlight: true,
+                                  badge: AppStrings.paywallAnnualBadge,
+                                  selected:
+                                      _selectedPlan == _PlanType.annual,
+                                  onTap: () {
+                                    setState(() => _selectedPlan =
+                                        _PlanType.annual);
+                                    ref.read(analyticsProvider).track(
+                                        AnalyticsEvents
+                                            .paywallPlanSelected,
+                                        properties: {'plan': _planName});
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm + 4),
+                              Expanded(
+                                child: _PricingCard(
+                                  label: AppStrings.paywallWeeklyLabel,
+                                  mainPrice: _weeklyPackage
+                                          ?.storeProduct.priceString ??
+                                      AppStrings.paywallWeeklyPrice,
+                                  mainPriceLabel: 'per week',
+                                  footerLine: 'Cancel anytime',
+                                  footerHighlight: false,
+                                  selected:
+                                      _selectedPlan == _PlanType.weekly,
+                                  onTap: () {
+                                    setState(() => _selectedPlan =
+                                        _PlanType.weekly);
+                                    ref.read(analyticsProvider).track(
+                                        AnalyticsEvents
+                                            .paywallPlanSelected,
+                                        properties: {'plan': _planName});
+                                  },
                                 ),
                               ),
                             ],
                           ),
-                        )
-                            .animate()
-                            .fadeIn(
-                              delay: Duration(milliseconds: 80 * i),
-                              duration: 400.ms,
-                            )
-                            .slideX(
-                              begin: -0.05,
-                              end: 0,
-                              delay: Duration(milliseconds: 80 * i),
-                              duration: 400.ms,
-                            );
-                      }),
-                      const SizedBox(height: AppSpacing.sm),
+                        ),
 
-                      // Social proof — single inline line with stars and
-                      // review count. Cal AI / Hallow / Calm all keep this
-                      // to one line; a paragraph testimonial here doubled
-                      // the vertical real estate without earning it.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ...List.generate(
-                            5,
-                            (_) => const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 1),
-                              child: Icon(
-                                Icons.star_rounded,
-                                color: AppColors.streakAmber,
-                                size: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
+                        // Honest billing note when no intro offer exists.
+                        if (!hasTrial) ...[
+                          const SizedBox(height: AppSpacing.sm + 2),
                           Text(
-                            '${AppStrings.paywallStarsLabel} \u00B7 '
-                            '${AppStrings.paywallReviewsCount}',
+                            AppStrings.paywallNoTrialNote,
                             style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textSecondaryLight,
+                              color: AppColors.textTertiaryLight,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            _errorMessage!,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.error,
                               fontWeight: FontWeight.w600,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-
-                      // Honest trial timeline — Today / Day 2 / Day 3.
-                      // Only render when the selected plan actually has a
-                      // free trial configured on the underlying StoreKit
-                      // product. Otherwise the strip would lie to the user
-                      // about being charged "Day 3" when the OS will charge
-                      // them today.
-                      if (_planHasTrial(_selectedPlan)) ...[
-                        _TrialTimelineStrip(
-                          chargeOnDay3:
-                              _selectedPlan == _PlanType.annual
-                                  ? (_annualPackage?.storeProduct.priceString ??
-                                      AppStrings.paywallAnnualPrice)
-                                  : (_weeklyPackage?.storeProduct.priceString ??
-                                      AppStrings.paywallWeeklyPrice),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
                       ],
+                    ),
+                  ),
 
-                      // Pricing cards — stacked, yearly first
-                      _PricingCard(
-                        label: AppStrings.paywallAnnualLabel,
-                        mainPrice: _annualPackage?.storeProduct.priceString ??
-                            AppStrings.paywallAnnualPerWeek,
-                        mainPriceLabel: 'per year',
-                        // Drop the subPrice — the SAVE 81% badge under the
-                        // label already carries this. Rendering it twice
-                        // (left and right side of the same card) reads as
-                        // clutter, not emphasis.
-                        badge: AppStrings.paywallAnnualBadge,
-                        selected: _selectedPlan == _PlanType.annual,
-                        onTap: () {
-                          setState(() => _selectedPlan = _PlanType.annual);
-                          ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': _planName});
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _PricingCard(
-                        label: AppStrings.paywallWeeklyLabel,
-                        mainPrice: _weeklyPackage?.storeProduct.priceString ??
-                            AppStrings.paywallWeeklyPrice,
-                        mainPriceLabel: 'per week',
-                        selected: _selectedPlan == _PlanType.weekly,
-                        onTap: () {
-                          setState(() => _selectedPlan = _PlanType.weekly);
-                          ref.read(analyticsProvider).track(AnalyticsEvents.paywallPlanSelected, properties: {'plan': _planName});
-                        },
-                      ),
-                      // No-trial billing note. Only renders when the selected
-                      // plan has no introductory free offer — keeps the
-                      // paywall honest about immediate billing in that case.
-                      if (!_planHasTrial(_selectedPlan)) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          AppStrings.paywallNoTrialNote,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textTertiaryLight,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          _errorMessage!,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: Colors.red.shade700,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                  // Flexible gap above the CTA group. Pairs 1:1 with the
+                  // matching Spacer below the legal links so the CTA +
+                  // legal block sits at the true vertical center of the
+                  // cream space between the pricing cards and the screen
+                  // bottom. The home indicator floats over the same cream,
+                  // so no fixed bottom inset is needed for visual balance.
+                  const Spacer(),
 
-                      const Spacer(flex: 3),
-
-                      // CTA button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: (_purchasing || _restoring)
-                              ? null
-                              : _handlePurchase,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.textOnPrimary,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                          ),
-                          child: _purchasing
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.textOnPrimary,
-                                  ),
-                                )
-                              : Text(
-                                  _planHasTrial(_selectedPlan)
-                                      ? AppStrings.paywallCta
-                                      : AppStrings.paywallCtaSubscribe,
-                                  style: AppTypography.labelLarge.copyWith(
-                                    color: AppColors.textOnPrimary,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-
-                      // Legal links
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _LegalLink(
-                            label: _restoring
-                                ? 'Restoring...'
-                                : AppStrings.paywallRestore,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pagePadding,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // CTA — full-width pill, dynamic copy.
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
                             onPressed: (_purchasing || _restoring)
                                 ? null
-                                : _handleRestore,
+                                : _handlePurchase,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.textOnPrimary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                            ),
+                            child: _purchasing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.textOnPrimary,
+                                    ),
+                                  )
+                                : Text(
+                                    hasTrial
+                                        ? AppStrings.paywallCta
+                                        : AppStrings.paywallCtaSubscribe,
+                                    style:
+                                        AppTypography.labelLarge.copyWith(
+                                      color: AppColors.textOnPrimary,
+                                      fontSize: 16,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
                           ),
-                          _dot(),
-                          _LegalLink(
-                            label: AppStrings.paywallTerms,
-                            onPressed: () =>
-                                _openLegalUrl(AppStrings.termsOfServiceUrl),
-                          ),
-                          _dot(),
-                          _LegalLink(
-                            label: AppStrings.paywallPrivacy,
-                            onPressed: () =>
-                                _openLegalUrl(AppStrings.privacyPolicyUrl),
-                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm + 4),
+
+                        // Legal links
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _LegalLink(
+                              label: _restoring
+                                  ? 'Restoring...'
+                                  : AppStrings.paywallRestore,
+                              onPressed: (_purchasing || _restoring)
+                                  ? null
+                                  : _handleRestore,
+                            ),
+                            _dot(),
+                            _LegalLink(
+                              label: AppStrings.paywallTerms,
+                              onPressed: () => _openLegalUrl(
+                                  AppStrings.termsOfServiceUrl),
+                            ),
+                            _dot(),
+                            _LegalLink(
+                              label: AppStrings.paywallPrivacy,
+                              onPressed: () => _openLegalUrl(
+                                  AppStrings.privacyPolicyUrl),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Mirrors the top Spacer (1:1) for true vertical
+                  // centering of the CTA + legal block in the cream
+                  // space below the pricing cards.
+                  const Spacer(),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // Close X — positioned over the hero. Fades in after 3s so the
+            // user is forced to take a real look at the offer before they
+            // can dismiss. App Review still sees a visible (greyed) X
+            // immediately, satisfying Apple's "clear close path" rule.
+            // `top` sits the icon flush at the safe-area edge so it reads
+            // as floating on the hero, not as a chip pushed inward. No
+            // surface background — the icon blends directly into the
+            // illustration via its dark stroke.
+            Positioned(
+              top: mediaQueryPadding.top,
+              right: AppSpacing.sm,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 400),
+                opacity: _canClose ? 1.0 : 0.35,
+                child: IgnorePointer(
+                  ignoring: !_canClose,
+                  child: IconButton(
+                    onPressed:
+                        (_purchasing || _restoring) ? null : _handleClose,
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textPrimaryLight,
+                      size: 26,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shape: const CircleBorder(),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
-      ),
     );
   }
 
@@ -701,11 +763,20 @@ class _LegalLink extends StatelessWidget {
   }
 }
 
+/// Side-by-side compact pricing card. Vertical layout — label up top,
+/// price stack in the middle, value line at the bottom — so the whole
+/// card feels filled instead of having dead cream space below the price.
+/// Selected state uses an emerald border + tinted background; unselected
+/// is white with a soft warm border. Cal AI / Hallow / Calm all pair the
+/// price with a per-period value line ("Only $X/week", "Cancel anytime")
+/// to give the card more reason to exist.
 class _PricingCard extends StatelessWidget {
   const _PricingCard({
     required this.label,
     required this.mainPrice,
     required this.mainPriceLabel,
+    required this.footerLine,
+    required this.footerHighlight,
     required this.selected,
     required this.onTap,
     this.badge,
@@ -714,116 +785,292 @@ class _PricingCard extends StatelessWidget {
   final String label;
   final String mainPrice;
   final String mainPriceLabel;
+
+  /// Bottom line that fills empty space and adds value framing.
+  /// Yearly: "Only $0.96 / week" (highlight=true → primary color).
+  /// Weekly: "Cancel anytime" (highlight=false → secondary color).
+  final String footerLine;
+  final bool footerHighlight;
+
   final String? badge;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // Outer Stack sits OUTSIDE the AnimatedContainer so floating elements
+    // (selected check, SAVE badge) can escape the card's padded interior.
+    // Putting them inside the container's child Stack — even with
+    // clipBehavior: Clip.none — places them in coordinate space relative to
+    // the padded inner area, so a small negative offset still falls inside
+    // the visible card.
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 14,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryLight : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderLight,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            // Radio indicator
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? AppColors.primary : Colors.transparent,
-                border: Border.all(
-                  color: selected
-                      ? AppColors.primary
-                      : AppColors.textTertiaryLight,
-                  width: 2,
-                ),
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.primaryLight
+                  : AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.borderLight,
+                width: selected ? 2 : 1.2,
               ),
-              child: selected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.10),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
                   : null,
             ),
-            const SizedBox(width: AppSpacing.md),
-
-            // Label + badge
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
-                    ),
-                  ),
-                  if (badge != null) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.buttonRadius),
-                      ),
-                      child: Text(
-                        badge!,
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textOnPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // Price column — right-aligned
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Label
                 Text(
-                  mainPrice,
-                  style: AppTypography.headlineLarge.copyWith(
+                  label,
+                  style: AppTypography.labelLarge.copyWith(
                     color: AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    letterSpacing: 0.2,
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // Big price
+                Text(
+                  mainPrice,
+                  style: AppTypography.displaySmall.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontSize: 30,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   mainPriceLabel,
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondaryLight,
-                    fontSize: 13,
+                    fontSize: 12,
+                  ),
+                ),
+
+                // Spacer absorbs leftover height when IntrinsicHeight makes
+                // both cards match the taller one. Keeps the footer line
+                // pinned to the card bottom regardless of which card is
+                // taller, so the two cards visually rhyme.
+                const SizedBox(height: 14),
+
+                // Thin divider above the footer.
+                Container(
+                  height: 1,
+                  color: selected
+                      ? AppColors.primary.withValues(alpha: 0.18)
+                      : AppColors.dividerLight,
+                ),
+                const SizedBox(height: 8),
+
+                // Footer line — fills the dead space and adds value
+                // framing. Highlighted (primary color) for Yearly's
+                // per-week breakdown, muted for Weekly's "Cancel anytime".
+                Text(
+                  footerLine,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: footerHighlight
+                        ? AppColors.primary
+                        : AppColors.textSecondaryLight,
+                    fontWeight: footerHighlight
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
-          ],
+          ),
+
+          // SAVE 81% badge — floats above the card's top-left edge. Gold
+          // against either white or emerald-tinted card; harmonizes with
+          // the warm cream page background.
+          if (badge != null)
+            Positioned(
+              top: -11,
+              left: 12,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    badge!,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textOnPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // No floating selected indicator. The 2px emerald border + the
+          // primaryLight bg tint + the soft drop shadow are unambiguous;
+          // a corner check disc only added visual noise and read as
+          // floating-in-the-gap because it sat at the card's right edge.
+        ],
+      ),
+    );
+  }
+}
+
+/// Hero block — the visual centerpiece at the top of the paywall. Renders
+/// a glowing gold medallion with a featured Name of Allah ("Ar-Rahman") at
+/// its core, surrounded by a soft 8-point Islamic geometric pattern and a
+/// radial cream → warm-gold gradient. The bottom edge fades into the page
+/// background so content below feels continuous.
+///
+/// Composition is fully Flutter-native (no asset dependency) so it works
+/// today; a generated illustration can be swapped into the Stack as a new
+/// layer later without restructuring.
+class _PaywallHero extends StatelessWidget {
+  const _PaywallHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    // Hero takes ~32% of viewport height (from screen top — this section
+    // bleeds into the status-bar safe area). The image's `Alignment(0,
+    // -0.45)` anchor pushes the medallion below the Dynamic Island so the
+    // calligraphy is fully visible despite the smaller hero box.
+    final heroHeight = (size.height * 0.32).clamp(250.0, 290.0);
+
+    return ClipRRect(
+      // Rounded bottom corners give the hero a "card" shape, framing the
+      // image without a hard horizontal edge. Top corners stay square so
+      // the image sits flush against the screen edge above the status bar.
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(28),
+        bottomRight: Radius.circular(28),
+      ),
+      child: SizedBox(
+        height: heroHeight,
+        width: double.infinity,
+        child: Stack(
+          children: [
+          // Soft warm-gold radial backdrop. Visible behind the image's
+          // transparent edges and, more importantly, sits beneath the
+          // ShaderMask so the faded-out bottom of the image dissolves into
+          // it cleanly instead of into stark page cream.
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0, -0.1),
+                  radius: 0.95,
+                  colors: [
+                    Color(0xFFF5EBD9),
+                    AppColors.backgroundLight,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Hero illustration. ShaderMask fades the bottom ~35% of the
+          // image to transparent so the medallion dissolves smoothly into
+          // the cream page — no visible hard horizontal edge where the
+          // PNG ends. BlendMode.dstIn means: keep the image where the
+          // shader is opaque, hide it where the shader is transparent.
+          Positioned.fill(
+            child: ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black,
+                  Colors.black,
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.55, 1.0],
+              ).createShader(rect),
+              child: Image.asset(
+                'assets/illustrations/paywall_hero.png',
+                fit: BoxFit.cover,
+                // Bias the visible window upward in the source image, which
+                // visually shifts the medallion DOWN inside the hero box.
+                // Result: the calligraphy sits below the Dynamic Island /
+                // status bar instead of being clipped by it.
+                alignment: const Alignment(0, -0.45),
+                filterQuality: FilterQuality.high,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            )
+                .animate()
+                .fadeIn(duration: 600.ms, curve: Curves.easeOut)
+                .scaleXY(
+                  begin: 0.96,
+                  end: 1.0,
+                  duration: 700.ms,
+                  curve: Curves.easeOutBack,
+                ),
+          ),
+
+          // Final blend — a thin gradient layer that nudges any remaining
+          // edge into pure background cream. ShaderMask handles the heavy
+          // lifting; this is a polish pass.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: heroHeight * 0.35,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.backgroundLight.withValues(alpha: 0.0),
+                      AppColors.backgroundLight,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
         ),
       ),
     );
   }
 }
+
 
 /// "Honest paywall" trial timeline. Three small cards: Today (full access),
 /// Day 2 (reminder), Day 3 (charged or cancel). Lifts trust and conversion

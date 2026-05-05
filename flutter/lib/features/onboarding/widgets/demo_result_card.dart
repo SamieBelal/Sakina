@@ -3,8 +3,15 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 
-class DemoResultData {
-  const DemoResultData({
+/// The Name surfaced on the first check-in screen. Becomes the user's
+/// permanent "starting Name" — persisted as `user_profiles.starter_name_id`
+/// and seeded into `user_card_collection` at onboarding completion.
+///
+/// `catalogId` references `collectible_names(id)` (see
+/// `lib/services/card_collection_service.dart` for the canonical list).
+class StarterNameData {
+  const StarterNameData({
+    required this.catalogId,
     required this.nameArabic,
     required this.nameEnglish,
     required this.nameTransliteration,
@@ -13,6 +20,7 @@ class DemoResultData {
     required this.verseReference,
   });
 
+  final int catalogId;
   final String nameArabic;
   final String nameEnglish;
   final String nameTransliteration;
@@ -20,7 +28,8 @@ class DemoResultData {
   final String verseTranslation;
   final String verseReference;
 
-  static const asSalam = DemoResultData(
+  static const asSalam = StarterNameData(
+    catalogId: 6,
     nameArabic: 'السلام',
     nameEnglish: 'The Source of Peace',
     nameTransliteration: 'As-Salam',
@@ -31,7 +40,8 @@ class DemoResultData {
     verseReference: 'Ar-Ra\'d 13:28',
   );
 
-  static const alJabbar = DemoResultData(
+  static const alJabbar = StarterNameData(
+    catalogId: 9,
     nameArabic: 'الجبّار',
     nameEnglish: 'The Restorer',
     nameTransliteration: 'Al-Jabbar',
@@ -42,7 +52,8 @@ class DemoResultData {
     verseReference: 'Ash-Sharh 94:5-6',
   );
 
-  static const ashShakur = DemoResultData(
+  static const ashShakur = StarterNameData(
+    catalogId: 28,
     nameArabic: 'الشكور',
     nameEnglish: 'The Most Appreciative',
     nameTransliteration: 'Ash-Shakur',
@@ -53,7 +64,8 @@ class DemoResultData {
     verseReference: 'Ibrahim 14:7',
   );
 
-  static const asSabur = DemoResultData(
+  static const asSabur = StarterNameData(
+    catalogId: 32,
     nameArabic: 'الصبور',
     nameEnglish: 'The Most Patient',
     nameTransliteration: 'As-Sabur',
@@ -64,7 +76,8 @@ class DemoResultData {
     verseReference: 'Al-Imran 3:134',
   );
 
-  static const alHadi = DemoResultData(
+  static const alHadi = StarterNameData(
+    catalogId: 33,
     nameArabic: 'الهادي',
     nameEnglish: 'The Guide',
     nameTransliteration: 'Al-Hadi',
@@ -75,7 +88,8 @@ class DemoResultData {
     verseReference: 'Al-Baqarah 2:286',
   );
 
-  static const alWakeel = DemoResultData(
+  static const alWakeel = StarterNameData(
+    catalogId: 35,
     nameArabic: 'الوكيل',
     nameEnglish: 'The Trustee',
     nameTransliteration: 'Al-Wakeel',
@@ -86,7 +100,8 @@ class DemoResultData {
     verseReference: 'At-Talaq 65:3',
   );
 
-  static const arRahman = DemoResultData(
+  static const arRahman = StarterNameData(
+    catalogId: 2,
     nameArabic: 'الرحمن',
     nameEnglish: 'The Most Merciful',
     nameTransliteration: 'Ar-Rahman',
@@ -97,19 +112,57 @@ class DemoResultData {
     verseReference: 'Ar-Rahman 55:13',
   );
 
-  static DemoResultData forEmotion(String emotion) {
+  /// All starter Names — used for catalog-id sanity tests.
+  static const all = <StarterNameData>[
+    asSalam,
+    alJabbar,
+    ashShakur,
+    asSabur,
+    alHadi,
+    alWakeel,
+    arRahman,
+  ];
+
+  /// Maps free-text or chip emotion input to a starter Name. Each branch is
+  /// generous with synonyms so most natural inputs land on a non-default
+  /// Name; truly unmatched input falls through to Ar-Rahman (warmth/mercy)
+  /// as the universal default.
+  static StarterNameData forEmotion(String emotion) {
     final lower = emotion.toLowerCase();
-    if (lower.contains('anxious') || lower.contains('anxiety') || lower.contains('overwhelm')) {
+    bool any(List<String> words) => words.any(lower.contains);
+
+    if (any(const [
+      'anxious', 'anxiety', 'overwhelm', 'panic',
+      'worried', 'worry', 'scared', 'fear', 'afraid', 'restless', 'nervous',
+    ])) {
       return asSalam;
-    } else if (lower.contains('sad') || lower.contains('sadness') || lower.contains('grief')) {
+    }
+    if (any(const [
+      'sad', 'sadness', 'grief', 'grieving', 'depressed',
+      'down', 'low', 'hurt', 'broken', 'heartbroken', 'crying',
+    ])) {
       return alJabbar;
-    } else if (lower.contains('grateful') || lower.contains('gratitude')) {
+    }
+    if (any(const [
+      'grateful', 'gratitude', 'thankful', 'blessed', 'content',
+    ])) {
       return ashShakur;
-    } else if (lower.contains('angry') || lower.contains('anger') || lower.contains('frustrated')) {
+    }
+    if (any(const [
+      'angry', 'anger', 'frustrated', 'frustration', 'irritated',
+      'annoyed', 'mad', 'furious', 'rage',
+    ])) {
       return asSabur;
-    } else if (lower.contains('lost') || lower.contains('lonely') || lower.contains('loneliness')) {
+    }
+    if (any(const [
+      'lost', 'lonely', 'loneliness', 'alone', 'isolated',
+      'disconnected', 'confused', 'directionless',
+    ])) {
       return alHadi;
-    } else if (lower.contains('hopeful') || lower.contains('hope')) {
+    }
+    if (any(const [
+      'hopeful', 'hope', 'optimistic', 'looking forward',
+    ])) {
       return alWakeel;
     }
     return arRahman;
@@ -122,7 +175,7 @@ class DemoResultCard extends StatelessWidget {
     super.key,
   });
 
-  final DemoResultData data;
+  final StarterNameData data;
 
   @override
   Widget build(BuildContext context) {

@@ -11,21 +11,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
+import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall at index 25).
-/// PageView has 26 children; gacha on first_checkin is an overlay, not a page.
-const int onboardingLastPageIndex = 25;
+/// Last index in [OnboardingScreen]'s PageView (paywall at index 24).
+/// PageView has 25 children; gacha on first_checkin is an overlay, not a page.
+/// Resonant Name picker (formerly index 7) was removed in the single-Name
+/// continuity refactor (2026-04-29) — the starter Name now comes from the
+/// first check-in screen at index 0.
+const int onboardingLastPageIndex = 24;
 
 /// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
-const int onboardingPasswordPageIndex = 23;
+const int onboardingPasswordPageIndex = 22;
 
 /// Where social-auth (Apple/Google) users land after OAuth succeeds. They are
-/// already authenticated, so the email (22) and password (23) screens are
+/// already authenticated, so the email (21) and password (22) screens are
 /// skipped — the user goes straight to the Encouragement interstitial.
-const int onboardingEncouragementPageIndex = 24;
+const int onboardingEncouragementPageIndex = 23;
 
 class OnboardingState {
   const OnboardingState({
@@ -46,7 +50,7 @@ class OnboardingState {
     // New in v3:
     this.ageRange,
     this.prayerFrequency,
-    this.resonantNameId,
+    this.starterNameId,
     this.duaTopics = const {},
     this.duaTopicsOther,
     this.commonEmotions = const {},
@@ -72,7 +76,7 @@ class OnboardingState {
   final String? signUpEmail;
   final String? ageRange;
   final String? prayerFrequency;
-  final String? resonantNameId;
+  final int? starterNameId;
   final Set<String> duaTopics;
   final String? duaTopicsOther;
   final Set<String> commonEmotions;
@@ -101,7 +105,7 @@ class OnboardingState {
     bool clearSignUpEmail = false,
     String? ageRange,
     String? prayerFrequency,
-    String? resonantNameId,
+    int? starterNameId,
     Set<String>? duaTopics,
     String? duaTopicsOther,
     bool clearDuaTopicsOther = false,
@@ -129,7 +133,7 @@ class OnboardingState {
       signUpEmail: clearSignUpEmail ? null : (signUpEmail ?? this.signUpEmail),
       ageRange: ageRange ?? this.ageRange,
       prayerFrequency: prayerFrequency ?? this.prayerFrequency,
-      resonantNameId: resonantNameId ?? this.resonantNameId,
+      starterNameId: starterNameId ?? this.starterNameId,
       duaTopics: duaTopics ?? this.duaTopics,
       duaTopicsOther:
           clearDuaTopicsOther ? null : (duaTopicsOther ?? this.duaTopicsOther),
@@ -143,7 +147,7 @@ class OnboardingState {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 4,
+        'version': 5,
         'currentPage': currentPage,
         'intention': intention,
         'notificationPermissionGranted': notificationPermissionGranted,
@@ -155,7 +159,7 @@ class OnboardingState {
         'signUpEmail': signUpEmail,
         'ageRange': ageRange,
         'prayerFrequency': prayerFrequency,
-        'resonantNameId': resonantNameId,
+        'starterNameId': starterNameId,
         'duaTopics': duaTopics.toList(),
         'duaTopicsOther': duaTopicsOther,
         'commonEmotions': commonEmotions.toList(),
@@ -166,10 +170,11 @@ class OnboardingState {
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
-    // Spec §5: Sakina has no production users. Any blob with version < 4 is
-    // discarded and the user starts fresh.
+    // Sakina has no production users. Any blob older than the current schema
+    // version is discarded and the user starts fresh. Bumped 4→5 with the
+    // single-Name continuity refactor (resonantNameId → starterNameId).
     final version = json['version'] as int? ?? 0;
-    if (version < 4) return const OnboardingState();
+    if (version < 5) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
     currentPage = currentPage.clamp(0, onboardingLastPageIndex);
@@ -190,7 +195,7 @@ class OnboardingState {
       signUpEmail: json['signUpEmail'] as String?,
       ageRange: json['ageRange'] as String?,
       prayerFrequency: json['prayerFrequency'] as String?,
-      resonantNameId: json['resonantNameId'] as String?,
+      starterNameId: (json['starterNameId'] as num?)?.toInt(),
       duaTopics: readSet(json['duaTopics']),
       duaTopicsOther: json['duaTopicsOther'] as String?,
       commonEmotions: readSet(json['commonEmotions']),
@@ -299,8 +304,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     _saveToPrefs();
   }
 
-  void setResonantNameId(String value) {
-    state = state.copyWith(resonantNameId: value);
+  void setStarterName(int catalogId) {
+    state = state.copyWith(starterNameId: catalogId);
     _saveToPrefs();
   }
 
@@ -434,7 +439,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         attribution: state.attribution.toList(),
         ageRange: state.ageRange,
         prayerFrequency: state.prayerFrequency,
-        resonantNameId: state.resonantNameId,
+        starterNameId: state.starterNameId,
         duaTopics: state.duaTopics.toList(),
         duaTopicsOther: state.duaTopicsOther,
         commonEmotions: state.commonEmotions.toList(),
@@ -459,6 +464,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     await resetDailyLaunchGate();
 
     await persistOnboardingToSupabase();
+
+    // Seed the user's first collection card with their starter Name from the
+    // first check-in. Idempotent on (user_id, name_id) so re-runs are safe.
+    final starterId = state.starterNameId;
+    if (starterId != null) {
+      try {
+        await _authService.seedStarterCard(starterId);
+      } catch (e, stack) {
+        debugPrint('[Onboarding] seed starter card failed: $e\n$stack');
+      }
+      // Refresh local card_collection cache so the collection screen shows
+      // the seeded bronze immediately. Separate try/catch so a hydration
+      // failure isn't misattributed to the seed call above.
+      try {
+        await hydrateUserDataFromBatchRpc();
+      } catch (e, stack) {
+        debugPrint(
+            '[Onboarding] post-seed user data hydration failed: $e\n$stack');
+      }
+    }
 
     // Flip the server-side onboarding flag now that the user has actually
     // finished onboarding. Doing this earlier (e.g. right after sign-up)

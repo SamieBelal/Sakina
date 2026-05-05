@@ -9,16 +9,67 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
+import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
+
+/// Resolved hero-tile content for the home dashboard's "Today's Name" /
+/// "Your Starting Name" section. Pure-function output so the day-0 vs
+/// day-N+ branching can be tested without a widget tree.
+class HomeHeroData {
+  const HomeHeroData({
+    required this.label,
+    required this.arabic,
+    required this.transliteration,
+    required this.english,
+    required this.lesson,
+  });
+
+  final String label;
+  final String arabic;
+  final String transliteration;
+  final String english;
+  final String lesson;
+}
+
+/// Picks between the user's starter Name (day 0, before any muhasabah) and
+/// the daily date-rotation Name. Mirrors the same conditional used by
+/// [DailyLaunchOverlay] so the launch greeting and the home hero stay in
+/// sync — without this, the home would show today's date-rotation Name
+/// (e.g. "Al-Quddus" on day-of-year-3) even though the user just bonded
+/// with their starter Name in onboarding seconds earlier.
+HomeHeroData resolveHomeHero({
+  required int streakCount,
+  required CollectibleName? starter,
+  required AllahName todays,
+}) {
+  final showStarter = streakCount == 0 && starter != null;
+  if (showStarter) {
+    return HomeHeroData(
+      label: 'Your Starting Name',
+      arabic: starter.arabic,
+      transliteration: starter.transliteration,
+      english: starter.english,
+      lesson: starter.lesson,
+    );
+  }
+  return HomeHeroData(
+    label: "Today's Name",
+    arabic: todays.arabic,
+    transliteration: todays.transliteration,
+    english: todays.english,
+    lesson: todays.lesson,
+  );
+}
 
 class ProgressScreen extends ConsumerStatefulWidget {
   const ProgressScreen({super.key});
@@ -77,7 +128,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
-    final todaysName = getTodaysName();
+
+    // On day 0 (no streak yet) surface the user's starter Name from
+    // onboarding instead of the date-rotation Name. This mirrors
+    // DailyLaunchOverlay so the user sees one consistent Name from the
+    // first check-in → launch overlay → home tile until they begin their
+    // first muhasabah and start a streak.
+    final starter = state.streakCount == 0
+        ? ref.watch(starterNameProvider).valueOrNull
+        : null;
+    final hero = resolveHomeHero(
+      streakCount: state.streakCount,
+      starter: starter,
+      todays: getTodaysName(),
+    );
 
     // Detect level-up event and show overlay
     // Level-up overlay is shown from muhasabah_screen only —
@@ -110,7 +174,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               const SizedBox(height: AppSpacing.md),
 
               // 2. Unified dashboard card
-              _buildDashboardCard(state, todaysName),
+              _buildDashboardCard(state, hero),
               // Just enough to breathe above the bottom nav. The
               // SingleChildScrollView's pagePadding already adds ~24px
               // on its own, and the Scaffold's bottomNavigationBar
@@ -191,7 +255,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // Unified Dashboard Card
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildDashboardCard(DailyLoopState state, AllahName todaysName) {
+  Widget _buildDashboardCard(DailyLoopState state, HomeHeroData hero) {
     final xpState = _calculateXpProgress(state.xpTotal);
     final double xpProgress = xpState.xpForNextLevel > 0
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
@@ -401,7 +465,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Today's Name",
+            hero.label,
             style: AppTypography.labelSmall.copyWith(
               color: AppColors.secondary,
               letterSpacing: 1,
@@ -410,7 +474,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 44),
           AdjustedArabicDisplay(
-            text: todaysName.arabic,
+            text: hero.arabic,
             style: AppTypography.nameOfAllahDisplay.copyWith(
               color: AppColors.secondary,
               fontSize: 48,
@@ -418,7 +482,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            '${todaysName.transliteration} — ${todaysName.english}',
+            '${hero.transliteration} — ${hero.english}',
             style: AppTypography.labelLarge.copyWith(
               color: AppColors.textPrimaryLight,
             ),
@@ -426,7 +490,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
           const SizedBox(height: 6),
           Text(
-            todaysName.lesson,
+            hero.lesson,
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondaryLight,
               height: 1.5,

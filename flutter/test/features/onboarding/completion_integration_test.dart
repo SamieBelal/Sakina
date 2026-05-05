@@ -23,7 +23,7 @@ class _FakeAuthService extends AuthService {
     List<String> attribution = const [],
     String? ageRange,
     String? prayerFrequency,
-    String? resonantNameId,
+    int? starterNameId,
     List<String> duaTopics = const [],
     String? duaTopicsOther,
     List<String> commonEmotions = const [],
@@ -41,7 +41,7 @@ class _FakeAuthService extends AuthService {
       'attribution': attribution,
       'ageRange': ageRange,
       'prayerFrequency': prayerFrequency,
-      'resonantNameId': resonantNameId,
+      'starterNameId': starterNameId,
       'duaTopics': duaTopics,
       'duaTopicsOther': duaTopicsOther,
       'commonEmotions': commonEmotions,
@@ -50,6 +50,14 @@ class _FakeAuthService extends AuthService {
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
     };
+  }
+
+  int seedCallCount = 0;
+  int? seededNameId;
+  @override
+  Future<void> seedStarterCard(int nameId) async {
+    seedCallCount += 1;
+    seededNameId = nameId;
   }
 }
 
@@ -76,7 +84,7 @@ void main() {
       ..toggleAttribution('friend')
       ..setAgeRange('25_34')
       ..setPrayerFrequency('someDaily')
-      ..setResonantNameId('ar-rahman')
+      ..setStarterName(2)
       ..toggleDuaTopic('health')
       ..toggleDuaTopic('family')
       ..setDuaTopicsOther('exam success')
@@ -103,7 +111,7 @@ void main() {
       'attribution',
       'ageRange',
       'prayerFrequency',
-      'resonantNameId',
+      'starterNameId',
       'duaTopics',
       'duaTopicsOther',
       'commonEmotions',
@@ -122,7 +130,7 @@ void main() {
     expect(fake.captured!['attribution'], ['tiktok', 'friend']);
     expect(fake.captured!['ageRange'], '25_34');
     expect(fake.captured!['prayerFrequency'], 'someDaily');
-    expect(fake.captured!['resonantNameId'], 'ar-rahman');
+    expect(fake.captured!['starterNameId'], 2);
     expect(fake.captured!['duaTopics'], ['health', 'family']);
     expect(fake.captured!['duaTopicsOther'], 'exam success');
     expect(fake.captured!['commonEmotions'], ['anxious', 'grateful']);
@@ -145,7 +153,7 @@ void main() {
       ..setQuranConnection('strong')
       ..setAgeRange('18_24')
       ..setPrayerFrequency('rarely')
-      ..setResonantNameId('ar-raheem')
+      ..setStarterName(3)
       ..setDailyCommitmentMinutes(1)
       ..setReminderTime('21:30')
       ..setCommitmentAccepted(false);

@@ -39,7 +39,7 @@ class CommonEmotionsScreen extends ConsumerWidget {
     // Note: spec copy says "Pick up to three" on sibling screens but the plan's
     // code for this screen does not enforce a 3-item cap. Per plan, no cap.
     return OnboardingQuestionScaffold(
-      progressSegment: 9,
+      progressSegment: 8,
       headline: 'Which emotions come up most for you?',
       subtitle: "We'll tailor your first reflections around these.",
       onBack: onBack,

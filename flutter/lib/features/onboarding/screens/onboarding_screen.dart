@@ -24,7 +24,6 @@ import 'personalized_plan_screen.dart';
 import 'prayer_frequency_screen.dart';
 import 'quran_connection_screen.dart';
 import 'reminder_time_screen.dart';
-import 'resonant_name_screen.dart';
 import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
 import 'sign_up_password_screen.dart';
@@ -162,8 +161,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (state.prayerFrequency != null) {
       profileProps['prayer_frequency'] = state.prayerFrequency;
     }
-    if (state.resonantNameId != null) {
-      profileProps['resonant_name_slug'] = state.resonantNameId;
+    if (state.starterNameId != null) {
+      profileProps['starter_name_id'] = state.starterNameId;
     }
     if (state.duaTopics.isNotEmpty) {
       profileProps['dua_topics'] = state.duaTopics.toList();
@@ -203,66 +202,65 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: currentPage != 0 && currentPage != 8,
+      resizeToAvoidBottomInset: currentPage != 0 && currentPage != 7,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          // 0 — #1 First check-in hook (gacha overlay fires here, not a separate page)
+          // 0 — First check-in hook (gacha overlay fires here, not a separate
+          // page). The Name surfaced here is the user's permanent starter Name.
           FirstCheckinScreen(onNext: _next, onBack: _back),
-          // 1 — #3 Name input
+          // 1 — Name input
           NameInputScreen(onNext: _next, onBack: _back),
-          // 2 — #4 Age range
+          // 2 — Age range
           AgeRangeScreen(onNext: _next, onBack: _back),
-          // 3 — #5 Intention
+          // 3 — Intention
           IntentionScreen(onNext: _next, onBack: _back),
-          // 4 — #6 Prayer frequency
+          // 4 — Prayer frequency
           PrayerFrequencyScreen(onNext: _next, onBack: _back),
-          // 5 — #7 Quran connection
+          // 5 — Quran connection
           QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 6 — #8 Familiarity with the 99 Names
+          // 6 — Familiarity with the 99 Names
           FamiliarityScreen(onNext: _next, onBack: _back),
-          // 7 — #9 Resonant name carousel
-          ResonantNameScreen(onNext: _next, onBack: _back),
-          // 8 — Dua topics
+          // 7 — Dua topics
           DuaTopicsScreen(onNext: _next, onBack: _back),
-          // 9 — Common emotions
+          // 8 — Common emotions
           CommonEmotionsScreen(onNext: _next, onBack: _back),
-          // 10 — Aspirations
+          // 9 — Aspirations
           AspirationsScreen(onNext: _next, onBack: _back),
-          // 11 — Daily commitment minutes
+          // 10 — Daily commitment minutes
           DailyCommitmentScreen(onNext: _next, onBack: _back),
-          // 12 — Attribution
+          // 11 — Attribution
           AttributionScreen(onNext: _next, onBack: _back),
-          // 13 — "You're not alone" support interstitial
+          // 12 — "You're not alone" support interstitial
           StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
-          // 14 — Reminder time
+          // 13 — Reminder time
           ReminderTimeScreen(onNext: _next, onBack: _back),
-          // 15 — Notifications permission
+          // 14 — Notifications permission
           NotificationScreen(onNext: _next, onBack: _back),
-          // 16 — Commitment pact
+          // 15 — Commitment pact
           CommitmentPactScreen(onNext: _next, onBack: _back),
-          // 17 — Generating (loader)
+          // 16 — Generating (loader)
           GeneratingScreen(onNext: _next),
-          // 18 — Personalized plan
+          // 17 — Personalized plan
           PersonalizedPlanScreen(onNext: _next, onBack: _back),
-          // 19 — Value prop
+          // 18 — Value prop
           ValuePropScreen(onNext: _next, onBack: _back),
-          // 20 — Social proof (pre-signup)
+          // 19 — Social proof (pre-signup)
           SocialProofScreen(onNext: _next, onBack: _back),
-          // 21 — Save progress (sign-up choice)
+          // 20 — Save progress (sign-up choice)
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _skipToEncouragement,
           ),
-          // 22 — Sign-up email
+          // 21 — Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 23 — Sign-up password
+          // 22 — Sign-up password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 24 — Encouragement
+          // 23 — Encouragement
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 25 — Paywall
+          // 24 — Paywall
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

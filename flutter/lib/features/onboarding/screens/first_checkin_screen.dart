@@ -215,6 +215,13 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
                 'input_method': _controller.text.isEmpty ? 'chip' : 'typed',
                 'emotion_text': _controller.text,
               });
+              // Persist the resolved starter Name BEFORE kicking off the
+              // result transition. Mutating provider state inside _buildResult
+              // throws "Tried to modify a provider while the widget tree was
+              // building" in Riverpod 2.x.
+              final starter =
+                  StarterNameData.forEmotion(state.demoFeelingInput ?? '');
+              notifier.setStarterName(starter.catalogId);
               notifier.completeDemoCheckin();
             },
             enabled: hasInput,
@@ -281,7 +288,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
     );
   }
 
-  void _showRevealOverlay(DemoResultData data) {
+  void _showRevealOverlay(StarterNameData data) {
     if (_hasShownReveal) return;
     _hasShownReveal = true;
     final navigator = Navigator.of(context, rootNavigator: true);
@@ -306,7 +313,7 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
   }
 
   Widget _buildResult(OnboardingState state, OnboardingNotifier notifier) {
-    final data = DemoResultData.forEmotion(state.demoFeelingInput ?? '');
+    final data = StarterNameData.forEmotion(state.demoFeelingInput ?? '');
     _showRevealOverlay(data);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       HapticFeedback.mediumImpact();

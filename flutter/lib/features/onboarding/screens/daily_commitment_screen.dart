@@ -88,7 +88,7 @@ class _DailyCommitmentScreenState extends ConsumerState<DailyCommitmentScreen> {
     return Stack(
       children: [
         OnboardingQuestionScaffold(
-          progressSegment: 11,
+          progressSegment: 10,
           headline: 'How much time a day feels right?',
           subtitle: 'You can change this later.',
           onBack: widget.onBack,

@@ -21,7 +21,9 @@ abstract final class AnalyticsEvents {
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
-  // Keep in sync with the PageView in onboarding_screen.dart (26 pages, 0-25).
+  // Keep in sync with the PageView in onboarding_screen.dart (25 pages, 0-24).
+  // Resonant Name picker (formerly index 7) was removed in the single-Name
+  // continuity refactor — the starter Name now comes from index 0.
   static const stepNames = <int, String>{
     0: 'first_checkin',
     1: 'name_input',
@@ -30,25 +32,24 @@ abstract final class AnalyticsEvents {
     4: 'prayer_frequency',
     5: 'quran_connection',
     6: 'familiarity',
-    7: 'resonant_name',
-    8: 'dua_topics',
-    9: 'common_emotions',
-    10: 'aspirations',
-    11: 'daily_commitment',
-    12: 'attribution',
-    13: 'struggle_support_interstitial',
-    14: 'reminder_time',
-    15: 'notifications',
-    16: 'commitment_pact',
-    17: 'generating',
-    18: 'personalized_plan',
-    19: 'value_prop',
-    20: 'social_proof',
-    21: 'save_progress',
-    22: 'signup_email',
-    23: 'signup_password',
-    24: 'encouragement',
-    25: 'paywall',
+    7: 'dua_topics',
+    8: 'common_emotions',
+    9: 'aspirations',
+    10: 'daily_commitment',
+    11: 'attribution',
+    12: 'struggle_support_interstitial',
+    13: 'reminder_time',
+    14: 'notifications',
+    15: 'commitment_pact',
+    16: 'generating',
+    17: 'personalized_plan',
+    18: 'value_prop',
+    19: 'social_proof',
+    20: 'save_progress',
+    21: 'signup_email',
+    22: 'signup_password',
+    23: 'encouragement',
+    24: 'paywall',
   };
 }
 

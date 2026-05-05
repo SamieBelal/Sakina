@@ -79,7 +79,7 @@ abstract final class AppStrings {
   static const checkinLoadingTitle = 'Finding your reflection...';
   static const checkinLoadingSubtitle =
       'Searching Allah\'s names and Quran';
-  static const checkinResultLabel = 'Your Reflection';
+  static const checkinResultLabel = 'Your Starting Name';
   static const checkinResultFooter = 'This is just the beginning';
   static const checkinResultUnlockCopy =
       'Personalized reflections, Quran verses, and duas — crafted just for you.';
