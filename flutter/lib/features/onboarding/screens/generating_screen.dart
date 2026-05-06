@@ -35,10 +35,13 @@ class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
     });
   }
 
+  // 4 steps spread across the 3.5s timeline (0.0 → 1.0). The 4th step
+  // activates at 0.70 so it has ~1.05s of "active" time before auto-advance.
   static const _steps = [
-    (threshold: 0.0, label: AppStrings.generatingStep1),
-    (threshold: 0.33, label: AppStrings.generatingStep2),
-    (threshold: 0.66, label: AppStrings.generatingStep3),
+    (threshold: 0.0, label: AppStrings.paywallFlowGeneratingStep1),
+    (threshold: 0.20, label: AppStrings.paywallFlowGeneratingStep2),
+    (threshold: 0.45, label: AppStrings.paywallFlowGeneratingStep3),
+    (threshold: 0.70, label: AppStrings.paywallFlowGeneratingStep4),
   ];
 
   @override

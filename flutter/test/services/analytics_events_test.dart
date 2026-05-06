@@ -100,13 +100,13 @@ void main() {
   });
 
   group('AnalyticsEvents.stepNames', () {
-    test('covers all 25 onboarding pages', () {
-      for (int i = 0; i <= 24; i++) {
+    test('covers all 26 onboarding pages', () {
+      for (int i = 0; i <= 25; i++) {
         expect(AnalyticsEvents.stepNames[i], isNotNull,
             reason: 'Missing step name for index $i');
       }
-      expect(AnalyticsEvents.stepNames[25], isNull,
-          reason: 'No step at index 25 after resonant_name removal');
+      expect(AnalyticsEvents.stepNames[26], isNull,
+          reason: 'No step at index 26 after paywall flow redesign');
     });
 
     test('does not include the removed social_proof_interstitial step', () {

@@ -11,8 +11,8 @@ import 'screens/_test_utils.dart';
 
 void main() {
   testWidgets(
-    'social auth on Save Progress jumps to Encouragement (page 23), '
-    'skipping Email (21) and Password (22)',
+    'social auth on Save Progress jumps to Encouragement (page 21), '
+    'skipping Email (19) and Password (20)',
     (tester) async {
       useOnboardingViewport(tester);
 
@@ -20,7 +20,7 @@ void main() {
         ProviderScope(
           overrides: [
             cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: 20),
+              const OnboardingState(currentPage: 18),
             ),
           ],
           child: const MaterialApp(home: OnboardingScreen()),
@@ -31,7 +31,7 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(OnboardingScreen)),
       );
-      expect(container.read(onboardingProvider).currentPage, 20,
+      expect(container.read(onboardingProvider).currentPage, 18,
           reason: 'precondition: starts on Save Progress page');
 
       // Invoke the wiring under test directly. Exercising the actual Apple/
@@ -54,6 +54,8 @@ void main() {
             'Social-auth users are already authenticated; the email + password '
             'screens are redundant and must be skipped.',
       );
+      // Pinned 2026-05-05 by paywall flow redesign.
+      expect(onboardingEncouragementPageIndex, 21);
 
       // Drain pending flutter_animate timers before teardown.
       await tester.pump(const Duration(seconds: 2));

@@ -30,121 +30,61 @@ class MuhasabahScreen extends ConsumerStatefulWidget {
 }
 
 class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
-  bool _revealShown = false;
-  bool _levelUpShown = false;
-  bool _streakMilestoneShown = false;
-  bool _discoverTriggered = false;
-
+  @override
+  void initState() {
+    super.initState();
+    // One-shot: if the user landed here with no check-in done yet today,
+    // fire discoverName once. Every other state-change side effect is
+    // dispatched from the ref.listen in build(); no other code path in
+    // this widget calls discoverName implicitly. That's what closes the
+    // "phantom second gacha on Return to Home" bug class — there's no
+    // in-build auto-trigger left to race against provider invalidation.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = ref.read(dailyLoopProvider);
+      if (!state.checkinDone && !state.checkinLoading) {
+        ref.read(dailyLoopProvider.notifier).discoverName();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Side effects live in ref.listen, NOT in build conditionals. listen
+    // callbacks fire on rising edges (prev != next) without triggering a
+    // rebuild themselves, which gives exactly-once semantics for free —
+    // no guard flags needed. This closes the "phantom second gacha on
+    // Return to Home" bug class by construction.
+    ref.listen<DailyLoopState>(dailyLoopProvider, (prev, next) {
+      // Streak milestone — fire BEFORE level-up if both trigger in the
+      // same tick (early-return so we don't stack overlays in one frame).
+      if (next.streakMilestoneReached &&
+          prev?.streakMilestoneReached != true) {
+        _pushStreakMilestoneOverlay(next);
+        return;
+      }
+      // Level up — gated on no concurrent streak milestone.
+      if (next.leveledUp == true &&
+          prev?.leveledUp != true &&
+          !next.streakMilestoneReached) {
+        _pushLevelUpOverlay(next);
+      }
+      // Gacha reveal — when a tier-changed engageResult freshly arrives.
+      // Identity comparison is sufficient: every discoverName call
+      // constructs a new CardEngageResult, so back-to-back discoveries
+      // (Seek Another Name) still trigger because instances differ.
+      final prevResult = prev?.cardEngageResult;
+      final nextResult = next.cardEngageResult;
+      if (nextResult != null &&
+          nextResult.tierChanged &&
+          !next.checkinLoading &&
+          !identical(prevResult, nextResult)) {
+        _pushNameRevealOverlay(next);
+      }
+    });
+
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
-
-    // Streak milestone overlay — fire BEFORE level-up if both trigger.
-    if (state.streakMilestoneReached && !_streakMilestoneShown) {
-      _streakMilestoneShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final nav = Navigator.of(context, rootNavigator: true);
-        nav.push(
-          PageRouteBuilder(
-            opaque: true,
-            barrierDismissible: false,
-            pageBuilder: (_, __, ___) => StreakMilestoneOverlay(
-              streakCount: state.streakMilestoneCount ?? 0,
-              xpAwarded: state.streakMilestoneXp ?? 0,
-              scrollsAwarded: state.streakMilestoneScrolls ?? 0,
-              onContinue: () {
-                nav.pop();
-                notifier.clearStreakMilestone();
-              },
-            ),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
-      });
-    }
-    if (!state.streakMilestoneReached) _streakMilestoneShown = false;
-
-    // Level up overlay — gated on streak milestone being cleared first so
-    // both overlays don't stack in the same frame.
-    if (state.leveledUp == true &&
-        !state.streakMilestoneReached &&
-        !_levelUpShown) {
-      _levelUpShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final levelNav = Navigator.of(context, rootNavigator: true);
-        levelNav.push(
-          PageRouteBuilder(
-            opaque: true,
-            barrierDismissible: false,
-            pageBuilder: (_, __, ___) => LevelUpOverlay(
-              levelNumber: state.newLevelNumber ?? state.levelNumber,
-              title: state.newLevelTitle ?? state.levelTitle,
-              titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
-              rewards: state.levelUpRewards,
-              onContinue: () {
-                levelNav.pop();
-                notifier.clearLevelUp();
-              },
-            ),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
-      });
-    }
-    if (state.leveledUp != true) _levelUpShown = false;
-
-    // Reset flags when state resets (e.g. Seek Another Name)
-    if (!state.checkinDone) {
-      _revealShown = false;
-      _discoverTriggered = false;
-    }
-
-    // Gacha reveal after check-in
-    if (state.checkinDone &&
-        !state.checkinLoading &&
-        !_revealShown &&
-        state.cardEngageResult != null &&
-        state.cardEngageResult!.tierChanged) {
-      _revealShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
-        final rootNav = Navigator.of(context, rootNavigator: true);
-        await rootNav.push(
-          PageRouteBuilder(
-            opaque: true,
-            barrierDismissible: false,
-            pageBuilder: (_, __, ___) => NameRevealOverlay(
-              nameArabic:
-                  state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
-              nameEnglish:
-                  state.engagedCard?.transliteration ?? state.checkinName ?? '',
-              nameEnglishMeaning: state.engagedCard?.english ?? '',
-              teaching: state.engagedCard?.lesson ?? '',
-              card: state.engagedCard,
-              engageResult: state.cardEngageResult,
-              onContinue: rootNav.pop,
-            ),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
-        // Check achievements & flush quest toasts after the gacha overlay
-        // is dismissed so toasts appear on the muhasabah screen (visible).
-        if (!mounted) return;
-        await checkAchievements(ref);
-      });
-    }
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
@@ -155,6 +95,85 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         ),
       ),
     );
+  }
+
+  void _pushStreakMilestoneOverlay(DailyLoopState state) {
+    if (!mounted) return;
+    final notifier = ref.read(dailyLoopProvider.notifier);
+    final nav = Navigator.of(context, rootNavigator: true);
+    nav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => StreakMilestoneOverlay(
+          streakCount: state.streakMilestoneCount ?? 0,
+          xpAwarded: state.streakMilestoneXp ?? 0,
+          scrollsAwarded: state.streakMilestoneScrolls ?? 0,
+          onContinue: () {
+            nav.pop();
+            notifier.clearStreakMilestone();
+          },
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  void _pushLevelUpOverlay(DailyLoopState state) {
+    if (!mounted) return;
+    final notifier = ref.read(dailyLoopProvider.notifier);
+    final levelNav = Navigator.of(context, rootNavigator: true);
+    levelNav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => LevelUpOverlay(
+          levelNumber: state.newLevelNumber ?? state.levelNumber,
+          title: state.newLevelTitle ?? state.levelTitle,
+          titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
+          rewards: state.levelUpRewards,
+          onContinue: () {
+            levelNav.pop();
+            notifier.clearLevelUp();
+          },
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  Future<void> _pushNameRevealOverlay(DailyLoopState state) async {
+    if (!mounted) return;
+    ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    await rootNav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => NameRevealOverlay(
+          nameArabic:
+              state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
+          nameEnglish:
+              state.engagedCard?.transliteration ?? state.checkinName ?? '',
+          nameEnglishMeaning: state.engagedCard?.english ?? '',
+          teaching: state.engagedCard?.lesson ?? '',
+          card: state.engagedCard,
+          engageResult: state.cardEngageResult,
+          onContinue: rootNav.pop,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+    // Check achievements & flush quest toasts after the gacha overlay is
+    // dismissed so toasts appear on the muhasabah screen (visible).
+    if (!mounted) return;
+    await checkAchievements(ref);
   }
 
   Widget _buildContent(DailyLoopState state, DailyLoopNotifier notifier) {
@@ -171,13 +190,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (state.checkinDone && state.checkinName != null) {
       return _buildCheckinResult(state, notifier);
     }
-    // Auto-trigger discover — skip questions, go straight to gacha
-    if (!_discoverTriggered) {
-      _discoverTriggered = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifier.discoverName();
-      });
-    }
+    // Fresh state — initState's postFrame fires discoverName which flips
+    // checkinLoading=true on the next frame. Show loading meanwhile.
     return const ReflectLoading();
   }
 
@@ -742,7 +756,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     }
                     notifier.refreshTokenBalance(result.newBalance);
                     await notifier.resetToday();
-                    // Stay on this screen — it will rebuild with fresh check-in
+                    // Explicit kick to discoverName — the screen no longer
+                    // auto-fires from build, so the next muhasabah cycle
+                    // must be started from the call site that wanted it.
+                    if (!mounted) return;
+                    await notifier.discoverName();
                   },
                   child: Container(
                     width: double.infinity,
@@ -800,6 +818,9 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     // Invalidate economy providers so Home reads fresh
                     // values after muhasabah rewards are granted (fixes the
                     // "token pill shows stale 1004 while DB has 1059" bug).
+                    // Order doesn't matter anymore — there's no in-build
+                    // auto-trigger to race against, so the invalidation
+                    // can't accidentally re-fire discoverName.
                     ref.invalidate(dailyLoopProvider);
                     ref.invalidate(tierUpScrollProvider);
                     ref.invalidate(dailyRewardsProvider);

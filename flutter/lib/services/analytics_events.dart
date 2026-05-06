@@ -18,12 +18,20 @@ abstract final class AnalyticsEvents {
   static const paywallClosed = 'paywall_closed';
   static const paywallExitOfferShown = 'paywall_exit_offer_shown';
   static const paywallExitOfferAccepted = 'paywall_exit_offer_accepted';
+  static const paywallFlowLoaderShown = 'paywall_flow_loader_shown';
+  static const paywallFlowLoaderAdvanced = 'paywall_flow_loader_advanced';
+  static const paywallFlowPlanShown = 'paywall_flow_plan_shown';
+  static const paywallFlowPlanContinued = 'paywall_flow_plan_continued';
+  static const paywallFlowJourneyShown = 'paywall_flow_journey_shown';
+  static const paywallFlowJourneyContinued = 'paywall_flow_journey_continued';
+  static const paywallFlowDropoff = 'paywall_flow_dropoff';
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
-  // Keep in sync with the PageView in onboarding_screen.dart (25 pages, 0-24).
-  // Resonant Name picker (formerly index 7) was removed in the single-Name
-  // continuity refactor — the starter Name now comes from index 0.
+  // Keep in sync with the PageView in onboarding_screen.dart (26 pages, 0-25).
+  // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
+  // PersonalizedPlanScreen pair moved from pages 16-17 into the paywall flow
+  // at pages 22-23; YourJourneyScreen new at page 24; paywall now at page 25.
   static const stepNames = <int, String>{
     0: 'first_checkin',
     1: 'name_input',
@@ -41,15 +49,16 @@ abstract final class AnalyticsEvents {
     13: 'reminder_time',
     14: 'notifications',
     15: 'commitment_pact',
-    16: 'generating',
-    17: 'personalized_plan',
-    18: 'value_prop',
-    19: 'social_proof',
-    20: 'save_progress',
-    21: 'signup_email',
-    22: 'signup_password',
-    23: 'encouragement',
-    24: 'paywall',
+    16: 'value_prop',
+    17: 'social_proof',
+    18: 'save_progress',
+    19: 'signup_email',
+    20: 'signup_password',
+    21: 'encouragement',
+    22: 'paywall_flow_loader',
+    23: 'paywall_flow_plan',
+    24: 'paywall_flow_journey',
+    25: 'paywall',
   };
 }
 

@@ -86,6 +86,15 @@ class EncouragementScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
           ).animate().fadeIn(duration: 500.ms, delay: 400.ms),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            AppStrings.encouragementPlanReadyTease,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.secondary,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
+          ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
           const Spacer(flex: 3),
           OnboardingContinueButton(
             label: AppStrings.continueButton,

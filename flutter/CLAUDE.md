@@ -227,7 +227,7 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 ## Onboarding Flow
 
-Canonical page order (confirmed 2026-04-22; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
+Canonical page order (updated 2026-05-05; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
 
 0. **First Check-in** — "How are you feeling today?" + emotion chips → `NameRevealOverlay` → "Your Reflection" result teaser
 1. **Name** — "What should we call you?"
@@ -236,31 +236,37 @@ Canonical page order (confirmed 2026-04-22; see `docs/qa/ui-map.md` for coords a
 4. **Prayer frequency** — 5 options with warm copy
 5. **Quran connection** — Daily / Weekly / Occasionally / Rarely
 6. **99 Names familiarity** — Just Getting Started / Somewhat Familiar / Very Familiar
-7. **Resonant Name picker** — horizontal card carousel; selection becomes first card in collection
-8. **Dua topics** — multi-select chips + optional "something else on your heart" text field
-9. **Common emotions** — multi-select chips
-10. **Aspirations** — pick up to 3 (More patient / More grateful / Closer to Allah / More present / Stronger faith / More consistent)
-11. **Daily commitment minutes** — 1 / 3 / 5 / 10 / Custom
-12. **Attribution** — "Where did you hear about Sakina?" (multi-select)
-13. **Encouragement interstitial** — "You're not alone in this."
-14. **Reminder time** — time picker (default 08:00 AM)
-15. **Notifications** — OS permission ask ("Enable Notifications" / "Not now")
-16. **Commitment pact** — "I commit to X min a day" + Tap to commit
-17. **Personalization plan** — "Your plan, <name>" summary
-18. **Value prop** — Daily check-in / 99 Names / Journal
-19. **Social proof** — 4.9 stars + testimonials
-20. **Save Your Progress** — Apple / Google / Continue with Email
-21. **Email** — enter email
-22. **Password** — ≥6 chars, `Create Account` triggers Supabase signup + analytics identify + onboarding-data persist
-23. **Encouragement** — "Something beautiful awaits you, <name>"
-24. **Paywall** — RevenueCat (annual + weekly offerings); close X routes to home
+7. **Dua topics** — multi-select chips + optional "something else on your heart" text field
+8. **Common emotions** — multi-select chips
+9. **Aspirations** — pick up to 3 (More patient / More grateful / Closer to Allah / More present / Stronger faith / More consistent)
+10. **Daily commitment minutes** — 1 / 3 / 5 / 10 / Custom
+11. **Attribution** — "Where did you hear about Sakina?" (multi-select)
+12. **Encouragement interstitial** — "You're not alone in this."
+13. **Reminder time** — time picker (default 08:00 AM)
+14. **Notifications** — OS permission ask ("Enable Notifications" / "Not now")
+15. **Commitment pact** — "I commit to X min a day" + Tap to commit
+16. **Value prop** — Daily check-in / 99 Names / Journal
+17. **Social proof** — 4.9 stars + testimonials
+18. **Save Your Progress** — Apple / Google / Continue with Email
+19. **Email** — enter email
+20. **Password** — ≥6 chars, `Create Account` triggers Supabase signup + analytics identify + onboarding-data persist
+21. **Encouragement** — "Something beautiful awaits you, <name>" (now includes "Your plan is ready, just past the gate" tease)
+22. **Paywall flow — Generating** — 4-step loader, ~3.5s
+23. **Paywall flow — Personalized Plan** — "Your plan, <name>" summary with gold "Crafted for you" ribbon
+24. **Paywall flow — Your Journey** — "Where you'll be in 30 days, <name>" milestones (Day 1 / Day 7 / Day 30)
+25. **Paywall** — RevenueCat (annual + weekly offerings); shrunken hero + personalized header + new CTA copy; close X routes to home
 
 Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView has 26 children; gacha on page 0 is an overlay, not a page).
 
-**Progress bar:** segments show page index 0…22 (paywall + both encouragement interstitials sit outside the bar).
+**Progress bar:** segments show pages outside the paywall flow (paywall flow pages 22-25 + both encouragement interstitials sit outside the bar).
+
+**Paywall flow (pages 22-25):** Loader → Personalized Plan → Your Journey → Price screen.
+Inserted 2026-05-05 to lift trial-start conversion (Cal AI–style multi-screen flow).
+The pre-existing GeneratingScreen and PersonalizedPlanScreen relocated from pages 16-17
+into this flow. Progress bar hidden on these pages — they have their own visual identity.
 
 **Key onboarding notes:**
-- Social auth (`onSocialAuthComplete`) calls `_skipToEncouragement`, jumping from page 21 (Save Progress) to page 24 (Encouragement). Pages 22 (Email) and 23 (Password) only exist to create a Supabase account via `signUpWithEmail`, so Apple/Google users — who already have a session — must skip them. Pinned by `test/features/onboarding/onboarding_auth_routing_test.dart`.
+- Social auth (`onSocialAuthComplete`) calls `_skipToEncouragement`, jumping from page 18 (Save Progress) to page 21 (Encouragement). Pages 19 (Email) and 20 (Password) only exist to create a Supabase account via `signUpWithEmail`, so Apple/Google users — who already have a session — must skip them. Pinned by `test/features/onboarding/onboarding_auth_routing_test.dart`.
 - Password screen calls `persistOnboardingToSupabase` immediately after `authService.signUpWithEmail` (so RLS-authorized writes succeed); `completeOnboarding` also calls it as a belt-and-braces flush
 - `saveOnboardingData` in `auth_service.dart` writes to `user_profiles` and must use exact column names: `display_name`, `onboarding_intention`, `onboarding_familiarity`, `onboarding_quran_connection`, `onboarding_attribution`, `age_range`, `prayer_frequency`, **`resonant_name_id`** (NOT `resonant_name_slug`), `dua_topics`, `dua_topics_other`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`. A single mis-named column will silently fail the whole UPDATE.
 - All survey/feature screens end with `SizedBox(height: AppSpacing.lg)` after `OnboardingContinueButton` for consistent button positioning

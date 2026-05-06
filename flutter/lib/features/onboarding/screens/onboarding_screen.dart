@@ -30,6 +30,7 @@ import 'sign_up_password_screen.dart';
 import 'social_proof_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
+import 'your_journey_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -207,8 +208,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          // 0 — First check-in hook (gacha overlay fires here, not a separate
-          // page). The Name surfaced here is the user's permanent starter Name.
+          // 0 — First check-in hook (gacha overlay fires here, not a separate page).
           FirstCheckinScreen(onNext: _next, onBack: _back),
           // 1 — Name input
           NameInputScreen(onNext: _next, onBack: _back),
@@ -240,27 +240,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           NotificationScreen(onNext: _next, onBack: _back),
           // 15 — Commitment pact
           CommitmentPactScreen(onNext: _next, onBack: _back),
-          // 16 — Generating (loader)
-          GeneratingScreen(onNext: _next),
-          // 17 — Personalized plan
-          PersonalizedPlanScreen(onNext: _next, onBack: _back),
-          // 18 — Value prop
+          // 16 — Value prop  (was 18 pre-2026-05-05; +2 from removing Generating + PersonalPlan)
           ValuePropScreen(onNext: _next, onBack: _back),
-          // 19 — Social proof (pre-signup)
+          // 17 — Social proof (pre-signup)
           SocialProofScreen(onNext: _next, onBack: _back),
-          // 20 — Save progress (sign-up choice)
+          // 18 — Save progress (sign-up choice)
           SaveProgressScreen(
             onNext: _next,
             onBack: _back,
             onSocialAuthComplete: _skipToEncouragement,
           ),
-          // 21 — Sign-up email
+          // 19 — Sign-up email
           SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 22 — Sign-up password
+          // 20 — Sign-up password
           SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 23 — Encouragement
+          // 21 — Encouragement #2  (social-auth users land here; tease added 2026-05-05)
           EncouragementScreen(onNext: _next, onBack: _back),
-          // 24 — Paywall
+          // — Paywall flow begins. Progress bar hidden on these. —
+          // 22 — Generating (loader; relocated from old page 16; copy updated to 4 steps)
+          GeneratingScreen(onNext: _next),
+          // 23 — Personalized plan (relocated from old page 17; reskinned to plain Scaffold)
+          PersonalizedPlanScreen(onNext: _next, onBack: _back),
+          // 24 — Your Journey (NEW 2026-05-05)
+          YourJourneyScreen(onNext: _next, onBack: _back),
+          // 25 — Paywall (was 24)
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),

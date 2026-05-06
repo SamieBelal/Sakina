@@ -5,7 +5,7 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 
 void main() {
-  testWidgets('PageView has 25 children and lastIndex is 24', (tester) async {
+  testWidgets('PageView has 26 children and lastIndex is 25', (tester) async {
     // Use a tall surface so FirstCheckinScreen's keyboard-aware layout fits
     // without overflow errors during the structural assertion.
     tester.view.physicalSize = const Size(1170, 2532);
@@ -22,11 +22,11 @@ void main() {
     final pv = tester.widget<PageView>(find.byType(PageView));
     expect(
       (pv.childrenDelegate as SliverChildListDelegate).children.length,
-      25,
+      26,
     );
-    expect(onboardingLastPageIndex, 24);
-    expect(onboardingPasswordPageIndex, 22);
-    expect(onboardingEncouragementPageIndex, 23);
+    expect(onboardingLastPageIndex, 25);
+    expect(onboardingPasswordPageIndex, 20);
+    expect(onboardingEncouragementPageIndex, 21);
 
     // Drain pending animation timers from flutter_animate so the test can
     // tear down cleanly.

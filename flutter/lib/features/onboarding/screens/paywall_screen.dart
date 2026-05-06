@@ -426,6 +426,26 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Small gold all-caps line above the aspiration headline.
+                        // Personalized with the user's first name when available
+                        // (post 2026-05-05 redesign).
+                        Text(
+                          AppStrings.paywallPersonalizedHeaderTemplate.replaceAll(
+                            '{name}',
+                            () {
+                              final n = ref.read(onboardingProvider).signUpName;
+                              return (n != null && n.isNotEmpty) ? n : 'friend';
+                            }(),
+                          ),
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            fontSize: 11,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
                         // Personalized headline — DM Serif Display.
                         Text(
                           _personalizedHeadline(),
@@ -564,18 +584,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ),
                         ),
 
-                        // Honest billing note when no intro offer exists.
-                        if (!hasTrial) ...[
-                          const SizedBox(height: AppSpacing.sm + 2),
-                          Text(
-                            AppStrings.paywallNoTrialNote,
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textTertiaryLight,
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
+                        const SizedBox(height: AppSpacing.sm + 2),
+                        Text(
+                          hasTrial
+                              ? AppStrings.paywallTrialMicrocopyTemplate.replaceAll(
+                                  '{price}',
+                                  _annualPackage?.storeProduct.priceString ??
+                                      AppStrings.paywallAnnualPrice,
+                                )
+                              : AppStrings.paywallNoTrialNote,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textTertiaryLight,
+                            fontSize: 12,
                           ),
-                        ],
+                          textAlign: TextAlign.center,
+                        ),
                         if (_errorMessage != null) ...[
                           const SizedBox(height: AppSpacing.sm),
                           Text(
@@ -633,8 +656,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   )
                                 : Text(
                                     hasTrial
-                                        ? AppStrings.paywallCta
-                                        : AppStrings.paywallCtaSubscribe,
+                                        ? AppStrings.paywallCtaTrial
+                                        : AppStrings.paywallCtaSubscribeRevised,
                                     style:
                                         AppTypography.labelLarge.copyWith(
                                       color: AppColors.textOnPrimary,
@@ -644,6 +667,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   ),
                           ),
                         ),
+                        if (hasTrial) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            AppStrings.paywallNoPaymentTodayLine,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textTertiaryLight,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.sm + 4),
 
                         // Legal links
@@ -963,11 +997,12 @@ class _PaywallHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    // Hero takes ~32% of viewport height (from screen top — this section
-    // bleeds into the status-bar safe area). The image's `Alignment(0,
-    // -0.45)` anchor pushes the medallion below the Dynamic Island so the
-    // calligraphy is fully visible despite the smaller hero box.
-    final heroHeight = (size.height * 0.32).clamp(250.0, 290.0);
+    // Shrunk from 0.32 → 0.28 (post 2026-05-05 paywall flow redesign) to free
+    // vertical space for the new pre-pricing personalized header line + the
+    // existing aspiration headline. The image's `Alignment(0, -0.45)` anchor
+    // pushes the medallion below the Dynamic Island so the calligraphy is
+    // fully visible despite the smaller hero box.
+    final heroHeight = (size.height * 0.28).clamp(220.0, 280.0);
 
     return ClipRRect(
       // Rounded bottom corners give the hero a "card" shape, framing the

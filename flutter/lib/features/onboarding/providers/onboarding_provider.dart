@@ -16,20 +16,23 @@ import '../../quests/providers/quests_provider.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall at index 24).
-/// PageView has 25 children; gacha on first_checkin is an overlay, not a page.
-/// Resonant Name picker (formerly index 7) was removed in the single-Name
-/// continuity refactor (2026-04-29) — the starter Name now comes from the
-/// first check-in screen at index 0.
-const int onboardingLastPageIndex = 24;
+/// Last index in [OnboardingScreen]'s PageView (paywall at index 25).
+/// PageView has 26 children. Updated 2026-05-05 by paywall flow redesign:
+/// the existing GeneratingScreen + PersonalizedPlanScreen pair moved from
+/// pages 16-17 into the paywall flow at pages 22-23, plus a new
+/// YourJourneyScreen at page 24, before the paywall at page 25.
+const int onboardingLastPageIndex = 25;
 
 /// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
-const int onboardingPasswordPageIndex = 22;
+/// Shifted -2 from old index 22 because Generating + PersonalPlan were
+/// removed from earlier in the flow.
+const int onboardingPasswordPageIndex = 20;
 
 /// Where social-auth (Apple/Google) users land after OAuth succeeds. They are
-/// already authenticated, so the email (21) and password (22) screens are
+/// already authenticated, so the email (19) and password (20) screens are
 /// skipped — the user goes straight to the Encouragement interstitial.
-const int onboardingEncouragementPageIndex = 23;
+/// Shifted -2 from old index 23.
+const int onboardingEncouragementPageIndex = 21;
 
 class OnboardingState {
   const OnboardingState({
@@ -147,7 +150,7 @@ class OnboardingState {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 5,
+        'version': 6,
         'currentPage': currentPage,
         'intention': intention,
         'notificationPermissionGranted': notificationPermissionGranted,
@@ -170,11 +173,11 @@ class OnboardingState {
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
-    // Sakina has no production users. Any blob older than the current schema
-    // version is discarded and the user starts fresh. Bumped 4→5 with the
-    // single-Name continuity refactor (resonantNameId → starterNameId).
+    // Bumped to 6 with the paywall flow redesign (page indices changed).
+    // Old v5 blobs reference page indices that no longer exist after the
+    // reorder, so they are discarded and the user starts fresh.
     final version = json['version'] as int? ?? 0;
-    if (version < 5) return const OnboardingState();
+    if (version < 6) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
     currentPage = currentPage.clamp(0, onboardingLastPageIndex);
@@ -364,7 +367,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void runGeneratingTheater(VoidCallback onComplete) {
     state = state.copyWith(generateProgress: 0.0);
-    const totalDuration = Duration(seconds: 3);
+    // 3.5s total — gives the 4th step (threshold 0.70) room to render its active
+    // state for ~30% of the timeline before auto-advance.
+    const totalDuration = Duration(milliseconds: 3500);
     const tickInterval = Duration(milliseconds: 50);
     final totalTicks =
         totalDuration.inMilliseconds ~/ tickInterval.inMilliseconds;

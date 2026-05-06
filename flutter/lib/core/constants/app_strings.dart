@@ -230,6 +230,60 @@ abstract final class AppStrings {
   static const generatingStep1 = 'Analyzing your feelings';
   static const generatingStep2 = 'Finding the right Name of Allah';
   static const generatingStep3 = 'Selecting your verse & dua';
+
+  /// 4th step added 2026-05-05 — paywall flow loader uses 4 steps over 3.5s.
+  /// Earlier steps (1-3) keep their existing copy when reused mid-flow; the
+  /// onboarding-loader role uses paywallFlowGeneratingStep1..4 below.
+  static const paywallFlowGeneratingStep1 = 'Reading your reflections';
+  static const paywallFlowGeneratingStep2 = 'Mapping you to Allah\'s Names';
+  static const paywallFlowGeneratingStep3 = 'Curating verses for your heart';
+  static const paywallFlowGeneratingStep4 = 'Setting your daily rhythm';
+
+  // ───── Paywall flow — Your Journey screen (page 24) ─────
+  // Copy is qualitative, not quantified — the gacha + streak system can't
+  // guarantee specific Name/reflection counts (OV8 in eng review).
+  static const paywallFlowJourneyHeadlineTemplate =
+      'Where you\'ll be in 30 days, {name}.';
+  static const paywallFlowJourneySubtitle = 'Your habit, mapped out.';
+  static const paywallFlowJourneyDay1Heading = 'Day 1 — Today';
+  static const paywallFlowJourneyDay1Line1 = 'Your first reflection, saved';
+  // {name} placeholder filled at render time with the user's starter Name translit.
+  static const paywallFlowJourneyDay1Line2Template =
+      '{name} — your first Name in the collection';
+  static const paywallFlowJourneyDay7Heading = 'Day 7 — One week in';
+  static const paywallFlowJourneyDay7Line1 = 'A streak you\'re proud of';
+  static const paywallFlowJourneyDay7Line2 =
+      'New Names of Allah in your collection';
+  static const paywallFlowJourneyDay7Line3 = 'Reflections to look back on';
+  static const paywallFlowJourneyDay30Heading = 'Day 30 — One month';
+  static const paywallFlowJourneyDay30Line1 =
+      'A habit that holds — no missed days';
+  static const paywallFlowJourneyDay30Line2 =
+      'A growing collection of Names';
+  static const paywallFlowJourneyDay30Line3 = 'A journal of how Allah met you';
+  static const paywallFlowJourneyDay30Line4 = 'Closer to Allah, every day';
+  // {minutes} replaced at render time with state.dailyCommitmentMinutes.
+  static const paywallFlowJourneyFooterTemplate =
+      'Built on {minutes} minutes a day.';
+  static const paywallFlowJourneyCta = 'Begin my 30 days';
+
+  // ───── Paywall additions (page 25) ─────
+  // {name} replaced at render time with state.signUpName (or "friend").
+  static const paywallPersonalizedHeaderTemplate = 'YOU\'RE 1 STEP AWAY, {name}';
+  // {price} replaced at render time with annual price string from RevenueCat.
+  static const paywallTrialMicrocopyTemplate =
+      '7 days free, then {price}/year. Cancel anytime.';
+  static const paywallNoPaymentTodayLine = 'No payment due today.';
+  // CTA copy upgrade (OV9) — brand-name in CTA lifts conversion.
+  static const paywallCtaTrial = 'Try Sakina Free for 7 days';
+  static const paywallCtaSubscribeRevised = 'Start your subscription';
+
+  // ───── Personalized Plan screen (page 23) ─────
+  static const personalizedPlanRibbon = '✨ Crafted for you';
+
+  // ───── Encouragement #2 tease (page 21) — OV4 mitigation ─────
+  static const encouragementPlanReadyTease =
+      'Your plan is ready, just past the gate.';
   static const generatingBismillah = '\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u064E\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0645\u0650';
 
   // Screen 12: Sign-Up Choice

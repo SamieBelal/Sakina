@@ -687,6 +687,24 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
 
+  /// Test seam — puts the notifier into a "completed muhasabah" shape so
+  /// `resetToday` can be exercised without driving the full discoverName
+  /// flow (which talks to Supabase + the card service). Used by
+  /// `daily_loop_reset_today_test.dart` to pin the contract that resetToday
+  /// clears every field initState's auto-trigger checks.
+  @visibleForTesting
+  void debugSetCheckinDoneForReset({
+    required String checkinName,
+    required String checkinNameArabic,
+  }) {
+    state = state.copyWith(
+      checkinDone: true,
+      checkinName: checkinName,
+      checkinNameArabic: checkinNameArabic,
+      currentStep: DailyLoopStep.completed,
+    );
+  }
+
   /// Reset today's daily loop so the user can redo it.
   Future<void> resetToday() async {
     _deeperReflectGeneration++;
@@ -698,10 +716,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     await prefs.remove(_todayKey);
     state = const DailyLoopState();
     await _initialize();
-  }
-
-  void clearCardEngageResult() {
-    // Can't null out with copyWith, so we leave it — UI checks tierChanged
   }
 
   void clearLevelUp() {

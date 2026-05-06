@@ -9,7 +9,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('OnboardingState v5', () {
+  group('OnboardingState v6', () {
     test('defaults all new fields to null/empty', () {
       const s = OnboardingState();
       expect(s.ageRange, isNull);
@@ -38,7 +38,7 @@ void main() {
         commitmentAccepted: true,
       );
       final json = original.toJson();
-      expect(json['version'], 5);
+      expect(json['version'], 6);
       final decoded = OnboardingState.fromJson(json);
       expect(decoded.ageRange, '25_34');
       expect(decoded.prayerFrequency, 'someDaily');
@@ -52,10 +52,10 @@ void main() {
       expect(decoded.commitmentAccepted, isTrue);
     });
 
-    test('fromJson with version < 5 discards stored state and starts fresh', () {
-      // Pre-refactor (v4) blob. Per spec: no users, no migration logic; drop it.
+    test('fromJson with version < 6 discards stored state and starts fresh', () {
+      // Pre-refactor (v5 or older) blob. Per spec: no users, no migration logic; drop it.
       final legacy = {
-        'version': 4,
+        'version': 5,
         'currentPage': 5,
         'intention': 'legacy',
         'commonEmotions': ['anxious'],
@@ -68,16 +68,16 @@ void main() {
       expect(decoded.starterNameId, isNull);
     });
 
-    test('fromJson accepts v5 blob as authoritative', () {
-      final v5 = {
-        'version': 5,
+    test('fromJson accepts v6 blob as authoritative', () {
+      final v6 = {
+        'version': 6,
         'currentPage': 5,
         'intention': 'spiritualGrowth',
         'commonEmotions': ['anxious'],
         'ageRange': '25_34',
         'starterNameId': 28,
       };
-      final decoded = OnboardingState.fromJson(v5);
+      final decoded = OnboardingState.fromJson(v6);
       expect(decoded.currentPage, 5);
       expect(decoded.intention, 'spiritualGrowth');
       expect(decoded.commonEmotions, {'anxious'});
@@ -138,6 +138,29 @@ void main() {
       expect(notifier.state.duaTopicsOther, 'hello');
       notifier.setDuaTopicsOther('   ');
       expect(notifier.state.duaTopicsOther, isNull);
+    });
+  });
+
+  group('runGeneratingTheater (paywall flow loader, 3.5s)', () {
+    testWidgets(
+        'drives generateProgress from 0 to 1 over 3.5s, then fires onComplete',
+        (tester) async {
+      final notifier = OnboardingNotifier();
+      addTearDown(notifier.dispose);
+
+      var completed = false;
+      notifier.runGeneratingTheater(() => completed = true);
+
+      // 70 ticks at 50ms each = 3500ms.
+      // Pump halfway: ~35 ticks should yield ~0.5 progress.
+      await tester.pump(const Duration(milliseconds: 1750));
+      expect(notifier.state.generateProgress, closeTo(0.5, 0.05));
+      expect(completed, isFalse);
+
+      // Pump the rest.
+      await tester.pump(const Duration(milliseconds: 1850));
+      expect(notifier.state.generateProgress, closeTo(1.0, 0.001));
+      expect(completed, isTrue);
     });
   });
 }

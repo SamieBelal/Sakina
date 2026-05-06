@@ -60,4 +60,15 @@ void main() {
     // Default commitment fallback.
     expect(find.textContaining('3 min'), findsOneWidget);
   });
+
+  testWidgets('does not render MOST POPULAR badge (only SAVE 81%)',
+      (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MOST POPULAR'), findsNothing);
+  });
 }

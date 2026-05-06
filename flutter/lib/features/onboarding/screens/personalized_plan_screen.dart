@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/card_collection_service.dart';
 import '../providers/onboarding_provider.dart';
-import '../widgets/onboarding_question_scaffold.dart';
 
-/// "Your personalized plan." Renders the user's starter Name (selected on
-/// the first check-in screen) as the anchor of the plan preview.
+/// "Your personalized plan." Page 23 of onboarding (post-2026-05-05; was page 17).
+///
+/// Reskinned for the paywall flow: plain Scaffold (no OnboardingQuestionScaffold
+/// progress bar), gold "Crafted for you" ribbon at top, plain "Continue →" CTA.
 class PersonalizedPlanScreen extends ConsumerWidget {
   const PersonalizedPlanScreen({
     required this.onNext,
@@ -38,11 +40,6 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForCatalogId(state.starterNameId);
-    // Mirror back the emotions the user actually selected on the common
-    // emotions screen, capped at 3 so the tile stays readable. Reads as
-    // "You often feel: Anxious, Sad, Lonely" — natural English, no awkward
-    // "we'll meet you with anxiety" framing where the app sounds like the
-    // emotion delivery service.
     final emotions = (state.commonEmotions.toList()..sort())
         .take(3)
         .map(_titleCase)
@@ -79,24 +76,101 @@ class PersonalizedPlanScreen extends ConsumerWidget {
       ),
     ];
 
-    return OnboardingQuestionScaffold(
-      progressSegment: 17,
-      headline: 'Your plan, $name.',
-      subtitle: 'Everything you need, one tap away.',
-      onBack: onBack,
-      continueEnabled: true,
-      onContinue: onNext,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < tiles.length; i++) ...[
-            tiles[i]
-                .animate()
-                .fadeIn(duration: 400.ms, delay: (100 * i).ms)
-                .slideY(begin: 0.04, end: 0, duration: 400.ms),
-            if (i < tiles.length - 1) const SizedBox(height: AppSpacing.sm),
-          ],
-        ],
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.pagePadding,
+            vertical: AppSpacing.lg,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: AppSpacing.sm),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryLight,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    AppStrings.personalizedPlanRibbon,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'Your plan, $name.',
+                style: AppTypography.displaySmall.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  fontSize: 26,
+                  height: 1.15,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Everything you need, one tap away.',
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < tiles.length; i++) ...[
+                        tiles[i]
+                            .animate()
+                            .fadeIn(duration: 400.ms, delay: (100 * i).ms)
+                            .slideY(begin: 0.04, end: 0, duration: 400.ms),
+                        if (i < tiles.length - 1)
+                          const SizedBox(height: AppSpacing.sm),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: onNext,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textOnPrimary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                  ),
+                  child: Text(
+                    AppStrings.continueButton,
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.textOnPrimary,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

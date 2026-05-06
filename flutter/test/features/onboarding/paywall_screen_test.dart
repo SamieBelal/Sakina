@@ -246,7 +246,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCta));
+    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -265,7 +265,7 @@ void main() {
     // users scroll; mirror that here.
     await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text(AppStrings.paywallCta));
+    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -284,14 +284,14 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCta));
+    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
     await tester.pumpAndSettle();
 
     expect(completed, isFalse);
     // Headline is dynamic (personalized from quiz answers), so assert the
     // still-on-paywall signal via the CTA and a static benefit row — both
     // remain visible only while the PaywallScreen is mounted.
-    expect(find.text(AppStrings.paywallCta), findsOneWidget);
+    expect(find.text(AppStrings.paywallCtaTrial), findsOneWidget);
     expect(find.text(AppStrings.paywallBenefit1), findsOneWidget);
   });
 
@@ -313,7 +313,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCta));
+    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
     await tester.pump();
     await tester.pump();
 

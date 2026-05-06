@@ -89,6 +89,30 @@ void main() {
     expect(advanced, 1);
   });
 
+  testWidgets('renders gold "Crafted for you" ribbon at top', (tester) async {
+    useOnboardingViewport(tester);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
+
+    expect(find.text('✨ Crafted for you'), findsOneWidget);
+  });
+
+  testWidgets('uses Scaffold (no OnboardingQuestionScaffold)', (tester) async {
+    useOnboardingViewport(tester);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(harness(container));
+    await tester.pumpAndSettle();
+
+    // The screen should NOT contain an onboarding progress bar segment.
+    // Tested indirectly: no LinearProgressIndicator should be in the tree.
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
   test('translitForCatalogId maps known ids and falls back to Ar-Rahman', () {
     expect(PersonalizedPlanScreen.translitForCatalogId(2), 'Ar-Rahman');
     expect(PersonalizedPlanScreen.translitForCatalogId(6), 'As-Salam');
