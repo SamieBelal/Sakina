@@ -29,15 +29,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     _econSub = EconomyEvents.stream.listen((event) {
       if (event is XpGranted && event.leveledUp && event.rewards != null) {
-        // Use Future.microtask so the Navigator push is deferred past the
-        // current synchronous call but still executes within the same
-        // event-loop turn, before the next frame. addPostFrameCallback is
-        // NOT used here because in tests (and on rapid boot) the callback
-        // can be orphaned past the pump cycle that drained the stream.
-        Future.microtask(() {
+        // Use addPostFrameCallback (NOT microtask) to match muhasabah_screen's
+        // streak-milestone push timing. Microtasks run BEFORE post-frame
+        // callbacks, which would let the level-up overlay race ahead of the
+        // streak milestone overlay on same-tick events. Pinned by the
+        // race-ordering regression test.
+        //
+        // Capture locals before the callback — the event object may be GC'd
+        // by the time the callback fires, and closure-capturing `event` in a
+        // post-frame callback is safe but capturing the fields is cleaner.
+        final rewards = event.rewards!;
+        final newState = event.newState;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          _pushLevelUpOverlay(event.newState, event.rewards!);
+          _pushLevelUpOverlay(newState, rewards);
         });
+        // Ensure a frame is scheduled so the post-frame callback fires even
+        // when the stream event arrives outside of an active build cycle
+        // (e.g. from a background async operation between pumps in tests,
+        // or from a service callback that doesn't trigger a Riverpod rebuild).
+        WidgetsBinding.instance.scheduleFrame();
       }
     });
   }

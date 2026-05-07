@@ -681,6 +681,24 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(leveledUp: value);
   }
 
+  /// Test seam — sets streakMilestoneReached + the milestone counts directly
+  /// on state, simulating the rising-edge that muhasabah_screen's ref.listen
+  /// triggers off. Used by the race-ordering regression test to fire streak +
+  /// level-up in the same tick without driving the full streak service flow.
+  @visibleForTesting
+  void debugSetStreakMilestone({
+    required int streak,
+    required int xp,
+    required int scrolls,
+  }) {
+    state = state.copyWith(
+      streakMilestoneReached: true,
+      streakMilestoneCount: streak,
+      streakMilestoneXp: xp,
+      streakMilestoneScrolls: scrolls,
+    );
+  }
+
   /// Test seam — puts the notifier into a "completed muhasabah" shape so
   /// `resetToday` can be exercised without driving the full discoverName
   /// flow (which talks to Supabase + the card service). Used by
