@@ -1,10 +1,10 @@
-// Pins the wiring between ConsumableGrantsService.grants and the two
-// notifiers that subscribe to it — DailyLoopNotifier (tokens) and
-// TierUpScrollNotifier (scrolls). This is Fix B for the 2026-04-28
+// Pins the wiring between EconomyEvents and the two notifiers that
+// subscribe to it — DailyLoopNotifier (TokenGranted) and
+// TierUpScrollNotifier (ScrollGranted). This is Fix B for the 2026-04-28
 // stale-balance bug: the synchronous purchase path AND the orphan-
-// recovery customerInfo listener both publish on this stream, and these
-// notifiers refresh their state from it without callers having to know
-// which path produced the grant.
+// recovery customerInfo listener both publish on EconomyEvents via
+// earnTokens/earnTierUpScrolls, and these notifiers refresh their state
+// from it without callers having to know which path produced the grant.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

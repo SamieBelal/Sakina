@@ -17,9 +17,9 @@
 //   - 2026-04-28 stale-balance fix:
 //       * grantForMostRecentPurchase accepts an explicit CustomerInfo and
 //         skips the racy `Purchases.getCustomerInfo()` round-trip
-//       * Successful grants emit ConsumableGrantEvent on the broadcast
-//         `grants` stream — both processCustomerInfo and the synchronous
-//         purchase path publish there
+//       * Successful grants emit TokenGranted/ScrollGranted on EconomyEvents —
+//         both processCustomerInfo and the synchronous purchase path publish
+//         there via earnTokens/earnTierUpScrolls
 //       * Pre-baseline marks and failed RPCs do NOT emit (UI must not
 //         flicker to a phantom balance)
 
@@ -30,6 +30,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sakina/services/consumable_grants_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../support/fake_supabase_sync_service.dart';
@@ -581,8 +582,8 @@ void main() {
   group('grantForMostRecentPurchase with explicit customerInfo: skips the '
       'redundant getCustomerInfo round-trip and grants from the passed-in '
       'CustomerInfo (2026-04-28 stale-balance fix)', () {
-    test('with explicit customerInfo: grants tokens AND emits on the '
-        'grants stream with the new server-confirmed balance', () async {
+    test('with explicit customerInfo: grants tokens AND emits TokenGranted '
+        'on EconomyEvents with the new server-confirmed balance', () async {
       // Post-baseline.
       await service.initializeForUser(_customerInfoWithTransactions([]));
       // Server returns 100 from earn_tokens (mocked above) — that's what
@@ -596,8 +597,10 @@ void main() {
         ),
       ]);
 
-      final eventsFuture = ConsumableGrantsService.grants
-          .where((e) => e.transactionId == 'txn-fresh')
+      final eventsFuture = EconomyEvents.stream
+          .where((e) => e is TokenGranted)
+          .cast<TokenGranted>()
+          .where((e) => e.amount == 100)
           .first;
 
       final granted = await service.grantForMostRecentPurchase(
@@ -607,13 +610,13 @@ void main() {
 
       expect(granted, isTrue);
       final event = await eventsFuture.timeout(const Duration(seconds: 1));
-      expect(event.kind, ConsumableGrantKind.tokens);
       expect(event.amount, 100);
       expect(event.newBalance, 100,
           reason: 'newBalance is the post-RPC server-confirmed balance');
+      expect(event.source, EconomyEventSource.iap);
     });
 
-    test('with explicit customerInfo: scrolls SKU emits scrolls event',
+    test('with explicit customerInfo: scrolls SKU emits ScrollGranted event',
         () async {
       await service.initializeForUser(_customerInfoWithTransactions([]));
 
@@ -625,8 +628,10 @@ void main() {
         ),
       ]);
 
-      final eventsFuture = ConsumableGrantsService.grants
-          .where((e) => e.transactionId == 'txn-scrolls')
+      final eventsFuture = EconomyEvents.stream
+          .where((e) => e is ScrollGranted)
+          .cast<ScrollGranted>()
+          .where((e) => e.amount == 3)
           .first;
 
       final granted = await service.grantForMostRecentPurchase(
@@ -636,7 +641,6 @@ void main() {
 
       expect(granted, isTrue);
       final event = await eventsFuture.timeout(const Duration(seconds: 1));
-      expect(event.kind, ConsumableGrantKind.scrolls);
       expect(event.amount, 3);
       expect(event.newBalance, 3);
     });
@@ -654,8 +658,10 @@ void main() {
       ]);
 
       // First grant — emits.
-      final firstEventF = ConsumableGrantsService.grants
-          .where((e) => e.transactionId == 'txn-dup')
+      final firstEventF = EconomyEvents.stream
+          .where((e) => e is TokenGranted)
+          .cast<TokenGranted>()
+          .where((e) => e.amount == 100)
           .first;
       expect(
         await service.grantForMostRecentPurchase(
@@ -668,8 +674,9 @@ void main() {
 
       // Second grant for the same txn — must be a no-op AND emit nothing.
       var sawSecondEvent = false;
-      final sub = ConsumableGrantsService.grants
-          .where((e) => e.transactionId == 'txn-dup')
+      final sub = EconomyEvents.stream
+          .where((e) => e is TokenGranted)
+          .cast<TokenGranted>()
           .listen((_) => sawSecondEvent = true);
       try {
         expect(
@@ -691,15 +698,17 @@ void main() {
     });
   });
 
-  group('processCustomerInfo emits on the grants stream — orphan-recovery '
+  group('processCustomerInfo emits on EconomyEvents — orphan-recovery '
       'path also notifies the UI (Fix B for 2026-04-28 stale-balance bug)',
       () {
-    test('emits a tokens event with the post-RPC balance after a successful '
-        'orphan-recovery grant', () async {
+    test('emits a TokenGranted event with the post-RPC balance after a '
+        'successful orphan-recovery grant', () async {
       await service.initializeForUser(_customerInfoWithTransactions([]));
 
-      final eventF = ConsumableGrantsService.grants
-          .where((e) => e.transactionId == 'txn-orphan-tokens')
+      final eventF = EconomyEvents.stream
+          .where((e) => e is TokenGranted)
+          .cast<TokenGranted>()
+          .where((e) => e.amount == 250)
           .first;
 
       final granted =
@@ -713,7 +722,6 @@ void main() {
 
       expect(granted, 1);
       final event = await eventF.timeout(const Duration(seconds: 1));
-      expect(event.kind, ConsumableGrantKind.tokens);
       expect(event.amount, 250);
       expect(event.newBalance, 250);
     });
@@ -722,7 +730,7 @@ void main() {
         'flicker from a baseline-only mark', () async {
       // Skip initializeForUser → not baselined.
       var sawAnyEvent = false;
-      final sub = ConsumableGrantsService.grants.listen((_) {
+      final sub = EconomyEvents.stream.listen((_) {
         sawAnyEvent = true;
       });
       try {
@@ -753,7 +761,7 @@ void main() {
       };
 
       var sawAnyEvent = false;
-      final sub = ConsumableGrantsService.grants.listen((_) {
+      final sub = EconomyEvents.stream.listen((_) {
         sawAnyEvent = true;
       });
       try {

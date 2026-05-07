@@ -8,8 +8,8 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
-import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
@@ -232,15 +232,22 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     // rare; subsequent refreshes (`refreshEconomyState`, pull-to-refresh)
     // re-read cache and reconcile. Not worth the complexity of an
     // init-vs-listener fence today; revisit if this surfaces in the wild.
-    _grantsSub = ConsumableGrantsService.grants.listen((event) {
-      if (event.kind == ConsumableGrantKind.tokens) {
+    _grantsSub = EconomyEvents.stream.listen((event) {
+      if (event is TokenGranted) {
         state = state.copyWith(tokenBalance: event.newBalance);
+      } else if (event is XpGranted) {
+        state = state.copyWith(
+          xpTotal: event.newTotal,
+          levelNumber: event.newState.level,
+          levelTitle: event.newState.title,
+          levelTitleArabic: event.newState.titleArabic,
+        );
       }
     });
     _initialize();
   }
 
-  StreamSubscription<ConsumableGrantEvent>? _grantsSub;
+  StreamSubscription<EconomyEvent>? _grantsSub;
   Future<ReflectResponse>? _deeperReflectFuture;
   ReflectResponse? _deeperReflectResult;
   String? _deeperReflectKey;

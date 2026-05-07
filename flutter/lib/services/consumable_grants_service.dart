@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -41,35 +42,6 @@ class _ConsumableMapping {
   final int amount;
 }
 
-/// Event broadcast on [ConsumableGrantsService.grants] every time a token
-/// or scroll grant is applied locally — fired AFTER the underlying RPC
-/// (`earn_tokens` / `earn_scrolls`) succeeds so [newBalance] is the
-/// authoritative server-confirmed amount.
-///
-/// Subscribers (e.g. `DailyLoopNotifier`, `TierUpScrollNotifier`) refresh
-/// their UI state from this without needing to know which path produced
-/// the grant — the synchronous purchase path AND the customerInfo
-/// listener's orphan-recovery path both publish here.
-class ConsumableGrantEvent {
-  const ConsumableGrantEvent({
-    required this.kind,
-    required this.amount,
-    required this.newBalance,
-    required this.transactionId,
-  });
-
-  final ConsumableGrantKind kind;
-  final int amount;
-  final int newBalance;
-  final String transactionId;
-}
-
-/// Broadcast so multiple notifiers can subscribe; late subscribers
-/// intentionally don't see historical events (UI state at startup is
-/// loaded from the cache, not replayed).
-final StreamController<ConsumableGrantEvent> _grantsController =
-    StreamController<ConsumableGrantEvent>.broadcast();
-
 /// Tracks which RevenueCat consumable transactions have been credited
 /// locally, and reconciles orphaned transactions on app launch.
 ///
@@ -97,15 +69,6 @@ class ConsumableGrantsService {
   static const String _creditedKey = 'credited_consumable_txn_ids_v1';
   static const String _baselinedKey = 'consumable_grants_baselined_v1';
   static const int _maxCreditedEntries = 200;
-
-  /// Stream of grants applied locally. Subscribers receive events AFTER the
-  /// underlying RPC has succeeded — `event.newBalance` is authoritative.
-  ///
-  /// Wired to `DailyLoopNotifier` (tokens) and `TierUpScrollNotifier`
-  /// (scrolls) so the UI refreshes regardless of which path produced the
-  /// grant — synchronous purchase OR the customerInfo listener fired by
-  /// RC after a delay (orphan-recovery, app-killed-mid-purchase, restore).
-  static Stream<ConsumableGrantEvent> get grants => _grantsController.stream;
 
   /// Atomically adds [transactionId] to the credited set. Returns `true` if
   /// it was newly added; `false` if already present.
@@ -210,24 +173,16 @@ class ConsumableGrantsService {
       if (!baselined) continue;
 
       try {
-        final int newBalance;
         switch (mapping.kind) {
           case ConsumableGrantKind.tokens:
-            final result = await earnTokens(mapping.amount);
-            newBalance = result.balance;
+            await earnTokens(mapping.amount, source: EconomyEventSource.iap);
             break;
           case ConsumableGrantKind.scrolls:
-            final result = await earnTierUpScrolls(mapping.amount);
-            newBalance = result.newBalance;
+            await earnTierUpScrolls(
+                mapping.amount, source: EconomyEventSource.iap);
             break;
         }
         grantsCount += 1;
-        _grantsController.add(ConsumableGrantEvent(
-          kind: mapping.kind,
-          amount: mapping.amount,
-          newBalance: newBalance,
-          transactionId: txn.transactionIdentifier,
-        ));
         debugPrint(
           '[ConsumableGrants] Recovered grant: ${mapping.amount} '
           '${mapping.kind.name} for txn ${txn.transactionIdentifier}',
@@ -334,23 +289,15 @@ class ConsumableGrantsService {
     }
 
     try {
-      final int newBalance;
       switch (mapping.kind) {
         case ConsumableGrantKind.tokens:
-          final result = await earnTokens(mapping.amount);
-          newBalance = result.balance;
+          await earnTokens(mapping.amount, source: EconomyEventSource.iap);
           break;
         case ConsumableGrantKind.scrolls:
-          final result = await earnTierUpScrolls(mapping.amount);
-          newBalance = result.newBalance;
+          await earnTierUpScrolls(
+              mapping.amount, source: EconomyEventSource.iap);
           break;
       }
-      _grantsController.add(ConsumableGrantEvent(
-        kind: mapping.kind,
-        amount: mapping.amount,
-        newBalance: newBalance,
-        transactionId: latest.transactionIdentifier,
-      ));
       return true;
     } catch (e) {
       // Roll back the credited mark so a subsequent listener fire (or
