@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -104,11 +105,27 @@ Future<void> _hydratePremiumGrantResult(Map<String, dynamic> rpcResult) async {
   final newTokenBalance = _intValue(rpcResult['new_token_balance']);
   if (newTokenBalance != null) {
     await hydrateTokenCache(balance: newTokenBalance);
+    final tokensGranted = _intValue(rpcResult['tokens_granted']) ?? 0;
+    if (tokensGranted > 0) {
+      EconomyEvents.publish(TokenGranted(
+        amount: tokensGranted,
+        newBalance: newTokenBalance,
+        source: EconomyEventSource.iap,
+      ));
+    }
   }
 
   final newScrollBalance = _intValue(rpcResult['new_scroll_balance']);
   if (newScrollBalance != null) {
     await hydrateTierUpScrollCache(balance: newScrollBalance);
+    final scrollsGranted = _intValue(rpcResult['scrolls_granted']) ?? 0;
+    if (scrollsGranted > 0) {
+      EconomyEvents.publish(ScrollGranted(
+        amount: scrollsGranted,
+        newBalance: newScrollBalance,
+        source: EconomyEventSource.iap,
+      ));
+    }
   }
 }
 
