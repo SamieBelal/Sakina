@@ -70,13 +70,6 @@ class DailyLoopState {
   // Last XP gain amount — consumed by AnimatedXpBar to show floating "+N XP"
   final int lastXpGained;
 
-  // Level-up event (consumed by UI to show overlay)
-  final bool leveledUp;
-  final String? newLevelTitle;
-  final String? newLevelTitleArabic;
-  final int? newLevelNumber;
-  final LevelUpRewards? levelUpRewards;
-
   // Streak milestone event (consumed by UI to show overlay)
   final bool streakMilestoneReached;
   final int? streakMilestoneCount;
@@ -122,11 +115,6 @@ class DailyLoopState {
     this.levelTitleArabic = 'طَالِب',
     this.levelNumber = 1,
     this.lastXpGained = 0,
-    this.leveledUp = false,
-    this.newLevelTitle,
-    this.newLevelTitleArabic,
-    this.newLevelNumber,
-    this.levelUpRewards,
     this.streakMilestoneReached = false,
     this.streakMilestoneCount,
     this.streakMilestoneXp,
@@ -163,11 +151,6 @@ class DailyLoopState {
     String? levelTitleArabic,
     int? levelNumber,
     int? lastXpGained,
-    bool? leveledUp,
-    String? newLevelTitle,
-    String? newLevelTitleArabic,
-    int? newLevelNumber,
-    LevelUpRewards? levelUpRewards,
     bool? streakMilestoneReached,
     int? streakMilestoneCount,
     int? streakMilestoneXp,
@@ -203,11 +186,6 @@ class DailyLoopState {
       levelTitleArabic: levelTitleArabic ?? this.levelTitleArabic,
       levelNumber: levelNumber ?? this.levelNumber,
       lastXpGained: lastXpGained ?? this.lastXpGained,
-      leveledUp: leveledUp ?? this.leveledUp,
-      newLevelTitle: newLevelTitle ?? this.newLevelTitle,
-      newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
-      newLevelNumber: newLevelNumber ?? this.newLevelNumber,
-      levelUpRewards: levelUpRewards ?? this.levelUpRewards,
       streakMilestoneReached:
           streakMilestoneReached ?? this.streakMilestoneReached,
       streakMilestoneCount: streakMilestoneCount ?? this.streakMilestoneCount,
@@ -685,14 +663,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
 
-  /// Test seam — directly sets `leveledUp` on state so `clearLevelUp` can
-  /// be tested independently of `_handleXpAward` (which no longer writes
-  /// that field as of Task 7). Not callable from production code paths.
-  @visibleForTesting
-  void debugSetLeveledUpForTest({required bool value}) {
-    state = state.copyWith(leveledUp: value);
-  }
-
   /// Test seam — sets streakMilestoneReached + the milestone counts directly
   /// on state, simulating the rising-edge that muhasabah_screen's ref.listen
   /// triggers off. Used by the race-ordering regression test to fire streak +
@@ -740,10 +710,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     await prefs.remove(_todayKey);
     state = const DailyLoopState();
     await _initialize();
-  }
-
-  void clearLevelUp() {
-    state = state.copyWith(leveledUp: false);
   }
 
   void clearStreakMilestone() {

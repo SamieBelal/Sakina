@@ -5,9 +5,8 @@
 // As of Task 7 the overlay trigger moved to AppShell via EconomyEvents.stream,
 // so we now assert on the published event rather than on DailyLoopState fields.
 //
-// clearLevelUp() still zeroes out the DailyLoopState.leveledUp field (retained
-// for Task 9 which drops those fields entirely); the AppShell does NOT call it —
-// it just pops the overlay.
+// Task 9: DailyLoopState.leveledUp and related fields dropped entirely.
+// clearLevelUp() and debugSetLeveledUpForTest() also removed.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -125,31 +124,4 @@ void main() {
     notifier.dispose();
   });
 
-  test(
-      'clearLevelUp resets leveledUp to false on DailyLoopState',
-      () async {
-    // clearLevelUp() is still needed because DailyLoopState.leveledUp fields
-    // are retained until Task 9 drops them. This test pins that the clear
-    // method works so nothing breaks downstream in the meantime.
-    await hydrateXpCache(totalXp: 70);
-    fakeSync.rpcHandlers['award_xp'] = (_) async => {
-          'total_xp': 100,
-          'token_balance': 5,
-          'scroll_balance': null,
-        };
-    fakeSync.rpcHandlers['earn_tokens'] = (_) async => 5;
-
-    final notifier = DailyLoopNotifier();
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-
-    // Force leveledUp=true via copyWith so we can test clearLevelUp
-    // independently of _handleXpAward (which no longer writes that field).
-    notifier.debugSetLeveledUpForTest(value: true);
-    expect(notifier.state.leveledUp, isTrue);
-
-    notifier.clearLevelUp();
-    expect(notifier.state.leveledUp, isFalse);
-
-    notifier.dispose();
-  });
 }
