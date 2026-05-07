@@ -104,10 +104,16 @@ abstract final class AppStrings {
   static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
   static const paywallAnnualLabel = 'Yearly';
-  static const paywallAnnualBadge = 'SAVE 81%';
+  static const paywallAnnualBadge = 'SAVE 50%';
   static const paywallAnnualPerWeek = '\$0.96';
   static const paywallAnnualPerWeekLabel = 'Per Week';
   static const paywallAnnualTotal = '\$49.99 Total';
+  // No static anchor string. The annual strikethrough is computed at
+  // runtime from `_annualPackage.storeProduct.price` in paywall_screen.dart
+  // (`_annualAnchorPrice`) so it's always in the user's storefront currency
+  // (e.g. £79.99 in UK, ¥15,600 in JP, ₹6,999 in IN). A USD-only static
+  // fallback would render "$99.99" next to a "£39.99" price — strictly
+  // worse than no anchor at all.
   static const paywallWeeklyPrice = '\$4.99';
   static const paywallWeeklyPeriod = '/week';
   static const paywallWeeklyLabel = 'Weekly';

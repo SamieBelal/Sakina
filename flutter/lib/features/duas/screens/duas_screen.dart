@@ -137,117 +137,156 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   Widget _buildBuildInput(DuasState state, DuasNotifier notifier) {
     final enabled = state.buildNeed.trim().isNotEmpty;
     return SafeArea(
-      child: SingleChildScrollView(
-        controller: _buildScrollController,
-        padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding, 32,
-            AppSpacing.pagePadding, AppSpacing.pagePadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _tabHeader('Build a Dua', notifier),
-            const SizedBox(height: 8),
-            Text(
-              'Describe your specific need and we\'ll construct a personal dua following authentic prophetic etiquette.',
-              style: AppTypography.bodyMedium
-                  .copyWith(color: AppColors.textSecondaryLight),
-            ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-            const SizedBox(height: 24),
-            // Header illustration
-            Center(
-              child: SvgPicture.asset(
-                'assets/illustrations/main_screens/duas_header.svg',
-                height: 140,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _buildScrollController,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding,
+                32,
+                AppSpacing.pagePadding,
+                AppSpacing.md,
               ),
-            )
-                .animate()
-                .fadeIn(duration: 600.ms, delay: 300.ms)
-                .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
-            const SizedBox(height: 24),
-            // Elegant stepped indicator
-            Row(
-              children: [
-                _elegantStepPill('1', 'Praise'),
-                _goldStepLine(),
-                _elegantStepPill('2', 'Salawat'),
-                _goldStepLine(),
-                _elegantStepPill('3', 'Ask'),
-                _goldStepLine(),
-                _elegantStepPill('4', 'Close'),
-              ],
-            ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-            const SizedBox(height: 24),
-            // Text field with focus feedback
-            Focus(
-              onFocusChange: (focused) {
-                setState(() => _hasFocus = focused);
-                if (focused) {
-                  Future.delayed(const Duration(milliseconds: 400), () {
-                    if (!mounted) return;
-                    if (_buildScrollController.hasClients) {
-                      _buildScrollController.animateTo(
-                        _buildScrollController.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-                  color: _hasFocus
-                      ? AppColors.primaryLight
-                      : AppColors.surfaceLight,
-                  border: Border.all(
-                    color:
-                        _hasFocus ? AppColors.primary : AppColors.borderLight,
-                    width: _hasFocus ? 1.5 : 1,
-                  ),
-                ),
-                child: TextField(
-                  key: _textFieldKey,
-                  controller: _buildController,
-                  minLines: 6,
-                  maxLines: 8,
-                  onChanged: notifier.setBuildNeed,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) =>
-                      FocusManager.instance.primaryFocus?.unfocus(),
-                  onTapOutside: (_) =>
-                      FocusManager.instance.primaryFocus?.unfocus(),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    hintText: 'What do you need a dua for...',
-                    hintStyle: AppTypography.bodyMedium
-                        .copyWith(color: AppColors.textTertiaryLight),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _tabHeader('Build a Dua', notifier),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Describe your specific need and we\'ll construct a personal dua following authentic prophetic etiquette.',
+                    style: AppTypography.bodyMedium
+                        .copyWith(color: AppColors.textSecondaryLight),
+                  ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+                  const SizedBox(height: 24),
+                  // Header illustration
+                  Center(
+                    child: SvgPicture.asset(
+                      'assets/illustrations/main_screens/duas_header.svg',
+                      height: 140,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
+                  )
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 300.ms)
+                      .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
+                  const SizedBox(height: 24),
+                  // Elegant stepped indicator
+                  Row(
+                    children: [
+                      _elegantStepPill('1', 'Praise'),
+                      _goldStepLine(),
+                      _elegantStepPill('2', 'Salawat'),
+                      _goldStepLine(),
+                      _elegantStepPill('3', 'Ask'),
+                      _goldStepLine(),
+                      _elegantStepPill('4', 'Close'),
+                    ],
+                  ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                  const SizedBox(height: 24),
+                  // Text field with focus feedback
+                  Focus(
+                    onFocusChange: (focused) {
+                      setState(() => _hasFocus = focused);
+                      if (focused) {
+                        Future.delayed(const Duration(milliseconds: 400), () {
+                          if (!mounted) return;
+                          if (_buildScrollController.hasClients) {
+                            _buildScrollController.animateTo(
+                              _buildScrollController.position.maxScrollExtent,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.inputRadius),
+                        color: _hasFocus
+                            ? AppColors.primaryLight
+                            : AppColors.surfaceLight,
+                        border: Border.all(
+                          color: _hasFocus
+                              ? AppColors.primary
+                              : AppColors.borderLight,
+                          width: _hasFocus ? 1.5 : 1,
+                        ),
+                      ),
+                      child: TextField(
+                        key: _textFieldKey,
+                        controller: _buildController,
+                        minLines: 6,
+                        maxLines: 8,
+                        onChanged: notifier.setBuildNeed,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        onTapOutside: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          hintText: 'What do you need a dua for...',
+                          hintStyle: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.textTertiaryLight),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.inputRadius),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.inputRadius),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.inputRadius),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.inputRadius),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 400.ms, delay: 600.ms)
+                      .slideY(
+                          begin: 0.02,
+                          end: 0,
+                          duration: 400.ms,
+                          delay: 600.ms),
+                  if (state.error != null) ...[
+                    const SizedBox(height: 16),
+                    _errorBox(state.error!),
+                  ],
+                ],
               ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 600.ms)
-                .slideY(begin: 0.02, end: 0, duration: 400.ms, delay: 600.ms),
-            const SizedBox(height: 16),
-            // Submit button — AnimatedOpacity + shadow
-            AnimatedOpacity(
+            ),
+          ),
+          // Sticky CTA with cream gradient fade above — matches Reflect screen.
+          Container(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.pagePadding,
+              12,
+              AppSpacing.pagePadding,
+              16,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.backgroundLight.withValues(alpha: 0),
+                  AppColors.backgroundLight,
+                  AppColors.backgroundLight,
+                ],
+                stops: const [0.0, 0.45, 1.0],
+              ),
+            ),
+            child: AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: enabled ? 1.0 : 0.5,
               child: GestureDetector(
@@ -268,9 +307,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                     boxShadow: enabled
                         ? [
                             BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                              color: AppColors.primary.withValues(alpha: 0.32),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
                             ),
                           ]
                         : null,
@@ -285,12 +324,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 ),
               ),
             ).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-            if (state.error != null) ...[
-              const SizedBox(height: 16),
-              _errorBox(state.error!),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -398,6 +433,13 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     final isLast = state.buildCurrentSection >= breakdown.length - 1;
     final currentStep = state.buildCurrentSection;
 
+    // Editorial breadcrumb labels — short forms of the AI-supplied section
+    // labels so all four fit on one row even on narrow phones. Falls back to
+    // the raw label if it's already short.
+    final breadcrumbLabels = breakdown
+        .map((s) => _shortenSectionLabel(s.label))
+        .toList(growable: false);
+
     return Stack(
       children: [
         AnimatedSwitcher(
@@ -405,177 +447,156 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           child: KeyedSubtree(
             key: ValueKey(currentStep),
             child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.pagePadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    // Gold sparkles
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(5, (i) {
-                          return Icon(
-                            Icons.auto_awesome,
-                            color: AppColors.secondary
-                                .withValues(alpha: i == 2 ? 1.0 : 0.6),
-                            size: i == 2 ? 20 : 14,
-                          )
-                              .animate()
-                              .scale(
-                                begin: const Offset(0, 0),
-                                end: const Offset(1, 1),
-                                curve: Curves.elasticOut,
-                                duration: 600.ms,
-                                delay: (i * 80).ms,
-                              )
-                              .fadeIn(duration: 400.ms, delay: (i * 80).ms);
-                        }),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.pagePadding,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - AppSpacing.lg -
+                            AppSpacing.pagePadding,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Gold progress dots
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(4, (i) {
-                        final filled = i <= currentStep;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: 14,
-                          height: 14,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: filled
-                                ? AppColors.secondary
-                                : AppColors.borderLight,
-                          ),
-                        );
-                      }),
-                    ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                    const SizedBox(height: 28),
-                    // Section label with gold accent bar
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ).animate().scaleY(
-                            begin: 0,
-                            end: 1,
-                            duration: 300.ms,
-                            delay: 200.ms,
-                            curve: Curves.easeOut),
-                        const SizedBox(width: 8),
-                        Text(
-                          section.label,
-                          style: AppTypography.labelMedium
-                              .copyWith(color: AppColors.primary),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Arabic card
+                      child: IntrinsicHeight(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Spacer(),
+                            // Tiny gold ornament — single restraint dot in place of
+                    // the old sparkle row. Anchors the page without confetti.
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.secondary,
+                      ),
+                    ).animate().fadeIn(duration: 400.ms),
+                    const SizedBox(height: AppSpacing.md),
+                    // Editorial eyebrow — small gold uppercase label that
+                    // reads like a chapter heading in a printed devotional.
+                    Text(
+                      section.label.toUpperCase(),
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.secondary,
+                        letterSpacing: 1.6,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
+                    const SizedBox(height: AppSpacing.sm),
+                    // Hairline gold rule under the eyebrow — quiet ornament
+                    // that tells the eye where the section header ends.
+                    Container(
+                      width: 28,
+                      height: 1,
+                      color: AppColors.secondary.withValues(alpha: 0.45),
+                    ).animate().scaleX(
+                        begin: 0,
+                        end: 1,
+                        duration: 400.ms,
+                        delay: 120.ms,
+                        curve: Curves.easeOut),
+                    const SizedBox(height: AppSpacing.lg),
+                    // Cream Arabic card — replaces saturated emerald block.
+                    // Soft warm border + low-alpha gold shadow matches the
+                    // _ameenSectionCard family used on the next screen so
+                    // the two pages read as one design.
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 28, horizontal: 24),
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: AppColors.surfaceLight,
                         borderRadius:
                             BorderRadius.circular(AppSpacing.cardRadius),
+                        border: Border.all(color: AppColors.borderLight),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
+                            color: AppColors.secondary.withValues(alpha: 0.06),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
                           ),
                         ],
                       ),
                       child: Text(
                         section.arabic,
-                        style: AppTypography.quranArabic
-                            .copyWith(color: Colors.white),
+                        style: AppTypography.quranArabic.copyWith(
+                          color: AppColors.primary,
+                          height: 1.9,
+                        ),
                         textDirection: TextDirection.rtl,
                         textAlign: TextAlign.center,
                       ),
-                    ).animate().fadeIn(duration: 800.ms, delay: 300.ms).scaleXY(
-                        begin: 0.95,
+                    ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
+                        begin: 0.97,
                         end: 1.0,
                         duration: 800.ms,
-                        delay: 300.ms,
+                        delay: 200.ms,
                         curve: Curves.easeOutBack),
-                    const SizedBox(height: 16),
-                    // Transliteration
+                    const SizedBox(height: AppSpacing.lg),
+                    // Transliteration — italic, muted.
                     Text(
                       section.transliteration,
                       style: AppTypography.bodyMedium.copyWith(
                         fontStyle: FontStyle.italic,
                         color: AppColors.textSecondaryLight,
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
-                    const SizedBox(height: 12),
-                    const Divider(color: AppColors.dividerLight),
-                    const SizedBox(height: 12),
-                    // Translation
+                      textAlign: TextAlign.center,
+                    ).animate().fadeIn(duration: 500.ms, delay: 380.ms),
+                    const SizedBox(height: AppSpacing.md),
+                    // Verse-stop ornament — tiny gold dot replaces the harsh
+                    // grey divider, like the rosette between Quran ayat.
+                    Container(
+                      width: 3,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.secondary.withValues(alpha: 0.85),
+                      ),
+                    ).animate().fadeIn(duration: 400.ms, delay: 460.ms),
+                    const SizedBox(height: AppSpacing.md),
+                    // Translation — dark serif-leaning sans, generous height.
                     Text(
                       section.translation,
                       style: AppTypography.bodyLarge.copyWith(
                         color: AppColors.textPrimaryLight,
                         height: 1.6,
                       ),
-                    ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
-                    const SizedBox(height: 24),
-                    // Next/Complete button
+                      textAlign: TextAlign.center,
+                    ).animate().fadeIn(duration: 500.ms, delay: 540.ms),
+                    const SizedBox(height: AppSpacing.xl),
+                    // Editorial breadcrumb — single-line "Praise · Salawat ·
+                    // Ask · Close" with the current section bolded in deep
+                    // emerald, others muted. Replaces the dot row.
+                    _buildBreadcrumb(breadcrumbLabels, currentStep)
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 620.ms),
+                    const SizedBox(height: AppSpacing.lg),
+                    // Next / Ameen CTA.
                     if (isLast)
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          notifier.nextBuildSection();
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          height: 56,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(100),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.35),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'Ameen',
-                            style: AppTypography.headlineMedium.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(duration: 500.ms, delay: 700.ms)
-                          .slideY(
-                              begin: 0.1,
-                              end: 0,
-                              duration: 500.ms,
-                              delay: 700.ms)
+                      _buildAmeenCta(notifier).animate().fadeIn(
+                          duration: 500.ms, delay: 700.ms).slideY(
+                          begin: 0.1,
+                          end: 0,
+                          duration: 500.ms,
+                          delay: 700.ms)
                     else
                       _buildActionButtonDua('Next', () {
                         HapticFeedback.mediumImpact();
                         notifier.nextBuildSection();
                       }).animate().fadeIn(duration: 400.ms, delay: 700.ms),
-                  ],
-                ),
+                            const Spacer(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -625,6 +646,107 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             color: AppColors.textOnPrimary,
           ),
           textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  /// Trim AI-supplied section labels to a short breadcrumb form so all four
+  /// fit on one line. "Opening Praise" -> "Praise", "Salawat on the
+  /// Prophet" -> "Salawat", "Your Ask" -> "Ask", "Closing" -> "Close".
+  String _shortenSectionLabel(String label) {
+    final lower = label.toLowerCase();
+    if (lower.contains('praise') || lower.contains('hamd')) return 'Praise';
+    if (lower.contains('salawat') || lower.contains('prophet')) {
+      return 'Salawat';
+    }
+    if (lower.contains('ask') || lower.contains('need')) return 'Ask';
+    if (lower.contains('clos') || lower.contains('seal')) return 'Close';
+    // Fallback: first word, capitalised.
+    final firstWord = label.split(' ').first;
+    if (firstWord.isEmpty) return label;
+    return firstWord[0].toUpperCase() + firstWord.substring(1).toLowerCase();
+  }
+
+  /// Editorial single-line breadcrumb: section names separated by middots,
+  /// current step bolded in deep emerald, others muted. Replaces the gold
+  /// dot row from the previous design — reads like a printed mushaf
+  /// running header rather than a Duolingo step counter.
+  Widget _buildBreadcrumb(List<String> labels, int currentStep) {
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < labels.length; i++) {
+      final isCurrent = i == currentStep;
+      spans.add(TextSpan(
+        text: labels[i],
+        style: AppTypography.labelSmall.copyWith(
+          color: isCurrent
+              ? AppColors.primary
+              : AppColors.textTertiaryLight,
+          fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+          letterSpacing: 0.4,
+        ),
+      ));
+      if (i < labels.length - 1) {
+        spans.add(TextSpan(
+          text: '  \u00B7  ', // middot with breathing room
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.secondary.withValues(alpha: 0.55),
+          ),
+        ));
+      }
+    }
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(children: spans),
+    );
+  }
+
+  /// Final-step CTA — emerald pill matching the rest of the app, with a
+  /// small gold sparkle on the leading edge and a gold-tinged shadow as a
+  /// quiet celebratory cue (this is the gateway to the Ameen screen).
+  Widget _buildAmeenCta(DuasNotifier notifier) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        notifier.nextBuildSection();
+      },
+      child: Container(
+        width: double.infinity,
+        height: 56,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.30),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: AppColors.secondary.withValues(alpha: 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.auto_awesome,
+              size: 18,
+              color: AppColors.secondary,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Ameen',
+              style: AppTypography.headlineMedium.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
