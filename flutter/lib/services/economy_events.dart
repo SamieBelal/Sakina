@@ -9,6 +9,7 @@ sealed class EconomyEvent {
   final EconomyEventSource source;
 }
 
+/// Emitted when a token grant lands and the cache + (optional) server are updated.
 class TokenGranted extends EconomyEvent {
   const TokenGranted({
     required this.amount,
@@ -19,6 +20,7 @@ class TokenGranted extends EconomyEvent {
   final int newBalance;
 }
 
+/// Emitted when a tier-up scroll grant lands.
 class ScrollGranted extends EconomyEvent {
   const ScrollGranted({
     required this.amount,
@@ -29,6 +31,7 @@ class ScrollGranted extends EconomyEvent {
   final int newBalance;
 }
 
+/// Emitted when an XP award lands. Carries level-up info if the grant crossed a threshold.
 class XpGranted extends EconomyEvent {
   const XpGranted({
     required this.amount,
