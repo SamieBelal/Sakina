@@ -29,9 +29,9 @@ class TierUpScrollNotifier extends StateNotifier<TierUpScrollState> {
   }
 
   Future<TierUpScrollEarnResult> earn(int amount) async {
-    final result = await earnTierUpScrolls(amount);
-    state = TierUpScrollState(balance: result.newBalance);
-    return result;
+    // earnTierUpScrolls publishes ScrollGranted via EconomyEvents; our
+    // grants listener (constructor) updates state. No manual set needed.
+    return earnTierUpScrolls(amount, source: EconomyEventSource.dev);
   }
 
   Future<TierUpScrollSpendResult> spend(int amount) async {

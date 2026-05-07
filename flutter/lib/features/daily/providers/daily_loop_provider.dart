@@ -373,7 +373,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       }
       if (result.milestone.scrollReward > 0) {
         final scrollResult =
-            await earnTierUpScrolls(result.milestone.scrollReward);
+            await earnTierUpScrolls(result.milestone.scrollReward, source: EconomyEventSource.streak);
         if (!scrollResult.success) {
           state = state.copyWith(error: _scrollRewardSyncError);
         }
@@ -426,7 +426,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         cardResult = engageResult;
       } else if (engageResult.isDuplicate) {
         try {
-          await earnTokens(1);
+          await earnTokens(1, source: EconomyEventSource.streak);
         } catch (_) {}
       }
 
@@ -573,7 +573,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           } else if (engageResult.isDuplicate) {
             // Already maxed or cooldown not met — award bonus tokens
             try {
-              await earnTokens(1);
+              await earnTokens(1, source: EconomyEventSource.streak);
             } catch (_) {}
           }
         }

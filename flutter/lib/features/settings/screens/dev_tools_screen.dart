@@ -15,6 +15,7 @@ import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/widgets/subpage_header.dart';
@@ -85,7 +86,12 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await awardXp(amount);
+      // awardXp publishes XpGranted via EconomyEvents; AppShell will also push
+      // LevelUpOverlay if leveledUp == true. This local push is redundant but
+      // kept so the dev-tools flow shows the overlay even if AppShell isn't in
+      // the route stack (e.g. invoked from settings outside the shell). The
+      // resulting double-push is benign in dev tooling.
+      final result = await awardXp(amount, source: EconomyEventSource.dev);
       invalidateAllUserProviders(ref);
       await _refresh();
       if (result.leveledUp && result.rewards != null && mounted) {
