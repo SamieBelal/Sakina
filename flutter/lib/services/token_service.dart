@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _tokenKey = 'sakina_tokens';
@@ -81,7 +82,10 @@ Future<void> hydrateTokenCache({
   }
 }
 
-Future<TokenState> earnTokens(int amount) async {
+Future<TokenState> earnTokens(
+  int amount, {
+  EconomyEventSource source = EconomyEventSource.dev,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final current = await _getCachedBalance(prefs);
   final userId = supabaseSyncService.currentUserId;
@@ -101,6 +105,11 @@ Future<TokenState> earnTokens(int amount) async {
   }
 
   await _setCachedBalance(prefs, newBalance);
+  EconomyEvents.publish(TokenGranted(
+    amount: amount,
+    newBalance: newBalance,
+    source: source,
+  ));
   return TokenState(balance: newBalance);
 }
 
