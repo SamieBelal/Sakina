@@ -67,6 +67,9 @@ class DailyLoopState {
   final String levelTitleArabic;
   final int levelNumber;
 
+  // Last XP gain amount — consumed by AnimatedXpBar to show floating "+N XP"
+  final int lastXpGained;
+
   // Level-up event (consumed by UI to show overlay)
   final bool leveledUp;
   final String? newLevelTitle;
@@ -118,6 +121,7 @@ class DailyLoopState {
     this.levelTitle = 'Seeker',
     this.levelTitleArabic = 'طَالِب',
     this.levelNumber = 1,
+    this.lastXpGained = 0,
     this.leveledUp = false,
     this.newLevelTitle,
     this.newLevelTitleArabic,
@@ -158,6 +162,7 @@ class DailyLoopState {
     String? levelTitle,
     String? levelTitleArabic,
     int? levelNumber,
+    int? lastXpGained,
     bool? leveledUp,
     String? newLevelTitle,
     String? newLevelTitleArabic,
@@ -197,6 +202,7 @@ class DailyLoopState {
       levelTitle: levelTitle ?? this.levelTitle,
       levelTitleArabic: levelTitleArabic ?? this.levelTitleArabic,
       levelNumber: levelNumber ?? this.levelNumber,
+      lastXpGained: lastXpGained ?? this.lastXpGained,
       leveledUp: leveledUp ?? this.leveledUp,
       newLevelTitle: newLevelTitle ?? this.newLevelTitle,
       newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
@@ -241,6 +247,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           levelNumber: event.newState.level,
           levelTitle: event.newState.title,
           levelTitleArabic: event.newState.titleArabic,
+          lastXpGained: event.amount,
         );
       }
     });
@@ -258,6 +265,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     _deeperReflectGeneration++;
     _grantsSub?.cancel();
     super.dispose();
+  }
+
+  void clearLastXpGained() {
+    if (state.lastXpGained == 0) return;
+    state = state.copyWith(lastXpGained: 0);
   }
 
   String get _todayKey {

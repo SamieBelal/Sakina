@@ -18,6 +18,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
+import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -245,6 +246,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
         : 1.0;
 
+    // Schedule clearing lastXpGained after the float label has finished
+    // animating so the next XP grant can re-trigger it.
+    if (state.lastXpGained > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Future.delayed(const Duration(milliseconds: 1700), () {
+          if (mounted) ref.read(dailyLoopProvider.notifier).clearLastXpGained();
+        });
+      });
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -407,18 +419,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 6),
           // XP bar — full width including under avatar
-          Padding(
-            padding: EdgeInsets.zero,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: xpProgress,
-                minHeight: 3,
-                backgroundColor: AppColors.borderLight,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
-              ),
-            ),
+          AnimatedXpBar(
+            progress: xpProgress,
+            lastGained: state.lastXpGained,
+            height: 3,
           ),
           const SizedBox(height: 16),
 
