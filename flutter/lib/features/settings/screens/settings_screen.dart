@@ -360,6 +360,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await authService.deleteAccount();
       ref.read(onboardingProvider.notifier).reset();
       await ref.read(appSessionProvider).clearSession(userId: uid);
+      // JUSTIFIED: hard reset of all Riverpod provider state on full account
+      // deletion. No EconomyEvents equivalent — the user session is gone.
       _invalidateAllUserProviders(ref);
       await authService.signOut();
     } catch (_) {
@@ -1020,6 +1022,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 try {
                   ref.read(onboardingProvider.notifier).reset();
                   await ref.read(appSessionProvider).clearSession();
+                  // JUSTIFIED: hard reset of all Riverpod provider state on
+                  // sign-out. No EconomyEvents equivalent — user session ends.
                   _invalidateAllUserProviders(ref);
                   await ref.read(authServiceProvider).signOut();
                 } catch (_) {
