@@ -6,6 +6,7 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -801,23 +802,40 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
             !state.firstStepsBundleClaimed;
 
     if (quest.scrollReward > 0) {
-      final scrollResult = await earnTierUpScrolls(quest.scrollReward);
+      final scrollResult = await earnTierUpScrolls(
+        quest.scrollReward,
+        source: EconomyEventSource.firstSteps,
+      );
       if (!scrollResult.success) return;
     }
     if (shouldClaimBundle && firstStepsBundleScrolls > 0) {
-      final scrollResult = await earnTierUpScrolls(firstStepsBundleScrolls);
+      final scrollResult = await earnTierUpScrolls(
+        firstStepsBundleScrolls,
+        source: EconomyEventSource.firstSteps,
+      );
       if (!scrollResult.success) return;
     }
 
-    if (quest.xpReward > 0) await awardXp(quest.xpReward);
-    if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
+    if (quest.xpReward > 0) {
+      await awardXp(quest.xpReward, source: EconomyEventSource.firstSteps);
+    }
+    if (quest.tokenReward > 0) {
+      await earnTokens(quest.tokenReward, source: EconomyEventSource.firstSteps);
+    }
 
     // Bundle bonus when all 3 are done and not yet claimed.
     bool bundleClaimed = state.firstStepsBundleClaimed;
     FirstStepsBundleCelebration? celebration;
     if (shouldClaimBundle) {
-      if (firstStepsBundleXp > 0) await awardXp(firstStepsBundleXp);
-      if (firstStepsBundleTokens > 0) await earnTokens(firstStepsBundleTokens);
+      if (firstStepsBundleXp > 0) {
+        await awardXp(firstStepsBundleXp, source: EconomyEventSource.firstSteps);
+      }
+      if (firstStepsBundleTokens > 0) {
+        await earnTokens(
+          firstStepsBundleTokens,
+          source: EconomyEventSource.firstSteps,
+        );
+      }
       bundleClaimed = true;
       celebration = const FirstStepsBundleCelebration(
         xp: firstStepsBundleXp,
@@ -884,7 +902,10 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     );
 
     if (quest.scrollReward > 0) {
-      final scrollResult = await earnTierUpScrolls(quest.scrollReward);
+      final scrollResult = await earnTierUpScrolls(
+        quest.scrollReward,
+        source: EconomyEventSource.quest,
+      );
       if (!scrollResult.success) return;
     }
 
@@ -918,8 +939,12 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
       );
     }
 
-    if (quest.xpReward > 0) await awardXp(quest.xpReward);
-    if (quest.tokenReward > 0) await earnTokens(quest.tokenReward);
+    if (quest.xpReward > 0) {
+      await awardXp(quest.xpReward, source: EconomyEventSource.quest);
+    }
+    if (quest.tokenReward > 0) {
+      await earnTokens(quest.tokenReward, source: EconomyEventSource.quest);
+    }
     // Scrolls were already granted above (pre-completion gate for cap rejection).
   }
 
