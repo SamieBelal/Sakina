@@ -202,7 +202,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           .track(AnalyticsEvents.paywallExitOfferAccepted);
       setState(() => _selectedPlan = _PlanType.weekly);
       await _handlePurchase();
-    } else {
+    } else if (accepted == false) {
       _doClose();
     }
   }

@@ -85,14 +85,32 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
+    // Back button is only meaningful in the deeper-reflection flow on
+    // steps > 1 (step 0 is the gacha-overlay name, step 1 is the first
+    // card the user sees and has no prior step to return to).
+    final showBack = state.currentStep == DailyLoopStep.deeper &&
+        state.reflectStep > 1 &&
+        state.reflectResult != null &&
+        !state.checkinLoading &&
+        !state.reflectLoading;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: _buildContent(state, notifier),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                child: _buildContent(state, notifier),
+              ),
+            ),
           ),
-        ),
+          if (showBack)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 12,
+              left: 16,
+              child: _backButton(notifier),
+            ),
+        ],
       ),
     );
   }
@@ -433,16 +451,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 36,
-                child: step > 1
-                    ? Align(
-                        alignment: Alignment.centerLeft,
-                        child: _backButton(notifier),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 8),
               Center(child: _sparkleRow()),
               const SizedBox(height: 16),
               // Card container
@@ -682,12 +690,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           border: Border.all(color: AppColors.borderLight),
         ),
         child: const Icon(
-          Icons.arrow_back_ios_new_rounded,
-          size: 16,
+          Icons.arrow_back_rounded,
+          size: 18,
           color: AppColors.textSecondaryLight,
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: 200.ms);
+    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

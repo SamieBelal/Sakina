@@ -272,10 +272,10 @@ abstract final class AppStrings {
   static const paywallPersonalizedHeaderTemplate = 'YOU\'RE 1 STEP AWAY, {name}';
   // {price} replaced at render time with annual price string from RevenueCat.
   static const paywallTrialMicrocopyTemplate =
-      '7 days free, then {price}/year. Cancel anytime.';
+      '3 days free, then {price}/year. Cancel anytime.';
   static const paywallNoPaymentTodayLine = 'No payment due today.';
   // CTA copy upgrade (OV9) — brand-name in CTA lifts conversion.
-  static const paywallCtaTrial = 'Try Sakina Free for 7 days';
+  static const paywallCtaTrial = 'Try Sakina Free for 3 days';
   static const paywallCtaSubscribeRevised = 'Start your subscription';
 
   // ───── Personalized Plan screen (page 23) ─────

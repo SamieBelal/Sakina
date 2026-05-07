@@ -860,6 +860,17 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     return pending;
   }
 
+  /// Public entry point for `recomputeQuestProgress` to retro-mark a beginner
+  /// quest from authoritative data sources (check-in history, saved
+  /// reflections, saved built duas). Self-heals the eligibility-hydration
+  /// race where the live `on*Completed()` hook fires before
+  /// `hydrateFirstStepsEligibilityFromBatch` has written the eligibility flag
+  /// — the live hook short-circuits silently, but recompute (which runs after
+  /// `reload()` has re-read prefs) catches up. Idempotent and eligibility-
+  /// gated via the same `_markBeginnerComplete` guards.
+  Future<void> markBeginnerCompleteFromRecompute(BeginnerQuestId id) =>
+      _markBeginnerComplete(id);
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Core completion
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1679,6 +1690,10 @@ Future<void> recomputeQuestProgress(WidgetRef ref) async {
   }
   await notifier.updateWeeklyReflections(reflectionsThisWeek);
   await notifier.updateMonthlyReflections(reflectionsThisMonth);
+  if (reflectState.savedReflections.isNotEmpty) {
+    await notifier
+        .markBeginnerCompleteFromRecompute(BeginnerQuestId.firstReflect);
+  }
 
   // ── Built duas (week + month) ────────────────────────────────────────────
   final duasState = ref.read(duasProvider);
@@ -1692,6 +1707,10 @@ Future<void> recomputeQuestProgress(WidgetRef ref) async {
   }
   await notifier.updateWeeklyBuiltDuas(builtDuasThisWeek);
   await notifier.updateMonthlyBuiltDuas(builtDuasThisMonth);
+  if (duasState.savedBuiltDuas.isNotEmpty) {
+    await notifier
+        .markBeginnerCompleteFromRecompute(BeginnerQuestId.firstBuiltDua);
+  }
 
   // ── Discoveries from card collection (week + month) ──────────────────────
   final collection = await getCardCollection();
@@ -1726,6 +1745,10 @@ Future<void> recomputeQuestProgress(WidgetRef ref) async {
   }
   await notifier.updateWeeklyMuhasabahs(muhasabahsThisWeek);
   await notifier.updateMonthlyMuhasabahs(muhasabahsThisMonth);
+  if (history.isNotEmpty) {
+    await notifier
+        .markBeginnerCompleteFromRecompute(BeginnerQuestId.firstMuhasabah);
+  }
 
   // ── Streak (just push current value at the monthly target) ───────────────
   final streak = await getStreak();

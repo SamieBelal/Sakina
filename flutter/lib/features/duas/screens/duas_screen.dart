@@ -11,6 +11,7 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/token_gate_sheet.dart';
@@ -108,13 +109,11 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       _stopRipple();
     }
 
-    final isAmeen = state.buildCurrentSection == 4 && state.buildResult != null;
-
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
-        backgroundColor: isAmeen ? AppColors.primary : const Color(0xFFFBF7F2),
+        backgroundColor: AppColors.backgroundLight,
         body: _buildBuildTab(state, notifier),
       ),
     );
@@ -650,355 +649,450 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       });
     }
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.pagePadding),
-        child: Column(
-          children: [
-            // Share button top-right
-            Align(
-              alignment: Alignment.centerRight,
-              child: Builder(
-                  builder: (btnContext) => GestureDetector(
-                        onTap: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          HapticFeedback.mediumImpact();
-                          final box =
-                              btnContext.findRenderObject() as RenderBox;
-                          final origin =
-                              box.localToGlobal(Offset.zero) & box.size;
-                          try {
-                            await shareBuiltDuaCard(
-                              context: context,
-                              need: state.buildNeed,
-                              sections: duaSectionsForShare(result.breakdown),
-                              translation: result.translation,
-                              sharePositionOrigin: origin,
-                            );
-                          } catch (e) {
-                            debugPrint('[SHARE ERROR] $e');
-                            showShareErrorSnackBar(messenger);
-                          }
-                        },
-                        child: Icon(Icons.share_outlined,
-                            color: Colors.white.withValues(alpha: 0.7),
-                            size: 22),
-                      )),
-            ),
-            const SizedBox(height: 8),
-            // Pulsing radial gold glow behind آمين + sparkles
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppColors.secondary.withValues(alpha: 0.15),
-                        AppColors.secondary.withValues(alpha: 0.05),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .scaleXY(begin: 0.9, end: 1.1, duration: 2000.ms),
-                Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.pagePadding,
+            AppSpacing.sm,
+            AppSpacing.pagePadding,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            children: [
+              // Share button top-right — gold so it reads against cream.
+              Align(
+                alignment: Alignment.centerRight,
+                child: Builder(
+                    builder: (btnContext) => GestureDetector(
+                          onTap: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            HapticFeedback.mediumImpact();
+                            final box =
+                                btnContext.findRenderObject() as RenderBox;
+                            final origin =
+                                box.localToGlobal(Offset.zero) & box.size;
+                            try {
+                              await shareBuiltDuaCard(
+                                context: context,
+                                need: state.buildNeed,
+                                sections: duaSectionsForShare(result.breakdown),
+                                translation: result.translation,
+                                sharePositionOrigin: origin,
+                              );
+                            } catch (e) {
+                              debugPrint('[SHARE ERROR] $e');
+                              showShareErrorSnackBar(messenger);
+                            }
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.secondary
+                                  .withValues(alpha: 0.10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.share_outlined,
+                                color: AppColors.secondary, size: 20),
+                          ),
+                        )),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+
+              // ─── Hero medallion ───────────────────────────────────────────
+              // Oversized layered radial-gold glow behind آمين, mirroring the
+              // _PaywallHero treatment (gold → cream radial gradient + soft
+              // pulsing halo). The Arabic word is the centerpiece in deep
+              // gold; the medallion supplies the celebratory "destination"
+              // feel without needing a saturated background.
+              SizedBox(
+                height: 320,
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    // White sparkles
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(5, (i) {
-                        return Icon(
-                          Icons.auto_awesome,
-                          color: Colors.white
-                              .withValues(alpha: i == 2 ? 0.9 : 0.5),
-                          size: i == 2 ? 20 : 14,
-                        )
-                            .animate()
-                            .scale(
-                              begin: const Offset(0, 0),
-                              end: const Offset(1, 1),
-                              curve: Curves.elasticOut,
-                              duration: 600.ms,
-                              delay: (i * 80).ms,
-                            )
-                            .fadeIn(duration: 400.ms, delay: (i * 80).ms);
-                      }),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '\u0622\u0645\u064a\u0646',
-                      style: AppTypography.nameOfAllahDisplay
-                          .copyWith(color: Colors.white, fontSize: 64),
-                      textDirection: TextDirection.rtl,
-                    ).animate().fadeIn(duration: 800.ms).scaleXY(
-                        begin: 0.85,
-                        end: 1.0,
-                        duration: 800.ms,
-                        curve: Curves.easeOutBack),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Ameen',
-                      style: AppTypography.displayLarge
-                          .copyWith(color: Colors.white),
-                    ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-                    const SizedBox(height: 8),
-                    Text(
-                      'May Allah accept your dua',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // Build Another Dua
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                _buildController.clear();
-                notifier.resetBuild();
-              },
-              child: Container(
-                width: double.infinity,
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(100),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        color: AppColors.primary, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Build Another Dua',
-                      style: AppTypography.labelLarge.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
-            const SizedBox(height: 24),
-            // Names Called Upon card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 3,
-                        height: 16,
+                    // Base radial — wide warm gold-into-cream wash.
+                    Positioned.fill(
+                      child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Names Called Upon',
-                        style: AppTypography.headlineMedium
-                            .copyWith(color: AppColors.textPrimaryLight),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ...result.namesUsed.map((n) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.star_rounded,
-                                    size: 14, color: AppColors.secondary),
-                                const SizedBox(width: 6),
-                                Text(n.name, style: AppTypography.labelLarge),
-                                const SizedBox(width: 8),
-                                Text(
-                                  n.nameArabic,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.textSecondaryLight,
-                                  ),
-                                  textDirection: TextDirection.rtl,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              n.why,
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
-            const SizedBox(height: 16),
-            // Related Duas card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 3,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Related Duas',
-                        style: AppTypography.headlineMedium
-                            .copyWith(color: AppColors.textPrimaryLight),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Save to view full dua in Journal',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...result.relatedDuas.map((d) => Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFBF7F2),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.cardRadius),
-                          border: const Border(
-                            left: BorderSide(
-                              color: AppColors.secondary,
-                              width: 3,
-                            ),
+                          gradient: RadialGradient(
+                            center: const Alignment(0, -0.05),
+                            radius: 0.85,
+                            colors: [
+                              const Color(0xFFF5EBD9), // gold light tint
+                              AppColors.backgroundLight.withValues(alpha: 0.0),
+                            ],
+                            stops: const [0.0, 0.85],
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
+                      ),
+                    ),
+                    // Inner halo — slow pulsing concentrated glow.
+                    Container(
+                      width: 240,
+                      height: 240,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            AppColors.secondary.withValues(alpha: 0.22),
+                            AppColors.secondary.withValues(alpha: 0.08),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.55, 1.0],
+                        ),
+                      ),
+                    )
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .scaleXY(begin: 0.92, end: 1.08, duration: 2400.ms),
+                    // Foreground stack: sparkles → آمين → "Ameen" → tagline
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Gold sparkles row.
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(5, (i) {
+                            return Icon(
+                              Icons.auto_awesome,
+                              color: AppColors.secondary
+                                  .withValues(alpha: i == 2 ? 1.0 : 0.55),
+                              size: i == 2 ? 20 : 14,
+                            )
+                                .animate()
+                                .scale(
+                                  begin: const Offset(0, 0),
+                                  end: const Offset(1, 1),
+                                  curve: Curves.elasticOut,
+                                  duration: 600.ms,
+                                  delay: (i * 80).ms,
+                                )
+                                .fadeIn(duration: 400.ms, delay: (i * 80).ms);
+                          }),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        // Top spacer absorbs Aref Ruqaa ascender bleed.
+                        const SizedBox(height: 33),
+                        AdjustedArabicDisplay(
+                          text: '\u0622\u0645\u064a\u0646',
+                          style: AppTypography.nameOfAllahDisplay.copyWith(
+                            color: AppColors.secondary,
+                            fontSize: 76,
+                            // Hairline shadow for depth on the cream bg —
+                            // keeps the gold reading even when the radial
+                            // wash is thinnest at the edges.
+                            shadows: [
+                              Shadow(
+                                color: AppColors.secondary
+                                    .withValues(alpha: 0.18),
+                                blurRadius: 24,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn(duration: 900.ms).scaleXY(
+                              begin: 0.82,
+                              end: 1.0,
+                              duration: 900.ms,
+                              curve: Curves.easeOutBack,
+                            ),
+                        // Bottom spacer compensates for the upward shift in
+                        // AdjustedArabicDisplay so the next line doesn't
+                        // crowd the calligraphy.
+                        const SizedBox(height: 20),
+                        Text(
+                          'Ameen',
+                          style: AppTypography.displayLarge.copyWith(
+                            color: AppColors.textPrimaryLight,
+                            letterSpacing: 1.2,
+                          ),
+                        ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'May Allah accept your dua',
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textSecondaryLight,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+
+              // ─── Build Another Dua CTA ───────────────────────────────────
+              // Emerald-filled pill, white text — matches every other primary
+              // CTA in the app. White-on-green pill from the saturated layout
+              // is no longer needed now that the bg is cream.
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  _buildController.clear();
+                  notifier.resetBuild();
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: 56,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome,
+                          color: Colors.white, size: 18),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Build Another Dua',
+                        style: AppTypography.labelLarge.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+              const SizedBox(height: AppSpacing.xl),
+
+              // ─── Names Called Upon ───────────────────────────────────────
+              _ameenSectionCard(
+                title: 'Names Called Upon',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...result.namesUsed.map((n) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.mediumImpact();
-                                      final wasSaved =
-                                          notifier.isRelatedDuaSaved(d);
-                                      notifier.toggleSaveRelatedDua(d);
-                                      if (!wasSaved) {
-                                        ref
-                                            .read(questsProvider.notifier)
-                                            .onDuaSaved();
-                                      }
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                          right: 12, top: 4),
-                                      child: Icon(
-                                        notifier.isRelatedDuaSaved(d)
-                                            ? Icons.favorite
-                                            : Icons.favorite_outline,
-                                        color: notifier.isRelatedDuaSaved(d)
-                                            ? AppColors.primary
-                                            : AppColors.textTertiaryLight,
-                                        size: 20,
-                                      ),
+                                  const Icon(Icons.star_rounded,
+                                      size: 14, color: AppColors.secondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    n.name,
+                                    style: AppTypography.labelLarge.copyWith(
+                                      color: AppColors.textPrimaryLight,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  Expanded(
-                                    child: Text(
-                                      d.arabic,
-                                      style: AppTypography.quranArabic
-                                          .copyWith(fontSize: 20),
-                                      textDirection: TextDirection.rtl,
-                                      textAlign: TextAlign.right,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    n.nameArabic,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.secondary,
                                     ),
+                                    textDirection: TextDirection.rtl,
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: Text(
-                                  d.transliteration,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    fontStyle: FontStyle.italic,
-                                    color: AppColors.textSecondaryLight,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                width: double.infinity,
-                                child: Text(d.translation,
-                                    style: AppTypography.bodyMedium),
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                width: double.infinity,
-                                child: Text(
-                                  d.source,
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppColors.textTertiaryLight,
-                                  ),
+                              const SizedBox(height: 4),
+                              Text(
+                                n.why,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textSecondaryLight,
+                                  height: 1.45,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      )),
-                ],
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 700.ms),
-            const SizedBox(height: 32),
-          ],
+                        )),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
+              const SizedBox(height: AppSpacing.md),
+
+              // ─── Related Duas ────────────────────────────────────────────
+              _ameenSectionCard(
+                title: 'Related Duas',
+                subtitle: 'Save to view full dua in Journal',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...result.relatedDuas.map((d) => Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceAltLight,
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.cardRadius),
+                            border: const Border(
+                              left: BorderSide(
+                                color: AppColors.secondary,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        HapticFeedback.mediumImpact();
+                                        final wasSaved =
+                                            notifier.isRelatedDuaSaved(d);
+                                        notifier.toggleSaveRelatedDua(d);
+                                        if (!wasSaved) {
+                                          ref
+                                              .read(questsProvider.notifier)
+                                              .onDuaSaved();
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                            right: 12, top: 4),
+                                        child: Icon(
+                                          notifier.isRelatedDuaSaved(d)
+                                              ? Icons.favorite
+                                              : Icons.favorite_outline,
+                                          color: notifier.isRelatedDuaSaved(d)
+                                              ? AppColors.primary
+                                              : AppColors.textTertiaryLight,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        d.arabic,
+                                        style: AppTypography.quranArabic
+                                            .copyWith(fontSize: 20),
+                                        textDirection: TextDirection.rtl,
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    d.transliteration,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      fontStyle: FontStyle.italic,
+                                      color: AppColors.textSecondaryLight,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    d.translation,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.textPrimaryLight,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Text(
+                                    d.source,
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.textTertiaryLight,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 700.ms),
+            ],
+          ),
         ),
       ),
     ).animate().fadeIn(duration: 300.ms);
+  }
+
+  /// Cream-tinted section card with a warm border and gold accent-bar header.
+  /// Replaces the stark white containers from the saturated-emerald layout
+  /// so the cards sit handcrafted on the cream page rather than floating
+  /// like tech-y rectangles.
+  Widget _ameenSectionCard({
+    required String title,
+    String? subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.secondary.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                title,
+                style: AppTypography.headlineMedium.copyWith(
+                  color: AppColors.textPrimaryLight,
+                ),
+              ),
+            ],
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 11),
+              child: Text(
+                subtitle,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          child,
+        ],
+      ),
+    );
   }
 
   // ===========================================================================
