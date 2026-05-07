@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/launch_gate_state.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
@@ -468,6 +469,30 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       await hydrateTierUpScrollCache(balance: scrollBalance);
     }
 
+    final alreadyClaimed = rpcResult['already_claimed'] as bool? ?? false;
+    if (!alreadyClaimed) {
+      final tokensAwarded = rpcResult['tokens_awarded'] == null
+          ? 0
+          : _readRpcInt(rpcResult, 'tokens_awarded');
+      if (tokensAwarded > 0 && tokenBalance != null) {
+        EconomyEvents.publish(TokenGranted(
+          amount: tokensAwarded,
+          newBalance: tokenBalance,
+          source: EconomyEventSource.dailyReward,
+        ));
+      }
+      final scrollsAwarded = rpcResult['scrolls_awarded'] == null
+          ? 0
+          : _readRpcInt(rpcResult, 'scrolls_awarded');
+      if (scrollsAwarded > 0 && scrollBalance != null) {
+        EconomyEvents.publish(ScrollGranted(
+          amount: scrollsAwarded,
+          newBalance: scrollBalance,
+          source: EconomyEventSource.dailyReward,
+        ));
+      }
+    }
+
     return DailyRewardClaimResult(
       day: rpcResult['day'] == null
           ? newState.currentDay
@@ -525,6 +550,21 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     totalSpent: await getTotalTokensSpent(),
   );
   await hydrateTierUpScrollCache(balance: newScrollBalance);
+
+  if (reward.tokenAmount > 0) {
+    EconomyEvents.publish(TokenGranted(
+      amount: reward.tokenAmount,
+      newBalance: newTokenBalance,
+      source: EconomyEventSource.dailyReward,
+    ));
+  }
+  if (reward.scrollAmount > 0) {
+    EconomyEvents.publish(ScrollGranted(
+      amount: reward.scrollAmount,
+      newBalance: newScrollBalance,
+      source: EconomyEventSource.dailyReward,
+    ));
+  }
 
   return DailyRewardClaimResult(
     day: nextDay,
