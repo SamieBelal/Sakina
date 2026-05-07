@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -362,7 +363,10 @@ Future<void> hydrateXpCache({required int totalXp}) async {
   await _setCachedXpTotal(prefs, totalXp);
 }
 
-Future<XpAwardResult> awardXp(int amount) async {
+Future<XpAwardResult> awardXp(
+  int amount, {
+  EconomyEventSource source = EconomyEventSource.dev,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final oldTotal = await _getCachedXpTotal(prefs);
   final oldState = calculateXpState(oldTotal);
@@ -457,6 +461,15 @@ Future<XpAwardResult> awardXp(int amount) async {
       await hydrateTierUpScrollCache(balance: scrollBalance);
     }
   }
+
+  EconomyEvents.publish(XpGranted(
+    amount: amount,
+    newTotal: newTotal,
+    newState: newState,
+    leveledUp: didLevel,
+    rewards: rewards,
+    source: source,
+  ));
 
   return XpAwardResult(
     gained: amount,
