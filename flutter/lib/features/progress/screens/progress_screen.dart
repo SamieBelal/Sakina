@@ -81,7 +81,6 @@ class ProgressScreen extends ConsumerStatefulWidget {
 class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _showDiscoveryQuiz = true;
   bool _rewardCalendarExpanded = false;
-  bool _levelUpShown = false;
   bool _launchGateReady = false;
 
   @override
@@ -127,7 +126,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
-    final notifier = ref.read(dailyLoopProvider.notifier);
 
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors
@@ -142,20 +140,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       starter: starter,
       todays: getTodaysName(),
     );
-
-    // Detect level-up event and show overlay
-    // Level-up overlay is shown from muhasabah_screen only —
-    // clear the flag here so it doesn't re-trigger.
-    if (state.leveledUp == true && !_levelUpShown) {
-      _levelUpShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        notifier.clearLevelUp();
-      });
-    }
-    if (state.leveledUp != true) {
-      _levelUpShown = false;
-    }
 
     if (!state.loaded || !_launchGateReady) {
       return SakinaLoader.fullScreen();

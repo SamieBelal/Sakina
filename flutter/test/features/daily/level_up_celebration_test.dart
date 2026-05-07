@@ -1,21 +1,19 @@
-// §12 case 2: when XP crosses a level threshold, the daily loop notifier
-// flips its level-up celebration state so the UI can render the overlay.
+// §12 case 2: when XP crosses a level threshold, awardXp publishes an
+// XpGranted event with leveledUp=true so the AppShell can push the overlay.
 //
-// `_handleXpAward` (`daily_loop_provider.dart:314`) reads `XpAwardResult` and,
-// when `leveledUp == true`, copies the new level title, level number, and
-// per-level rewards (token + scroll) into `DailyLoopState`. Without coverage,
-// a future change that drops one of these field assignments would silently
-// disable the level-up overlay — the user would still gain XP, but the
-// celebration would never fire.
+// Previously _handleXpAward wrote celebration fields into DailyLoopState.
+// As of Task 7 the overlay trigger moved to AppShell via EconomyEvents.stream,
+// so we now assert on the published event rather than on DailyLoopState fields.
 //
-// We drive the seam `debugHandleXpAward` to bypass the muhasabah/discovery
-// callsites (which require a card collection + AI mocks) and instead pin
-// the precise state mutation against a controlled `award_xp` RPC return.
+// clearLevelUp() still zeroes out the DailyLoopState.leveledUp field (retained
+// for Task 9 which drops those fields entirely); the AppShell does NOT call it —
+// it just pops the overlay.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/xp_service.dart';
 
@@ -35,15 +33,13 @@ void main() {
   tearDown(SupabaseSyncService.debugReset);
 
   test(
-      'XP crossing level 1 → level 2 threshold flips leveledUp and sets the '
-      'new title / level / rewards on DailyLoopState (case 2 invariant)',
+      'XP crossing level 1 → level 2 threshold publishes XpGranted with '
+      'leveledUp=true and correct rewards (EconomyEvents contract)',
       () async {
     // Pre-seed cached XP just below the L2 threshold. Level 2 starts at
     // 75 XP per `xp_service.dart:98`.
     await hydrateXpCache(totalXp: 70);
 
-    // Working award_xp handler. xp_service expects {total_xp, token_balance,
-    // scroll_balance}. The grant of 30 XP pushes total to 100 → level 2.
     fakeSync.rpcHandlers['award_xp'] = (params) async => {
           'total_xp': 100,
           'token_balance': 5,
@@ -51,40 +47,52 @@ void main() {
         };
     fakeSync.rpcHandlers['earn_tokens'] = (_) async => 5;
 
+    // Collect published events before driving the notifier.
+    final events = <XpGranted>[];
+    final sub = EconomyEvents.stream
+        .where((e) => e is XpGranted)
+        .cast<XpGranted>()
+        .listen(events.add);
+
     final notifier = DailyLoopNotifier();
     await Future<void>.delayed(const Duration(milliseconds: 250));
 
-    expect(notifier.state.leveledUp, isFalse,
-        reason: 'level-up flag must start false');
-
     await notifier.debugHandleXpAward(30);
+    // Let the event loop process stream deliveries (broadcast streams deliver
+    // asynchronously — we need one event-loop turn after the RPC resolves).
+    await Future<void>.delayed(Duration.zero);
 
-    final s = notifier.state;
-    expect(s.leveledUp, isTrue,
-        reason: 'crossing 75 XP must flip leveledUp');
-    expect(s.newLevelNumber, 2,
-        reason: 'new level number must reflect the threshold crossed');
-    expect(s.newLevelTitle, 'Listener',
-        reason: 'L2 title (per xp_service xpLevels[1]) must propagate to '
-            'state for the celebration overlay');
-    expect(s.newLevelTitleArabic, 'مُسْتَمِع');
-    expect(s.levelNumber, 2,
-        reason: 'live level (not just celebration level) must update');
-    expect(s.xpTotal, 100);
-    expect(s.levelUpRewards, isNotNull,
-        reason: 'rewards struct must be populated so the overlay can render '
-            'token + scroll deltas');
+    await sub.cancel();
+
+    // Filter out any XpGranted events that came from _initialize (which reads
+    // current cached XP and may emit during boot). We want the one triggered
+    // by debugHandleXpAward — it will have leveledUp=true.
+    final levelUpEvents = events.where((e) => e.leveledUp).toList();
+    expect(levelUpEvents, isNotEmpty,
+        reason: 'crossing 75 XP must publish XpGranted{leveledUp: true}');
+
+    final evt = levelUpEvents.first;
+    expect(evt.newState.level, 2,
+        reason: 'new level number must be 2');
+    expect(evt.newState.title, 'Listener',
+        reason: 'L2 title (per xp_service xpLevels[1]) must propagate');
+    expect(evt.newState.titleArabic, 'مُسْتَمِع');
+    expect(evt.newTotal, 100);
+    expect(evt.rewards, isNotNull,
+        reason: 'rewards struct must be populated so the overlay can render');
     // L2 token reward is 5 (xp_service.dart:99), scrollReward 0.
-    expect(s.levelUpRewards!.tokensAwarded, 5);
-    expect(s.levelUpRewards!.scrollsAwarded, 0);
-    expect(s.levelUpRewards!.levelsGained, 1);
+    expect(evt.rewards!.tokensAwarded, 5);
+    expect(evt.rewards!.scrollsAwarded, 0);
+    expect(evt.rewards!.levelsGained, 1);
+    expect(evt.source, EconomyEventSource.streak,
+        reason: '_handleXpAward must tag streak as the source');
 
     notifier.dispose();
   });
 
   test(
-      'XP grant that does NOT cross a threshold leaves leveledUp false and '
-      'does not write celebration fields', () async {
+      'XP grant that does NOT cross a threshold publishes XpGranted with '
+      'leveledUp=false', () async {
     await hydrateXpCache(totalXp: 10);
 
     fakeSync.rpcHandlers['award_xp'] = (_) async => {
@@ -93,26 +101,36 @@ void main() {
           'scroll_balance': null,
         };
 
+    final events = <XpGranted>[];
+    final sub = EconomyEvents.stream
+        .where((e) => e is XpGranted)
+        .cast<XpGranted>()
+        .listen(events.add);
+
     final notifier = DailyLoopNotifier();
     await Future<void>.delayed(const Duration(milliseconds: 250));
 
     await notifier.debugHandleXpAward(20);
+    await Future<void>.delayed(Duration.zero);
 
-    expect(notifier.state.leveledUp, isFalse,
-        reason: '30 XP is still below L2 threshold (75) — celebration must '
-            'NOT trigger');
-    expect(notifier.state.xpTotal, 30,
-        reason: 'XP total still updates even without level-up');
-    expect(notifier.state.newLevelTitle, isNull,
-        reason: 'celebration title must remain null when no level crossed');
+    await sub.cancel();
+
+    final nonLevelUp = events.where((e) => !e.leveledUp).toList();
+    expect(nonLevelUp, isNotEmpty,
+        reason: '30 XP is still below L2 threshold (75) — '
+            'XpGranted must fire but leveledUp must be false');
+    expect(events.where((e) => e.leveledUp), isEmpty,
+        reason: 'no level-up event should be published');
 
     notifier.dispose();
   });
 
   test(
-      'clearLevelUp resets leveledUp to false (so the overlay can be '
-      'dismissed without leaking celebration state into next grant)',
+      'clearLevelUp resets leveledUp to false on DailyLoopState',
       () async {
+    // clearLevelUp() is still needed because DailyLoopState.leveledUp fields
+    // are retained until Task 9 drops them. This test pins that the clear
+    // method works so nothing breaks downstream in the meantime.
     await hydrateXpCache(totalXp: 70);
     fakeSync.rpcHandlers['award_xp'] = (_) async => {
           'total_xp': 100,
@@ -124,7 +142,9 @@ void main() {
     final notifier = DailyLoopNotifier();
     await Future<void>.delayed(const Duration(milliseconds: 250));
 
-    await notifier.debugHandleXpAward(30);
+    // Force leveledUp=true via copyWith so we can test clearLevelUp
+    // independently of _handleXpAward (which no longer writes that field).
+    notifier.debugSetLeveledUpForTest(value: true);
     expect(notifier.state.leveledUp, isTrue);
 
     notifier.clearLevelUp();

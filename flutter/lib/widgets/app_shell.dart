@@ -1,19 +1,75 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../core/theme/app_typography.dart';
+import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
+import '../services/economy_events.dart';
+import '../services/xp_service.dart';
 import '../widgets/quest_completion_toast.dart';
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({required this.child, super.key});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  StreamSubscription<EconomyEvent>? _econSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _econSub = EconomyEvents.stream.listen((event) {
+      if (event is XpGranted && event.leveledUp && event.rewards != null) {
+        // Use Future.microtask so the Navigator push is deferred past the
+        // current synchronous call but still executes within the same
+        // event-loop turn, before the next frame. addPostFrameCallback is
+        // NOT used here because in tests (and on rapid boot) the callback
+        // can be orphaned past the pump cycle that drained the stream.
+        Future.microtask(() {
+          if (!mounted) return;
+          _pushLevelUpOverlay(event.newState, event.rewards!);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _econSub?.cancel();
+    super.dispose();
+  }
+
+  void _pushLevelUpOverlay(XpState xpState, LevelUpRewards rewards) {
+    final nav = Navigator.of(context, rootNavigator: true);
+    nav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => LevelUpOverlay(
+          levelNumber: xpState.level,
+          title: xpState.title,
+          titleArabic: xpState.titleArabic,
+          rewards: rewards,
+          onContinue: nav.pop,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Bundle celebration: show overlay no matter which tab the user is on.
     ref.listen<QuestsState>(questsProvider, (prev, next) {
       final celebration = next.pendingBundleCelebration;
@@ -81,7 +137,7 @@ class AppShell extends ConsumerWidget {
     final isOffTab = tabIndex < 0;
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         // BottomNavigationBar requires a valid index. When the user is on a
         // pushed sub-route (e.g. /quests, /settings, /store) we still need

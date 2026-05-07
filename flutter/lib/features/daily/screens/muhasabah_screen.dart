@@ -10,7 +10,6 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
-import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
@@ -56,18 +55,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // no guard flags needed. This closes the "phantom second gacha on
     // Return to Home" bug class by construction.
     ref.listen<DailyLoopState>(dailyLoopProvider, (prev, next) {
-      // Streak milestone — fire BEFORE level-up if both trigger in the
-      // same tick (early-return so we don't stack overlays in one frame).
+      // Streak milestone — fire if newly reached.
       if (next.streakMilestoneReached &&
           prev?.streakMilestoneReached != true) {
         _pushStreakMilestoneOverlay(next);
         return;
-      }
-      // Level up — gated on no concurrent streak milestone.
-      if (next.leveledUp == true &&
-          prev?.leveledUp != true &&
-          !next.streakMilestoneReached) {
-        _pushLevelUpOverlay(next);
       }
       // Gacha reveal — when a tier-changed engageResult freshly arrives.
       // Identity comparison is sufficient: every discoverName call
@@ -130,31 +122,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           onContinue: () {
             nav.pop();
             notifier.clearStreakMilestone();
-          },
-        ),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-  }
-
-  void _pushLevelUpOverlay(DailyLoopState state) {
-    if (!mounted) return;
-    final notifier = ref.read(dailyLoopProvider.notifier);
-    final levelNav = Navigator.of(context, rootNavigator: true);
-    levelNav.push(
-      PageRouteBuilder(
-        opaque: true,
-        barrierDismissible: false,
-        pageBuilder: (_, __, ___) => LevelUpOverlay(
-          levelNumber: state.newLevelNumber ?? state.levelNumber,
-          title: state.newLevelTitle ?? state.levelTitle,
-          titleArabic: state.newLevelTitleArabic ?? state.levelTitleArabic,
-          rewards: state.levelUpRewards,
-          onContinue: () {
-            levelNav.pop();
-            notifier.clearLevelUp();
           },
         ),
         transitionsBuilder: (_, anim, __, child) =>

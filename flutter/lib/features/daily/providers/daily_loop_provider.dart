@@ -352,31 +352,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // ---------------------------------------------------------------------------
 
   Future<void> _handleXpAward(int amount) async {
-    final xpResult = await awardXp(amount);
-    state = state.copyWith(
-      xpTotal: xpResult.newTotal,
-      levelNumber: xpResult.state.level,
-    );
-
-    if (xpResult.leveledUp && xpResult.rewards != null) {
-      final rewards = xpResult.rewards!;
-
-      // Title unlocks are derived from level + streak on read — no persistence needed.
-
-      // Update display title (auto mode will pick the new level title)
-      final displayTitle = await getDisplayTitle(xpResult.state.level);
-
-      state = state.copyWith(
-        leveledUp: true,
-        newLevelTitle: xpResult.state.title,
-        newLevelTitleArabic: xpResult.state.titleArabic,
-        newLevelNumber: xpResult.state.level,
-        levelTitle: displayTitle.title,
-        levelTitleArabic: displayTitle.titleArabic,
-        levelUpRewards: rewards,
-        tokenBalance: xpResult.tokenBalance ?? state.tokenBalance,
-      );
-    }
+    // awardXp publishes XpGranted (with leveledUp + rewards when applicable)
+    // to EconomyEvents.stream — AppShell subscribes and pushes LevelUpOverlay.
+    // DailyLoopNotifier's own _grantsSub updates xpTotal / level / title.
+    // No level-up state writes needed here.
+    await awardXp(amount, source: EconomyEventSource.streak);
   }
 
   // ---------------------------------------------------------------------------
@@ -687,12 +667,19 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(checkinLoading: value);
   }
 
-  /// Test seam — exposes `_handleXpAward` so the level-up celebration branch
-  /// can be exercised without driving the full muhasabah/discovery flow.
-  /// Production callsites all go through `_handleStreakMilestones` /
-  /// `discoverName` / `answerCheckin`.
+  /// Test seam — exposes `_handleXpAward` so the EconomyEvents XpGranted
+  /// contract can be exercised without driving the full muhasabah/discovery
+  /// flow. Production callsites all go through `_handleStreakMilestones`.
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
+
+  /// Test seam — directly sets `leveledUp` on state so `clearLevelUp` can
+  /// be tested independently of `_handleXpAward` (which no longer writes
+  /// that field as of Task 7). Not callable from production code paths.
+  @visibleForTesting
+  void debugSetLeveledUpForTest({required bool value}) {
+    state = state.copyWith(leveledUp: value);
+  }
 
   /// Test seam — puts the notifier into a "completed muhasabah" shape so
   /// `resetToday` can be exercised without driving the full discoverName
