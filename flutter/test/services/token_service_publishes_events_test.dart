@@ -15,7 +15,10 @@ void main() {
     SupabaseSyncService.debugSetInstance(FakeSupabaseSyncService(userId: null));
   });
 
-  tearDown(SupabaseSyncService.debugReset);
+  tearDown(() async {
+    SupabaseSyncService.debugReset();
+    await EconomyEvents.resetForTest();
+  });
 
   test('earnTokens publishes TokenGranted with source on success', () async {
     final received = <EconomyEvent>[];

@@ -15,7 +15,10 @@ void main() {
     SupabaseSyncService.debugSetInstance(FakeSupabaseSyncService(userId: null));
   });
 
-  tearDown(SupabaseSyncService.debugReset);
+  tearDown(() async {
+    SupabaseSyncService.debugReset();
+    await EconomyEvents.resetForTest();
+  });
 
   test('awardXp publishes XpGranted with source on success (no auth)', () async {
     final received = <EconomyEvent>[];

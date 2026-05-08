@@ -29,7 +29,10 @@ void main() {
     SupabaseSyncService.debugSetInstance(fakeSync);
   });
 
-  tearDown(SupabaseSyncService.debugReset);
+  tearDown(() async {
+    SupabaseSyncService.debugReset();
+    await EconomyEvents.resetForTest();
+  });
 
   test(
       'XP crossing level 1 → level 2 threshold publishes XpGranted with '

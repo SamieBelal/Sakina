@@ -182,7 +182,10 @@ void main() {
       SupabaseSyncService.debugSetInstance(fakeSync);
     });
 
-    tearDown(SupabaseSyncService.debugReset);
+    tearDown(() async {
+      SupabaseSyncService.debugReset();
+      await EconomyEvents.resetForTest();
+    });
 
     testWidgets(
         'pushes a route whose page widget is LevelUpOverlay on '

@@ -15,7 +15,10 @@ void main() {
     SupabaseSyncService.debugSetInstance(FakeSupabaseSyncService(userId: null));
   });
 
-  tearDown(SupabaseSyncService.debugReset);
+  tearDown(() async {
+    SupabaseSyncService.debugReset();
+    await EconomyEvents.resetForTest();
+  });
 
   test('earnTierUpScrolls publishes ScrollGranted with source on success',
       () async {

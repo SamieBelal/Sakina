@@ -25,7 +25,10 @@ void main() {
     fakeSync.rpcHandlers['earn_scrolls'] = (_) async => 1;
   });
 
-  tearDown(SupabaseSyncService.debugReset);
+  tearDown(() async {
+    SupabaseSyncService.debugReset();
+    await EconomyEvents.resetForTest();
+  });
 
   test(
       'completing a daily quest publishes XpGranted + TokenGranted with source=quest',

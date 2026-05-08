@@ -5,6 +5,10 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/services/economy_events.dart';
 
 void main() {
+  tearDown(() async {
+    await EconomyEvents.resetForTest();
+  });
+
   testWidgets(
       'tierUpScrollProvider value is identical across two simultaneously-mounted screens',
       (tester) async {
