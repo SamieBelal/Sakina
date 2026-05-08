@@ -18,6 +18,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
+import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -81,7 +82,6 @@ class ProgressScreen extends ConsumerStatefulWidget {
 class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _showDiscoveryQuiz = true;
   bool _rewardCalendarExpanded = false;
-  bool _levelUpShown = false;
   bool _launchGateReady = false;
 
   @override
@@ -127,7 +127,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
-    final notifier = ref.read(dailyLoopProvider.notifier);
 
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors
@@ -142,20 +141,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       starter: starter,
       todays: getTodaysName(),
     );
-
-    // Detect level-up event and show overlay
-    // Level-up overlay is shown from muhasabah_screen only —
-    // clear the flag here so it doesn't re-trigger.
-    if (state.leveledUp == true && !_levelUpShown) {
-      _levelUpShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        notifier.clearLevelUp();
-      });
-    }
-    if (state.leveledUp != true) {
-      _levelUpShown = false;
-    }
 
     if (!state.loaded || !_launchGateReady) {
       return SakinaLoader.fullScreen();
@@ -260,6 +245,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final double xpProgress = xpState.xpForNextLevel > 0
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
         : 1.0;
+
+    // Schedule clearing lastXpGained after the float label has finished
+    // animating so the next XP grant can re-trigger it.
+    if (state.lastXpGained > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Future.delayed(const Duration(milliseconds: 1700), () {
+          if (mounted) ref.read(dailyLoopProvider.notifier).clearLastXpGained();
+        });
+      });
+    }
 
     return Container(
       width: double.infinity,
@@ -423,18 +419,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 6),
           // XP bar — full width including under avatar
-          Padding(
-            padding: EdgeInsets.zero,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: xpProgress,
-                minHeight: 3,
-                backgroundColor: AppColors.borderLight,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.primary),
-              ),
-            ),
+          AnimatedXpBar(
+            progress: xpProgress,
+            lastGained: state.lastXpGained,
+            height: 3,
           ),
           const SizedBox(height: 16),
 

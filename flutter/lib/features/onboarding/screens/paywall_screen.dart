@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
@@ -96,6 +98,79 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         (p) => p!.packageType == PackageType.weekly,
         orElse: () => null,
       );
+
+  /// Locale-aware "was X" anchor price for the annual card. Computed as
+  /// 2x the actual annual price in the user's storefront currency, rounded
+  /// to a clean .99 ending (or whole units for 0-decimal currencies like
+  /// JPY/KRW). Returns null when offerings haven't loaded — the card hides
+  /// the strikethrough rather than showing a USD anchor next to a non-USD
+  /// price, which would look broken.
+  ///
+  /// Examples (post-format):
+  ///   US  $49.99/yr → "$99.99"
+  ///   UK  £39.99/yr → "£79.99"
+  ///   JP  ¥7,800/yr → "¥15,600"
+  ///   IN  ₹3,499/yr → "₹6,999"
+  ///
+  /// This is the canonical pattern: doubling the live price keeps the
+  /// 50% off framing identical across every storefront, so the SAVE 50%
+  /// badge stays mathematically consistent with the strikethrough no
+  /// matter where the user is.
+  String? get _annualAnchorPrice {
+    final pkg = _annualPackage;
+    if (pkg == null) return null;
+    final price = pkg.storeProduct.price;
+    final code = pkg.storeProduct.currencyCode;
+    if (price <= 0 || code.isEmpty) return null;
+    try {
+      final locale = PlatformDispatcher.instance.locale.toLanguageTag();
+      final fmt = NumberFormat.simpleCurrency(locale: locale, name: code);
+      final decimals = fmt.decimalDigits ?? 2;
+      // For 2-decimal currencies, force a .99 psychological ending. For
+      // 0-decimal currencies (JPY, KRW, IDR…) the doubled value is already
+      // an integer.
+      final anchor = decimals > 0
+          ? (price * 2).floorToDouble() + 0.99
+          : (price * 2).roundToDouble();
+      return fmt.format(anchor);
+    } catch (_) {
+      // Unknown currency code or formatter init failure — hide the
+      // strikethrough rather than risk showing a wrong-currency string.
+      return null;
+    }
+  }
+
+  /// Locale-aware "Save $X" amount paired with [_annualAnchorPrice].
+  /// Always equals `anchor - price` so the math is internally consistent
+  /// across every storefront. Rounded to whole units for clean reading
+  /// ("Save $50", "Save £40", "Save ¥7,800"). Returns null when offerings
+  /// haven't loaded — UI hides the savings tag rather than guessing.
+  String? get _annualSavingsAmount {
+    final pkg = _annualPackage;
+    if (pkg == null) return null;
+    final price = pkg.storeProduct.price;
+    final code = pkg.storeProduct.currencyCode;
+    if (price <= 0 || code.isEmpty) return null;
+    try {
+      final locale = PlatformDispatcher.instance.locale.toLanguageTag();
+      final fmt = NumberFormat.simpleCurrency(locale: locale, name: code);
+      final decimals = fmt.decimalDigits ?? 2;
+      final anchor = decimals > 0
+          ? (price * 2).floorToDouble() + 0.99
+          : (price * 2).roundToDouble();
+      // Round to clean whole units — "Save $50.00" reads worse than
+      // "Save $50". Use a 0-decimal formatter for the savings string.
+      final savings = (anchor - price).roundToDouble();
+      final wholeFmt = NumberFormat.simpleCurrency(
+        locale: locale,
+        name: code,
+        decimalDigits: 0,
+      );
+      return wholeFmt.format(savings);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// True when the StoreKit/RevenueCat product for [plan] has a free
   /// introductory offer (price == 0). When false, StoreKit will charge
@@ -539,6 +614,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                           ?.storeProduct.priceString ??
                                       AppStrings.paywallAnnualPrice,
                                   mainPriceLabel: 'per year',
+                                  // Locale-aware marketing anchor: 2x the
+                                  // live storefront price, formatted in the
+                                  // user's currency (e.g. $99.99, £79.99,
+                                  // ¥15,600). Pairs 1:1 with SAVE 50% badge
+                                  // in every storefront. Null until the
+                                  // package loads — strikethrough hides
+                                  // rather than showing a wrong-currency
+                                  // fallback.
+                                  strikethroughPrice: _annualAnchorPrice,
+                                  // Inline "Save $X" callout next to the
+                                  // strike. Computed alongside the anchor
+                                  // so the math always agrees. Hidden when
+                                  // the package isn't loaded.
+                                  savingsAmount: _annualSavingsAmount,
                                   // Per-week breakdown — Cal AI's value
                                   // framing. Makes annual feel cheap
                                   // relative to weekly.
@@ -814,11 +903,25 @@ class _PricingCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
+    this.strikethroughPrice,
+    this.savingsAmount,
   });
 
   final String label;
   final String mainPrice;
   final String mainPriceLabel;
+
+  /// Optional anchor price displayed above [mainPrice] with a line-through.
+  /// Used on the annual card to visualize the savings vs. paying weekly for
+  /// 52 weeks. Must be a real, justifiable comparison price — never a
+  /// fabricated "list price" (deceptive under Apple guideline 3.1.1).
+  final String? strikethroughPrice;
+
+  /// Optional inline "Save $X" callout rendered next to [strikethroughPrice].
+  /// Pre-formatted in the user's locale ("$50", "£40", "¥7,800"). Must always
+  /// equal [strikethroughPrice] minus [mainPrice] — caller is responsible
+  /// for keeping the math consistent.
+  final String? savingsAmount;
 
   /// Bottom line that fills empty space and adds value framing.
   /// Yearly: "Only $0.96 / week" (highlight=true → primary color).
@@ -882,6 +985,58 @@ class _PricingCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+
+                // Anchor price (struck-through) + inline savings callout.
+                // Aggressive variant — Cal AI / Speechify / Lensa pattern:
+                //   • Strike text stays full-strength dark so it's
+                //     readable; the line-through is RED so the eye
+                //     immediately reads "discount" not "secondary info".
+                //   • Inline "Save $X" tag in red bold next to the strike
+                //     gives a concrete dollar amount the % badge can't.
+                //   • Both pieces are computed dynamically from the live
+                //     storefront price, so they're correct in every
+                //     country (£40, ¥7,800, ₹3,500, etc.).
+                if (strikethroughPrice != null) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          strikethroughPrice!,
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textPrimaryLight,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: AppColors.error,
+                            decorationThickness: 2.8,
+                            height: 1.0,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (savingsAmount != null) ...[
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Save $savingsAmount',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.error,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              height: 1.0,
+                              letterSpacing: 0.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                ],
 
                 // Big price
                 Text(

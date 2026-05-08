@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -693,7 +694,7 @@ Future<List<String>> checkAndUnlockAchievements(
       await unlockAchievement(entry.key);
       newlyUnlocked.add(entry.key);
       if (achievement != null && achievement.scrollReward > 0) {
-        await earnTierUpScrolls(achievement.scrollReward);
+        await earnTierUpScrolls(achievement.scrollReward, source: EconomyEventSource.streak);
       }
     }
   }

@@ -1,19 +1,86 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../core/theme/app_typography.dart';
+import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
+import '../services/economy_events.dart';
+import '../services/xp_service.dart';
 import '../widgets/quest_completion_toast.dart';
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({required this.child, super.key});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  StreamSubscription<EconomyEvent>? _econSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _econSub = EconomyEvents.stream.listen((event) {
+      if (event is XpGranted && event.leveledUp && event.rewards != null) {
+        // Use addPostFrameCallback (NOT microtask) to match muhasabah_screen's
+        // streak-milestone push timing. Microtasks run BEFORE post-frame
+        // callbacks, which would let the level-up overlay race ahead of the
+        // streak milestone overlay on same-tick events. Pinned by the
+        // race-ordering regression test.
+        //
+        // Capture locals before the callback — the event object may be GC'd
+        // by the time the callback fires, and closure-capturing `event` in a
+        // post-frame callback is safe but capturing the fields is cleaner.
+        final rewards = event.rewards!;
+        final newState = event.newState;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _pushLevelUpOverlay(newState, rewards);
+        });
+        // Ensure a frame is scheduled so the post-frame callback fires even
+        // when the stream event arrives outside of an active build cycle
+        // (e.g. from a background async operation between pumps in tests,
+        // or from a service callback that doesn't trigger a Riverpod rebuild).
+        WidgetsBinding.instance.scheduleFrame();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _econSub?.cancel();
+    super.dispose();
+  }
+
+  void _pushLevelUpOverlay(XpState xpState, LevelUpRewards rewards) {
+    final nav = Navigator.of(context, rootNavigator: true);
+    nav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => LevelUpOverlay(
+          levelNumber: xpState.level,
+          title: xpState.title,
+          titleArabic: xpState.titleArabic,
+          rewards: rewards,
+          onContinue: nav.pop,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Bundle celebration: show overlay no matter which tab the user is on.
     ref.listen<QuestsState>(questsProvider, (prev, next) {
       final celebration = next.pendingBundleCelebration;
@@ -81,7 +148,7 @@ class AppShell extends ConsumerWidget {
     final isOffTab = tabIndex < 0;
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         // BottomNavigationBar requires a valid index. When the user is on a
         // pushed sub-route (e.g. /quests, /settings, /store) we still need

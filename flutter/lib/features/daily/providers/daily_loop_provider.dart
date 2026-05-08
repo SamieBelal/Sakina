@@ -8,8 +8,8 @@ import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
-import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
@@ -67,12 +67,8 @@ class DailyLoopState {
   final String levelTitleArabic;
   final int levelNumber;
 
-  // Level-up event (consumed by UI to show overlay)
-  final bool leveledUp;
-  final String? newLevelTitle;
-  final String? newLevelTitleArabic;
-  final int? newLevelNumber;
-  final LevelUpRewards? levelUpRewards;
+  // Last XP gain amount — consumed by AnimatedXpBar to show floating "+N XP"
+  final int lastXpGained;
 
   // Streak milestone event (consumed by UI to show overlay)
   final bool streakMilestoneReached;
@@ -118,11 +114,7 @@ class DailyLoopState {
     this.levelTitle = 'Seeker',
     this.levelTitleArabic = 'طَالِب',
     this.levelNumber = 1,
-    this.leveledUp = false,
-    this.newLevelTitle,
-    this.newLevelTitleArabic,
-    this.newLevelNumber,
-    this.levelUpRewards,
+    this.lastXpGained = 0,
     this.streakMilestoneReached = false,
     this.streakMilestoneCount,
     this.streakMilestoneXp,
@@ -158,11 +150,7 @@ class DailyLoopState {
     String? levelTitle,
     String? levelTitleArabic,
     int? levelNumber,
-    bool? leveledUp,
-    String? newLevelTitle,
-    String? newLevelTitleArabic,
-    int? newLevelNumber,
-    LevelUpRewards? levelUpRewards,
+    int? lastXpGained,
     bool? streakMilestoneReached,
     int? streakMilestoneCount,
     int? streakMilestoneXp,
@@ -197,11 +185,7 @@ class DailyLoopState {
       levelTitle: levelTitle ?? this.levelTitle,
       levelTitleArabic: levelTitleArabic ?? this.levelTitleArabic,
       levelNumber: levelNumber ?? this.levelNumber,
-      leveledUp: leveledUp ?? this.leveledUp,
-      newLevelTitle: newLevelTitle ?? this.newLevelTitle,
-      newLevelTitleArabic: newLevelTitleArabic ?? this.newLevelTitleArabic,
-      newLevelNumber: newLevelNumber ?? this.newLevelNumber,
-      levelUpRewards: levelUpRewards ?? this.levelUpRewards,
+      lastXpGained: lastXpGained ?? this.lastXpGained,
       streakMilestoneReached:
           streakMilestoneReached ?? this.streakMilestoneReached,
       streakMilestoneCount: streakMilestoneCount ?? this.streakMilestoneCount,
@@ -232,15 +216,23 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     // rare; subsequent refreshes (`refreshEconomyState`, pull-to-refresh)
     // re-read cache and reconcile. Not worth the complexity of an
     // init-vs-listener fence today; revisit if this surfaces in the wild.
-    _grantsSub = ConsumableGrantsService.grants.listen((event) {
-      if (event.kind == ConsumableGrantKind.tokens) {
+    _grantsSub = EconomyEvents.stream.listen((event) {
+      if (event is TokenGranted) {
         state = state.copyWith(tokenBalance: event.newBalance);
+      } else if (event is XpGranted) {
+        state = state.copyWith(
+          xpTotal: event.newTotal,
+          levelNumber: event.newState.level,
+          levelTitle: event.newState.title,
+          levelTitleArabic: event.newState.titleArabic,
+          lastXpGained: event.amount,
+        );
       }
     });
     _initialize();
   }
 
-  StreamSubscription<ConsumableGrantEvent>? _grantsSub;
+  StreamSubscription<EconomyEvent>? _grantsSub;
   Future<ReflectResponse>? _deeperReflectFuture;
   ReflectResponse? _deeperReflectResult;
   String? _deeperReflectKey;
@@ -251,6 +243,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     _deeperReflectGeneration++;
     _grantsSub?.cancel();
     super.dispose();
+  }
+
+  void clearLastXpGained() {
+    if (state.lastXpGained == 0) return;
+    state = state.copyWith(lastXpGained: 0);
   }
 
   String get _todayKey {
@@ -345,31 +342,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   // ---------------------------------------------------------------------------
 
   Future<void> _handleXpAward(int amount) async {
-    final xpResult = await awardXp(amount);
-    state = state.copyWith(
-      xpTotal: xpResult.newTotal,
-      levelNumber: xpResult.state.level,
-    );
-
-    if (xpResult.leveledUp && xpResult.rewards != null) {
-      final rewards = xpResult.rewards!;
-
-      // Title unlocks are derived from level + streak on read — no persistence needed.
-
-      // Update display title (auto mode will pick the new level title)
-      final displayTitle = await getDisplayTitle(xpResult.state.level);
-
-      state = state.copyWith(
-        leveledUp: true,
-        newLevelTitle: xpResult.state.title,
-        newLevelTitleArabic: xpResult.state.titleArabic,
-        newLevelNumber: xpResult.state.level,
-        levelTitle: displayTitle.title,
-        levelTitleArabic: displayTitle.titleArabic,
-        levelUpRewards: rewards,
-        tokenBalance: xpResult.tokenBalance ?? state.tokenBalance,
-      );
-    }
+    // awardXp publishes XpGranted (with leveledUp + rewards when applicable)
+    // to EconomyEvents.stream — AppShell subscribes and pushes LevelUpOverlay.
+    // DailyLoopNotifier's own _grantsSub updates xpTotal / level / title.
+    // No level-up state writes needed here.
+    await awardXp(amount, source: EconomyEventSource.streak);
   }
 
   // ---------------------------------------------------------------------------
@@ -396,7 +373,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       }
       if (result.milestone.scrollReward > 0) {
         final scrollResult =
-            await earnTierUpScrolls(result.milestone.scrollReward);
+            await earnTierUpScrolls(result.milestone.scrollReward, source: EconomyEventSource.streak);
         if (!scrollResult.success) {
           state = state.copyWith(error: _scrollRewardSyncError);
         }
@@ -449,7 +426,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
         cardResult = engageResult;
       } else if (engageResult.isDuplicate) {
         try {
-          await earnTokens(1);
+          await earnTokens(1, source: EconomyEventSource.streak);
         } catch (_) {}
       }
 
@@ -596,7 +573,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
           } else if (engageResult.isDuplicate) {
             // Already maxed or cooldown not met — award bonus tokens
             try {
-              await earnTokens(1);
+              await earnTokens(1, source: EconomyEventSource.streak);
             } catch (_) {}
           }
         }
@@ -680,12 +657,29 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     state = state.copyWith(checkinLoading: value);
   }
 
-  /// Test seam — exposes `_handleXpAward` so the level-up celebration branch
-  /// can be exercised without driving the full muhasabah/discovery flow.
-  /// Production callsites all go through `_handleStreakMilestones` /
-  /// `discoverName` / `answerCheckin`.
+  /// Test seam — exposes `_handleXpAward` so the EconomyEvents XpGranted
+  /// contract can be exercised without driving the full muhasabah/discovery
+  /// flow. Production callsites all go through `_handleStreakMilestones`.
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
+
+  /// Test seam — sets streakMilestoneReached + the milestone counts directly
+  /// on state, simulating the rising-edge that muhasabah_screen's ref.listen
+  /// triggers off. Used by the race-ordering regression test to fire streak +
+  /// level-up in the same tick without driving the full streak service flow.
+  @visibleForTesting
+  void debugSetStreakMilestone({
+    required int streak,
+    required int xp,
+    required int scrolls,
+  }) {
+    state = state.copyWith(
+      streakMilestoneReached: true,
+      streakMilestoneCount: streak,
+      streakMilestoneXp: xp,
+      streakMilestoneScrolls: scrolls,
+    );
+  }
 
   /// Test seam — puts the notifier into a "completed muhasabah" shape so
   /// `resetToday` can be exercised without driving the full discoverName
@@ -716,10 +710,6 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     await prefs.remove(_todayKey);
     state = const DailyLoopState();
     await _initialize();
-  }
-
-  void clearLevelUp() {
-    state = state.copyWith(leveledUp: false);
   }
 
   void clearStreakMilestone() {

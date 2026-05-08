@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _scrollKey = 'sakina_tier_up_scrolls';
@@ -107,7 +108,10 @@ Future<TierUpScrollState> getTierUpScrolls() async {
   return TierUpScrollState(balance: balance);
 }
 
-Future<TierUpScrollEarnResult> earnTierUpScrolls(int amount) async {
+Future<TierUpScrollEarnResult> earnTierUpScrolls(
+  int amount, {
+  EconomyEventSource source = EconomyEventSource.dev,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final current = await _getCachedBalance(prefs);
   final userId = supabaseSyncService.currentUserId;
@@ -131,6 +135,11 @@ Future<TierUpScrollEarnResult> earnTierUpScrolls(int amount) async {
   }
 
   await _setCachedBalance(prefs, newBalance);
+  EconomyEvents.publish(ScrollGranted(
+    amount: amount,
+    newBalance: newBalance,
+    source: source,
+  ));
   return TierUpScrollEarnResult(success: true, newBalance: newBalance);
 }
 

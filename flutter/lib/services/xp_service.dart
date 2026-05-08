@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -362,7 +363,10 @@ Future<void> hydrateXpCache({required int totalXp}) async {
   await _setCachedXpTotal(prefs, totalXp);
 }
 
-Future<XpAwardResult> awardXp(int amount) async {
+Future<XpAwardResult> awardXp(
+  int amount, {
+  EconomyEventSource source = EconomyEventSource.dev,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final oldTotal = await _getCachedXpTotal(prefs);
   final oldState = calculateXpState(oldTotal);
@@ -458,8 +462,27 @@ Future<XpAwardResult> awardXp(int amount) async {
     }
   }
 
+  // Compute the actual XP delta from the cache write. When the server-side
+  // `award_xp` RPC caps, boosts, or refuses an award, the requested `amount`
+  // and the realized delta diverge — UI consumers must see the realized delta.
+  final actualGained = newTotal - oldTotal;
+
+  // Publish bonus token / scroll events BEFORE the XpGranted event so
+  // subscribers (TokenNotifier, TierUpScrollNotifier, DailyLoopNotifier) update
+  // their state before the level-up overlay (driven by XpGranted) renders.
+  _publishLevelUpRewardEvents(rewards, tokenBalance, scrollBalance, source);
+
+  EconomyEvents.publish(XpGranted(
+    amount: actualGained,
+    newTotal: newTotal,
+    newState: newState,
+    leveledUp: didLevel,
+    rewards: rewards,
+    source: source,
+  ));
+
   return XpAwardResult(
-    gained: amount,
+    gained: actualGained,
     newTotal: newTotal,
     leveledUp: didLevel,
     state: newState,
@@ -467,4 +490,27 @@ Future<XpAwardResult> awardXp(int amount) async {
     tokenBalance: tokenBalance,
     scrollBalance: scrollBalance,
   );
+}
+
+void _publishLevelUpRewardEvents(
+  LevelUpRewards? rewards,
+  int? tokenBalance,
+  int? scrollBalance,
+  EconomyEventSource source,
+) {
+  if (rewards == null) return;
+  if (tokenBalance != null && rewards.tokensAwarded > 0) {
+    EconomyEvents.publish(TokenGranted(
+      amount: rewards.tokensAwarded,
+      newBalance: tokenBalance,
+      source: source,
+    ));
+  }
+  if (scrollBalance != null && rewards.scrollsAwarded > 0) {
+    EconomyEvents.publish(ScrollGranted(
+      amount: rewards.scrollsAwarded,
+      newBalance: scrollBalance,
+      source: source,
+    ));
+  }
 }

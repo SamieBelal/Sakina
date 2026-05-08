@@ -1,22 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sakina/services/consumable_grants_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 
 class TierUpScrollNotifier extends StateNotifier<TierUpScrollState> {
   TierUpScrollNotifier() : super(const TierUpScrollState(balance: 0)) {
     // Subscribe BEFORE _load so a grant landing during hydration still
     // updates the balance pill — same rationale as DailyLoopNotifier.
-    _grantsSub = ConsumableGrantsService.grants.listen((event) {
-      if (event.kind == ConsumableGrantKind.scrolls) {
+    _grantsSub = EconomyEvents.stream.listen((event) {
+      if (event is ScrollGranted) {
         state = TierUpScrollState(balance: event.newBalance);
       }
     });
     _load();
   }
 
-  StreamSubscription<ConsumableGrantEvent>? _grantsSub;
+  StreamSubscription<EconomyEvent>? _grantsSub;
 
   @override
   void dispose() {
@@ -29,9 +29,9 @@ class TierUpScrollNotifier extends StateNotifier<TierUpScrollState> {
   }
 
   Future<TierUpScrollEarnResult> earn(int amount) async {
-    final result = await earnTierUpScrolls(amount);
-    state = TierUpScrollState(balance: result.newBalance);
-    return result;
+    // earnTierUpScrolls publishes ScrollGranted via EconomyEvents; our
+    // grants listener (constructor) updates state. No manual set needed.
+    return earnTierUpScrolls(amount, source: EconomyEventSource.dev);
   }
 
   Future<TierUpScrollSpendResult> spend(int amount) async {
