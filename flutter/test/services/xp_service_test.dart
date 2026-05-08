@@ -40,7 +40,12 @@ void main() {
     final result = await awardXp(25);
 
     expect(result.newTotal, 75);
-    expect(result.gained, 25);
+    // gained reflects the realized server delta (newTotal - oldTotal), not
+    // the requested amount. Server bumped the total to 75 from 0, so the
+    // user actually gained 75 — even though they only asked for 25. This
+    // matches the contract added when XpAwardResult.gained was switched
+    // from `amount` to `newTotal - oldTotal`.
+    expect(result.gained, 75);
     expect(fakeSync.rpcCalls.single['fn'], 'award_xp');
     expect((await getXp()).totalXp, 75);
   });

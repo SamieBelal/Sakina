@@ -19,8 +19,13 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-test');
     SupabaseSyncService.debugSetInstance(fakeSync);
-    fakeSync.rpcHandlers['award_xp'] = (params) async =>
-        <String, dynamic>{'total_xp': 100, 'token_balance': 0};
+    // Echo the requested amount back as the total — keeps the realized XP
+    // delta equal to what the caller asked for, which mirrors the typical
+    // server contract.
+    fakeSync.rpcHandlers['award_xp'] = (params) async => <String, dynamic>{
+          'total_xp': (params?['amount'] ?? 0) as int,
+          'token_balance': 0,
+        };
     fakeSync.rpcHandlers['earn_tokens'] = (_) async => 10;
     fakeSync.rpcHandlers['earn_scrolls'] = (_) async => 1;
   });

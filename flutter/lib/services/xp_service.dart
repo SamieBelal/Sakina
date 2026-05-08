@@ -462,8 +462,18 @@ Future<XpAwardResult> awardXp(
     }
   }
 
+  // Compute the actual XP delta from the cache write. When the server-side
+  // `award_xp` RPC caps, boosts, or refuses an award, the requested `amount`
+  // and the realized delta diverge — UI consumers must see the realized delta.
+  final actualGained = newTotal - oldTotal;
+
+  // Publish bonus token / scroll events BEFORE the XpGranted event so
+  // subscribers (TokenNotifier, TierUpScrollNotifier, DailyLoopNotifier) update
+  // their state before the level-up overlay (driven by XpGranted) renders.
+  _publishLevelUpRewardEvents(rewards, tokenBalance, scrollBalance, source);
+
   EconomyEvents.publish(XpGranted(
-    amount: amount,
+    amount: actualGained,
     newTotal: newTotal,
     newState: newState,
     leveledUp: didLevel,
@@ -472,7 +482,7 @@ Future<XpAwardResult> awardXp(
   ));
 
   return XpAwardResult(
-    gained: amount,
+    gained: actualGained,
     newTotal: newTotal,
     leveledUp: didLevel,
     state: newState,
@@ -480,4 +490,27 @@ Future<XpAwardResult> awardXp(
     tokenBalance: tokenBalance,
     scrollBalance: scrollBalance,
   );
+}
+
+void _publishLevelUpRewardEvents(
+  LevelUpRewards? rewards,
+  int? tokenBalance,
+  int? scrollBalance,
+  EconomyEventSource source,
+) {
+  if (rewards == null) return;
+  if (tokenBalance != null && rewards.tokensAwarded > 0) {
+    EconomyEvents.publish(TokenGranted(
+      amount: rewards.tokensAwarded,
+      newBalance: tokenBalance,
+      source: source,
+    ));
+  }
+  if (scrollBalance != null && rewards.scrollsAwarded > 0) {
+    EconomyEvents.publish(ScrollGranted(
+      amount: rewards.scrollsAwarded,
+      newBalance: scrollBalance,
+      source: source,
+    ));
+  }
 }

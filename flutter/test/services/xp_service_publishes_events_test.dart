@@ -26,6 +26,8 @@ void main() {
     addTearDown(sub.cancel);
 
     // No supabase login → falls through to local-cache path.
+    // Crossing L1→L2 (at 75 XP) also publishes a TokenGranted bonus event;
+    // filter for XpGranted to assert this test's contract.
     final result = await awardXp(80, source: EconomyEventSource.quest);
 
     expect(result.gained, 80);
@@ -33,11 +35,11 @@ void main() {
     expect(result.leveledUp, true); // crosses L1→L2 at 75 XP
     await Future<void>.delayed(Duration.zero);
 
-    final event = received.single as XpGranted;
-    expect(event.amount, 80);
-    expect(event.newTotal, 80);
-    expect(event.leveledUp, true);
-    expect(event.source, EconomyEventSource.quest);
+    final xpEvent = received.whereType<XpGranted>().single;
+    expect(xpEvent.amount, 80);
+    expect(xpEvent.newTotal, 80);
+    expect(xpEvent.leveledUp, true);
+    expect(xpEvent.source, EconomyEventSource.quest);
   });
 
   test('awardXp with amount=0 still publishes (pin behavior)', () async {
