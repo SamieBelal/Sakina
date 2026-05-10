@@ -117,18 +117,22 @@ void main() {
       });
     }
 
-    test('warmup write attempts a Supabase upsert (tolerant of missing column)',
-        () async {
+    test('warmup write uses upsertRawRow with id (NOT upsertRow which would '
+        'inject user_id and silently fail on user_profiles)', () async {
       await gating.markUsed(GatedFeature.reflect);
-      // Should have attempted to write `warmup_reflect_remaining` to user_profiles.
-      final profileWrites = fakeSync.upsertCalls
+      // Regression for the 2026-05-10 sim-test bug where warmup writes used
+      // upsertRow (auto-injects user_id), which silently failed because
+      // user_profiles primary key is `id`, not `user_id`.
+      expect(fakeSync.upsertCalls, isEmpty,
+          reason: 'must NOT use upsertRow (injects user_id)');
+      final profileWrites = fakeSync.rawUpsertCalls
           .where((c) => c['table'] == 'user_profiles')
           .toList();
       expect(profileWrites, hasLength(1));
-      expect(
-        (profileWrites.single['data'] as Map)['warmup_reflect_remaining'],
-        9,
-      );
+      final data = profileWrites.single['data'] as Map;
+      expect(data['warmup_reflect_remaining'], 9);
+      expect(data['id'], isNotNull,
+          reason: 'must include id so upsert matches the existing row');
     });
   });
 
@@ -300,6 +304,87 @@ void main() {
 
     test('premium fair-use cap is 30', () {
       expect(GatingService.premiumDailyFairUseCap, 30);
+    });
+  });
+
+  group('hydrateFromProfile', () {
+    test(
+        'overwrites local warmup counters AND had_trial latch from server '
+        'profile payload — without this, reinstall would reset a lapsed '
+        "trialer's gating state to fresh defaults, letting them grind "
+        'warmup by uninstalling.', () async {
+      // Pre-populate local prefs with stale values to prove they get
+      // overwritten, not merged.
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 10);
+      await gating.debugSetWarmupRemaining(GatedFeature.builtDua, 10);
+      await gating.debugSetWarmupRemaining(GatedFeature.discoverName, 5);
+      // had_trial defaults to false; explicit set to false to be explicit.
+      await gating.debugSetHadTrial(false);
+
+      await gating.hydrateFromProfile({
+        'warmup_reflect_remaining': 0,
+        'warmup_built_dua_remaining': 3,
+        'warmup_discover_name_remaining': 1,
+        'had_trial': true,
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')),
+        0,
+      );
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_builtDua_remaining')),
+        3,
+      );
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_discoverName_remaining')),
+        1,
+      );
+      expect(
+        prefs.getBool(fakeSync.scopedKey('had_trial')),
+        true,
+      );
+
+      // Behavioral confirmation: with the latch on and warmup at zero, the
+      // user is now resolved as Free+capped — the very state we want a
+      // lapsed trialer to land in regardless of any prior local cache.
+      final result = await gating.canUse(GatedFeature.reflect);
+      expect(result.allowed, true,
+          reason: 'first use today is allowed under the 1/day cap');
+
+      // Use the day's budget then verify the second attempt blocks.
+      await gating.markUsed(GatedFeature.reflect);
+      final blocked = await gating.canUse(GatedFeature.reflect);
+      expect(blocked.allowed, false);
+      expect(blocked.reason, GateReason.hadTrialNoBudget);
+    });
+
+    test('skips fields that are missing or wrong type without crashing',
+        () async {
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 7);
+      await gating.debugSetHadTrial(true);
+
+      // Empty payload — nothing should change.
+      await gating.hydrateFromProfile({});
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')),
+        7,
+      );
+      expect(prefs.getBool(fakeSync.scopedKey('had_trial')), true);
+
+      // Wrong types — also a no-op.
+      await gating.hydrateFromProfile({
+        'warmup_reflect_remaining': 'not-a-number',
+        'had_trial': 'yes',
+      });
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')),
+        7,
+      );
+      expect(prefs.getBool(fakeSync.scopedKey('had_trial')), true);
     });
   });
 }

@@ -699,10 +699,16 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(fakeSync.scopedKey('had_trial')), isTrue);
 
-      expect(fakeSync.upsertCalls, hasLength(1));
-      final call = fakeSync.upsertCalls.single;
+      // user_profiles uses upsertRawRow (PK is `id`, not `user_id`).
+      // Regression for the 2026-05-10 sim-test bug where `had_trial` writes
+      // silently failed because upsertRow injected `user_id`.
+      expect(fakeSync.rawUpsertCalls, hasLength(1));
+      final call = fakeSync.rawUpsertCalls.single;
       expect(call['table'], 'user_profiles');
-      expect((call['data'] as Map)['had_trial'], isTrue);
+      final data = call['data'] as Map;
+      expect(data['had_trial'], isTrue);
+      expect(data['id'], isNotNull,
+          reason: 'must include id so upsert matches the existing row');
     });
 
     test('subsequent calls short-circuit (no Supabase write, no RC re-read)',
@@ -721,16 +727,16 @@ void main() {
 
       // First call: detects trial + writes.
       expect(await service.hadTrial(), isTrue);
-      expect(fakeSync.upsertCalls, hasLength(1));
+      expect(fakeSync.rawUpsertCalls, hasLength(1));
       methodLog.clear();
-      fakeSync.upsertCalls.clear();
+      fakeSync.rawUpsertCalls.clear();
 
       // Second call: must short-circuit on cached SharedPrefs flag.
       expect(await service.hadTrial(), isTrue);
       expect(methodLog, isEmpty,
           reason:
               'idempotent latch: subsequent hadTrial() must not re-read RC');
-      expect(fakeSync.upsertCalls, isEmpty,
+      expect(fakeSync.rawUpsertCalls, isEmpty,
           reason:
               'idempotent latch: subsequent hadTrial() must not re-write Supabase');
     });

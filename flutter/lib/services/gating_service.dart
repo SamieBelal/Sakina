@@ -228,13 +228,12 @@ class GatingService {
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
-    // Tolerant: column may not yet exist (Lane C migration). upsertRow
-    // already swallows postgres errors and returns false — local cache
-    // remains the source of truth until the column lands.
-    await supabaseSyncService.upsertRow(
+    // user_profiles uses `id` (matching auth.uid()) as its primary key,
+    // NOT `user_id`. Use upsertRawRow so `user_id` isn't auto-injected,
+    // and pass `id` in the payload so the upsert matches the existing row.
+    await supabaseSyncService.upsertRawRow(
       'user_profiles',
-      userId,
-      {_warmupColumn(feature): next},
+      {'id': userId, _warmupColumn(feature): next},
       onConflict: 'id',
     );
   }
@@ -248,6 +247,40 @@ class GatingService {
     final scoped =
         supabaseSyncService.scopedKey(_hadTrialBaseKey);
     return prefs.getBool(scoped) ?? false;
+  }
+
+  // ---- hydration ----------------------------------------------------------
+
+  /// Hydrates the per-user warmup counters and `had_trial` latch from the
+  /// `profile` section of the `sync_all_user_data` RPC payload. Called by
+  /// `user_data_batch_sync_service` on app launch and any subsequent re-sync.
+  ///
+  /// Without this, fresh installs (or re-installs / multi-device users) would
+  /// show their local default values (warmup=10/10/5, had_trial=false) even
+  /// when the server says otherwise — letting a lapsed trialer get a fresh
+  /// warmup budget by reinstalling the app.
+  Future<void> hydrateFromProfile(Map<String, dynamic> profile) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final warmupKeys = <GatedFeature, String>{
+      GatedFeature.reflect: 'warmup_reflect_remaining',
+      GatedFeature.builtDua: 'warmup_built_dua_remaining',
+      GatedFeature.discoverName: 'warmup_discover_name_remaining',
+    };
+    for (final entry in warmupKeys.entries) {
+      final raw = profile[entry.value];
+      if (raw is num) {
+        await prefs.setInt(_warmupPrefsKey(entry.key), raw.toInt());
+      }
+    }
+
+    final hadTrialRaw = profile['had_trial'];
+    if (hadTrialRaw is bool) {
+      await prefs.setBool(
+        supabaseSyncService.scopedKey(_hadTrialBaseKey),
+        hadTrialRaw,
+      );
+    }
   }
 
   // ---- test helpers -------------------------------------------------------

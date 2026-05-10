@@ -116,18 +116,18 @@ class PurchaseService {
     final detected = await _detectTrialFromRevenueCat();
     if (!detected) return false;
 
-    // First-time detection: persist locally + remotely. Supabase write is
-    // tolerant of a missing column (Lane C migration adds `had_trial`) —
-    // upsertRow swallows the error and returns false, and the local cache
-    // is the source of truth anyway.
+    // First-time detection: persist locally + remotely. user_profiles uses
+    // `id` (matching auth.uid()) as its primary key, NOT `user_id` — so we
+    // use upsertRawRow which doesn't inject `user_id`. Including `id` in the
+    // payload lets the upsert match on the existing row instead of trying
+    // to insert a duplicate.
     await prefs.setBool(scopedKey, true);
 
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
-      await supabaseSyncService.upsertRow(
+      await supabaseSyncService.upsertRawRow(
         'user_profiles',
-        userId,
-        {'had_trial': true},
+        {'id': userId, 'had_trial': true},
         onConflict: 'id',
       );
     }

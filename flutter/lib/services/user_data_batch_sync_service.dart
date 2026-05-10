@@ -8,6 +8,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -125,6 +126,11 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     if (createdAt != null) {
       await hydrateFirstStepsEligibilityFromBatch(createdAt: createdAt);
     }
+    // Hydrates warmup_*_remaining + had_trial so the gating layer reflects
+    // the server state on app launch — without this, a reinstall resets a
+    // lapsed trialer's gating to "fresh free user with full warmup," which
+    // would let users grind warmups by uninstalling.
+    await GatingService().hydrateFromProfile(profile);
   }
 
   await _hydrateOrSeedListSection(
