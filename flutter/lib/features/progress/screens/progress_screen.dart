@@ -16,8 +16,10 @@ import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
+import 'package:sakina/services/lapsed_trial_service.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
@@ -91,6 +93,26 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     super.initState();
     _checkDiscoveryQuiz();
     _maybeShowDailyLaunch();
+    _maybeShowLapsedTrialSheet();
+  }
+
+  /// Fires the LapsedTrialSheet on the first home view after a trial lapses.
+  /// One-shot — guarded by a per-user SharedPreferences flag so the sheet
+  /// never re-appears once dismissed. Runs alongside the daily-launch
+  /// overlay; both are post-frame pushes so they stack cleanly if both fire.
+  Future<void> _maybeShowLapsedTrialSheet() async {
+    final decision = await resolveLapsedTrialDecision();
+    if (!mounted || decision == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      LapsedTrialSheet.show(
+        context,
+        reflectsDuringTrial: decision.activity.reflectsDuringTrial,
+        daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
+        onUpgrade: () => GoRouter.of(context).push('/paywall'),
+      );
+      decision.markShown();
+    });
   }
 
   Future<void> _maybeShowDailyLaunch() async {
