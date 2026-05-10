@@ -32,8 +32,57 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
   target 'RunnerTests' do
     inherit! :search_paths
+  end
+end
+
+# Strip OneSignalLocation from the iOS build. By default, onesignal_flutter
+# pulls OneSignalXCFramework whose root subspec is OneSignalComplete, which
+# transitively links OneSignalLocation and OneSignalInAppMessages. The app's
+# Dart code references neither feature, but the plugin's iOS ObjC sources
+# DO reference OSInAppMessage* classes (so InAppMessages must remain linked
+# or the plugin fails to link). Location, however, is unused by both the
+# app and the plugin's iOS sources, so we strip just that one subspec.
+#
+# Stripping OneSignalLocation removes ~one framework from the IPA and lets
+# us drop NSLocationWhenInUseUsageDescription from Info.plist, eliminating
+# App Review questions about an unused location permission.
+#
+# Confirmed via OneSignal iOS SDK MIGRATION_GUIDE.md
+# (https://github.com/onesignal/onesignal-ios-sdk/blob/main/MIGRATION_GUIDE.md):
+# OneSignalLocation is a separately-includable subspec; omitting it does not
+# break core push notifications.
+#
+# Mechanism: rewrite the plugin's podspec on disk (via .symlinks) to depend
+# on the explicit subspec list MINUS Location. The symlink points into
+# pub-cache; flutter pub get does not regenerate this file's contents, so
+# the edit survives normal dev workflows. The regex is idempotent — an
+# already-patched podspec matches no replacement.
+onesignal_podspec = File.expand_path('.symlinks/plugins/onesignal_flutter/ios/onesignal_flutter.podspec', __dir__)
+if File.exist?(onesignal_podspec)
+  original = File.read(onesignal_podspec)
+  # Match the pristine umbrella dep OR the partially-patched single OneSignal
+  # subspec dep. Captures the plugin's pinned version so the patch tracks
+  # whatever onesignal_flutter pins next (5.5.0 today, 5.6.0 tomorrow). If
+  # this regex stops matching after a plugin upgrade, the assertion below
+  # fires loudly instead of silently re-linking OneSignalLocation.
+  pattern = /s\.dependency\s+'OneSignalXCFramework(?:\/OneSignal)?',\s*'(\d+\.\d+\.\d+)'(?:\n\s+s\.dependency\s+'OneSignalXCFramework\/OneSignalInAppMessages',\s*'\d+\.\d+\.\d+')?/
+  patched = original.gsub(pattern) do
+    version = Regexp.last_match(1)
+    "s.dependency 'OneSignalXCFramework/OneSignal', '#{version}'\n  s.dependency 'OneSignalXCFramework/OneSignalInAppMessages', '#{version}'"
+  end
+  if patched != original
+    File.write(onesignal_podspec, patched)
+    puts "[Podfile] Patched onesignal_flutter.podspec to exclude OneSignalLocation subspec"
+  elsif !original.include?("OneSignalXCFramework/OneSignal'")
+    # Already-patched podspec contains the slim subspec form; pristine pod or
+    # post-upgrade pod that the regex didn't match would not. Raise loudly so
+    # a future onesignal_flutter upgrade can't silently re-link OneSignalLocation.
+    raise "[Podfile] onesignal_flutter.podspec did not match the OneSignal slim-pod patch regex. " \
+          "The plugin likely upgraded past the pattern. Update the regex in ios/Podfile or " \
+          "OneSignalLocation will silently re-link and reintroduce App Review risk."
   end
 end
 

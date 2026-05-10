@@ -118,10 +118,6 @@ abstract final class AppStrings {
   static const paywallWeeklyPeriod = '/week';
   static const paywallWeeklyLabel = 'Weekly';
   static const paywallWeeklyPerWeekLabel = 'Per Week';
-  static const paywallTrialTermsAnnual =
-      '3-day free trial, then \$49.99/year. Cancel anytime.';
-  static const paywallTrialTermsWeekly =
-      '3-day free trial, then \$4.99/week. Cancel anytime.';
   static const paywallSocialProof = '4.9 \u00B7 Loved by 10,000+ Muslims';
   static const paywallStarsLabel = '4.9';
   static const paywallReviewsCount = 'from 10,000+ reviews';
