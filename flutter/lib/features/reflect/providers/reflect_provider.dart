@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
-import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -226,8 +226,10 @@ class ReflectState {
   final Set<String> selectedEmotions;
   final List<SavedReflection> savedReflections;
 
-  /// True when the user has hit the free daily limit and must spend a token.
-  final bool needsToken;
+  /// Set when the user attempted to reflect but the gating layer blocked the
+  /// call. Reason determines which paywall sheet the screen shows
+  /// (warmup-exhausted vs daily-cap). Cleared by [ReflectNotifier.dismissGate].
+  final GateResult? gateResult;
 
   /// True when a save was blocked by the free-tier journal limit. UI should
   /// surface the upgrade sheet and call [ReflectNotifier.dismissUpgradePrompt]
@@ -245,7 +247,7 @@ class ReflectState {
     this.currentFollowUpIndex = 0,
     this.selectedEmotions = const {},
     this.savedReflections = const [],
-    this.needsToken = false,
+    this.gateResult,
     this.needsUpgrade = false,
   });
 
@@ -260,10 +262,11 @@ class ReflectState {
     int? currentFollowUpIndex,
     Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
-    bool? needsToken,
+    GateResult? gateResult,
     bool? needsUpgrade,
     bool clearResult = false,
     bool clearError = false,
+    bool clearGateResult = false,
   }) {
     return ReflectState(
       screenState: screenState ?? this.screenState,
@@ -276,7 +279,7 @@ class ReflectState {
       currentFollowUpIndex: currentFollowUpIndex ?? this.currentFollowUpIndex,
       selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
-      needsToken: needsToken ?? this.needsToken,
+      gateResult: clearGateResult ? null : (gateResult ?? this.gateResult),
       needsUpgrade: needsUpgrade ?? this.needsUpgrade,
     );
   }
@@ -314,19 +317,17 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     state = state.copyWith(selectedEmotions: updated);
   }
 
-  /// Called by the UI after the user approves spending a token.
-  /// Clears the needsToken flag and proceeds with submission.
-  Future<void> submitWithToken() async {
-    state = state.copyWith(needsToken: false);
-    _consumeFreeUsageOnSuccess = false;
-    await _doSubmit();
+  /// Clears the gate-blocked flag after the paywall sheet is dismissed.
+  void dismissGate() {
+    state = state.copyWith(clearGateResult: true);
   }
 
-  /// Submit user text. Checks daily usage first; sets needsToken if limit hit.
+  /// Submit user text. Checks the gating layer first; if blocked, exposes the
+  /// [GateResult] on state for the screen to render the right paywall sheet.
   Future<void> submit() async {
-    final isFree = await canReflectFree();
-    if (!isFree) {
-      state = state.copyWith(needsToken: true);
+    final gate = await GatingService().canUse(GatedFeature.reflect);
+    if (!gate.allowed) {
+      state = state.copyWith(gateResult: gate);
       return;
     }
     _consumeFreeUsageOnSuccess = true;
@@ -469,7 +470,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           currentStep: ReflectStep.name,
         );
         if (_consumeFreeUsageOnSuccess) {
-          await incrementReflectUsage();
+          await GatingService().markUsed(GatedFeature.reflect);
           _consumeFreeUsageOnSuccess = false;
         }
         // Track streak (XP for Reflect is intentionally zero — only Muhasabah,

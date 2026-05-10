@@ -4,13 +4,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ---------------------------------------------------------------------------
 // Daily Usage Service
 //
-// Tracks how many times the user has used Reflect and Build-a-Dua today.
-// Counts reset at midnight (date-keyed in SharedPreferences).
-// Free limit: 3 uses/day each. Beyond that costs 1 token.
+// Tracks how many times the user has used Reflect, Build-a-Dua, and
+// Discover-Name today. Counts reset at midnight (date-keyed in
+// SharedPreferences).
+//
+// Free limit: 1 use/day per AI feature (post-warm-up).
+// See `gating_service.dart` for the policy layer that consults these counts.
 // ---------------------------------------------------------------------------
 
-const int dailyFreeReflects = 3;
-const int dailyFreeBuiltDuas = 3;
+const int dailyFreeReflects = 1;
+const int dailyFreeBuiltDuas = 1;
+const int dailyFreeDiscoverNames = 1;
 
 String _today() {
   final now = DateTime.now();
@@ -33,6 +37,11 @@ Future<int> getBuiltDuaUsageToday() async {
   return prefs.getInt(_todayKey('built_dua')) ?? 0;
 }
 
+Future<int> getDiscoverNameUsageToday() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getInt(_todayKey('discover_name')) ?? 0;
+}
+
 Future<bool> canReflectFree() async {
   final used = await getReflectUsageToday();
   return used < dailyFreeReflects;
@@ -41,6 +50,11 @@ Future<bool> canReflectFree() async {
 Future<bool> canBuildDuaFree() async {
   final used = await getBuiltDuaUsageToday();
   return used < dailyFreeBuiltDuas;
+}
+
+Future<bool> canDiscoverNameFree() async {
+  final used = await getDiscoverNameUsageToday();
+  return used < dailyFreeDiscoverNames;
 }
 
 Future<int> incrementReflectUsage() async {
@@ -63,6 +77,16 @@ Future<int> incrementBuiltDuaUsage() async {
   return updated;
 }
 
+Future<int> incrementDiscoverNameUsage() async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = _todayKey('discover_name');
+  final current = prefs.getInt(key) ?? 0;
+  final updated = current + 1;
+  await prefs.setInt(key, updated);
+  await _upsertToday(prefs);
+  return updated;
+}
+
 /// Returns how many free uses remain today for reflect.
 Future<int> reflectFreeRemaining() async {
   final used = await getReflectUsageToday();
@@ -75,12 +99,19 @@ Future<int> builtDuaFreeRemaining() async {
   return (dailyFreeBuiltDuas - used).clamp(0, dailyFreeBuiltDuas);
 }
 
+/// Returns how many free uses remain today for discover-name.
+Future<int> discoverNameFreeRemaining() async {
+  final used = await getDiscoverNameUsageToday();
+  return (dailyFreeDiscoverNames - used).clamp(0, dailyFreeDiscoverNames);
+}
+
 Future<void> _upsertToday(SharedPreferences prefs) async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
 
   final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
   final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
+  final discoverNameUses = prefs.getInt(_todayKey('discover_name')) ?? 0;
 
   // Composite unique key: (user_id, usage_date). onConflict must name both
   // columns or PostgREST falls back to the PK and silently fails every
@@ -92,6 +123,7 @@ Future<void> _upsertToday(SharedPreferences prefs) async {
       'usage_date': _today(),
       'reflect_uses': reflectUses,
       'built_dua_uses': builtDuaUses,
+      'discover_name_uses': discoverNameUses,
     },
     onConflict: 'user_id,usage_date',
   );
@@ -103,11 +135,15 @@ Future<void> hydrateDailyUsageCacheFromPayload(
   final prefs = await SharedPreferences.getInstance();
   final serverReflect = (section['reflect_uses'] as num?)?.toInt();
   final serverBuiltDua = (section['built_dua_uses'] as num?)?.toInt();
+  final serverDiscoverName = (section['discover_name_uses'] as num?)?.toInt();
   if (serverReflect != null) {
     await prefs.setInt(_todayKey('reflect'), serverReflect);
   }
   if (serverBuiltDua != null) {
     await prefs.setInt(_todayKey('built_dua'), serverBuiltDua);
+  }
+  if (serverDiscoverName != null) {
+    await prefs.setInt(_todayKey('discover_name'), serverDiscoverName);
   }
 }
 
@@ -134,7 +170,8 @@ Future<void> seedDailyUsageToSupabaseFromLocalCache() async {
   final prefs = await SharedPreferences.getInstance();
   final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
   final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
-  if (reflectUses <= 0 && builtDuaUses <= 0) return;
+  final discoverNameUses = prefs.getInt(_todayKey('discover_name')) ?? 0;
+  if (reflectUses <= 0 && builtDuaUses <= 0 && discoverNameUses <= 0) return;
 
   await supabaseSyncService.upsertRow(
     'user_daily_usage',
@@ -143,6 +180,7 @@ Future<void> seedDailyUsageToSupabaseFromLocalCache() async {
       'usage_date': _today(),
       'reflect_uses': reflectUses,
       'built_dua_uses': builtDuaUses,
+      'discover_name_uses': discoverNameUses,
     },
     onConflict: 'user_id,usage_date',
   );

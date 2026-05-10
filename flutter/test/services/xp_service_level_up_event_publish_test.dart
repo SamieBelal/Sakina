@@ -10,8 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
-import 'package:sakina/services/token_service.dart';
-import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/xp_service.dart';
 
 import '../support/fake_supabase_sync_service.dart';

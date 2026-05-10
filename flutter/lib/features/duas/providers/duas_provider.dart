@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
-import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -203,8 +203,10 @@ class DuasState {
   final List<SavedBuiltDua> savedBuiltDuas;
   final List<SavedRelatedDua> savedRelatedDuas;
 
-  /// True when build-a-dua hits the free daily limit and needs a token.
-  final bool buildNeedsToken;
+  /// Set when build-a-dua attempt was blocked by the gating layer. UI reads
+  /// this to render the right paywall sheet, then clears via
+  /// [DuasNotifier.dismissBuildGate].
+  final GateResult? buildGateResult;
 
   /// True when saving a built dua was blocked by the free-tier journal limit.
   /// UI should show the upgrade sheet and call
@@ -236,7 +238,7 @@ class DuasState {
     this.error,
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
-    this.buildNeedsToken = false,
+    this.buildGateResult,
     this.needsUpgrade = false,
     this.buildResultSaveHandled = false,
     this.buildProgress = 0.0,
@@ -257,10 +259,11 @@ class DuasState {
     String? Function()? error,
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
-    bool? buildNeedsToken,
+    GateResult? buildGateResult,
     bool? needsUpgrade,
     bool? buildResultSaveHandled,
     double? buildProgress,
+    bool clearBuildGateResult = false,
   }) {
     return DuasState(
       activeTab: activeTab != null ? activeTab() : this.activeTab,
@@ -277,7 +280,9 @@ class DuasState {
       error: error != null ? error() : this.error,
       savedBuiltDuas: savedBuiltDuas ?? this.savedBuiltDuas,
       savedRelatedDuas: savedRelatedDuas ?? this.savedRelatedDuas,
-      buildNeedsToken: buildNeedsToken ?? this.buildNeedsToken,
+      buildGateResult: clearBuildGateResult
+          ? null
+          : (buildGateResult ?? this.buildGateResult),
       needsUpgrade: needsUpgrade ?? this.needsUpgrade,
       buildResultSaveHandled:
           buildResultSaveHandled ?? this.buildResultSaveHandled,
@@ -426,9 +431,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
     if (state.buildNeed.trim().isEmpty) return;
     _submitInFlight = true;
     try {
-      final isFree = await canBuildDuaFree();
-      if (!isFree) {
-        state = state.copyWith(buildNeedsToken: true);
+      final gate = await GatingService().canUse(GatedFeature.builtDua);
+      if (!gate.allowed) {
+        state = state.copyWith(buildGateResult: gate);
         return;
       }
       await _doBuild(consumeFreeUsage: true);
@@ -437,15 +442,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
     }
   }
 
-  Future<void> submitBuildWithToken() async {
-    if (_submitInFlight || state.buildLoading) return;
-    _submitInFlight = true;
-    try {
-      state = state.copyWith(buildNeedsToken: false);
-      await _doBuild();
-    } finally {
-      _submitInFlight = false;
-    }
+  /// Clears the build gate-blocked flag after the paywall sheet is dismissed.
+  void dismissBuildGate() {
+    state = state.copyWith(clearBuildGateResult: true);
   }
 
   /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
@@ -527,7 +526,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // duas_screen.dart `_buildStepViewer` keys off `breakdown.isEmpty`, so
       // this gate is the same signal — keep them in sync.
       if (consumeFreeUsage && result.breakdown.isNotEmpty) {
-        await incrementBuiltDuaUsage();
+        await GatingService().markUsed(GatedFeature.builtDua);
       }
       _progressTimer?.cancel();
       // Jump to 100%

@@ -2,18 +2,25 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support/fake_supabase_sync_service.dart';
 
 // The purchases_flutter plugin uses a MethodChannel named 'purchases_flutter'.
 // We mock that channel per-test to exercise PurchaseService's behavior without
 // spinning up the real SDK.
 const MethodChannel _channel = MethodChannel('purchases_flutter');
 
-Map<String, dynamic> _premiumEntitlement({String? billingIssueDetectedAt}) {
+Map<String, dynamic> _premiumEntitlement({
+  String? billingIssueDetectedAt,
+  String periodType = 'NORMAL',
+}) {
   return <String, dynamic>{
     'identifier': 'premium',
     'isActive': true,
     'willRenew': true,
-    'periodType': 'normal',
+    'periodType': periodType,
     'latestPurchaseDate': '2026-04-13T12:00:00.000Z',
     'latestPurchaseDateMillis': 1776384000000,
     'originalPurchaseDate': '2026-04-13T12:00:00.000Z',
@@ -612,6 +619,131 @@ void main() {
       PurchaseService.debugSetOverride(override);
       PurchaseService.debugClearOverride();
       expect(identical(PurchaseService(), override), isFalse);
+    });
+  });
+
+  group('hadTrial()', () {
+    late FakeSupabaseSyncService fakeSync;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+      SupabaseSyncService.debugSetInstance(fakeSync);
+    });
+
+    tearDown(SupabaseSyncService.debugReset);
+
+    test('returns false when not initialized and no cached flag', () async {
+      final service = PurchaseService.test();
+      expect(await service.hadTrial(), isFalse);
+      expect(methodLog, isEmpty);
+    });
+
+    test('returns false when premium entitlement absent from .all', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(premiumActive: false);
+
+      expect(await service.hadTrial(), isFalse);
+      expect(methodLog.single.method, 'getCustomerInfo');
+    });
+
+    test('returns true on active trial periodType', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+        entitlementsActiveOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+      );
+
+      expect(await service.hadTrial(), isTrue);
+    });
+
+    test('returns true on expired trial (still in .all but not .active)',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(
+        premiumActive: false,
+        entitlementsActiveOverride: const <String, dynamic>{},
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+      );
+
+      expect(await service.hadTrial(), isTrue);
+    });
+
+    test(
+        'first true detection writes had_trial=true to BOTH SharedPreferences '
+        'AND Supabase', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+        entitlementsActiveOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+      );
+
+      expect(await service.hadTrial(), isTrue);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(fakeSync.scopedKey('had_trial')), isTrue);
+
+      expect(fakeSync.upsertCalls, hasLength(1));
+      final call = fakeSync.upsertCalls.single;
+      expect(call['table'], 'user_profiles');
+      expect((call['data'] as Map)['had_trial'], isTrue);
+    });
+
+    test('subsequent calls short-circuit (no Supabase write, no RC re-read)',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsAllOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+        entitlementsActiveOverride: {
+          'premium': _premiumEntitlement(periodType: 'TRIAL'),
+        },
+      );
+
+      // First call: detects trial + writes.
+      expect(await service.hadTrial(), isTrue);
+      expect(fakeSync.upsertCalls, hasLength(1));
+      methodLog.clear();
+      fakeSync.upsertCalls.clear();
+
+      // Second call: must short-circuit on cached SharedPrefs flag.
+      expect(await service.hadTrial(), isTrue);
+      expect(methodLog, isEmpty,
+          reason:
+              'idempotent latch: subsequent hadTrial() must not re-read RC');
+      expect(fakeSync.upsertCalls, isEmpty,
+          reason:
+              'idempotent latch: subsequent hadTrial() must not re-write Supabase');
+    });
+
+    test('non-trial periodType (normal subscription) returns false', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(premiumActive: true);
+      // Default periodType in helper is 'normal'.
+
+      expect(await service.hadTrial(), isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(fakeSync.scopedKey('had_trial')), isNull);
     });
   });
 }

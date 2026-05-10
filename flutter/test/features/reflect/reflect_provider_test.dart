@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
 import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
@@ -40,10 +41,14 @@ void main() {
         offTopic: offTopic,
       );
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
+    // Default test users into the post-warmup "capped" phase so legacy
+    // assertions on daily-counter increments remain meaningful. The warmup
+    // phase is exercised in dedicated GatingService tests.
+    await GatingService().debugSetHadTrial(true);
   });
 
   tearDown(SupabaseSyncService.debugReset);
@@ -204,11 +209,12 @@ void main() {
   });
 
   test(
-      'token-gated submit can continue with token without consuming free usage',
-      () async {
-    for (var i = 0; i < dailyFreeReflects; i++) {
-      await incrementReflectUsage();
-    }
+      'submit blocked by gating service surfaces gateResult and dismissGate '
+      'clears it without consuming usage', () async {
+    // Drive the user to the daily-cap state by latching had_trial = true
+    // (skips warmup) and using up the 1/day reflect.
+    await GatingService().debugSetHadTrial(true);
+    await incrementReflectUsage();
 
     final notifier = ReflectNotifier(
       loadOnInit: false,
@@ -216,19 +222,21 @@ void main() {
         getFollowUpQuestions: (_) async => const [],
         reflect: (_) async => successResponse(),
         now: () => fixedNow,
-        createId: () => 'reflection-token',
+        createId: () => 'reflection-gated',
       ),
     );
     addTearDown(notifier.dispose);
 
     notifier.setUserText('I need peace');
     await notifier.submit();
-    expect(notifier.state.needsToken, isTrue);
-    expect(await getReflectUsageToday(), dailyFreeReflects);
+    expect(notifier.state.gateResult, isNotNull);
+    expect(notifier.state.gateResult!.allowed, isFalse);
+    expect(notifier.state.screenState, ReflectScreenState.input);
+    // Daily counter unchanged — a blocked submit must not consume usage.
+    expect(await getReflectUsageToday(), 1);
 
-    await notifier.submitWithToken();
-    expect(notifier.state.screenState, ReflectScreenState.result);
-    expect(await getReflectUsageToday(), dailyFreeReflects);
+    notifier.dismissGate();
+    expect(notifier.state.gateResult, isNull);
   });
 
   test('AI failures do not consume free usage and surface an error', () async {

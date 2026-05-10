@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PurchaseService {
   PurchaseService._();
@@ -85,6 +87,65 @@ class PurchaseService {
       return null;
     }
   }
+
+  /// Returns true if the user has ever had a premium trial period — active or
+  /// expired. One-way latch: once true, it stays true forever for this user
+  /// (so the gating layer can apply lapsed-trialer rules without depending on
+  /// RevenueCat history at every check).
+  ///
+  /// Reads `customerInfo.entitlements.all['premium'].periodType` and treats
+  /// `PeriodType.trial` as a positive signal. Active paid subscriptions
+  /// converted from a prior trial generally still report `periodType=trial`
+  /// only during the trial window, but RevenueCat keeps the historical
+  /// entitlement under `.all` so the latch fires on the first observation.
+  ///
+  /// IDEMPOTENT: once the local SharedPreferences flag is `true`, this method
+  /// short-circuits and avoids both a RevenueCat round-trip and a Supabase
+  /// write. That matters because RC reports a trial period for every paid
+  /// trialer on every app launch — without the latch we'd write to Supabase
+  /// on every launch.
+  Future<bool> hadTrial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final scopedKey =
+        supabaseSyncService.scopedKey(_hadTrialPrefsBaseKey);
+    final cached = prefs.getBool(scopedKey);
+    if (cached == true) return true;
+
+    if (!_initialized) return false;
+
+    final detected = await _detectTrialFromRevenueCat();
+    if (!detected) return false;
+
+    // First-time detection: persist locally + remotely. Supabase write is
+    // tolerant of a missing column (Lane C migration adds `had_trial`) —
+    // upsertRow swallows the error and returns false, and the local cache
+    // is the source of truth anyway.
+    await prefs.setBool(scopedKey, true);
+
+    final userId = supabaseSyncService.currentUserId;
+    if (userId != null) {
+      await supabaseSyncService.upsertRow(
+        'user_profiles',
+        userId,
+        {'had_trial': true},
+        onConflict: 'id',
+      );
+    }
+    return true;
+  }
+
+  Future<bool> _detectTrialFromRevenueCat() async {
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final premium = customerInfo.entitlements.all['premium'];
+      if (premium == null) return false;
+      return premium.periodType == PeriodType.trial;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static const String _hadTrialPrefsBaseKey = 'had_trial';
 
   Future<List<Package>> getOfferings() async {
     if (!_initialized) return [];

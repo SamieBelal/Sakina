@@ -10,11 +10,11 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
-import 'package:sakina/widgets/token_gate_sheet.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 class DuasScreen extends ConsumerStatefulWidget {
@@ -84,14 +84,22 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       if ((prev?.buildNeed.isNotEmpty ?? false) && next.buildNeed.isEmpty) {
         _buildController.clear();
       }
-      if (next.buildNeedsToken && !(prev?.buildNeedsToken ?? false)) {
-        showTokenGateSheet(
+      if (next.buildGateResult != null && prev?.buildGateResult == null) {
+        final isPremiumFairUse =
+            next.buildGateResult!.reason == GateReason.premiumFairUse;
+        Future<void> upgrade() async {
+          if (isPremiumFairUse) return;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Subscribe to unlock unlimited')),
+            );
+          }
+        }
+        DailyCapSheet.show(
           context,
-          featureName: 'Build a Dua',
-          cost: tokenCostBuiltDua,
-        ).then((approved) {
-          if (approved) notifier.submitBuildWithToken();
-        });
+          feature: GatedFeature.builtDua,
+          onUpgrade: upgrade,
+        ).whenComplete(notifier.dismissBuildGate);
       }
       // Show upgrade sheet when the free saved-dua limit is hit
       if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {

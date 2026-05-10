@@ -27,6 +27,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
@@ -52,11 +53,12 @@ void main() {
         relatedDuas: [],
       );
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
     SupabaseSyncService.debugSetInstance(
       FakeSupabaseSyncService(userId: 'user-reentry'),
     );
+    await GatingService().debugSetHadTrial(true);
   });
 
   tearDown(SupabaseSyncService.debugReset);
@@ -141,8 +143,8 @@ void main() {
     notifier.setBuildNeed('Help me find clarity in my decisions today.');
 
     // Fire BOTH submits without awaiting between them. The second call
-    // enters before the first has finished `canBuildDuaFree()`. Without the
-    // synchronous guard, both would proceed and call `buildDua` twice.
+    // enters before the first has finished GatingService.canUse(). Without
+    // the synchronous guard, both would proceed and call `buildDua` twice.
     final first = notifier.submitBuild();
     final second = notifier.submitBuild();
 
@@ -160,44 +162,8 @@ void main() {
     expect(notifier.state.buildResult, isNotNull);
   });
 
-  test('submitBuildWithToken early-returns when buildLoading is true',
-      () async {
-    var buildCallCount = 0;
-    final completer = Completer<BuiltDuaResponse>();
-
-    final notifier = DuasNotifier(
-      loadOnInit: false,
-      dependencies: DuasDependencies(
-        findDuas: (_) async => throw UnimplementedError(),
-        buildDua: (_) {
-          buildCallCount++;
-          return completer.future;
-        },
-        now: () => fixedNow,
-        createId: () => 'dua-reentry-token',
-      ),
-      resultRevealDelay: Duration.zero,
-    );
-    addTearDown(notifier.dispose);
-
-    notifier.setBuildNeed('Help me through this difficulty.');
-
-    final firstFuture = notifier.submitBuildWithToken();
-    await Future<void>.delayed(Duration.zero);
-
-    expect(notifier.state.buildLoading, isTrue);
-    expect(buildCallCount, 1);
-
-    // Second token-spend tap: must early-return.
-    await notifier.submitBuildWithToken();
-
-    expect(buildCallCount, 1,
-        reason: 'guard must prevent a second AI call on the token-spend path');
-
-    completer.complete(buildResponse());
-    await firstFuture;
-
-    expect(notifier.state.buildLoading, isFalse);
-    expect(notifier.state.buildResult, isNotNull);
-  });
+  // Note: the legacy `submitBuildWithToken` re-entry guard test was removed
+  // when the token-spend bypass was deleted (freemium tier redesign,
+  // 2026-05-09). The remaining `submitBuild` re-entry guard test above
+  // covers the same code path under the new gating-service flow.
 }

@@ -130,7 +130,7 @@ No migration needed. The app has no existing users at the time of this change, s
 New / changed fields:
 
 - `user_daily_usage` (Supabase, existing): unchanged columns — `reflect_uses`, `built_dua_uses`. **Add** `discover_name_uses INT DEFAULT 0` (new column for the 1/day discover cap).
-- `user_profiles` (Supabase, existing): **add** `warmup_reflect_remaining INT DEFAULT 10`, `warmup_built_dua_remaining INT DEFAULT 10`, `warmup_discover_remaining INT DEFAULT 5`, `had_trial BOOLEAN DEFAULT FALSE`. Each warmup column decrements on use; once at 0, cap logic takes over.
+- `user_profiles` (Supabase, existing): **add** `warmup_reflect_remaining INT DEFAULT 10`, `warmup_built_dua_remaining INT DEFAULT 10`, `warmup_discover_name_remaining INT DEFAULT 5`, `had_trial BOOLEAN DEFAULT FALSE`. Each warmup column decrements on use; once at 0, cap logic takes over.
 - SharedPreferences: mirror all four fields locally (`warmup_reflect_remaining`, `warmup_built_dua_remaining`, `warmup_discover_remaining`, `had_trial`) so gating works offline.
 
 The warmup counters live alongside the existing daily-usage counters, not inside them, because they have different semantics (lifetime decrement vs daily reset).

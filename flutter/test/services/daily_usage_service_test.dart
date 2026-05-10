@@ -32,6 +32,7 @@ void main() {
     expect(data['usage_date'], todayDate());
     expect(data['reflect_uses'], 1);
     expect(data['built_dua_uses'], 0);
+    expect(data['discover_name_uses'], 0);
   });
 
   test('incrementBuiltDuaUsage increments and upserts', () async {
@@ -45,6 +46,31 @@ void main() {
     final data = fakeSync.upsertCalls.single['data'] as Map;
     expect(data['reflect_uses'], 1);
     expect(data['built_dua_uses'], 1);
+    expect(data['discover_name_uses'], 0);
+  });
+
+  test('incrementDiscoverNameUsage increments and upserts', () async {
+    final count = await incrementDiscoverNameUsage();
+
+    expect(count, 1);
+    expect(fakeSync.upsertCalls, hasLength(1));
+    final data = fakeSync.upsertCalls.single['data'] as Map;
+    expect(data['reflect_uses'], 0);
+    expect(data['built_dua_uses'], 0);
+    expect(data['discover_name_uses'], 1);
+  });
+
+  test('upsert payload always includes discover_name_uses (regression)',
+      () async {
+    await incrementReflectUsage();
+    final data = fakeSync.upsertCalls.single['data'] as Map;
+    expect(
+      data.containsKey('discover_name_uses'),
+      isTrue,
+      reason:
+          'discover_name_uses must be present in every upsert so the '
+          'composite row is fully reflected on the server',
+    );
   });
 
   test('syncDailyUsageFromSupabase hydrates from server', () async {
@@ -54,6 +80,7 @@ void main() {
         'usage_date': todayDate(),
         'reflect_uses': 2,
         'built_dua_uses': 1,
+        'discover_name_uses': 3,
       },
     ];
 
@@ -61,6 +88,7 @@ void main() {
 
     expect(await getReflectUsageToday(), 2);
     expect(await getBuiltDuaUsageToday(), 1);
+    expect(await getDiscoverNameUsageToday(), 3);
   });
 
   test('syncDailyUsageFromSupabase seeds server when empty', () async {
@@ -76,15 +104,40 @@ void main() {
     expect(data['reflect_uses'], 2);
   });
 
-  test('canReflectFree respects free limit', () async {
+  test('canReflectFree respects 1/day free limit', () async {
     expect(await canReflectFree(), true);
+    expect(await reflectFreeRemaining(), dailyFreeReflects);
 
-    await incrementReflectUsage();
-    await incrementReflectUsage();
     await incrementReflectUsage();
 
     expect(await canReflectFree(), false);
     expect(await reflectFreeRemaining(), 0);
+  });
+
+  test('canBuildDuaFree respects 1/day free limit', () async {
+    expect(await canBuildDuaFree(), true);
+    expect(await builtDuaFreeRemaining(), dailyFreeBuiltDuas);
+
+    await incrementBuiltDuaUsage();
+
+    expect(await canBuildDuaFree(), false);
+    expect(await builtDuaFreeRemaining(), 0);
+  });
+
+  test('canDiscoverNameFree respects 1/day free limit', () async {
+    expect(await canDiscoverNameFree(), true);
+    expect(await discoverNameFreeRemaining(), dailyFreeDiscoverNames);
+
+    await incrementDiscoverNameUsage();
+
+    expect(await canDiscoverNameFree(), false);
+    expect(await discoverNameFreeRemaining(), 0);
+  });
+
+  test('daily caps lock to 1 per spec (regression)', () {
+    expect(dailyFreeReflects, 1);
+    expect(dailyFreeBuiltDuas, 1);
+    expect(dailyFreeDiscoverNames, 1);
   });
 
   test('scoped keys prevent cross-user bleed', () async {
@@ -109,14 +162,17 @@ void main() {
     await incrementReflectUsage();
     await incrementReflectUsage();
     await incrementBuiltDuaUsage();
+    await incrementDiscoverNameUsage();
+    await incrementDiscoverNameUsage();
 
-    // Four upsert calls happened…
-    expect(fakeSync.upsertCalls, hasLength(4));
+    // Six upsert calls happened…
+    expect(fakeSync.upsertCalls, hasLength(6));
     // …but only ONE row should exist for today's (user_id, usage_date).
     final rows = fakeSync.rowLists['user_daily_usage'] ?? const [];
     expect(rows, hasLength(1));
     expect(rows.single['reflect_uses'], 3);
     expect(rows.single['built_dua_uses'], 1);
+    expect(rows.single['discover_name_uses'], 2);
 
     // Every upsert must have passed the composite onConflict target,
     // otherwise production would silent-fail after the first insert.

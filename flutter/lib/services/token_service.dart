@@ -8,13 +8,10 @@ const String _tokenKey = 'sakina_tokens';
 const String _totalSpentKey = 'sakina_total_tokens_spent';
 const int startingTokens = 50;
 
-// Token costs
-const int tokenCostReflection = 50;
-const int tokenCostBuiltDua = 50;
-const int tokenCostDiscoverName = 50;
-
 // Token rewards: muhasabah grants no tokens — the card pull is the reward.
 // Tokens come from quests, daily login rewards, and streak milestones.
+// Per the freemium tier redesign (2026-05-09), tokens no longer gate AI
+// features — they are a collection currency (store cards) only.
 
 Completer<void>? _spendTokensLock;
 

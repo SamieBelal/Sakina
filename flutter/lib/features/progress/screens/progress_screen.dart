@@ -16,7 +16,8 @@ import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
-import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -596,72 +597,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // Muhasabah Row (inside dashboard card)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showNotEnoughTokens(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        decoration: const BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Icon(Icons.toll, size: 32, color: AppColors.secondary),
-            const SizedBox(height: 12),
-            Text(
-              'Not Enough Tokens',
-              style: AppTypography.headlineMedium.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You need $tokenCostReflection tokens for this action.',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(sheetCtx).pop();
-                  context.push('/store');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Go to Store'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(sheetCtx).pop(),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondaryLight)),
-            ),
-          ],
-        ),
-      ),
+  void _showDiscoverGateSheet(BuildContext context) {
+    DailyCapSheet.show(
+      context,
+      feature: GatedFeature.discoverName,
+      onUpgrade: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Subscribe to unlock unlimited')),
+        );
+      },
     );
   }
 
@@ -676,14 +620,18 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         onTap: () async {
           HapticFeedback.mediumImpact();
           final notifier = ref.read(dailyLoopProvider.notifier);
-          final result = await spendTokens(tokenCostReflection);
-          if (result.success) {
-            notifier.refreshTokenBalance(result.newBalance);
-            await notifier.resetToday();
-            if (mounted) context.push('/muhasabah');
-          } else if (mounted) {
-            _showNotEnoughTokens(context);
+          final gate = await GatingService().canUse(GatedFeature.discoverName);
+          if (!gate.allowed) {
+            if (mounted) _showDiscoverGateSheet(context);
+            return;
           }
+          await notifier.resetToday();
+          if (!mounted) return;
+          context.push('/muhasabah');
+          // markUsed fires here (not on the muhasabah screen) because the
+          // discoverName flow is initiated from this CTA — the muhasabah
+          // route is just where the gacha animation plays out.
+          await GatingService().markUsed(GatedFeature.discoverName);
         },
         behavior: HitTestBehavior.opaque,
         child: Row(
@@ -708,28 +656,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     style: AppTypography.bodySmall.copyWith(
                       color: AppColors.textTertiaryLight,
                       fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Token cost indicator
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.secondaryLight,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.toll, size: 12, color: AppColors.secondary),
-                  const SizedBox(width: 3),
-                  Text(
-                    '$tokenCostReflection',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

@@ -14,9 +14,10 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 
 /// Full-screen Muhasabah experience — check-in → deeper → completion.
@@ -188,72 +189,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // CHECK-IN RESULT (Name card + Go Deeper)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showNotEnoughTokens() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        decoration: const BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderLight,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Icon(Icons.toll, size: 32, color: AppColors.secondary),
-            const SizedBox(height: 12),
-            Text(
-              'Not Enough Tokens',
-              style: AppTypography.headlineMedium.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You need $tokenCostReflection tokens. Earn more through quests and daily rewards, or visit the store.',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(sheetCtx).pop();
-                  context.push('/store');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Go to Store'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(sheetCtx).pop(),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondaryLight)),
-            ),
-          ],
-        ),
-      ),
+  void _showDiscoverGateSheet() {
+    DailyCapSheet.show(
+      context,
+      feature: GatedFeature.discoverName,
+      onUpgrade: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Subscribe to unlock unlimited')),
+        );
+      },
     );
   }
 
@@ -720,22 +664,24 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   onTap: () async {
                     HapticFeedback.mediumImpact();
                     final notifier = ref.read(dailyLoopProvider.notifier);
-                    // Charge the 50-token unlock fee here, BEFORE resetting the
-                    // cycle. spendTokens returns success=false on insufficient
-                    // balance instead of throwing, so we have to inspect the
-                    // result — a try/catch would silently let the reset run.
-                    final result = await spendTokens(tokenCostReflection);
-                    if (!result.success) {
-                      if (mounted) _showNotEnoughTokens();
+                    // Gating layer enforces the 1/day cap (or warmup) for
+                    // discover_name. No tokens are charged — caps replaced
+                    // the token economy gate per the freemium redesign.
+                    final gate = await GatingService()
+                        .canUse(GatedFeature.discoverName);
+                    if (!gate.allowed) {
+                      if (mounted) _showDiscoverGateSheet();
                       return;
                     }
-                    notifier.refreshTokenBalance(result.newBalance);
                     await notifier.resetToday();
-                    // Explicit kick to discoverName — the screen no longer
-                    // auto-fires from build, so the next muhasabah cycle
-                    // must be started from the call site that wanted it.
                     if (!mounted) return;
                     await notifier.discoverName();
+                    // Decrement on success — mirrors reflect provider's
+                    // post-success markUsed pattern. discoverName has no
+                    // observable failure mode here (it's an in-app card pick
+                    // backed by a local lookup), so it's safe to mark used
+                    // immediately after the call.
+                    await GatingService().markUsed(GatedFeature.discoverName);
                   },
                   child: Container(
                     width: double.infinity,
@@ -762,26 +708,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                             style: AppTypography.labelLarge.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.toll,
-                                  size: 10, color: Colors.white),
-                              const SizedBox(width: 2),
-                              Text('$tokenCostReflection',
-                                  style: AppTypography.labelSmall.copyWith(
-                                      color: Colors.white, fontSize: 10)),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),

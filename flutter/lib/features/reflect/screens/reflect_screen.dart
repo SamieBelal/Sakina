@@ -10,11 +10,11 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
-import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
-import 'package:sakina/widgets/token_gate_sheet.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 class ReflectScreen extends ConsumerStatefulWidget {
@@ -83,14 +83,33 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         _achievementChecked = false;
       }
 
-      if (next.needsToken && !(prev?.needsToken ?? false)) {
-        showTokenGateSheet(
+      if (next.gateResult != null && prev?.gateResult == null) {
+        // Free users blocked by the 1/day cap (or lapsed-trialer skip) and
+        // premium users hitting fair-use both surface the daily-cap sheet.
+        // Premium fair-use intentionally renders the same chrome with the
+        // upgrade CTA as a no-op (already paying) — that wiring lives in the
+        // upgrade callback below.
+        // TODO(paywall-routing): when in-app paywall presenter lands, also
+        // fire WarmupExhaustedSheet on the transition moment when warmup
+        // remaining drops from 1 to 0 (currently shown alongside the
+        // daily-cap sheet on the next block).
+        final isPremiumFairUse =
+            next.gateResult!.reason == GateReason.premiumFairUse;
+        Future<void> upgrade() async {
+          // TODO(paywall-routing): wire to the in-app subscribe flow.
+          // For premium fair-use this is a no-op intentionally.
+          if (isPremiumFairUse) return;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Subscribe to unlock unlimited')),
+            );
+          }
+        }
+        DailyCapSheet.show(
           context,
-          featureName: 'Reflect',
-          cost: tokenCostReflection,
-        ).then((approved) {
-          if (approved) notifier.submitWithToken();
-        });
+          feature: GatedFeature.reflect,
+          onUpgrade: upgrade,
+        ).whenComplete(notifier.dismissGate);
       }
       // Show upgrade sheet when the free journal limit is hit
       if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {

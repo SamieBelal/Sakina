@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
@@ -82,10 +83,14 @@ void main() {
         ],
       );
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
+    // Default test users into the post-warmup "capped" phase so legacy
+    // assertions on daily-counter increments remain meaningful. The warmup
+    // phase is exercised in dedicated GatingService tests.
+    await GatingService().debugSetHadTrial(true);
   });
 
   tearDown(SupabaseSyncService.debugReset);
@@ -346,11 +351,10 @@ void main() {
   });
 
   test(
-      'token-gated builds can continue with token without consuming free usage',
-      () async {
-    for (var i = 0; i < dailyFreeBuiltDuas; i++) {
-      await incrementBuiltDuaUsage();
-    }
+      'submitBuild blocked by gating service surfaces buildGateResult and '
+      'dismissBuildGate clears it without consuming usage', () async {
+    await GatingService().debugSetHadTrial(true);
+    await incrementBuiltDuaUsage();
 
     final notifier = DuasNotifier(
       loadOnInit: false,
@@ -358,7 +362,7 @@ void main() {
         findDuas: (_) async => findResponse(),
         buildDua: (_) async => buildResponse(),
         now: () => fixedNow,
-        createId: () => 'dua-token',
+        createId: () => 'dua-gated',
       ),
       resultRevealDelay: Duration.zero,
     );
@@ -367,12 +371,13 @@ void main() {
     notifier.setBuildNeed('Ease my heart');
     await notifier.submitBuild();
 
-    expect(notifier.state.buildNeedsToken, isTrue);
-    expect(await getBuiltDuaUsageToday(), dailyFreeBuiltDuas);
+    expect(notifier.state.buildGateResult, isNotNull);
+    expect(notifier.state.buildGateResult!.allowed, isFalse);
+    expect(notifier.state.buildResult, isNull);
+    expect(await getBuiltDuaUsageToday(), 1);
 
-    await notifier.submitBuildWithToken();
-    expect(notifier.state.buildResult, isNotNull);
-    expect(await getBuiltDuaUsageToday(), dailyFreeBuiltDuas);
+    notifier.dismissBuildGate();
+    expect(notifier.state.buildGateResult, isNull);
   });
 
   test('find failures surface an error without mutating prior state', () async {
