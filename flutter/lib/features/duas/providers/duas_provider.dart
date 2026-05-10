@@ -431,7 +431,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
 
   /// Synchronous re-entry flag. Flipped true at the very top of
   /// [submitBuild] / [submitBuildWithToken] BEFORE any `await`, so a second
-  /// tap that lands while the first is still inside `canBuildDuaFree()` is
+  /// tap that lands while the first is still inside `GatingService.canUse()` is
   /// rejected. Using `state.buildLoading` for this is not enough: that flag
   /// is only set inside `_doBuild`, which runs after the async free-check —
   /// so two taps race past it and both increment the counter. Regression for
@@ -443,12 +443,16 @@ class DuasNotifier extends StateNotifier<DuasState> {
     if (state.buildNeed.trim().isEmpty) return;
     _submitInFlight = true;
     try {
-      final gate = await GatingService().canUse(GatedFeature.builtDua);
+      // Resolve premium status ONCE for the whole submit cycle so canUse and
+      // the follow-on markUsed share a single RevenueCat round-trip.
+      final premium = await PurchaseService().isPremium();
+      final gate = await GatingService()
+          .canUse(GatedFeature.builtDua, isPremiumHint: premium);
       if (!gate.allowed) {
         state = state.copyWith(buildGateResult: gate);
         return;
       }
-      await _doBuild(consumeFreeUsage: true);
+      await _doBuild(consumeFreeUsage: true, isPremiumHint: premium);
     } finally {
       _submitInFlight = false;
     }
@@ -500,7 +504,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
     return false;
   }
 
-  Future<void> _doBuild({bool consumeFreeUsage = false}) async {
+  Future<void> _doBuild({
+    bool consumeFreeUsage = false,
+    bool? isPremiumHint,
+  }) async {
     // Check for off-topic or harmful input
     if (_isDuaOffTopic(state.buildNeed)) {
       state = state.copyWith(
@@ -545,7 +552,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // this gate is the same signal — keep them in sync.
       UsageOutcome? outcome;
       if (consumeFreeUsage && result.breakdown.isNotEmpty) {
-        outcome = await GatingService().markUsed(GatedFeature.builtDua);
+        outcome = await GatingService().markUsed(
+          GatedFeature.builtDua,
+          isPremiumHint: isPremiumHint,
+        );
       }
       _progressTimer?.cancel();
       // Jump to 100%

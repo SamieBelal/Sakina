@@ -12,9 +12,13 @@ class _FakePurchaseService extends PurchaseService {
 
   bool premium = false;
   bool trial = false;
+  int isPremiumCallCount = 0;
 
   @override
-  Future<bool> isPremium() async => premium;
+  Future<bool> isPremium() async {
+    isPremiumCallCount++;
+    return premium;
+  }
 
   @override
   Future<bool> hadTrial() async => trial;
@@ -117,23 +121,36 @@ void main() {
       });
     }
 
-    test('warmup write uses upsertRawRow with id (NOT upsertRow which would '
-        'inject user_id and silently fail on user_profiles)', () async {
-      await gating.markUsed(GatedFeature.reflect);
-      // Regression for the 2026-05-10 sim-test bug where warmup writes used
-      // upsertRow (auto-injects user_id), which silently failed because
-      // user_profiles primary key is `id`, not `user_id`.
-      expect(fakeSync.upsertCalls, isEmpty,
-          reason: 'must NOT use upsertRow (injects user_id)');
-      final profileWrites = fakeSync.rawUpsertCalls
-          .where((c) => c['table'] == 'user_profiles')
-          .toList();
-      expect(profileWrites, hasLength(1));
-      final data = profileWrites.single['data'] as Map;
-      expect(data['warmup_reflect_remaining'], 9);
-      expect(data['id'], isNotNull,
-          reason: 'must include id so upsert matches the existing row');
-    });
+    // Regression for the 2026-05-10 sim-test bug where warmup writes used
+    // upsertRow (auto-injects user_id), which silently failed because
+    // user_profiles primary key is `id`, not `user_id`. Loops over every
+    // GatedFeature so a future refactor that fixes one branch but regresses
+    // another is caught.
+    final expectedColumns = <GatedFeature, String>{
+      GatedFeature.reflect: 'warmup_reflect_remaining',
+      GatedFeature.builtDua: 'warmup_built_dua_remaining',
+      GatedFeature.discoverName: 'warmup_discover_name_remaining',
+    };
+    for (final feature in GatedFeature.values) {
+      test(
+          '${feature.name}: warmup write uses upsertRawRow with id (NOT '
+          'upsertRow which would inject user_id and silently fail on '
+          'user_profiles)', () async {
+        await gating.markUsed(feature);
+        expect(fakeSync.upsertCalls, isEmpty,
+            reason: 'must NOT use upsertRow (injects user_id)');
+        final profileWrites = fakeSync.rawUpsertCalls
+            .where((c) => c['table'] == 'user_profiles')
+            .toList();
+        expect(profileWrites, hasLength(1));
+        final data = profileWrites.single['data'] as Map;
+        final expectedColumn = expectedColumns[feature]!;
+        expect(data[expectedColumn], GatingService.warmupBudget[feature]! - 1,
+            reason: 'must write to the correct snake_case column for $feature');
+        expect(data['id'], isNotNull,
+            reason: 'must include id so upsert matches the existing row');
+      });
+    }
   });
 
   group('Free + capped (warmup exhausted)', () {
@@ -307,6 +324,57 @@ void main() {
     });
   });
 
+  group('isPremiumHint plumbing — single-RC-roundtrip optimization', () {
+    test('canUse with isPremiumHint skips PurchaseService.isPremium()',
+        () async {
+      fakePurchase.premium = true;
+      fakePurchase.isPremiumCallCount = 0;
+
+      final result = await gating.canUse(
+        GatedFeature.reflect,
+        isPremiumHint: true,
+      );
+
+      expect(result.allowed, isTrue);
+      expect(result.reason, GateReason.ok);
+      expect(fakePurchase.isPremiumCallCount, 0,
+          reason: 'hint must short-circuit the RC round-trip');
+    });
+
+    test('markUsed with isPremiumHint skips PurchaseService.isPremium()',
+        () async {
+      fakePurchase.premium = true;
+      fakePurchase.isPremiumCallCount = 0;
+
+      await gating.markUsed(GatedFeature.reflect, isPremiumHint: true);
+
+      expect(fakePurchase.isPremiumCallCount, 0,
+          reason: 'hint must short-circuit the RC round-trip');
+    });
+
+    test('canUse without hint still calls isPremium() (backwards-compat)',
+        () async {
+      fakePurchase.premium = false;
+      fakePurchase.isPremiumCallCount = 0;
+
+      await gating.canUse(GatedFeature.reflect);
+
+      expect(fakePurchase.isPremiumCallCount, 1);
+    });
+
+    test('hint=false routes to free path even when actual user is premium '
+        '(hint is authoritative — caller takes responsibility)', () async {
+      fakePurchase.premium = true; // Real status: premium.
+      // Caller passes hint=false anyway. Gating must trust the hint.
+      final result = await gating.canUse(
+        GatedFeature.reflect,
+        isPremiumHint: false,
+      );
+      expect(result.reason, GateReason.warmupRemaining,
+          reason: 'hint overrides the underlying RC state');
+    });
+  });
+
   group('hydrateFromProfile', () {
     test(
         'overwrites local warmup counters AND had_trial latch from server '
@@ -358,6 +426,40 @@ void main() {
       final blocked = await gating.canUse(GatedFeature.reflect);
       expect(blocked.allowed, false);
       expect(blocked.reason, GateReason.hadTrialNoBudget);
+    });
+
+    test(
+        'writes only under the current user scope — does not leak into '
+        'another user (multi-account device safety)', () async {
+      // user-1 receives a lapsed-trialer profile.
+      await gating.hydrateFromProfile({
+        'warmup_reflect_remaining': 0,
+        'warmup_built_dua_remaining': 0,
+        'warmup_discover_name_remaining': 0,
+        'had_trial': true,
+      });
+
+      // Switch to user-2 — fresh user, no profile hydration yet.
+      fakeSync.userId = 'user-2';
+
+      final prefs = await SharedPreferences.getInstance();
+      // user-2's keys must NOT carry user-1's lapsed-trialer state.
+      expect(
+        prefs.getBool(fakeSync.scopedKey('had_trial')),
+        isNull,
+        reason: 'had_trial latch must NOT leak across users',
+      );
+      expect(
+        prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')),
+        isNull,
+        reason: 'warmup counters must NOT leak across users',
+      );
+
+      // Behavioral confirmation: user-2 still gets a fresh warmup phase.
+      final result = await gating.canUse(GatedFeature.reflect);
+      expect(result.allowed, isTrue);
+      expect(result.reason, GateReason.warmupRemaining,
+          reason: 'user-2 must land in warmup phase, not lapsed-trialer phase');
     });
 
     test('skips fields that are missing or wrong type without crashing',

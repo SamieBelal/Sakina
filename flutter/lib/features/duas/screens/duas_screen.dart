@@ -11,7 +11,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
@@ -75,7 +75,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     final state = ref.watch(duasProvider);
     final notifier = ref.read(duasProvider.notifier);
 
-    // Show token gate sheet when build-a-dua hits free limit
+    // Surface freemium-gating sheets (daily-cap + warmup-exhausted) when the
+    // gating layer blocks a build or signals the warmup→0 transition.
     ref.listen<DuasState>(duasProvider, (prev, next) {
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from
@@ -87,19 +88,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         _buildController.clear();
       }
       if (next.buildGateResult != null && prev?.buildGateResult == null) {
-        final isPremiumFairUse =
-            next.buildGateResult!.reason == GateReason.premiumFairUse;
-        Future<void> upgrade() async {
-          // Premium fair-use is a no-op — user is already paying.
-          if (isPremiumFairUse) return;
-          if (mounted) {
-            GoRouter.of(context).push('/paywall');
-          }
-        }
         DailyCapSheet.show(
           context,
           feature: GatedFeature.builtDua,
-          onUpgrade: upgrade,
+          onUpgrade: buildPaywallUpgradeCallback(
+            reason: next.buildGateResult!.reason,
+            pushPaywall: () {
+              if (mounted) GoRouter.of(context).push('/paywall');
+            },
+          ),
         ).whenComplete(notifier.dismissBuildGate);
       }
       // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL build that

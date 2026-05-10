@@ -55,8 +55,10 @@ class LapsedTrialSheet extends StatelessWidget {
       return "You've explored what Premium feels like. One reflection a day "
           'is yours forever — or unlock unlimited again.';
     }
-    return 'In your 3-day trial, you reflected $reflectsDuringTrial times '
-        'across $daysActiveDuringTrial days. Premium keeps that pace going.';
+    final timesWord = reflectsDuringTrial == 1 ? 'time' : 'times';
+    final daysWord = daysActiveDuringTrial == 1 ? 'day' : 'days';
+    return 'In your 3-day trial, you reflected $reflectsDuringTrial $timesWord '
+        'across $daysActiveDuringTrial $daysWord. Premium keeps that pace going.';
   }
 
   @override

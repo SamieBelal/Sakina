@@ -315,6 +315,22 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   final ReflectDependencies _dependencies;
   bool _consumeFreeUsageOnSuccess = false;
 
+  /// Captured during [submit] alongside `_consumeFreeUsageOnSuccess` so the
+  /// follow-on [GatingService.markUsed] call can skip a redundant
+  /// `PurchaseService().isPremium()` round-trip (RevenueCat method-channel
+  /// hop). Cleared in the same paths that clear `_consumeFreeUsageOnSuccess`.
+  bool? _premiumAtSubmit;
+
+  /// Synchronous re-entry flag. Flipped true at the very top of [submit]
+  /// BEFORE any `await`, so a second tap that lands while the first is still
+  /// inside `GatingService.canUse()` is rejected. Using
+  /// `state.screenState == loading` for this is not enough: that flag is only
+  /// set inside `_doSubmit`, which runs after the async gate-check — so two
+  /// taps race past it and both increment the counter. Mirrors the duas
+  /// `_submitInFlight` regression fix from §7 D-E5 (2026-04-26, verified live
+  /// with `built_dua_uses=2` after a single double-tap).
+  bool _submitInFlight = false;
+
   void setUserText(String text) {
     state = state.copyWith(userText: text);
   }
@@ -343,13 +359,28 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Submit user text. Checks the gating layer first; if blocked, exposes the
   /// [GateResult] on state for the screen to render the right paywall sheet.
   Future<void> submit() async {
-    final gate = await GatingService().canUse(GatedFeature.reflect);
-    if (!gate.allowed) {
-      state = state.copyWith(gateResult: gate);
+    if (_submitInFlight ||
+        state.screenState == ReflectScreenState.loading) {
       return;
     }
-    _consumeFreeUsageOnSuccess = true;
-    await _doSubmit();
+    _submitInFlight = true;
+    try {
+      // Resolve premium status ONCE for this submit cycle. Both canUse and
+      // the follow-on markUsed need it; without the cache each one fires its
+      // own RevenueCat method-channel hop.
+      final premium = await PurchaseService().isPremium();
+      final gate = await GatingService()
+          .canUse(GatedFeature.reflect, isPremiumHint: premium);
+      if (!gate.allowed) {
+        state = state.copyWith(gateResult: gate);
+        return;
+      }
+      _premiumAtSubmit = premium;
+      _consumeFreeUsageOnSuccess = true;
+      await _doSubmit();
+    } finally {
+      _submitInFlight = false;
+    }
   }
 
   Future<void> _doSubmit() async {
@@ -372,6 +403,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       }
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
+      _premiumAtSubmit = null;
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
@@ -460,6 +492,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Reset to input state (preserves saved reflections).
   void reset() {
     _consumeFreeUsageOnSuccess = false;
+    _premiumAtSubmit = null;
     state = ReflectState(savedReflections: state.savedReflections);
   }
 
@@ -477,6 +510,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
 
       if (response.offTopic) {
         _consumeFreeUsageOnSuccess = false;
+        _premiumAtSubmit = null;
         state = state.copyWith(
           screenState: ReflectScreenState.offtopic,
           result: response,
@@ -488,8 +522,12 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           currentStep: ReflectStep.name,
         );
         if (_consumeFreeUsageOnSuccess) {
-          final outcome = await GatingService().markUsed(GatedFeature.reflect);
+          final outcome = await GatingService().markUsed(
+            GatedFeature.reflect,
+            isPremiumHint: _premiumAtSubmit,
+          );
           _consumeFreeUsageOnSuccess = false;
+          _premiumAtSubmit = null;
           if (outcome == UsageOutcome.warmupJustExhausted) {
             state =
                 state.copyWith(warmupJustExhausted: GatedFeature.reflect);
@@ -504,6 +542,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       }
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
+      _premiumAtSubmit = null;
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',

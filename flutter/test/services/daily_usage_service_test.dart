@@ -104,35 +104,10 @@ void main() {
     expect(data['reflect_uses'], 2);
   });
 
-  test('canReflectFree respects 1/day free limit', () async {
-    expect(await canReflectFree(), true);
-    expect(await reflectFreeRemaining(), dailyFreeReflects);
-
-    await incrementReflectUsage();
-
-    expect(await canReflectFree(), false);
-    expect(await reflectFreeRemaining(), 0);
-  });
-
-  test('canBuildDuaFree respects 1/day free limit', () async {
-    expect(await canBuildDuaFree(), true);
-    expect(await builtDuaFreeRemaining(), dailyFreeBuiltDuas);
-
-    await incrementBuiltDuaUsage();
-
-    expect(await canBuildDuaFree(), false);
-    expect(await builtDuaFreeRemaining(), 0);
-  });
-
-  test('canDiscoverNameFree respects 1/day free limit', () async {
-    expect(await canDiscoverNameFree(), true);
-    expect(await discoverNameFreeRemaining(), dailyFreeDiscoverNames);
-
-    await incrementDiscoverNameUsage();
-
-    expect(await canDiscoverNameFree(), false);
-    expect(await discoverNameFreeRemaining(), 0);
-  });
+  // The legacy `canXxxFree` / `xxxFreeRemaining` helpers were deleted with
+  // the freemium tier redesign (2026-05-09): policy now lives in
+  // GatingService.canUse(). The 1/day cap is exercised via gating_service_test
+  // (Free + capped group) — daily_usage_service is now just a counter store.
 
   test('daily caps lock to 1 per spec (regression)', () {
     expect(dailyFreeReflects, 1);

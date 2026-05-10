@@ -117,7 +117,7 @@ void main() {
       'two synchronous submitBuild calls in the same microtask only run the AI once',
       () async {
     // Pre-loading race: previously, two taps fired before the first call
-    // returned from `canBuildDuaFree()` would BOTH pass the
+    // returned from `GatingService.canUse()` would BOTH pass the
     // `state.buildLoading` guard (since `_doBuild` only sets that flag after
     // the async free-check). Caught live on sim 2026-04-26 with
     // `built_dua_uses=2` after a single user double-tap. The fix is a

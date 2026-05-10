@@ -79,8 +79,15 @@ class GatingService {
     GatedFeature.discoverName: 5,
   };
 
-  Future<GateResult> canUse(GatedFeature feature) async {
-    final isPremium = await PurchaseService().isPremium();
+  /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
+  /// when premium status was already resolved upstream. Pair with
+  /// [markUsed]'s identical hint to keep the whole submit cycle to a single
+  /// `PurchaseService().isPremium()` call.
+  Future<GateResult> canUse(
+    GatedFeature feature, {
+    bool? isPremiumHint,
+  }) async {
+    final isPremium = isPremiumHint ?? await PurchaseService().isPremium();
     if (isPremium) {
       final usedToday = await _getUsageToday(feature);
       if (usedToday >= premiumDailyFairUseCap) {
@@ -119,8 +126,16 @@ class GatingService {
   /// when this call decrements warmup from 1 to 0 — the screen layer uses that
   /// signal to fire [WarmupExhaustedSheet] exactly once per feature. All other
   /// paths return [UsageOutcome.ok].
-  Future<UsageOutcome> markUsed(GatedFeature feature) async {
-    final isPremium = await PurchaseService().isPremium();
+  ///
+  /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
+  /// when premium status was already resolved during the same submit cycle
+  /// (typically in [canUse]). Pass the boolean returned from there. Falls back
+  /// to a fresh `PurchaseService().isPremium()` check when omitted.
+  Future<UsageOutcome> markUsed(
+    GatedFeature feature, {
+    bool? isPremiumHint,
+  }) async {
+    final isPremium = isPremiumHint ?? await PurchaseService().isPremium();
     if (isPremium) {
       await _incrementDaily(feature);
       return UsageOutcome.ok;
@@ -240,7 +255,12 @@ class GatingService {
 
   // ---- had_trial latch ----------------------------------------------------
 
-  static const String _hadTrialBaseKey = 'had_trial';
+  /// Shared SharedPreferences base key for the had_trial latch. Both
+  /// [PurchaseService.hadTrial] (writer) and [_readHadTrial] (reader) MUST use
+  /// the same key — declared here as the single source of truth.
+  static const String hadTrialPrefsBaseKey = 'had_trial';
+
+  static const String _hadTrialBaseKey = hadTrialPrefsBaseKey;
 
   Future<bool> _readHadTrial() async {
     final prefs = await SharedPreferences.getInstance();

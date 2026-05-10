@@ -42,21 +42,6 @@ Future<int> getDiscoverNameUsageToday() async {
   return prefs.getInt(_todayKey('discover_name')) ?? 0;
 }
 
-Future<bool> canReflectFree() async {
-  final used = await getReflectUsageToday();
-  return used < dailyFreeReflects;
-}
-
-Future<bool> canBuildDuaFree() async {
-  final used = await getBuiltDuaUsageToday();
-  return used < dailyFreeBuiltDuas;
-}
-
-Future<bool> canDiscoverNameFree() async {
-  final used = await getDiscoverNameUsageToday();
-  return used < dailyFreeDiscoverNames;
-}
-
 Future<int> incrementReflectUsage() async {
   final prefs = await SharedPreferences.getInstance();
   final key = _todayKey('reflect');
@@ -85,24 +70,6 @@ Future<int> incrementDiscoverNameUsage() async {
   await prefs.setInt(key, updated);
   await _upsertToday(prefs);
   return updated;
-}
-
-/// Returns how many free uses remain today for reflect.
-Future<int> reflectFreeRemaining() async {
-  final used = await getReflectUsageToday();
-  return (dailyFreeReflects - used).clamp(0, dailyFreeReflects);
-}
-
-/// Returns how many free uses remain today for build-a-dua.
-Future<int> builtDuaFreeRemaining() async {
-  final used = await getBuiltDuaUsageToday();
-  return (dailyFreeBuiltDuas - used).clamp(0, dailyFreeBuiltDuas);
-}
-
-/// Returns how many free uses remain today for discover-name.
-Future<int> discoverNameFreeRemaining() async {
-  final used = await getDiscoverNameUsageToday();
-  return (dailyFreeDiscoverNames - used).clamp(0, dailyFreeDiscoverNames);
 }
 
 Future<void> _upsertToday(SharedPreferences prefs) async {

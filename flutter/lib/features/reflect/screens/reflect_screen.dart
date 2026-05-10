@@ -12,7 +12,7 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
@@ -76,7 +76,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     final state = ref.watch(reflectProvider);
     final notifier = ref.read(reflectProvider.notifier);
 
-    // Show token gate sheet when the free limit is hit
+    // Surface freemium-gating sheets (daily-cap + warmup-exhausted) when the
+    // gating layer blocks a submit or signals the warmup→0 transition.
     ref.listen<ReflectState>(reflectProvider, (prev, next) {
       // Clear text field when returning to input screen
       if (next.screenState == ReflectScreenState.input &&
@@ -86,25 +87,15 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       }
 
       if (next.gateResult != null && prev?.gateResult == null) {
-        // Free users blocked by the 1/day cap (or lapsed-trialer skip) and
-        // premium users hitting fair-use both surface the daily-cap sheet.
-        // Premium fair-use intentionally renders the same chrome with the
-        // upgrade CTA as a no-op (already paying) — that wiring lives in the
-        // upgrade callback below.
-        final isPremiumFairUse =
-            next.gateResult!.reason == GateReason.premiumFairUse;
-        Future<void> upgrade() async {
-          // Premium users hitting fair-use must not be routed to a paywall —
-          // they're already paying. The sheet's primary CTA becomes a no-op.
-          if (isPremiumFairUse) return;
-          if (mounted) {
-            GoRouter.of(context).push('/paywall');
-          }
-        }
         DailyCapSheet.show(
           context,
           feature: GatedFeature.reflect,
-          onUpgrade: upgrade,
+          onUpgrade: buildPaywallUpgradeCallback(
+            reason: next.gateResult!.reason,
+            pushPaywall: () {
+              if (mounted) GoRouter.of(context).push('/paywall');
+            },
+          ),
         ).whenComplete(notifier.dismissGate);
       }
       // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL reflect

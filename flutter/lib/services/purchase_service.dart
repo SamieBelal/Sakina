@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -107,7 +108,7 @@ class PurchaseService {
   Future<bool> hadTrial() async {
     final prefs = await SharedPreferences.getInstance();
     final scopedKey =
-        supabaseSyncService.scopedKey(_hadTrialPrefsBaseKey);
+        supabaseSyncService.scopedKey(GatingService.hadTrialPrefsBaseKey);
     final cached = prefs.getBool(scopedKey);
     if (cached == true) return true;
 
@@ -145,7 +146,6 @@ class PurchaseService {
     }
   }
 
-  static const String _hadTrialPrefsBaseKey = 'had_trial';
 
   Future<List<Package>> getOfferings() async {
     if (!_initialized) return [];

@@ -239,6 +239,105 @@ void main() {
     expect(notifier.state.gateResult, isNull);
   });
 
+  test(
+      'off-topic responses do NOT consume free usage — retrying consumes only '
+      'once (pins _consumeFreeUsageOnSuccess reset on offTopic branch)',
+      () async {
+    var aiCallCount = 0;
+    final notifier = ReflectNotifier(
+      loadOnInit: false,
+      dependencies: ReflectDependencies(
+        getFollowUpQuestions: (_) async => const [],
+        reflect: (_) async {
+          aiCallCount++;
+          // First call: off-topic. Second call: on-topic.
+          return successResponse(offTopic: aiCallCount == 1);
+        },
+        now: () => fixedNow,
+        createId: () => 'reflection-offtopic-retry',
+      ),
+    );
+    addTearDown(notifier.dispose);
+
+    notifier.setUserText('hi');
+    await notifier.submit();
+    expect(notifier.state.screenState, ReflectScreenState.offtopic,
+        reason: 'first call surfaces off-topic state');
+    expect(await getReflectUsageToday(), 0,
+        reason: 'off-topic must NOT consume usage');
+
+    notifier.setUserText('I feel lost');
+    await notifier.submit();
+    expect(notifier.state.screenState, ReflectScreenState.result);
+    expect(await getReflectUsageToday(), 1,
+        reason:
+            'on-topic retry consumes EXACTLY one — flag was reset by off-topic '
+            'branch and re-armed by the second submit');
+  });
+
+  test(
+      'exception in _reflect resets _consumeFreeUsageOnSuccess — retry '
+      'consumes only once', () async {
+    var aiCallCount = 0;
+    final notifier = ReflectNotifier(
+      loadOnInit: false,
+      dependencies: ReflectDependencies(
+        getFollowUpQuestions: (_) async => const [],
+        reflect: (_) async {
+          aiCallCount++;
+          if (aiCallCount == 1) throw Exception('first call boom');
+          return successResponse();
+        },
+        now: () => fixedNow,
+        createId: () => 'reflection-retry-after-exception',
+      ),
+    );
+    addTearDown(notifier.dispose);
+
+    notifier.setUserText('I feel lost');
+    await notifier.submit();
+    expect(notifier.state.error, isNotNull);
+    expect(await getReflectUsageToday(), 0);
+
+    notifier.setUserText('I feel lost again');
+    await notifier.submit();
+    expect(notifier.state.screenState, ReflectScreenState.result);
+    expect(await getReflectUsageToday(), 1,
+        reason:
+            'retry after exception must consume exactly one — flag must have '
+            'been reset by the catch block');
+  });
+
+  test(
+      'warmup 1 → 0 transition surfaces warmupJustExhausted on state; '
+      'dismissWarmupExhausted clears it', () async {
+    // Reset the global setUp's had_trial=true so we exercise the warmup phase.
+    await GatingService().debugSetHadTrial(false);
+    await GatingService().debugSetWarmupRemaining(GatedFeature.reflect, 1);
+
+    final notifier = ReflectNotifier(
+      loadOnInit: false,
+      dependencies: ReflectDependencies(
+        getFollowUpQuestions: (_) async => const [],
+        reflect: (_) async => successResponse(),
+        now: () => fixedNow,
+        createId: () => 'reflection-warmup-exhaust',
+      ),
+    );
+    addTearDown(notifier.dispose);
+
+    notifier.setUserText('I feel lost');
+    await notifier.submit();
+
+    expect(notifier.state.screenState, ReflectScreenState.result);
+    expect(notifier.state.warmupJustExhausted, GatedFeature.reflect,
+        reason: 'one-shot signal must fire on the 1→0 transition');
+
+    notifier.dismissWarmupExhausted();
+    expect(notifier.state.warmupJustExhausted, isNull,
+        reason: 'dismiss must clear the one-shot signal');
+  });
+
   test('AI failures do not consume free usage and surface an error', () async {
     final notifier = ReflectNotifier(
       loadOnInit: false,

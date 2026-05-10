@@ -17,6 +17,8 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
@@ -190,11 +192,16 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // CHECK-IN RESULT (Name card + Go Deeper)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showDiscoverGateSheet() {
+  void _showDiscoverGateSheet(GateReason reason) {
     DailyCapSheet.show(
       context,
       feature: GatedFeature.discoverName,
-      onUpgrade: () => GoRouter.of(context).push('/paywall'),
+      onUpgrade: buildPaywallUpgradeCallback(
+        reason: reason,
+        pushPaywall: () {
+          if (mounted) GoRouter.of(context).push('/paywall');
+        },
+      ),
     );
   }
 
@@ -664,10 +671,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     // Gating layer enforces the 1/day cap (or warmup) for
                     // discover_name. No tokens are charged — caps replaced
                     // the token economy gate per the freemium redesign.
-                    final gate = await GatingService()
-                        .canUse(GatedFeature.discoverName);
+                    // Resolve premium ONCE so canUse + markUsed share a single
+                    // RevenueCat round-trip.
+                    final premium = await PurchaseService().isPremium();
+                    final gate = await GatingService().canUse(
+                      GatedFeature.discoverName,
+                      isPremiumHint: premium,
+                    );
                     if (!gate.allowed) {
-                      if (mounted) _showDiscoverGateSheet();
+                      if (mounted) _showDiscoverGateSheet(gate.reason);
                       return;
                     }
                     await notifier.resetToday();
@@ -678,8 +690,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     // observable failure mode here (it's an in-app card pick
                     // backed by a local lookup), so it's safe to mark used
                     // immediately after the call.
-                    final outcome = await GatingService()
-                        .markUsed(GatedFeature.discoverName);
+                    final outcome = await GatingService().markUsed(
+                      GatedFeature.discoverName,
+                      isPremiumHint: premium,
+                    );
                     if (outcome == UsageOutcome.warmupJustExhausted &&
                         mounted) {
                       WarmupExhaustedSheet.show(
