@@ -59,7 +59,7 @@ void main() {
 
     final decision = await resolveLapsedTrialDecision();
     expect(decision, isNotNull);
-    expect(decision!.activity.reflectsDuringTrial, 0,
+    expect(decision!.activity.momentsDuringTrial, 0,
         reason: 'no usage today, fallback copy will render');
     expect(decision.activity.daysActiveDuringTrial, 0);
   });
@@ -90,7 +90,7 @@ void main() {
     await incrementDiscoverNameUsage();
 
     final decision = await resolveLapsedTrialDecision();
-    expect(decision!.activity.reflectsDuringTrial, 4);
+    expect(decision!.activity.momentsDuringTrial, 4);
     expect(decision.activity.daysActiveDuringTrial, 1);
   });
 

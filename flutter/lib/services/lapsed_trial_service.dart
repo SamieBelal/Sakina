@@ -9,7 +9,9 @@ import 'package:sakina/services/supabase_sync_service.dart';
 //
 // Decides whether the LapsedTrialSheet should fire on a given app launch
 // and computes the activity stats it shows ("In your 3-day trial, you
-// reflected X times across Y days...").
+// showed up X times across Y days..."). The "moments" tally is an
+// activity-agnostic sum of reflects + built-duas + discovered-names —
+// any spiritual action the user took during their trial counts.
 //
 // Trigger conditions (all must be true):
 //   1. RevenueCat history shows the user had a trial (`hadTrial() == true`)
@@ -22,11 +24,14 @@ import 'package:sakina/services/supabase_sync_service.dart';
 const String _shownFlagBaseKey = 'lapsed_trial_sheet_shown';
 
 class LapsedTrialActivity {
-  final int reflectsDuringTrial;
+  /// Total spiritual actions the user took during their trial window —
+  /// sum of reflects + built duas + discovered names. Named generically
+  /// because the displayed copy ("you showed up N times") is action-agnostic.
+  final int momentsDuringTrial;
   final int daysActiveDuringTrial;
 
   const LapsedTrialActivity({
-    required this.reflectsDuringTrial,
+    required this.momentsDuringTrial,
     required this.daysActiveDuringTrial,
   });
 }
@@ -83,7 +88,7 @@ Future<LapsedTrialActivity> _resolveActivity() async {
   final total = reflects + builtDuas + discoverNames;
   final daysActive = total > 0 ? 1 : 0;
   return LapsedTrialActivity(
-    reflectsDuringTrial: total,
+    momentsDuringTrial: total,
     daysActiveDuringTrial: daysActive,
   );
 }

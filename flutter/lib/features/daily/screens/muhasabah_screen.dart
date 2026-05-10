@@ -33,6 +33,14 @@ class MuhasabahScreen extends ConsumerStatefulWidget {
 }
 
 class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
+  /// Synchronous re-entry guard for the "Seek Another Name" CTA. Mirrors
+  /// the progress_screen home dashboard guard. Set BEFORE any await; the
+  /// try/finally clears it on every exit including early returns. Without
+  /// this, a double-tap that lands while the first call is still inside
+  /// `GatingService.canUse()` passes the gate twice and `markUsed` fires
+  /// twice — same shape as the reflect/duas D-E5 race.
+  bool _discoverInFlight = false;
+
   @override
   void initState() {
     super.initState();
@@ -666,42 +674,50 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 // Seek Another Name — primary CTA
                 GestureDetector(
                   onTap: () async {
-                    HapticFeedback.mediumImpact();
-                    final notifier = ref.read(dailyLoopProvider.notifier);
-                    // Gating layer enforces the 1/day cap (or warmup) for
-                    // discover_name. No tokens are charged — caps replaced
-                    // the token economy gate per the freemium redesign.
-                    // Resolve premium ONCE so canUse + markUsed share a single
-                    // RevenueCat round-trip.
-                    final premium = await PurchaseService().isPremium();
-                    final gate = await GatingService().canUse(
-                      GatedFeature.discoverName,
-                      isPremiumHint: premium,
-                    );
-                    if (!gate.allowed) {
-                      if (mounted) _showDiscoverGateSheet(gate.reason);
-                      return;
-                    }
-                    await notifier.resetToday();
-                    if (!mounted) return;
-                    await notifier.discoverName();
-                    // Decrement on success — mirrors reflect provider's
-                    // post-success markUsed pattern. discoverName has no
-                    // observable failure mode here (it's an in-app card pick
-                    // backed by a local lookup), so it's safe to mark used
-                    // immediately after the call.
-                    final outcome = await GatingService().markUsed(
-                      GatedFeature.discoverName,
-                      isPremiumHint: premium,
-                    );
-                    if (outcome == UsageOutcome.warmupJustExhausted &&
-                        mounted) {
-                      WarmupExhaustedSheet.show(
-                        context,
-                        feature: GatedFeature.discoverName,
-                        onUpgrade: () =>
-                            GoRouter.of(context).push('/paywall'),
+                    // Synchronous re-entry guard — see field doc. Set BEFORE
+                    // any await; try/finally clears it on every exit.
+                    if (_discoverInFlight) return;
+                    _discoverInFlight = true;
+                    try {
+                      HapticFeedback.mediumImpact();
+                      final notifier = ref.read(dailyLoopProvider.notifier);
+                      // Gating layer enforces the 1/day cap (or warmup) for
+                      // discover_name. No tokens are charged — caps replaced
+                      // the token economy gate per the freemium redesign.
+                      // Resolve premium ONCE so canUse + markUsed share a
+                      // single RevenueCat round-trip.
+                      final premium = await PurchaseService().isPremium();
+                      final gate = await GatingService().canUse(
+                        GatedFeature.discoverName,
+                        isPremiumHint: premium,
                       );
+                      if (!gate.allowed) {
+                        if (mounted) _showDiscoverGateSheet(gate.reason);
+                        return;
+                      }
+                      await notifier.resetToday();
+                      if (!mounted) return;
+                      await notifier.discoverName();
+                      // Decrement on success — mirrors reflect provider's
+                      // post-success markUsed pattern. discoverName has no
+                      // observable failure mode here (it's an in-app card
+                      // pick backed by a local lookup), so it's safe to mark
+                      // used immediately after the call.
+                      final outcome = await GatingService().markUsed(
+                        GatedFeature.discoverName,
+                        isPremiumHint: premium,
+                      );
+                      if (outcome == UsageOutcome.warmupJustExhausted &&
+                          mounted) {
+                        WarmupExhaustedSheet.show(
+                          context,
+                          feature: GatedFeature.discoverName,
+                          onUpgrade: () =>
+                              GoRouter.of(context).push('/paywall'),
+                        );
+                      }
+                    } finally {
+                      _discoverInFlight = false;
                     }
                   },
                   child: Container(

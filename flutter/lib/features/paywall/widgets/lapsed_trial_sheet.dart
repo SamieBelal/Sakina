@@ -6,17 +6,21 @@ import 'warmup_exhausted_sheet.dart' show PaywallSheetScaffold;
 /// has lapsed without conversion. References the user's actual trial-period
 /// activity to make the upgrade prompt feel earned, not punitive.
 ///
-/// Falls back to generic copy if [reflectsDuringTrial] is 0 (we couldn't
+/// Falls back to generic copy if [momentsDuringTrial] is 0 (we couldn't
 /// resolve trial activity) so the sheet always renders sensible copy.
 class LapsedTrialSheet extends StatelessWidget {
-  final int reflectsDuringTrial;
+  /// Total spiritual actions the user took during their trial — reflects,
+  /// built duas, and discovered names summed together. The rendered copy
+  /// ("you showed up N times") is intentionally action-agnostic so the
+  /// number stays honest regardless of which features the user used.
+  final int momentsDuringTrial;
   final int daysActiveDuringTrial;
   final VoidCallback onUpgrade;
   final VoidCallback onDismiss;
 
   const LapsedTrialSheet({
     super.key,
-    required this.reflectsDuringTrial,
+    required this.momentsDuringTrial,
     required this.daysActiveDuringTrial,
     required this.onUpgrade,
     required this.onDismiss,
@@ -24,7 +28,7 @@ class LapsedTrialSheet extends StatelessWidget {
 
   static Future<void> show(
     BuildContext context, {
-    required int reflectsDuringTrial,
+    required int momentsDuringTrial,
     required int daysActiveDuringTrial,
     required VoidCallback onUpgrade,
   }) {
@@ -35,7 +39,7 @@ class LapsedTrialSheet extends StatelessWidget {
       barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (sheetContext) {
         return LapsedTrialSheet(
-          reflectsDuringTrial: reflectsDuringTrial,
+          momentsDuringTrial: momentsDuringTrial,
           daysActiveDuringTrial: daysActiveDuringTrial,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
@@ -48,16 +52,16 @@ class LapsedTrialSheet extends StatelessWidget {
   }
 
   String get _body {
-    // Fallback: zero reflects means we couldn't resolve trial activity (or
+    // Fallback: zero moments means we couldn't resolve trial activity (or
     // the user really did nothing during their trial — either way, generic
-    // copy reads better than "you reflected 0 times across 0 days").
-    if (reflectsDuringTrial <= 0) {
+    // copy reads better than "you showed up 0 times across 0 days").
+    if (momentsDuringTrial <= 0) {
       return "You've explored what Premium feels like. One reflection a day "
           'is yours forever — or unlock unlimited again.';
     }
-    final timesWord = reflectsDuringTrial == 1 ? 'time' : 'times';
+    final timesWord = momentsDuringTrial == 1 ? 'time' : 'times';
     final daysWord = daysActiveDuringTrial == 1 ? 'day' : 'days';
-    return 'In your 3-day trial, you reflected $reflectsDuringTrial $timesWord '
+    return 'In your 3-day trial, you showed up $momentsDuringTrial $timesWord '
         'across $daysActiveDuringTrial $daysWord. Premium keeps that pace going.';
   }
 

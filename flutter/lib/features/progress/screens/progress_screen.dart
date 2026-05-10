@@ -18,6 +18,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/lapsed_trial_service.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -88,6 +89,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _rewardCalendarExpanded = false;
   bool _launchGateReady = false;
 
+  /// Synchronous re-entry guard for the "Seek Another Name" CTA. Flipped
+  /// true at the very top of the GestureDetector onTap BEFORE any await, so
+  /// a second tap that lands while the first is still inside
+  /// `GatingService.canUse()` is rejected. Mirrors the duas/reflect D-E5
+  /// `_submitInFlight` regression fix — without it both taps pass the gate
+  /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
+  bool _discoverInFlight = false;
+
   @override
   void initState() {
     super.initState();
@@ -107,7 +116,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       if (!mounted) return;
       LapsedTrialSheet.show(
         context,
-        reflectsDuringTrial: decision.activity.reflectsDuringTrial,
+        momentsDuringTrial: decision.activity.momentsDuringTrial,
         daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
         onUpgrade: () => GoRouter.of(context).push('/paywall'),
       );
@@ -620,11 +629,21 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // Muhasabah Row (inside dashboard card)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  void _showDiscoverGateSheet(BuildContext context) {
+  void _showDiscoverGateSheet(BuildContext context, GateReason reason) {
     DailyCapSheet.show(
       context,
       feature: GatedFeature.discoverName,
-      onUpgrade: () => GoRouter.of(context).push('/paywall'),
+      // Premium users hitting the 30/day fair-use ceiling see the same sheet
+      // as free users hitting their 1/day cap, but the upgrade CTA must be a
+      // no-op for them — they're already paying. `buildPaywallUpgradeCallback`
+      // returns no-op for `premiumFairUse` and pushes /paywall otherwise.
+      // Mirrors the muhasabah_screen completed-state CTA.
+      onUpgrade: buildPaywallUpgradeCallback(
+        reason: reason,
+        pushPaywall: () {
+          if (mounted) GoRouter.of(context).push('/paywall');
+        },
+      ),
     );
   }
 
@@ -637,27 +656,39 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     if (completed) {
       return GestureDetector(
         onTap: () async {
-          HapticFeedback.mediumImpact();
-          final notifier = ref.read(dailyLoopProvider.notifier);
-          final gate = await GatingService().canUse(GatedFeature.discoverName);
-          if (!gate.allowed) {
-            if (mounted) _showDiscoverGateSheet(context);
-            return;
-          }
-          await notifier.resetToday();
-          if (!mounted) return;
-          context.push('/muhasabah');
-          // markUsed fires here (not on the muhasabah screen) because the
-          // discoverName flow is initiated from this CTA — the muhasabah
-          // route is just where the gacha animation plays out.
-          final outcome =
-              await GatingService().markUsed(GatedFeature.discoverName);
-          if (outcome == UsageOutcome.warmupJustExhausted && mounted) {
-            WarmupExhaustedSheet.show(
-              context,
-              feature: GatedFeature.discoverName,
-              onUpgrade: () => GoRouter.of(context).push('/paywall'),
-            );
+          // Synchronous re-entry guard. A double-tap that lands while the
+          // first call is still inside `GatingService.canUse()` previously
+          // passed the gate twice and fired `markUsed` twice — same shape as
+          // the reflect/duas D-E5 race. Set the flag BEFORE any await; the
+          // try/finally clears it on every exit including early returns.
+          if (_discoverInFlight) return;
+          _discoverInFlight = true;
+          try {
+            HapticFeedback.mediumImpact();
+            final notifier = ref.read(dailyLoopProvider.notifier);
+            final gate =
+                await GatingService().canUse(GatedFeature.discoverName);
+            if (!gate.allowed) {
+              if (mounted) _showDiscoverGateSheet(context, gate.reason);
+              return;
+            }
+            await notifier.resetToday();
+            if (!mounted) return;
+            context.push('/muhasabah');
+            // markUsed fires here (not on the muhasabah screen) because the
+            // discoverName flow is initiated from this CTA — the muhasabah
+            // route is just where the gacha animation plays out.
+            final outcome =
+                await GatingService().markUsed(GatedFeature.discoverName);
+            if (outcome == UsageOutcome.warmupJustExhausted && mounted) {
+              WarmupExhaustedSheet.show(
+                context,
+                feature: GatedFeature.discoverName,
+                onUpgrade: () => GoRouter.of(context).push('/paywall'),
+              );
+            }
+          } finally {
+            _discoverInFlight = false;
           }
         },
         behavior: HitTestBehavior.opaque,

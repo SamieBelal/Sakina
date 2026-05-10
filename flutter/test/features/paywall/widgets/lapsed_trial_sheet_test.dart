@@ -12,7 +12,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 7,
+            momentsDuringTrial: 7,
             daysActiveDuringTrial: 3,
             onUpgrade: () {},
             onDismiss: () {},
@@ -27,7 +27,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 7,
+            momentsDuringTrial: 7,
             daysActiveDuringTrial: 3,
             onUpgrade: () {},
             onDismiss: () {},
@@ -37,32 +37,12 @@ void main() {
       expect(find.text('Welcome back to one a day'), findsOneWidget);
     });
 
-    testWidgets('interpolates non-zero counts into body', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          LapsedTrialSheet(
-            reflectsDuringTrial: 7,
-            daysActiveDuringTrial: 3,
-            onUpgrade: () {},
-            onDismiss: () {},
-          ),
-        ),
-      );
-      expect(
-        find.text(
-          'In your 3-day trial, you reflected 7 times across 3 days. '
-          'Premium keeps that pace going.',
-        ),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('falls back to generic copy when reflectsDuringTrial is 0',
+    testWidgets('falls back to generic copy when momentsDuringTrial is 0',
         (tester) async {
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 0,
+            momentsDuringTrial: 0,
             daysActiveDuringTrial: 0,
             onUpgrade: () {},
             onDismiss: () {},
@@ -80,14 +60,14 @@ void main() {
       expect(find.textContaining('In your 3-day trial'), findsNothing);
     });
 
-    testWidgets('falls back when reflects is 0 but days is non-zero',
+    testWidgets('falls back when moments is 0 but days is non-zero',
         (tester) async {
-      // Even if days happens to be non-zero, zero reflects means we
+      // Even if days happens to be non-zero, zero moments means we
       // couldn't resolve activity meaningfully — still fall back.
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 0,
+            momentsDuringTrial: 0,
             daysActiveDuringTrial: 3,
             onUpgrade: () {},
             onDismiss: () {},
@@ -98,12 +78,88 @@ void main() {
           findsOneWidget);
     });
 
+    testWidgets('singular grammar at moments=1, days=1 (1 time, 1 day)',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          LapsedTrialSheet(
+            momentsDuringTrial: 1,
+            daysActiveDuringTrial: 1,
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+      expect(
+        find.text(
+          'In your 3-day trial, you showed up 1 time across 1 day. '
+          'Premium keeps that pace going.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('plural grammar at moments=5, days=2 (5 times, 2 days)',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          LapsedTrialSheet(
+            momentsDuringTrial: 5,
+            daysActiveDuringTrial: 2,
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+      expect(
+        find.text(
+          'In your 3-day trial, you showed up 5 times across 2 days. '
+          'Premium keeps that pace going.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'body never contains the word "reflected" '
+        '(regression — was the bug)', (tester) async {
+      // Pump several representative cases — fallback, singular, plural —
+      // and assert no rendered Text contains "reflected". Locks in the
+      // fix for the P3 bug where building duas / discovering names was
+      // reported as "you reflected N times" in the lapsed-trial copy.
+      final cases = <(int, int)>[
+        (0, 0),
+        (1, 1),
+        (5, 2),
+        (12, 3),
+      ];
+      for (final (moments, days) in cases) {
+        await tester.pumpWidget(
+          _wrap(
+            LapsedTrialSheet(
+              momentsDuringTrial: moments,
+              daysActiveDuringTrial: days,
+              onUpgrade: () {},
+              onDismiss: () {},
+            ),
+          ),
+        );
+        expect(
+          find.textContaining('reflected'),
+          findsNothing,
+          reason:
+              'moments=$moments days=$days: copy must not say "reflected" — '
+              'the displayed count includes built duas + discovered names too',
+        );
+      }
+    });
+
     testWidgets('tapping primary invokes onUpgrade', (tester) async {
       var upgraded = 0;
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 4,
+            momentsDuringTrial: 4,
             daysActiveDuringTrial: 2,
             onUpgrade: () => upgraded++,
             onDismiss: () {},
@@ -120,7 +176,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
-            reflectsDuringTrial: 4,
+            momentsDuringTrial: 4,
             daysActiveDuringTrial: 2,
             onUpgrade: () {},
             onDismiss: () => dismissed++,

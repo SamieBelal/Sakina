@@ -154,9 +154,19 @@ class GatingService {
       // fires on. Subsequent decrements are clamped to 0 in _decrementWarmup
       // and never re-trigger this signal because warmup will already be 0
       // before this branch runs.
-      return warmup == 1
-          ? UsageOutcome.warmupJustExhausted
-          : UsageOutcome.ok;
+      //
+      // Critically, we ALSO increment the daily counter on this transition.
+      // Without it, canUse() falls through to _applyDailyCap on the very next
+      // attempt and — since the daily counter is still 0 — allows ONE MORE
+      // same-day use. The user would get N+1 free uses instead of N. By
+      // recording today's exhaust call against the daily cap, the next attempt
+      // sees `used >= cap` and is blocked. Tomorrow rolls over via the per-day
+      // key in daily_usage_service, restoring the normal 1/day allowance.
+      if (warmup == 1) {
+        await _incrementDaily(feature);
+        return UsageOutcome.warmupJustExhausted;
+      }
+      return UsageOutcome.ok;
     }
 
     await _incrementDaily(feature);

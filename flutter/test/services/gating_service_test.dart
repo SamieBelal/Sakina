@@ -104,20 +104,44 @@ void main() {
         expect(result.remaining, GatingService.warmupBudget[feature]);
       });
 
-      test('${feature.name}: warmup decrements per markUsed', () async {
+      test('${feature.name}: warmup decrements per markUsed; exhaust call '
+          'also increments daily counter so the user is blocked on the very '
+          'next same-day attempt (NOT given a free N+1 use)', () async {
         final budget = GatingService.warmupBudget[feature]!;
+        UsageOutcome? lastOutcome;
         for (var i = 0; i < budget; i++) {
           final res = await gating.canUse(feature);
           expect(res.allowed, isTrue);
           expect(res.reason, GateReason.warmupRemaining);
           expect(res.remaining, budget - i);
-          await gating.markUsed(feature);
+          lastOutcome = await gating.markUsed(feature);
         }
-        // Budget exhausted → transitions to dailyCap (no daily uses yet so first
-        // capped attempt is OK; 2nd will block).
+        // The Nth (final) markUsed must signal the one-shot exhaust transition.
+        expect(lastOutcome, UsageOutcome.warmupJustExhausted,
+            reason:
+                'the Nth call (1 → 0 warmup transition) must return '
+                'warmupJustExhausted so the screen layer can fire the dedicated '
+                'sheet exactly once');
+
+        // Daily counter must read 1 immediately after exhaust — this is the
+        // fix that prevents an extra free use on the Nth+1 attempt.
+        final usageGetter = switch (feature) {
+          GatedFeature.reflect => daily.getReflectUsageToday,
+          GatedFeature.builtDua => daily.getBuiltDuaUsageToday,
+          GatedFeature.discoverName => daily.getDiscoverNameUsageToday,
+        };
+        expect(await usageGetter(), 1,
+            reason:
+                'exhaust call (warmup 1 → 0) must also increment the daily '
+                'counter so the next same-day attempt sees used >= cap');
+
+        // The very next canUse must be blocked with dailyCap.
         final exhausted = await gating.canUse(feature);
-        expect(exhausted.allowed, isTrue);
-        expect(exhausted.reason, GateReason.ok);
+        expect(exhausted.allowed, isFalse,
+            reason:
+                'after exhausting warmup, the (N+1)th attempt today must be '
+                'blocked — user already received their N free uses');
+        expect(exhausted.reason, GateReason.dailyCap);
       });
     }
 

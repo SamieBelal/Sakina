@@ -98,6 +98,20 @@ void main() {
               'reframe_preview': 'Stay steady',
               'reframe': 'Stay steady',
               'story': 'Story',
+              // Pinned: sync_all_user_data() must surface `verses` in each
+              // reflection. Dropped silently by the freemium-redesign migration
+              // (20260509120000) and restored by 20260510020000. Without this
+              // field, hydration overwrites local saved reflections with
+              // empty verse lists — data corruption regression.
+              'verses': [
+                {
+                  'arabic':
+                      'وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ',
+                  'translation':
+                      'Those who restrain anger and pardon the people.',
+                  'reference': 'Al-Imran 3:134',
+                },
+              ],
               'dua_arabic': 'dua',
               'dua_transliteration': 'translit',
               'dua_translation': 'translation',
@@ -232,6 +246,25 @@ void main() {
     expect(collection.seenIds, containsAll({'5:1', '5:2'}));
 
     final prefs = await SharedPreferences.getInstance();
+
+    // Regression pin: reflection.verses must survive the sync_all_user_data
+    // → hydration round-trip. See migration 20260510020000.
+    final hydratedReflectionsRaw = prefs.getString('saved_reflections:user-1');
+    expect(hydratedReflectionsRaw, isNotNull);
+    final hydratedReflections =
+        (jsonDecode(hydratedReflectionsRaw!) as List).cast<Map<String, dynamic>>();
+    expect(hydratedReflections, hasLength(1));
+    expect(
+      hydratedReflections.first['verses'],
+      [
+        {
+          'arabic': 'وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ',
+          'translation': 'Those who restrain anger and pardon the people.',
+          'reference': 'Al-Imran 3:134',
+        },
+      ],
+    );
+
     expect(prefs.getString('saved_related_duas:user-1'), isNotNull);
     expect(prefs.getStringList('saved_browse_dua_ids:user-1'), ['browse-1']);
     expect(
