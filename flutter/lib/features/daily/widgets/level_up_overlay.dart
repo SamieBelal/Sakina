@@ -32,7 +32,15 @@ class LevelUpOverlay extends StatefulWidget {
 }
 
 class _LevelUpOverlayState extends State<LevelUpOverlay> {
-  int _phase = 0; // 0=glow buildup, 1=burst, 2=reveal
+  // 0=glow buildup, 1=burst, 2=reveal (Continue button shown), 3=tap-anywhere armed.
+  // Phase 3 exists to absorb the double-continue race: the Continue button
+  // fades in at delay=900ms+duration=500ms (= 1400ms) inside phase 2, and
+  // during that window two GestureDetectors compete (full-screen body + the
+  // button itself). Gating the outer detector to phase >= 3 keeps the button
+  // tappable immediately while the "tap anywhere to continue" affordance only
+  // arms once the button is fully on-screen — same pattern as
+  // name_reveal_overlay.dart's phase-3 gate.
+  int _phase = 0;
 
   @override
   void initState() {
@@ -52,6 +60,12 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     if (!mounted) return;
     HapticFeedback.mediumImpact();
     setState(() => _phase = 2);
+
+    // Phase 2 → 3: arm tap-anywhere only after the Continue button has fully
+    // faded in. Button uses delay=900ms + duration=500ms = 1400ms.
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    setState(() => _phase = 3);
   }
 
   void _handleContinue() {
@@ -68,7 +82,10 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A12),
       body: GestureDetector(
-        onTap: _phase >= 2 ? _handleContinue : null,
+        // Gate outer "tap anywhere" to phase 3 so the Continue button (rendered
+        // at phase 2) wins the gesture arena cleanly during its fade-in.
+        // Loosening this gate to `>= 2` reintroduces the double-continue bug.
+        onTap: _phase >= 3 ? _handleContinue : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
