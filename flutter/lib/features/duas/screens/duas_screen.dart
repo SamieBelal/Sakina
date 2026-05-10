@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -88,11 +90,10 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         final isPremiumFairUse =
             next.buildGateResult!.reason == GateReason.premiumFairUse;
         Future<void> upgrade() async {
+          // Premium fair-use is a no-op — user is already paying.
           if (isPremiumFairUse) return;
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Subscribe to unlock unlimited')),
-            );
+            GoRouter.of(context).push('/paywall');
           }
         }
         DailyCapSheet.show(
@@ -100,6 +101,16 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           feature: GatedFeature.builtDua,
           onUpgrade: upgrade,
         ).whenComplete(notifier.dismissBuildGate);
+      }
+      // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL build that
+      // decremented warmup from 1 to 0.
+      if (next.buildWarmupJustExhausted != null &&
+          prev?.buildWarmupJustExhausted == null) {
+        WarmupExhaustedSheet.show(
+          context,
+          feature: next.buildWarmupJustExhausted!,
+          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        ).whenComplete(notifier.dismissBuildWarmupExhausted);
       }
       // Show upgrade sheet when the free saved-dua limit is hit
       if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {

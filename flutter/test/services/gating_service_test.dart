@@ -236,6 +236,50 @@ void main() {
     });
   });
 
+  group('markUsed UsageOutcome', () {
+    test('warmup 1 → 0 returns warmupJustExhausted', () async {
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 1);
+      final outcome = await gating.markUsed(GatedFeature.reflect);
+      expect(outcome, UsageOutcome.warmupJustExhausted);
+    });
+
+    test('warmup N>1 → N-1 returns ok', () async {
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 5);
+      final outcome = await gating.markUsed(GatedFeature.reflect);
+      expect(outcome, UsageOutcome.ok);
+    });
+
+    test('premium increment returns ok (never warmupJustExhausted)', () async {
+      fakePurchase.premium = true;
+      final outcome = await gating.markUsed(GatedFeature.reflect);
+      expect(outcome, UsageOutcome.ok);
+    });
+
+    test('lapsed-trial daily increment returns ok', () async {
+      await gating.debugSetHadTrial(true);
+      final outcome = await gating.markUsed(GatedFeature.builtDua);
+      expect(outcome, UsageOutcome.ok);
+    });
+
+    test('capped (warmup already 0) increment returns ok', () async {
+      await gating.debugSetWarmupRemaining(GatedFeature.discoverName, 0);
+      final outcome = await gating.markUsed(GatedFeature.discoverName);
+      expect(outcome, UsageOutcome.ok);
+    });
+
+    test('only the transition call returns warmupJustExhausted; the next '
+        'capped call returns ok', () async {
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 1);
+      final transition = await gating.markUsed(GatedFeature.reflect);
+      expect(transition, UsageOutcome.warmupJustExhausted);
+      final after = await gating.markUsed(GatedFeature.reflect);
+      expect(after, UsageOutcome.ok,
+          reason:
+              'second call falls into the daily-cap path and must not re-fire '
+              'the one-shot warmup-exhausted signal');
+    });
+  });
+
   group('canUse contract', () {
     test('GateResult exposes its three pieces of state', () {
       const a = GateResult(

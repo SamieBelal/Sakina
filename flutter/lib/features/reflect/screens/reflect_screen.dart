@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -89,20 +91,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         // Premium fair-use intentionally renders the same chrome with the
         // upgrade CTA as a no-op (already paying) — that wiring lives in the
         // upgrade callback below.
-        // TODO(paywall-routing): when in-app paywall presenter lands, also
-        // fire WarmupExhaustedSheet on the transition moment when warmup
-        // remaining drops from 1 to 0 (currently shown alongside the
-        // daily-cap sheet on the next block).
         final isPremiumFairUse =
             next.gateResult!.reason == GateReason.premiumFairUse;
         Future<void> upgrade() async {
-          // TODO(paywall-routing): wire to the in-app subscribe flow.
-          // For premium fair-use this is a no-op intentionally.
+          // Premium users hitting fair-use must not be routed to a paywall —
+          // they're already paying. The sheet's primary CTA becomes a no-op.
           if (isPremiumFairUse) return;
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Subscribe to unlock unlimited')),
-            );
+            GoRouter.of(context).push('/paywall');
           }
         }
         DailyCapSheet.show(
@@ -110,6 +106,17 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           feature: GatedFeature.reflect,
           onUpgrade: upgrade,
         ).whenComplete(notifier.dismissGate);
+      }
+      // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL reflect
+      // that decremented warmup from 1 to 0, distinct from the recurring
+      // daily-cap sheet above.
+      if (next.warmupJustExhausted != null &&
+          prev?.warmupJustExhausted == null) {
+        WarmupExhaustedSheet.show(
+          context,
+          feature: next.warmupJustExhausted!,
+          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        ).whenComplete(notifier.dismissWarmupExhausted);
       }
       // Show upgrade sheet when the free journal limit is hit
       if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {

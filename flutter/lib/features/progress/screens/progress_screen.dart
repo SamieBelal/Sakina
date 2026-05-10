@@ -18,6 +18,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -601,11 +602,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     DailyCapSheet.show(
       context,
       feature: GatedFeature.discoverName,
-      onUpgrade: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscribe to unlock unlimited')),
-        );
-      },
+      onUpgrade: () => GoRouter.of(context).push('/paywall'),
     );
   }
 
@@ -631,7 +628,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           // markUsed fires here (not on the muhasabah screen) because the
           // discoverName flow is initiated from this CTA — the muhasabah
           // route is just where the gacha animation plays out.
-          await GatingService().markUsed(GatedFeature.discoverName);
+          final outcome =
+              await GatingService().markUsed(GatedFeature.discoverName);
+          if (outcome == UsageOutcome.warmupJustExhausted && mounted) {
+            WarmupExhaustedSheet.show(
+              context,
+              feature: GatedFeature.discoverName,
+              onUpgrade: () => GoRouter.of(context).push('/paywall'),
+            );
+          }
         },
         behavior: HitTestBehavior.opaque,
         child: Row(

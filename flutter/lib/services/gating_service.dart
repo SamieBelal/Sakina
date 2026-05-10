@@ -28,6 +28,12 @@ enum GateReason {
   hadTrialNoBudget,
 }
 
+/// Outcome of a successful [GatingService.markUsed] call. Most calls return
+/// [ok]. The transition moment when a free user's warmup counter decrements
+/// from 1 to 0 returns [warmupJustExhausted] so the UI can fire the dedicated
+/// "you've completed your free reflections" sheet exactly once per feature.
+enum UsageOutcome { ok, warmupJustExhausted }
+
 class GateResult {
   final bool allowed;
   final GateReason reason;
@@ -108,26 +114,38 @@ class GatingService {
   /// Records a successful AI call. Increments the daily counter when the
   /// user is in capped/premium phase, decrements the warmup counter when
   /// they're still in warmup. Never touches both.
-  Future<void> markUsed(GatedFeature feature) async {
+  ///
+  /// Returns [UsageOutcome.warmupJustExhausted] only on the transition moment
+  /// when this call decrements warmup from 1 to 0 — the screen layer uses that
+  /// signal to fire [WarmupExhaustedSheet] exactly once per feature. All other
+  /// paths return [UsageOutcome.ok].
+  Future<UsageOutcome> markUsed(GatedFeature feature) async {
     final isPremium = await PurchaseService().isPremium();
     if (isPremium) {
       await _incrementDaily(feature);
-      return;
+      return UsageOutcome.ok;
     }
 
     final hadTrial = await _readHadTrial();
     if (hadTrial) {
       await _incrementDaily(feature);
-      return;
+      return UsageOutcome.ok;
     }
 
     final warmup = await _readWarmupRemaining(feature);
     if (warmup > 0) {
       await _decrementWarmup(feature, warmup);
-      return;
+      // The "1 → 0" transition is the one-shot moment the WarmupExhaustedSheet
+      // fires on. Subsequent decrements are clamped to 0 in _decrementWarmup
+      // and never re-trigger this signal because warmup will already be 0
+      // before this branch runs.
+      return warmup == 1
+          ? UsageOutcome.warmupJustExhausted
+          : UsageOutcome.ok;
     }
 
     await _incrementDaily(feature);
+    return UsageOutcome.ok;
   }
 
   // ---- helpers ------------------------------------------------------------

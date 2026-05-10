@@ -231,6 +231,12 @@ class ReflectState {
   /// (warmup-exhausted vs daily-cap). Cleared by [ReflectNotifier.dismissGate].
   final GateResult? gateResult;
 
+  /// Non-null on the one-shot transition moment when this reflect call
+  /// decremented the warmup counter from 1 to 0. Screen reads this to fire
+  /// [WarmupExhaustedSheet] exactly once, then calls
+  /// [ReflectNotifier.dismissWarmupExhausted] to clear.
+  final GatedFeature? warmupJustExhausted;
+
   /// True when a save was blocked by the free-tier journal limit. UI should
   /// surface the upgrade sheet and call [ReflectNotifier.dismissUpgradePrompt]
   /// when the user acknowledges. Previously this case was a silent no-op.
@@ -248,6 +254,7 @@ class ReflectState {
     this.selectedEmotions = const {},
     this.savedReflections = const [],
     this.gateResult,
+    this.warmupJustExhausted,
     this.needsUpgrade = false,
   });
 
@@ -263,10 +270,12 @@ class ReflectState {
     Set<String>? selectedEmotions,
     List<SavedReflection>? savedReflections,
     GateResult? gateResult,
+    GatedFeature? warmupJustExhausted,
     bool? needsUpgrade,
     bool clearResult = false,
     bool clearError = false,
     bool clearGateResult = false,
+    bool clearWarmupJustExhausted = false,
   }) {
     return ReflectState(
       screenState: screenState ?? this.screenState,
@@ -280,6 +289,9 @@ class ReflectState {
       selectedEmotions: selectedEmotions ?? this.selectedEmotions,
       savedReflections: savedReflections ?? this.savedReflections,
       gateResult: clearGateResult ? null : (gateResult ?? this.gateResult),
+      warmupJustExhausted: clearWarmupJustExhausted
+          ? null
+          : (warmupJustExhausted ?? this.warmupJustExhausted),
       needsUpgrade: needsUpgrade ?? this.needsUpgrade,
     );
   }
@@ -320,6 +332,12 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Clears the gate-blocked flag after the paywall sheet is dismissed.
   void dismissGate() {
     state = state.copyWith(clearGateResult: true);
+  }
+
+  /// Clears the warmup-just-exhausted signal after the WarmupExhaustedSheet
+  /// has been shown and dismissed.
+  void dismissWarmupExhausted() {
+    state = state.copyWith(clearWarmupJustExhausted: true);
   }
 
   /// Submit user text. Checks the gating layer first; if blocked, exposes the
@@ -470,8 +488,12 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
           currentStep: ReflectStep.name,
         );
         if (_consumeFreeUsageOnSuccess) {
-          await GatingService().markUsed(GatedFeature.reflect);
+          final outcome = await GatingService().markUsed(GatedFeature.reflect);
           _consumeFreeUsageOnSuccess = false;
+          if (outcome == UsageOutcome.warmupJustExhausted) {
+            state =
+                state.copyWith(warmupJustExhausted: GatedFeature.reflect);
+          }
         }
         // Track streak (XP for Reflect is intentionally zero — only Muhasabah,
         // quests, and streak milestones grant XP).

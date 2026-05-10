@@ -18,6 +18,7 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 
 /// Full-screen Muhasabah experience — check-in → deeper → completion.
@@ -193,11 +194,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     DailyCapSheet.show(
       context,
       feature: GatedFeature.discoverName,
-      onUpgrade: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscribe to unlock unlimited')),
-        );
-      },
+      onUpgrade: () => GoRouter.of(context).push('/paywall'),
     );
   }
 
@@ -681,7 +678,17 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     // observable failure mode here (it's an in-app card pick
                     // backed by a local lookup), so it's safe to mark used
                     // immediately after the call.
-                    await GatingService().markUsed(GatedFeature.discoverName);
+                    final outcome = await GatingService()
+                        .markUsed(GatedFeature.discoverName);
+                    if (outcome == UsageOutcome.warmupJustExhausted &&
+                        mounted) {
+                      WarmupExhaustedSheet.show(
+                        context,
+                        feature: GatedFeature.discoverName,
+                        onUpgrade: () =>
+                            GoRouter.of(context).push('/paywall'),
+                      );
+                    }
                   },
                   child: Container(
                     width: double.infinity,

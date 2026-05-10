@@ -208,6 +208,12 @@ class DuasState {
   /// [DuasNotifier.dismissBuildGate].
   final GateResult? buildGateResult;
 
+  /// Non-null on the one-shot transition moment when the build call
+  /// decremented the warmup counter from 1 to 0. Screen reads this to fire
+  /// [WarmupExhaustedSheet] exactly once, then calls
+  /// [DuasNotifier.dismissBuildWarmupExhausted] to clear.
+  final GatedFeature? buildWarmupJustExhausted;
+
   /// True when saving a built dua was blocked by the free-tier journal limit.
   /// UI should show the upgrade sheet and call
   /// [DuasNotifier.dismissUpgradePrompt] when acknowledged.
@@ -239,6 +245,7 @@ class DuasState {
     this.savedBuiltDuas = const [],
     this.savedRelatedDuas = const [],
     this.buildGateResult,
+    this.buildWarmupJustExhausted,
     this.needsUpgrade = false,
     this.buildResultSaveHandled = false,
     this.buildProgress = 0.0,
@@ -260,10 +267,12 @@ class DuasState {
     List<SavedBuiltDua>? savedBuiltDuas,
     List<SavedRelatedDua>? savedRelatedDuas,
     GateResult? buildGateResult,
+    GatedFeature? buildWarmupJustExhausted,
     bool? needsUpgrade,
     bool? buildResultSaveHandled,
     double? buildProgress,
     bool clearBuildGateResult = false,
+    bool clearBuildWarmupJustExhausted = false,
   }) {
     return DuasState(
       activeTab: activeTab != null ? activeTab() : this.activeTab,
@@ -283,6 +292,9 @@ class DuasState {
       buildGateResult: clearBuildGateResult
           ? null
           : (buildGateResult ?? this.buildGateResult),
+      buildWarmupJustExhausted: clearBuildWarmupJustExhausted
+          ? null
+          : (buildWarmupJustExhausted ?? this.buildWarmupJustExhausted),
       needsUpgrade: needsUpgrade ?? this.needsUpgrade,
       buildResultSaveHandled:
           buildResultSaveHandled ?? this.buildResultSaveHandled,
@@ -447,6 +459,12 @@ class DuasNotifier extends StateNotifier<DuasState> {
     state = state.copyWith(clearBuildGateResult: true);
   }
 
+  /// Clears the build warmup-just-exhausted signal after the
+  /// WarmupExhaustedSheet has been shown and dismissed.
+  void dismissBuildWarmupExhausted() {
+    state = state.copyWith(clearBuildWarmupJustExhausted: true);
+  }
+
   /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
   void dismissUpgradePrompt() {
     state = state.copyWith(needsUpgrade: false);
@@ -525,15 +543,23 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // and shouldn't be charged a free build. The off-topic UI in
       // duas_screen.dart `_buildStepViewer` keys off `breakdown.isEmpty`, so
       // this gate is the same signal — keep them in sync.
+      UsageOutcome? outcome;
       if (consumeFreeUsage && result.breakdown.isNotEmpty) {
-        await GatingService().markUsed(GatedFeature.builtDua);
+        outcome = await GatingService().markUsed(GatedFeature.builtDua);
       }
       _progressTimer?.cancel();
       // Jump to 100%
       state = state.copyWith(buildProgress: 1.0);
       // Brief pause at 100% before showing result
       await Future.delayed(_resultRevealDelay);
-      state = state.copyWith(buildResult: () => result, buildLoading: false);
+      state = state.copyWith(
+        buildResult: () => result,
+        buildLoading: false,
+        buildWarmupJustExhausted:
+            outcome == UsageOutcome.warmupJustExhausted
+                ? GatedFeature.builtDua
+                : null,
+      );
       // Track names invoked in this dua
       if (result.namesUsed.isNotEmpty) {
         await _trackNamesInvoked(result.namesUsed.map((n) => n.name).toList());
