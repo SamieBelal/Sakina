@@ -304,6 +304,7 @@ There are two entry points with intentionally different behavior:
 ## Known Bugs
 
 - ~~**Gacha overlay eager-dismiss**~~ (FIXED 2026-04-27 — `name_reveal_overlay.dart:107` now gates the outer `GestureDetector` on `_phase >= 3` so phase-2 taps are absorbed. Regression-pinned by `test/features/daily/name_reveal_overlay_phase_gate_test.dart` — a structural test that fails if the gate is loosened back to `>= 2`.)
+- ~~**Level-up overlay double-continue**~~ (FIXED 2026-05-09 — same shape as the gacha bug above. `level_up_overlay.dart:88` now gates the outer "tap anywhere" `GestureDetector` on `_phase >= 3`, with phase 3 set 1400ms after phase 2 (matching the Continue button's `delay: 900ms + duration: 500ms` fade-in). During the fade-in window the inner Continue button's detector wins the gesture arena cleanly. Regression-pinned by `test/features/daily/level_up_overlay_phase_gate_test.dart` — fails if the gate is loosened back to `>= 2`.)
 - **Arabic text bleeding into header** (e.g. `flutter/lib/features/feelings/screens/home_screen.dart:192`): Mixed Arabic + English in a single `Text` widget causes RTL rendering to bleed into surrounding UI. Fix: split into two separate `Text` widgets with explicit `textDirection` on the Arabic one.
 
 ## Aref Ruqaa Font Metric Fix
