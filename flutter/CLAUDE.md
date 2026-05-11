@@ -2,6 +2,8 @@
 
 Islamic spiritual wellness app. User says how they feel → app maps it to a Name of Allah, Quran verses, and a dua. Flutter mobile app with Supabase backend.
 
+> **See also:** [`TODO.md`](./TODO.md) — deferred production-readiness work (Android signing, OpenAI proxy, etc.) with triggers and step-by-step recipes. Check before starting any Play Store work or external TestFlight/App Store release.
+
 ## Why This Exists
 
 There is no "Bible Feels for Muslims." 2 billion Muslims, zero polished apps that connect emotions to Islamic scripture. The Christian equivalents (Hallow, Glorify, Bible Feels) have raised $240M+ combined. This is a wedge into that market.
