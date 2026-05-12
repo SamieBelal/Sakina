@@ -94,13 +94,16 @@ begin
           hour from (current_timestamp at time zone coalesce(nullif(n.timezone, ''), 'UTC'))
         )::integer = (
           case
-            -- Regex gate: only cast when the value parses as HH:mm or H:mm.
-            -- Without this, a malformed row (e.g. 'abc' or '08:30:00') would
-            -- raise from split_part(...)::integer and crash the entire cron
-            -- batch, silently denying that hour's reminders to every user.
+            -- Regex gate: only cast when the value parses as HH:mm or H:mm
+            -- with an in-range hour (00-23) and minute (00-59). Without
+            -- the in-range hour bound, values like '24:00' or '29:00'
+            -- would parse but never satisfy `extract(hour from now()) = N`
+            -- and would silently never fire for that user. Tight regex
+            -- means out-of-range values fall through to the p_target_hour
+            -- fallback instead of silently never-matching.
             when $6
              and p.reminder_time is not null
-             and p.reminder_time ~ '^[0-2]?[0-9]:[0-5][0-9]$'
+             and p.reminder_time ~ '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
               then split_part(p.reminder_time, ':', 1)::integer
             else $1
           end
@@ -155,3 +158,40 @@ grant execute on function public.get_eligible_notification_users(
   integer,
   boolean
 ) to authenticated, service_role;
+
+-- Reschedule pg_cron from hourly (:00) to every 30 minutes (:00, :30).
+--
+-- Why: the prior schedule fired only at UTC :00, which causes a 30-minute
+-- skew in half-hour-offset timezones. A user in IST (UTC+5:30) who picks
+-- '09:00' would be matched at UTC 03:30 — but the cron didn't fire until
+-- UTC 04:00 = IST 09:30. So the user got their "9 AM" reminder at 8:30 AM
+-- local time. India is a major market, so this matters.
+--
+-- With '0,30 * * * *', the cron fires at UTC :00 and :30. For half-hour
+-- timezones, one of those ticks lines up with the user's local :00 of
+-- their reminder hour. Quarter-hour timezones (Nepal UTC+5:45,
+-- Chatham UTC+12:45) still drift by 15 minutes — accepted trade-off.
+--
+-- Safety: the RPC's date-based dedup (last_<x>_sent_at::date < today)
+-- prevents a user from being matched twice in the same local day. Both
+-- the :00 and :30 tick may find the same user eligible during the
+-- transition hour, but only the first one actually sends — markSent
+-- updates last_*_sent_at before the second tick fires.
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'send-scheduled-notifications') then
+    perform cron.unschedule('send-scheduled-notifications');
+  end if;
+end$$;
+
+select cron.schedule(
+  'send-scheduled-notifications',
+  '0,30 * * * *',
+  $cron$
+    select net.http_post(
+      url := 'https://smhvsqrxqoehqncphjrq.supabase.co/functions/v1/send-scheduled-notifications',
+      headers := jsonb_build_object('Content-Type', 'application/json'),
+      body := '{}'::jsonb
+    );
+  $cron$
+);

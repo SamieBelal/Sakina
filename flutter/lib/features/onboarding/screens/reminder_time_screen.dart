@@ -29,9 +29,15 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
   void initState() {
     super.initState();
     final existing = ref.read(onboardingProvider).reminderTime;
-    _time = existing != null
+    final parsed = existing != null
         ? _parse(existing)
         : const TimeOfDay(hour: 8, minute: 0);
+    // Snap a pre-seeded half-hour value (e.g. '08:30' from a pre-fix
+    // build) to the hour, so a user who resumes onboarding and taps
+    // Continue without touching the picker still persists a whole-hour
+    // reminder_time. The server's hour-only filter would treat both
+    // alike, but normalizing here keeps the persisted value honest.
+    _time = TimeOfDay(hour: parsed.hour, minute: 0);
   }
 
   TimeOfDay _parse(String hhmm) {
@@ -78,7 +84,12 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
       onBack: widget.onBack,
       continueEnabled: true,
       onContinue: () {
-        final hhmm = _format(_time);
+        // Final-line defense: ensure the persisted value is always on
+        // the hour, even if a future picker swap or a pre-seeded
+        // state somehow bypassed the initState/onDateTimeChanged
+        // clamps. The cron filters on hour-of-day only.
+        final whole = TimeOfDay(hour: _time.hour, minute: 0);
+        final hhmm = _format(whole);
         ref.read(onboardingProvider.notifier).setReminderTime(hhmm);
         ref
             .read(analyticsProvider)
