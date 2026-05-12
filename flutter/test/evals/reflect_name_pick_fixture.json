@@ -1,0 +1,32 @@
+[
+  {
+    "_comment": "STUB — 2 of 25 rows. A content author must add 23 more rows before this fixture is usable. Categories still needed: anxiety, grief, gratitude, anger, shame, hope, awe, repentance, longing, illness, parenting, work, relationship, doubt, fear, joy, exhaustion, jealousy, faith-struggle, family-conflict, financial-stress, decision-paralysis, mortality, peace. See docs/qa/reflect-eval-design.md for the fixture shape + adjudication protocol."
+  },
+  {
+    "phrase": "I feel like nothing in my life makes sense right now",
+    "expected_names": ["Al-Lateef", "Al-Hakeem", "Al-Khabeer"],
+    "rationale": {
+      "category": "hidden-wisdom / disorientation",
+      "included_names": [
+        {"name": "Al-Lateef", "why": "the gentle one whose plan unfolds invisibly"},
+        {"name": "Al-Hakeem", "why": "the wise — every event has a reason"},
+        {"name": "Al-Khabeer", "why": "the aware — sees what we can't"}
+      ],
+      "excluded_pattern": "Names of power/strength (Al-Qawi, Al-Aziz) — phrase is about confusion, not weakness"
+    }
+  },
+  {
+    "phrase": "I'm scared no one understands what I'm going through",
+    "expected_names": ["Al-Aleem", "Al-Khabeer", "As-Sami", "Al-Baseer"],
+    "rationale": {
+      "category": "feeling-unseen / loneliness in pain",
+      "included_names": [
+        {"name": "Al-Aleem", "why": "the all-knowing — knows interior states"},
+        {"name": "Al-Khabeer", "why": "the aware — knows the hidden"},
+        {"name": "As-Sami", "why": "the all-hearing — hears unspoken cries"},
+        {"name": "Al-Baseer", "why": "the all-seeing — witnesses every tear"}
+      ],
+      "excluded_pattern": "Forgiveness Names (Al-Ghaffar, At-Tawwab) — phrase is about being seen, not about sin"
+    }
+  }
+]
