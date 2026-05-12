@@ -14,15 +14,38 @@ String _normalise(String name) {
       .replaceFirst(RegExp(r'^(al|ar|as|ash|at|az|an)'), ''); // strip common prefixes
 }
 
-/// Pre-built normalised lookup set from the canonical list.
-final Set<String> _canonicalNormalised = {
-  for (final n in allahNames) _normalise(n.transliteration),
+/// Pre-built normalised lookup set from the canonical list (including aliases).
+final Set<String> _canonicalNormalised = _canonicalMap.keys.toSet();
+
+/// Common AI transliteration variants → canonical Name. The AI sometimes
+/// returns vowel-length variants (Al-Wakil vs canonical Al-Wakeel) or
+/// dh↔z variants (Al-Dhahir vs canonical Az-Zahir). These map to the same
+/// underlying Arabic Name, but `_normalise` doesn't collapse them because
+/// a blanket `ee→i` rule would conflate Al-Majeed and Al-Majid (two
+/// distinct Names). Keep this map small and only add entries the eval surfaces.
+const Map<String, String> _transliterationAliases = {
+  'Al-Wakil': 'Al-Wakeel',
+  'Al-Dhahir': 'Az-Zahir',
+  'Al-Halim': 'Al-Haleem',
+  'Al-Latif': 'Al-Lateef',
 };
 
-/// Pre-built map from normalised key to canonical entry.
-final Map<String, AllahName> _canonicalMap = {
-  for (final n in allahNames) _normalise(n.transliteration): n,
-};
+/// Pre-built map from normalised key to canonical entry. Includes aliases
+/// so AI-returned variants resolve to the same `AllahName` as their canonical form.
+final Map<String, AllahName> _canonicalMap = () {
+  final m = <String, AllahName>{
+    for (final n in allahNames) _normalise(n.transliteration): n,
+  };
+  for (final entry in _transliterationAliases.entries) {
+    final canonical = allahNames.firstWhere(
+      (n) => n.transliteration == entry.value,
+      orElse: () => throw StateError(
+          'alias target ${entry.value} not in allahNames'),
+    );
+    m[_normalise(entry.key)] = canonical;
+  }
+  return m;
+}();
 
 /// Returns true if [name] matches a canonical Name of Allah.
 bool isValidAllahName(String name) {

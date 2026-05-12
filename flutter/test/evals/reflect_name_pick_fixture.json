@@ -4,7 +4,8 @@
     "expected_names": [
       "Al-Lateef",
       "Al-Hakeem",
-      "Al-Khabeer"
+      "Al-Khabeer",
+      "Al-Batin"
     ],
     "rationale": {
       "category": "hidden-wisdom / disorientation",
@@ -20,6 +21,10 @@
         {
           "name": "Al-Khabeer",
           "why": "the aware — sees what we can't"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — meaning is there even when you cannot see it"
         }
       ],
       "excluded_pattern": "Names of power/strength (Al-Qawiyy, Al-Azeez) — phrase is about confusion, not weakness"
@@ -31,7 +36,9 @@
       "Al-Aleem",
       "Al-Khabeer",
       "As-Sami",
-      "Al-Baseer"
+      "Al-Baseer",
+      "Al-Waliyy",
+      "Al-Lateef"
     ],
     "rationale": {
       "category": "feeling-unseen / loneliness in pain",
@@ -51,6 +58,14 @@
         {
           "name": "Al-Baseer",
           "why": "the all-seeing — witnesses every tear"
+        },
+        {
+          "name": "Al-Waliyy",
+          "why": "the protecting friend — close when others feel distant"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the subtle — knows the hidden interior, gentle to those in pain"
         }
       ],
       "excluded_pattern": "Forgiveness Names (Al-Ghaffar, At-Tawwab) — phrase is about being seen, not about sin"
@@ -61,7 +76,8 @@
     "expected_names": [
       "Al-Mumin",
       "Al-Hafeez",
-      "Al-Muhaymin"
+      "Al-Muhaymin",
+      "Al-Wakeel"
     ],
     "rationale": {
       "category": "anxiety",
@@ -77,6 +93,10 @@
         {
           "name": "Al-Muhaymin",
           "why": "the guardian — watching over every detail"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — 'hasbuna-llahu wa ni'ma al-wakeel' is the classical dua against fear"
         }
       ],
       "excluded_pattern": "Names of majesty/grandeur (Al-Mutakabbir, Al-Jaleel) — phrase needs reassurance, not awe"
@@ -113,7 +133,8 @@
     "expected_names": [
       "Ash-Shakur",
       "Al-Wahhab",
-      "Ar-Razzaq"
+      "Ar-Razzaq",
+      "Al-Wadud"
     ],
     "rationale": {
       "category": "gratitude",
@@ -129,6 +150,10 @@
         {
           "name": "Ar-Razzaq",
           "why": "the provider — who arranged the answered duʿā"
+        },
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — the One you are grateful to"
         }
       ],
       "excluded_pattern": "Names of awe/distance (Al-Mutaali, Al-Kabeer) — gratitude calls for nearness, not exaltation alone"
@@ -165,7 +190,8 @@
     "expected_names": [
       "Al-Ghafur",
       "At-Tawwab",
-      "Al-Wadud"
+      "Al-Wadud",
+      "Al-Ghaffar"
     ],
     "rationale": {
       "category": "shame",
@@ -181,6 +207,10 @@
         {
           "name": "Al-Wadud",
           "why": "the loving — He still loves you on the worst day"
+        },
+        {
+          "name": "Al-Ghaffar",
+          "why": "the ever-forgiving — sister Name of Al-Ghafur (both translate الْغَفُّار/الْغَفُور)"
         }
       ],
       "excluded_pattern": "Names of witnessing (Ash-Shaheed, Ar-Raqeeb) — shame already feels watched; the answer is mercy"
@@ -191,7 +221,8 @@
     "expected_names": [
       "Al-Fattah",
       "Al-Mujeeb",
-      "Ar-Rahman"
+      "Ar-Rahman",
+      "Al-Wakeel"
     ],
     "rationale": {
       "category": "hope",
@@ -207,6 +238,10 @@
         {
           "name": "Ar-Rahman",
           "why": "the most merciful — the ground hope rests on"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — reliance on Allah is the foundation of hope"
         }
       ],
       "excluded_pattern": "Names emphasizing finality (Al-Akhir, Al-Mumeet) — hope is forward-leaning, not end-focused"
@@ -269,7 +304,8 @@
     "expected_names": [
       "Al-Wadud",
       "As-Sami",
-      "Al-Mujeeb"
+      "Al-Mujeeb",
+      "Al-Batin"
     ],
     "rationale": {
       "category": "longing",
@@ -285,6 +321,10 @@
         {
           "name": "Al-Mujeeb",
           "why": "the answerer — meets the one who reaches"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — present even when He feels far"
         }
       ],
       "excluded_pattern": "Names of transcendence (Al-Mutaali, Al-Ali) — longing needs nearness, not distance reinforced"
@@ -347,7 +387,9 @@
     "expected_names": [
       "Al-Wakeel",
       "Al-Fattah",
-      "Al-Muqeet"
+      "Al-Muqeet",
+      "Al-Hakeem",
+      "As-Sabur"
     ],
     "rationale": {
       "category": "work",
@@ -363,6 +405,14 @@
         {
           "name": "Al-Muqeet",
           "why": "the sustainer — gives the strength each day needs"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — work pressure has reason"
+        },
+        {
+          "name": "As-Sabur",
+          "why": "the patient — work overload calls for endurance, not just provision"
         }
       ],
       "excluded_pattern": "Names of ultimacy (Al-Akhir, Al-Awwal) — work overwhelm needs practical reliance, not cosmology"
@@ -399,7 +449,8 @@
     "expected_names": [
       "As-Sami",
       "Al-Mujeeb",
-      "Al-Hakeem"
+      "Al-Hakeem",
+      "Al-Batin"
     ],
     "rationale": {
       "category": "doubt",
@@ -415,6 +466,10 @@
         {
           "name": "Al-Hakeem",
           "why": "the wise — the timing belongs to a wisdom we don't see yet"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — hears even when His response feels invisible"
         }
       ],
       "excluded_pattern": "Names of wrath/withholding (Al-Qabid) — doubt needs reassurance Allah is listening, not confirmation of distance"
@@ -425,7 +480,8 @@
     "expected_names": [
       "Al-Hafeez",
       "Al-Muhaymin",
-      "Al-Mumin"
+      "Al-Mumin",
+      "Ar-Raqeeb"
     ],
     "rationale": {
       "category": "fear",
@@ -441,6 +497,10 @@
         {
           "name": "Al-Mumin",
           "why": "the giver of security — steadies a fearful heart"
+        },
+        {
+          "name": "Ar-Raqeeb",
+          "why": "the watchful — Allah watches over those you fear for"
         }
       ],
       "excluded_pattern": "Names of decree-as-trial (Ad-Darr) — fear about the future needs assurance, not reminder of harm"
@@ -477,7 +537,9 @@
     "expected_names": [
       "Al-Muqeet",
       "Al-Qayyum",
-      "Al-Hayy"
+      "Al-Hayy",
+      "As-Sabur",
+      "Al-Wakeel"
     ],
     "rationale": {
       "category": "exhaustion",
@@ -493,6 +555,14 @@
         {
           "name": "Al-Hayy",
           "why": "the ever-living — life-source for the depleted"
+        },
+        {
+          "name": "As-Sabur",
+          "why": "the patient — keeps you steady through what feels endless"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — entrust what you cannot carry to Him"
         }
       ],
       "excluded_pattern": "Names of striving/effort framing — exhaustion needs being-held, not more push"
@@ -503,7 +573,9 @@
     "expected_names": [
       "Ar-Razzaq",
       "Al-Hakeem",
-      "Ash-Shakur"
+      "Ash-Shakur",
+      "Al-Muakhkhir",
+      "Al-Muqaddim"
     ],
     "rationale": {
       "category": "jealousy",
@@ -519,6 +591,14 @@
         {
           "name": "Ash-Shakur",
           "why": "the most appreciative — the classical remedy for jealousy is gratitude for what's already yours"
+        },
+        {
+          "name": "Al-Muakhkhir",
+          "why": "the delayer — your timing is His; what is delayed is delayed for wisdom"
+        },
+        {
+          "name": "Al-Muqaddim",
+          "why": "the expediter — canonical pair with Al-Muakhkhir; together they govern divine timing"
         }
       ],
       "excluded_pattern": "Names of abundance for self (Al-Ghaniyy alone) — jealousy needs perspective on His distribution, not just His wealth. Also excluded: Al-Muqsit — doctrinally about justice but not idiomatic for comparison/envy; Islamic remedies for jealousy center on gratitude, not justice (scholar-revised 2026-05-12)."
@@ -529,7 +609,8 @@
     "expected_names": [
       "Al-Hadi",
       "An-Nur",
-      "Al-Mumin"
+      "Al-Mumin",
+      "Az-Zahir"
     ],
     "rationale": {
       "category": "faith-struggle",
@@ -545,6 +626,10 @@
         {
           "name": "Al-Mumin",
           "why": "the giver of faith — īmān is His gift, not our manufacture"
+        },
+        {
+          "name": "Az-Zahir",
+          "why": "the manifest — His signs are visible even when conviction feels thin"
         }
       ],
       "excluded_pattern": "Names of judgment (Al-Hakam, Al-Adl) — struggling faith needs guidance, not verdict"
@@ -555,7 +640,9 @@
     "expected_names": [
       "Al-Jami",
       "Al-Lateef",
-      "Al-Haleem"
+      "Al-Haleem",
+      "Al-Waliyy",
+      "Al-Wali"
     ],
     "rationale": {
       "category": "family-conflict",
@@ -571,6 +658,14 @@
         {
           "name": "Al-Haleem",
           "why": "the forbearing — models the patience family requires"
+        },
+        {
+          "name": "Al-Waliyy",
+          "why": "the protecting friend — guards bonds when we cannot"
+        },
+        {
+          "name": "Al-Wali",
+          "why": "the governor — orders affairs even when family bonds feel ungoverned"
         }
       ],
       "excluded_pattern": "Names of dominance (Al-Qahhar) — family conflict needs softening, not victory"
@@ -633,7 +728,10 @@
     "expected_names": [
       "Al-Hayy",
       "Al-Baqi",
-      "Al-Wakeel"
+      "Al-Wakeel",
+      "Al-Mumeet",
+      "Al-Muhyi",
+      "Al-Muqtadir"
     ],
     "rationale": {
       "category": "mortality",
@@ -649,6 +747,18 @@
         {
           "name": "Al-Wakeel",
           "why": "the trustee — entrust the soul to the One who will receive it"
+        },
+        {
+          "name": "Al-Mumeet",
+          "why": "the giver of death — the decree itself includes death; the One you face it with"
+        },
+        {
+          "name": "Al-Muhyi",
+          "why": "the giver of life — the canonical pair partner of Al-Mumeet; together they govern life and death"
+        },
+        {
+          "name": "Al-Muqtadir",
+          "why": "the all-powerful — His decree governs both life and death"
         }
       ],
       "excluded_pattern": "Names of wrath (Al-Qahhar) — mortality fear needs anchoring in the eternal, not amplified dread"
