@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/core/constants/discovery_quiz.dart';
@@ -137,6 +138,74 @@ void main() {
       expect({a.first.name, b.first.name, c.first.name}.length,
           greaterThanOrEqualTo(2),
           reason: 'expected at least 2 distinct top anchors across 3 paths');
+    });
+  });
+
+  // Property-test: across many random answer paths, the aggregator must
+  // always return 2-3 anchors, and every returned anchor must resolve to a
+  // real entry in nameAnchorsCatalog (no raw-slug leaks to the UI).
+  //
+  // Deterministic seed (42) keeps this test reproducible across runs.
+  group('aggregator property: 100 random answer paths', () {
+    final qsRaw = File('assets/content/discovery_quiz_questions.json')
+        .readAsStringSync();
+    final qsList = jsonDecode(qsRaw) as List<dynamic>;
+    final qsCount = qsList.length;
+    // Per-question option count (handles future Qs with >4 options).
+    final optionCounts = qsList
+        .cast<Map<String, dynamic>>()
+        .map((q) => (q['options'] as List).length)
+        .toList();
+
+    test('every random path produces 2-3 anchors, all from name_anchors.json',
+        () {
+      final rand = Random(42);
+      final anchorKeys = nameAnchorsCatalog.keys.toSet();
+      final distinctTopAnchors = <String>{};
+      for (int trial = 0; trial < 100; trial++) {
+        final answers = List<int>.generate(
+            qsCount, (i) => rand.nextInt(optionCounts[i]));
+        final result = calculateQuizResults(answers);
+        expect(result, isNotEmpty,
+            reason: 'trial $trial answers=$answers returned no anchors');
+        expect(result.length, lessThanOrEqualTo(3),
+            reason: 'aggregator should cap at top-3');
+        // Every returned anchor must be a real, anchored Name.
+        for (final r in result) {
+          expect(anchorKeys, contains(r.nameKey),
+              reason:
+                  'trial $trial returned nameKey "${r.nameKey}" which has no name_anchors entry — would render as raw slug.');
+          // The result row must also carry rendered anchor+detail copy
+          // (i.e. it came from the catalog, not a slug fallback).
+          expect(r.anchor, isNotEmpty,
+              reason:
+                  'trial $trial nameKey "${r.nameKey}" has empty anchor copy');
+          expect(r.detail, isNotEmpty,
+              reason:
+                  'trial $trial nameKey "${r.nameKey}" has empty detail copy');
+        }
+        distinctTopAnchors.add(result.first.nameKey);
+      }
+      // Across 100 random paths we should see meaningful variety in the
+      // primary anchor — guards against a single Name dominating.
+      expect(distinctTopAnchors.length, greaterThanOrEqualTo(5),
+          reason:
+              'only ${distinctTopAnchors.length} distinct primary anchors across 100 random paths: $distinctTopAnchors');
+    });
+
+    test('all-zeros, all-ones, all-twos, all-threes all return valid anchors',
+        () {
+      final anchorKeys = nameAnchorsCatalog.keys.toSet();
+      final minOpts =
+          optionCounts.reduce((a, b) => a < b ? a : b); // safe upper bound
+      for (var idx = 0; idx < minOpts; idx++) {
+        final result = calculateQuizResults(List<int>.filled(qsCount, idx));
+        expect(result, isNotEmpty, reason: 'all-$idx returned empty');
+        for (final r in result) {
+          expect(anchorKeys, contains(r.nameKey),
+              reason: 'all-$idx returned un-anchored slug "${r.nameKey}"');
+        }
+      }
     });
   });
 }
