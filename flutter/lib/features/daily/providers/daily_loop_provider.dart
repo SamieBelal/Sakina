@@ -454,7 +454,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Save to history
       try {
-        final today = DateTime.now();
+        final today = debugDailyLoopClock();
         final dateStr =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
         await saveCheckinRecord(CheckInRecord(
@@ -619,7 +619,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Save check-in to history
       try {
-        final today = DateTime.now();
+        final today = debugDailyLoopClock();
         final dateStr =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
         await saveCheckinRecord(CheckInRecord(
