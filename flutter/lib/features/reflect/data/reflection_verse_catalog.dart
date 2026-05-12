@@ -49,7 +49,7 @@ const ReflectVerse _repentanceVerse = ReflectVerse(
       'رَبَّنَا ظَلَمْنَا أَنفُسَنَا وَإِن لَّمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ',
   translation:
       'Our Lord, we have wronged ourselves, and if You do not forgive us and have mercy upon us, we will surely be among the losers.',
-  reference: 'Quran 7:23',
+  reference: "Al-A'raf 7:23",
 );
 
 const ReflectVerse _believersMercyVerse = ReflectVerse(
@@ -57,7 +57,7 @@ const ReflectVerse _believersMercyVerse = ReflectVerse(
       'رَبَّنَا اغْفِرْ لَنَا وَلِإِخْوَانِنَا الَّذِينَ سَبَقُونَا بِالْإِيمَانِ وَلَا تَجْعَلْ فِي قُلُوبِنَا غِلًّا لِّلَّذِينَ آمَنُوا رَبَّنَا إِنَّكَ رَءُوفٌ رَّحِيمٌ',
   translation:
       'Our Lord, forgive us and our brothers who preceded us in faith, and put not in our hearts any resentment toward those who have believed. Our Lord, indeed You are Kind and Merciful.',
-  reference: 'Quran 59:10',
+  reference: 'Al-Hashr 59:10',
 );
 
 const ReflectVerse _goodWorldsVerse = ReflectVerse(
@@ -65,14 +65,14 @@ const ReflectVerse _goodWorldsVerse = ReflectVerse(
       'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
   translation:
       'Our Lord, give us good in this world and good in the Hereafter, and protect us from the punishment of the Fire.',
-  reference: 'Quran 2:201',
+  reference: 'Al-Baqarah 2:201',
 );
 
 const ReflectVerse _acceptanceVerse = ReflectVerse(
   arabic: 'رَبَّنَا تَقَبَّلْ مِنَّا ۖ إِنَّكَ أَنتَ السَّمِيعُ الْعَلِيمُ',
   translation:
       'Our Lord, accept from us. Indeed You are the Hearing, the Knowing.',
-  reference: 'Quran 2:127',
+  reference: 'Al-Baqarah 2:127',
 );
 
 const ReflectVerse _protectionVerse = ReflectVerse(
@@ -80,7 +80,7 @@ const ReflectVerse _protectionVerse = ReflectVerse(
       'اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ',
   translation:
       'Allah — there is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep. To Him belongs whatever is in the heavens and whatever is on the earth.',
-  reference: 'Quran 2:255',
+  reference: 'Al-Baqarah 2:255',
 );
 
 const Map<String, List<ReflectVerse>> approvedReflectVersesByName = {
@@ -139,7 +139,22 @@ List<ReflectVerse> normalizeApprovedVerses(
     return normalized.take(2).toList();
   }
 
-  return approvedVersesForName(name).take(2).toList();
+  final byName = approvedVersesForName(name);
+  if (byName.isNotEmpty) {
+    return byName.take(2).toList();
+  }
+
+  // Final safety net: any Name not in the catalog still gets two "always-safe"
+  // verses. Prevents verseless cards if the AI returns a non-canonical Name.
+  // Fires a debugPrint so production monitoring can surface persistent mismatches —
+  // a steady stream of these means the AI is returning a non-canonical spelling.
+  assert(() {
+    // ignore: avoid_print
+    print('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
+        'Check AI prompt + canonical-names list for spelling mismatch.');
+    return true;
+  }());
+  return const [_heartsRestVerse, _noBurdenVerse];
 }
 
 String buildApprovedVersePrompt() {
