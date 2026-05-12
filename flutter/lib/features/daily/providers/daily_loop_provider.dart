@@ -201,6 +201,18 @@ class DailyLoopState {
 // Notifier
 // ---------------------------------------------------------------------------
 
+/// Test seam — replace in tests via `debugDailyLoopClock = ...` to drive
+/// the daily-loop date math at deterministic UTC instants. Production
+/// callers always read `DateTime.now().toUtc()`. Mirrors `debugLaunchGateClock`
+/// (`launch_gate_state.dart`) and `debugRewardsClock` (`daily_rewards_service.dart`)
+/// so all three modules agree on the day boundary. Without this seam the
+/// daily-loop SharedPrefs key was keyed by local date while the server-side
+/// `claim_daily_reward` RPC keyed by UTC, causing a "fresh muhasabah"
+/// flicker for users crossing local midnight on the same UTC day. See PR #8
+/// for the matching launch-gate fix and `TODO.md` for the prior context.
+@visibleForTesting
+DateTime Function() debugDailyLoopClock = () => DateTime.now().toUtc();
+
 class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   DailyLoopNotifier() : super(const DailyLoopState()) {
     // Subscribe BEFORE _initialize so consumable grants that fire while
@@ -251,7 +263,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   }
 
   String get _todayKey {
-    final now = DateTime.now();
+    final now = debugDailyLoopClock();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     return supabaseSyncService.scopedKey('daily_loop_$date');
@@ -442,7 +454,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Save to history
       try {
-        final today = DateTime.now();
+        final today = debugDailyLoopClock();
         final dateStr =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
         await saveCheckinRecord(CheckInRecord(
@@ -607,7 +619,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
 
       // Save check-in to history
       try {
-        final today = DateTime.now();
+        final today = debugDailyLoopClock();
         final dateStr =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
         await saveCheckinRecord(CheckInRecord(
