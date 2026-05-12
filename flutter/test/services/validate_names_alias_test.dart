@@ -27,25 +27,34 @@ void main() {
       expect(majid!.name, equals('Al-Majid'));
     });
 
-    test('common AI variants NOT yet in alias map return null (drift guard)', () {
-      // These vowel-length variants are the same Arabic Names as canonical entries
-      // but are NOT currently in `_transliterationAliases`. Pinning their
-      // null-return behavior so future drift is visible: if any of these start
-      // resolving, also add a positive test asserting the canonical target.
-      // Plan 5 eng review surfaced these in `knowledge_base.dart` teaching keys.
-      const variantsNotYetMapped = [
-        'Al-Hakim',   // canonical: Al-Hakeem
-        'Al-Karim',   // canonical: Al-Kareem
-        'Al-Khabir',  // canonical: Al-Khabeer
-        'Al-Mujib',   // canonical: Al-Mujeeb
-        'Al-Basir',   // canonical: Al-Baseer
-        'Al-Matin',   // canonical: Al-Mateen
-      ];
-      for (final v in variantsNotYetMapped) {
-        expect(findCanonicalName(v), isNull,
-            reason: 'If "$v" now resolves, also add a positive test asserting '
-                'the canonical target it maps to.');
+    test('all AI variants surfaced by knowledge_base.dart resolve correctly', () {
+      // The /review adversarial pass surfaced these as live drift: knowledge_base.dart
+      // teaching keys use non-canonical transliterations, the AI mirrors them in
+      // its output, and unaliased they leak unnormalized into ReflectResponse.name
+      // and downstream DB writes. Fixed by extending _transliterationAliases.
+      const knownVariants = {
+        'Al-Hakim': 'Al-Hakeem',
+        'Al-Karim': 'Al-Kareem',
+        'Al-Khabir': 'Al-Khabeer',
+        'Al-Mujib': 'Al-Mujeeb',
+        'Al-Basir': 'Al-Baseer',
+        'Al-Matin': 'Al-Mateen',
+        'As-Saboor': 'As-Sabur',
+      };
+      for (final pair in knownVariants.entries) {
+        final r = findCanonicalName(pair.key);
+        expect(r, isNotNull,
+            reason: 'Variant "${pair.key}" should resolve to a canonical Name.');
+        expect(r!.name, equals(pair.value),
+            reason: 'Variant "${pair.key}" should resolve to "${pair.value}".');
       }
+    });
+
+    test('_canonicalMap initializes without throwing (alias-target smoke test)', () {
+      // First access to findCanonicalName triggers lazy _canonicalMap init.
+      // If any alias target is missing from allahNames, init throws StateError.
+      // This smoke test fails fast in CI on any future bad alias addition.
+      expect(() => findCanonicalName('Allah'), returnsNormally);
     });
   });
 }

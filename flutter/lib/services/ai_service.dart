@@ -260,7 +260,15 @@ ReflectResponse? parseReflectResponse(String text) {
   final relatedRaw = _parseSection(text, '##RELATED##');
   final parsedVerses = _parseReflectVerses(text);
 
-  if (name == null || reframe == null) return null;
+  // Treat empty-content markers as missing so the caller falls back to the
+  // demo response — a `##NAME##\n` with no content downstream produces a
+  // blank hero card in the reflect UI.
+  if (name == null ||
+      name.isEmpty ||
+      reframe == null ||
+      reframe.isEmpty) {
+    return null;
+  }
 
   // Validate primary name against canonical list
   final canonical = findCanonicalName(name);
@@ -872,16 +880,18 @@ const _semanticStopwords = <String>{
 /// Returns up to 5 best matches sorted by relevance score.
 List<FindDuasDuaEntry> _searchLocalDuas(String need) {
   final query = need.toLowerCase();
-  final queryWords =
-      query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+  // Filter once: length>2 AND not a stopword. Applies to BOTH the inferred-tag
+  // loop AND the direct keyword-substring loop below, so a query like
+  // "for the with from" (all stopwords) yields no junk routing.
+  final queryWords = query
+      .split(RegExp(r'\s+'))
+      .where((w) => w.length > 2 && !_semanticStopwords.contains(w))
+      .toList();
   final duas = browseDuasCatalog;
 
   // Expand query words to inferred categories/tags via semantic map.
-  // Skip stopwords — short generic words like 'for' would otherwise match
-  // 'forgive' via the substring check and route everything to forgiveness.
   final inferredTags = <String>{};
   for (final word in queryWords) {
-    if (_semanticStopwords.contains(word)) continue;
     for (final key in _semanticMap.keys) {
       if (word.contains(key) || key.contains(word)) {
         inferredTags.addAll(_semanticMap[key]!);
@@ -1446,7 +1456,7 @@ Future<DailyReflectResponse> getDailyResponse(
         '---\n\n'
         'Respond with EXACTLY this marker, nothing else:\n'
         '##NAME## (English · Arabic)\n\n'
-        'Example: ##NAME## As-Saboor · ٱلصَّبُورُ',
+        'Example: ##NAME## As-Sabur · الصَّبُورُ',
     userMessage: answersFormatted,
     maxCompletionTokens: 100,
   );

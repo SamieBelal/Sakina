@@ -24,10 +24,22 @@ final Set<String> _canonicalNormalised = _canonicalMap.keys.toSet();
 /// a blanket `ee→i` rule would conflate Al-Majeed and Al-Majid (two
 /// distinct Names). Keep this map small and only add entries the eval surfaces.
 const Map<String, String> _transliterationAliases = {
+  // Vowel-length variants (ee↔i). All are the same Arabic Name as their target,
+  // but `_normalise` can't blanket-collapse `ee→i` because that would conflate
+  // Al-Majeed (الْمَجِيدُ) and Al-Majid (الْمَاجِدُ) — distinct canonical Names.
   'Al-Wakil': 'Al-Wakeel',
-  'Al-Dhahir': 'Az-Zahir',
   'Al-Halim': 'Al-Haleem',
   'Al-Latif': 'Al-Lateef',
+  'Al-Hakim': 'Al-Hakeem',
+  'Al-Karim': 'Al-Kareem',
+  'Al-Khabir': 'Al-Khabeer',
+  'Al-Mujib': 'Al-Mujeeb',
+  'Al-Basir': 'Al-Baseer',
+  'Al-Matin': 'Al-Mateen',
+  // Vowel-length variant (oo↔u).
+  'As-Saboor': 'As-Sabur',
+  // dh↔z (different Latin transliterations of ظ).
+  'Al-Dhahir': 'Az-Zahir',
 };
 
 /// Pre-built map from normalised key to canonical entry. Includes aliases

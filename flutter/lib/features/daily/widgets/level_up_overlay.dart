@@ -66,6 +66,10 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   }
 
   void _runSequence() {
+    // Re-entry guard: if the sequence is already armed (timers scheduled),
+    // don't double-schedule. Only called from `initState` today, but a future
+    // hot-reload or didUpdateWidget hook would otherwise duplicate timers.
+    if (_pendingTimers.isNotEmpty) return;
     _schedulePhase(_kPhase1Offset, () {
       HapticFeedback.heavyImpact();
       setState(() => _phase = 1);
