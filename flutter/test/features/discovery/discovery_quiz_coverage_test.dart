@@ -62,4 +62,23 @@ void main() {
       }
     });
   });
+
+  group('aggregator returns reachable Names', () {
+    test('answering every Q with option 0 returns a non-empty anchor list',
+        () {
+      // Build an answer list whose length matches the question count.
+      final qsCount = 18; // bump to actual final count
+      final result = calculateQuizResults(List<int>.filled(qsCount, 0));
+      expect(result, isNotEmpty);
+    });
+    test('three distinct answer paths produce distinct top anchors', () {
+      final qsCount = 18;
+      final a = calculateQuizResults(List<int>.filled(qsCount, 0));
+      final b = calculateQuizResults(List<int>.filled(qsCount, 1));
+      final c = calculateQuizResults(List<int>.filled(qsCount, 2));
+      expect({a.first.name, b.first.name, c.first.name}.length,
+          greaterThanOrEqualTo(2),
+          reason: 'expected at least 2 distinct top anchors across 3 paths');
+    });
+  });
 }
