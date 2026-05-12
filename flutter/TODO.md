@@ -61,3 +61,28 @@ Deferred work — not blocking the current iOS submission, but needed before spe
 **Status:** Supabase Auth has a built-in HaveIBeenPwned integration that rejects compromised passwords at signup/password-change. It's **gated to Pro+ plans** — not available on Free. The advisor warning (`auth_leaked_password_protection`) will keep firing on Free; safe to ignore until upgrade.
 
 **Action when upgrading:** Supabase Dashboard → Authentication → Policies → toggle on "Leaked Password Protection." 30-second change, no migration needed.
+
+---
+
+## Fix two pre-existing dua-scoring regressions
+
+**Trigger:** before the Plan 2 (browse duas) content batch ships — those 2 failing regression tests block the GREEN.
+
+**Status:** Two regression-pin tests in `test/services/browse_duas_catalog_test.dart` fail today. NOT introduced by Plan 2's changes — surfaced by Plan 2's new regression coverage that exposes latent quirks in `_searchLocalDuas`:
+
+1. **`"I lost someone"` routes to `guidance` instead of `grief`.** Root cause: `_semanticMap` has `'lost': ['guidance']` (catch-all for "I feel lost"). When the phrase is grief-shaped, `lost` outranks `someone`. Fix candidates:
+   - (a) drop `'lost'` from the map (loses guidance routing for "I feel lost" — bad)
+   - (b) co-tag `'lost': ['guidance','grief']` (likely best)
+   - (c) add `'lost someone': ['grief']` as a compound keyword (would need `_searchLocalDuas` to prefer longest match)
+
+2. **`"praying for my family"` routes to `morning` instead of `family`.** Root cause: `morning` category duas have the word `"family"` in their text fields, so the substring-on-text scoring path beats the semantic-map category path. Fix candidates:
+   - (a) bump semantic-map tag score weight in `_searchLocalDuas` (currently +6 for category match, +4 for emotion tag — increase if needed)
+   - (b) prefer `category` exact match over text substring when both fire
+
+**Action when fixing:**
+1. Pick fix strategy per probe.
+2. Both regression tests turn GREEN.
+3. Verify the 13 other regression-pin probes still pass (don't trade one fix for another).
+4. Add a `find_duas_smoke_eval.dart` row for each probe to detect future drift.
+
+These surface in `test test/services/browse_duas_catalog_test.dart` and the eval file `test/evals/find_duas_smoke_eval.dart` (out of CI sweep — invoke directly).
