@@ -12,40 +12,20 @@ void main() {
 
   // Seed the in-memory public catalog from the bundled name_anchors.json so
   // `nameAnchorsCatalog` resolves to the full 98-name JSON catalog rather
-  // than the 33-entry const fallback in `discovery_quiz.dart`. Plan 4
-  // (Names backfill) shipped the 98 entries; this lets Plan 3's scoring
-  // expansion verify against the full anchored set.
-  //
-  // Plan 3 also references three Names that Plan 4 deliberately omitted
-  // from `name_anchors.json` (they sit outside the canonical 99 but are
-  // present in the const-fallback `nameAnchors` map): `ar-rabb`, `al-jamil`,
-  // `al-qarib`. We splice them into the seeded catalog from the const
-  // fallback so the property test (which renders anchor/detail copy) still
-  // passes — this mirrors what production would do if catalog hydration
-  // merged with the fallback, and avoids editing Plan 4 content here.
+  // than the 33-entry const fallback in `discovery_quiz.dart`.
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    final raw = File('assets/content/name_anchors.json').readAsStringSync();
-    final List<dynamic> anchors = jsonDecode(raw) as List<dynamic>;
-    final existingKeys = anchors
-        .cast<Map<String, dynamic>>()
-        .map((e) => e['name_key'] as String)
-        .toSet();
-    for (final spliceKey in const ['ar-rabb', 'al-jamil', 'al-qarib']) {
-      if (existingKeys.contains(spliceKey)) continue;
-      final info = nameAnchors[spliceKey];
-      if (info == null) continue;
-      anchors.add({
-        'name_key': spliceKey,
-        'name': info.name,
-        'arabic': info.arabic,
-        'anchor': info.anchor,
-        'detail': info.detail,
-      });
-    }
+    final anchorsRaw =
+        File('assets/content/name_anchors.json').readAsStringSync();
     await setPublicCatalogJsonForTesting(
       PublicCatalogKeys.nameAnchors,
-      jsonEncode(anchors),
+      anchorsRaw,
+    );
+    final quizRaw = File('assets/content/discovery_quiz_questions.json')
+        .readAsStringSync();
+    await setPublicCatalogJsonForTesting(
+      PublicCatalogKeys.discoveryQuizQuestions,
+      quizRaw,
     );
   });
 

@@ -9,20 +9,20 @@
           "al-hakim": 3,
           "al-latif": 2,
           "as-sabur": 2,
-          "ar-rabb": 1,
           "ad-darr": 1,
-          "al-haleem": 1
+          "al-haleem": 1,
+          "al-wakil": 1
         }
       },
       {
         "text": "Someone to hear me — even if I can't explain it",
         "scores": {
           "as-sami": 3,
-          "al-qarib": 2,
           "al-wadud": 1,
           "al-khabir": 1,
           "ar-raqeeb": 2,
-          "al-aleem": 1
+          "al-aleem": 1,
+          "al-mujib": 2
         }
       },
       {
@@ -31,16 +31,15 @@
           "ar-rahman": 3,
           "al-wadud": 2,
           "as-salam": 1,
-          "al-qarib": 1,
           "al-waliyy": 2,
-          "ar-rauf": 1
+          "ar-rauf": 1,
+          "al-mujib": 1
         }
       },
       {
         "text": "A sense that someone is in control when I'm not",
         "scores": {
           "al-wakil": 3,
-          "ar-rabb": 2,
           "al-qayyum": 2,
           "al-matin": 1,
           "al-malik": 2,
@@ -72,9 +71,9 @@
           "al-latif": 3,
           "al-khabir": 2,
           "as-sami": 1,
-          "al-qarib": 1,
           "al-batin": 2,
-          "az-zahir": 1
+          "az-zahir": 1,
+          "al-mujib": 1
         }
       },
       {
@@ -83,7 +82,6 @@
           "al-hakim": 3,
           "al-wakil": 2,
           "al-ali": 2,
-          "ar-rabb": 1,
           "al-haseeb": 1,
           "al-muqsit": 1
         }
@@ -93,10 +91,10 @@
         "scores": {
           "al-wadud": 3,
           "ar-rahim": 2,
-          "al-qarib": 2,
           "as-samad": 1,
           "ar-rauf": 2,
-          "al-akhir": 1
+          "al-akhir": 1,
+          "al-mujib": 2
         }
       }
     ],
@@ -145,10 +143,10 @@
         "scores": {
           "al-hadi": 3,
           "an-nur": 2,
-          "ar-rabb": 1,
           "al-fattah": 1,
           "al-jami": 2,
-          "ar-rasheed": 1
+          "ar-rasheed": 1,
+          "al-wakil": 1
         }
       }
     ],
@@ -239,8 +237,8 @@
           "al-hadi": 3,
           "an-nur": 2,
           "al-hakim": 1,
-          "ar-rabb": 1,
-          "ar-rasheed": 2
+          "ar-rasheed": 2,
+          "al-wakil": 1
         }
       },
       {
@@ -265,22 +263,22 @@
       {
         "text": "Through difficulty — hardship brings me closer",
         "scores": {
-          "ar-rabb": 3,
           "as-sabur": 2,
           "al-mujib": 1,
           "al-hakim": 1,
-          "ad-darr": 1
+          "ad-darr": 1,
+          "al-wakil": 3
         }
       },
       {
         "text": "Through beauty — nature, art, the world around me",
         "scores": {
-          "al-jamil": 3,
           "an-nur": 2,
           "al-latif": 2,
           "al-karim": 1,
           "al-badi": 2,
-          "al-musawwir": 1
+          "al-musawwir": 1,
+          "al-bari": 3
         }
       },
       {
@@ -298,7 +296,6 @@
         "text": "Through dua — just talking to Him",
         "scores": {
           "al-mujib": 3,
-          "al-qarib": 2,
           "as-sami": 2,
           "at-tawwab": 1,
           "al-haleem": 1
@@ -340,9 +337,9 @@
           "al-wadud": 3,
           "al-karim": 2,
           "ar-rahman": 1,
-          "al-jamil": 1,
           "al-majeed": 2,
-          "ar-rauf": 1
+          "ar-rauf": 1,
+          "al-bari": 1
         }
       },
       {
@@ -389,11 +386,11 @@
         "text": "Gratitude for being kept on a path — even a hard one",
         "scores": {
           "al-hadi": 3,
-          "ar-rabb": 2,
           "as-sabur": 1,
           "al-hakim": 1,
           "ar-rasheed": 1,
-          "al-muqsit": 1
+          "al-muqsit": 1,
+          "al-wakil": 2
         }
       },
       {
@@ -451,12 +448,12 @@
       {
         "text": "A longing to finally feel close, fully, without distance",
         "scores": {
-          "al-qarib": 3,
           "al-wadud": 2,
           "as-samad": 1,
           "as-salam": 1,
           "al-batin": 2,
-          "al-mumin": 1
+          "al-mumin": 1,
+          "al-mujib": 3
         }
       }
     ],
@@ -492,12 +489,12 @@
       {
         "text": "In knowing what He wants from me in this season",
         "scores": {
-          "ar-rabb": 3,
           "al-hakim": 2,
           "al-hadi": 1,
           "al-ali": 1,
           "al-malik": 2,
-          "al-wali": 1
+          "al-wali": 1,
+          "al-wakil": 3
         }
       },
       {
@@ -545,7 +542,6 @@
         "scores": {
           "as-sami": 3,
           "al-mujib": 2,
-          "al-qarib": 2,
           "at-tawwab": 1,
           "ar-raqeeb": 2,
           "al-aleem": 1
@@ -587,9 +583,9 @@
           "ash-shakur": 3,
           "ar-razzaq": 2,
           "al-karim": 2,
-          "ar-rabb": 1,
           "al-hameed": 1,
-          "al-muqeet": 1
+          "al-muqeet": 1,
+          "al-wakil": 1
         }
       },
       {
@@ -597,7 +593,6 @@
         "scores": {
           "al-wakil": 3,
           "al-matin": 2,
-          "ar-rabb": 1,
           "as-sabur": 1,
           "al-hafeez": 2,
           "al-muhaymin": 1
@@ -625,12 +620,12 @@
       {
         "text": "Sunsets, oceans, the sheer scale of the sky",
         "scores": {
-          "al-jamil": 3,
           "al-ali": 2,
           "al-karim": 1,
-          "ar-rabb": 1,
           "al-musawwir": 2,
-          "al-khaliq": 1
+          "al-khaliq": 1,
+          "al-wakil": 1,
+          "al-bari": 3
         }
       },
       {
@@ -701,10 +696,10 @@
         "scores": {
           "al-qawi": 3,
           "al-matin": 2,
-          "ar-rabb": 1,
           "as-sabur": 1,
           "al-azeez": 2,
-          "al-qahhar": 1
+          "al-qahhar": 1,
+          "al-wakil": 1
         }
       },
       {
@@ -762,7 +757,6 @@
         "text": "Trusting Allah with the people I love when I can't fix things",
         "scores": {
           "al-wakil": 3,
-          "ar-rabb": 2,
           "al-hakim": 1,
           "as-sami": 1,
           "al-hafeez": 2,
@@ -780,12 +774,12 @@
       {
         "text": "That my life is being shaped by One who knows exactly what He's doing",
         "scores": {
-          "ar-rabb": 3,
           "al-hakim": 2,
           "al-khabir": 1,
           "al-ali": 1,
           "al-khaliq": 2,
-          "al-musawwir": 1
+          "al-musawwir": 1,
+          "al-wakil": 3
         }
       },
       {
@@ -804,10 +798,10 @@
         "scores": {
           "as-samad": 3,
           "as-salam": 2,
-          "al-qarib": 2,
           "al-wadud": 1,
           "al-baqi": 2,
-          "al-wahid": 1
+          "al-wahid": 1,
+          "al-mujib": 2
         }
       },
       {
@@ -816,9 +810,9 @@
           "al-hadi": 3,
           "an-nur": 2,
           "al-fattah": 1,
-          "ar-rabb": 1,
           "ar-rasheed": 2,
-          "al-mubdi": 1
+          "al-mubdi": 1,
+          "al-wakil": 1
         }
       }
     ],
@@ -855,10 +849,10 @@
         "scores": {
           "al-hakim": 3,
           "as-sabur": 2,
-          "ar-rabb": 1,
           "al-fattah": 1,
           "al-muakhkhir": 2,
-          "al-muqaddim": 1
+          "al-muqaddim": 1,
+          "al-wakil": 1
         }
       },
       {
@@ -919,7 +913,6 @@
           "al-latif": 3,
           "al-hakim": 2,
           "al-wakil": 2,
-          "ar-rabb": 1,
           "al-muid": 2,
           "ad-darr": 1
         }
