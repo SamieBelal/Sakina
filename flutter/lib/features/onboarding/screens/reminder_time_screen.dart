@@ -74,7 +74,7 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
     return OnboardingQuestionScaffold(
       progressSegment: 13,
       headline: 'When should we check in with you?',
-      subtitle: 'A gentle reminder, once a day.',
+      subtitle: 'A gentle reminder, once a day. Pick the hour that suits you.',
       onBack: widget.onBack,
       continueEnabled: true,
       onContinue: () {
@@ -137,18 +137,19 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
               ),
               child: CupertinoDatePicker(
                 mode: CupertinoDatePickerMode.time,
-                initialDateTime: DateTime(
-                  2026,
-                  1,
-                  1,
-                  _time.hour,
-                  _time.minute,
-                ),
+                // The notification cron runs hourly at :00, so we only
+                // accept whole-hour reminder times. Picking 08:30 would
+                // floor to 09:00 server-side and confuse the user. See
+                // supabase/functions/send-scheduled-notifications/index.ts.
+                initialDateTime: DateTime(2026, 1, 1, _time.hour, 0),
                 use24hFormat: false,
-                minuteInterval: 5,
+                minuteInterval: 60,
                 onDateTimeChanged: (dt) {
+                  // Defensive clamp: minuteInterval should prevent non-zero
+                  // minutes, but if a future picker swap reintroduces them,
+                  // we still want the stored value to align with the cron.
                   setState(
-                    () => _time = TimeOfDay(hour: dt.hour, minute: dt.minute),
+                    () => _time = TimeOfDay(hour: dt.hour, minute: 0),
                   );
                 },
               ),
