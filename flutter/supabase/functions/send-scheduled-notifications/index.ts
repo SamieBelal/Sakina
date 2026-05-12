@@ -12,10 +12,17 @@ type NotificationType = {
   key: string;
   prefColumn: string;
   sentColumn: string;
+  // For daily: fallback used only when the user has no reminder_time set.
+  // For streak/reengagement/weekly: the fixed semantic time (e.g. evening
+  // streak-risk, Friday evening weekly reflection).
   targetHour: number;
   requiresStreak: boolean;
   inactiveDays?: number;
   dayOfWeek?: number;
+  // When true, RPC reads user_profiles.reminder_time and uses its hour
+  // instead of targetHour, falling back to targetHour only when
+  // reminder_time is null/empty. Daily only.
+  useUserReminderTime?: boolean;
   title: (row: EligibleUser) => string;
   message: (row: EligibleUser) => string;
   dataType: string;
@@ -32,8 +39,9 @@ const NOTIFICATION_TYPES: NotificationType[] = [
     key: "daily",
     prefColumn: "notify_daily",
     sentColumn: "last_daily_sent_at",
-    targetHour: 9,
+    targetHour: 9, // fallback when user has not set reminder_time
     requiresStreak: false,
+    useUserReminderTime: true,
     title: (row) =>
       row.display_name ? `Assalamu Alaikum, ${row.display_name}` : "Sakina",
     message: () => "Take a moment with Sakina today.",
@@ -187,6 +195,8 @@ Deno.serve(async (request) => {
           p_requires_streak: notificationType.requiresStreak,
           p_inactive_days: notificationType.inactiveDays ?? 0,
           p_day_of_week: notificationType.dayOfWeek ?? null,
+          p_use_user_reminder_time:
+            notificationType.useUserReminderTime ?? false,
         },
       );
 
