@@ -56,7 +56,9 @@ const discoveryQuizQuestionsPublicCatalog = PublicCatalogContract(
   table: 'discovery_quiz_questions',
   orderBy: 'sort_order',
   fileName: 'discovery_quiz_questions.json',
-  expectedCount: 6,
+  // Plan 3 (2026-05-12) expanded the quiz from 6 to 18 questions. The catalog
+  // test pins this count to the JSON shipped in assets/content/.
+  expectedCount: 18,
   requiredKeys: ['id', 'prompt', 'options', 'sort_order'],
   primaryKey: 'id',
   rowValidator: isValidDiscoveryQuizQuestionRow,

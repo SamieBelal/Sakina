@@ -42,7 +42,7 @@ void main() {
 
     expect(dailyQuestionsCatalog.length, 30);
     expect(browseDuasCatalog.length, 76);
-    expect(discoveryQuizQuestionsCatalog.length, 6);
+    expect(discoveryQuizQuestionsCatalog.length, 18);
     expect(nameAnchorsCatalog.length, 98);
     expect(currentCollectibleNames().length, 99);
   });

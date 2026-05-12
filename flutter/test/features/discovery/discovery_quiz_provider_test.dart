@@ -82,8 +82,13 @@ void main() {
 
     await Future<void>.delayed(Duration.zero);
 
+    // After Plan 3 (2026-05-12) the live catalog is 18 questions, loaded
+    // from JSON via discoveryQuizQuestionsCatalog. The Dart const
+    // `discoveryQuizQuestions` is now a frozen 6-question fallback, so we
+    // build the simulated Supabase payload from the catalog (18 rows) so
+    // it satisfies the catalog contract expectedCount=18.
     fakeSync.publicRows['discovery_quiz_questions'] =
-        discoveryQuizQuestions.asMap().entries.map((entry) {
+        discoveryQuizQuestionsCatalog.asMap().entries.map((entry) {
       final question = entry.value;
       return {
         'id': question.id,
