@@ -89,4 +89,41 @@ void main() {
       }
     });
   });
+
+  group('getRelevantTeachings surfaces formerly-uncovered Names', () {
+    // Probes whose expected Name HAS a teaching in the existing corpus today
+    // and routes there as top-1. Phrases avoid bare "feel" / "feeling" prefixes
+    // because many teachings share "feel..." emotional contexts and the
+    // emotionalContext-first-word matcher (+1 each) can sway top-1 toward
+    // Al-Qabid & Al-Basit (which has many "feel..." starters).
+    //
+    // Picked by tracing `getRelevantTeachings`:
+    // - "unloved" hits keywordMap idx 14 (Al-Wadud) +2 unique.
+    // - "scattered" hits keywordMap idx 17 (Al-Jami) +2 unique.
+    // - "never appreciated" hits Al-Shakur's emotionalContext.
+    // - "undeserving not worthy" hits Al-Karim's emotionalContext.
+    //
+    // Probes that depend on yet-to-be-authored teachings (Al-Muqtadir, Al-Mani,
+    // Adh-Dharr, etc.) are commented out until Task 3 lands.
+    const probes = {
+      'unloved': 'Al-Wadud',
+      'scattered': 'Al-Jami',
+      'never appreciated': 'Al-Shakur',
+      'undeserving not worthy': 'Al-Karim',
+      // 'feeling powerless': 'Al-Muqtadir',
+      // 'i feel cut off from everyone': 'Al-Mani',
+    };
+    probes.forEach((phrase, expectedName) {
+      // Tightened: expected Name must be the TOP-1 returned teaching, not just
+      // anywhere in the top-N list. Catches over-broad emotionalContext entries
+      // that route a phrase to a different Name with similar tags.
+      test('"$phrase" surfaces $expectedName as top-1', () {
+        final teachings = getRelevantTeachings(phrase);
+        expect(teachings, isNotEmpty,
+            reason: 'phrase "$phrase" returned no teachings at all');
+        expect(teachings.first.name.contains(expectedName), isTrue,
+            reason: 'phrase "$phrase" top-1 was ${teachings.first.name}, expected $expectedName');
+      });
+    });
+  });
 }
