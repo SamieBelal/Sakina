@@ -7,7 +7,8 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, kIsWeb, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
@@ -790,6 +791,66 @@ const _semanticMap = <String, List<String>>{
   'travel': ['travel'],
   'journey': ['travel'],
   'trip': ['travel'],
+  // Anger
+  'angry': ['anger'],
+  'anger': ['anger'],
+  'rage': ['anger'],
+  'furious': ['anger'],
+  // Envy
+  'jealous': ['envy'],
+  'envy': ['envy'],
+  'jealousy': ['envy'],
+  // Lust
+  'lust': ['lust'],
+  'desire': ['lust'],
+  'temptation': ['lust', 'forgiveness'],
+  // Loneliness
+  'alone': ['loneliness'],
+  'lonely': ['loneliness'],
+  'isolated': ['loneliness'],
+  // Shame
+  'shame': ['shame', 'forgiveness'],
+  'ashamed': ['shame', 'forgiveness'],
+  'embarrass': ['shame'],
+  // Burnout
+  'burnout': ['burnout', 'anxiety'],
+  'exhausted': ['burnout'],
+  'tired': ['burnout', 'anxiety'],
+  // co-tag — "tired" historically routes to anxiety; don't steal all hits.
+  // Marriage conflict
+  'divorce': ['marriage_conflict', 'family'],
+  'fighting': ['marriage_conflict'],
+  'argue': ['marriage_conflict'],
+  // Parenting
+  'parent': ['parenting', 'family'],
+  'parenting': ['parenting'],
+  // 'failing' deliberately omitted — too generic ("failing a class",
+  // "failing at work"). The "I am failing as a parent" path still resolves
+  // via the substring keyword match on 'parent' / 'parenting' in
+  // _searchLocalDuas.
+  // Work
+  'boss': ['work', 'wealth'],
+  'fired': ['work', 'wealth'],
+  'career': ['work', 'wealth'],
+  // Illness
+  'sick': ['illness'],
+  // do NOT co-tag 'sick' with protection — the 5 existing protection
+  // duas would outrank brand-new illness duas. Keep protection only on
+  // specific terms like 'cancer','disease' if needed (handled below).
+  'illness': ['illness'],
+  'disease': ['illness'],
+  'cancer': ['illness'],
+  'pain': ['illness'],
+  // Addiction
+  'addict': ['addiction', 'forgiveness'],
+  'addiction': ['addiction'],
+  'porn': ['addiction', 'forgiveness'],
+  'drinking': ['addiction', 'forgiveness'],
+  // Death / grief
+  'died': ['death_grief', 'grief'],
+  'death': ['death_grief', 'grief'],
+  'passed away': ['death_grief', 'grief'],
+  'funeral': ['death_grief', 'grief'],
 };
 
 /// Search the local browse duas catalog for duas matching the user's need.
@@ -1406,3 +1467,7 @@ Future<DailyReflectResponse> getDailyResponse(
     nameArabic: canonical?.nameArabic ?? parsedNameArabic,
   );
 }
+
+@visibleForTesting
+List<FindDuasDuaEntry> searchLocalDuasForTest(String need) =>
+    _searchLocalDuas(need);
