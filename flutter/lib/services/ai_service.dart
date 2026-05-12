@@ -7,7 +7,8 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, kIsWeb, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
@@ -1415,3 +1416,7 @@ Future<DailyReflectResponse> getDailyResponse(
     nameArabic: canonical?.nameArabic ?? parsedNameArabic,
   );
 }
+
+@visibleForTesting
+List<FindDuasDuaEntry> searchLocalDuasForTest(String need) =>
+    _searchLocalDuas(need);
