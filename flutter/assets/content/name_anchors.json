@@ -1,11 +1,51 @@
 [
   {
+    "name_key": "ad-darr",
+    "name": "Ad-Darr",
+    "arabic": "الضَّارُّ",
+    "anchor": "Even what causes you pain is under His authority.",
+    "detail": "Ad-Darr is the One in whose hand difficulty resides. Nothing harms you outside His permission, which means no hardship is meaningless. He uses even pain to shape what is being made of you.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-adl",
+    "name": "Al-Adl",
+    "arabic": "الْعَدْلُ",
+    "anchor": "His justice is exact — and woven with mercy.",
+    "detail": "Al-Adl is the Just. He gives every soul its precise due, not a particle more or less. And His justice is not cold: it is held inside a mercy that often outweighs what is strictly deserved.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-afuw",
     "name": "Al-'Afuw",
     "arabic": "الْعَفُوُ",
     "anchor": "His forgiveness erases — it doesn't just cover.",
     "detail": "Al-'Afuw goes further than forgiveness: it means to completely wipe away, as if it never happened. Ask for it often. It is what the Prophet ﷺ taught us to seek on Laylatul Qadr.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "al-ahad",
+    "name": "Al-Ahad",
+    "arabic": "الْأَحَدُ",
+    "anchor": "He is unique — there is nothing else like Him.",
+    "detail": "Al-Ahad is the Unique. Surat Al-Ikhlas opens with this Name. He has no partner, no equal, no comparison. The longing in you that no created thing can satisfy is a longing for the One who is utterly unique.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-akhir",
+    "name": "Al-Akhir",
+    "arabic": "الْآخِرُ",
+    "anchor": "He will be there after everything ends.",
+    "detail": "Al-Akhir is the Last. Every relationship, every season of your life will one day end — except this one. He remains when the world does not. He is the constant on either side of your existence.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-aleem",
+    "name": "Al-Aleem",
+    "arabic": "الْعَلِيمُ",
+    "anchor": "He knows what you cannot put into words.",
+    "detail": "Al-Aleem is the All-Knowing — His knowledge precedes your own awareness of yourself. When you can't name what is wrong, He already does, and He is gentle with what He finds.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-ali",
@@ -16,12 +56,92 @@
     "created_at": "2026-04-07T18:33:44.135017+00:00"
   },
   {
+    "name_key": "al-awwal",
+    "name": "Al-Awwal",
+    "arabic": "الْأَوَّلُ",
+    "anchor": "He was there before anything you know.",
+    "detail": "Al-Awwal is the First — preceding all of creation, all of your story, all of time itself. Before you ever existed, He knew you. You are not a recent thought in His mind; you are an ancient one.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-azeem",
+    "name": "Al-Azeem",
+    "arabic": "الْعَظِيمُ",
+    "anchor": "He is greater than the thing that is overwhelming you.",
+    "detail": "Al-Azeem is the Magnificent — the One whose greatness dwarfs everything else. The trial that feels enormous to you is small in His sight. He is bigger than your biggest worry.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-azeez",
+    "name": "Al-Azeez",
+    "arabic": "الْعَزِيزُ",
+    "anchor": "He cannot be overcome — and neither can what He holds.",
+    "detail": "Al-Azeez is the Almighty, the Honored. Nothing in creation can overpower Him, and what He chooses to protect is protected. When you feel small or outmatched, remember whose strength is behind you.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-badi",
+    "name": "Al-Badi",
+    "arabic": "الْبَدِيعُ",
+    "anchor": "He creates beauty that has no precedent.",
+    "detail": "Al-Badi is the Originator of new wonder — the One who brings into being things never seen before. The unique pattern of your life, the originality of your story, is His signature. He does not repeat Himself.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-baith",
+    "name": "Al-Baith",
+    "arabic": "الْبَاعِثُ",
+    "anchor": "He raises what has died — including in you.",
+    "detail": "Al-Baith is the Resurrector — the One who brings the dead back to life on the Day of Judgement, and who can bring dead parts of a heart back to life now. What feels finished may not be.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-baqi",
+    "name": "Al-Baqi",
+    "arabic": "الْبَاقِي",
+    "anchor": "When everything else fades, He remains.",
+    "detail": "Al-Baqi is the Everlasting — the One who is not subject to time or change. The relationships and seasons that will not last are pointing your heart toward the One who will. He is the lasting thing.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-bari",
+    "name": "Al-Bari",
+    "arabic": "الْبَارِئُ",
+    "anchor": "He brings into being what did not exist before.",
+    "detail": "Al-Bari is the Originator who fashions things from nothing. The situation you cannot see a way through — He can bring forth a solution that has no precedent in your life. He is not limited to what already exists.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-barr",
+    "name": "Al-Barr",
+    "arabic": "الْبَرُّ",
+    "anchor": "His kindness toward you is constant.",
+    "detail": "Al-Barr is the Source of Goodness — the One whose dealings with His servants are always kind. Even what looks harsh in your life is being administered by the Kindest One. Trust the source.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-basir",
     "name": "Al-Basir",
     "arabic": "الْبَصِيرُ",
     "anchor": "He sees everything others overlook in you.",
     "detail": "Al-Basir is the All-Seeing. No effort you make, no hidden sacrifice, no quiet struggle goes unseen by Him. He witnesses what no one else does.",
     "created_at": "2026-04-07T18:33:44.135017+00:00"
+  },
+  {
+    "name_key": "al-basit",
+    "name": "Al-Basit",
+    "arabic": "الْبَاسِطُ",
+    "anchor": "He widens what felt narrow.",
+    "detail": "Al-Basit is the Expander — the One who opens up rizq, opportunity, and the heart itself. After every contraction comes an expansion in His timing. The walls closing in are not the last word.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-batin",
+    "name": "Al-Batin",
+    "arabic": "الْبَاطِنُ",
+    "anchor": "He is closer than your inner thoughts.",
+    "detail": "Al-Batin is the Hidden — not because He is far, but because He is closer than any outward thing. He is inside the heart, beneath the thoughts, present in the silence underneath your speech.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-fattah",
@@ -40,12 +160,44 @@
     "created_at": "2026-04-07T18:33:14.151294+00:00"
   },
   {
+    "name_key": "al-ghafur",
+    "name": "Al-Ghafur",
+    "arabic": "الْغَفُورُ",
+    "anchor": "His forgiveness covers what no one else can see.",
+    "detail": "Al-Ghafur is the Forgiving — the One who veils sin and pardons it. Where Al-Ghaffar emphasizes repeated forgiveness, Al-Ghafur emphasizes its completeness. What He forgives, He conceals.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-ghaniyy",
+    "name": "Al-Ghaniyy",
+    "arabic": "الْغَنِيُّ",
+    "anchor": "He does not need anything from you — and yet He wants you.",
+    "detail": "Al-Ghaniyy is the Self-Sufficient. He has no need for your worship or attention; it is you who benefit from giving them. Knowing this frees your relationship with Him from any sense of transaction.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-hadi",
     "name": "Al-Hadi",
     "arabic": "الْهَادِي",
     "anchor": "You will be guided to where you need to be.",
     "detail": "Al-Hadi is the Guide — the One who places clarity in hearts that ask for it. If you feel lost, ask Him directly: \"Guide me.\" He answers that prayer.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "al-hafeez",
+    "name": "Al-Hafeez",
+    "arabic": "الْحَفِيظُ",
+    "anchor": "He guards what you cannot protect yourself.",
+    "detail": "Al-Hafeez is the Preserver — the One who keeps safe what is entrusted to Him. Your faith, your loved ones, your wellbeing — when you place them in His care, He guards them with a vigilance you could never match.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-hakam",
+    "name": "Al-Hakam",
+    "arabic": "الْحَكَمُ",
+    "anchor": "He is the Judge who will set every wrong right.",
+    "detail": "Al-Hakam is the ultimate Arbiter. Every injustice you have witnessed or suffered will be brought before Him, and He will judge with perfect knowledge. Nothing escapes His court.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-hakim",
@@ -56,12 +208,76 @@
     "created_at": "2026-04-07T18:33:14.151294+00:00"
   },
   {
-    "name_key": "al-jamil",
-    "name": "Al-Jamil",
-    "arabic": "الْجَمِيلُ",
-    "anchor": "Beauty in this world is a trace of Him.",
-    "detail": "Al-Jamil — the Beautiful — loves beauty. The moments of beauty that stop you in your tracks are whispers from the One whose beauty is infinite. Let them draw you to Him.",
-    "created_at": "2026-04-07T18:33:44.135017+00:00"
+    "name_key": "al-haleem",
+    "name": "Al-Haleem",
+    "arabic": "الْحَلِيمُ",
+    "anchor": "He is patient with you in a way no one else is.",
+    "detail": "Al-Haleem is the Forbearing — slow to respond to wrong, quick to give space. Where a human would react, He gives you room to return. Your repeated mistakes have not exhausted His patience.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-hameed",
+    "name": "Al-Hameed",
+    "arabic": "الْحَمِيدُ",
+    "anchor": "Every praise eventually points back to Him.",
+    "detail": "Al-Hameed is the Praiseworthy — the One who is worthy of all praise in every situation. Even the praise you give to people for their goodness ultimately traces back to the One who gave them that goodness.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-haqq",
+    "name": "Al-Haqq",
+    "arabic": "الْحَقُّ",
+    "anchor": "He is the one Reality everything else points to.",
+    "detail": "Al-Haqq is the Truth — not merely truthful, but Truth itself. Every fleeting thing in this world has its source in Him. The disappointments of unreal things are signposts pointing toward the One who is real.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-haseeb",
+    "name": "Al-Haseeb",
+    "arabic": "الْحَسِيبُ",
+    "anchor": "He accounts for every kindness you have ever offered.",
+    "detail": "Al-Haseeb is the Reckoner — the One who keeps the precise record. Every quiet good deed, every effort no one acknowledged, every small mercy you extended — He has counted it, and it will be returned to you.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-hayy",
+    "name": "Al-Hayy",
+    "arabic": "الْحَيُّ",
+    "anchor": "He is alive in a way nothing else is.",
+    "detail": "Al-Hayy is the Ever-Living — life itself, not a thing that has life. When you feel emptied or numb, the One who is fully alive is the source you draw from. Ya Hayyu Ya Qayyum, the Prophet ﷺ would call out in difficulty.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-jabbar",
+    "name": "Al-Jabbar",
+    "arabic": "الْجَبَّارُ",
+    "anchor": "He mends what has been broken in you.",
+    "detail": "Al-Jabbar comes from the root that means both to compel and to set a broken bone. He is the One who sets right what has been fractured — in circumstance, in heart, in body. He restores.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-jaleel",
+    "name": "Al-Jaleel",
+    "arabic": "الْجَلِيلُ",
+    "anchor": "His majesty is a refuge, not a distance.",
+    "detail": "Al-Jaleel is the Majestic — the One whose grandeur inspires awe. But His majesty is the kind that draws you in, not pushes you away. The greater He is, the more profound it is that He attends to you.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-jami",
+    "name": "Al-Jami",
+    "arabic": "الْجَامِعُ",
+    "anchor": "He will gather what has been scattered.",
+    "detail": "Al-Jami is the Gatherer — the One who will assemble all of humanity on the Day of Judgement, and who reunites what life has separated. The losses that scattered your heart will not stay scattered forever.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-kabeer",
+    "name": "Al-Kabeer",
+    "arabic": "الْكَبِيرُ",
+    "anchor": "Nothing in your life is too big for Him.",
+    "detail": "Al-Kabeer is the Greatest — greater than any title, status, or power. The thing you cannot imagine getting through is a small thing in His sight. He has greatness to spare for whatever you bring Him.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-karim",
@@ -80,12 +296,60 @@
     "created_at": "2026-04-07T18:33:44.135017+00:00"
   },
   {
+    "name_key": "al-khafid",
+    "name": "Al-Khafid",
+    "arabic": "الْخَافِضُ",
+    "anchor": "He humbles what has grown too big.",
+    "detail": "Al-Khafid is the Abaser — the One who brings down the arrogant and the inflated. When pride threatens to take over a life, He has the mercy to lower it before it leads to greater harm.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-khaliq",
+    "name": "Al-Khaliq",
+    "arabic": "الْخَالِقُ",
+    "anchor": "You were made on purpose, by the One who knows what He's doing.",
+    "detail": "Al-Khaliq is the Creator — the One who shaped you with intention. You are not an accident. The features of your life that feel strange or hard were chosen, with care, by the One who designed everything.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-latif",
     "name": "Al-Latif",
     "arabic": "اللَّطِيفُ",
     "anchor": "He works in the details you cannot see.",
     "detail": "Al-Latif is the Subtly Kind — the One who arranges things through small mercies and unseen movements. What looks like coincidence is often Al-Latif's hand.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "al-majeed",
+    "name": "Al-Majeed",
+    "arabic": "الْمَجِيدُ",
+    "anchor": "His glory is gentle as much as it is grand.",
+    "detail": "Al-Majeed is the Glorious. His glory is paired with generosity — He is glorious in His giving, glorious in His pardoning. He does not crush the small ones who turn to Him; He honors them.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-majid",
+    "name": "Al-Majid",
+    "arabic": "الْمَاجِدُ",
+    "anchor": "His nobility expresses itself as generosity toward you.",
+    "detail": "Al-Majid is the Noble — the One whose nobility shows through abundant kindness. He is generous not because He owes you, but because nobility is His nature. You are met with that nobility every day.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-malik",
+    "name": "Al-Malik",
+    "arabic": "الْمَلِكُ",
+    "anchor": "He is sovereign over what feels out of your hands.",
+    "detail": "Al-Malik is the King — the One whose dominion never wavers. The kings of this world fail, but the One who rules over every atom of your life is steady. What feels chaotic to you is still under His command.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mani",
+    "name": "Al-Mani",
+    "arabic": "الْمَانِعُ",
+    "anchor": "What He withholds, He withholds for your protection.",
+    "detail": "Al-Mani is the Withholder — the One who prevents what would harm you, even when you wanted it. Many of your unanswered prayers are answered prayers; He said no because He saw what you could not.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-matin",
@@ -96,6 +360,70 @@
     "created_at": "2026-04-07T18:33:44.135017+00:00"
   },
   {
+    "name_key": "al-muakhkhir",
+    "name": "Al-Muakhkhir",
+    "arabic": "الْمُؤَخِّرُ",
+    "anchor": "What He delays is not what He has denied.",
+    "detail": "Al-Muakhkhir is the Delayer — the One who postpones with purpose. The marriage, the child, the breakthrough that has not come yet is being held back by the same One who knows the perfect moment.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mubdi",
+    "name": "Al-Mubdi",
+    "arabic": "الْمُبْدِئُ",
+    "anchor": "Every beginning has come from Him.",
+    "detail": "Al-Mubdi is the Originator — the One who initiates creation without precedent. The new chapter you are stepping into, the fresh start you can barely imagine — He is the One who originates such openings.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mughni",
+    "name": "Al-Mughni",
+    "arabic": "الْمُغْنِي",
+    "anchor": "He enriches whoever He chooses to enrich.",
+    "detail": "Al-Mughni is the Enricher — the One who provides abundance, whether material or in the heart. He can make a poor person feel wealthy and a wealthy person feel empty. True richness is His gift.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muhaymin",
+    "name": "Al-Muhaymin",
+    "arabic": "الْمُهَيْمِنُ",
+    "anchor": "He watches over your life like a guardian, not a critic.",
+    "detail": "Al-Muhaymin is the Protector and Overseer. His watching is not surveillance — it is care. He keeps watch over what matters to you, including the parts of you that you have stopped guarding yourself.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muhsi",
+    "name": "Al-Muhsi",
+    "arabic": "الْمُحْصِي",
+    "anchor": "Not a single thing about you escapes His count.",
+    "detail": "Al-Muhsi is the Counter, the One who has precisely tallied every detail of every creature. Every breath you take, every step, every tear — He knows the number. You are not lost in the crowd.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muhyi",
+    "name": "Al-Muhyi",
+    "arabic": "الْمُحْيِي",
+    "anchor": "He gives life to what feels lifeless.",
+    "detail": "Al-Muhyi is the Giver of Life — the One who brings the dry land to life with rain and brings the dead heart to life with remembrance. What in you feels arid right now is not beyond His reviving touch.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muid",
+    "name": "Al-Muid",
+    "arabic": "الْمُعِيدُ",
+    "anchor": "He restores what has been undone.",
+    "detail": "Al-Muid is the Restorer — the One who returns what was lost or undone. He brings the body back after death, and He can bring back what you thought was permanently broken in this life too.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muizz",
+    "name": "Al-Muizz",
+    "arabic": "الْمُعِزُّ",
+    "anchor": "He grants honor that no one can take from you.",
+    "detail": "Al-Muizz is the Bestower of Honor — the One whose esteem is the only kind that endures. The world's regard fluctuates; His does not. The honor He gives is rooted in proximity to Him, not performance.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-mujib",
     "name": "Al-Mujib",
     "arabic": "الْمُجِيبُ",
@@ -104,12 +432,108 @@
     "created_at": "2026-04-07T18:33:14.151294+00:00"
   },
   {
-    "name_key": "al-qarib",
-    "name": "Al-Qarib",
-    "arabic": "الْقَرِيبُ",
-    "anchor": "He is closer to you than you think.",
-    "detail": "Al-Qarib means the Near One. The distance you feel is not real — it is a feeling, not a fact. He is nearer to you than your own jugular vein.",
-    "created_at": "2026-04-07T18:33:14.151294+00:00"
+    "name_key": "al-mumeet",
+    "name": "Al-Mumeet",
+    "arabic": "الْمُمِيتُ",
+    "anchor": "Death is in His hands — and so is the life that follows.",
+    "detail": "Al-Mumeet is the One who causes death. Death is not random or cruel in His hand; it is timed precisely. And it is not the end — it is a transition into the next life under the same merciful Lord.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mumin",
+    "name": "Al-Mumin",
+    "arabic": "الْمُؤْمِنُ",
+    "anchor": "He is the source of every safety you have ever felt.",
+    "detail": "Al-Mumin is the Granter of Security. The peace you feel after fear, the steadiness after panic — these are gifts from Him. He grants the heart its sense of being safe even when the world is not.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muqaddim",
+    "name": "Al-Muqaddim",
+    "arabic": "الْمُقَدِّمُ",
+    "anchor": "He brings forward what is meant for you in His time.",
+    "detail": "Al-Muqaddim is the Expediter — the One who advances what He chooses. The things that come early in your life were not random; they were placed at the front for a reason you may understand later.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muqeet",
+    "name": "Al-Muqeet",
+    "arabic": "الْمُقِيتُ",
+    "anchor": "He sustains you in ways you don't see.",
+    "detail": "Al-Muqeet is the Nourisher — the One who provides what each creature needs to continue. Beyond food and money: He sustains your patience, your faith, your capacity to keep going. He is the source.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muqsit",
+    "name": "Al-Muqsit",
+    "arabic": "الْمُقْسِطُ",
+    "anchor": "He gives every soul exactly what is fair.",
+    "detail": "Al-Muqsit is the Equitable — the One who establishes balance. He sets right what was uneven. The unfair things you have endured will be measured and balanced under His scale, which never tilts.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muqtadir",
+    "name": "Al-Muqtadir",
+    "arabic": "الْمُقْتَدِرُ",
+    "anchor": "His power has no resistance it cannot overcome.",
+    "detail": "Al-Muqtadir is the Omnipotent — the One whose power is irresistible. Where Al-Qadir is able, Al-Muqtadir is dominant. What stands against His will does not stand for long.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-musawwir",
+    "name": "Al-Musawwir",
+    "arabic": "الْمُصَوِّرُ",
+    "anchor": "Every detail of you was shaped on purpose.",
+    "detail": "Al-Musawwir is the Fashioner — the One who gives every created thing its specific form. Your face, your voice, your particular way of being in the world — these were not generic. They were drawn by Him, intentionally.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mutaali",
+    "name": "Al-Mutaali",
+    "arabic": "الْمُتَعَالِ",
+    "anchor": "He is above every limitation you can imagine.",
+    "detail": "Al-Mutaali is the Most Exalted — beyond every quality you might attribute to created things. He is not a larger version of anything in this world. He is uncontained, in a category of His own.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-mutakabbir",
+    "name": "Al-Mutakabbir",
+    "arabic": "الْمُتَكَبِّرُ",
+    "anchor": "Greatness belongs to Him alone — and that is a relief.",
+    "detail": "Al-Mutakabbir is the Supreme. He alone is great by right, which means the pressure to be impressive is not yours to carry. You can be small. You can be ordinary. He is the One who is great.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-muzill",
+    "name": "Al-Muzill",
+    "arabic": "الْمُذِلُّ",
+    "anchor": "He humbles the proud, and that is mercy.",
+    "detail": "Al-Muzill is the One who humbles. He brings low what would otherwise destroy itself by rising too high. When you are humbled, it is not punishment — it is the same hand pulling you back from a worse fall.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-qabid",
+    "name": "Al-Qabid",
+    "arabic": "الْقَابِضُ",
+    "anchor": "When provision is withheld, He is still at work.",
+    "detail": "Al-Qabid is the Withholder — the One who restricts according to wisdom. What is held back from you is not forgotten or punished; it is shaped. Restriction in His hand is preparation, not abandonment.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-qadir",
+    "name": "Al-Qadir",
+    "arabic": "الْقَادِرُ",
+    "anchor": "He is able to do what looks impossible.",
+    "detail": "Al-Qadir is the Capable — the One who has the power to do whatever He wills. The outcome you cannot see a path to is one He can bring about with a single command. Kun fa yakun — Be, and it is.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-qahhar",
+    "name": "Al-Qahhar",
+    "arabic": "الْقَهَّارُ",
+    "anchor": "Nothing can finally defeat what He has chosen.",
+    "detail": "Al-Qahhar is the Subduer — the One whose decree overrides every opposition. The forces arrayed against you, the obstacles that seem permanent — they bow before His will. He has the final word.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "al-qawi",
@@ -144,12 +568,68 @@
     "created_at": "2026-04-07T18:33:14.151294+00:00"
   },
   {
+    "name_key": "al-wahhab",
+    "name": "Al-Wahhab",
+    "arabic": "الْوَهَّابُ",
+    "anchor": "He gives gifts you would never think to ask for.",
+    "detail": "Al-Wahhab is the Bestower — the One whose giving is pure gift, not reward. He bestows without expecting anything in return. The unexpected blessings in your life come from this Name.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-wahid",
+    "name": "Al-Wahid",
+    "arabic": "الْوَاحِدُ",
+    "anchor": "He alone is One — and that is enough.",
+    "detail": "Al-Wahid is the One. There is no other, no second, no rival. The fragmentation you feel in chasing many things finds its rest in turning back to the One who is single, complete, sufficient.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-wajid",
+    "name": "Al-Wajid",
+    "arabic": "الْوَاجِدُ",
+    "anchor": "Nothing He wants is beyond His reach.",
+    "detail": "Al-Wajid is the Finder — the One who never lacks. He is in need of nothing, and He has access to everything. When you ask Him for what you need, you are asking the One whose hand is never empty.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
     "name_key": "al-wakil",
     "name": "Al-Wakil",
     "arabic": "الْوَكِيلُ",
     "anchor": "You can let go — He has it.",
     "detail": "Al-Wakil is the Trustee, the One you hand your affairs over to completely. Hasbunallahu wa ni'mal wakil — Allah is enough for us, and He is the best Disposer of affairs.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "al-wali",
+    "name": "Al-Wali",
+    "arabic": "الْوَالِي",
+    "anchor": "He governs your affairs whether you see Him or not.",
+    "detail": "Al-Wali is the Governor — the One who manages all matters. Even when you cannot trace His hand in your circumstances, He is administering them with care. Nothing in your life is unsupervised.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-waliyy",
+    "name": "Al-Waliyy",
+    "arabic": "الْوَلِيُّ",
+    "anchor": "He is your closest ally — closer than any friend.",
+    "detail": "Al-Waliyy is the Protecting Friend, the Patron. The believers, the Quran says, have Allah as their Wali. He is not a distant deity but a near companion who takes your side and shelters you.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "al-wasi",
+    "name": "Al-Wasi",
+    "arabic": "الْوَاسِعُ",
+    "anchor": "His mercy is wider than you can imagine.",
+    "detail": "Al-Wasi is the All-Encompassing — the One whose attributes have no edges. His mercy, His knowledge, His provision — none of them run out. There is always more than enough room in Him for what you bring.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "an-nafi",
+    "name": "An-Nafi",
+    "arabic": "النَّافِعُ",
+    "anchor": "Every benefit you have ever received has come from Him.",
+    "detail": "An-Nafi is the Source of Benefit — the One who alone causes good to reach you. The people, opportunities, and resources that have helped you were all sent by Him. He is the giver behind every giver.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "an-nur",
@@ -160,12 +640,12 @@
     "created_at": "2026-04-07T18:33:14.151294+00:00"
   },
   {
-    "name_key": "ar-rabb",
-    "name": "Ar-Rabb",
-    "arabic": "الرَّبُ",
-    "anchor": "You are being tended to, not just observed.",
-    "detail": "Ar-Rabb is the Lord who nurtures, sustains, and tends — like a gardener to a plant. Every hardship in your life has been shaped by One who knows exactly what you need to grow.",
-    "created_at": "2026-04-07T18:33:44.135017+00:00"
+    "name_key": "ar-rafi",
+    "name": "Ar-Rafi",
+    "arabic": "الرَّافِعُ",
+    "anchor": "He raises what has been lowered.",
+    "detail": "Ar-Rafi is the Exalter — the One who lifts up the humble, the unseen, the dismissed. The Quran's stories are full of those the world had no use for whom Allah raised. Your obscurity is not your destiny.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "ar-rahim",
@@ -182,6 +662,30 @@
     "anchor": "You are held by infinite mercy.",
     "detail": "Ar-Rahman is the name Allah chose for Himself above all others. Return to it whenever you feel unworthy — His mercy is not earned, it simply is.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "ar-raqeeb",
+    "name": "Ar-Raqeeb",
+    "arabic": "الرَّقِيبُ",
+    "anchor": "He is attentive to you, not just aware of you.",
+    "detail": "Ar-Raqeeb is the Watchful — the One whose attention never drifts. He is not passively observing your life from far away. He is attending to it, moment by moment, with the focus of One who deeply cares.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "ar-rasheed",
+    "name": "Ar-Rasheed",
+    "arabic": "الرَّشِيدُ",
+    "anchor": "He guides you toward what is genuinely right for you.",
+    "detail": "Ar-Rasheed is the Guide to right conduct — the One who directs you not just away from sin but toward the wise path. The clarity you feel after a long confusion is His guidance arriving.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "ar-rauf",
+    "name": "Ar-Rauf",
+    "arabic": "الرَّءُوفُ",
+    "anchor": "His tenderness toward you is gentler than you know.",
+    "detail": "Ar-Rauf is the Most Compassionate — softer than Ar-Rahim, more delicate. His care is the kind that does not bruise. He handles your wounds with the gentleness a parent would not even know to use.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   },
   {
     "name_key": "ar-razzaq",
@@ -254,5 +758,29 @@
     "anchor": "The door of return is always open.",
     "detail": "At-Tawwab means Allah turns to His servant the moment the servant turns to Him. You do not have to earn your way back — the turning itself is the beginning.",
     "created_at": "2026-04-07T18:33:14.151294+00:00"
+  },
+  {
+    "name_key": "az-zahir",
+    "name": "Az-Zahir",
+    "arabic": "الظَّاهِرُ",
+    "anchor": "Signs of Him are everywhere, if you look.",
+    "detail": "Az-Zahir is the Manifest — the One whose existence is evidenced by every created thing. The order in a leaf, the kindness of a stranger, the timing of a moment — they all carry traces of Him.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "dhul-jalali-wal-ikram",
+    "name": "Dhul-Jalali wal-Ikram",
+    "arabic": "ذُو الْجَلَالِ وَالْإِكْرَامِ",
+    "anchor": "He is both awe-inspiring and overwhelmingly generous.",
+    "detail": "Dhul-Jalali wal-Ikram means Lord of Majesty and Bounty. He is great enough to inspire awe, and yet generous enough to lavish honor on you. Both qualities coexist in Him without contradiction.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "name_key": "malik-ul-mulk",
+    "name": "Malik-ul-Mulk",
+    "arabic": "مَالِكُ الْمُلْكِ",
+    "anchor": "All ownership belongs to Him alone.",
+    "detail": "Malik-ul-Mulk is the Owner of all dominion. Every kingdom, every wealth, every position of power — they are all His to give and take. What was given to you is on loan; what was taken was His to take back.",
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   }
 ]

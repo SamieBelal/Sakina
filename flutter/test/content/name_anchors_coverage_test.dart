@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/core/constants/transliteration_slug_map.dart';
+import 'package:sakina/services/validate_names.dart';
 
 /// Translation map from canonical transliteration → existing anchor slug.
 /// Built empirically: existing anchors use shorter handcrafted spellings that
@@ -22,9 +24,12 @@ const Map<String, String> _transliterationToAnchorSlug = {
 };
 
 /// Slugs in `name_anchors.json` that have NO canonical Name in collectible_names.json.
-/// Kept as "non-canonical anchors" so the test doesn't flag them as orphans,
-/// but they're surfaced for migration in a future plan.
-const Set<String> _nonCanonicalAnchorSlugs = {'al-qarib', 'ar-rabb', 'al-jamil'};
+/// As of Plan 4 backfill (2026-05-12), the three previously non-canonical anchors
+/// (`al-qarib`, `ar-rabb`, `al-jamil`) were dropped from the JSON because they
+/// have no entry in `collectible_names.json`. This set is intentionally empty;
+/// add a slug here ONLY if a future anchor must remain without a canonical
+/// counterpart, and document the reason inline.
+const Set<String> _nonCanonicalAnchorSlugs = <String>{};
 
 String _naiveSlug(String t) {
   return t.toLowerCase()
@@ -118,12 +123,70 @@ void main() {
       expect(keys.toSet().length, keys.length);
     });
 
+    test('transliterationToAnchorSlug covers every transliteration in collectible_names.json', () {
+      final missing = <String>[];
+      for (final n in names) {
+        final t = n['transliteration'] as String;
+        if (!transliterationToAnchorSlug.containsKey(t)) {
+          missing.add(t);
+        }
+      }
+      expect(missing, isEmpty,
+          reason: 'transliterationToAnchorSlug missing entries for: $missing');
+    });
+
+    test('every transliterationToAnchorSlug value points at a real anchor (except "allah")', () {
+      final anchorKeys = anchors.map((a) => a['name_key'] as String).toSet();
+      final dangling = <String>[];
+      for (final entry in transliterationToAnchorSlug.entries) {
+        if (entry.value == 'allah') continue; // proper Name, no attribute anchor
+        if (!anchorKeys.contains(entry.value)) {
+          dangling.add('${entry.key} -> ${entry.value}');
+        }
+      }
+      expect(dangling, isEmpty,
+          reason: 'transliterationToAnchorSlug values do not resolve to '
+              'existing name_anchors entries: $dangling');
+    });
+
+    test('every collectible_names transliteration round-trips through findCanonicalName', () {
+      // Guardrail: an anchor lookup that goes
+      //   transliteration -> findCanonicalName -> canonical transliteration
+      //   -> transliterationToAnchorSlug -> name_key
+      // must end at a real anchor entry. If a Name is missing from
+      // `allahNames` (the source `findCanonicalName` searches), the round-trip
+      // breaks and Plan 0 has not finished — surface that here.
+      final anchorKeys = anchors.map((a) => a['name_key'] as String).toSet();
+      final broken = <String>[];
+      for (final n in names) {
+        if (n['id'] == 1) continue; // skip "Allah"
+        final t = n['transliteration'] as String;
+        final canonical = findCanonicalName(t);
+        if (canonical == null) {
+          broken.add('$t (findCanonicalName returned null — Plan 0 backfill incomplete?)');
+          continue;
+        }
+        final slug = transliterationToAnchorSlug[canonical.name];
+        if (slug == null) {
+          broken.add('$t -> ${canonical.name} (no slug in transliterationToAnchorSlug)');
+          continue;
+        }
+        if (!anchorKeys.contains(slug)) {
+          broken.add('$t -> ${canonical.name} -> $slug (slug not in name_anchors.json)');
+        }
+      }
+      expect(broken, isEmpty,
+          reason: 'Transliteration round-trip failures: $broken');
+    });
+
     test('nameAnchorsPublicCatalog.expectedCount matches reality', () {
-      // Reminder: when shipping the 99 anchors, bump
-      // `lib/services/public_catalog_contracts.dart:69` expectedCount: 32 → 99
-      // or the catalog service throws at runtime. This test pins the file count
-      // so the contracts file is updated in the same PR.
-      expect(anchors.length, equals(99),
+      // After Plan 4 backfill (2026-05-12): 29 originally-canonical anchors
+      // + 69 new anchors = 98 entries. (Three non-canonical anchors —
+      // al-qarib, ar-rabb, al-jamil — were dropped because they have no
+      // entry in collectible_names.json.) Bump
+      // `lib/services/public_catalog_contracts.dart:69` expectedCount in
+      // lockstep with this count, or the catalog service throws at runtime.
+      expect(anchors.length, equals(98),
           reason: 'When this passes, also update '
               'public_catalog_contracts.dart expectedCount to match.');
     });
