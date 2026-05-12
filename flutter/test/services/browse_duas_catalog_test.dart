@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/core/constants/duas.dart' show browseDuasCatalog;
 import 'package:sakina/services/ai_service.dart';
 
 // Single source of truth for the 12 new categories Plan 2 adds. Used by:
@@ -92,18 +91,17 @@ void main() {
     // inferredTags with {'forgiveness', 'repentance'}. Two probes pin both
     // directions of the fix.
     //
-    // Verification uses a collision-resilient back-map: we check whether ANY
-    // catalog dua matching a top-3 hit's title belongs to the expected category.
-    // (`firstWhere` would silently match the wrong dua when titles collide —
-    // Sayyid al-Istighfar lives in both morning + forgiveness, etc.)
+    // Verification uses the entry's own `category` field (populated by
+    // `_searchLocalDuas` directly from BrowseDua.category). This is collision-
+    // resilient: titles can collide (Sayyid al-Istighfar lives in both morning
+    // + forgiveness) but each entry carries its own category — no back-mapping
+    // needed.
     Set<String> categoriesOfTopHits(Iterable<dynamic> hits, {int take = 3}) {
-      final cats = <String>{};
-      for (final h in hits.take(take)) {
-        for (final d in browseDuasCatalog.where((d) => d.title == h.title)) {
-          cats.add(d.category);
-        }
-      }
-      return cats;
+      return hits
+          .take(take)
+          .map((h) => h.category as String?)
+          .whereType<String>()
+          .toSet();
     }
 
     test('stopword "for" does not pollute routing — "praying for my family" → family', () {
@@ -158,12 +156,8 @@ void main() {
         final hits = searchLocalDuasForTest(entry.value);
         expect(hits, isNotEmpty,
             reason: 'no hits for existing category ${entry.key} via "${entry.value}"');
-        // Top hit should be in the expected category — otherwise the new
-        // keywords are stealing the search.
-        final topCategory = browseDuasCatalog
-            .firstWhere((d) => d.title == hits.first.title,
-                orElse: () => browseDuasCatalog.first)
-            .category;
+        // Top hit category comes directly from the entry now (no back-mapping).
+        final topCategory = hits.first.category;
         expect(topCategory, equals(entry.key),
             reason: 'top hit category was $topCategory, expected ${entry.key} '
                 '(probably a new _semanticMap keyword stole the ranking)');

@@ -710,6 +710,12 @@ class FindDuasDuaEntry {
   final String transliteration;
   final String translation;
   final String source;
+  // Optional — populated by `_searchLocalDuas` from `BrowseDua.category` so UI
+  // tap-to-detail can route correctly when two duas share a title (3 known
+  // collisions: Ayat al-Kursi, Sayyid al-Istighfar, Dua of Adam). Null when
+  // the entry comes from AI output or the buildDua RELATED_DUAS pipeline where
+  // category isn't reliably available.
+  final String? category;
 
   const FindDuasDuaEntry({
     required this.title,
@@ -717,6 +723,7 @@ class FindDuasDuaEntry {
     required this.transliteration,
     required this.translation,
     required this.source,
+    this.category,
   });
 }
 
@@ -942,6 +949,7 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
       transliteration: d.transliteration,
       translation: d.translation,
       source: d.source,
+      category: d.category,
     );
   }).toList();
 }
@@ -965,6 +973,7 @@ Future<FindDuasResponse> findDuas(String need) async {
                 transliteration: d.transliteration,
                 translation: d.translation,
                 source: d.source,
+                category: d.category,
               ))
           .toList();
 

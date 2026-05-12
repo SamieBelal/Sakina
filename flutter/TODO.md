@@ -61,3 +61,43 @@ Deferred work — not blocking the current iOS submission, but needed before spe
 **Status:** Supabase Auth has a built-in HaveIBeenPwned integration that rejects compromised passwords at signup/password-change. It's **gated to Pro+ plans** — not available on Free. The advisor warning (`auth_leaked_password_protection`) will keep firing on Free; safe to ignore until upgrade.
 
 **Action when upgrading:** Supabase Dashboard → Authentication → Policies → toggle on "Leaked Password Protection." 30-second change, no migration needed.
+
+---
+
+## Production telemetry for unknown-name fallback
+
+**Trigger:** after Plan 1 (verse catalog expansion) ships — at that point most unknown-name fallback firings will be eliminated, so the residual signal is meaningful.
+
+**Status:** When `findCanonicalName` resolves an AI response to a Name not in `approvedReflectVersesByName` (or the alias map misses), `normalizeApprovedVerses` returns `[_heartsRestVerse, _noBurdenVerse]` as a safety-net pair. Today the only signal is a `debugPrint` warning that's stripped from release builds — production has zero observability.
+
+**Why this matters:** Users whose reflect card hits the fallback see the same two generic verses for every unknown Name. Without telemetry we can't:
+- Detect that the AI keeps returning a specific non-canonical transliteration we should alias
+- Measure how often the user-facing experience degrades to the demo
+- Tell apart "fallback fired because we genuinely lack content" vs "fallback fired because of spelling drift"
+
+**Steps when ready (~45 min):**
+1. Add Supabase migration `<date>_create_reflect_unknown_name_log.sql`:
+   ```sql
+   create table public.reflect_unknown_name_log (
+     id uuid primary key default gen_random_uuid(),
+     user_id uuid references auth.users(id) on delete set null,
+     ai_returned_name text not null,
+     phrase_excerpt text,
+     created_at timestamptz default now()
+   );
+   alter table public.reflect_unknown_name_log enable row level security;
+   create policy "service-role insert only" on public.reflect_unknown_name_log
+     for insert with check (auth.role() = 'service_role');
+   ```
+2. In `normalizeApprovedVerses` (`reflection_verse_catalog.dart`), add a fire-and-forget logger mirroring `_logClassifierDecision` in `ai_service.dart:388`:
+   ```dart
+   unawaited(supabaseSyncService.insertRow('reflect_unknown_name_log', {
+     'user_id': supabaseSyncService.currentUserId,
+     'ai_returned_name': name,
+     'phrase_excerpt': '...optional, depending on if you want PII...',
+   }));
+   ```
+3. Keep the debug `kDebugMode` warning for local development.
+4. Add a once-weekly Supabase query that surfaces the top 10 unknown names — surfaces aliasing opportunities.
+
+**Surfaced by:** /review adversarial pass on PR #6 (2026-05-12). The reviewer flagged that the unknown-name path is silent in production.

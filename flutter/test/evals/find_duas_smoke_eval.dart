@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/core/constants/duas.dart' show browseDuasCatalog;
 import 'package:sakina/services/ai_service.dart';
 
 void main() {
@@ -21,11 +20,10 @@ void main() {
       test('"$phrase" → top hit is $expectedCategory', () {
         final hits = searchLocalDuasForTest(phrase);
         expect(hits, isNotEmpty, reason: phrase);
-        final topCategory = browseDuasCatalog
-            .firstWhere((d) => d.title == hits.first.title)
-            .category;
-        expect(topCategory, equals(expectedCategory),
-            reason: '"$phrase" top hit was $topCategory, expected $expectedCategory');
+        // Category comes directly from FindDuasDuaEntry.category — no
+        // back-mapping by title, so collisions don't produce false passes.
+        expect(hits.first.category, equals(expectedCategory),
+            reason: '"$phrase" top hit was ${hits.first.category}, expected $expectedCategory');
       });
     }
   });
