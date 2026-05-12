@@ -6,33 +6,44 @@
       {
         "text": "A reminder that this pain has a purpose",
         "scores": {
-          "al-hakim": 1,
-          "al-latif": 1,
-          "as-sabur": 2
+          "al-hakim": 3,
+          "al-latif": 2,
+          "as-sabur": 2,
+          "ad-darr": 1,
+          "al-haleem": 1,
+          "al-wakil": 1
         }
       },
       {
         "text": "Someone to hear me — even if I can't explain it",
         "scores": {
-          "as-sami": 2,
-          "al-qarib": 2,
-          "al-wadud": 1
+          "as-sami": 3,
+          "al-wadud": 1,
+          "al-khabir": 1,
+          "ar-raqeeb": 2,
+          "al-aleem": 1,
+          "al-mujib": 2
         }
       },
       {
         "text": "The feeling that I'm not alone in this",
         "scores": {
+          "ar-rahman": 3,
           "al-wadud": 2,
           "as-salam": 1,
-          "ar-rahman": 2
+          "al-waliyy": 2,
+          "ar-rauf": 1,
+          "al-mujib": 1
         }
       },
       {
         "text": "A sense that someone is in control when I'm not",
         "scores": {
-          "ar-rabb": 2,
-          "al-wakil": 2,
-          "al-qayyum": 1
+          "al-wakil": 3,
+          "al-qayyum": 2,
+          "al-matin": 1,
+          "al-malik": 2,
+          "al-muhaymin": 1
         }
       }
     ],
@@ -46,33 +57,44 @@
       {
         "text": "I worry I've strayed too far to come back",
         "scores": {
-          "ar-rahman": 1,
-          "at-tawwab": 2,
-          "al-ghaffar": 2
+          "at-tawwab": 3,
+          "al-ghaffar": 2,
+          "ar-rahman": 2,
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-ghaniyy": 1
         }
       },
       {
         "text": "I feel His presence in the small, quiet moments",
         "scores": {
+          "al-latif": 3,
+          "al-khabir": 2,
           "as-sami": 1,
-          "al-latif": 2,
-          "al-khabir": 1
+          "al-batin": 2,
+          "az-zahir": 1,
+          "al-mujib": 1
         }
       },
       {
         "text": "I trust Him even when I don't understand His plan",
         "scores": {
-          "al-ali": 1,
-          "al-hakim": 2,
-          "al-wakil": 2
+          "al-hakim": 3,
+          "al-wakil": 2,
+          "al-ali": 2,
+          "al-haseeb": 1,
+          "al-muqsit": 1
         }
       },
       {
         "text": "I long for a deeper, more loving connection",
         "scores": {
-          "al-qarib": 1,
-          "al-wadud": 2,
-          "ar-rahim": 2
+          "al-wadud": 3,
+          "ar-rahim": 2,
+          "as-samad": 1,
+          "ar-rauf": 2,
+          "al-akhir": 1,
+          "al-mujib": 2
         }
       }
     ],
@@ -86,33 +108,45 @@
       {
         "text": "Waiting — for an answer, a change, a sign",
         "scores": {
+          "as-sabur": 3,
           "al-mujib": 2,
-          "as-sabur": 2,
-          "al-fattah": 1
+          "al-fattah": 2,
+          "al-hakim": 1,
+          "al-muakhkhir": 2,
+          "al-mani": 1
         }
       },
       {
         "text": "Feeling unseen or misunderstood by others",
         "scores": {
-          "al-basir": 2,
+          "al-basir": 3,
+          "ash-shahid": 2,
           "al-khabir": 1,
-          "ash-shahid": 1
+          "al-ali": 1,
+          "ar-raqeeb": 2,
+          "al-muqsit": 1
         }
       },
       {
         "text": "Carrying guilt or shame I can't seem to shake",
         "scores": {
-          "al-afuw": 2,
-          "at-tawwab": 1,
-          "al-ghaffar": 2
+          "al-afuw": 3,
+          "at-tawwab": 2,
+          "al-ghaffar": 2,
+          "ar-rahim": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
         }
       },
       {
         "text": "Feeling scattered, lost, or without direction",
         "scores": {
+          "al-hadi": 3,
           "an-nur": 2,
-          "al-hadi": 2,
-          "ar-rabb": 1
+          "al-fattah": 1,
+          "al-jami": 2,
+          "ar-rasheed": 1,
+          "al-wakil": 1
         }
       }
     ],
@@ -126,33 +160,45 @@
       {
         "text": "Quiet stillness — no noise, no pressure",
         "scores": {
-          "as-salam": 2,
-          "as-samad": 1,
-          "al-quddus": 1
+          "as-salam": 3,
+          "as-samad": 2,
+          "al-quddus": 2,
+          "al-qayyum": 1,
+          "al-mumin": 2,
+          "al-jaleel": 1
         }
       },
       {
         "text": "Feeling completely known and still loved",
         "scores": {
-          "al-wadud": 2,
-          "ar-rahim": 1,
-          "al-khabir": 1
+          "al-wadud": 3,
+          "ar-rahim": 2,
+          "al-khabir": 2,
+          "al-basir": 1,
+          "al-aleem": 2,
+          "ar-rauf": 1
         }
       },
       {
         "text": "Knowing my provision and future are taken care of",
         "scores": {
-          "al-wakil": 1,
+          "ar-razzaq": 3,
+          "al-wakil": 2,
           "al-qayyum": 1,
-          "ar-razzaq": 2
+          "al-karim": 1,
+          "al-hafeez": 2,
+          "al-muqeet": 1
         }
       },
       {
         "text": "A breakthrough — something finally opening up",
         "scores": {
+          "al-fattah": 3,
+          "al-mujib": 2,
           "al-latif": 1,
-          "al-mujib": 1,
-          "al-fattah": 2
+          "an-nur": 1,
+          "al-basit": 2,
+          "al-bari": 1
         }
       }
     ],
@@ -166,33 +212,44 @@
       {
         "text": "Healing — for my heart, body, or relationships",
         "scores": {
+          "ash-shafi": 3,
+          "ar-rahman": 2,
           "al-latif": 1,
-          "ar-rahman": 1,
-          "ash-shafi": 2
+          "al-wadud": 1,
+          "al-jabbar": 2,
+          "al-muhyi": 1
         }
       },
       {
         "text": "Strength to keep going when I want to give up",
         "scores": {
-          "al-qawi": 2,
-          "al-matin": 1,
-          "as-sabur": 1
+          "al-qawi": 3,
+          "al-matin": 2,
+          "as-sabur": 2,
+          "al-qayyum": 1,
+          "al-hayy": 2,
+          "al-azeez": 1
         }
       },
       {
         "text": "Guidance — to know the right path",
         "scores": {
-          "an-nur": 1,
-          "al-hadi": 2,
-          "al-hakim": 1
+          "al-hadi": 3,
+          "an-nur": 2,
+          "al-hakim": 1,
+          "ar-rasheed": 2,
+          "al-wakil": 1
         }
       },
       {
         "text": "Forgiveness — more than anything else",
         "scores": {
-          "al-afuw": 2,
-          "at-tawwab": 1,
-          "al-ghaffar": 1
+          "al-afuw": 3,
+          "at-tawwab": 2,
+          "al-ghaffar": 2,
+          "ar-rahim": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
         }
       }
     ],
@@ -206,37 +263,662 @@
       {
         "text": "Through difficulty — hardship brings me closer",
         "scores": {
-          "ar-rabb": 2,
+          "as-sabur": 2,
           "al-mujib": 1,
-          "as-sabur": 1
+          "al-hakim": 1,
+          "ad-darr": 1,
+          "al-wakil": 3
         }
       },
       {
         "text": "Through beauty — nature, art, the world around me",
         "scores": {
-          "an-nur": 1,
-          "al-jamil": 1,
-          "al-latif": 2
+          "an-nur": 2,
+          "al-latif": 2,
+          "al-karim": 1,
+          "al-badi": 2,
+          "al-musawwir": 1,
+          "al-bari": 3
         }
       },
       {
         "text": "Through gratitude — counting what I have",
         "scores": {
-          "al-karim": 1,
+          "ash-shakur": 3,
           "ar-razzaq": 2,
-          "ash-shakur": 2
+          "al-karim": 2,
+          "al-wadud": 1,
+          "al-wahhab": 2,
+          "al-hameed": 1
         }
       },
       {
         "text": "Through dua — just talking to Him",
         "scores": {
-          "as-sami": 1,
-          "al-mujib": 2,
-          "al-qarib": 2
+          "al-mujib": 3,
+          "as-sami": 2,
+          "at-tawwab": 1,
+          "al-haleem": 1
         }
       }
     ],
     "sort_order": 5,
     "created_at": "2026-04-07T18:32:40.432058+00:00"
+  },
+  {
+    "id": "q7",
+    "prompt": "When you fall short of your own expectations, what do you most need to hear?",
+    "options": [
+      {
+        "text": "That the door of return is always open",
+        "scores": {
+          "at-tawwab": 3,
+          "al-ghaffar": 2,
+          "al-afuw": 2,
+          "ar-rahim": 1,
+          "al-haleem": 2,
+          "al-ghafur": 1
+        }
+      },
+      {
+        "text": "That He sees the struggle, not just the slip",
+        "scores": {
+          "al-basir": 3,
+          "ash-shahid": 2,
+          "al-khabir": 2,
+          "al-latif": 1,
+          "al-haseeb": 2,
+          "al-muhsi": 1
+        }
+      },
+      {
+        "text": "That my worth isn't measured by my worst day",
+        "scores": {
+          "al-wadud": 3,
+          "al-karim": 2,
+          "ar-rahman": 1,
+          "al-majeed": 2,
+          "ar-rauf": 1,
+          "al-bari": 1
+        }
+      },
+      {
+        "text": "That I can start over — right now, today",
+        "scores": {
+          "al-fattah": 3,
+          "an-nur": 2,
+          "al-hadi": 1,
+          "at-tawwab": 1,
+          "al-mubdi": 2,
+          "al-bari": 1
+        }
+      }
+    ],
+    "sort_order": 6,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q8",
+    "prompt": "Which kind of gratitude comes most easily to you?",
+    "options": [
+      {
+        "text": "Gratitude for what's been provided — the small daily mercies",
+        "scores": {
+          "ar-razzaq": 3,
+          "ash-shakur": 2,
+          "al-karim": 2,
+          "al-latif": 1,
+          "al-wahhab": 2,
+          "an-nafi": 1
+        }
+      },
+      {
+        "text": "Gratitude for the people I've been given",
+        "scores": {
+          "al-wadud": 3,
+          "ar-rahim": 2,
+          "al-karim": 1,
+          "ash-shakur": 1,
+          "al-jami": 2
+        }
+      },
+      {
+        "text": "Gratitude for being kept on a path — even a hard one",
+        "scores": {
+          "al-hadi": 3,
+          "as-sabur": 1,
+          "al-hakim": 1,
+          "ar-rasheed": 1,
+          "al-muqsit": 1,
+          "al-wakil": 2
+        }
+      },
+      {
+        "text": "Gratitude that I'm still here — still able to turn back",
+        "scores": {
+          "at-tawwab": 3,
+          "al-qayyum": 2,
+          "ar-rahman": 1,
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-baith": 1
+        }
+      }
+    ],
+    "sort_order": 7,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q9",
+    "prompt": "When you imagine standing before Allah, what surfaces first?",
+    "options": [
+      {
+        "text": "A quiet hope that His mercy will outweigh everything",
+        "scores": {
+          "ar-rahman": 3,
+          "ar-rahim": 2,
+          "al-karim": 1,
+          "al-afuw": 1,
+          "dhul-jalali-wal-ikram": 2,
+          "al-majeed": 1
+        }
+      },
+      {
+        "text": "Fear of what's been hidden coming to light",
+        "scores": {
+          "al-ghaffar": 3,
+          "al-afuw": 2,
+          "as-sami": 1,
+          "al-khabir": 1,
+          "al-ghafur": 2,
+          "al-haleem": 1
+        }
+      },
+      {
+        "text": "Relief that He knows what I couldn't put into words",
+        "scores": {
+          "al-khabir": 3,
+          "al-basir": 2,
+          "ash-shahid": 2,
+          "as-sami": 1,
+          "al-aleem": 2,
+          "ar-raqeeb": 1
+        }
+      },
+      {
+        "text": "A longing to finally feel close, fully, without distance",
+        "scores": {
+          "al-wadud": 2,
+          "as-samad": 1,
+          "as-salam": 1,
+          "al-batin": 2,
+          "al-mumin": 1,
+          "al-mujib": 3
+        }
+      }
+    ],
+    "sort_order": 8,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q10",
+    "prompt": "Where do you feel the strongest need for guidance right now?",
+    "options": [
+      {
+        "text": "In a decision I can't see clearly through",
+        "scores": {
+          "al-hadi": 3,
+          "an-nur": 2,
+          "al-hakim": 2,
+          "al-fattah": 1,
+          "ar-rasheed": 2,
+          "al-bari": 1
+        }
+      },
+      {
+        "text": "In understanding why my heart keeps drifting",
+        "scores": {
+          "al-khabir": 3,
+          "al-latif": 2,
+          "at-tawwab": 1,
+          "al-wadud": 1,
+          "al-aleem": 2,
+          "al-batin": 1
+        }
+      },
+      {
+        "text": "In knowing what He wants from me in this season",
+        "scores": {
+          "al-hakim": 2,
+          "al-hadi": 1,
+          "al-ali": 1,
+          "al-malik": 2,
+          "al-wali": 1,
+          "al-wakil": 3
+        }
+      },
+      {
+        "text": "In finding light when everything feels dim",
+        "scores": {
+          "an-nur": 3,
+          "al-hadi": 2,
+          "al-fattah": 1,
+          "al-latif": 1,
+          "al-mubdi": 1
+        }
+      }
+    ],
+    "sort_order": 9,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q11",
+    "prompt": "When repentance crosses your mind, what holds you back most?",
+    "options": [
+      {
+        "text": "Thinking I'll just fall into the same thing again",
+        "scores": {
+          "al-ghaffar": 3,
+          "at-tawwab": 2,
+          "as-sabur": 1,
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-wasi": 1
+        }
+      },
+      {
+        "text": "Feeling like I haven't earned the right to ask",
+        "scores": {
+          "al-karim": 3,
+          "ar-rahman": 2,
+          "ar-rahim": 1,
+          "al-wadud": 1,
+          "al-majeed": 2,
+          "al-wahhab": 1
+        }
+      },
+      {
+        "text": "Not knowing if He's still listening after all this",
+        "scores": {
+          "as-sami": 3,
+          "al-mujib": 2,
+          "at-tawwab": 1,
+          "ar-raqeeb": 2,
+          "al-aleem": 1
+        }
+      },
+      {
+        "text": "Honestly — nothing. I just need a way back in",
+        "scores": {
+          "at-tawwab": 3,
+          "al-fattah": 2,
+          "al-afuw": 2,
+          "al-ghaffar": 1,
+          "al-mubdi": 2,
+          "al-bari": 1
+        }
+      }
+    ],
+    "sort_order": 10,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q12",
+    "prompt": "When you think about your rizq — your provision — what's the loudest feeling?",
+    "options": [
+      {
+        "text": "Quiet worry about whether there will be enough",
+        "scores": {
+          "ar-razzaq": 3,
+          "al-wakil": 2,
+          "al-qayyum": 2,
+          "al-karim": 1,
+          "al-mughni": 2,
+          "al-qabid": 1
+        }
+      },
+      {
+        "text": "Gratitude that I've been carried this far",
+        "scores": {
+          "ash-shakur": 3,
+          "ar-razzaq": 2,
+          "al-karim": 2,
+          "al-hameed": 1,
+          "al-muqeet": 1,
+          "al-wakil": 1
+        }
+      },
+      {
+        "text": "A pull to release the grip and trust Him with it",
+        "scores": {
+          "al-wakil": 3,
+          "al-matin": 2,
+          "as-sabur": 1,
+          "al-hafeez": 2,
+          "al-muhaymin": 1
+        }
+      },
+      {
+        "text": "Hope that doors I can't see yet will open in time",
+        "scores": {
+          "al-fattah": 3,
+          "al-mujib": 2,
+          "al-latif": 2,
+          "ar-razzaq": 1,
+          "al-basit": 2,
+          "al-qadir": 1
+        }
+      }
+    ],
+    "sort_order": 11,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q13",
+    "prompt": "What stops you in your tracks and points you back to Allah?",
+    "options": [
+      {
+        "text": "Sunsets, oceans, the sheer scale of the sky",
+        "scores": {
+          "al-ali": 2,
+          "al-karim": 1,
+          "al-musawwir": 2,
+          "al-khaliq": 1,
+          "al-wakil": 1,
+          "al-bari": 3
+        }
+      },
+      {
+        "text": "A small kindness arriving at exactly the right moment",
+        "scores": {
+          "al-latif": 3,
+          "al-karim": 2,
+          "ar-rahim": 1,
+          "ar-rahman": 1,
+          "al-barr": 2,
+          "an-nafi": 1
+        }
+      },
+      {
+        "text": "The way a heart can shift from darkness to light",
+        "scores": {
+          "an-nur": 3,
+          "al-hadi": 2,
+          "al-fattah": 1,
+          "ar-rahim": 1,
+          "al-muhyi": 2,
+          "al-baith": 1
+        }
+      },
+      {
+        "text": "Stillness — the kind that doesn't depend on circumstances",
+        "scores": {
+          "as-salam": 3,
+          "al-quddus": 2,
+          "as-samad": 2,
+          "al-qayyum": 1,
+          "al-baqi": 2,
+          "al-haqq": 1
+        }
+      }
+    ],
+    "sort_order": 12,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q14",
+    "prompt": "When anger or frustration takes over, what do you most need from Allah?",
+    "options": [
+      {
+        "text": "The patience to not say or do something I'd regret",
+        "scores": {
+          "as-sabur": 3,
+          "al-matin": 2,
+          "al-quddus": 1,
+          "as-salam": 1,
+          "al-haleem": 2,
+          "al-muqeet": 1
+        }
+      },
+      {
+        "text": "Trust that the injustice I'm seeing won't go unseen",
+        "scores": {
+          "al-basir": 3,
+          "ash-shahid": 2,
+          "al-ali": 2,
+          "al-hakim": 1,
+          "al-hakam": 2,
+          "al-adl": 1
+        }
+      },
+      {
+        "text": "Strength to hold my ground without losing my heart",
+        "scores": {
+          "al-qawi": 3,
+          "al-matin": 2,
+          "as-sabur": 1,
+          "al-azeez": 2,
+          "al-qahhar": 1,
+          "al-wakil": 1
+        }
+      },
+      {
+        "text": "Peace to put it down — even if it isn't fully resolved",
+        "scores": {
+          "as-salam": 3,
+          "al-wakil": 2,
+          "al-afuw": 1,
+          "al-hakim": 1,
+          "al-mumin": 2,
+          "al-wasi": 1
+        }
+      }
+    ],
+    "sort_order": 13,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q15",
+    "prompt": "In your closest relationships, what's weighing on you most?",
+    "options": [
+      {
+        "text": "A bond that feels strained — I want it healed",
+        "scores": {
+          "ash-shafi": 3,
+          "al-wadud": 2,
+          "al-latif": 2,
+          "ar-rahim": 1,
+          "al-muid": 2,
+          "al-jabbar": 1
+        }
+      },
+      {
+        "text": "Carrying patience with someone who's hard to love right now",
+        "scores": {
+          "as-sabur": 3,
+          "al-wadud": 2,
+          "ar-rahim": 1,
+          "al-karim": 1,
+          "ar-rauf": 2
+        }
+      },
+      {
+        "text": "Wanting to forgive — but not sure I have the capacity",
+        "scores": {
+          "al-afuw": 3,
+          "al-ghaffar": 2,
+          "ar-rahim": 2,
+          "al-quddus": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
+        }
+      },
+      {
+        "text": "Trusting Allah with the people I love when I can't fix things",
+        "scores": {
+          "al-wakil": 3,
+          "al-hakim": 1,
+          "as-sami": 1,
+          "al-hafeez": 2,
+          "al-waliyy": 1
+        }
+      }
+    ],
+    "sort_order": 14,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q16",
+    "prompt": "When you ask 'why am I here?' — what answer would settle you?",
+    "options": [
+      {
+        "text": "That my life is being shaped by One who knows exactly what He's doing",
+        "scores": {
+          "al-hakim": 2,
+          "al-khabir": 1,
+          "al-ali": 1,
+          "al-khaliq": 2,
+          "al-musawwir": 1,
+          "al-wakil": 3
+        }
+      },
+      {
+        "text": "That every breath I take is held in place by Him",
+        "scores": {
+          "al-qayyum": 3,
+          "as-samad": 2,
+          "al-matin": 1,
+          "al-ali": 1,
+          "al-hayy": 2,
+          "al-muqeet": 1
+        }
+      },
+      {
+        "text": "That my heart was made to find rest only in Him",
+        "scores": {
+          "as-samad": 3,
+          "as-salam": 2,
+          "al-wadud": 1,
+          "al-baqi": 2,
+          "al-wahid": 1,
+          "al-mujib": 2
+        }
+      },
+      {
+        "text": "That I'm being led somewhere — even when the path is unclear",
+        "scores": {
+          "al-hadi": 3,
+          "an-nur": 2,
+          "al-fattah": 1,
+          "ar-rasheed": 2,
+          "al-mubdi": 1,
+          "al-wakil": 1
+        }
+      }
+    ],
+    "sort_order": 15,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q17",
+    "prompt": "When you scroll and see other people's lives, what's the quiet ache?",
+    "options": [
+      {
+        "text": "Wondering if my own provision has been forgotten",
+        "scores": {
+          "ar-razzaq": 3,
+          "al-karim": 2,
+          "al-wakil": 1,
+          "al-khabir": 1,
+          "al-mughni": 2
+        }
+      },
+      {
+        "text": "Feeling unseen for the effort I'm quietly putting in",
+        "scores": {
+          "al-basir": 3,
+          "ash-shahid": 2,
+          "ash-shakur": 2,
+          "al-khabir": 1,
+          "al-haseeb": 2,
+          "ar-rafi": 1
+        }
+      },
+      {
+        "text": "Worrying I'm behind on a timeline I never agreed to",
+        "scores": {
+          "al-hakim": 3,
+          "as-sabur": 2,
+          "al-fattah": 1,
+          "al-muakhkhir": 2,
+          "al-muqaddim": 1,
+          "al-wakil": 1
+        }
+      },
+      {
+        "text": "Wanting to be content with what He's chosen for me",
+        "scores": {
+          "ash-shakur": 3,
+          "as-salam": 2,
+          "al-qayyum": 1,
+          "ar-razzaq": 1,
+          "al-wahhab": 2,
+          "al-hameed": 1
+        }
+      }
+    ],
+    "sort_order": 16,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
+  },
+  {
+    "id": "q18",
+    "prompt": "After a setback — a real one — what carries you forward?",
+    "options": [
+      {
+        "text": "Knowing that no door He closes is the final word",
+        "scores": {
+          "al-fattah": 3,
+          "al-mujib": 2,
+          "al-latif": 1,
+          "al-hakim": 1,
+          "al-bari": 2,
+          "al-mubdi": 1
+        }
+      },
+      {
+        "text": "Believing healing — for me, for this — is still possible",
+        "scores": {
+          "ash-shafi": 3,
+          "ar-rahim": 2,
+          "ar-rahman": 1,
+          "an-nur": 1,
+          "al-muhyi": 2,
+          "al-jabbar": 1
+        }
+      },
+      {
+        "text": "The quiet strength to get up one more time than I fall",
+        "scores": {
+          "al-qawi": 3,
+          "al-matin": 2,
+          "as-sabur": 2,
+          "al-qayyum": 1,
+          "al-azeez": 2,
+          "al-hayy": 1
+        }
+      },
+      {
+        "text": "Trusting that what looked like loss is actually being rerouted",
+        "scores": {
+          "al-latif": 3,
+          "al-hakim": 2,
+          "al-wakil": 2,
+          "al-muid": 2,
+          "ad-darr": 1
+        }
+      }
+    ],
+    "sort_order": 17,
+    "created_at": "2026-05-12T00:00:00.000000+00:00"
   }
 ]

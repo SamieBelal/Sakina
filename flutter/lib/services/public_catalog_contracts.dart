@@ -56,7 +56,9 @@ const discoveryQuizQuestionsPublicCatalog = PublicCatalogContract(
   table: 'discovery_quiz_questions',
   orderBy: 'sort_order',
   fileName: 'discovery_quiz_questions.json',
-  expectedCount: 6,
+  // Plan 3 (2026-05-12) expanded the quiz from 6 to 18 questions. The catalog
+  // test pins this count to the JSON shipped in assets/content/.
+  expectedCount: 18,
   requiredKeys: ['id', 'prompt', 'options', 'sort_order'],
   primaryKey: 'id',
   rowValidator: isValidDiscoveryQuizQuestionRow,
@@ -66,7 +68,11 @@ const nameAnchorsPublicCatalog = PublicCatalogContract(
   table: 'name_anchors',
   orderBy: 'name_key',
   fileName: 'name_anchors.json',
-  expectedCount: 32,
+  // 98 = 99 canonical Names from collectible_names.json minus the proper Name
+  // "Allah" (id=1), which has no attribute anchor. Plan 4 (2026-05-12)
+  // backfilled this from 32 to 98 by dropping the 3 non-canonical anchors
+  // (al-qarib, ar-rabb, al-jamil) and authoring 69 new entries.
+  expectedCount: 98,
   requiredKeys: ['name_key', 'name', 'arabic', 'anchor', 'detail'],
   primaryKey: 'name_key',
 );

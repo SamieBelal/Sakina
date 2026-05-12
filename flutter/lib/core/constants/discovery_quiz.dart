@@ -60,6 +60,14 @@ class NameAnchorInfo {
   });
 }
 
+/// **Frozen fallback** — the 6-question baseline shipped before Plan 3
+/// (2026-05-12). Runtime always loads `discoveryQuizQuestionsCatalog` from
+/// `assets/content/discovery_quiz_questions.json`, which holds the full 18
+/// questions. This const exists only as a last-resort fallback if the JSON
+/// fails to parse and as fixture data for a small number of tests that
+/// pre-date the JSON loader. **JSON wins at runtime — do not expand this
+/// const to chase JSON edits.** If you need a Dart-side fixture for a new
+/// test, prefer reading the JSON the same way production does.
 const List<QuizQuestion> discoveryQuizQuestions = [
   QuizQuestion(
     id: 'q1',

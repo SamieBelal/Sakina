@@ -7,7 +7,8 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, kIsWeb, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
@@ -146,14 +147,12 @@ String buildSystemPrompt({
       : '';
 
   final canonicalList = buildCanonicalNamesPromptList();
-  final approvedVerseClause = buildApprovedVersePrompt();
 
   return '''You are an Islamic learning tool drawing on Sheikh Omar Suleiman's "The Dua I Need" series and "The Name I Need" series by Sheikh Mikaeel Smith. A user will share how they feel, and you will respond with ONE Name of Allah that speaks to that emotion.
 
 ## Canonical Names of Allah
 You MUST pick from this exact list. Do NOT invent or modify Names.
 $canonicalList
-$approvedVerseClause
 $avoidClause$forceClause$anchorClause$historyClause$teachingClause
 
 ## Response Format
@@ -163,12 +162,6 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 ##NAME_AR## (the Arabic Name, e.g. اللطيف)
 ##REFRAME## (2-3 sentences reframing the user's feeling through the lens of this Name)
 ##STORY## (a prophetic story or Quranic narrative illustrating this Name — 3-5 sentences)
-##VERSE_1_AR## (Arabic text for the first approved verse)
-##VERSE_1_EN## (English translation for the first approved verse)
-##VERSE_1_REF## (reference for the first approved verse)
-##VERSE_2_AR## (Arabic text for the optional second approved verse)
-##VERSE_2_EN## (English translation for the optional second approved verse)
-##VERSE_2_REF## (reference for the optional second approved verse)
 ##DUA_AR## (the Arabic dua text)
 ##DUA_TR## (transliteration of the dua)
 ##DUA_EN## (English translation of the dua)
@@ -178,7 +171,6 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 Rules:
 - Keep the reframe warm, empathetic, and grounded in Islamic theology. No fluff.
 - The story must be authentic — from Quran or sahih hadith. NEVER fabricate.
-- The verses must come ONLY from the approved list for the chosen Name. Do not quote any verse outside that list.
 - The dua must be real — from Quran or authenticated hadith collections. NEVER fabricate.
 - Related names must come from the canonical list above.
 - If the user's input is clearly off-topic (not about feelings, emotions, or spiritual state), still respond with your best match but keep the reframe brief.''';
@@ -268,7 +260,15 @@ ReflectResponse? parseReflectResponse(String text) {
   final relatedRaw = _parseSection(text, '##RELATED##');
   final parsedVerses = _parseReflectVerses(text);
 
-  if (name == null || reframe == null) return null;
+  // Treat empty-content markers as missing so the caller falls back to the
+  // demo response — a `##NAME##\n` with no content downstream produces a
+  // blank hero card in the reflect UI.
+  if (name == null ||
+      name.isEmpty ||
+      reframe == null ||
+      reframe.isEmpty) {
+    return null;
+  }
 
   // Validate primary name against canonical list
   final canonical = findCanonicalName(name);
@@ -710,6 +710,12 @@ class FindDuasDuaEntry {
   final String transliteration;
   final String translation;
   final String source;
+  // Optional — populated by `_searchLocalDuas` from `BrowseDua.category` so UI
+  // tap-to-detail can route correctly when two duas share a title (3 known
+  // collisions: Ayat al-Kursi, Sayyid al-Istighfar, Dua of Adam). Null when
+  // the entry comes from AI output or the buildDua RELATED_DUAS pipeline where
+  // category isn't reliably available.
+  final String? category;
 
   const FindDuasDuaEntry({
     required this.title,
@@ -717,6 +723,7 @@ class FindDuasDuaEntry {
     required this.transliteration,
     required this.translation,
     required this.source,
+    this.category,
   });
 }
 
@@ -799,6 +806,80 @@ const _semanticMap = <String, List<String>>{
   'travel': ['travel'],
   'journey': ['travel'],
   'trip': ['travel'],
+  // Anger
+  'angry': ['anger'],
+  'anger': ['anger'],
+  'rage': ['anger'],
+  'furious': ['anger'],
+  // Envy
+  'jealous': ['envy'],
+  'envy': ['envy'],
+  'jealousy': ['envy'],
+  // Lust
+  'lust': ['lust'],
+  'desire': ['lust'],
+  'temptation': ['lust', 'forgiveness'],
+  // Loneliness
+  'alone': ['loneliness'],
+  'lonely': ['loneliness'],
+  'isolated': ['loneliness'],
+  // Shame
+  'shame': ['shame', 'forgiveness'],
+  'ashamed': ['shame', 'forgiveness'],
+  'embarrass': ['shame'],
+  // Burnout
+  'burnout': ['burnout', 'anxiety'],
+  'exhausted': ['burnout'],
+  'tired': ['burnout', 'anxiety'],
+  // co-tag — "tired" historically routes to anxiety; don't steal all hits.
+  // Marriage conflict
+  'divorce': ['marriage_conflict', 'family'],
+  'fighting': ['marriage_conflict'],
+  'argue': ['marriage_conflict'],
+  // Parenting
+  'parent': ['parenting', 'family'],
+  'parenting': ['parenting'],
+  // 'failing' deliberately omitted — too generic ("failing a class",
+  // "failing at work"). The "I am failing as a parent" path still resolves
+  // via the substring keyword match on 'parent' / 'parenting' in
+  // _searchLocalDuas.
+  // Work
+  'boss': ['work', 'wealth'],
+  'fired': ['work', 'wealth'],
+  'career': ['work', 'wealth'],
+  // Illness
+  'sick': ['illness'],
+  // do NOT co-tag 'sick' with protection — the 5 existing protection
+  // duas would outrank brand-new illness duas. Keep protection only on
+  // specific terms like 'cancer','disease' if needed (handled below).
+  'illness': ['illness'],
+  'disease': ['illness'],
+  'cancer': ['illness'],
+  'pain': ['illness'],
+  // Addiction
+  'addict': ['addiction', 'forgiveness'],
+  'addiction': ['addiction'],
+  'porn': ['addiction', 'forgiveness'],
+  'drinking': ['addiction', 'forgiveness'],
+  // Death / grief
+  'died': ['death_grief', 'grief'],
+  'death': ['death_grief', 'grief'],
+  'passed away': ['death_grief', 'grief'],
+  'funeral': ['death_grief', 'grief'],
+  // "Lost someone" disambiguator: 'lost' alone routes to guidance ("I feel lost").
+  // 'someone' in a pain context strongly signals death/loss-of-person.
+  // The 'loss' tag boosts grief duas (all 4 have emotion_tags including 'loss').
+  'someone': ['grief', 'loss', 'death_grief'],
+};
+
+/// English stopwords that should NOT drive semantic-map inference. Common
+/// short words ('for', 'and', 'the') were accidentally matching keys like
+/// 'forgive' via the substring matcher in [_searchLocalDuas], polluting
+/// inferredTags with unrelated categories.
+const _semanticStopwords = <String>{
+  'for', 'and', 'the', 'are', 'you', 'your', 'this', 'that', 'have', 'has',
+  'was', 'were', 'will', 'can', 'but', 'not', 'why', 'how', 'who', 'with',
+  'from', 'about', 'into', 'onto', 'over', 'under', 'than', 'then', 'just',
 };
 
 /// Search the local browse duas catalog for duas matching the user's need.
@@ -806,11 +887,16 @@ const _semanticMap = <String, List<String>>{
 /// Returns up to 5 best matches sorted by relevance score.
 List<FindDuasDuaEntry> _searchLocalDuas(String need) {
   final query = need.toLowerCase();
-  final queryWords =
-      query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
+  // Filter once: length>2 AND not a stopword. Applies to BOTH the inferred-tag
+  // loop AND the direct keyword-substring loop below, so a query like
+  // "for the with from" (all stopwords) yields no junk routing.
+  final queryWords = query
+      .split(RegExp(r'\s+'))
+      .where((w) => w.length > 2 && !_semanticStopwords.contains(w))
+      .toList();
   final duas = browseDuasCatalog;
 
-  // Expand query words to inferred categories/tags via semantic map
+  // Expand query words to inferred categories/tags via semantic map.
   final inferredTags = <String>{};
   for (final word in queryWords) {
     for (final key in _semanticMap.keys) {
@@ -863,6 +949,7 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
       transliteration: d.transliteration,
       translation: d.translation,
       source: d.source,
+      category: d.category,
     );
   }).toList();
 }
@@ -886,6 +973,7 @@ Future<FindDuasResponse> findDuas(String need) async {
                 transliteration: d.transliteration,
                 translation: d.translation,
                 source: d.source,
+                category: d.category,
               ))
           .toList();
 
@@ -1377,7 +1465,7 @@ Future<DailyReflectResponse> getDailyResponse(
         '---\n\n'
         'Respond with EXACTLY this marker, nothing else:\n'
         '##NAME## (English · Arabic)\n\n'
-        'Example: ##NAME## As-Saboor · ٱلصَّبُورُ',
+        'Example: ##NAME## As-Sabur · الصَّبُورُ',
     userMessage: answersFormatted,
     maxCompletionTokens: 100,
   );
@@ -1415,3 +1503,7 @@ Future<DailyReflectResponse> getDailyResponse(
     nameArabic: canonical?.nameArabic ?? parsedNameArabic,
   );
 }
+
+@visibleForTesting
+List<FindDuasDuaEntry> searchLocalDuasForTest(String need) =>
+    _searchLocalDuas(need);

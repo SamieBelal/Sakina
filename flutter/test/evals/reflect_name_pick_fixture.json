@@ -1,0 +1,767 @@
+[
+  {
+    "phrase": "I feel like nothing in my life makes sense right now",
+    "expected_names": [
+      "Al-Lateef",
+      "Al-Hakeem",
+      "Al-Khabeer",
+      "Al-Batin"
+    ],
+    "rationale": {
+      "category": "hidden-wisdom / disorientation",
+      "included_names": [
+        {
+          "name": "Al-Lateef",
+          "why": "the gentle one whose plan unfolds invisibly"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — every event has a reason"
+        },
+        {
+          "name": "Al-Khabeer",
+          "why": "the aware — sees what we can't"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — meaning is there even when you cannot see it"
+        }
+      ],
+      "excluded_pattern": "Names of power/strength (Al-Qawiyy, Al-Azeez) — phrase is about confusion, not weakness"
+    }
+  },
+  {
+    "phrase": "I'm scared no one understands what I'm going through",
+    "expected_names": [
+      "Al-Aleem",
+      "Al-Khabeer",
+      "As-Sami",
+      "Al-Baseer",
+      "Al-Waliyy",
+      "Al-Lateef"
+    ],
+    "rationale": {
+      "category": "feeling-unseen / loneliness in pain",
+      "included_names": [
+        {
+          "name": "Al-Aleem",
+          "why": "the all-knowing — knows interior states"
+        },
+        {
+          "name": "Al-Khabeer",
+          "why": "the aware — knows the hidden"
+        },
+        {
+          "name": "As-Sami",
+          "why": "the all-hearing — hears unspoken cries"
+        },
+        {
+          "name": "Al-Baseer",
+          "why": "the all-seeing — witnesses every tear"
+        },
+        {
+          "name": "Al-Waliyy",
+          "why": "the protecting friend — close when others feel distant"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the subtle — knows the hidden interior, gentle to those in pain"
+        }
+      ],
+      "excluded_pattern": "Forgiveness Names (Al-Ghaffar, At-Tawwab) — phrase is about being seen, not about sin"
+    }
+  },
+  {
+    "phrase": "My chest is tight and I can't stop worrying about everything",
+    "expected_names": [
+      "Al-Mumin",
+      "Al-Hafeez",
+      "Al-Muhaymin",
+      "Al-Wakeel"
+    ],
+    "rationale": {
+      "category": "anxiety",
+      "included_names": [
+        {
+          "name": "Al-Mumin",
+          "why": "the giver of security — calms the anxious heart"
+        },
+        {
+          "name": "Al-Hafeez",
+          "why": "the protector — guards over what worries us"
+        },
+        {
+          "name": "Al-Muhaymin",
+          "why": "the guardian — watching over every detail"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — 'hasbuna-llahu wa ni'ma al-wakeel' is the classical dua against fear"
+        }
+      ],
+      "excluded_pattern": "Names of majesty/grandeur (Al-Mutakabbir, Al-Jaleel) — phrase needs reassurance, not awe"
+    }
+  },
+  {
+    "phrase": "I lost my mother last month and the world feels empty",
+    "expected_names": [
+      "Ar-Rahman",
+      "Ar-Raheem",
+      "Al-Wadud"
+    ],
+    "rationale": {
+      "category": "grief",
+      "included_names": [
+        {
+          "name": "Ar-Rahman",
+          "why": "the most merciful — wraps the grieving in compassion"
+        },
+        {
+          "name": "Ar-Raheem",
+          "why": "the especially merciful to believers in pain"
+        },
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — the love that does not leave with the dead"
+        }
+      ],
+      "excluded_pattern": "Names of justice/judgment (Al-Adl, Al-Hakam) — grief needs comfort, not adjudication"
+    }
+  },
+  {
+    "phrase": "I just got the news I've been praying for and I want to thank Allah properly",
+    "expected_names": [
+      "Ash-Shakur",
+      "Al-Wahhab",
+      "Ar-Razzaq",
+      "Al-Wadud"
+    ],
+    "rationale": {
+      "category": "gratitude",
+      "included_names": [
+        {
+          "name": "Ash-Shakur",
+          "why": "the appreciative — meets small thanks with abundant reward"
+        },
+        {
+          "name": "Al-Wahhab",
+          "why": "the bestower — the source of the gift"
+        },
+        {
+          "name": "Ar-Razzaq",
+          "why": "the provider — who arranged the answered duʿā"
+        },
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — the One you are grateful to"
+        }
+      ],
+      "excluded_pattern": "Names of awe/distance (Al-Mutaali, Al-Kabeer) — gratitude calls for nearness, not exaltation alone"
+    }
+  },
+  {
+    "phrase": "I lost my temper at my kids again and I hate how I reacted",
+    "expected_names": [
+      "Al-Haleem",
+      "As-Sabur",
+      "Al-Afuw"
+    ],
+    "rationale": {
+      "category": "anger",
+      "included_names": [
+        {
+          "name": "Al-Haleem",
+          "why": "the forbearing — models the slow patience we lacked"
+        },
+        {
+          "name": "As-Sabur",
+          "why": "the patient — endures our worst and waits for us"
+        },
+        {
+          "name": "Al-Afuw",
+          "why": "the pardoner — wipes the slip clean"
+        }
+      ],
+      "excluded_pattern": "Names of dominance (Al-Qahhar, Al-Jabbar) — the user is the one who lost control, not seeking force"
+    }
+  },
+  {
+    "phrase": "I did something I'm too embarrassed to even say out loud",
+    "expected_names": [
+      "Al-Ghafur",
+      "At-Tawwab",
+      "Al-Wadud",
+      "Al-Ghaffar"
+    ],
+    "rationale": {
+      "category": "shame",
+      "included_names": [
+        {
+          "name": "Al-Ghafur",
+          "why": "the forgiver — covers what we cannot face"
+        },
+        {
+          "name": "At-Tawwab",
+          "why": "the acceptor of repentance — keeps turning toward us"
+        },
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — He still loves you on the worst day"
+        },
+        {
+          "name": "Al-Ghaffar",
+          "why": "the ever-forgiving — sister Name of Al-Ghafur (both translate الْغَفُّار/الْغَفُور)"
+        }
+      ],
+      "excluded_pattern": "Names of witnessing (Ash-Shaheed, Ar-Raqeeb) — shame already feels watched; the answer is mercy"
+    }
+  },
+  {
+    "phrase": "Things feel impossible but I'm trying to believe they'll get better",
+    "expected_names": [
+      "Al-Fattah",
+      "Al-Mujeeb",
+      "Ar-Rahman",
+      "Al-Wakeel"
+    ],
+    "rationale": {
+      "category": "hope",
+      "included_names": [
+        {
+          "name": "Al-Fattah",
+          "why": "the opener — opens doors that look sealed shut"
+        },
+        {
+          "name": "Al-Mujeeb",
+          "why": "the answerer — the One who responds to the small hopeful prayer"
+        },
+        {
+          "name": "Ar-Rahman",
+          "why": "the most merciful — the ground hope rests on"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — reliance on Allah is the foundation of hope"
+        }
+      ],
+      "excluded_pattern": "Names emphasizing finality (Al-Akhir, Al-Mumeet) — hope is forward-leaning, not end-focused"
+    }
+  },
+  {
+    "phrase": "I watched the sunrise this morning and just felt how big Allah is",
+    "expected_names": [
+      "Al-Azeem",
+      "Al-Kabeer",
+      "Al-Jaleel"
+    ],
+    "rationale": {
+      "category": "awe",
+      "included_names": [
+        {
+          "name": "Al-Azeem",
+          "why": "the magnificent — the right Name for vastness"
+        },
+        {
+          "name": "Al-Kabeer",
+          "why": "the great — for the felt scale of creation"
+        },
+        {
+          "name": "Al-Jaleel",
+          "why": "the majestic — for sublime beauty that humbles"
+        }
+      ],
+      "excluded_pattern": "Intimate Names (Al-Qareeb is not in canon; Al-Wadud) — awe calls for grandeur, not closeness, at this beat"
+    }
+  },
+  {
+    "phrase": "I keep falling into the same sin and I don't know how to stop",
+    "expected_names": [
+      "At-Tawwab",
+      "Al-Ghaffar",
+      "Al-Haleem"
+    ],
+    "rationale": {
+      "category": "repentance",
+      "included_names": [
+        {
+          "name": "At-Tawwab",
+          "why": "the acceptor of repentance — repeatedly receives the returning heart"
+        },
+        {
+          "name": "Al-Ghaffar",
+          "why": "the often-forgiving — forgives the recurring slip"
+        },
+        {
+          "name": "Al-Haleem",
+          "why": "the forbearing — does not rush punishment, gives room to return"
+        }
+      ],
+      "excluded_pattern": "Names of swift justice (Al-Muntaqim is not in canon; Al-Qahhar) — repentance needs patient mercy"
+    }
+  },
+  {
+    "phrase": "I just want to feel close to Allah again, it's been so long",
+    "expected_names": [
+      "Al-Wadud",
+      "As-Sami",
+      "Al-Mujeeb",
+      "Al-Batin"
+    ],
+    "rationale": {
+      "category": "longing",
+      "included_names": [
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — closeness is His attribute, not our achievement"
+        },
+        {
+          "name": "As-Sami",
+          "why": "the all-hearing — already hearing the longing"
+        },
+        {
+          "name": "Al-Mujeeb",
+          "why": "the answerer — meets the one who reaches"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — present even when He feels far"
+        }
+      ],
+      "excluded_pattern": "Names of transcendence (Al-Mutaali, Al-Ali) — longing needs nearness, not distance reinforced"
+    }
+  },
+  {
+    "phrase": "I just got a hard diagnosis and I'm trying not to fall apart",
+    "expected_names": [
+      "Ash-Shafi",
+      "Ar-Rahman",
+      "Al-Lateef"
+    ],
+    "rationale": {
+      "category": "illness",
+      "included_names": [
+        {
+          "name": "Ash-Shafi",
+          "why": "the healer — the canonical Name invoked in the Prophet's healing dua (Bukhari, Muslim)"
+        },
+        {
+          "name": "Ar-Rahman",
+          "why": "the most merciful — meets the body's suffering"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the gentle — arranges hidden mercies inside the hardship"
+        }
+      ],
+      "excluded_pattern": "Names of judgment (Al-Hakam, Al-Adl) — illness needs care, not verdict. Also excluded: Al-Muhyi — canonical pairing with Al-Mumeet (giver of death) can land heavily on a fresh diagnosis (scholar-revised 2026-05-12)."
+    }
+  },
+  {
+    "phrase": "My toddler had another meltdown and I feel like the worst parent",
+    "expected_names": [
+      "Al-Haleem",
+      "Al-Lateef",
+      "Ar-Raheem"
+    ],
+    "rationale": {
+      "category": "parenting",
+      "included_names": [
+        {
+          "name": "Al-Haleem",
+          "why": "the forbearing — patient with imperfect parents"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the gentle — models the softness we need"
+        },
+        {
+          "name": "Ar-Raheem",
+          "why": "the especially merciful — tender with those who try"
+        }
+      ],
+      "excluded_pattern": "Names of authority (Al-Malik, Al-Jabbar) — parenting moment calls for tenderness, not power"
+    }
+  },
+  {
+    "phrase": "I'm drowning in deadlines and I can't see the end of this week",
+    "expected_names": [
+      "Al-Wakeel",
+      "Al-Fattah",
+      "Al-Muqeet",
+      "Al-Hakeem",
+      "As-Sabur"
+    ],
+    "rationale": {
+      "category": "work",
+      "included_names": [
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — hand it over and trust His arrangement"
+        },
+        {
+          "name": "Al-Fattah",
+          "why": "the opener — opens paths through stuck work"
+        },
+        {
+          "name": "Al-Muqeet",
+          "why": "the sustainer — gives the strength each day needs"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — work pressure has reason"
+        },
+        {
+          "name": "As-Sabur",
+          "why": "the patient — work overload calls for endurance, not just provision"
+        }
+      ],
+      "excluded_pattern": "Names of ultimacy (Al-Akhir, Al-Awwal) — work overwhelm needs practical reliance, not cosmology"
+    }
+  },
+  {
+    "phrase": "My spouse and I keep hurting each other and I don't know how to fix it",
+    "expected_names": [
+      "Al-Wadud",
+      "Al-Lateef",
+      "Al-Jami"
+    ],
+    "rationale": {
+      "category": "relationship",
+      "included_names": [
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — the source of mawaddah between spouses"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the gentle — softens hearts in ways we cannot"
+        },
+        {
+          "name": "Al-Jami",
+          "why": "the gatherer — reunites what has drifted apart"
+        }
+      ],
+      "excluded_pattern": "Names of separation/decree (Al-Qabid, Al-Mani) — relationship needs reunion, not constriction"
+    }
+  },
+  {
+    "phrase": "I prayed but it feels like nothing happened, like no one heard me",
+    "expected_names": [
+      "As-Sami",
+      "Al-Mujeeb",
+      "Al-Hakeem",
+      "Al-Batin"
+    ],
+    "rationale": {
+      "category": "doubt",
+      "included_names": [
+        {
+          "name": "As-Sami",
+          "why": "the all-hearing — heard the duʿā even when silence followed"
+        },
+        {
+          "name": "Al-Mujeeb",
+          "why": "the answerer — answers may be delay, redirect, or substitution"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — the timing belongs to a wisdom we don't see yet"
+        },
+        {
+          "name": "Al-Batin",
+          "why": "the hidden — hears even when His response feels invisible"
+        }
+      ],
+      "excluded_pattern": "Names of wrath/withholding (Al-Qabid) — doubt needs reassurance Allah is listening, not confirmation of distance"
+    }
+  },
+  {
+    "phrase": "I'm afraid something bad is going to happen to my family",
+    "expected_names": [
+      "Al-Hafeez",
+      "Al-Muhaymin",
+      "Al-Mumin",
+      "Ar-Raqeeb"
+    ],
+    "rationale": {
+      "category": "fear",
+      "included_names": [
+        {
+          "name": "Al-Hafeez",
+          "why": "the protector — guards those we love when we can't"
+        },
+        {
+          "name": "Al-Muhaymin",
+          "why": "the guardian — overseeing every situation"
+        },
+        {
+          "name": "Al-Mumin",
+          "why": "the giver of security — steadies a fearful heart"
+        },
+        {
+          "name": "Ar-Raqeeb",
+          "why": "the watchful — Allah watches over those you fear for"
+        }
+      ],
+      "excluded_pattern": "Names of decree-as-trial (Ad-Darr) — fear about the future needs assurance, not reminder of harm"
+    }
+  },
+  {
+    "phrase": "I'm so happy today I just want to share it with everyone",
+    "expected_names": [
+      "As-Salam",
+      "Al-Wadud",
+      "Ash-Shakur"
+    ],
+    "rationale": {
+      "category": "joy",
+      "included_names": [
+        {
+          "name": "As-Salam",
+          "why": "the source of peace — joy that doesn't take is rooted here"
+        },
+        {
+          "name": "Al-Wadud",
+          "why": "the loving — joy as expression of His mawaddah"
+        },
+        {
+          "name": "Ash-Shakur",
+          "why": "the appreciative — honors joy with gratitude back"
+        }
+      ],
+      "excluded_pattern": "Names of trial/correction (Ad-Darr, Al-Khafid) — joy moment shouldn't be undercut"
+    }
+  },
+  {
+    "phrase": "I'm completely burned out and even small tasks feel impossible",
+    "expected_names": [
+      "Al-Muqeet",
+      "Al-Qayyum",
+      "Al-Hayy",
+      "As-Sabur",
+      "Al-Wakeel"
+    ],
+    "rationale": {
+      "category": "exhaustion",
+      "included_names": [
+        {
+          "name": "Al-Muqeet",
+          "why": "the sustainer — supplies the strength we've run out of"
+        },
+        {
+          "name": "Al-Qayyum",
+          "why": "the self-sustaining — the One we lean on when we cannot stand"
+        },
+        {
+          "name": "Al-Hayy",
+          "why": "the ever-living — life-source for the depleted"
+        },
+        {
+          "name": "As-Sabur",
+          "why": "the patient — keeps you steady through what feels endless"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — entrust what you cannot carry to Him"
+        }
+      ],
+      "excluded_pattern": "Names of striving/effort framing — exhaustion needs being-held, not more push"
+    }
+  },
+  {
+    "phrase": "I keep comparing myself to everyone else and feeling like I'm behind",
+    "expected_names": [
+      "Ar-Razzaq",
+      "Al-Hakeem",
+      "Ash-Shakur",
+      "Al-Muakhkhir",
+      "Al-Muqaddim"
+    ],
+    "rationale": {
+      "category": "jealousy",
+      "included_names": [
+        {
+          "name": "Ar-Razzaq",
+          "why": "the provider — your rizq is portioned for you, not them"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — what each person receives is calibrated"
+        },
+        {
+          "name": "Ash-Shakur",
+          "why": "the most appreciative — the classical remedy for jealousy is gratitude for what's already yours"
+        },
+        {
+          "name": "Al-Muakhkhir",
+          "why": "the delayer — your timing is His; what is delayed is delayed for wisdom"
+        },
+        {
+          "name": "Al-Muqaddim",
+          "why": "the expediter — canonical pair with Al-Muakhkhir; together they govern divine timing"
+        }
+      ],
+      "excluded_pattern": "Names of abundance for self (Al-Ghaniyy alone) — jealousy needs perspective on His distribution, not just His wealth. Also excluded: Al-Muqsit — doctrinally about justice but not idiomatic for comparison/envy; Islamic remedies for jealousy center on gratitude, not justice (scholar-revised 2026-05-12)."
+    }
+  },
+  {
+    "phrase": "I'm starting to wonder if my faith is even real or if I'm just going through motions",
+    "expected_names": [
+      "Al-Hadi",
+      "An-Nur",
+      "Al-Mumin",
+      "Az-Zahir"
+    ],
+    "rationale": {
+      "category": "faith-struggle",
+      "included_names": [
+        {
+          "name": "Al-Hadi",
+          "why": "the guide — guides the wavering heart back"
+        },
+        {
+          "name": "An-Nur",
+          "why": "the light — re-illuminates a faith gone dim"
+        },
+        {
+          "name": "Al-Mumin",
+          "why": "the giver of faith — īmān is His gift, not our manufacture"
+        },
+        {
+          "name": "Az-Zahir",
+          "why": "the manifest — His signs are visible even when conviction feels thin"
+        }
+      ],
+      "excluded_pattern": "Names of judgment (Al-Hakam, Al-Adl) — struggling faith needs guidance, not verdict"
+    }
+  },
+  {
+    "phrase": "My parents and I are barely speaking and every conversation turns into a fight",
+    "expected_names": [
+      "Al-Jami",
+      "Al-Lateef",
+      "Al-Haleem",
+      "Al-Waliyy",
+      "Al-Wali"
+    ],
+    "rationale": {
+      "category": "family-conflict",
+      "included_names": [
+        {
+          "name": "Al-Jami",
+          "why": "the gatherer — reunites estranged hearts"
+        },
+        {
+          "name": "Al-Lateef",
+          "why": "the gentle — softens the tone we can't"
+        },
+        {
+          "name": "Al-Haleem",
+          "why": "the forbearing — models the patience family requires"
+        },
+        {
+          "name": "Al-Waliyy",
+          "why": "the protecting friend — guards bonds when we cannot"
+        },
+        {
+          "name": "Al-Wali",
+          "why": "the governor — orders affairs even when family bonds feel ungoverned"
+        }
+      ],
+      "excluded_pattern": "Names of dominance (Al-Qahhar) — family conflict needs softening, not victory"
+    }
+  },
+  {
+    "phrase": "Rent is due and I don't know how I'm going to make it work this month",
+    "expected_names": [
+      "Ar-Razzaq",
+      "Al-Kareem",
+      "Al-Mughni"
+    ],
+    "rationale": {
+      "category": "financial-stress",
+      "included_names": [
+        {
+          "name": "Ar-Razzaq",
+          "why": "the provider — provision is His name, not your salary's"
+        },
+        {
+          "name": "Al-Kareem",
+          "why": "the generous — gives beyond what is asked"
+        },
+        {
+          "name": "Al-Mughni",
+          "why": "the enricher — turns scarcity into sufficiency"
+        }
+      ],
+      "excluded_pattern": "Names of restraint (Al-Qabid, Al-Mani) — money stress needs faith in opening, not confirmation of constriction"
+    }
+  },
+  {
+    "phrase": "I have a huge decision to make and I'm frozen, scared of choosing wrong",
+    "expected_names": [
+      "Al-Hadi",
+      "Ar-Rasheed",
+      "Al-Hakeem"
+    ],
+    "rationale": {
+      "category": "decision-paralysis",
+      "included_names": [
+        {
+          "name": "Al-Hadi",
+          "why": "the guide — guides the one asking for direction"
+        },
+        {
+          "name": "Ar-Rasheed",
+          "why": "the rightly-guiding — leads to the soundest path"
+        },
+        {
+          "name": "Al-Hakeem",
+          "why": "the wise — istikhāra rests on trusting His wisdom over ours"
+        }
+      ],
+      "excluded_pattern": "Names of power (Al-Qadir, Al-Muqtadir) — paralysis needs guidance, not reminder of His ability alone"
+    }
+  },
+  {
+    "phrase": "I keep thinking about death lately and it scares me how unprepared I feel",
+    "expected_names": [
+      "Al-Hayy",
+      "Al-Baqi",
+      "Al-Wakeel",
+      "Al-Mumeet",
+      "Al-Muhyi",
+      "Al-Muqtadir"
+    ],
+    "rationale": {
+      "category": "mortality",
+      "included_names": [
+        {
+          "name": "Al-Hayy",
+          "why": "the ever-living — the One who doesn't die when we do"
+        },
+        {
+          "name": "Al-Baqi",
+          "why": "the everlasting — remains after everything ends"
+        },
+        {
+          "name": "Al-Wakeel",
+          "why": "the trustee — entrust the soul to the One who will receive it"
+        },
+        {
+          "name": "Al-Mumeet",
+          "why": "the giver of death — the decree itself includes death; the One you face it with"
+        },
+        {
+          "name": "Al-Muhyi",
+          "why": "the giver of life — the canonical pair partner of Al-Mumeet; together they govern life and death"
+        },
+        {
+          "name": "Al-Muqtadir",
+          "why": "the all-powerful — His decree governs both life and death"
+        }
+      ],
+      "excluded_pattern": "Names of wrath (Al-Qahhar) — mortality fear needs anchoring in the eternal, not amplified dread"
+    }
+  }
+]
