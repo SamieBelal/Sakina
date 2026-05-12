@@ -3,9 +3,54 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/constants/discovery_quiz.dart';
+import 'package:sakina/services/public_catalog_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // Seed the in-memory public catalog from the bundled name_anchors.json so
+  // `nameAnchorsCatalog` resolves to the full 98-name JSON catalog rather
+  // than the 33-entry const fallback in `discovery_quiz.dart`. Plan 4
+  // (Names backfill) shipped the 98 entries; this lets Plan 3's scoring
+  // expansion verify against the full anchored set.
+  //
+  // Plan 3 also references three Names that Plan 4 deliberately omitted
+  // from `name_anchors.json` (they sit outside the canonical 99 but are
+  // present in the const-fallback `nameAnchors` map): `ar-rabb`, `al-jamil`,
+  // `al-qarib`. We splice them into the seeded catalog from the const
+  // fallback so the property test (which renders anchor/detail copy) still
+  // passes — this mirrors what production would do if catalog hydration
+  // merged with the fallback, and avoids editing Plan 4 content here.
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    final raw = File('assets/content/name_anchors.json').readAsStringSync();
+    final List<dynamic> anchors = jsonDecode(raw) as List<dynamic>;
+    final existingKeys = anchors
+        .cast<Map<String, dynamic>>()
+        .map((e) => e['name_key'] as String)
+        .toSet();
+    for (final spliceKey in const ['ar-rabb', 'al-jamil', 'al-qarib']) {
+      if (existingKeys.contains(spliceKey)) continue;
+      final info = nameAnchors[spliceKey];
+      if (info == null) continue;
+      anchors.add({
+        'name_key': spliceKey,
+        'name': info.name,
+        'arabic': info.arabic,
+        'anchor': info.anchor,
+        'detail': info.detail,
+      });
+    }
+    await setPublicCatalogJsonForTesting(
+      PublicCatalogKeys.nameAnchors,
+      jsonEncode(anchors),
+    );
+  });
+
+  tearDownAll(debugResetPublicCatalogs);
+
   group('discovery_quiz_questions.json', () {
     final raw = File('assets/content/discovery_quiz_questions.json')
         .readAsStringSync();
@@ -31,19 +76,19 @@ void main() {
       }
     });
 
-    // NOTE: target is 32 (the current `name_anchors.json` ceiling). Plan 4
-    // backfills anchors to all 99 Names — once that lands, lift this floor to
-    // >=55 (per `2026-05-11-discovery-quiz-expansion.md`). The slug-membership
-    // test below guards against scoring un-anchored Names that would render
-    // as raw slug text on the result screen.
-    test('union of scored Name keys covers >=32 distinct anchored Names', () {
+    // Plan 4 backfilled anchors from 32 to 98 Names; Plan 3's scoring
+    // expansion lifts this floor to >=55 reachable Names across the 18-Q
+    // union (per `2026-05-11-discovery-quiz-expansion.md`). The slug-
+    // membership test below guards against scoring un-anchored Names that
+    // would render as raw slug text on the result screen.
+    test('union of scored Name keys covers >=55 distinct anchored Names', () {
       final names = <String>{};
       for (final q in qs.cast<Map<String, dynamic>>()) {
         for (final o in (q['options'] as List).cast<Map<String, dynamic>>()) {
           (o['scores'] as Map).forEach((k, _) => names.add(k as String));
         }
       }
-      expect(names.length, greaterThanOrEqualTo(32),
+      expect(names.length, greaterThanOrEqualTo(55),
           reason: 'reachable Names = ${names.length}: $names');
     });
 
