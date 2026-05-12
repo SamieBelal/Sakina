@@ -56,7 +56,22 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
         ref.read(tierUpScrollProvider.notifier).reload();
       }
 
-      await ref.read(dailyRewardsProvider.notifier).reload();
+      // 10s timeout on reload so a hung network doesn't trap the user on a
+      // perpetual SakinaLoader. On timeout we still flip `_rewardsLoaded`
+      // true and render the strip from whatever local cache we have —
+      // accepting potentially stale state beats an indefinite spinner.
+      // (Server-side `claim_daily_reward` is idempotent via the
+      // `already_claimed=true` path, so a stale-state claim won't
+      // double-grant.)
+      try {
+        await ref
+            .read(dailyRewardsProvider.notifier)
+            .reload()
+            .timeout(const Duration(seconds: 10));
+      } catch (_) {
+        // Swallow timeout / network errors — fall through to render with
+        // whatever the local cache holds.
+      }
       if (!mounted) return;
       final rewards = ref.read(dailyRewardsProvider);
       setState(() {
