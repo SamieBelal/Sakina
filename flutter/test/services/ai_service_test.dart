@@ -35,10 +35,10 @@ void main() {
 ##STORY## A story.
 ##VERSE_1_AR## placeholder
 ##VERSE_1_EN## placeholder
-##VERSE_1_REF## Quran 7:23
+##VERSE_1_REF## Al-A'raf 7:23
 ##VERSE_2_AR## placeholder
 ##VERSE_2_EN## placeholder
-##VERSE_2_REF## Quran 59:10
+##VERSE_2_REF## Al-Hashr 59:10
 ##DUA_AR## دعاء
 ##DUA_TR## dua
 ##DUA_EN## supplication
@@ -48,8 +48,8 @@ void main() {
 
     expect(parsed, isNotNull);
     expect(parsed!.verses, hasLength(2));
-    expect(parsed.verses.first.reference, 'Quran 7:23');
-    expect(parsed.verses.last.reference, 'Quran 59:10');
+    expect(parsed.verses.first.reference, "Al-A'raf 7:23");
+    expect(parsed.verses.last.reference, 'Al-Hashr 59:10');
   });
 
   test('parseReflectResponse ignores partial verse markers safely', () {
