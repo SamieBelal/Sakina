@@ -172,7 +172,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       0,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000101'
   ),
@@ -189,7 +190,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       true,
       0,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000102'
   ),
@@ -206,7 +208,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       3,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000103'
   ),
@@ -223,7 +226,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       3,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000104'
   ),
@@ -240,7 +244,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       3,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000105'
   ),
@@ -257,7 +262,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       3,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000106'
   ),
@@ -274,7 +280,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       0,
-      extract(dow from timezone('utc', now()))::integer
+      extract(dow from timezone('utc', now()))::integer,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000107'
   ),
@@ -291,7 +298,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       0,
-      ((extract(dow from timezone('utc', now()))::integer + 1) % 7)
+      ((extract(dow from timezone('utc', now()))::integer + 1) % 7),
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000108'
   ),
@@ -308,7 +316,8 @@ select throws_ok(
       0,
       false,
       0,
-      null
+      null,
+      false
     )
   $$,
   'Unsupported preference column: DROP TABLE users',
@@ -324,7 +333,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       -1,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000109'
   ),
@@ -341,7 +351,8 @@ select is(
       extract(hour from timezone('utc', now()))::integer,
       false,
       0,
-      null
+      null,
+      false
     )
     where user_id = '00000000-0000-0000-0000-000000000110'
   ),
