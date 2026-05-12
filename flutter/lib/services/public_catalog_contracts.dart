@@ -66,7 +66,11 @@ const nameAnchorsPublicCatalog = PublicCatalogContract(
   table: 'name_anchors',
   orderBy: 'name_key',
   fileName: 'name_anchors.json',
-  expectedCount: 32,
+  // 98 = 99 canonical Names from collectible_names.json minus the proper Name
+  // "Allah" (id=1), which has no attribute anchor. Plan 4 (2026-05-12)
+  // backfilled this from 32 to 98 by dropping the 3 non-canonical anchors
+  // (al-qarib, ar-rabb, al-jamil) and authoring 69 new entries.
+  expectedCount: 98,
   requiredKeys: ['name_key', 'name', 'arabic', 'anchor', 'detail'],
   primaryKey: 'name_key',
 );
