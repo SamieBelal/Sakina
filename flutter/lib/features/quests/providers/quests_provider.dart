@@ -550,18 +550,36 @@ int _isoWeekNumber() {
   return ((now.difference(jan1).inDays + jan1.weekday - 1) / 7).ceil();
 }
 
-/// Midnight at the start of this week's Monday (local time).
+/// Test seam — replace in tests via `debugQuestBoundariesClock = ...` to drive
+/// quest week/month rollover at deterministic UTC instants. Production callers
+/// always read `DateTime.now().toUtc()`. Quest counters compare against
+/// `CheckInRecord.date` and `SavedReflection.date`, both of which are now
+/// UTC-derived (see `debugDailyLoopClock` in `daily_loop_provider.dart`),
+/// so the boundaries must also be UTC or users west of UTC double-count
+/// Sunday-night-local reflections into the wrong week.
+@visibleForTesting
+DateTime Function() debugQuestBoundariesClock = () => DateTime.now().toUtc();
+
+/// Midnight at the start of this UTC week's Monday.
 DateTime _weekStart() {
-  final now = DateTime.now();
+  final now = debugQuestBoundariesClock();
   final monday = now.subtract(Duration(days: now.weekday - 1));
-  return DateTime(monday.year, monday.month, monday.day);
+  return DateTime.utc(monday.year, monday.month, monday.day);
 }
 
-/// Midnight at the start of the 1st of this month (local time).
+/// Midnight at the start of the 1st of this UTC month.
 DateTime _monthStart() {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, 1);
+  final now = debugQuestBoundariesClock();
+  return DateTime.utc(now.year, now.month, 1);
 }
+
+/// Test seam — exposes `_weekStart()` for the regression test.
+@visibleForTesting
+DateTime debugQuestWeekStart() => _weekStart();
+
+/// Test seam — exposes `_monthStart()` for the regression test.
+@visibleForTesting
+DateTime debugQuestMonthStart() => _monthStart();
 
 // ---------------------------------------------------------------------------
 // Rotation logic
