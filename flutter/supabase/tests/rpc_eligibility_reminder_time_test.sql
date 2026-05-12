@@ -1,6 +1,12 @@
 begin;
 
-select plan(8);
+-- Plan(6): the column user_profiles.reminder_time is `time without time zone`
+-- in production (not text, despite the declaring migration's comment). The
+-- empty-string and malformed-input fallback tests were dropped because the
+-- column type rejects those values at INSERT, making the test scenarios
+-- unreachable. The hour-extraction logic still falls back to p_target_hour
+-- for NULL, which IS covered (tests 3 + 4 below).
+select plan(6);
 
 -- Reuse the same auth.users seeding helper pattern as rpc_eligibility_test.sql.
 create or replace function public.test_insert_auth_user(
@@ -122,7 +128,9 @@ where user_id in (
 update public.user_profiles set reminder_time = '08:00' where id = '00000000-0000-0000-0000-000000000201';
 update public.user_profiles set reminder_time = '09:00' where id = '00000000-0000-0000-0000-000000000202';
 update public.user_profiles set reminder_time = null    where id = '00000000-0000-0000-0000-000000000203';
-update public.user_profiles set reminder_time = ''      where id = '00000000-0000-0000-0000-000000000204';
+-- User 204 (empty-string scenario) intentionally has no reminder_time set;
+-- the production column is `time` which rejects '' at INSERT, so this case
+-- is unreachable. Test removed.
 update public.user_profiles set reminder_time = '08:30' where id = '00000000-0000-0000-0000-000000000205';
 update public.user_profiles set reminder_time = '08:00' where id = '00000000-0000-0000-0000-000000000206';
 
@@ -237,25 +245,9 @@ select is(
   'flag=true: null reminder_time fallback excludes when hour differs'
 );
 
--- Test 4: with flag=true, empty-string reminder_time falls back to
--- p_target_hour (same behavior as null via the btrim() = '' guard).
-select is(
-  (
-    select count(*)
-    from public.get_eligible_notification_users(
-      'notify_daily',
-      'last_daily_sent_at',
-      extract(hour from timezone('utc', now()))::integer,
-      false,
-      0,
-      null,
-      true
-    )
-    where user_id = '00000000-0000-0000-0000-000000000204'
-  ),
-  1::bigint,
-  'flag=true: empty-string reminder_time falls back to p_target_hour'
-);
+-- Test 4 (empty-string fallback) removed: production column is `time`,
+-- which rejects '' at INSERT, so this scenario is unreachable. The NULL
+-- fallback path covers the same code branch.
 
 -- Test 5: with flag=true, half-hour reminder_time floors to the hour.
 update public.user_profiles
@@ -280,37 +272,12 @@ select is(
   'flag=true: half-hour reminder_time floors to the hour (HH:30 matches at HH:00)'
 );
 
--- Test 6 (Test 8 in the plan numbering): with flag=true, a malformed
--- reminder_time falls back to p_target_hour instead of crashing.
--- This is the regression guard for the regex gate added in the
--- migration. Without that gate, split_part('abc',':',1)::integer
--- would raise and the entire cron batch would fail.
-update public.user_profiles
-set reminder_time = 'abc-not-a-time'
-where id = '00000000-0000-0000-0000-000000000201';
+-- Malformed-input regression test removed: production column is `time`,
+-- which raises at INSERT for values like 'abc-not-a-time', so the cron
+-- can never see a malformed value. The pre-hotfix regex guard is no
+-- longer present in the RPC; the column type is the guard.
 
-select lives_ok(
-  $$
-    select *
-    from public.get_eligible_notification_users(
-      'notify_daily',
-      'last_daily_sent_at',
-      extract(hour from timezone('utc', now()))::integer,
-      false,
-      0,
-      null,
-      true
-    )
-  $$,
-  'flag=true: malformed reminder_time does not raise — falls back to p_target_hour'
-);
-
--- Restore a sane value before continuing (other tests below assume well-formed data).
-update public.user_profiles
-set reminder_time = lpad(extract(hour from timezone('utc', now()))::text, 2, '0') || ':00'
-where id = '00000000-0000-0000-0000-000000000201';
-
--- Test 7 (Test 6 in original numbering): with flag=false, reminder_time
+-- Test 6: with flag=false, reminder_time
 -- is ignored — caller's p_target_hour wins. User 206 has reminder_time
 -- '08:00' but we pass a different target hour to assert the legacy
 -- behavior is preserved.
