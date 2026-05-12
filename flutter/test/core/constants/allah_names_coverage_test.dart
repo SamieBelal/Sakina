@@ -31,8 +31,9 @@ void main() {
           reason: 'Allah is the proper Name; allahNames is the 98 attributes');
     });
 
-    test('findCanonicalName resolves every canonical transliteration', () {
+    test('findCanonicalName resolves every canonical transliteration (except "Allah")', () {
       for (final c in canonical) {
+        if (c['id'] == 1) continue; // "Allah" intentionally excluded from allahNames
         final resolved = findCanonicalName(c['transliteration'] as String);
         expect(resolved, isNotNull,
             reason: 'findCanonicalName returned null for ${c['transliteration']}');
@@ -44,6 +45,7 @@ void main() {
         for (final n in allahNames) n.transliteration: n.arabic,
       };
       for (final c in canonical) {
+        if (c['id'] == 1) continue; // "Allah" intentionally excluded from allahNames
         expect(byTransliteration[c['transliteration']], equals(c['arabic']),
             reason: c['transliteration'] as String);
       }
