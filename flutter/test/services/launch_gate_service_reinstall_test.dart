@@ -17,12 +17,14 @@ void main() {
     fakeSync = FakeSupabaseSyncService(userId: 'user-A');
     SupabaseSyncService.debugSetInstance(fakeSync);
     debugLaunchGateClock = () => DateTime.utc(2026, 5, 12, 14, 0);
+    debugRewardsClock = () => DateTime.utc(2026, 5, 12, 14, 0);
   });
 
   tearDown(() {
     SupabaseSyncService.debugReset();
     resetLaunchGateMemoryGuard();
     debugLaunchGateClock = () => DateTime.now().toUtc();
+    debugRewardsClock = () => DateTime.now().toUtc();
   });
 
   test(
