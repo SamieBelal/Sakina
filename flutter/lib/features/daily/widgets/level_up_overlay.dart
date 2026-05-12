@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -41,6 +43,11 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   // arms once the button is fully on-screen — same pattern as
   // name_reveal_overlay.dart's phase-3 gate.
   int _phase = 0;
+  // Pending timers — kept as a list so dispose() can cancel any that haven't
+  // fired yet. Previous implementation used bare `Future.delayed(...)` which
+  // schedules Timers without giving us a handle to cancel them; widget
+  // disposal would leak pending timers and trip `!timersPending` in tests.
+  final List<Timer> _pendingTimers = [];
 
   @override
   void initState() {
@@ -48,24 +55,35 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     _runSequence();
   }
 
-  Future<void> _runSequence() async {
-    // Phase 0: glow buildup
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() => _phase = 1);
+  void _runSequence() {
+    // Phase 0 → 1 at 800ms.
+    _pendingTimers.add(Timer(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      HapticFeedback.heavyImpact();
+      setState(() => _phase = 1);
+    }));
 
-    // Phase 1: burst
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _phase = 2);
+    // Phase 1 → 2 at 1300ms (800+500).
+    _pendingTimers.add(Timer(const Duration(milliseconds: 1300), () {
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      setState(() => _phase = 2);
+    }));
 
-    // Phase 2 → 3: arm tap-anywhere only after the Continue button has fully
-    // faded in. Button uses delay=900ms + duration=500ms = 1400ms.
-    await Future.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
-    setState(() => _phase = 3);
+    // Phase 2 → 3 at 2700ms (1300+1400). Arms tap-anywhere only after the
+    // Continue button has fully faded in (delay=900ms + duration=500ms = 1400ms).
+    _pendingTimers.add(Timer(const Duration(milliseconds: 2700), () {
+      if (!mounted) return;
+      setState(() => _phase = 3);
+    }));
+  }
+
+  @override
+  void dispose() {
+    for (final t in _pendingTimers) {
+      t.cancel();
+    }
+    super.dispose();
   }
 
   void _handleContinue() {
