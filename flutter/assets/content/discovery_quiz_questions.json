@@ -9,7 +9,9 @@
           "al-hakim": 3,
           "al-latif": 2,
           "as-sabur": 2,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "ad-darr": 1,
+          "al-haleem": 1
         }
       },
       {
@@ -18,7 +20,9 @@
           "as-sami": 3,
           "al-qarib": 2,
           "al-wadud": 1,
-          "al-khabir": 1
+          "al-khabir": 1,
+          "ar-raqeeb": 2,
+          "al-aleem": 1
         }
       },
       {
@@ -27,7 +31,9 @@
           "ar-rahman": 3,
           "al-wadud": 2,
           "as-salam": 1,
-          "al-qarib": 1
+          "al-qarib": 1,
+          "al-waliyy": 2,
+          "ar-rauf": 1
         }
       },
       {
@@ -36,7 +42,9 @@
           "al-wakil": 3,
           "ar-rabb": 2,
           "al-qayyum": 2,
-          "al-matin": 1
+          "al-matin": 1,
+          "al-malik": 2,
+          "al-muhaymin": 1
         }
       }
     ],
@@ -53,7 +61,9 @@
           "at-tawwab": 3,
           "al-ghaffar": 2,
           "ar-rahman": 2,
-          "al-afuw": 1
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-ghaniyy": 1
         }
       },
       {
@@ -62,7 +72,9 @@
           "al-latif": 3,
           "al-khabir": 2,
           "as-sami": 1,
-          "al-qarib": 1
+          "al-qarib": 1,
+          "al-batin": 2,
+          "az-zahir": 1
         }
       },
       {
@@ -71,7 +83,9 @@
           "al-hakim": 3,
           "al-wakil": 2,
           "al-ali": 2,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "al-haseeb": 1,
+          "al-muqsit": 1
         }
       },
       {
@@ -80,7 +94,9 @@
           "al-wadud": 3,
           "ar-rahim": 2,
           "al-qarib": 2,
-          "as-samad": 1
+          "as-samad": 1,
+          "ar-rauf": 2,
+          "al-akhir": 1
         }
       }
     ],
@@ -97,7 +113,9 @@
           "as-sabur": 3,
           "al-mujib": 2,
           "al-fattah": 2,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "al-muakhkhir": 2,
+          "al-mani": 1
         }
       },
       {
@@ -106,7 +124,9 @@
           "al-basir": 3,
           "ash-shahid": 2,
           "al-khabir": 1,
-          "al-ali": 1
+          "al-ali": 1,
+          "ar-raqeeb": 2,
+          "al-muqsit": 1
         }
       },
       {
@@ -115,7 +135,9 @@
           "al-afuw": 3,
           "at-tawwab": 2,
           "al-ghaffar": 2,
-          "ar-rahim": 1
+          "ar-rahim": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
         }
       },
       {
@@ -124,7 +146,9 @@
           "al-hadi": 3,
           "an-nur": 2,
           "ar-rabb": 1,
-          "al-fattah": 1
+          "al-fattah": 1,
+          "al-jami": 2,
+          "ar-rasheed": 1
         }
       }
     ],
@@ -141,7 +165,9 @@
           "as-salam": 3,
           "as-samad": 2,
           "al-quddus": 2,
-          "al-qayyum": 1
+          "al-qayyum": 1,
+          "al-mumin": 2,
+          "al-jaleel": 1
         }
       },
       {
@@ -150,7 +176,9 @@
           "al-wadud": 3,
           "ar-rahim": 2,
           "al-khabir": 2,
-          "al-basir": 1
+          "al-basir": 1,
+          "al-aleem": 2,
+          "ar-rauf": 1
         }
       },
       {
@@ -159,7 +187,9 @@
           "ar-razzaq": 3,
           "al-wakil": 2,
           "al-qayyum": 1,
-          "al-karim": 1
+          "al-karim": 1,
+          "al-hafeez": 2,
+          "al-muqeet": 1
         }
       },
       {
@@ -168,7 +198,9 @@
           "al-fattah": 3,
           "al-mujib": 2,
           "al-latif": 1,
-          "an-nur": 1
+          "an-nur": 1,
+          "al-basit": 2,
+          "al-bari": 1
         }
       }
     ],
@@ -185,7 +217,9 @@
           "ash-shafi": 3,
           "ar-rahman": 2,
           "al-latif": 1,
-          "al-wadud": 1
+          "al-wadud": 1,
+          "al-jabbar": 2,
+          "al-muhyi": 1
         }
       },
       {
@@ -194,7 +228,9 @@
           "al-qawi": 3,
           "al-matin": 2,
           "as-sabur": 2,
-          "al-qayyum": 1
+          "al-qayyum": 1,
+          "al-hayy": 2,
+          "al-azeez": 1
         }
       },
       {
@@ -203,7 +239,8 @@
           "al-hadi": 3,
           "an-nur": 2,
           "al-hakim": 1,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "ar-rasheed": 2
         }
       },
       {
@@ -212,7 +249,9 @@
           "al-afuw": 3,
           "at-tawwab": 2,
           "al-ghaffar": 2,
-          "ar-rahim": 1
+          "ar-rahim": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
         }
       }
     ],
@@ -229,7 +268,8 @@
           "ar-rabb": 3,
           "as-sabur": 2,
           "al-mujib": 1,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "ad-darr": 1
         }
       },
       {
@@ -238,7 +278,9 @@
           "al-jamil": 3,
           "an-nur": 2,
           "al-latif": 2,
-          "al-karim": 1
+          "al-karim": 1,
+          "al-badi": 2,
+          "al-musawwir": 1
         }
       },
       {
@@ -247,7 +289,9 @@
           "ash-shakur": 3,
           "ar-razzaq": 2,
           "al-karim": 2,
-          "al-wadud": 1
+          "al-wadud": 1,
+          "al-wahhab": 2,
+          "al-hameed": 1
         }
       },
       {
@@ -256,7 +300,8 @@
           "al-mujib": 3,
           "al-qarib": 2,
           "as-sami": 2,
-          "at-tawwab": 1
+          "at-tawwab": 1,
+          "al-haleem": 1
         }
       }
     ],
@@ -273,7 +318,9 @@
           "at-tawwab": 3,
           "al-ghaffar": 2,
           "al-afuw": 2,
-          "ar-rahim": 1
+          "ar-rahim": 1,
+          "al-haleem": 2,
+          "al-ghafur": 1
         }
       },
       {
@@ -282,7 +329,9 @@
           "al-basir": 3,
           "ash-shahid": 2,
           "al-khabir": 2,
-          "al-latif": 1
+          "al-latif": 1,
+          "al-haseeb": 2,
+          "al-muhsi": 1
         }
       },
       {
@@ -291,7 +340,9 @@
           "al-wadud": 3,
           "al-karim": 2,
           "ar-rahman": 1,
-          "al-jamil": 1
+          "al-jamil": 1,
+          "al-majeed": 2,
+          "ar-rauf": 1
         }
       },
       {
@@ -300,7 +351,9 @@
           "al-fattah": 3,
           "an-nur": 2,
           "al-hadi": 1,
-          "at-tawwab": 1
+          "at-tawwab": 1,
+          "al-mubdi": 2,
+          "al-bari": 1
         }
       }
     ],
@@ -317,7 +370,9 @@
           "ar-razzaq": 3,
           "ash-shakur": 2,
           "al-karim": 2,
-          "al-latif": 1
+          "al-latif": 1,
+          "al-wahhab": 2,
+          "an-nafi": 1
         }
       },
       {
@@ -326,7 +381,8 @@
           "al-wadud": 3,
           "ar-rahim": 2,
           "al-karim": 1,
-          "ash-shakur": 1
+          "ash-shakur": 1,
+          "al-jami": 2
         }
       },
       {
@@ -335,7 +391,9 @@
           "al-hadi": 3,
           "ar-rabb": 2,
           "as-sabur": 1,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "ar-rasheed": 1,
+          "al-muqsit": 1
         }
       },
       {
@@ -344,7 +402,9 @@
           "at-tawwab": 3,
           "al-qayyum": 2,
           "ar-rahman": 1,
-          "al-afuw": 1
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-baith": 1
         }
       }
     ],
@@ -361,7 +421,9 @@
           "ar-rahman": 3,
           "ar-rahim": 2,
           "al-karim": 1,
-          "al-afuw": 1
+          "al-afuw": 1,
+          "dhul-jalali-wal-ikram": 2,
+          "al-majeed": 1
         }
       },
       {
@@ -370,7 +432,9 @@
           "al-ghaffar": 3,
           "al-afuw": 2,
           "as-sami": 1,
-          "al-khabir": 1
+          "al-khabir": 1,
+          "al-ghafur": 2,
+          "al-haleem": 1
         }
       },
       {
@@ -379,7 +443,9 @@
           "al-khabir": 3,
           "al-basir": 2,
           "ash-shahid": 2,
-          "as-sami": 1
+          "as-sami": 1,
+          "al-aleem": 2,
+          "ar-raqeeb": 1
         }
       },
       {
@@ -388,7 +454,9 @@
           "al-qarib": 3,
           "al-wadud": 2,
           "as-samad": 1,
-          "as-salam": 1
+          "as-salam": 1,
+          "al-batin": 2,
+          "al-mumin": 1
         }
       }
     ],
@@ -405,7 +473,9 @@
           "al-hadi": 3,
           "an-nur": 2,
           "al-hakim": 2,
-          "al-fattah": 1
+          "al-fattah": 1,
+          "ar-rasheed": 2,
+          "al-bari": 1
         }
       },
       {
@@ -414,7 +484,9 @@
           "al-khabir": 3,
           "al-latif": 2,
           "at-tawwab": 1,
-          "al-wadud": 1
+          "al-wadud": 1,
+          "al-aleem": 2,
+          "al-batin": 1
         }
       },
       {
@@ -423,7 +495,9 @@
           "ar-rabb": 3,
           "al-hakim": 2,
           "al-hadi": 1,
-          "al-ali": 1
+          "al-ali": 1,
+          "al-malik": 2,
+          "al-wali": 1
         }
       },
       {
@@ -432,7 +506,8 @@
           "an-nur": 3,
           "al-hadi": 2,
           "al-fattah": 1,
-          "al-latif": 1
+          "al-latif": 1,
+          "al-mubdi": 1
         }
       }
     ],
@@ -449,7 +524,9 @@
           "al-ghaffar": 3,
           "at-tawwab": 2,
           "as-sabur": 1,
-          "al-afuw": 1
+          "al-afuw": 1,
+          "al-haleem": 2,
+          "al-wasi": 1
         }
       },
       {
@@ -458,7 +535,9 @@
           "al-karim": 3,
           "ar-rahman": 2,
           "ar-rahim": 1,
-          "al-wadud": 1
+          "al-wadud": 1,
+          "al-majeed": 2,
+          "al-wahhab": 1
         }
       },
       {
@@ -467,7 +546,9 @@
           "as-sami": 3,
           "al-mujib": 2,
           "al-qarib": 2,
-          "at-tawwab": 1
+          "at-tawwab": 1,
+          "ar-raqeeb": 2,
+          "al-aleem": 1
         }
       },
       {
@@ -476,7 +557,9 @@
           "at-tawwab": 3,
           "al-fattah": 2,
           "al-afuw": 2,
-          "al-ghaffar": 1
+          "al-ghaffar": 1,
+          "al-mubdi": 2,
+          "al-bari": 1
         }
       }
     ],
@@ -493,7 +576,9 @@
           "ar-razzaq": 3,
           "al-wakil": 2,
           "al-qayyum": 2,
-          "al-karim": 1
+          "al-karim": 1,
+          "al-mughni": 2,
+          "al-qabid": 1
         }
       },
       {
@@ -502,7 +587,9 @@
           "ash-shakur": 3,
           "ar-razzaq": 2,
           "al-karim": 2,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "al-hameed": 1,
+          "al-muqeet": 1
         }
       },
       {
@@ -511,7 +598,9 @@
           "al-wakil": 3,
           "al-matin": 2,
           "ar-rabb": 1,
-          "as-sabur": 1
+          "as-sabur": 1,
+          "al-hafeez": 2,
+          "al-muhaymin": 1
         }
       },
       {
@@ -520,7 +609,9 @@
           "al-fattah": 3,
           "al-mujib": 2,
           "al-latif": 2,
-          "ar-razzaq": 1
+          "ar-razzaq": 1,
+          "al-basit": 2,
+          "al-qadir": 1
         }
       }
     ],
@@ -537,7 +628,9 @@
           "al-jamil": 3,
           "al-ali": 2,
           "al-karim": 1,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "al-musawwir": 2,
+          "al-khaliq": 1
         }
       },
       {
@@ -546,7 +639,9 @@
           "al-latif": 3,
           "al-karim": 2,
           "ar-rahim": 1,
-          "ar-rahman": 1
+          "ar-rahman": 1,
+          "al-barr": 2,
+          "an-nafi": 1
         }
       },
       {
@@ -555,7 +650,9 @@
           "an-nur": 3,
           "al-hadi": 2,
           "al-fattah": 1,
-          "ar-rahim": 1
+          "ar-rahim": 1,
+          "al-muhyi": 2,
+          "al-baith": 1
         }
       },
       {
@@ -564,7 +661,9 @@
           "as-salam": 3,
           "al-quddus": 2,
           "as-samad": 2,
-          "al-qayyum": 1
+          "al-qayyum": 1,
+          "al-baqi": 2,
+          "al-haqq": 1
         }
       }
     ],
@@ -581,7 +680,9 @@
           "as-sabur": 3,
           "al-matin": 2,
           "al-quddus": 1,
-          "as-salam": 1
+          "as-salam": 1,
+          "al-haleem": 2,
+          "al-muqeet": 1
         }
       },
       {
@@ -590,7 +691,9 @@
           "al-basir": 3,
           "ash-shahid": 2,
           "al-ali": 2,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "al-hakam": 2,
+          "al-adl": 1
         }
       },
       {
@@ -599,7 +702,9 @@
           "al-qawi": 3,
           "al-matin": 2,
           "ar-rabb": 1,
-          "as-sabur": 1
+          "as-sabur": 1,
+          "al-azeez": 2,
+          "al-qahhar": 1
         }
       },
       {
@@ -608,7 +713,9 @@
           "as-salam": 3,
           "al-wakil": 2,
           "al-afuw": 1,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "al-mumin": 2,
+          "al-wasi": 1
         }
       }
     ],
@@ -625,7 +732,9 @@
           "ash-shafi": 3,
           "al-wadud": 2,
           "al-latif": 2,
-          "ar-rahim": 1
+          "ar-rahim": 1,
+          "al-muid": 2,
+          "al-jabbar": 1
         }
       },
       {
@@ -634,7 +743,8 @@
           "as-sabur": 3,
           "al-wadud": 2,
           "ar-rahim": 1,
-          "al-karim": 1
+          "al-karim": 1,
+          "ar-rauf": 2
         }
       },
       {
@@ -643,7 +753,9 @@
           "al-afuw": 3,
           "al-ghaffar": 2,
           "ar-rahim": 2,
-          "al-quddus": 1
+          "al-quddus": 1,
+          "al-ghafur": 2,
+          "al-wasi": 1
         }
       },
       {
@@ -652,7 +764,9 @@
           "al-wakil": 3,
           "ar-rabb": 2,
           "al-hakim": 1,
-          "as-sami": 1
+          "as-sami": 1,
+          "al-hafeez": 2,
+          "al-waliyy": 1
         }
       }
     ],
@@ -669,7 +783,9 @@
           "ar-rabb": 3,
           "al-hakim": 2,
           "al-khabir": 1,
-          "al-ali": 1
+          "al-ali": 1,
+          "al-khaliq": 2,
+          "al-musawwir": 1
         }
       },
       {
@@ -678,7 +794,9 @@
           "al-qayyum": 3,
           "as-samad": 2,
           "al-matin": 1,
-          "al-ali": 1
+          "al-ali": 1,
+          "al-hayy": 2,
+          "al-muqeet": 1
         }
       },
       {
@@ -687,7 +805,9 @@
           "as-samad": 3,
           "as-salam": 2,
           "al-qarib": 2,
-          "al-wadud": 1
+          "al-wadud": 1,
+          "al-baqi": 2,
+          "al-wahid": 1
         }
       },
       {
@@ -696,7 +816,9 @@
           "al-hadi": 3,
           "an-nur": 2,
           "al-fattah": 1,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "ar-rasheed": 2,
+          "al-mubdi": 1
         }
       }
     ],
@@ -713,7 +835,8 @@
           "ar-razzaq": 3,
           "al-karim": 2,
           "al-wakil": 1,
-          "al-khabir": 1
+          "al-khabir": 1,
+          "al-mughni": 2
         }
       },
       {
@@ -722,7 +845,9 @@
           "al-basir": 3,
           "ash-shahid": 2,
           "ash-shakur": 2,
-          "al-khabir": 1
+          "al-khabir": 1,
+          "al-haseeb": 2,
+          "ar-rafi": 1
         }
       },
       {
@@ -731,7 +856,9 @@
           "al-hakim": 3,
           "as-sabur": 2,
           "ar-rabb": 1,
-          "al-fattah": 1
+          "al-fattah": 1,
+          "al-muakhkhir": 2,
+          "al-muqaddim": 1
         }
       },
       {
@@ -740,7 +867,9 @@
           "ash-shakur": 3,
           "as-salam": 2,
           "al-qayyum": 1,
-          "ar-razzaq": 1
+          "ar-razzaq": 1,
+          "al-wahhab": 2,
+          "al-hameed": 1
         }
       }
     ],
@@ -757,7 +886,9 @@
           "al-fattah": 3,
           "al-mujib": 2,
           "al-latif": 1,
-          "al-hakim": 1
+          "al-hakim": 1,
+          "al-bari": 2,
+          "al-mubdi": 1
         }
       },
       {
@@ -766,7 +897,9 @@
           "ash-shafi": 3,
           "ar-rahim": 2,
           "ar-rahman": 1,
-          "an-nur": 1
+          "an-nur": 1,
+          "al-muhyi": 2,
+          "al-jabbar": 1
         }
       },
       {
@@ -775,7 +908,9 @@
           "al-qawi": 3,
           "al-matin": 2,
           "as-sabur": 2,
-          "al-qayyum": 1
+          "al-qayyum": 1,
+          "al-azeez": 2,
+          "al-hayy": 1
         }
       },
       {
@@ -784,7 +919,9 @@
           "al-latif": 3,
           "al-hakim": 2,
           "al-wakil": 2,
-          "ar-rabb": 1
+          "ar-rabb": 1,
+          "al-muid": 2,
+          "ad-darr": 1
         }
       }
     ],
