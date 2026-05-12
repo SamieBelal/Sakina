@@ -11,8 +11,20 @@ const String _launchGateKey = 'sakina_launch_gate';
 
 bool _overlayPushedThisSession = false;
 
+/// Test seam — replace in tests via `debugLaunchGateClock = ...` to drive
+/// the gate at deterministic UTC instants. Production callers always read
+/// `DateTime.now().toUtc()`. The gate stores UTC dates so it agrees with
+/// `daily_rewards_service._today()` and the `claim_daily_reward` SQL RPC,
+/// both of which key off UTC (`timezone('utc', now())::date`). Without
+/// this, a claim made near local-but-not-UTC midnight wrote a "today
+/// local" marker while the server wrote a "tomorrow UTC" `last_claim_date`
+/// — next morning the marker disagreed with the UTC clock and the overlay
+/// re-fired despite the user having already claimed.
+@visibleForTesting
+DateTime Function() debugLaunchGateClock = () => DateTime.now().toUtc();
+
 String _today() {
-  final now = DateTime.now();
+  final now = debugLaunchGateClock();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 

@@ -32,6 +32,7 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   // 0 = streak greeting, 1 = reward claim, 2 = check-in
   int _step = 0;
   bool _rewardClaimed = false;
+  bool _rewardsLoaded = false;
   DailyRewardClaimResult? _claimResult;
   bool _claimLoading = false;
   AppSessionNotifier?
@@ -55,12 +56,28 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
         ref.read(tierUpScrollProvider.notifier).reload();
       }
 
-      await ref.read(dailyRewardsProvider.notifier).reload();
+      // 10s timeout on reload so a hung network doesn't trap the user on a
+      // perpetual SakinaLoader. On timeout we still flip `_rewardsLoaded`
+      // true and render the strip from whatever local cache we have —
+      // accepting potentially stale state beats an indefinite spinner.
+      // (Server-side `claim_daily_reward` is idempotent via the
+      // `already_claimed=true` path, so a stale-state claim won't
+      // double-grant.)
+      try {
+        await ref
+            .read(dailyRewardsProvider.notifier)
+            .reload()
+            .timeout(const Duration(seconds: 10));
+      } catch (_) {
+        // Swallow timeout / network errors — fall through to render with
+        // whatever the local cache holds.
+      }
       if (!mounted) return;
       final rewards = ref.read(dailyRewardsProvider);
-      if (rewards.claimedToday) {
-        setState(() => _rewardClaimed = true);
-      }
+      setState(() {
+        _rewardsLoaded = true;
+        if (rewards.claimedToday) _rewardClaimed = true;
+      });
     });
   }
 
@@ -142,6 +159,7 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
               _StreakGreetingStep(key: const ValueKey(0), onContinue: _advance),
             1 => _RewardClaimStep(
                 key: const ValueKey(1),
+                rewardsLoaded: _rewardsLoaded,
                 claimed: _rewardClaimed,
                 claimLoading: _claimLoading,
                 claimResult: _claimResult,
@@ -324,6 +342,7 @@ class _StreakGreetingStep extends ConsumerWidget {
 class _RewardClaimStep extends ConsumerWidget {
   const _RewardClaimStep({
     super.key,
+    required this.rewardsLoaded,
     required this.claimed,
     required this.claimLoading,
     required this.claimResult,
@@ -331,6 +350,7 @@ class _RewardClaimStep extends ConsumerWidget {
     required this.onContinue,
   });
 
+  final bool rewardsLoaded;
   final bool claimed;
   final bool claimLoading;
   final DailyRewardClaimResult? claimResult;
@@ -339,6 +359,16 @@ class _RewardClaimStep extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Block the strip+highlight+Claim button until the rewards provider
+    // has finished reconciling with the server. Without this, the user
+    // can see a stale "Day N" highlight (from cache) and then claim and
+    // receive "Day M" from the RPC — a confusing mismatch reported on
+    // 2026-05-12 for yoyoyo@gmail.com. See finding
+    // 2026-05-12-daily-launch-overlay-fix.md.
+    if (!rewardsLoaded) {
+      return const Center(child: SakinaLoader());
+    }
+
     final rewards = ref.watch(dailyRewardsProvider);
     final nextDay = rewards.nextClaimDay;
     // Default to free-tier display if premium status hasn't loaded yet so the

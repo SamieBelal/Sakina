@@ -101,3 +101,25 @@ Deferred work — not blocking the current iOS submission, but needed before spe
 4. Add a once-weekly Supabase query that surfaces the top 10 unknown names — surfaces aliasing opportunities.
 
 **Surfaced by:** /review adversarial pass on PR #6 (2026-05-12). The reviewer flagged that the unknown-name path is silent in production.
+
+---
+
+## Daily-loop cache key + checkin_history.date use local time, not UTC
+
+**Trigger:** next time a user reports "I did my muhasabah but the streak didn't update" or "I lost my daily progress crossing midnight". Also good to bundle into the next correctness pass on the daily flow.
+
+**Status:** `lib/features/daily/providers/daily_loop_provider.dart` keys SharedPrefs and writes `user_checkin_history.date` from `DateTime.now()` (LOCAL), while `daily_rewards_service` (`_today()`/`_yesterday()`) and `streak_service` (`_todayString()`) both key by UTC. Pre-existing — commit `8d135808` from 2026-04-03 introduced the local-time key. Unrelated to the daily-launch fix shipped on 2026-05-12 but the same bug shape.
+
+Specific lines on master (`fix/2026-05-12-daily-launch-overlay` HEAD shows the same):
+- `daily_loop_provider.dart:254` — `String get _todayKey` builds the SharedPrefs cache key from local date. Used at lines 710, 984, 993. Effect: a user crossing local midnight on the same UTC day re-loads with empty "daily loop" state (questions un-answered, fresh muhasabah) even though the streak/reward services already counted the cycle.
+- `daily_loop_provider.dart:445, 610` — both `final today = DateTime.now();` write into `user_checkin_history.date` as a local-date string. Server-side queries that compare `user_checkin_history.date` against `user_streaks.last_active` (UTC) will mismatch in the same window.
+
+**Steps when ready (~20 min total):**
+
+1. Apply the same `debugRewardsClock`-style seam pattern (`lib/services/daily_rewards_service.dart:215-222`) to a new top-level `debugDailyLoopClock = () => DateTime.now().toUtc()` in `daily_loop_provider.dart`.
+2. Replace the three `DateTime.now()` callsites (254, 445, 610) with `debugDailyLoopClock()`.
+3. Decide on a migration story for the SharedPrefs key. On first load post-upgrade, the user's existing `daily_loop_<local-date>` key won't match the new `daily_loop_<UTC-date>` key, so they'll see one "fresh muhasabah" state. Acceptable — it's a one-time blip and the server-side streak/reward is unaffected.
+4. Decide whether to backfill `user_checkin_history.date` rows whose `date` disagrees with the `checked_in_at` UTC date. Probably not worth it — historical analytics only.
+5. Add a regression test mirroring `test/services/launch_gate_state_utc_test.dart` that mocks the new seam and pins both the SharedPrefs key shape and the `user_checkin_history.date` write.
+
+**Surfaced by:** /review on the `fix/2026-05-12-daily-launch-overlay` branch — adjacent code path with the same class of bug as the launch-gate UTC fix that shipped in that PR.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/launch_gate_state.dart';
@@ -209,13 +210,24 @@ Future<String?> _getCachedRewardsRaw(SharedPreferences prefs) async {
   return supabaseSyncService.migrateLegacyStringCache(prefs, _rewardsKey);
 }
 
+/// Test seam — replace in tests via `debugRewardsClock = ...` to drive
+/// the daily-rewards date math at deterministic UTC instants. Production
+/// callers always read `DateTime.now().toUtc()`. Mirrors the
+/// `debugLaunchGateClock` seam in `launch_gate_state.dart` so tests can
+/// drive both clocks to the same instant — without this seam, a test that
+/// only mocks the launch-gate clock would silently start failing the day
+/// after it was written, because `getDailyRewards()` would still read real
+/// wall time.
+@visibleForTesting
+DateTime Function() debugRewardsClock = () => DateTime.now().toUtc();
+
 String _today() {
-  final now = DateTime.now().toUtc();
+  final now = debugRewardsClock();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
 String _yesterday() {
-  final y = DateTime.now().toUtc().subtract(const Duration(days: 1));
+  final y = debugRewardsClock().subtract(const Duration(days: 1));
   return '${y.year}-${y.month.toString().padLeft(2, '0')}-${y.day.toString().padLeft(2, '0')}';
 }
 

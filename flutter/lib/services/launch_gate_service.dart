@@ -12,8 +12,15 @@ export 'package:sakina/services/launch_gate_state.dart';
 /// Reconciles the local rewards cache with the server FIRST so admin/QA-driven
 /// resets to `user_daily_rewards` (or multi-device claims) actually re-trigger
 /// the overlay. Without this, the local SharedPref gate could lie about
-/// "shown today" even when the server says nothing was claimed. See F1/F5
-/// in docs/qa/findings/2026-04-22-core-loop-fixes.md.
+/// "shown today" even when the server says nothing was claimed.
+///
+/// After reconcile, also checks whether the server says the user already
+/// claimed today. On a fresh install (marker absent) where the server already
+/// confirms a same-UTC-day claim — typically a delete+reinstall on the same
+/// day — the overlay would otherwise re-fire and walk the user through a
+/// "Reward Claimed!" success screen they've already seen. We suppress the
+/// overlay and persist the marker so subsequent cold launches today also
+/// skip. See docs/qa/findings/2026-05-12-daily-launch-overlay-fix.md.
 Future<bool> shouldShowDailyLaunch() async {
   if (launchGateOverlayPushedThisSession) return false;
 
@@ -24,5 +31,16 @@ Future<bool> shouldShowDailyLaunch() async {
   } catch (_) {}
 
   final last = await readLaunchGateMarker();
-  return last != launchGateTodayMarker();
+  if (last == launchGateTodayMarker()) return false;
+
+  // Fresh-install / cache-wiped path: the marker is missing but the server
+  // already says today's reward is claimed. Don't re-show the post-claim
+  // success screen — persist the marker so the rest of today is quiet.
+  final rewards = await getDailyRewards();
+  if (rewards.claimedToday) {
+    await markDailyLaunchShown();
+    return false;
+  }
+
+  return true;
 }
