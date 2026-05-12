@@ -139,7 +139,22 @@ List<ReflectVerse> normalizeApprovedVerses(
     return normalized.take(2).toList();
   }
 
-  return approvedVersesForName(name).take(2).toList();
+  final byName = approvedVersesForName(name);
+  if (byName.isNotEmpty) {
+    return byName.take(2).toList();
+  }
+
+  // Final safety net: any Name not in the catalog still gets two "always-safe"
+  // verses. Prevents verseless cards if the AI returns a non-canonical Name.
+  // Fires a debugPrint so production monitoring can surface persistent mismatches —
+  // a steady stream of these means the AI is returning a non-canonical spelling.
+  assert(() {
+    // ignore: avoid_print
+    print('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
+        'Check AI prompt + canonical-names list for spelling mismatch.');
+    return true;
+  }());
+  return const [_heartsRestVerse, _noBurdenVerse];
 }
 
 String buildApprovedVersePrompt() {
