@@ -23,7 +23,7 @@ String? _canonicalize(String s) {
 
 void main() {
   group('knowledge_base NameTeaching coverage', () {
-    final teachings = nameTeachings;
+    const teachings = nameTeachings;
     final canonical = _canonicalTransliterations();
 
     test('every canonical Name (except intentionally uncovered) appears in some teaching key, normalized', () {
