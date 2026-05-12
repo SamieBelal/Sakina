@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 
 const ReflectVerse _heartsRestVerse = ReflectVerse(
@@ -146,35 +147,18 @@ List<ReflectVerse> normalizeApprovedVerses(
 
   // Final safety net: any Name not in the catalog still gets two "always-safe"
   // verses. Prevents verseless cards if the AI returns a non-canonical Name.
-  // Fires a debugPrint so production monitoring can surface persistent mismatches —
-  // a steady stream of these means the AI is returning a non-canonical spelling.
-  assert(() {
-    // ignore: avoid_print
-    print('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
+  // Debug-only warning (debugPrint is a no-op in release). When investigating a
+  // suspected canonical-name mismatch, run the app in debug mode and watch the
+  // console for "unknown-name fallback fired" lines.
+  if (kDebugMode) {
+    debugPrint('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
         'Check AI prompt + canonical-names list for spelling mismatch.');
-    return true;
-  }());
+  }
   return const [_heartsRestVerse, _noBurdenVerse];
 }
 
-String buildApprovedVersePrompt() {
-  final buffer = StringBuffer();
-  buffer.writeln('## Approved Quran Verses');
-  buffer.writeln(
-    'Choose up to 2 verses ONLY from the approved verses listed for the chosen Name.',
-  );
-  buffer.writeln(
-    'Copy the Arabic, English translation, and reference exactly as written below.',
-  );
-
-  for (final entry in approvedReflectVersesByName.entries) {
-    buffer.writeln('- ${entry.key}:');
-    for (final verse in entry.value) {
-      buffer.writeln('  - Arabic: ${verse.arabic}');
-      buffer.writeln('    English: ${verse.translation}');
-      buffer.writeln('    Reference: ${verse.reference}');
-    }
-  }
-
-  return buffer.toString().trimRight();
-}
+// `buildApprovedVersePrompt` was removed in Plan 1 Task 0 (2026-05-12).
+// The AI prompt no longer enumerates approved verses — the catalog is the
+// deterministic source via `normalizeApprovedVerses` instead. Saves ~10KB
+// input tokens per reflect call. If reintroducing AI-driven verse selection,
+// regenerate this helper from `approvedReflectVersesByName.entries`.

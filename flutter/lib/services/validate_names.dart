@@ -80,10 +80,14 @@ List<Map<String, dynamic>> filterValidNames(List<Map<String, dynamic>> names) {
   });
 }
 
+/// Pre-built canonical names reference string. Compile-time once (the underlying
+/// `allahNames` is const), reused across every AI call. Previously was a function
+/// that rebuilt the same ~3KB string on every invocation (4 sites per reflect/
+/// daily/findNames call) — pure waste since the input is const.
+final String _canonicalNamesPromptList = allahNames
+    .map((n) => '${n.transliteration} (${n.arabic}) — ${n.english}')
+    .join('\n');
+
 /// Build a compact canonical names reference string to inject into Claude prompts.
 /// This constrains Claude to only use real Names.
-String buildCanonicalNamesPromptList() {
-  return allahNames
-      .map((n) => '${n.transliteration} (${n.arabic}) — ${n.english}')
-      .join('\n');
-}
+String buildCanonicalNamesPromptList() => _canonicalNamesPromptList;

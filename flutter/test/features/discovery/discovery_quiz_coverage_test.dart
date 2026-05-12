@@ -64,15 +64,17 @@ void main() {
   });
 
   group('aggregator returns reachable Names', () {
+    // Derive question count from the JSON so this never drifts.
+    final qsRaw = File('assets/content/discovery_quiz_questions.json')
+        .readAsStringSync();
+    final qsCount = (jsonDecode(qsRaw) as List).length;
+
     test('answering every Q with option 0 returns a non-empty anchor list',
         () {
-      // Build an answer list whose length matches the question count.
-      const qsCount = 18; // bump to actual final count
       final result = calculateQuizResults(List<int>.filled(qsCount, 0));
       expect(result, isNotEmpty);
     });
     test('three distinct answer paths produce distinct top anchors', () {
-      const qsCount = 18;
       final a = calculateQuizResults(List<int>.filled(qsCount, 0));
       final b = calculateQuizResults(List<int>.filled(qsCount, 1));
       final c = calculateQuizResults(List<int>.filled(qsCount, 2));

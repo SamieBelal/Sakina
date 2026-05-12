@@ -33,6 +33,16 @@ class LevelUpOverlay extends StatefulWidget {
   State<LevelUpOverlay> createState() => _LevelUpOverlayState();
 }
 
+// Phase transition timing for `_runSequence`. Cumulative offsets from initState.
+// Phase 0 → 1 at +800ms (glow buildup ends).
+// Phase 1 → 2 at +1300ms (= 800 + 500 burst).
+// Phase 2 → 3 at +2700ms (= 1300 + 1400; matches the Continue button's
+//   `delay: 900ms + duration: 500ms` fade-in window — same pattern as
+//   name_reveal_overlay.dart's phase-3 gate).
+const _kPhase1Offset = Duration(milliseconds: 800);
+const _kPhase2Offset = Duration(milliseconds: 1300);
+const _kPhase3Offset = Duration(milliseconds: 2700);
+
 class _LevelUpOverlayState extends State<LevelUpOverlay> {
   // 0=glow buildup, 1=burst, 2=reveal (Continue button shown), 3=tap-anywhere armed.
   // Phase 3 exists to absorb the double-continue race: the Continue button
@@ -56,25 +66,23 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   }
 
   void _runSequence() {
-    // Phase 0 → 1 at 800ms.
-    _pendingTimers.add(Timer(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
+    _schedulePhase(_kPhase1Offset, () {
       HapticFeedback.heavyImpact();
       setState(() => _phase = 1);
-    }));
-
-    // Phase 1 → 2 at 1300ms (800+500).
-    _pendingTimers.add(Timer(const Duration(milliseconds: 1300), () {
-      if (!mounted) return;
+    });
+    _schedulePhase(_kPhase2Offset, () {
       HapticFeedback.mediumImpact();
       setState(() => _phase = 2);
-    }));
-
-    // Phase 2 → 3 at 2700ms (1300+1400). Arms tap-anywhere only after the
-    // Continue button has fully faded in (delay=900ms + duration=500ms = 1400ms).
-    _pendingTimers.add(Timer(const Duration(milliseconds: 2700), () {
-      if (!mounted) return;
+    });
+    _schedulePhase(_kPhase3Offset, () {
       setState(() => _phase = 3);
+    });
+  }
+
+  void _schedulePhase(Duration offset, VoidCallback fire) {
+    _pendingTimers.add(Timer(offset, () {
+      if (!mounted) return;
+      fire();
     }));
   }
 

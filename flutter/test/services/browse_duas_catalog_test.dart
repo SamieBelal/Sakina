@@ -4,6 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/core/constants/duas.dart' show browseDuasCatalog;
 import 'package:sakina/services/ai_service.dart';
 
+// Single source of truth for the 12 new categories Plan 2 adds. Used by:
+// - the "every new emotional category has >=3 entries" count test
+// - the "search returns hits" probes for each new category (later in this file)
+const _newCategoryKeywords = {
+  'anger': 'I am so angry at my brother',
+  'envy': 'I feel jealous of my friend',
+  'lust': 'I keep struggling with desire',
+  'loneliness': 'I feel completely alone',
+  'shame': 'I am so ashamed of what I did',
+  'burnout': 'I am burned out and exhausted',
+  'marriage_conflict': 'my marriage is breaking down',
+  'parenting': 'I am failing as a parent',
+  'work': 'my job is destroying me',
+  'illness': 'I am sick and afraid',
+  'addiction': 'I am addicted and want to stop',
+  'death_grief': 'my father just passed away',
+};
+
 void main() {
   group('browse_duas.json catalog', () {
     final raw = File('assets/content/browse_duas.json').readAsStringSync();
@@ -26,10 +44,7 @@ void main() {
     });
 
     test('every new emotional category has >=3 entries', () {
-      const newCats = [
-        'anger','envy','lust','loneliness','shame','burnout',
-        'marriage_conflict','parenting','work','illness','addiction','death_grief',
-      ];
+      final newCats = _newCategoryKeywords.keys.toList();
       final byCat = <String, int>{};
       for (final d in duas.cast<Map<String, dynamic>>()) {
         byCat.update(d['category'] as String, (v) => v + 1, ifAbsent: () => 1);
@@ -40,28 +55,76 @@ void main() {
       }
     });
 
+    test('dua titles are unique (or in the known-collision allowlist)', () {
+      // Pinned because the REGRESSION block (below) back-maps hits to category
+      // via `firstWhere((d) => d.title == hits.first.title)`. If two duas share
+      // a title, that lookup returns the FIRST one in catalog order, not the
+      // actual top-scoring dua, producing false passes/fails.
+      // Today there are 3 known collisions; allowlisted so new collisions trip
+      // the test loudly. Long-term fix: expose category on `FindDuasDuaEntry`
+      // so the back-mapping is unambiguous (filed in PR review).
+      const allowlist = {
+        'Ayat al-Kursi',           // evening-5 + protection-1
+        'Sayyid al-Istighfar',      // forgiveness-1 + morning-4
+        'Dua of Adam (AS)',         // forgiveness-3 + forgiveness-6
+      };
+      final titles = duas.map((d) => (d as Map)['title'] as String).toList();
+      final dupes = <String>{};
+      final seen = <String>{};
+      for (final t in titles) {
+        if (!seen.add(t)) dupes.add(t);
+      }
+      final unauthorized = dupes.difference(allowlist);
+      expect(unauthorized, isEmpty,
+          reason: 'New duplicate dua titles: $unauthorized. Add to the allowlist '
+              'only if you also fix the REGRESSION back-mapping logic to disambiguate.');
+    });
+
     test('ids are unique', () {
       final ids = duas.map((d) => (d as Map)['id'] as String).toList();
       expect(ids.toSet().length, ids.length);
     });
   });
 
+  group('stopword filter behavior', () {
+    // The 'for' stopword regression: previously, queryWord 'for' matched
+    // semantic-map key 'forgive' via `key.contains(word)`, polluting the
+    // inferredTags with {'forgiveness', 'repentance'}. Two probes pin both
+    // directions of the fix.
+    //
+    // Verification uses a collision-resilient back-map: we check whether ANY
+    // catalog dua matching a top-3 hit's title belongs to the expected category.
+    // (`firstWhere` would silently match the wrong dua when titles collide —
+    // Sayyid al-Istighfar lives in both morning + forgiveness, etc.)
+    Set<String> categoriesOfTopHits(Iterable<dynamic> hits, {int take = 3}) {
+      final cats = <String>{};
+      for (final h in hits.take(take)) {
+        for (final d in browseDuasCatalog.where((d) => d.title == h.title)) {
+          cats.add(d.category);
+        }
+      }
+      return cats;
+    }
+
+    test('stopword "for" does not pollute routing — "praying for my family" → family', () {
+      final hits = searchLocalDuasForTest('praying for my family');
+      expect(hits, isNotEmpty);
+      expect(categoriesOfTopHits(hits), contains('family'),
+          reason: 'After stopword filter, "for" should no longer infer forgiveness; '
+              'family-category duas should win.');
+    });
+
+    test('"forgive" as a real query word still routes to forgiveness', () {
+      // The stopword filter must not over-filter — substantive words still work.
+      final hits = searchLocalDuasForTest('I have to forgive my brother');
+      expect(hits, isNotEmpty);
+      expect(categoriesOfTopHits(hits), contains('forgiveness'),
+          reason: '"forgive" as a real query word must still infer forgiveness.');
+    });
+  });
+
   group('semantic map search hits new categories', () {
-    const newCategoryKeywords = {
-      'anger': 'I am so angry at my brother',
-      'envy': 'I feel jealous of my friend',
-      'lust': 'I keep struggling with desire',
-      'loneliness': 'I feel completely alone',
-      'shame': 'I am so ashamed of what I did',
-      'burnout': 'I am burned out and exhausted',
-      'marriage_conflict': 'my marriage is breaking down',
-      'parenting': 'I am failing as a parent',
-      'work': 'my job is destroying me',
-      'illness': 'I am sick and afraid',
-      'addiction': 'I am addicted and want to stop',
-      'death_grief': 'my father just passed away',
-    };
-    for (final entry in newCategoryKeywords.entries) {
+    for (final entry in _newCategoryKeywords.entries) {
       test('search "${entry.value}" returns a dua tagged ${entry.key}', () {
         final hits = searchLocalDuasForTest(entry.value);
         expect(hits, isNotEmpty,
