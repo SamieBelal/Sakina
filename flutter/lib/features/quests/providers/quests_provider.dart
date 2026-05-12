@@ -971,8 +971,14 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final DateTime date;
     switch (cadence) {
       case QuestCadence.daily:
-        final n = DateTime.now();
-        date = DateTime(n.year, n.month, n.day);
+        // Route through debugQuestBoundariesClock + DateTime.utc so daily
+        // period_start stays aligned with the weekly/monthly UTC boundaries
+        // (and with CheckInRecord.date / server-side cron). Without this,
+        // daily quest progress rows persisted to Supabase would key off
+        // local-date while weekly/monthly key off UTC-date, creating
+        // asymmetric writes for users east of UTC.
+        final n = debugQuestBoundariesClock();
+        date = DateTime.utc(n.year, n.month, n.day);
       case QuestCadence.weekly:
         date = _weekStart();
       case QuestCadence.monthly:
@@ -1780,8 +1786,14 @@ Future<void> recomputeQuestProgress(WidgetRef ref) async {
   int muhasabahsThisWeek = 0;
   int muhasabahsThisMonth = 0;
   for (final r in history) {
-    // CheckInRecord.date is YYYY-MM-DD; parse as local midnight.
-    final t = DateTime.tryParse(r.date);
+    // CheckInRecord.date is a UTC YYYY-MM-DD string (set in
+    // daily_loop_provider via debugDailyLoopClock). DateTime.tryParse on a
+    // date-only string would yield LOCAL midnight, which compared against
+    // the UTC weekStart/monthStart silently excludes valid muhasabahs for
+    // users east of UTC (e.g. Sydney 2026-05-11 local = 2026-05-10 14:00
+    // UTC < weekStart=2026-05-11 00:00 UTC → false-excluded). Force UTC
+    // parsing by appending the Z suffix.
+    final t = DateTime.tryParse('${r.date}T00:00:00Z');
     if (t == null) continue;
     if (!t.isBefore(weekStart)) muhasabahsThisWeek++;
     if (!t.isBefore(monthStart)) muhasabahsThisMonth++;
