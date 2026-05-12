@@ -67,12 +67,12 @@ void main() {
     test('answering every Q with option 0 returns a non-empty anchor list',
         () {
       // Build an answer list whose length matches the question count.
-      final qsCount = 18; // bump to actual final count
+      const qsCount = 18; // bump to actual final count
       final result = calculateQuizResults(List<int>.filled(qsCount, 0));
       expect(result, isNotEmpty);
     });
     test('three distinct answer paths produce distinct top anchors', () {
-      final qsCount = 18;
+      const qsCount = 18;
       final a = calculateQuizResults(List<int>.filled(qsCount, 0));
       final b = calculateQuizResults(List<int>.filled(qsCount, 1));
       final c = calculateQuizResults(List<int>.filled(qsCount, 2));
