@@ -851,6 +851,20 @@ const _semanticMap = <String, List<String>>{
   'death': ['death_grief', 'grief'],
   'passed away': ['death_grief', 'grief'],
   'funeral': ['death_grief', 'grief'],
+  // "Lost someone" disambiguator: 'lost' alone routes to guidance ("I feel lost").
+  // 'someone' in a pain context strongly signals death/loss-of-person.
+  // The 'loss' tag boosts grief duas (all 4 have emotion_tags including 'loss').
+  'someone': ['grief', 'loss', 'death_grief'],
+};
+
+/// English stopwords that should NOT drive semantic-map inference. Common
+/// short words ('for', 'and', 'the') were accidentally matching keys like
+/// 'forgive' via the substring matcher in [_searchLocalDuas], polluting
+/// inferredTags with unrelated categories.
+const _semanticStopwords = <String>{
+  'for', 'and', 'the', 'are', 'you', 'your', 'this', 'that', 'have', 'has',
+  'was', 'were', 'will', 'can', 'but', 'not', 'why', 'how', 'who', 'with',
+  'from', 'about', 'into', 'onto', 'over', 'under', 'than', 'then', 'just',
 };
 
 /// Search the local browse duas catalog for duas matching the user's need.
@@ -862,9 +876,12 @@ List<FindDuasDuaEntry> _searchLocalDuas(String need) {
       query.split(RegExp(r'\s+')).where((w) => w.length > 2).toList();
   final duas = browseDuasCatalog;
 
-  // Expand query words to inferred categories/tags via semantic map
+  // Expand query words to inferred categories/tags via semantic map.
+  // Skip stopwords — short generic words like 'for' would otherwise match
+  // 'forgive' via the substring check and route everything to forgiveness.
   final inferredTags = <String>{};
   for (final word in queryWords) {
+    if (_semanticStopwords.contains(word)) continue;
     for (final key in _semanticMap.keys) {
       if (word.contains(key) || key.contains(word)) {
         inferredTags.addAll(_semanticMap[key]!);
