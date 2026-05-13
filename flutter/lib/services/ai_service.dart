@@ -279,7 +279,13 @@ ReflectResponse? parseReflectResponse(String text) {
     nameArabic: canonical?.nameArabic ?? nameArabic ?? '',
     reframe: reframe,
     story: story ?? '',
-    verses: normalizeApprovedVerses(canonicalName, parsedVerses),
+    verses: normalizeApprovedVerses(
+      canonicalName,
+      parsedVerses,
+      onFallback: (aiReturnedName) {
+        unawaited(_logUnknownNameFallback(aiReturnedName));
+      },
+    ),
     duaArabic: duaArabic ?? '',
     duaTransliteration: duaTransliteration ?? '',
     duaTranslation: duaTranslation ?? '',
@@ -400,6 +406,25 @@ Future<void> _logClassifierDecision(
     // Swallow — logging must never block reflect. Surface in debug builds
     // so a misconfigured table / RLS rule is at least visible locally.
     debugPrint('reflect_classifier_log insert failed: $e');
+  }
+}
+
+/// Fire-and-forget log when the reflect verse catalog falls back to the two
+/// "always-safe" verses because the AI returned a Name we couldn't match to
+/// our canonical list. Mirrors `_logClassifierDecision` — never blocks the
+/// reflect flow, swallows errors, surfaces them in debug.
+///
+/// Surfaces what to fix: either alias the AI's spelling, or expand the catalog.
+Future<void> _logUnknownNameFallback(String aiReturnedName) async {
+  try {
+    await supabaseSyncService.insertRow('reflect_unknown_name_log', {
+      'user_id': supabaseSyncService.currentUserId,
+      'ai_returned_name': aiReturnedName,
+    });
+  } catch (e) {
+    // Swallow — logging must never block reflect. Visible in debug builds so
+    // a misconfigured table / RLS rule is caught locally before shipping.
+    debugPrint('reflect_unknown_name_log insert failed: $e');
   }
 }
 
