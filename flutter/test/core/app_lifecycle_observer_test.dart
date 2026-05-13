@@ -13,23 +13,23 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-      'resumed lifecycle event invalidates isPremiumProvider '
+      'resumed lifecycle event invalidates premiumStateProvider '
       '(triggers a fresh read)', (tester) async {
     var invocationCount = 0;
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          isPremiumProvider.overrideWith((ref) async {
+          premiumStateProvider.overrideWith((ref) async {
             invocationCount += 1;
-            return false;
+            return (isPremium: false, billingIssueAt: null);
           }),
         ],
         child: AppLifecycleObserver(
           child: Consumer(
             builder: (context, ref, _) {
               // Force the provider to materialize.
-              ref.watch(isPremiumProvider);
+              ref.watch(premiumStateProvider);
               return const SizedBox();
             },
           ),
@@ -61,15 +61,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          isPremiumProvider.overrideWith((ref) async {
+          premiumStateProvider.overrideWith((ref) async {
             invocationCount += 1;
-            return false;
+            return (isPremium: false, billingIssueAt: null);
           }),
         ],
         child: AppLifecycleObserver(
           child: Consumer(
             builder: (context, ref, _) {
-              ref.watch(isPremiumProvider);
+              ref.watch(premiumStateProvider);
               return const SizedBox();
             },
           ),
@@ -111,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('auth state transition invalidates isPremiumProvider',
+  testWidgets('auth state transition invalidates premiumStateProvider',
       (tester) async {
     var invocationCount = 0;
     var authed = false;
@@ -132,15 +132,15 @@ void main() {
       ProviderScope(
         overrides: [
           appSessionProvider.overrideWithValue(session),
-          isPremiumProvider.overrideWith((ref) async {
+          premiumStateProvider.overrideWith((ref) async {
             invocationCount += 1;
-            return false;
+            return (isPremium: false, billingIssueAt: null);
           }),
         ],
         child: AppLifecycleObserver(
           child: Consumer(
             builder: (context, ref, _) {
-              ref.watch(isPremiumProvider);
+              ref.watch(premiumStateProvider);
               return const SizedBox();
             },
           ),
@@ -160,7 +160,7 @@ void main() {
       invocationCount,
       2,
       reason:
-          'auth transition (signed out -> signed in) must invalidate isPremiumProvider',
+          'auth transition (signed out -> signed in) must invalidate premiumStateProvider',
     );
   });
 }

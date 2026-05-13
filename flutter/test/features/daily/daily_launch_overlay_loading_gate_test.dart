@@ -92,7 +92,9 @@ void main() {
         ProviderScope(
           overrides: [
             appSessionProvider.overrideWithValue(session),
-            isPremiumProvider.overrideWith((ref) async => false),
+            premiumStateProvider.overrideWith(
+              (ref) async => (isPremium: false, billingIssueAt: null),
+            ),
           ],
           child: const MaterialApp(home: DailyLaunchOverlay()),
         ),
@@ -150,7 +152,9 @@ void main() {
         ProviderScope(
           overrides: [
             appSessionProvider.overrideWithValue(session),
-            isPremiumProvider.overrideWith((ref) async => false),
+            premiumStateProvider.overrideWith(
+              (ref) async => (isPremium: false, billingIssueAt: null),
+            ),
           ],
           child: const MaterialApp(home: DailyLaunchOverlay()),
         ),

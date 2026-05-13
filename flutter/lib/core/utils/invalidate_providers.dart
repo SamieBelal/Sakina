@@ -21,5 +21,5 @@ void invalidateAllUserProviders(WidgetRef ref) {
   ref.invalidate(tierUpScrollProvider);
   ref.invalidate(discoveryQuizProvider);
   ref.invalidate(dailyQuestionProvider);
-  ref.invalidate(isPremiumProvider);
+  ref.invalidate(premiumStateProvider);
 }

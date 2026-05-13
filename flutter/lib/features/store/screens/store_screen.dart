@@ -333,7 +333,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
       );
       return;
     }
-    ref.invalidate(isPremiumProvider);
+    ref.invalidate(premiumStateProvider);
     try {
       await checkPremiumMonthlyGrant();
     } catch (_) {}

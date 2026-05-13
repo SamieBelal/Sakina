@@ -28,9 +28,22 @@ final dailyRewardsProvider =
   (ref) => DailyRewardsNotifier(),
 );
 
-/// Whether the current user has an active premium entitlement. Used by the
-/// daily reward UI to render scaled token / scroll labels. Refreshed via
-/// `ref.invalidate(isPremiumProvider)` after a purchase or restore.
-final isPremiumProvider = FutureProvider<bool>((ref) async {
-  return PurchaseService().isPremium();
+/// Atomic snapshot of the user's premium status. Combines the active
+/// entitlement check with the billing-issue timestamp into a single
+/// `AsyncValue` so the Settings premium card never sees an inconsistent
+/// intermediate state (one provider resolved, the other still loading).
+///
+/// Short-circuits the billing-issue fetch when the user isn't premium —
+/// no point asking RevenueCat about a billing issue on a non-subscriber.
+///
+/// Refreshed via `ref.invalidate(premiumStateProvider)` after purchase,
+/// restore, sign-out, account deletion, or on `AppLifecycleState.resumed`.
+typedef PremiumState = ({bool isPremium, String? billingIssueAt});
+
+final premiumStateProvider = FutureProvider<PremiumState>((ref) async {
+  final service = PurchaseService();
+  final isPremium = await service.isPremium();
+  final billingIssueAt =
+      isPremium ? await service.getBillingIssueDetectedAt() : null;
+  return (isPremium: isPremium, billingIssueAt: billingIssueAt);
 });

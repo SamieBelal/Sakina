@@ -316,13 +316,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _completePurchaseFlow() async {
-    ref.invalidate(isPremiumProvider);
+    ref.invalidate(premiumStateProvider);
     if (!mounted) return;
 
     // Show the "Welcome to Premium" reveal (blocks until tapped).
-    // If the user kills the app mid-overlay, isPremiumProvider already returns
-    // true on next launch from RevenueCat's cache, so premium UI renders
-    // correctly without the reveal.
+    // If the user kills the app mid-overlay, premiumStateProvider already
+    // returns true on next launch from RevenueCat's cache, so premium UI
+    // renders correctly without the reveal.
     await Navigator.of(context, rootNavigator: true).push<void>(
       PageRouteBuilder<void>(
         opaque: false,

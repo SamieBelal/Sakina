@@ -7,24 +7,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/theme/app_typography.dart';
-import '../services/purchase_service.dart';
-
-/// Polls RevenueCat for a billing issue on the premium entitlement.
-///
-/// Returns the ISO-8601 timestamp of when RevenueCat detected the issue,
-/// or `null` when payment is healthy or the user isn't subscribed.
-///
-/// `isPremiumProvider` already invalidates on app resume (see
-/// [AppLifecycleObserver]). Clients wanting to force a refresh of the
-/// billing state can `ref.invalidate(billingIssueProvider)` directly.
-final billingIssueProvider = FutureProvider<String?>((ref) async {
-  return PurchaseService().getBillingIssueDetectedAt();
-});
+import '../features/daily/providers/daily_rewards_provider.dart';
 
 /// Thin Material banner shown at the top of the app when a billing issue
 /// has been detected on the premium entitlement. Non-dismissable by design:
 /// without action, the subscription will lapse. Deep-links to the store's
 /// subscription management UI.
+///
+/// Reads the combined `premiumStateProvider` (single source of truth for
+/// premium status + billing issue) so the banner can never disagree with
+/// the Settings premium card about whether payment is broken.
 class BillingIssueBanner extends ConsumerWidget {
   const BillingIssueBanner({super.key});
 
@@ -42,8 +34,8 @@ class BillingIssueBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(billingIssueProvider);
-    final detectedAt = status.valueOrNull;
+    final status = ref.watch(premiumStateProvider);
+    final detectedAt = status.value?.billingIssueAt;
 
     if (detectedAt == null) return const SizedBox.shrink();
 

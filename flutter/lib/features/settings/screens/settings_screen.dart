@@ -23,6 +23,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
+import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
@@ -398,6 +399,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     _buildProfileCard(),
+                    const SizedBox(height: AppSpacing.md),
+                    const SettingsPremiumCard(),
                     const SizedBox(height: AppSpacing.lg),
                     _buildStatsRow(),
                     const SizedBox(height: AppSpacing.xl),
