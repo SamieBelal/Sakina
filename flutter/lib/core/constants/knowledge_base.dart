@@ -1837,8 +1837,8 @@ const List<NameTeaching> nameTeachings = [
         'When Hagar (عليه السلام) was left in the valley of Mecca with baby Ismail and no water, she ran between Safa and Marwa seven times, calling out into an empty desert. No one saw her. No one heard her. Yet Al-Aleem knew the exact moment, the exact depth of her thirst, the exact point of her desperation — and sent Jibril to strike the earth and open Zamzam. Quran 31:34 affirms: “Indeed, Allah alone has the knowledge of the Hour. He sends down the rain, and knows what is in the wombs. No soul knows what it will earn for tomorrow, and no soul knows in what land it will die. Surely Allah is All-Knowing, All-Aware.” Al-Aleem knew Hagar’s need before she voiced it. He knows yours.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّ زِدْنِي عِلْمًا',
-      transliteration: 'Rabbi zidni ilma',
+          'رَّبِّ زِدْنِي عِلْمًا',
+      transliteration: "Rabbi zidni 'ilma",
       translation: 'My Lord! Increase me in knowledge.',
       source: 'Quran 20:114 (verbatim) — the only dua the Quran records Allah commanding the Prophet ﷺ to say for himself; an appeal to Al-Aleem to share of what only He perfectly possesses',
     ),
@@ -2129,7 +2129,7 @@ const List<NameTeaching> nameTeachings = [
     dua: NameTeachingDua(
       arabic:
           'رَبِّ زِدْنِي عِلْمًا',
-      transliteration: 'Rabbi zidni ilma',
+      transliteration: "Rabbi zidni 'ilma",
       translation: 'My Lord! Increase me in knowledge.',
       source: 'Quran 20:114 (verbatim) — an appeal to Al-Khabeer, the One who possesses interior knowledge of all things, to share of that depth with us',
     ),
@@ -2611,7 +2611,7 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'Before the Battle of Badr, the Muslims numbered 313 — lightly armed, outnumbered, exhausted from travel — facing a Meccan force of a thousand. The Prophet ﷺ prayed through the night: "O Allah, if this small band perishes today, You will not be worshipped on earth." He was not doubting. He was invoking Al-Qadir: the One who needs no army to accomplish His will. The Quran records the outcome in Surat Al ʿImran: "Allah has already given you victory at Badr when you were outnumbered. So be mindful of Allah, perhaps you will be grateful" (Quran 3:123). Al-Qadir’s victories do not follow military logic. They follow His will. When you are 313 and the problem before you is a thousand, Al-Qadir has not changed.',
     dua: NameTeachingDua(
-      arabic: 'ربَّنَا لَا تُؤَاخِذْنَا إِن نَّسِينَا أَوْ أَخْطَأْنَا ، رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا ، رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ، وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ، أَنتَ مَوْلَىٰنَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَا إِن نَّسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنتَ مَوْلَانَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
       transliteration: "Rabbana la tu'akhidhna in nasina aw akhta'na, Rabbana wa la tahmil 'alayna isran, Rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'ala al-qawmi al-kafirin",
       translation: 'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
       source: 'Quran 2:286 (verbatim)',
