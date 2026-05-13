@@ -27,13 +27,19 @@ void main() {
 
       // 'Ar-Rahman' is in approvedReflectVersesByName (see catalog file).
       // Pass empty AI verses so the function still has to do the by-name lookup.
-      normalizeApprovedVerses(
+      final result = normalizeApprovedVerses(
         'Ar-Rahman',
         const <ReflectVerse>[],
         onFallback: (_) => fired = true,
       );
 
       expect(fired, isFalse);
+      // Also assert the happy path actually returned catalog verses. Guards
+      // against a future refactor that silently removes Ar-Rahman from the
+      // catalog — without this, the test could still "pass" via an empty
+      // result or via the safety-net pair.
+      expect(result, isNotEmpty,
+          reason: 'Ar-Rahman should return canonical verses');
     });
 
     test('does NOT fire when AI verses themselves match approved references', () {
@@ -76,6 +82,25 @@ void main() {
         onFallback: (_) => throw StateError('boom'),
       );
       expect(result.length, 2, reason: 'fallback verses still returned');
+    });
+
+    test('async callback that throws is also swallowed', () async {
+      // Same defensive contract for async callers. The wrapper attaches
+      // catchError to the returned Future so async throws can never escape
+      // into the zone and crash the reflect flow.
+      final result = normalizeApprovedVerses(
+        'Al-FabricatedName',
+        const <ReflectVerse>[],
+        onFallback: (_) async {
+          await Future<void>.delayed(Duration.zero);
+          throw StateError('async boom');
+        },
+      );
+      expect(result.length, 2, reason: 'fallback verses still returned');
+      // Drain the microtask queue so the async throw fires; if catchError
+      // isn't attached, this would surface as an unhandled exception in the
+      // test zone and fail this test.
+      await Future<void>.delayed(const Duration(milliseconds: 10));
     });
   });
 }

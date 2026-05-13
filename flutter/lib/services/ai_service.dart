@@ -409,6 +409,17 @@ Future<void> _logClassifierDecision(
   }
 }
 
+/// In-session dedup cache for unknown-name fallback logging. Each distinct
+/// `aiReturnedName` only gets one insert per app run, capping write volume
+/// when a pathological session repeatedly triggers the same fallback. Resets
+/// on app restart so cross-session signal is preserved (which is what the
+/// weekly aggregate query consumes).
+///
+/// `@visibleForTesting` so a future test could clear it deterministically; not
+/// exported via a public API since callers should never reach in.
+@visibleForTesting
+final Set<String> debugUnknownNameSessionCache = <String>{};
+
 /// Fire-and-forget log when the reflect verse catalog falls back to the two
 /// "always-safe" verses because the AI returned a Name we couldn't match to
 /// our canonical list. Mirrors `_logClassifierDecision` — never blocks the
@@ -416,9 +427,18 @@ Future<void> _logClassifierDecision(
 ///
 /// Surfaces what to fix: either alias the AI's spelling, or expand the catalog.
 Future<void> _logUnknownNameFallback(String aiReturnedName) async {
+  // Short-circuit when signed out: the RLS INSERT policy requires
+  // `auth.uid() = user_id` and `null = null` is null (falsy), so a null
+  // user_id can never be inserted from the app — skip to avoid the wasted
+  // round-trip. (The column itself is nullable so server-side cascade can
+  // null out user_id when an account is deleted.)
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return;
+  // In-session dedup: skip if we've already logged this name this run.
+  if (!debugUnknownNameSessionCache.add(aiReturnedName)) return;
   try {
     await supabaseSyncService.insertRow('reflect_unknown_name_log', {
-      'user_id': supabaseSyncService.currentUserId,
+      'user_id': userId,
       'ai_returned_name': aiReturnedName,
     });
   } catch (e) {
