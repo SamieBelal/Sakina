@@ -1,3 +1,5 @@
+import 'dart:async' show FutureOr, unawaited;
+
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 
@@ -120,10 +122,18 @@ List<ReflectVerse> approvedVersesForName(String name) {
   return List<ReflectVerse>.from(approvedReflectVersesByName[name] ?? const []);
 }
 
+/// Fallback callback signature. Accepts sync or async callers (`FutureOr`).
+///
+/// The wrapper inside `normalizeApprovedVerses` catches BOTH sync throws AND
+/// async throws (via `catchError` on the returned Future) so a misbehaving
+/// telemetry callback can never break the reflect flow.
+typedef NormalizeFallback = FutureOr<void> Function(String aiReturnedName);
+
 List<ReflectVerse> normalizeApprovedVerses(
   String name,
-  List<ReflectVerse> verses,
-) {
+  List<ReflectVerse> verses, {
+  NormalizeFallback? onFallback,
+}) {
   final approvedByReference = _approvedReflectVersesByReference;
   final normalized = <ReflectVerse>[];
   final seen = <String>{};
@@ -153,6 +163,27 @@ List<ReflectVerse> normalizeApprovedVerses(
   if (kDebugMode) {
     debugPrint('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
         'Check AI prompt + canonical-names list for spelling mismatch.');
+  }
+  // Fire-and-forget telemetry hook. Caller (ai_service.dart) wires a Supabase
+  // insert into reflect_unknown_name_log. Optional so the catalog stays
+  // dependency-free for unit tests. Wrapped to catch both sync AND async
+  // throws because reflect must NEVER break because of telemetry — pinned by
+  // reflection_verse_catalog_unknown_name_callback_test.dart "throws" tests.
+  if (onFallback != null) {
+    try {
+      final result = onFallback(name);
+      if (result is Future) {
+        unawaited(result.catchError((Object e) {
+          if (kDebugMode) {
+            debugPrint('[reflect_verse] onFallback async error: $e — swallowed.');
+          }
+        }));
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[reflect_verse] onFallback threw: $e — swallowed.');
+      }
+    }
   }
   return const [_heartsRestVerse, _noBurdenVerse];
 }
