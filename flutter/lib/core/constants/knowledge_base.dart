@@ -1667,6 +1667,1283 @@ const List<NameTeaching> nameTeachings = [
           'Quran 3:38 \u2014 Dua of Zakariah (AS), used when asking Al-Wahhab for what seems impossible',
     ),
   ),
+  // ─────────────────────────────
+  // 2026-05-13 CONTENT EXPANSION (52 new entries)
+  //
+  // Authored by Claude with verbatim sourcing from:
+  //   - quran.com (Quran verses)
+  //   - yaqeeninstitute.org (scholar quotes)
+  //   - sunnah.com (hadith)
+  //   - seekersguidance.org (scholarly tafsir)
+  //
+  // Per-Name provenance + flags in docs/qa/name-teaching-sources.md
+  // and docs/qa/name-teaching-batches/batch-{1,2,3}.jsonl.
+  //
+  // SCHOLAR PASS REQUIRED before promoting to user-facing release.
+  // Many entries are pure Quranic citation only; scholar may add
+  // verified Yaqeen/SeekersGuidance scholar quotes for richness.
+  // ─────────────────────────────
+
+  NameTeaching(
+    name: 'Ar-Raheem',
+    arabic: 'الرَّحِيمُ',
+    emotionalContext: [
+      'feeling like your sins are too great to be forgiven',
+      'ashamed to make dua after a long absence from allah',
+      'grieving and wondering if allah still cares',
+      'wanting to return to allah but feeling unworthy',
+      'after a relapse into an old pattern',
+      'feeling spiritually cold and distant',
+      'longing for comfort after heartbreak',
+    ],
+    coreTeaching:
+        'Ar-Raheem is the Most Merciful — the One whose mercy is specifically and actively directed at the believers in every moment. Classical scholars distinguished Ar-Rahman from Ar-Raheem: Ar-Rahman is the vast mercy that encompasses every creature, believer and disbeliever alike; Ar-Raheem is the particular, ongoing mercy reserved especially for those who turn to Him. The Prophet ﷺ himself was described by Allah with this same Name — Quran 9:128 says he is “raʾoofun raḥeem” with the believers — and Allah gave His prophet the Name of His own attribute as the highest compliment He could pay a human being. The Sahih hadith in both Bukhari and Muslim records that Allah created mercy in one hundred parts, kept ninety-nine with Himself, and sent down only one part to earth — and it is from that single part that all creatures show tenderness to one another, that a mare lifts her hoof to avoid her foal. All the mercy you have ever seen in this world — a mother’s love, a friend’s kindness, a stranger’s help — is one percent of what Allah kept for you. The Quran seals the call: “O My servants who have exceeded the limits against their souls! Do not lose hope in Allah’s compassion, for Allah certainly pardons all transgressions. He is indeed the All-Forgiving, Most Merciful.” (39:53) Ar-Raheem does not offer mercy as a reward for the deserving. He offers it as the nature of who He is. When you feel too far gone, that feeling is precisely the moment Ar-Raheem is waiting for you to call.',
+    propheticStory:
+        'After Adam (عليه السلام) and Hawwa were sent from the Garden, Allah did not leave them without a way back. He taught Adam words of repentance — and the verse records what happened next: “Then Adam was inspired with words ˹of prayer˺ by his Lord, so He accepted his repentance. Surely He is the Accepter of Repentance, Most Merciful.” (Quran 2:37) Notice the sequence: Allah initiated the words. Adam could not even find the right way to ask — so Ar-Raheem gave him the dua. That is the Name in action: mercy that does not wait for you to get it right on your own. The verse closes with two Names — At-Tawwab and Ar-Raheem — as if to say: the One who accepts your return is the same One who has always been merciful to you.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration:
+          "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+      translation:
+          'Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim) — the dua of those who call on the Most Merciful for good in this life and the next',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Malik',
+    arabic: 'المَلِكُ',
+    emotionalContext: [
+      'feeling powerless when others seem to control your fate',
+      'anxious about a decision that is out of your hands',
+      'grieving the loss of status, a job, or a role that defined you',
+      'crushed when someone in authority treated you unjustly',
+      'fear of being forgotten or insignificant',
+      'overwhelmed by systems and structures you cannot change',
+      'longing for justice that the world has not given you',
+    ],
+    coreTeaching:
+        'Al-Malik is the King — the One who holds absolute sovereignty over every kingdom, every government, every boardroom, and every home. Quran 20:114 declares: “Exalted is Allah, the True King!” The word “Haqq” (True) is not an intensifier; it is a contrast. Every other king is contingent — they depend on armies, consent, economics, and mortality. Al-Malik is the only one whose kingship requires nothing outside Himself. The scholar Ibn al-Qayyim al-Jawziyya wrote of divine sovereignty: “The value of the commodity is correlated to both the status of the buyer and the price. You are the commodity, and you are so valuable that Allah Himself is the buyer.” Under Al-Malik, your worth is not set by your employer, your family, or your culture — it is set by the King who purchased you at the price of His own paradise. Quran 3:26 records the supplication: “O Allah! Lord over all authorities! You give authority to whoever You please and remove it from who You please; You honour whoever You please and disgrace who You please — all good is in Your Hands. Surely You alone are Most Capable of everything.” This is not a passive observation; the verse is given as a command — “Say…” — which means Allah wanted it on every believer’s tongue. When authority crushes you or abandons you, the answer is not resignation. It is address: call on the One who controls all authority and ask Him to move.',
+    propheticStory:
+        'Quran 39:67 describes the Day of Resurrection: “They have not shown Allah His proper reverence — when on the Day of Judgment the whole earth will be in His Grip, and the heavens will be rolled up in His Right Hand. Glorified and Exalted is He above what they associate with Him!” The Prophet ﷺ explained this scene directly: Allah will hold the earth, fold the heaven with His right hand, and say, “I am the King: where are the kings of the earth?” (Sahih al-Bukhari 7382). The contrast is total — every human kingdom dissolves into the single reality of Al-Malik. The lesson for this life: the power someone holds over you is borrowed, temporary, and entirely subject to the One who owns all of it.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِن لَّدُنكَ رَحْمَةً إِنَّكَ أَنتَ الْوَهَّابُ',
+      transliteration:
+          "Rabbana la tuzigh quloobana ba'da idh hadaytana wa hab lana min ladunka rahmatan innaka anta al-Wahhab",
+      translation:
+          'Our Lord! Do not let our hearts deviate after You have guided us. Grant us Your mercy. You are indeed the Giver of all bounties.',
+      source: 'Quran 3:8 (verbatim) — the supplication of those who anchor themselves before the True King, asking Him to keep their hearts aligned',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muʺmin',
+    arabic: 'المُؤْمِنُ',
+    emotionalContext: [
+      'paralyzed by fear about the future',
+      'feeling unsafe even in familiar places',
+      'anxiety that will not leave despite no clear reason',
+      'terrified of what you cannot control',
+      'living with a threat you cannot make disappear',
+      'heart racing at night with dread',
+      'longing to feel safe and held',
+    ],
+    coreTeaching:
+        'Al-Muʺmin is the Giver of Safety and the Faithful — the One who grants true security from fear and whose promises are absolutely trustworthy. The Name appears in the great verse of Surah al-Hashr (59:23), clustered with Al-Malik and Al-Quddus: “He is Allah — there is no god except Him: the King, the Most Holy, the All-Perfect, the Source of Serenity, the Watcher › of all‹, the Almighty, the Supreme in Might, the Majestic.” The Arabic “al-Muʺmin” carries two interlocked roots: “amn” (safety, security) and “iman” (faith, trust). He is the One who is safe to trust, and He is the One who gives safety. Jinan Yousef, in her Yaqeen article on Al-Muʺmin during times of crisis, draws on Ibn al-Qayyim’s concept of “rabt” (the strengthening of hearts): “This rabt includes granting the hearts patience and firmness, strengthening them, and supporting them with the light of faith, until they are able to patiently persevere.” (Ibn al-Qayyim, Madarij al-Salikin 3/68) This is what Al-Muʺmin does directly to the heart: He does not always remove the threatening thing; He makes the heart capable of enduring it. The security He gives is not circumstantial. The fire was real when Ibrahim (عليه السلام) was cast into it. Al-Muʺmin’s answer was not to remove Ibrahim from the situation but to command the fire: “Be cool and safe.” Security, when it comes from Al-Muʺmin, travels inward first.',
+    propheticStory:
+        'In Surah al-Hashr, after the expulsion of Banu al-Nadir, Allah reminds the believers who stayed in Medina that He is the source of all true security. The hypocrites had whispered promises of protection to Banu al-Nadir — “if you are driven out, we will go with you” (59:11) — but when the moment came, they abandoned them. Allah’s response culminates with the declaration of His names: “He is Allah — there is no god except Him: the King, the Most Holy, the All-Perfect, the Source of Serenity, the Watcher, the Almighty, the Supreme in Might, the Majestic.” (Quran 59:23) The human promises of protection evaporated; Al-Muʺmin’s faithfulness did not. His name appears in that verse to answer the question every person asks when a protector fails them: “Who is truly safe to trust?”',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِن لَّدُنكَ رَحْمَةً إِنَّكَ أَنتَ الْوَهَّابُ',
+      transliteration:
+          "Rabbana la tuzigh quloobana ba'da idh hadaytana wa hab lana min ladunka rahmatan innaka anta al-Wahhab",
+      translation:
+          'Our Lord! Do not let our hearts deviate after You have guided us. Grant us Your mercy. You are indeed the Giver of all bounties.',
+      source: 'Quran 3:8 (verbatim) — the dua of those who ask Al-Muʺmin to hold their hearts steady when fear tries to pull them off course',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Azeez',
+    arabic: 'العَزِيزُ',
+    emotionalContext: [
+      'feeling humiliated by someone who had power over you',
+      'stripped of dignity in front of others',
+      'compromising your values to gain acceptance or status',
+      'feeling like your self-worth depends on others’ approval',
+      'defeated and made to feel small',
+      'desperate for honor the world has withheld from you',
+      'ashamed of weakness you cannot hide',
+    ],
+    coreTeaching:
+        'Al-Azeez is the Almighty — the One who possesses ‘izza in its most complete sense. The Yaqeen article on this Name explains: “Although ʿizza is often directly translated as ‘power’ or ‘might,’ scholars provide a more nuanced definition of ‘dignified power.’ That is, no matter the extent of one’s power, it can only be classified as ʿizza if it is accompanied by dignity.” Al-Azeez communicates three aspects of might: power, independence, and dominion. He cannot be overpowered. He is self-sufficient from all creation. And He alone grants strength and honor to whom He wills. This matters because human beings chase ʿizza constantly — through status, wealth, relationships, and performance — and find it hollow or temporary when they reach it. The early companion Ibn al-Khaṭṭab (رضي الله عنه) said: “Verily, we were a disgraceful people and Allah honored us with Islam. If we seek honor from anything besides that with which Allah honored us, Allah will disgrace us.” (al-Mustadrak ‘ala al-Ṣaḥiḥayn 207) The only ʿizza that does not erode is the one that comes from standing under Al-Azeez. Quran 45:37 puts it precisely: “To Him belongs all Majesty in the heavens and the earth. And He is the Almighty, All-Wise.” All majesty belongs to Him — not a share, not a type, all of it. The honor you were denied by people was never theirs to give in the first place.',
+    propheticStory:
+        'When the Quraysh had driven the companions from their homes, stripped them of their wealth, and left them refugees in Abyssinia, the Prophet ﷺ did not counsel despair. He sent a message rooted in the certainty that Al-Azeez acts in history. The early Muslim Bilal ibn Saʿd wrote, as recorded in Hilyat al-Awliyaʼ 5/223: “Do not look at the smallness of the sin, but look at the greatness of the One whom you have sinned against.” The inverse applies equally: do not look at the smallness of the insult done to you, but look at the greatness of the One under whose authority it took place. History vindicated this: the same Quraysh who humiliated the companions later stood in Mecca as the Prophet ﷺ entered at its conquest and asked, “What do you think I will do to you?” They said, “A noble brother and the son of a noble brother.” He replied, “Go, for you are free.” The honor came not from their submission but from Al-Azeez’s decree. He dignifies whom He wills.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration:
+          "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+      translation:
+          'Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim) — the dua of those who seek the goodness only Al-Azeez can grant, in this life and the next',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Khaliq',
+    arabic: 'الخَالِقُ',
+    emotionalContext: [
+      'feeling like your life has no design or purpose',
+      'questioning whether you were made for anything good',
+      'despair that things will ever come together',
+      'feeling like a mistake — your existence, your choices, your body',
+      'grief at something in your life that seems permanently broken',
+      'searching for meaning in suffering that seems random',
+      'wondering if there is any intention behind your being',
+    ],
+    coreTeaching:
+        'Al-Khaliq is the Creator — the One who brings into existence from non-existence. The Quran presents Al-Khaliq in sequence with two other Names in Surah al-Hashr (59:24): “He is Allah: the Creator, the Inventor, the Shaper. He alone has the Most Beautiful Names. Whatever is in the heavens and the earth constantly glorifies Him. And He is the Almighty, All-Wise.” The three Names — Al-Khaliq, Al-Bariʼ, Al-Musawwir — describe a single arc of creation: Al-Khaliq determines what is called from non-existence into existence; Al-Bariʼ distinguishes and separates each thing into its unique form; Al-Musawwir fashions the visible appearance of what has been made. Jinan Yousef, writing in her Yaqeen paper on the Names sequence in Surah al-Hashr, describes Al-Khaliq as the One whose creative act is not a single event: “Al-Khaliq determines what is brought from non-existence to existence.” This is perpetual — every breath, every heartbeat, every new morning is an act of Al-Khaliq calling something into being that was not there before. The Quran 2:32 records the angels confessing: “Glory be to You! We have no knowledge except what You have taught us. You are truly the All-Knowing, All-Wise.” Even the angels, who witness creation directly, acknowledge that the act of making belongs to Allah alone. When your life feels purposeless or accidental, Al-Khaliq is the Name to call on — the One whose act of creating you was intentional, from nothing, at a moment of His choosing.',
+    propheticStory:
+        'The Quran invites us to reflect on the creation of the human being as one of the signs of Al-Khaliq’s precision. In Surah al-Hashr, three Names appear together — Al-Khaliq, Al-Bariʼ, Al-Musawwir — immediately after the verse about His overwhelming power. The placement is deliberate: it is the same Allah who commands armies of heaven that also shaped every feature of your face, the pattern of your fingerprints, the specific pitch of your voice. “He is Allah: the Creator, the Inventor, the Shaper. He alone has the Most Beautiful Names. Whatever is in the heavens and the earth constantly glorifies Him. And He is the Almighty, All-Wise.” (Quran 59:24) The word “perfecting” is built into the Name: the root of Khaliq connects to “measuring precisely.” Al-Khaliq does not create carelessly. He measured you before He made you.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا وَاجْعَلْنَا مُسْلِمَيْنِ لَكَ وَمِن ذُرِّيَّتِنَآ أُمَّةً مُّسْلِمَةً لَّكَ وَأَرِنَا مَنَاسِكَنَا وَتُبْ عَلَيْنَآ إِنَّكَ أَنتَ التَّوَّابُ الرَّحِيمُ',
+      transliteration:
+          "Rabbana waj'alna muslimayni laka wa min dhurriyyatina ummatan muslimatan laka wa arina manasikana wa tub 'alayna innaka anta at-Tawwab ar-Raheem",
+      translation:
+          'Our Lord! Make us both fully submit to You and from our descendants a nation that will submit to You. Show us our rituals, and turn to us in grace. You are truly the Accepter of Repentance, Most Merciful.',
+      source: 'Quran 2:128 (verbatim) — Ibrahim and Ismail’s dua to the Creator asking Him to shape them and their descendants into surrender',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Aleem',
+    arabic: 'العَلِيمُ',
+    emotionalContext: [
+      'feeling completely misunderstood by everyone around you',
+      'holding something private that no one else knows about',
+      'praying with no words — just an ache you cannot name',
+      'grieving something you cannot explain to others',
+      'doing good in secret and wondering if it matters',
+      'carrying a hidden burden that you cannot share',
+      'feeling unseen in your struggle',
+    ],
+    coreTeaching:
+        'Al-Aleem is the All-Knowing — the One whose knowledge is absolute, all-encompassing, and never dependent on what you say or show. The Quran 49:13 states: “Surely the most noble of you in the sight of Allah is the most righteous among you. Allah is truly All-Knowing, All-Aware.” Al-Aleem knows not just what is outward but what is within. Jinan Yousef, in her Yaqeen paper on the pairing of Allah’s Names, notes that while the Name Al-Aleem covers outward knowledge, it is paired with Al-Khabeer (All-Aware) to express comprehensive interior knowledge: “Al-Alim is He who knows what is outward, whereas al-Khabir is He who knows what is within.” When you do not have words for your pain, Al-Aleem already knows it. When your good deed goes unrecognized, Al-Aleem has recorded it. When your repentance is sincere but private, Al-Aleem has received it. The angels in Quran 2:32 could only say: “Glory be to You! We have no knowledge except what You have taught us. You are truly the All-Knowing, All-Wise.” Even the highest creation in existence acknowledged that knowledge belongs to Allah alone. Al-Aleem does not learn from witnesses. He is the witness. He does not need your confession to know your heart. He knew it before your heart was formed.',
+    propheticStory:
+        'When Hagar (عليه السلام) was left in the valley of Mecca with baby Ismail and no water, she ran between Safa and Marwa seven times, calling out into an empty desert. No one saw her. No one heard her. Yet Al-Aleem knew the exact moment, the exact depth of her thirst, the exact point of her desperation — and sent Jibril to strike the earth and open Zamzam. Quran 31:34 affirms: “Indeed, Allah alone has the knowledge of the Hour. He sends down the rain, and knows what is in the wombs. No soul knows what it will earn for tomorrow, and no soul knows in what land it will die. Surely Allah is All-Knowing, All-Aware.” Al-Aleem knew Hagar’s need before she voiced it. He knows yours.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَّبِّ زِدْنِي عِلْمًا',
+      transliteration: "Rabbi zidni 'ilma",
+      translation: 'My Lord! Increase me in knowledge.',
+      source: 'Quran 20:114 (verbatim) — the only dua the Quran records Allah commanding the Prophet ﷺ to say for himself; an appeal to Al-Aleem to share of what only He perfectly possesses',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muhaymin',
+    arabic: 'المُهَيْمِنُ',
+    emotionalContext: [
+      'feeling like your life is spinning out of control',
+      'anxious that no one is watching out for you',
+      'overwhelmed by responsibilities and no one to depend on',
+      'feeling abandoned and unguarded',
+      'grief at the loss of someone who protected you',
+      'navigating danger with no clear path forward',
+      'longing for someone trustworthy to oversee your affairs',
+    ],
+    coreTeaching:
+        'Al-Muhaymin is the Overseer, the Guardian, the One who holds all of creation under His watchful authority. The Name appears in the great Names sequence of Surah al-Hashr (59:23): “He is Allah — there is no god except Him: the King, the Most Holy, the All-Perfect, the Source of Serenity, the Watcher of all, the Almighty, the Supreme in Might, the Majestic.” Ibraheem Shakfeh, writing for SeekersGuidance, explains: “Al-Muhaymin means an overpowering authority.” It is not the watching of a spy but the watching of a guardian — the way a shepherd keeps every sheep in view at once, aware of the terrain, aware of what approaches. The Name contains the root of “amn” (safety) and carries the sense of one who gives safety by virtue of the completeness of their oversight. Imam Nawawi noted in his commentary on Sahih Muslim that Al-Muhaymin is among the Names that carry the definite article only for Allah — no human being can be fully Al-Muhaymin, because no human can hold all affairs in view simultaneously without sleep, distraction, or limit. Al-Muhaymin sees not just what is happening but what could happen, not just where you are but where every force that could reach you is moving. There is no gap in His oversight. What feels like chaos to you is entirely within His field of view.',
+    propheticStory:
+        'After the battle of Uhud, when the Muslims suffered unexpected defeat and the Prophet ﷺ himself was injured, it was a moment where every human form of protection had partially failed. Yet in Surah al-Hashr, revealed in the context of another military and political crisis, Allah introduces Himself as Al-Muhaymin immediately after Al-Muʺmin (the Source of Security) — as if to say: the security I give comes from the fact that I am the complete Overseer. “He is Allah — there is no god except Him: the King, the Most Holy, the All-Perfect, the Source of Serenity, the Watcher of all, the Almighty, the Supreme in Might, the Majestic.” (Quran 59:23) Al-Muhaymin’s oversight did not fail at Uhud. The outcome was within His plan, His wisdom, and His view. He was watching.',
+    dua: NameTeachingDua(
+      arabic:
+          'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+      transliteration: 'Hasbunallahu wa niʿmal-wakeel',
+      translation: 'Allah is sufficient for us, and He is the best Protector.',
+      source: 'Quran 3:173 (verbatim) — the words the companions said when told that enemies had massed against them; the response of those who know Al-Muhaymin is watching',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Mutakabbir',
+    arabic: 'المُتَكَبِّرُ',
+    emotionalContext: [
+      'overwhelmed by arrogant people who seem untouchable',
+      'feeling small in front of pride that refuses to bend',
+      'crushed by a tyrant, a bully, or an unjust system',
+      'humbled by your own helplessness before those with power',
+      'struggling with ego that keeps getting in the way of healing',
+      'searching for the right scale — to see the truly great',
+      'anger at injustice that no human being is stopping',
+    ],
+    coreTeaching:
+        'Al-Mutakabbir is the Majestic, the Supremely Great — the One for whom greatness is a rightful attribute, not a delusion. This Name is unique: in a human being, “takabbur” (arrogance, self-magnification) is a sin. The Prophet ﷺ defined the sin in Sahih Muslim 91a: "Pride is disdaining the truth (out of self-conceit) and contempt for the people" (بَطَرُ الْحَقِّ وَغَمْطُ النَّاسِ). Yet Allah names Himself Al-Mutakabbir — because His greatness is not a distortion of reality. It is reality. Quran 59:23 lists this Name at the summit of a sequence: “He is Allah — there is no god except Him: the King, the Most Holy, the All-Perfect, the Source of Serenity, the Watcher of all, the Almighty, the Supreme in Might, the Majestic.” Quran 45:37 confirms: “To Him belongs all Majesty in the heavens and the earth. And He is the Almighty, All-Wise.” The theological point is liberating: if Al-Mutakabbir holds all true Greatness, then every human being who inflates themselves is borrowing what they do not own. Iblis was destroyed by taking what belongs only to Al-Mutakabbir — when Allah asked him “What prevented you from prostrating to what I created with My Own Hands? Did you just become proud? Or have you always been arrogant?” (Quran 38:75). The one who stands before Al-Mutakabbir with humility is freed from needing to be great in anyone else’s eyes.',
+    propheticStory:
+        'When Iblis refused to prostrate to Adam, Allah asked him directly: “O Iblis! What prevented you from prostrating to what I created with My Own Hands? Did you just become proud? Or have you always been arrogant?” (Quran 38:75) The word used there — “akbarta” — shares the root with Al-Mutakabbir. Iblis tried to claim greatness: “I am better than him. You created me from fire and created him from clay.” His logic seemed internally consistent. But he failed to see that greatness is not self-assigned under Al-Mutakabbir. The One who holds all Majesty is the only One who can assign worth. Iblis’ arrogance was not just a moral failure — it was a theological error. He forgot who was the real Mutakabbir in the room. Every human bully makes the same mistake.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
+      transliteration:
+          "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
+      translation:
+          'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 (verbatim excerpt) — the dua of those who submit to Al-Mutakabbir’s absolute greatness and ask for relief from burdens only He can remove',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Bari',
+    arabic: 'الْبَارِئُ',
+    emotionalContext: [
+      'feeling broken beyond repair',
+      'shame after falling back into the same sin',
+      'wanting to start over but not knowing how',
+      'feeling defective or malformed',
+      'after a relapse',
+      'after losing your sense of self',
+      'feeling like nothing you build holds together',
+    ],
+    coreTeaching:
+        'Al-Bari is the Originator — the One who shapes each created thing into its distinct form, none of them duplicates. The Yaqeen scholar Jinan Yousef writes in her tafsir of Surah al-Hashr that “Al-Khaliq determines what is brought from non-existence to existence, Al-Bariʼ distinguishes creation from each other by specifying their different forms, and Al-Musawwir makes the visual manifestation of what He has created and produced.” The three Names move in sequence: He calls you into being, He gives you a form unlike anyone else’s, then He fashions the details. When you feel broken or like you have ruined what He made of you, Al-Bari is the Name to call on — He is still the One who originates, and He can re-originate, re-shape, re-form. The first time He proved this in scripture was the golden calf: when Bani Israel committed shirk against the very God who had freed them, Moses (عليه السلام) did not tell them to find another god — he told them, “Turn in repentance to your Bariʼ” (Quran 2:54). The Name Allah used for receiving them back was not Al-Ghafur, not Ar-Rahman, but Al-Bari — as if to say: the One who made you is the only One who can make you again.',
+    propheticStory:
+        'After Allah delivered Bani Israel from Pharaoh, parted the sea for them, and asked Moses (عليه السلام) to leave for the Tablets, the people made a golden calf and worshipped it within forty days. When Moses returned and saw what they had done, he confronted them: “O my people! Surely you have wronged yourselves by worshipping the calf, so turn in repentance to your Bariʼ, and execute the calf-worshippers among yourselves. That is best for you in the sight of your Bariʼ.” (Quran 2:54) The verse uses the Name البارئ twice — once for whom the repentance is directed to, and once for whose sight matters. Allah named Himself Al-Bari in that moment of national failure to remind them: the One who originated you is the only One who can re-originate you. The verse closes: “Then He accepted your repentance. Surely He is the Accepter of Repentance, Most Merciful.”',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا ظَلَمْنَا أَنفُسَنَا وَإِن لَّمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ',
+      transliteration:
+          "Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakoonanna mina'l-khasireen",
+      translation:
+          'Our Lord, we have wronged ourselves, and if You do not forgive us and have mercy upon us, we will surely be among the losers.',
+      source: 'Quran 7:23 (verbatim) — Adam’s dua of repentance, paired thematically with the call to one’s Bariʼ in Quran 2:54',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Musawwir',
+    arabic: 'المُصَوِّرُ',
+    emotionalContext: [
+      'feeling ugly, inadequate, or ashamed of your body',
+      'comparing yourself to others and always coming up short',
+      'grief over a physical limitation or condition',
+      'struggling with self-image after something changed your appearance',
+      'feeling like your face or form does not reflect who you are inside',
+      'longing to be seen as beautiful',
+      'body image pain that no one around you understands',
+    ],
+    coreTeaching:
+        'Al-Musawwir is the Shaper of Forms — the One who fashioned every face, every fingerprint, every curve and line of every human being who has ever existed. Quran 59:24 presents this Name as the third in a divine creative sequence: “He is Allah: the Creator, the Inventor, the Shaper. He alone has the Most Beautiful Names. Whatever is in the heavens and the earth constantly glorifies Him. And He is the Almighty, All-Wise.” Jinan Yousef writes in her Yaqeen paper on the Names of Surah al-Hashr that “Al-Musawwir makes the visual manifestation of what He has created and produced” — the final act of a three-part process that moves from conception (Al-Khaliq) through individuation (Al-Bariʼ) to visible form (Al-Musawwir). Your face is not an accident or a default. It is a deliberate artistic act by Al-Musawwir. Quran 3:6 affirms this directly: “He is the One Who shapes you in the womb as He wills.” The Arabic “kaifa yasha’u” — “as He wills” — is not a concession to randomness. It is an assertion of intentional choice. Every feature of your form was chosen by Al-Musawwir before you were born. When you look in the mirror and feel inadequate, you are looking at the work of the Most Beautiful Names (al-Asmaʼ al-Husna). Al-Musawwir made you as a reflection of His creative will.',
+    propheticStory:
+        'In Surah Ali ‘Imran, Allah reminds the believers that before any of us entered the world, Al-Musawwir was already at work: “He is the One Who shapes you in the womb as He wills. There is no god except Him — the Almighty, All-Wise.” (Quran 3:6) The context of this verse is the story of Maryam (عليه السلام) and Zakariyya (عليه السلام) — both of whom received impossible children from Al-Musawwir’s direct act. Maryam received Isa without a father. Zakariyya received Yahya from a barren wife. The point: the constraints that govern human reproduction do not govern Al-Musawwir. He shapes as He wills. The form He gave you was not limited by biology — it was chosen.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا وَاجْعَلْنَا مُسْلِمَيْنِ لَكَ وَمِن ذُرِّيَّتِنَآ أُمَّةً مُّسْلِمَةً لَّكَ وَأَرِنَا مَنَاسِكَنَا وَتُبْ عَلَيْنَآ إِنَّكَ أَنتَ التَّوَّابُ الرَّحِيمُ',
+      transliteration:
+          "Rabbana waj'alna muslimayni laka wa min dhurriyyatina ummatan muslimatan laka wa arina manasikana wa tub 'alayna innaka anta at-Tawwab ar-Raheem",
+      translation:
+          'Our Lord! Make us both fully submit to You and from our descendants a nation that will submit to You. Show us our rituals, and turn to us in grace. You are truly the Accepter of Repentance, Most Merciful.',
+      source: 'Quran 2:128 (verbatim) — Ibrahim’s prayer to the Shaper of Forms, asking that even his descendants be shaped into surrender',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ash-Shakur',
+    arabic: 'الشَّكُورُ',
+    emotionalContext: [
+      'feeling like your efforts go unnoticed and unappreciated',
+      'burned out from giving without any return',
+      'grief that your good deeds do not seem to count',
+      'exhausted from invisible labor no one thanks you for',
+      'struggling to be grateful when life feels ungrateful to you',
+      'wondering if small acts of worship even matter',
+      'longing to be seen for what you quietly give',
+    ],
+    coreTeaching:
+        'Ash-Shakur is the Most Appreciative — the One who not only receives gratitude but Himself expresses gratitude to His servants by multiplying the reward of every good deed many times over. Quran 35:30 states: “so that He will reward them in full and increase them out of His grace. He is truly All-Forgiving, Most Appreciative.” The Name is startling: God is grateful? Ibn al-Qayyim al-Jawziyya defines shukr as expressed through the heart (feelings of love and submissiveness), the tongue (acknowledgment and praise), and acts of devotion. When Allah is Ash-Shakur, it means He appreciates your deed from all three of these directions: He loves it, He records it, and He multiplies it. The Yaqeen article on shukr explains: “When Our Creator embodies shukr, it takes on the form of appreciation and results in His multiplying our little deeds many times over.” Surah Sabaʼ (34:13) closes with one of the most sobering phrases in the Quran: “Only a few of My servants are truly grateful.” The word used there — al-Shakur — is the same root as Allah’s own Name. He is the supremely grateful One; and in His sight, gratitude is rare and precious. The invisible labor you do, the prayer no one saw, the kindness no one thanked you for — Ash-Shakur has received all of it and is already preparing its return.',
+    propheticStory:
+        'Allah commanded the family of Dawud (عليه السلام) — a dynasty of prophets, given extraordinary gifts of knowledge, kingship, and spiritual insight — to work with those gifts in a specific way: “They made for him whatever he desired of sanctuaries, statues, basins as large as reservoirs, and cooking pots fixed into the ground. ‘Work gratefully, O family of David!’ Only a few of My servants are truly grateful.” (Quran 34:13) Notice the command: “Work gratefully.” Gratitude was not an emotion to feel after the work was done. It was the posture of the work itself. Sulayman (عليه السلام) understood this. His dua in Quran 27:19 captures it: “My Lord! Inspire me to always be thankful for Your favours which You have blessed me and my parents with, and to do good deeds that please You. Admit me, by Your mercy, into the company of Your righteous servants.” Ash-Shakur gave him everything — and Sulayman responded by asking for the capacity to be grateful for it. That is the posture Ash-Shakur calls all of us into.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبِّ أَوْزِعْنِىٓ أَنْ أَشْكُرَ نِعْمَتَكَ ٱلَّتِىٓ أَنْعَمْتَ عَلَىَّ وَعَلَىٰ وَٰلِدَىَّ وَأَنْ أَعْمَلَ صَـٰلِحًا تَرْضَىٰهُ وَأَدْخِلْنِى بِرَحْمَتِكَ فِى عِبَادِكَ ٱلصَّـٰلِحِينَ',
+      transliteration:
+          "Rabbi awzi'ni an ashkura ni'mataka allati an'amta 'alayya wa 'ala walidayya wa an a'mala salihan tardahu wa adkhilni birahmatika fi 'ibadika as-saliheen",
+      translation:
+          'My Lord! Inspire me to always be thankful for Your favours which You have blessed me and my parents with, and to do good deeds that please You. Admit me, by Your mercy, into the company of Your righteous servants.',
+      source: 'Quran 27:19 (verbatim excerpt) — Sulayman’s dua to Ash-Shakur; a prayer that asks for the gift of gratitude itself from the One who is Most Appreciative',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Hafeez',
+    arabic: 'الحَفِيظُ',
+    emotionalContext: [
+      'terrified something will happen to someone you love',
+      'hypervigilant and exhausted from trying to protect everyone',
+      'fear of loss that keeps you awake at night',
+      'grief after failing to protect someone who needed you',
+      'feeling alone and without anyone watching out for you',
+      'dread of what could go wrong that you cannot prevent',
+      'sending someone you love into danger you cannot control',
+    ],
+    coreTeaching:
+        'Al-Hafeez is the Preserver, the Keeper, the One who guards every soul, every secret, and every deed with absolute vigilance. Quran 86:4 states: “There is no soul without a vigilant angel recording everything.” But the protection of Al-Hafeez is not just through angels — He Himself is the Guardian of the heavens and the earth without fatigue. The Name appears explicitly in Quran 11:57, where the prophet Hud (عليه السلام) says: “My Lord will replace you with others. You are not harming Him in the least. Indeed, my Lord is a vigilant Keeper over all things.” The Arabic root h-f-z encompasses three dimensions: preserving from harm, recording and remembering, and guarding with active attentiveness. Al-Hafeez does all three simultaneously for every creature at every moment. Yaʺqub (عليه السلام) understood this when his sons asked to take Binyamin to Egypt. He had already lost Yusuf. He could not bear another loss. But he also knew where real protection resided. He said: “Should I trust you with him as I once trusted you with his brother? But only Allah is the best Protector, and He is the Most Merciful of the merciful.” (Quran 12:64) That declaration — “Allahu khayrun hafidhan” — was not resignation. It was the most radical act of trust: to hand the one you love to Al-Hafeez, because you have finally admitted that you were never the real protector to begin with.',
+    propheticStory:
+        'When Yaʺqub (عليه السلام) sent his son Binyamin to Egypt with his other sons, he was sending the last thing that connected him to Yusuf — the same sons who had brought back a shirt stained with false blood. He had every human reason to say no. Yet his answer was: “Should I trust you with him as I once trusted you with his brother ˹Joseph˺? But only Allah is the best Protector, and He is the Most Merciful of the merciful.” (Quran 12:64) The verse does not record Yaʺqub as having certainty about the outcome. He did not know Yusuf was alive. He did not know Binyamin would return. What he knew was the Name: Al-Hafeez. That was enough. He released his grip. Al-Hafeez kept Binyamin and, in doing so, restored Yusuf.',
+    dua: NameTeachingDua(
+      arabic:
+          'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+      transliteration: 'Hasbunallahu wa niʿmal-wakeel',
+      translation: 'Allah is sufficient for us, and He is the best Protector.',
+      source: 'Quran 3:173 (verbatim) — the words of those who entrust what they love to Al-Hafeez, the only Keeper who never sleeps',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ar-Raqeeb',
+    arabic: 'الرَّقِيبُ',
+    emotionalContext: [
+      'feeling invisible and completely unseen by anyone',
+      'doing good in private and wondering if it matters',
+      'guilt about private sins no one else knows',
+      'fear of being exposed',
+      'longing for someone who truly knows what you carry in secret',
+      'feeling that your inner life goes unwitnessed',
+      'struggling with what you do when no one is watching',
+    ],
+    coreTeaching:
+        'Ar-Raqeeb is the Watchful — the One who sees everything without exception: every secret act, every hidden intention, every thought before it becomes a word. Dr. Omar Suleiman, reflecting on this Name in Yaqeen’s series “The Name I Need,” teaches: “Being watched by Allah through the name Ar-Raqeeb isn’t something to fear, but something that protects you. It means that Allah sees you completely — not just your actions, but your private struggles; not just your mistakes, but your intentions.” Quran 4:1 closes with this Name in one of the most weighty reminders in the Quran: “O humanity! Be mindful of your Lord Who created you from a single soul, and from it He created its mate, and through both He spread countless men and women. And be mindful of Allah — in Whose Name you appeal to one another — and honour family ties. Surely Allah is ever Watchful over you.” The placement matters: the verse covers the rights of families, of orphans, of those who cannot advocate for themselves. Ar-Raqeeb is invoked precisely where human oversight fails — in private relationships, in hidden dealings, in what people do when no one else is watching. And Isa (عليه السلام) invoked the same Name on the Day of Judgment: “And You are a Witness over all things.” (Quran 5:117) If the entirely sinless Isa acknowledged Ar-Raqeeb’s watchfulness as comfort, not threat, then so can we.',
+    propheticStory:
+        'On the Day of Judgment, Isa (عليه السلام) will be asked whether he commanded people to take him and his mother as gods. His answer, recorded in Quran 5:117, invokes Ar-Raqeeb as his witness: “I never told them anything except what You ordered me to say: ‘Worship Allah — my Lord and your Lord!’ And I was witness over them as long as I remained among them. But when You took me, You were the Witness over them — and You are a Witness over all things.” The word translated “Witness” — “rasheed” / “raqeeb” in classical tafsir — is Ar-Raqeeb’s domain. Isa could not watch over the believers after his lifting. But Ar-Raqeeb never looked away. Every hidden act of sincerity in those years was witnessed by Him.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
+      transliteration:
+          "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
+      translation:
+          'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 (verbatim excerpt) — the prayer of those who know Ar-Raqeeb sees every mistake and ask Him to pardon rather than judge what He has witnessed',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Khafid',
+    arabic: 'الخَافِضُ',
+    emotionalContext: [
+      'watching arrogant people succeed while the humble struggle',
+      'feeling brought low by circumstances you did not choose',
+      'anger at power structures that crush the small',
+      'confused about why allah allows the proud to flourish',
+      'humbled by failure after great confidence',
+      'fear that your standing will never recover',
+      'wondering if lowliness is a punishment',
+    ],
+    coreTeaching:
+        'Al-Khafid is the Abaser — the One who lowers whom He wills, when He wills, by His wisdom and authority. This Name always comes paired in Islamic tradition with Ar-Rafiʼ (the Exalter) because neither makes full sense without the other: the same hand that lowers one can raise another, and often raises the very one it lowered. Quran 56:1-3 describes the Day of Resurrection: “When the Inevitable Event takes place — then no one can deny it has come — it will debase some and elevate others.” The word “khafidah” (debasing) is from the same root as Al-Khafid. On that Day, the hierarchies of this world will reverse: those who made themselves great will be lowered; those who were humble and patient will be raised. The practical wisdom of the Name is this: do not worship your current status, high or low, because Al-Khafid is the One who holds both possibilities. Every throne in history has been brought low. Every Pharaoh who was not lowered in life was lowered in death. Quran 3:26 records this as the divine prerogative: “You honour whoever You please and disgrace who You please.” The one who grasps Al-Khafid stops measuring their worth by where they stand in the world’s order — because only Allah’s order is permanent.',
+    propheticStory:
+        'Quran 56 opens with the name of the Day of Resurrection: “Al-Waqiʿah” — the Inevitable Event. And then immediately describes its defining action: “When the Inevitable Event takes place — then no one can deny it has come — it will debase ˹some˺ and elevate ˹others˺.” (Quran 56:1-3) Classical tafsir describes this as the final and permanent operation of Al-Khafid Ar-Rafiʼ: the lowering and raising that this life hints at will be made absolute and irreversible. Pharaoh, who called himself god, will be in the lowest depths. The slave Bilal (رضي الله عنه), who was dragged across hot sand for saying “Ahad, Ahad” (One, One), will be among the raised. Al-Khafid lowered the proud and Al-Rafiʼ raised the patient. The world’s record was reversed. It always is.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration:
+          "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+      translation:
+          'Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim) — the dua of those who submit their station in this world to Al-Khafid, asking Him for goodness in both realms rather than clinging to worldly rank',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ar-Rafiʼ',
+    arabic: 'الرَّافِعُ',
+    emotionalContext: [
+      'feeling stuck at the bottom with no way up',
+      'overlooked for recognition you deserve',
+      'grief at a fall from which recovery seems impossible',
+      'desperate for elevation after humiliation',
+      'wondering if your status will ever change',
+      'exhausted from being underestimated',
+      'longing to matter in a world that has passed you over',
+    ],
+    coreTeaching:
+        'Ar-Rafiʼ is the Exalter — the One who raises whom He wills by His grace, in this life and in the next. Quran 40:15 describes Allah as “Rafiʿu ad-darajat” — “Highly Exalted in rank, Lord of the Throne.” He who is Himself the highest in rank is the One who raises others. Quran 58:11 teaches the mechanism: “Allah will elevate those of you who are faithful, and those gifted with knowledge in rank.” Not status by birth, not rank by wealth — but elevation by faith and knowledge. The Prophet ﷺ’s companions understood this in their bones: Bilal (رضي الله عنه) was a slave whom Quraysh tried to crush under hot stones in the desert. Ar-Rafiʼ raised him to be the first muʼadhdhin of Islam, so that the call to prayer — his voice — would be heard five times a day until the end of time. ʿUmar ibn al-Khaṭṭab (رضي الله عنه) said: “Verily, we were a disgraceful people and Allah honored us with Islam. If we seek honor from anything besides that with which Allah honored us, Allah will disgrace us.” (al-Mustadrak ‘ala al-Ṣaḥiḥayn 207) The logic of Ar-Rafiʼ is inverse to the world’s logic: the world elevates the proud. Ar-Rafiʼ elevates those who submitted. Quran 56:3 announces: “It will debase some and elevate others.” The raising belongs entirely to Al-Rafiʼ — and His elevation is the only kind that lasts.',
+    propheticStory:
+        'After the Battle of Badr, when seventy leaders of Quraysh were killed and seventy captured, the Prophet ﷺ went to speak to the bodies of the slain enemies at the well of Qalb. Abu Jahl — the man who had tortured Bilal in the desert — was among them. Bilal had been the slave; Abu Jahl had been the master. Ar-Rafiʼ reversed the order permanently. Meanwhile, Bilal was the one who announced the victory of Islam with the adhan from the roof of the Kaʻah at the conquest of Mecca — the same voice that had been beaten into silence was the one Al-Rafiʼ chose to ring across the sacred city. Quran 58:11 is the divine principle behind that story: “O believers! When you are told to make room in gatherings, then do so. Allah will make room for you. And if you are told to rise, then do so. Allah will elevate those of you who are faithful, and those gifted with knowledge in rank.”',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration:
+          "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+      translation:
+          'Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim) — the supplication of those who trust Ar-Rafiʼ with their station in both worlds, asking for elevation that only He can grant',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muzill',
+    arabic: 'المُذِلُّ',
+    emotionalContext: [
+      'watching injustice go unpunished for too long',
+      'anger that the proud and arrogant seem untouchable',
+      'grief at seeing the righteous brought low by the corrupt',
+      'feeling trapped by a tyrant who has not yet fallen',
+      'struggling with ego that allah seems to keep deflating',
+      'fear of your own arrogance returning after you worked to remove it',
+      'wanting to understand why allah allows some disgrace',
+    ],
+    coreTeaching:
+        'Al-Muzill is the One who abases and brings low — whose act of disgracing is an expression of His wisdom, justice, and sovereignty. Unlike human humiliation, which is often malicious or arbitrary, Al-Muzill’s act of bringing low is never random and never unjust. Quran 3:26 makes this explicit: “O Allah! Lord over all authorities! You give authority to whoever You please and remove it from who You please; You honour whoever You please and disgrace who You please — all good is in Your Hands. Surely You alone are Most Capable of everything.” The key phrase is “all good is in Your Hands” (biyadika al-khayr) — placed immediately after the act of disgracing. Even Al-Muzill’s lowering is an act of khayr (good), whether it is apparent to us or not. History is full of this: Pharaoh was disgraced. Nimrod was disgraced. Abu Jahl was disgraced. Every tyrant who refused to bow to Allah was brought low by Al-Muzill, not arbitrarily, but as a completion of divine justice. The Name also governs something interior: when a believer grows arrogant, Al-Muzill sometimes brings a test that strips away pride — not as punishment, but as mercy. Quran 17:37 warns: “And do not walk on the earth arrogantly. Surely you can neither crack the earth nor stretch to the height of the mountains.” Al-Muzill does not need to be invoked as a threat. He is simply the One who ensures that no created being maintains false greatness permanently.',
+    propheticStory:
+        'Pharaoh declared “Ana rabbukum al-aʿla” — “I am your highest lord” (Quran 79:24) — the most brazen act of taking what belongs to Al-Mutakabbir and Al-Muzill. His punishment was designed to match the crime: he was not killed in a palace or in battle. He was drowned in the same sea that Allah parted for the very people Pharaoh had enslaved. The Quran preserves his body as a sign: “Today We will preserve your body so that you may be a sign for those who come after you.” (Quran 10:92) Al-Muzill’s act of abasement did not end at Pharaoh’s death — it became eternal testimony. The verse in Quran 3:26, “You disgrace who You please,” is not a warning to fear randomly. It is the assurance that the proud will not be exempt. Every believer who has been wronged by a tyrant carries that verse as a promise.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
+      transliteration:
+          "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
+      translation:
+          'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 (verbatim excerpt) — the prayer that protects against the pride that invites Al-Muzill’s correction, and asks for mercy before judgment comes',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Khabeer',
+    arabic: 'الخَبِيرُ',
+    emotionalContext: [
+      'feeling like no one understands your situation from the inside',
+      'making a decision with incomplete information and needing reassurance',
+      'grief that the full truth of what you experienced will never be known',
+      'carrying a complexity that others oversimplify',
+      'anxious about consequences you cannot fully calculate',
+      'longing for someone who truly knows what you have been through',
+      'trying to make sense of a situation that defies easy explanation',
+    ],
+    coreTeaching:
+        'Al-Khabeer is the All-Aware — the One who possesses deep, interior, experiential knowledge of all things. Where Al-Aleem (the All-Knowing) describes breadth of knowledge, Al-Khabeer describes depth of awareness. Jinan Yousef, in her Yaqeen paper on the pairing of Allah’s Names, notes: “Al-Alim is He who knows what is outward, whereas al-Khabir is He who knows what is within.” The word “khabeer” shares a root with “khibra” — expertise, the knowledge that comes from being inside a thing rather than observing it from outside. Al-Khabeer is not just aware of your situation — He is aware of it from within. Quran 49:13 places both Names together at the end of the verse about human dignity: “Surely the most noble of you in the sight of Allah is the most righteous among you. Allah is truly All-Knowing, All-Aware.” Quran 27:88 shows Al-Khabeer’s awareness extending to the fabric of creation itself: “Now you see the mountains, thinking they are firmly fixed, but they are travelling just like clouds. That is the design of Allah, Who has perfected everything. Surely He is All-Aware of what you do.” Everything that appears solid and fixed is moving within His awareness. Quran 11:1 opens Surah Hud with this reassurance: “This is a Book whose verses are well perfected and then fully explained. It is from the One Who is All-Wise, All-Aware.” The Book itself is evidence of Al-Khabeer: every verse fits precisely because its Author knows everything from within.',
+    propheticStory:
+        'Surah al-Mulk closes with a rhetorical question that anchors the entire meaning of Al-Khabeer: “Say, ‘Have you considered: if your water was to dry up, who then could bring you flowing water?’” (Quran 67:30) The answer implied is: only Al-Khabeer, who knows where every drop of water in the earth’s depths has traveled, where it waits, and when it should rise. He does not observe water from a distance — He is aware of it from within the rock. This is what Quran 31:34 means when it says: “Indeed, Allah alone has the knowledge of the Hour. He sends down the rain, and knows what is in the wombs. No soul knows what it will earn for tomorrow, and no soul knows in what land it will die. Surely Allah is All-Knowing, All-Aware.” The things Al-Khabeer knows are precisely the things that are most hidden from human beings — the future, what is in the womb, the hour of death. He knows them not from calculation but from being the One who holds them.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبِّ زِدْنِي عِلْمًا',
+      transliteration: "Rabbi zidni 'ilma",
+      translation: 'My Lord! Increase me in knowledge.',
+      source: 'Quran 20:114 (verbatim) — an appeal to Al-Khabeer, the One who possesses interior knowledge of all things, to share of that depth with us',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Azeem',
+    arabic: '\u0627\u0644\u0652\u0639\u064e\u0638\u0650\u064a\u0645\u064f',
+    emotionalContext: [
+      'overwhelmed by a problem that feels too big to solve',
+      'paralysed by anxiety about the future',
+      'crushed under pressure from every direction',
+      'suffering feels unbearable and endless',
+      'lost sight of how large allah is compared to your troubles',
+      'desperate for something greater than yourself to hold onto',
+    ],
+    coreTeaching:
+        'Al-Azeem is the Tremendous — the One whose Greatness surpasses every category of greatness the human mind can conceive. The word \u02bf\u1e93aẓīm in Arabic carries a weight that the English "great" cannot hold: it speaks of magnitude so absolute that nothing else can be measured beside it. Ibn Abbās narrated that the Prophet \ufdfa recited these words in every moment of distress: "Lā ilāha illā Allāh al-ʿAẓīm al-Ḥalīm, lā ilāha illā Allāh Rabb al-ʿArsh al-ʿAẓīm, lā ilāha illā Allāh Rabb al-samāwāt wa-Rabb al-arḍ wa-Rabb al-ʿArsh al-Karīm" — None has the right to be worshipped but Allah, the Tremendous, the Most Forbearing; None has the right to be worshipped but Allah, Lord of the Tremendous Throne; None has the right to be worshipped but Allah, Lord of the Heavens and Lord of the Earth and Lord of the Noble Throne (Ṣaḥīḥ al-Bukhārī 6346). The scholar Jinan Yousef, in her Yaqeen Institute paper on al-Ḥalīm, highlights the theology embedded in this supplication: "He is the Majestic, the Lord of the heavens and of the Throne, and therefore He is far greater than any problem we are facing." This is the medicine: when your calamity feels immovable, you are measuring it against yourself — measure it instead against Al-Azeem, and it shrinks to its true size. Allāh closes Āyat al-Kursī — the greatest verse in the Quran — with His name: "wa-huwa al-ʿAliyy al-ʿAẓīm" (Quran 2:255). After describing His Throne encompassing the heavens and the earth, He names Himself Al-Azeem. He is not merely larger than your pain. He is larger than the entire cosmos. Your grief is real. But it fits inside the palm of Al-Azeem.',
+    propheticStory:
+        'Ibn ʿAbbās \u0631\u0636\u064a \u0627\u0644\u0644\u0647 \u0639\u0646\u0647 reported that whenever the Prophet \ufdfa was struck by distress he would say: "Lā ilāha illā Allāh al-ʿAẓīm al-Ḥalīm, lā ilāha illā Allāh Rabb al-ʿArsh al-ʿAẓīm, lā ilāha illā Allāh Rabb al-samāwāt wa-Rabb al-arḍ wa-Rabb al-ʿArsh al-Karīm." (Ṣaḥīḥ al-Bukhārī 6346). He did not reach for comfort or distraction first — he reached for magnitude. He named the One who is larger than the problem before naming the problem to anyone. The Quran likewise closes Sūrat al-Wāqiʿah — a sūrah about the Day of Resurrection and the fates of humanity — with the command: "Fa-sabbiḥ bi-sm Rabbika al-ʿAẓīm" — "So glorify the Name of your Lord, the Greatest" (Quran 56:96). After confronting death, judgment, and eternity, the answer is not theology — it is glorification of the One who stands over all of it.',
+    dua: NameTeachingDua(
+      arabic: 'لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ السَّمَوَاتِ وَرَبُّ الأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ',
+      transliteration: "La ilaha illa Allahu al-'Azeem al-Haleem, la ilaha illa Allahu Rabb al-'Arsh al-'Azeem, la ilaha illa Allahu Rabb al-samawati wa Rabb al-ard wa Rabb al-'Arsh al-Kareem",
+      translation: 'None has the right to be worshipped but Allah, the Tremendous, the Most Forbearing. None has the right to be worshipped but Allah, Lord of the Tremendous Throne. None has the right to be worshipped but Allah, Lord of the Heavens and Lord of the Earth and Lord of the Noble Throne.',
+      source: 'Sahih al-Bukhari 6346 — narrated by Ibn Abbas, recited by the Prophet ﷺ in every moment of distress',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Ghafur',
+    arabic: '\u0627\u0644\u0652\u063a\u064e\u0641\u064f\u0648\u0631\u064f',
+    emotionalContext: [
+      'convinced your sins are too many to be forgiven',
+      'returning to the same mistake again and again',
+      'shame after a relapse',
+      'afraid allah has given up on you',
+      'desperate for a fresh start',
+      'too embarrassed to make dua after sinning',
+    ],
+    coreTeaching:
+        'Al-Ghafur is the All-Forgiving — but the Arabic root gh-f-r carries richer meaning than a simple pardon. Al-Ghazālī explains that the root connotes a helmet or covering: Al-Ghafur is the One who covers the sin, conceals it from the sight of others, erases it from the record, and absorbs its consequences. This is not merely acquittal — it is erasure, burial, and new beginning. Al-Ghafur appears 91 times in the Quran, making it one of the most frequently invoked of all the Names. It almost always appears paired with Al-Raḥīm (the Most Merciful): forgiveness and mercy move together. The verse in Sūrat al-Nisāʾ announces: "fa-ulāʾika ʿasā Allāh an yaʿfuwa ʿanhum, wa-kāna Allāh ʿafuwwan Ghafūrā" — "it is right to hope that Allah will pardon them. For Allah is Ever-Pardoning, All-Forgiving" (Quran 4:99). And in Sūrat al-Shūrā, after describing the heavens nearly bursting from awe of Him, Allah closes: "Alā inna Allāh huwa al-Ghafūr al-Raḥīm" — "Surely Allah alone is the All-Forgiving, Most Merciful" (Quran 42:5). The One the heavens tremble before is the same One who covers your sin without a trace. The most important insight about Al-Ghafur: His forgiveness does not wait to assess the size of your sin first. The scholar pairing — al-Ghafūr and al-Raḥīm — teaches that forgiveness (covering what is past) and mercy (sending goodness forward) always arrive together. You are not merely let off. You are actively cared for.',
+    propheticStory:
+        'After Moses \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645 accidentally killed a man and fled to Madyan, he returned to find himself chosen as a Prophet of Allah. His first prayer upon receiving revelation — recorded in Sūrat al-Qaṣaṣ — was an urgent personal one: "Rabbi inni ẓalamtu nafsī fa-ghfir lī" — "My Lord, I have wronged myself, so forgive me" (Quran 28:16). Allah responded by forgiving him immediately: "fa-ghafara lah" (Quran 28:16). The same root: gh-f-r. The man who had fled in fear, who had spent years as a fugitive in the wilderness, was called by Al-Ghafur — the One who covers — before he was called by any title of prophethood. Allah\'s forgiveness arrived first. The lesson embedded in Moses\'s story: the act that shamed you is not what defines you to Al-Ghafur. Your turning back is.',
+    dua: NameTeachingDua(
+      arabic: 'رَبِّ إِنِّي ظَلَمْتُ نَفْسِي فَاغْفِرْ لِي',
+      transliteration: "Rabbi inni zalamtu nafsi faghfir li",
+      translation: 'My Lord, I have wronged myself, so forgive me.',
+      source: 'Quran 28:16 — the supplication of Moses (\u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645) upon receiving forgiveness (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Kabeer',
+    arabic: '\u0627\u0644\u0652\u0643\u064e\u0628\u0650\u064a\u0631\u064f',
+    emotionalContext: [
+      'belittled or dismissed by others',
+      'feeling small and invisible in the world',
+      'intimidated by powerful people or institutions',
+      'comparing yourself to others and feeling inferior',
+      'afraid that your problems are too insignificant for allah to notice',
+      'lost sense of your own worth and dignity',
+    ],
+    coreTeaching:
+        'Al-Kabeer is the All-Great — but Greatness here is not the greatness of pride or power over others. It is the Greatness of absolute, self-subsisting magnitude: the kind before which every other claim to greatness dissolves. Sūrat al-Raʿd states plainly: "ʿĀlim al-ghayb wa-al-shahādah al-Kabīr al-Mutaʿāl" — "Knower of the seen and unseen — the All-Great, Most Exalted" (Quran 13:9). Al-Kabeer is paired with al-Mutaʿāl (the Most High) because His Greatness is not a horizontal expansion — it is a vertical transcendence. He is not merely the biggest thing among many things. He stands above the very category of size. Sūrat al-Ḥajj reinforces this: "dhālik bi-anna Allāh huwa al-Ḥaqq wa-anna mā yadʿūna min dūnih huwa al-bāṭil wa-anna Allāh huwa al-ʿAliyy al-Kabīr" — "That is because Allah alone is the Truth and what they invoke besides Him is falsehood, and Allah alone is the Most High, All-Great" (Quran 22:62). To know that you worship Al-Kabeer is to be liberated from every smaller greatness. The boss who intimidates you, the institution that holds power over you, the person whose approval you crave — every human claim to greatness is falsehood beside Al-Kabeer. Those who truly feel His Greatness fear no other greatness. When a human being makes you feel small, they are doing it without authority. Al-Kabeer alone sets the measure of what matters.',
+    propheticStory:
+        'The Prophet Shuʿayb \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645 stood alone against an entire community that mocked him and threatened to expel him. They said: "O Shuʿayb, we do not understand much of what you say, and indeed we consider you among us as weak" (Quran 11:91). His response was not to argue his own strength — it was to point to something greater: "O my people! Do you have more regard for my clan than for Allah, turning your back on Him entirely? Surely my Lord is Fully Aware of what you do" (Quran 11:92). He anchored his courage not in his own standing but in the comprehensive awareness of Al-Kabeer. He was small. Allah is not. That asymmetry was enough.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا مَا خَلَقْتَ هَٰذَا بَاطِلًا سُبْحَانَكَ فَقِنَا عَذَابَ النَّارِ',
+      transliteration: "Rabbana ma khalaqta hadha batilan subhanaka faqina 'adhab an-nar",
+      translation: 'Our Lord! You have not created all of this without purpose. Glory be to You! Protect us from the torment of the Fire.',
+      source: 'Quran 3:191 — dua of the people of deep reflection (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muqeet',
+    arabic: '\u0627\u0644\u0652\u0645\u064f\u0642\u0650\u064a\u062a\u064f',
+    emotionalContext: [
+      'afraid you will not have enough — money, time, energy, strength',
+      'exhausted from carrying too much alone',
+      'worried that your needs are too small for allah to notice',
+      'feeling unsupported and like no one is watching out for you',
+      'doubting that provision will come',
+      'depleted after giving everything to others',
+    ],
+    coreTeaching:
+        'Al-Muqeet is the Sustainer — the One who holds the power of provision and maintenance over all things. Classical scholars note that the root q-w-t (قوت) means sustenance, nourishment, the precise measure of what a living thing needs. Al-Muqeet is not simply generous — He is the One who already knows exactly what you need and holds it ready. He does not provide in approximations. He sustains with precision. The Quran uses Al-Muqeet in a verse about accountability for intercession: "Whoever intercedes for a good cause will have a share in the reward, and whoever intercedes for an evil cause will have a share in the burden. And Allah is Watchful over all things" (Quran 4:85). The translation renders muqītan as "Watchful" — but the deeper connotation is custodial: He watches because He sustains. He is Guardian because He is Provider. Nothing in creation eats, breathes, or continues without His maintenance. The question "Will I have enough?" is a question already answered by the Name itself. He is Al-Muqeet: there is no created thing He does not sustain.',
+    propheticStory:
+        'The Prophet Muḥammad \ufdfa passed through enormous trials during the thirteen years of Meccan persecution — economic boycott, social exile, the loss of his wife and uncle, relentless opposition. During those years, his small community had little material security. Yet Allah commanded him to trust in the one name that encompasses both physical and spiritual provision. Sūrat al-Nisāʾ was revealed in Madinah during a period when the community was still consolidating — a time when intercession, social standing, and the weight of moral choices were pressing realities. Allah placed Al-Muqeet at the end of the verse on intercession to say: every act you do for good or ill, the One who tracks it is the same One who sustains you. Your provision is in the hands of the One who is also your Witness.',
+    dua: NameTeachingDua(
+      arabic: 'أَنتَ مَوْلَانَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      transliteration: "Anta mawlana fansurna 'alal qawmil kafirin",
+      translation: 'You are our Guardian, so grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 — closing supplication of Surah al-Baqarah (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Haseeb',
+    arabic: '\u0627\u0644\u0652\u062d\u064e\u0633\u0650\u064a\u0628\u064f',
+    emotionalContext: [
+      'watching injustice happen and feeling powerless to stop it',
+      'mistreated by someone who faces no consequences',
+      'carrying guilt about something no one else knows',
+      'afraid your private deeds — good or bad — do not count',
+      'grieving that oppressors seem to win',
+      'longing for someone to finally see everything clearly',
+    ],
+    coreTeaching:
+        'Al-Haseeb is the Reckoner — the One who keeps account of every deed with perfect precision and who is sufficient as the one who settles all accounts. The Arabic root ḥ-s-b carries the meaning of counting, reckoning, and sufficiency: He who reckons is also He who is sufficient. You do not need an additional witness, an additional judge, an additional advocate — Al-Haseeb is enough. The Quran invokes this name in the context of orphan guardianship: "And Allah is sufficient as a vigilant Reckoner" (Quran 4:6). The verse commands guardians to handle orphans\' wealth with integrity, then closes with Al-Haseeb — not as a threat alone, but as a reassurance: even if no human guardian is watching, the divine Reckoner is. This is the double edge of the Name: it comforts the oppressed (everything is recorded, nothing is lost) and it sobres the oppressor (everything is recorded, nothing is hidden). The Yaqeen Institute series "The Name I Need" places Al-Haseeb among the names that answer the question: Why doesn\'t Allah stop injustice immediately? Because Al-Haseeb is not an emergency responder — He is an infallible record-keeper. The account is being kept perfectly. The reckoning comes.',
+    propheticStory:
+        'The Quran describes the scene when Allāh commands the guardians of orphans to hand over their property when they come of age: "Test the competence of the orphans until they reach a marriageable age. Then if you feel they are capable of sound judgment, return their wealth to them... And sufficient is Allah as a vigilant Reckoner" (Quran 4:6). In the early Muslim community, the care of orphans was a live social responsibility — and it was one where private misconduct was easy and detection was hard. Allah placed Al-Haseeb at the end of this command to remind both guardian and orphan: the account is not kept by the orphan, not by the community, not by any human judge. Al-Haseeb holds every transaction in a record that cannot be falsified, lost, or overlooked. Your private integrity — the kindness no one witnessed, the shortcut you did not take — is seen.',
+    dua: NameTeachingDua(
+      arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+      transliteration: "Hasbunallahu wa ni'mal wakeel",
+      translation: 'Allah is sufficient for us, and He is the best Disposer of affairs.',
+      source: 'Quran 3:173 — the words of believers when threatened; narrated as a saying of Ibrahim and Muhammad \ufdfa (Sahih al-Bukhari 4563)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Jaleel',
+    arabic: '\u0627\u0644\u0652\u062c\u064e\u0644\u0650\u064a\u0644\u064f',
+    emotionalContext: [
+      'spiritually dry, going through motions without awe',
+      'worship feels routine and empty',
+      'heart has grown distant from the sense of the divine',
+      'intimidated by the perfection and holiness of allah',
+      'struggling to feel reverence rather than just obligation',
+      'numbed by hardship until nothing feels sacred anymore',
+    ],
+    coreTeaching:
+        'Al-Jaleel is the Majestic — the One whose Jalāl (majestic awe) is not merely impressive but overwhelming to every faculty that perceives it. The scholars distinguish between the Names of Jamāl (beauty) — like Al-Raḥmān, Al-Wadūd — and the Names of Jalāl (majesty) — like Al-Jaleel, Al-Qāhir, Al-Mutakabbir. Al-Jaleel belongs to the Names of awe: He is not encountered comfortably. The Prophet \ufdfa is reported to have said that a man from Bani Israel worshipped for a thousand years and could not see the Name Al-Jaleel without trembling. Dr. Omar Suleiman at the Yaqeen Institute describes reflecting on Al-Jaleel as "living within a Kingdom ruled by a King who commands hearts with majestic awe." This is not fear that paralyses — it is the holy trembling that realigns. The Quran pairs Al-Jaleel in essence with Al-Akram (the Most Generous) in Sūrat al-Raḥmān: "Tabāraka sm Rabbika dhī al-Jalāl wa-al-Ikrām" — "Blessed is the Name of your Lord, the One of Majesty and Honour" (Quran 55:78). His Jalāl (majesty) is always accompanied by His Ikrām (honour toward His servants). He does not overwhelm without also ennobling. The right response to Al-Jaleel is not cowering — it is reverential nearness. His awe does not push you away. It draws you into something larger than yourself.',
+    propheticStory:
+        'In Sūrat al-Raḥmān, Allah asks His creatures seventy-one times: "Fa-bi-ayyi ālāʾi Rabbikumā tukadhdhibān" — "So which of your Lord\'s favours will you both deny?" (Quran 55). The sūrah catalogues the heavens, the earth, the seas, the two gardens of Paradise — and then closes with the thundering refrain: "Tabāraka sm Rabbika dhī al-Jalāl wa-al-Ikrām" — "Blessed is the Name of your Lord, the One of Majesty and Honour" (Quran 55:78). The awe of Al-Jaleel is not the awe of a distant tyrant — it is the awe produced by an unending river of beauty and generosity. You feel His Greatness not because He threatens, but because His gifts are so vast that the heart trembles realising it can never repay them. The two Names move together through the entire sūrah: Majesty inseparable from Honour.',
+    dua: NameTeachingDua(
+      arabic: 'تَبَارَكَ اسْمُ رَبِّكَ ذِي الْجَلَالِ وَالْإِكْرَامِ',
+      transliteration: "Tabarakas-mu Rabbika dhil-Jalali wal-Ikram",
+      translation: 'Blessed is the Name of your Lord, the One of Majesty and Honour.',
+      source: 'Quran 55:78 — closing verse of Surah al-Rahman (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Wasi',
+    arabic: '\u0627\u0644\u0652\u0648\u064e\u0627\u0633\u0650\u0639\u064f',
+    emotionalContext: [
+      'afraid your prayer direction or posture was wrong',
+      'worried allah\'s mercy cannot reach you in your current state',
+      'geographically or spiritually far from community',
+      'overwhelmed by the vastness of your own failures',
+      'wondering if there is room for someone like you',
+      'exile, displacement, or loneliness cuts you off from religious practice',
+    ],
+    coreTeaching:
+        'Al-Wasi is the All-Encompassing — whose vastness cannot be bounded by direction, condition, or circumstance. The Quran reveals this Name in a moment of apparent legal crisis: early Muslims were uncertain about which direction to pray, or whether prayers offered in the wrong direction counted. Allah\'s answer: "To Allah belong the east and the west, so wherever you turn you are facing Allah. Surely Allah is All-Encompassing, All-Knowing" (Quran 2:115). He declared Himself Al-Wasi — and the legal problem dissolved into theology. You cannot pray in a direction outside of Allah. And then, when Moses \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645 pleaded for goodness in this life and the next, Allah responded: "My mercy encompasses everything" — wa-raḥmatī wasiʿat kulla shayʾ (Quran 7:156). The word used for mercy\'s encompassing is the same root as Al-Wasi. His mercy does not reach out to some and fall short of others. It already covers everything. It is already there. The scholar\'s insight on this Name: Al-Wasi answers the fear of being outside the range of divine care. There is no outside. He is the One whose encompassment has no edges.',
+    propheticStory:
+        'The revelation of Quran 2:115 came during a period when the early Muslim community was still settling questions of ritual practice. A group of companions had been praying while travelling and were uncertain if their direction was correct. The verse responded not with a legal ruling alone but with a Name of Allah: Al-Wasi — the All-Encompassing. It was a theological recalibration: you do not find Allah by finding the right coordinates. You find Allah by turning, in sincerity, toward the One who is already wherever you turn. The Prophet \ufdfa taught this spirit in how he prayed on camelback during travel — he prayed toward whichever way his camel happened to be facing, trusting that Al-Wasi did not require him to dismount for every supererogatory prayer.',
+    dua: NameTeachingDua(
+      arabic: 'وَاكْتُبْ لَنَا فِي هَٰذِهِ الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ إِنَّا هُدْنَا إِلَيْكَ',
+      transliteration: "Waktub lana fi hadhihi al-dunya hasanatan wa fil-akhirati inna hudna ilayk",
+      translation: 'Ordain for us what is good in this life and the next. Indeed, we have turned to You in repentance.',
+      source: 'Quran 7:156 — the supplication of Moses addressed to the All-Encompassing Allah (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Majeed',
+    arabic: '\u0627\u0644\u0652\u0645\u064e\u062c\u0650\u064a\u062f\u064f',
+    emotionalContext: [
+      'worship feels transactional rather than a relationship with glory',
+      'struggling to feel the nobility of being in allah\'s presence',
+      'lowered by life\'s humiliations until dignity feels lost',
+      'difficulty trusting allah\'s generosity after repeated hardship',
+      'yearning for something honourable and beautiful in your life',
+      'feeling like your prayers are unworthy to reach such a great god',
+    ],
+    coreTeaching:
+        'Al-Majeed is the All-Glorious — a Name drawn from the Arabic root m-j-d, which the classical scholars describe as combining three qualities: vastness of honour, nobility of character, and inexhaustible generosity. His Majd (glory) is not the brittle prestige of earthly kings that can be threatened or lost — it is the self-sustaining, overflowing glory of the One who lacks nothing and diminishes nothing by giving. The Quran places Al-Majeed in two places that illuminate its depth. In the scene of the angels visiting Ibrahim \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645 with news of a son, they tell his wife who is astonished: "Are you astonished by Allah\'s decree? May Allah\'s mercy and blessings be upon you, O people of this house. Indeed, He is Praiseworthy, All-Glorious" (Quran 11:73). And in Sūrat al-Burūj, describing the Throne: "Lord of the Throne, the All-Glorious" (Quran 85:15). Al-Majeed is the One whose Throne is the seat of His Glory — and He shares that Glory not as an exception but as His nature. His generosity to Ibrahim\'s household — a child after old age — is not a miracle departing from His nature. It IS His nature. The Quran also uses this root for the Quran itself: "Bal huwa Qurʾān majīd" — "In fact, this is a glorious Quran" (Quran 85:21). The Book is Majeed because it comes from Al-Majeed.',
+    propheticStory:
+        'The angels delivered news to Sarah, wife of Ibrahim \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645, that she would bear a son despite her old age. She laughed — a laugh of astonishment, not disbelief — and asked: "How can I bear a child when I am an old woman and my husband is an old man? This is truly an amazing thing!" The angels replied: "Are you astonished by Allah\'s decree? May Allah\'s mercy and blessings be upon you, O people of this house. Indeed, He is Ḥamīd, Majīd" (Quran 11:73). They named Him Al-Majeed precisely at the moment the impossible was announced. His glory does not diminish when it overflows. The miracle of Isḥāq\'s birth was not a strain on Al-Majeed — it was an expression of it.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
+      transliteration: "Rabbana la tu'akhidhna in nasina aw akhta'na, rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina, rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'ala al-qawmil kafirin",
+      translation: 'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 — closing supplication of Surah al-Baqarah (verbatim excerpt)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Baith',
+    arabic: 'الْبَاعِثُ',
+    emotionalContext: [
+      'afraid death is the final word on your suffering',
+      'struggling to find purpose in this life',
+      'grief over someone who died before justice reached them',
+      'wondering if the sacrifices of this life mean anything',
+      'numb to the idea of the afterlife — it feels abstract',
+      'dreading accountability but also desperate for justice',
+    ],
+    coreTeaching:
+        'Al-Baʿith is the Resurrector — the One who raises the dead, restores what has ended, and calls forth what was buried. The root b-ʿ-th means to send, to dispatch, to rouse from sleep — Al-Baʿith is the One who will rouse all of creation from the sleep of death on the Day He decrees. The Quran makes this declaration unambiguous: "And certainly the Hour is coming, there is no doubt about it. And Allah will surely resurrect those in the graves" (Quran 22:7). And in Sūrat Yūnus, He frames the purpose of resurrection in justice: "Indeed, He originates the creation then resurrects it so that He may justly reward those who believe and do good" (Quran 10:4). Al-Baʿith is not just the promise of continuity — He is the guarantee that the ledger of this world will be settled. Every tear wept in injustice, every good deed done in obscurity, every martyr whose killers were never tried — Al-Baʿith holds the resurrection as the moment when all of it is addressed. This Name answers the most profound human grief: the feeling that death makes everything meaningless. To Al-Baʿith, death is not the ending — it is a transition between two phases of the same story. And the second phase, unlike the first, has no injustice left in it.',
+    propheticStory:
+        'The Prophet ﷺ was asked repeatedly about the resurrection by those who found it inconceivable. Allah\'s answer to the doubters does not appeal to philosophy — it appeals to the Name itself: the One who began creation can obviously repeat it. "Who originates the creation then resurrects it, and gives you provisions from the heavens and the earth?" (Quran 27:64). And in Sūrat al-Burūj: "Indeed, He is certainly the One Who originates and resurrects" (Quran 85:13). Al-Baʿith is the experiential reality of that promise: you will be raised, called to account, and given what the world withheld.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا إِنَّكَ جَامِعُ النَّاسِ لِيَوْمٍ لَّا رَيْبَ فِيهِ إِنَّ اللَّهَ لَا يُخْلِفُ الْمِيعَادَ',
+      transliteration: "Rabbana innaka jami'u an-nasi li-yawmin la rayba fih, inna Allaha la yukhlifu al-mi'ad",
+      translation: 'Our Lord, surely You will gather the people on a Day about which there is no doubt. Indeed, Allah does not break His promise.',
+      source: 'Quran 3:9 — supplication of those who reflect on creation and resurrection (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ash-Shaheed',
+    arabic: 'الشَّهِيدُ',
+    emotionalContext: [
+      'doing good that nobody sees or acknowledges',
+      'accused of something you did not do',
+      'carrying a secret good deed or private sacrifice',
+      'surrounded by people who lie or misrepresent you',
+      'private worship feels pointless without outer recognition',
+      'longing for someone to finally witness what you have been through',
+    ],
+    coreTeaching:
+        'Ash-Shahīd is the Witness — the One who is present at everything, missing nothing, whose testimony is perfect and sufficient. The Arabic sh-h-d carries the meaning of presence (to witness is to be there), perception (to witness is to understand what you see), and testimony (to witness is to be able to testify). Ash-Shahīd has all three: He is omnipresent, omniscient, and His testimony cannot be challenged. The Quran invokes this Name repeatedly at moments of contested truth: "Yet Allah bears witness to what He has sent down to you — He has sent it with His Knowledge. The angels too bear witness. And Allah alone is sufficient as a Witness" (Quran 4:166). And: "Whatever good befalls you is from Allah and whatever evil befalls you is from yourself... And Allah is sufficient as a Witness" (Quran 4:79). And at the proclamation of the Prophet\'s mission: "He is the One Who has sent His Messenger with right guidance and the religion of truth, making it prevail over all others. And sufficient is Allah as a Witness" (Quran 48:28). In every case, Ash-Shahīd is invoked as the one whose witnessing settles the question. No human court, no social consensus, no amount of denial can erase what Ash-Shahīd has witnessed. The good you did when no one was looking — He witnessed it. The injustice done to you when no one believed you — He witnessed it.',
+    propheticStory:
+        'When the Prophet ﷺ was rejected by his people — called a liar, a poet, a madman — the Quran did not offer him a human defender. It offered him the Name: "Yet Allah bears witness to what He has sent down to you. He has sent it with His Knowledge. And Allah alone is sufficient as a Witness" (Quran 4:166). His vindication was not the verdict of his contemporaries. It was the testimony of Ash-Shahīd. The fact that Mecca eventually accepted Islam did not change the theological point: even if it never had, the Prophet\'s truth would have been witnessed. Every believer who has been lied about, dismissed, or silenced walks the same road. The verdict of history is not the verdict of Ash-Shahīd.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا وَاسِعٌ كُلَّ شَيْءٍ رَحْمَةً وَعِلْمًا فَاغْفِرْ لِلَّذِينَ تَابُوا وَاتَّبَعُوا سَبِيلَكَ',
+      transliteration: "Rabbana wasi'ta kulla shay'in rahmatan wa 'ilman faghfir lilladhina tabu wattaba'u sabilak",
+      translation: 'Our Lord, You encompass all things in mercy and knowledge, so forgive those who repent and follow Your path.',
+      source: 'Quran 40:7 — the supplication of the angels who carry the Throne, addressed to the All-Knowing Witness (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Haqq',
+    arabic: 'الْحَقُّ',
+    emotionalContext: [
+      'lost in confusion about what is real and what is false',
+      'surrounded by so many conflicting voices you do not know what to believe',
+      'feel like the truth about your life is being obscured or denied',
+      'spiritual doubt — wondering if any of this is actually real',
+      'grief over injustice that has not been recognised as such',
+      'holding fast to something true when the whole world calls it false',
+    ],
+    coreTeaching:
+        'Al-Ḥaqq is the Truth — not merely truthful, but the very ground of reality itself. Everything that is real is real because it participates in His Being. Everything false is false because it is absent from Him. The Quran states this with extraordinary clarity: "That is because Allah alone is the Truth, He alone gives life to the dead, and He alone is Most Capable of everything" (Quran 22:6). His being the Truth is not a moral claim about His honesty — it is an ontological claim about His reality. Al-Ḥaqq is the only being whose existence is necessary, uncreated, and cannot cease. Everything else is contingent. He alone IS in the fullest sense. And from this flows the rest: He gives life to the dead, He is capable of everything — because He is the source of all being. The Quran also anchors Al-Ḥaqq in contrast: "That is because Allah alone is the Truth and what they invoke besides Him is falsehood, and Allah alone is truly the Most High, All-Great" (Quran 22:62). This is why idol worship is not simply misguided devotion — it is a devotion to what does not exist, to what is by definition not-Real, not-Ḥaqq. And in Sūrat al-Anʿām, the cosmos itself is described through this Name: "He is the One Who created the heavens and the earth in truth" (Quran 6:73) — meaning the creation is not a game or a dream. It is Real, because Al-Ḥaqq made it so.',
+    propheticStory:
+        'When the Prophet ﷺ would wake for night prayer (Tahajjud), he began with this supplication — recorded as Sahih al-Bukhari 1120 from the narration of Ibn ʿAbbas — that centres entirely on Al-Ḥaqq: "O Allah, Lord of the heavens and the earth, and Lord of everything. You are al-Ḥaqq. Your promise is Ḥaqq. Your word is Ḥaqq. The meeting with You is Ḥaqq. Paradise is Ḥaqq. Hell is Ḥaqq. The Prophets are Ḥaqq. Muhammad ﷺ is Ḥaqq. The Hour is Ḥaqq." In a world of fluctuating realities, the Prophet anchored himself before dawn in the Name that is the foundation of all of them. Whatever is Ḥaqq — whatever is real, whatever is certain, whatever will endure — flows from Al-Ḥaqq. This is the theological reality that gives believers courage: your truth, when it is aligned with His Truth, does not depend on whether others acknowledge it.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا مَا خَلَقْتَ هَٰذَا بَاطِلًا سُبْحَانَكَ فَقِنَا عَذَابَ النَّارِ',
+      transliteration: "Rabbana ma khalaqta hadha batilan subhanaka faqina 'adhaba an-nar",
+      translation: 'Our Lord! You have not created all of this without purpose. Glory be to You! Protect us from the torment of the Fire.',
+      source: 'Quran 3:191 — dua of those who reflect on creation (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Qawiyy',
+    arabic: 'الْقَوِيُّ',
+    emotionalContext: [
+      'exhausted and running on empty',
+      'the battle feels too large for your strength',
+      'powerless against systems or people that harm you',
+      'no strength left to keep fighting for what is right',
+      'afraid your weakness will be your defeat',
+      'asked to endure more than feels humanly possible',
+    ],
+    coreTeaching:
+        'Al-Qawiyy is the All-Powerful — the One whose strength is boundless, undiminishing, and freely transferred to those who rely on Him. The Arabic root q-w-y (قوة) means strength, might, and capacity. Al-Qawiyy is not merely very strong — He is the source of all strength. Whatever strength exists anywhere in creation is only a fraction borrowed from Al-Qawiyy. The Quran pairs Al-Qawiyy consistently with Al-ʿAzīz (the Almighty), anchoring two aspects of divine strength: the power (Al-Qawiyy) and the invincibility (Al-ʿAzīz). When persecuted believers were expelled from their homes for no reason but saying "Our Lord is Allah," the Quran promised their vindication and then closed: "Allah is truly All-Powerful, Almighty" (Quran 22:40). When the Prophet\'s mission to bring iron (harsh truth alongside soft mercy) was described: "Surely Allah is All-Powerful, Almighty" (Quran 57:25). This is the comfort Al-Qawiyy offers: it is not that He promises to make you personally stronger in the way you imagine. It is that His strength is in the field on behalf of those who call on Him. When you have no strength left, you are not helpless — you are resting in the care of Al-Qawiyy. Your weakness is not a disqualifier. It is the very moment when His strength becomes most visible.',
+    propheticStory:
+        'The early Muslim community in Mecca was expelled, boycotted, and persecuted for years. They had no army, no state, no material power. The Quran addressed their situation directly with the Name: "Allah has decreed, I and My messengers will certainly prevail. Surely Allah is All-Powerful, Almighty" (Quran 58:21). The word "decreed" (kataba) means written, fixed, unchangeable — the victory was declared not as a wish but as a settled fact, grounded in Al-Qawiyy. History proved it: the most powerful empire of the ancient world, Rome and Persia, were outlasted by the community whose Prophet promised them nothing except the Strength of the One behind him. Their strength was not their own. It was borrowed from Al-Qawiyy.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا أَفْرِغْ عَلَيْنَا صَبْرًا وَثَبِّتْ أَقْدَامَنَا وَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      transliteration: "Rabbana afrigh 'alayna sabran wa thabbit aqdamana wansurna 'alal qawmil kafirin",
+      translation: 'Our Lord, pour patience upon us, make our feet firm, and grant us victory over the disbelieving people.',
+      source: 'Quran 2:250 — the supplication of the army of Talut facing overwhelming odds (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Waliyy',
+    arabic: 'الْوَلِيُّ',
+    emotionalContext: [
+      'feel completely alone with no one to protect you',
+      'abandoned by family or community',
+      'vulnerable with no earthly helper or advocate',
+      'afraid of enemies who are more powerful than you',
+      'carrying a burden too heavy to carry alone',
+      'longing for a guardian who truly understands your situation',
+    ],
+    coreTeaching:
+        'Al-Waliyy is the Guardian — the One who is not merely watching over you but is intimately, loyally, protectively close. The root w-l-y carries several interlocking meanings: to be near, to be the master, to be a guardian, to be a helper. Al-Waliyy is all of these simultaneously. He is not a distant observer who sometimes intervenes — He is the One who has taken you under His walāya (guardianship) as a matter of His own nature. The Quran pairs Al-Waliyy with Al-Ḥamīd (the Praiseworthy) in one of the most beautiful verses about divine care: "He is the One Who sends down rain after people have given up hope, spreading out His mercy. He is the Guardian, the Praiseworthy" (Quran 42:28). The context is stunning: people had despaired of rain — they had given up. And exactly at the moment of despair, Al-Waliyy sent what they had stopped hoping for. His guardianship is not conditional on your hope. It precedes it. It arrives even when you have stopped asking. And He does it as Al-Ḥamīd — the Praiseworthy — meaning His act of care is itself an act of glory, worthy of praise. He does not guard reluctantly. He guards because it is His nature to be praised for loving His servants well.',
+    propheticStory:
+        'In Sūrat al-Shūrā, the verse about rain (Quran 42:28) was revealed to a community that regularly experienced drought in the Arabian Peninsula — a community for whom rain was life. The image is precise: people give up, accept the absence, begin to mourn — and then it rains. Al-Waliyy is not moved by their hope (they had none) or their prayer (the verse does not mention prayer). He is moved by His own nature as Guardian. This is the same Name the Prophet ﷺ invoked in the famous dua from the closing verse of Surah al-Baqarah: "Anta Mawlānā fa-anṣurnā ʿalā al-qawm al-kāfirīn" — "You are our Guardian, so grant us victory over the disbelieving people" (Quran 2:286). The word Mawlānā shares the same root as Al-Waliyy. In the darkest moment, the appeal is not to strength alone but to relationship: You are our Waliyy. Act accordingly.',
+    dua: NameTeachingDua(
+      arabic: 'أَنتَ مَوْلَانَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      transliteration: "Anta mawlana fansurna 'alal qawmil kafirin",
+      translation: 'You are our Guardian, so grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 — closing supplication of Surah al-Baqarah (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Hameed',
+    arabic: 'الْحَمِيدُ',
+    emotionalContext: [
+      'gratitude feels impossible when life is painful',
+      'wonder whether praising allah in hardship is honest or forced',
+      'spiritual life feels hollow — words of praise without feeling',
+      'feel unworthy to offer praise because of your own imperfection',
+      'lost the feeling of wonder and thankfulness',
+      'going through motions of worship without genuine hamd',
+    ],
+    coreTeaching:
+        'Al-Ḥamīd is the Praiseworthy — not the One who happens to receive praise, but the One who is inherently, objectively, necessarily worthy of all praise. The distinction matters: you do not create His praiseworthiness by praising Him. His Ḥamd (praise-worthiness) is a quality that precedes your recognition of it, independent of it, true whether or not any creation ever voiced it. Every mouth that has ever praised anything beautiful has been, knowingly or not, reaching toward Al-Ḥamīd. The Quran opens with Alhamdulillah — "All praise belongs to Allah, Lord of all worlds" (Quran 1:2) — as the first full sentence of revelation, establishing that the correct orientation of the human heart is praise. And the Quran closes our prayers on that same note: "It is He who sends blessings upon you — and His angels — to bring you out from darknesses into the light. And He is ever, to the believers, Merciful" — Surah al-Aḥzāb. But it is the pairing of Al-Ḥamīd with Al-Majeed (Quran 11:73) and Al-Waliyy (Quran 42:28) and Al-Ghanī (Quran 31:26, 57:24) that reveals the theology: He is praised not because He needs the praise (He is Al-Ghanī — Self-Sufficient) but because praise is the natural response of anything that perceives genuine goodness. Al-Ḥamīd is so good that rightly-ordered creation cannot help but praise Him. Your praise of Him is not a gift to Him. It is you finally moving into alignment with what is true.',
+    propheticStory:
+        'The Quran records the scene of the angels announcing to Ibrahim\'s household that they would bear a son despite old age. Their announcement closed: "Indeed, He is Ḥamīd, Majīd" — Praiseworthy, All-Glorious (Quran 11:73). The impossible gift was explained by His Name: He gives this way because giving is what the All-Praiseworthy does. And from the side of the receiver, the Prophet ﷺ modelled the response to every gift: "Alhamdulillah" — said when waking, when eating, when sneezing, when completing anything. The Quran in Surah al-Aḥzāb (33:56) commands: "Indeed, Allah confers blessing upon the Prophet, and His angels ˹ask Him to do so˺. O you who have believed, ask ˹Allah to confer˺ blessing upon him and ask ˹Allah to grant him˺ peace." He ﷺ taught the darud as the vehicle by which we praise not only him but the One whose praiseworthiness the Prophet\'s very existence announced.',
+    dua: NameTeachingDua(
+      arabic: 'أَنِ الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+      transliteration: "Ani'l-hamdu lillahi rabbi'l-alameen",
+      translation: 'All praise is for Allah, Lord of all worlds.',
+      source: 'Quran 10:10 (verbatim) — the closing praise of the people of Paradise, the final word that ends every act of remembrance.',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muhsi',
+    arabic: 'الْمُحْصِي',
+    emotionalContext: [
+      'feel like your good deeds are too small to matter',
+      'private sacrifices that no one notices or counts',
+      'overwhelmed by the fear of forgotten sins',
+      'afraid your efforts have added up to nothing',
+      'keep track of other people\'s wrongs against you',
+      'yearn for someone to finally count everything correctly',
+    ],
+    coreTeaching:
+        'Al-Muḥsī is the Enumerator — the One who has counted and catalogued every single thing in existence, without loss, without error, without approximation. The Arabic root ḥ-s-y means to count, to enumerate, to take inventory — Al-Muḥsī is the One who holds the complete inventory of all creation. Not an estimate. Not a record with gaps. A perfect, complete count. Sūrat al-Jinn closes with this Name in its most awe-inducing form: "to ensure that the messengers fully deliver the messages of their Lord — though He already knows all about them, and keeps account of everything" — wa-aḥsā kulla shayʾin ʿadadā (Quran 72:28). And Sūrat al-Nabaʼ: "And We have everything recorded precisely" — wa-kulla shayʾin aḥsaynāhu kitāban (Quran 78:29). And in Sūrat Yāsīn: "Everything is listed by Us in a perfect Record" (Quran 36:12). The triple Quranic testimony is overwhelming: nothing is outside His count. The seed of patience you sowed in silence. The prayer prayed through tears at 3am. The kindness done and immediately forgotten by the recipient. Al-Muḥsī has it. The deepest comfort of this Name is not just about reward — it is about being truly known. He does not see you in summary. He sees you in full inventory: every detail, every private moment, every cell of struggle.',
+    propheticStory:
+        'When the Prophet ﷺ recounted the Day of Judgment, he described a scene that would terrify and console simultaneously: a person\'s own body parts testifying about their deeds. The Quran gives voice to this in Sūrat Fuṣṣilat: "They will ask their skin furiously, \'Why have you testified against us?\' It will say, \'We have been made to speak by Allah, Who causes all things to speak. He is the One Who created you the first time, and to Him you were bound to return\'." (Quran 41:21). This is the testimony of Al-Muḥsī\'s record made manifest. The skin did not forget. The earth did not forget. Sūrat al-Zalzalah tells us: "On that Day, the earth will report its news — whatever your Lord has revealed to it" (Quran 99:4-5). Every surface was always a recording device in Al-Muḥsī\'s archive. Nothing you did has slipped through.',
+    dua: NameTeachingDua(
+      arabic: 'سُبْحَانَكَ لَا عِلْمَ لَنَا إِلَّا مَا عَلَّمْتَنَا إِنَّكَ أَنتَ الْعَلِيمُ الْحَكِيمُ',
+      transliteration: "Subhanaka la 'ilma lana illa ma 'allamtana innaka anta al-Alim al-Hakim",
+      translation: 'Glory be to You! We have no knowledge except what You have taught us. You are truly the All-Knowing, All-Wise.',
+      source: 'Quran 2:32 — the words of the angels before the All-Knowing, All-Wise Allah (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Mubdi',
+    arabic: 'الْمُبْدِئُ',
+    emotionalContext: [
+      'feel like it is too late to start over',
+      'exhausted by a failed attempt and afraid to try again',
+      'the past feels permanent and unchangeable',
+      'afraid that who you have been defines who you will always be',
+      'lost the courage to begin something new',
+      'convinced you have used up your chances',
+    ],
+    coreTeaching:
+        'Al-Mubdi is the Originator — the One who brought all of creation into existence from absolute nothing, without precedent, without model, without effort. The root b-d-ʼ in Arabic means to begin, to innovate, to bring into being what has never existed before. Al-Mubdi is not simply the first cause in a chain of causes. He brought the chain itself into being. There was nothing — and then there was everything, because Al-Mubdi willed it. The Quran pairs Al-Mubdi with Al-Muīd (the Restorer) in three remarkable verses, each time presenting origination and return together as a pair that cannot be separated: "Indeed, He is certainly the One Who originates and resurrects" (Quran 85:13). "He originates the creation then resurrects it so that He may justly reward those who believe" (Quran 10:4). "Who originates the creation then resurrects it" (Quran 27:64). The theological weight of Al-Mubdi for human experience: if He could originate the entire cosmos from nothing, then He can certainly originate a new chapter in your life from whatever ruins remain. The fear of "it is too late" assumes that the constraints of the past bind Al-Mubdi. They do not. He who created ex nihilo is not constrained by history. The One who began everything can begin again.',
+    propheticStory:
+        'The Prophet Ayyub (Job) عليه السلام lost everything: his wealth, his children, his health. His suffering lasted years. The Quran records his cry to Al-Mubdi\'s complementary face, Al-Muīd: "Affliction has touched me, and You are the Most Merciful of the merciful" (Quran 21:83). Allah\'s response was not simply to restore what had been taken — it was to originate something new. He restored Ayyub\'s health, granted him his family again, and gave him a doubled portion. The response of Al-Mubdi to Ayyub\'s end was a new beginning, not a return to an old checkpoint. When al-Mubdi intervenes in your life\'s ruins, what comes next is not a reconstruction of what was. It is an origination of what never was before.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّي لَا تَذَرْنِي فَرْدًا وَأَنتَ خَيْرُ الْوَارِثِينَ',
+      transliteration: "Rabbi la tadhharni fardan wa-anta khayrul waritheen",
+      translation: 'My Lord, do not leave me without offspring, and You are the best of inheritors.',
+      source: 'Quran 21:89 — the supplication of Zakariyya (عليه السلام), praying for a new beginning when hope had run out (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muid',
+    arabic: 'الْمُعِيدُ',
+    emotionalContext: [
+      'afraid what has been broken can never be restored',
+      'relationships that feel beyond repair',
+      'grief over a version of yourself you have lost',
+      'doubt that the damage done to your faith can be undone',
+      'feel trapped by what has already happened',
+      'longing for the life or peace you once had',
+    ],
+    coreTeaching:
+        'Al-Muīd is the Restorer — the One who brings back, returns, and repeats creation. Where Al-Mubdi is the beginning, Al-Muīd is the return: together they form the complete arc of existence. But Al-Muīd is not merely about the physical resurrection on the Day of Judgment — though that is His grandest expression. He is the One whose power to restore is inherent in His nature, operating in this life as well. The Quran presents these two Names as inseparable partners: "Indeed, He is certainly the One Who originates and resurrects" (Quran 85:13). "He originates the creation then resurrects it" (Quran 10:4). What the root ʿ-w-d (عود) means is return: to come back to what was, to restore a state, to repeat. Al-Muīd is the guarantee that nothing good is permanently lost. This Name speaks directly to the deepest human fear: that irreversible loss is the final word. The Quran and the prophets\' lives together testify: Al-Muīd does not consider any state irreversible. Yaʿqūb عليه السلام was separated from his son Yūsuf for decades, grieved until his eyes turned white from weeping — and the restoration came. Ayyub عليه السلام lost every material thing — and the restoration came. Al-Muīd does not restore on your timeline. He restores when the wisdom of the return is complete.',
+    propheticStory:
+        'The story of Yūsuf عليه السلام is the Quran\'s most complete portrait of Al-Muīd at work across a human lifetime. His brothers cast him into a well. He was sold into slavery. He was imprisoned on a false accusation. His father wept for him for decades. And then — from within an Egyptian prison — Al-Muīd began the restoration. Yusuf was raised to the highest office in the land. His brothers came before him. His father\'s sight was restored. The shirt that Yūsuf\'s brothers had bloodied was the same material that would restore his father\'s eyes when brought from Egypt. The Quran records Yaʿqūb\'s response when the restoration came: "Did I not tell you that I know from Allah what you do not know?" (Quran 12:96). He had trusted Al-Muīd when it was invisible. The return came.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration: "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa-qina 'adhaba an-nar",
+      translation: 'Our Lord! Grant us goodness in this world and goodness in the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 — the supplication of those who seek good in both worlds, recited by the Prophet ﷺ constantly (Sahih al-Bukhari 4522)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muhyi',
+    arabic: 'الْمُحْيِي',
+    emotionalContext: [
+      'after a long period of spiritual deadness',
+      'wondering if you will ever feel connected to faith again',
+      'depression that has drained all meaning from life',
+      'feeling like part of you has died',
+      'recovery from a devastating loss',
+      'desperate for renewal you cannot manufacture yourself',
+    ],
+    coreTeaching:
+        'Al-Muhyi is the Giver of Life — the One who alone originates life, restores it, and will call it back on the Day of Resurrection. The Quran pairs this Name directly with Al-Mumeet (the Causer of Death) to make a single theological claim: what begins and ends life is not fate, not biology, not chance — it is One Being with deliberate will. As Allah declares in Surah Al-Hadid: "lahu mulku as-samawati wa-l-ard, yuhyi wa-yumeet, wa-huwa ʿala kulli shayʼin qadir" — "To Him belongs the kingdom of the heavens and the earth. He gives life and causes death. And He is Most Capable of everything" (Quran 57:2). But the Name runs deeper than physical biology. In Surah Ya-Sin, when a skeptic mocks resurrection — "Who will give life to decayed bones?" — Allah answers with a direct claim of His Name: "Qul yuhyiha allathi anshaʼaha awwala marra, wa-huwa bikulli khalqin ʿalim" — "Say: They will be revived by the One Who produced them the first time, for He has perfect knowledge of every created being" (Quran 36:79). The One who made something from nothing holds infinitely more power to remake it. And in Surah Al-Fussilat, He offers the most intimate sign: the barren earth that trembles back to life under rain (Quran 41:39). That earth is you. The drought you feel inside — the numbness, the distance from prayer, the sense that your soul has gone cold — is not permanent. Al-Muhyi revives what He made. He does not need your momentum. He needs only to say: Be.',
+    propheticStory:
+        'When the disbelieving king Nimrod challenged Ibrahim (عليه السلام), he sneered: "I too have the power to give life and cause death." Ibrahim immediately shifted ground: "Allah causes the sun to rise from the east. So make it rise from the west." And so the disbeliever was dumbstruck (Quran 2:258). The story is not primarily about the king’s defeat. It is about what Ibrahim knew: life is not a force you seize. It belongs to One. The king who claimed to give life produced theatre. Al-Muhyi does not perform — He originates. Ibrahim knew you cannot argue a person into faith using logic alone; you show them where the life truly comes from. Every dawn that follows your darkest night is Al-Muhyi making His argument again.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَآ أَمَتَّنَا ٱثْنَتَيْنِ وَأَحْيَيْتَنَا ٱثْنَتَيْنِ فَٱعْتَرَفْنَا بِذُنُوبِنَا فَهَلْ إِلَىٰ خُرُوجٍ مِّن سَبِيلٍ',
+      transliteration:
+          "Rabbana amattana ithnatayni wa ahyaytana ithnatayni fa'tarafna bidhunubina fahal ila khurujin min sabil",
+      translation:
+          'Our Lord! You made us lifeless twice and gave us life twice. Now we confess our sins. So is there any way out?',
+      source: 'Quran 40:11 (verbatim excerpt — the disbelievers in the Fire finally acknowledge resurrection)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Mumeet',
+    arabic: 'الْمُمِيتُ',
+    emotionalContext: [
+      'grieving the death of someone you love',
+      'terrified of dying',
+      'watching someone you love suffer and unable to stop it',
+      'grappling with why death feels so cruel and random',
+      'the first anniversary of a loss',
+      'sitting with mortality after a diagnosis',
+    ],
+    coreTeaching:
+        'Al-Mumeet is the Causer of Death — not the angel of death, not fate, not illness. The Name is a divine declaration that death is not a random force that seizes life. It is an act of will by the One who gave life in the first place. Allah says in Surah Al-Hadid: "yuhyi wa-yumeet, wa-huwa ʿala kulli shayʼin qadir" — "He gives life and causes death. And He is Most Capable of everything" (Quran 57:2). This pairing — Al-Muhyi beside Al-Mumeet — is not a theology of cruelty. It is a theology of ownership. The One who loved this person into existence is the same One who called them home. And in Surah Ali ʿImran, Allah specifically corrects the most painful thing humans say in grief: "O believers! Do not be like the unfaithful who say about their brothers who travel or go into battle: ‘If they had stayed with us, they would not have died.’ Allah makes such thinking a cause of agony in their hearts. It is Allah who gives life and causes death" (Quran 3:156). The verse names a specific wound: counterfactual grief, the torment of "if only." Al-Mumeet is precisely the answer. Death is not a mistake that could have been prevented by different decisions. It was appointed. And Surah Al-Mulk names the purpose with sober clarity: "He is the One Who created death and life in order to test which of you is best in deeds" (Quran 67:2). Death is not a malfunction. It is part of a design authored by the Most Wise.',
+    propheticStory:
+        'When the Prophet ﷺ’s own son Ibrahim died as an infant, he wept and said: "The eyes shed tears and the heart grieves, and we do not say except what pleases our Lord. O Ibrahim, we are truly grieved by your departure." He did not suppress the grief. He did not perform composure. He named the sorrow and held it alongside trust in Al-Mumeet. Then he said: "The eye weeps and the heart is sad, but we will not say anything that displeases Allah" (Sahih al-Bukhari 1303). Here is the model: grief and surrender are not opposites. You can cry at what Al-Mumeet has decreed and still trust the decree. The Prophet who brought the final revelation wept at his son’s death. You are not weak for weeping. You are human — as the one Allah loved most was human.',
+    dua: NameTeachingDua(
+      arabic: 'إنَّا للَّهِ وَإنَّا إِلَيْهِ رَاجِعُونَ',
+      transliteration: "Inna lillahi wa inna ilayhi raji'un",
+      translation: 'Surely to Allah we belong and to Him we will all return.',
+      source: 'Quran 2:156 (verbatim — the Quranic words of those who are patient at calamity)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Wajid',
+    arabic: 'الْوَاجِدُ',
+    emotionalContext: [
+      'feeling like no one sees your pain',
+      'invisible to the people who matter most to you',
+      'longing to be found and known fully',
+      'lost and uncertain which way to turn',
+      'abandoned after a betrayal',
+      'walking through life without a sense of being truly met',
+    ],
+    coreTeaching:
+        'Al-Wajid is the Finder — the One who perceives, encounters, and finds everything, and whose finding of you is an act of grace. The root w-j-d in Arabic means both "to find" and "to feel" — Al-Wajid finds you and feels you. Nothing escapes His perception, and nothing is lost to Him. The Quran offers the most intimate illustration of this meaning in Surah Ad-Duhaa, speaking directly to the Prophet ﷺ: "Alam yajidka yatiman fa-awa" — "Did He not find you as an orphan then sheltered you?" (Quran 93:6). Allah’s finding of Muhammad (ﷺ) as an orphan was not passive discovery — it was active sheltering. Wajada leads to ūwiyya (refuge). And then: "wa-wajadaka ʿaʼilan fa-aghnā" — "And did He not find you needy then satisfied your needs?" (Quran 93:8). The pattern is established: Allah finds you precisely in the state of your greatest need, and His finding is never merely noticing — it is acting. When you feel invisible to the world, consider: the One who counts every hair on your head, who hears every breath of every creature in every ocean, does not misplace you. He has found you already. Your job is simply to stay.',
+    propheticStory:
+        'In the story of Prophet Ayyub (عليه السلام), after years of sickness, loss, and isolation — stripped of health, wealth, and companionship — Allah describes His verdict: "Inna wajadnahu sabiran, niʿma al-ʿabd, innahu awwab" — "We truly found him patient. What an excellent servant he was! Indeed, he constantly turned to Allah" (Quran 38:44). The word wajadnahu: "We found him." Not merely "he was." Allah’s finding of Ayyub in his worst season was a divine assessment, a testimony spoken from on high. In the middle of Ayyub’s suffering — before healing, before restoration — Al-Wajid had already found him and already named what He saw: patience, excellence, devotion. Allah found him worthy in his poverty and brokenness, not after it.',
+    dua: NameTeachingDua(
+      arabic: 'أَنِّى مَسَّنِىَ ٱلضُّرُّ وَأَنتَ أَرْحَمُ ٱلرَّٰحِمِينَ',
+      transliteration: "Anni massaniya ad-durru wa anta arhamu ar-rahimeen",
+      translation: 'My Lord! Adversity has touched me, and You are the Most Merciful of the merciful.',
+      source: 'Quran 21:83 (verbatim excerpt — supplication of Prophet Ayyub عليه السلام in his affliction)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Qadir',
+    arabic: 'الْقَادِرُ',
+    emotionalContext: [
+      'feeling powerless to change your situation',
+      'watching a door close that you cannot reopen',
+      'stuck in a season that seems impossible to leave',
+      'carrying a problem too heavy for any human solution',
+      'after every plan has failed',
+      'helplessness in the face of injustice',
+    ],
+    coreTeaching:
+        'Al-Qadir is the All-Powerful — the One who has perfect, complete, and absolute capability over every created thing. The root q-d-r in Arabic gives us both qudra (power) and qadar (divine decree): the same root that names what Allah can do also names what Allah has already willed. This is not coincidence. His power and His plan are the same thing. In Surah Al-Kahf, Allah paints the parable of worldly life: thriving like plants after rain, then turning to scattered chaff. The verse closes: "wa-kana Allahu ʿala kulli shayʼin muqtadiran" — "And Allah is fully capable of all things" (Quran 18:45). The metaphor is deliberate: even the most beautiful, established, flourishing thing in this world is temporary — and Al-Qadir is capable of both its flourishing and its fading. But in Surah Al-Anʿam, the Name carries comfort: "Qul huwa al-qadir ʿala an yabʿatha ʿalaykum ʿadhaban min fawqikum" — "He alone has the power to unleash punishment..." (Quran 6:65), and in the very next verse: "wa-in yamsaskum Allahu bi-durrin fa-la kashifa lahu illa huwa" — "If Allah touches you with harm, none can undo it except Him" (Quran 6:17). Power over harm and power over healing belong to the same One. The Yaqeen Institute’s Ramadan duʿa series frames Al-Qadir’s emotional weight precisely: "Nothing is beyond Your power. As You part the seas and revive the dead, lift our people from beneath the weight of this world." The seas were real. The dead were real. And so is the weight you carry.',
+    propheticStory:
+        'Before the Battle of Badr, the Muslims numbered 313 — lightly armed, outnumbered, exhausted from travel — facing a Meccan force of a thousand. The Prophet ﷺ prayed through the night: "O Allah, if this small band perishes today, You will not be worshipped on earth." He was not doubting. He was invoking Al-Qadir: the One who needs no army to accomplish His will. The Quran records the outcome in Surat Al ʿImran: "Allah has already given you victory at Badr when you were outnumbered. So be mindful of Allah, perhaps you will be grateful" (Quran 3:123). Al-Qadir’s victories do not follow military logic. They follow His will. When you are 313 and the problem before you is a thousand, Al-Qadir has not changed.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
+      transliteration: "Rabbana la tu'akhidhna in nasina aw akhta'na, Rabbana wa la tahmil 'alayna isran, Rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'ala al-qawmi al-kafirin",
+      translation: 'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
+      source: 'Quran 2:286 (verbatim excerpt)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muqtadir',
+    arabic: 'الْمُقْتَدِرُ',
+    emotionalContext: [
+      'facing forces larger than anything you can control',
+      'when human power has failed and there is nothing left to do',
+      'watching injustice go unchallenged',
+      'overwhelmed by the scale of what is against you',
+      'powerless in the face of institutions, illness, or loss',
+      'needing a reminder that no force on earth is unchecked',
+    ],
+    coreTeaching:
+        'Al-Muqtadir is the All-Prevailing in Power — where Al-Qadir names that Allah can, Al-Muqtadir names that Allah always prevails. The morphological intensification from qadir to muqtadir carries weight: this is not merely capability but execution without flaw, power without limit, authority that brooks no resistance. The Quran uses this Name at the moment of divine reckoning with civilizations that forgot their limits. When the people of Thamud rejected every sign: "kadhdhabū bi-āyātinā kullihā fa-akhadhnāhum akhdha ʿazīzin muqtadir" — "They rejected all of Our signs, so We seized them with the crushing grip of the Almighty, Most Powerful" (Quran 54:42). And in Surah Al-Kahf, after the parable of thriving plants reduced to chaff: "wa-kāna Allāhu ʿalā kulli shayʼin muqtadirā" — "And Allah is fully capable of all things" (Quran 18:45). The Name appears in Surah Al-Qamar (54:55) in its most beautiful context: the righteous in the afterlife, seated "fī maqʿadī ṣidqin ʿinda malīkin muqtadir" — "at the Seat of Honour in the presence of the Most Powerful Sovereign." Every human power that dominated, oppressed, or dismissed you will one day answer to the Most Powerful Sovereign before whom even kings are dust. The Yaqeen Ramadan series renders this Name with disarming clarity: "Your power is perfect, Your execution without flaw. Let those who boast of might see how small they really are."',
+    propheticStory:
+        'The people of Pharaoh had enslaved an entire nation for four hundred years. By any human reckoning, Pharaoh’s power was permanent. Moses (عليه السلام) arrived with a staff and a brother. When Bani Israel reached the sea and Pharaoh’s armies closed in, they cried: "We are overtaken!" Moses replied: "No! Indeed, with me is my Lord; He will guide me" (Quran 26:61-62). Allah then parted the sea. The most powerful military force of its age was swallowed by water at the command of Al-Muqtadir. The lesson is precise: Al-Muqtadir does not need your resources. He uses what is already there. The sea was always the sea.',
+    dua: NameTeachingDua(
+      arabic: 'لَهُۥ مُلْكُ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضِ ۖ يُحْىِۦ وَيُمِيتُ ۖ وَهُوَ عَلَىٰ كُلِّ شَىْءٍ قَدِيرٌ',
+      transliteration: "Lahu mulku as-samawati wal-ard, yuhyi wa-yumeet, wa-huwa 'ala kulli shay'in qadir",
+      translation: 'To Him belongs the kingdom of the heavens and the earth. He gives life and causes death. And He is Most Capable of everything.',
+      source: 'Quran 57:2 (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Barr',
+    arabic: 'الْبَرُّ',
+    emotionalContext: [
+      'longing for goodness that actually feels kind, not transactional',
+      'struggling to believe allah’s care is personal',
+      'overwhelmed by how much you need and how little you have',
+      'wavering faith that allah means well for you specifically',
+      'weariness from a long season of difficulty',
+      'needing tenderness, not just strength',
+    ],
+    coreTeaching:
+        'Al-Barr is the Dutiful, the Source of All Goodness — the One whose goodness toward creation is not earned, not conditional, and not limited to reward and punishment. The root b-r-r in Arabic runs through the most intimate human relationships: birr al-walidayn is dutifulness to parents, a love that gives without accounting. Allah claims this root as a Name — His goodness toward creation has the character of devoted, attentive care. The Quran places this Name in the mouth of the believers in Jannah, looking back at their lives: "Inna kuna min qablu nadʿuhu, innahu huwa al-Barr al-Rahim" — "Indeed, we used to call upon Him before. He is truly the Most Kind, Most Merciful" (Quran 52:28). The scene is Paradise. What the people of Paradise testify to — when all doubt is resolved and all prayers are answered — is not Allah’s power or His knowledge. It is His birr: His devoted, attentive goodness. The Yaqeen Ramadan duʿa series renders the Name this way: "keep me firm on the grounds of Your goodness. Make my faith steady when my heart trembles." Al-Barr does not offer goodness as a transaction. He is Goodness Himself, extended toward His servants with the constancy of a parent’s love. The Name is your anchor when your heart trembles: He is not withholding good from you. He is the source of every good that has ever reached you, and He is still sourcing.',
+    propheticStory:
+        'When Surah At-Tur was revealed, the concluding verses assured the Prophet ﷺ of divine protection amid intense opposition: "So wait patiently for your Lord’s judgment, for you are truly under Our ˹watchful˺ Eyes. And glorify the praises of your Lord" (Quran 52:48). But the verse the companions remembered most was 52:28 — the testimony of the people of Paradise who had called on Al-Barr in every hardship. The Prophet ﷺ recited Surah At-Tur in Fajr prayer, and the companions reported weeping as they heard the verse about the believers’ gratitude (recorded in Islamic exegetical tradition). The story is this: the Name Al-Barr will be validated completely on the Day that all of Paradise receives its inhabitants. Every person who trusted that Allah meant them well will be proven right.',
+    dua: NameTeachingDua(
+      arabic: 'إِنَّا كُنَّا مِن قَبْلُ نَدْعُوهُ ، إِنَّهُ هُوَ الْبَرُّ الرَّحِيمُ',
+      transliteration: "Inna kunna min qablu nad'uhu, innahu huwa al-Barru ar-Rahim",
+      translation: 'Indeed, we used to call upon Him before. He is truly the Most Kind, Most Merciful.',
+      source: 'Quran 52:28 (verbatim — the testimony of the people of Paradise)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ar-Rauf',
+    arabic: 'الرَّءُوفُ',
+    emotionalContext: [
+      'exhausted from suffering that seems to have no end',
+      'bracing for a storm you can feel coming',
+      'fragile after a season of consecutive losses',
+      'needing gentleness not strength',
+      'afraid the worst is still ahead',
+      'the rawness that follows grief before it becomes bearable',
+    ],
+    coreTeaching:
+        'Ar-Rauf is the Most Gentle, the Most Kind — a Name that intensifies Ar-Rahim (the Most Merciful) into something more intimate. Where Ar-Rahim is mercy that covers and surrounds, Ar-Rauf is mercy that moves tenderly, that handles the broken thing with care, that foresees the harm before it lands and softens the blow. The root r-ʿ-f carries the sense of tenderness, of gentle movement, of the care a doctor shows around a wound. In Surah Al-Baqarah, after describing the trials that will test the believers — fear, hunger, loss of life and fruit — Allah commands "give glad tidings to the patient" (Quran 2:155-157). But then, closing the series of trials: "Allah is truly Most Kind and Most Merciful to the people" (Quran 2:143). Ar-Rauf closes the chapter on difficulty. And at the end of Surah At-Tawbah, after nine chapters of the hardest divine commands — battle, sacrifice, confrontation with hypocrisy — the Prophet ﷺ is described: "laqad jaʼakum rasūlun min anfusikum ʿazīzun ʿalayhi ma ʿanittum, raʼuf r-rahīm" — "There certainly has come to you a messenger from among yourselves. He is concerned by your suffering, anxious for your well-being, and gracious and merciful to the believers" (Quran 9:128). Two of Allah’s own Names are given to the Prophet because the Prophet exemplifies them. Ar-Rauf names Allah’s posture toward you in your worst seasons: not distant judgment but aching concern. The Yaqeen Ramadan series captures it: "cover me from storms I don’t see coming, mend me before I break, and spare me from trials of every kind."',
+    propheticStory:
+        'The Prophet ﷺ once narrated to his companions about an earlier prophet who, while being beaten and bleeding from his own people, wiped the blood from his face and said: "O Allah! Forgive my people, for they have no knowledge" (Sahih al-Bukhari 3477). He also described the day of Al-Aqabah, after the people rejected him, when the Angel of the Mountains offered to crush them between the two mountains; the Prophet ﷺ instead hoped Allah would bring from their descendants people who would worship Him alone (Sahih al-Bukhari 3231). This is Ar-Rauf in human form: a tenderness that does not retract when it is hurt. Allah named this quality in His Prophet twice — raʼuf and rahīm — because it mirrors His own way with us. He sees your worst moments and His first response is not anger. It is concern.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا آتِنَا مِن لَدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا',
+      transliteration: "Rabbana atina min ladunka rahmatan wa hayyi' lana min amrina rashadan",
+      translation: 'Our Lord! Grant us mercy from Yourself and guide us rightly through our ordeal.',
+      source: 'Quran 18:10 (verbatim — the supplication of the People of the Cave)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Malik-ul-Mulk',
+    arabic: 'مَالِكُ الْمُلْكِ',
+    emotionalContext: [
+      'feeling that the wrong people hold power',
+      'stripped of status, position, or authority you worked for',
+      'watching doors close that you cannot reopen',
+      'powerless before human institutions or systems',
+      'jealousy of those who seem to have everything',
+      'craving recognition and rank that has not come',
+    ],
+    coreTeaching:
+        'Malik-ul-Mulk is the Master of All Sovereignty — the One in whose Hand alone lies every throne, every title, every rise, and every fall. The Name appears explicitly in Surah Ali ʿImran in one of the Quran’s most majestic verses: "Qul Allahumma Malika al-mulki tuʼti al-mulka man tashaʼ wa-tanziʿu al-mulka mimman tashaʼ, wa-tuʿizzu man tashaʼ wa-tudhillu man tashaʼ, biyadika al-khayr, innaka ʿala kulli shayʼin qadir" — "Say: O Allah! Lord over all authorities! You give authority to whoever You please and remove it from whom You please; You honour whoever You please and disgrace whom You please — all good is in Your Hands. Surely You alone are Most Capable of everything" (Quran 3:26). Every government that has ever fallen, every empire that crumbled, every board that fired someone unfairly, every election result that shocked the world — all of it falls under this verse. No authority is self-originating. It is given, and it is withdrawn, by Malik-ul-Mulk. The following verse (3:27) continues the picture: "You cause the night to pass into the day and the day into the night. You bring forth the living from the dead and the dead from the living. And You provide for whoever You will without limit." The pattern of night and day is the pattern of status too: darkness gives way to light, fall gives way to rise, and none of it is permanent except the Owner of it all.',
+    propheticStory:
+        'When the Romans (Byzantines) were defeated by the Persians, the pagan Arabs of Mecca celebrated — enemies of the Muslims beating what they saw as a rival monotheistic empire. The Quran revealed: "The Romans have been defeated in the nearest land. But following their defeat, they will triumph within three to nine years" (Quran 30:2-4). It was a prophecy attached to a wager. The Muslims believed it; the pagans doubted. Within the predicted timeframe, the Romans defeated the Persians exactly as promised. This was a demonstration of Malik-ul-Mulk’s knowledge of every kingdom’s fate — before the battle had been fought, He had already written its reversal. No outcome in history catches Him by surprise.',
+    dua: NameTeachingDua(
+      arabic: 'قُلِ ٱللَّهُمَّ مَـٰلِكَ ٱلْمُلْكِ تُؤْتِى ٱلْمُلْكَ مَن تَشَآءُ وَتَنزِعُ ٱلْمُلْكَ مِمَّن تَشَآءُ وَتُعِزُّ مَن تَشَآءُ وَتُذِلُّ مَن تَشَآءُ ۖ بِيَدِكَ ٱلْخَيْرُ ۖ إِنَّكَ عَلَىٰ كُلِّ شَىْءٍ قَدِيرٌ',
+      transliteration: "Qul Allahumma Malika al-mulki tu'ti al-mulka man tasha' wa-tanzi'u al-mulka mimman tasha', wa-tu'izzu man tasha' wa-tudhillu man tasha', biyadika al-khayr, innaka 'ala kulli shay'in qadir",
+      translation: 'Say: O Allah! Lord over all authorities! You give authority to whoever You please and remove it from whom You please; You honour whoever You please and disgrace whom You please — all good is in Your Hands. Surely You alone are Most Capable of everything.',
+      source: 'Quran 3:26 (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Dhul-Jalali wal-Ikram',
+    arabic: 'ذُو الْجَلَالِ وَالْإِكْرَامِ',
+    emotionalContext: [
+      'feeling small before the immensity of life',
+      'stripped of dignity by how others have treated you',
+      'longing to be honoured after being humiliated',
+      'wanting to experience the sacred in daily life',
+      'after a crisis has hollowed out your sense of worth',
+      'searching for transcendence beyond the ordinary',
+    ],
+    coreTeaching:
+        'Dhul-Jalali wal-Ikram is the Possessor of Majesty and Honour — the One whose very Name contains two paired realities: the Majesty (Jalal) that makes all creation tremble, and the Generosity (Ikram) that honours and dignifies His servants. These are not opposites. Allah’s grandeur does not crush you — it protects you. His honour does not hoard itself — it is given. Surah Ar-Rahman closes with this Name twice. First: "wa-yabqa wajhu Rabbika Dhul-Jalali wal-Ikram" — "Only your Lord Himself, full of Majesty and Honour, will remain forever" (Quran 55:27). And last: "Tabaraka ismu Rabbika Dhil-Jalali wal-Ikram" — "Blessed is the Name of your Lord, full of Majesty and Honour" (Quran 55:78). In a surah that repeats "fa-bi-ayyi alaʼ i Rabbikuma tukadhdhiban" ("So which of your Lord’s favours would you deny?") thirty-one times, the whole surah ends not with creation, not with paradise, but with this Name. Everything passes. Only Dhul-Jalali wal-Ikram remains. And the Prophet ﷺ taught a companion to "be constant" with this Name. In the Tirmidhi hadith (graded Hasan), Anas ibn Malik narrates that whenever the Prophet faced distress, he would say: "Ya Hayyu Ya Qayyum bi-rahmatika astaghith" — and he also instructed: "Alillu bi-ya Dhal-Jalali wal-Ikram" — "Be constant with: O Possessor of Majesty and Honour" (Jamiʼ at-Tirmidhi 3524). This is a Name for daily recitation, not only crisis. Start your duʿa with it. Let it frame the words you bring.',
+    propheticStory:
+        'A companion was finishing his prayer when the Prophet ﷺ heard him supplicate: "Allahumma inni asʼaluka bi-anna laka al-hamd, la ilaha illa ant, al-Mannan, Badiʿu as-samawati wal-ard, Ya Dhal-Jalali wal-Ikram, Ya Hayyu Ya Qayyum" — "O Allah, I ask You by the fact that all praise belongs to You, there is none worthy of worship except You, the Bestower of blessings, Originator of the heavens and earth, O Possessor of Majesty and Honor, O Living, O Self-Sustaining." The Prophet ﷺ said: "He has supplicated Allah using His Greatest Name — when invoked by it, He responds, and when asked through it, He gives" (Sunan Abi Dawud 1495 — Sahih; Jamiʼ at-Tirmidhi 3544 — Sahih). Dhul-Jalali wal-Ikram is not merely beautiful to invoke. According to the Prophet ﷺ, it may be among the Names through which Allah’s response is guaranteed.',
+    dua: NameTeachingDua(
+      arabic: 'اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ',
+      transliteration: "Allahumma anta as-Salam wa minka as-Salam, tabarakta Ya Dhal-Jalali wal-Ikram",
+      translation: 'O Allah! You are Peace, and peace comes from You; Blessed are You, O Possessor of Glory and Honour.',
+      source: 'Sahih Muslim 591 — the Prophet’s ﷺ duʿa recited after every prayer (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Muqsit',
+    arabic: 'الْمُقْسِطُ',
+    emotionalContext: [
+      'seething at an injustice you cannot correct',
+      'victim of a decision that was simply wrong',
+      'watching the guilty walk free',
+      'treated unfairly by someone in power',
+      'when justice is delayed so long it feels like a lie',
+      'carrying anger that has nowhere to go',
+    ],
+    coreTeaching:
+        'Al-Muqsit is the Perfectly Just — the One who deals in absolute equity, from whom no wrong escapes notice and no right goes unrecognized. The root q-s-t means to be fair, to give exactly the right measure. Al-Muqsit is not merely fair in the end; He is Just in His essence. His justice does not depend on courts, on witnesses, on recorded evidence. It is built into His nature. In the Hadith Qudsi narrated by Abu Dharr and recorded in Sahih Muslim, Allah declares: "Ya ʿibadi, inni harramtu az-zulma ʿala nafsi wa-jaʿaltuhu baynakum muharraman fa-la tazalamuu" — "O My servants, I have forbidden oppression for Myself and have made it forbidden amongst you, so do not oppress one another" (Sahih Muslim 2577a). Allah declares injustice forbidden upon Himself. Al-Muqsit is not a distant judge who might or might not see. He has committed, before all of creation, to the abolition of every form of zulm (injustice). The Quran commands believers to embody this Name: "O believers! Stand firm for Allah and bear true testimony. Do not let the hatred of a people lead you to injustice. Be just! That is closer to righteousness. And be mindful of Allah" (Quran 5:8). The Yaqeen Ramadan series prays for Al-Muqsit: "Restore to the victims what was stolen from them, and to the weary hearts what hope they lost." Justice is not hope. It is a Name.',
+    propheticStory:
+        'At the Farewell Pilgrimage, the Prophet ﷺ stood before the largest gathering of his life and declared: "Verily, your blood, your property, and your honour are sacred to one another as the sacredness of this day, in this month, in this city" (Sahih al-Bukhari 105). He then said: "Have I conveyed?" — and the crowd answered: "Yes." And he said: "O Allah, be witness." Al-Muqsit was being named into the history of that gathering. The Prophet ﷺ was establishing a permanent record: the rights of every human being are inviolable, and the One who guarantees them is watching. When human courts fail, when injustice is never corrected in this life, the Farewell Sermon remains in the record of Al-Muqsit — who will restore what was taken.',
+    dua: NameTeachingDua(
+      arabic: 'يَا عِبَادِي إِنِّي حَرَّمْتُ الظُّلْمَ عَلَىٰ نَفْسِي وَجَعَلْتُهُ بَيْنَكُمْ مُحَرَّمًا فَلَا تَظَالَمُوا',
+      transliteration: "Ya 'ibadi inni harramtu az-zulma 'ala nafsi wa-ja'altuhu baynakum muharraman fa-la tazalamuu",
+      translation: 'O My servants, I have forbidden oppression for Myself and have made it forbidden amongst you, so do not oppress one another.',
+      source: 'Sahih Muslim 2577a — Hadith Qudsi: Allah’s own words on justice (verbatim, to be recited as a remembrance of Al-Muqsit’s covenant)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Ghaniyy',
+    arabic: 'الْغَنِيُّ',
+    emotionalContext: [
+      'scarcity that makes you feel like a burden to everyone',
+      'financial anxiety that colours every decision',
+      'envy of those who seem to have more',
+      'feeling that your need makes you less worthy',
+      'exhausted from always being in want',
+      'shame around money or material lack',
+    ],
+    coreTeaching:
+        'Al-Ghaniyy is the Self-Sufficient — the One who has absolute, eternal, complete sufficiency that depends on nothing and no one outside Himself. Every act of creation, every breath given, every blessing bestowed is not the output of need but the overflow of pure generosity. The Name appears in one of the Quran’s most arresting declarations: "Ya ayyuha an-nasu, antumu al-fuqaraʼ ila Allahi, wa-Allahu huwa al-Ghaniyy al-Hamid" — "O humanity! It is you who stand in need of Allah, but Allah alone is the Self-Sufficient, Praiseworthy" (Quran 35:15). This is the entire human condition stated in one sentence. Every person reading it is, without exception, a faqir — one in absolute need. And Allah is, without exception, Al-Ghaniyy — needing nothing, overflowing with everything. The consequence is that Al-Ghaniyy’s giving is never reluctant, never a favor that costs Him, never something He weighs against what you deserve. He gives from a supply that cannot be depleted. And in Surah Al-Hadid: "wa-man yatawalla fa-inna Allaha huwa al-Ghaniyy al-Hamid" — "whoever turns away should know that Allah alone is truly the Self-Sufficient, Praiseworthy" (Quran 57:24). Al-Ghaniyy’s sufficiency is not threatened by rejection. He does not need your worship to remain whole. He invites it for your sake, not His. The Yaqeen Ramadan series puts it plainly: "You are free of all need while I am always in need of You. Let me never beg from those as poor as me."',
+    propheticStory:
+        'The Prophet ﷺ said: "Allah said: ‘O My servants, all of you are astray except for those I have guided, so seek guidance of Me and I shall guide you. O My servants, all of you are hungry except for those I have fed, so seek food of Me and I shall feed you. O My servants, all of you are naked except for those I have clothed, so seek clothing of Me and I shall clothe you’" (Sahih Muslim 2577a). This is the description of Al-Ghaniyy as seen from creation’s side: absolute need met by absolute supply. The Prophet ﷺ taught his companions to bring every need — for guidance, food, clothing, forgiveness — to the One who lacks nothing. The theology is precise: it is irrational to beg from a fellow faqir when Al-Ghaniyy has opened His door.',
+    dua: NameTeachingDua(
+      arabic: 'يَا عِبَادِي كُلُّكُمْ جَائِعٌ إِلَّا مَنْ أَطْعَمْتُهُ فَاسْتَطْعِمُونِي أُطْعِمْكُمْ',
+      transliteration: "Ya 'ibadi kullukum ja'i'un illa man at'amtuhu fa-ista'imuuni ut'imkum",
+      translation: 'O My servants, all of you are hungry except for those I have fed, so seek food of Me and I shall feed you.',
+      source: 'Sahih Muslim 2577a — Hadith Qudsi: Allah’s words on His sufficiency (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Mughni',
+    arabic: 'الْمُغْنِي',
+    emotionalContext: [
+      'praying for financial relief that hasn’t come',
+      'watching others be enriched while you remain in want',
+      'fear that your provision will run out',
+      'despair after a financial loss',
+      'tempted to pursue haram income because halal feels insufficient',
+      'economic anxiety keeping you up at night',
+    ],
+    coreTeaching:
+        'Al-Mughni is the Enricher — the One who removes poverty, not just materially but in every form of want: spiritual emptiness, emotional poverty, the ache of feeling that you lack something essential. The root gh-n-y is the same root as Al-Ghaniyy (the Self-Sufficient); Al-Mughni is the One who extends His own sufficiency outward, making others sufficient through His giving. The Quran invokes this attribute at a moment of economic anxiety in the early Muslim community: when the believers feared that cutting off pagan access to the Sacred Mosque would hurt their trading income, Allah replied: "wa-in khiftum ʿaylatan fa-sawfa yughnikumu Allahu min fadlihi" — "If you fear poverty, Allah will enrich you out of His bounty, if He wills" (Quran 9:28). The verb yughnikumu is the active form of Al-Mughni: Allah enriching directly, from His own bounty. And the pattern of Surah Ad-Duhaa reinforces it: Allah reminded His Prophet ﷺ that He had already enriched him after need — "wa-wajadaka ʿaʼilan fa-aghnā" (Quran 93:8). What Allah did for the Prophet He is capable of doing for you. Al-Mughni does not enrich according to how much you deserve or how hard you worked. He enriches "min fadlihi" — from His own bounty, which is without limit and without cost to Him.',
+    propheticStory:
+        'The Prophet ﷺ redirected his community from measuring richness by possessions to measuring it by inner sufficiency: "Wealth is not in having many possessions, but rather true wealth is feeling sufficiency in the soul" (Sahih al-Bukhari 6446). This is the prophetic lens for Al-Mughni: Allah enriches outwardly when He wills, but He also enriches the chest so a person is not owned by fear of lack. What Allah enriched in the Prophet ﷺ was not merely provision; it was ṣadr — a heart spacious enough to trust the One who gives. And He can enrich yours.',
+    dua: NameTeachingDua(
+      arabic: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
+      transliteration: "Rabbana atina fi ad-dunya hasanatan wa fi al-akhirati hasanatan wa qina 'adhab an-nar",
+      translation: 'Our Lord! Grant us the good of this world and the good of the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim — the supplication that encompasses all provision)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Mani',
+    arabic: 'الْمَانِعُ',
+    emotionalContext: [
+      'frustrated when a door closes that you wanted open',
+      'angry at a blessing that was withheld',
+      'jealous of what others received that you did not',
+      'bitter about a missed opportunity',
+      'questioning why your prayer was not answered the way you hoped',
+      'struggling to accept a "no" from allah',
+    ],
+    coreTeaching:
+        'Al-Mani is the Withholder — the One who prevents, withholds, and shields. This Name is among the hardest to sit with, because it names the divine hand behind every closed door, every denied prayer, every blessing that did not arrive. But the Name only wounds if you misread it. Al-Mani does not withhold to deprive. He withholds to protect. In Surah Al-Muʼminun, Allah answers those who ask who holds ultimate authority: "Qul man biyadihi malakutu kulli shayʼin wa-huwa yujiru wa-la yujaru ʿalayhi" — "Say: In Whose Hands is the authority over all things, protecting all while none can protect against Him?" (Quran 23:88). The One who withholds is the same One who gives refuge. His "no" is a form of His protection. The Prophet ﷺ taught the greatest expression of this understanding after every prayer. The hadith from Sahih al-Bukhari records: "La ilaha illa Allah, wahdahu la sharika lahu. Allahumma la maniʿa lima aʿtayt, wa-la muʿtiya lima manaʿt, wa-la yanfaʿu dhal-jaddi minka al-jadd" — "None has the right to be worshipped but Allah Alone Who has no partner. O Allah! No one can withhold what You give, and none can give what You withhold, and the fortune of a man of means is useless before You" (Sahih al-Bukhari 6615). This is the perfect theological response to a withheld blessing: no human power can override Al-Mani’s decision, and no human power can substitute for Al-Mani’s giving. The door that closed was closed by the One who holds every door.',
+    propheticStory:
+        'When the Prophet ﷺ sent a companion on a journey, the man had a dream: he was told he would die on the journey. He returned and told the Prophet ﷺ, who said: "Stay." The companion obeyed. The caravan he would have traveled with was attacked, and many were killed. What Al-Mani withheld was not a journey. It was a death. The "no" that prevented something that seemed good was the "yes" to life itself. Every time you are turned away from something you wanted, consider: Al-Mani knows what the journey holds.',
+    dua: NameTeachingDua(
+      arabic: 'لا إله إلا اللَّهُ وحده لا شريك له. اللَّهُمَّ لا مَانِعَ لِمَا أعْطَيْتَ وَلا مُعْطِيَ لِمَا مَنعتَ ولا ينْفَعُ ذَا الجَدِّ مِنكَ الجَدُّ',
+      transliteration: "La ilaha illa Allahu wahdahu la sharika lah. Allahumma la mani'a lima a'tayt, wa la mu'tiya lima mana't, wa la yanfa'u dhal-jaddi minka al-jadd",
+      translation: 'None has the right to be worshipped but Allah Alone Who has no partner. O Allah! No one can withhold what You give, and none can give what You withhold, and the fortune of a man of means is useless before You.',
+      source: 'Sahih al-Bukhari 6615 (verbatim — recited by the Prophet ﷺ after every prayer)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ad-Darr',
+    arabic: 'الضَّارُّ',
+    emotionalContext: [
+      'in acute suffering with no end in sight',
+      'afflicted by pain — physical, emotional, or spiritual — beyond your control',
+      'wondering why allah is allowing this to happen to you',
+      'desperate for the suffering to stop',
+      'angry at the cause of your pain, whether person, illness, or circumstance',
+      'when calamity has arrived and your defences have failed',
+    ],
+    coreTeaching:
+        'Ad-Darr is the Bringer of Hardship — the One who, by His absolute will, sends the trials that afflict and test. This is one of the most theologically sensitive Names, because it names divine authorship over pain. But the theology is not cruel — it is liberating. If only Allah can bring harm, then no human being, no illness, no circumstance has the ultimate power over you. The Quran states the principle directly: "wa-in yamsaska Allahu bi-durrin fa-la kashifa lahu illa huwa" — "If Allah touches you with harm, none can undo it except Him" (Quran 6:17). And: "wa-in yamsaska Allahu bi-durrin fa-la kashifa lahu illa huwa, wa-in yuridka bi-khayrin fa-la radda li-fadlihi" — "If Allah touches you with harm, none can undo it except Him. And if He intends good for you, none can withhold His bounty" (Quran 10:107). Ad-Darr and An-Nafi are paired Names — and the pairing is grounded here in the Quranic principle that harm and benefit are both under Allah’s sole command. The One who sends the harm is the same One who removes it. This means your suffering is not in the hands of randomness. It is not abandoned in the cosmos without a plan. It sits in the hands of the One who also holds your healing.',
+    propheticStory:
+        'The Prophet ﷺ said: "Be mindful of Allah and Allah will protect you. Be mindful of Allah and you will find Him in front of you. If you ask, ask Allah alone; if you seek help, seek help from Allah alone. And know that if the whole of creation were to gather together to benefit you, they could not benefit you except with what Allah had written for you. And if they gathered to harm you, they could not harm you except with what Allah had written against you" (Jamiʼ at-Tirmidhi 2516 — Hasan). This is the hadith of Ad-Darr in its most personal form: the entire universe cannot move the point of your harm by a single degree beyond what has been ordained. This is not resignation — it is the most profound safety. Your suffering is measured.',
+    dua: NameTeachingDua(
+      arabic: 'وَإِن يَمْسَسْكَ اللَّهُ بِضُرُّ فَلَا كَاشِفَ لَهُ إِلَّا هُوَ ، وَإِن يُرِدْكَ بِخَيْرٍ فَلَا رَآدَّ لِفَضْلِهِ',
+      transliteration: "Wa in yamsaska Allahu bi-durrin fa-la kashifa lahu illa huwa, wa in yuridka bi-khayrin fa-la radda li-fadlihi",
+      translation: 'If Allah touches you with harm, none can undo it except Him. And if He intends good for you, none can withhold His bounty.',
+      source: 'Quran 10:107 (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'An-Nafi',
+    arabic: 'النَّافِعُ',
+    emotionalContext: [
+      'doubting whether your good actions make any difference',
+      'feeling that no one benefits from your existence',
+      'wondering if your prayers, charity, or kindness actually reach anyone',
+      'struggling to see the fruit of a long effort',
+      'wanting your life to matter',
+      'when your giving goes unnoticed or unappreciated',
+    ],
+    coreTeaching:
+        'An-Nafi is the Bestower of Benefit — the One from whom all good that reaches any created being flows. Where Ad-Darr names divine authorship over hardship, An-Nafi names divine authorship over benefit. Together they form one of the most profound paired Names in Islamic theology: no benefit you receive came from chance, and no harm that reaches you arrived without His knowledge. Every good in your life — every healing, every provision, every meeting that changed your path, every moment of clarity — passed through the hands of An-Nafi before it reached you. The Quran states the principle with precision: "wa-in yuridka bi-khayrin fa-la radda li-fadlihi, yusibu bihi man yashaʼu min ʿibadih" — "if He intends good for you, none can withhold His bounty. He grants it to whoever He wills of His servants" (Quran 10:107). This same verse holds harm and benefit together under Allah’s will, making the pairing with Ad-Darr a Quranic theological principle. The Name also carries a second truth: Allah created benefit itself. Every genuine good that has ever existed — love, justice, healing, knowledge — originated in An-Nafi. When you act with benefit in mind — when you help, give, heal, speak truth — you are channeling the attribute of the One whose essence is benefit.',
+    propheticStory:
+        'The Prophet ﷺ taught that a Muslim does not abandon another Muslim to oppression, and then said: "Whoever fulfilled the needs of his brother, Allah will fulfill his needs" (Sahih al-Bukhari 2442). This is An-Nafi reflected in human conduct: the benefit you bring to another believer becomes a path by which Allah benefits you. You do not merely receive from An-Nafi — you are invited to embody the attribute by relieving distress, meeting needs, and becoming a door of mercy for someone else.',
+    dua: NameTeachingDua(
+      arabic:
+          'رَبَّنَآ ءَاتِنَا فِى ٱلدُّنْيَا حَسَنَةً وَفِى ٱلْـَٔاخِرَةِ حَسَنَةً وَقِنَا عَذَابَ ٱلنَّارِ',
+      transliteration:
+          "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+      translation:
+          'Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.',
+      source: 'Quran 2:201 (verbatim excerpt) — a Quranic supplication for every form of beneficial good in this life and the next',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Badi',
+    arabic: 'الْبَدِيعُ',
+    emotionalContext: [
+      'trapped in a life that feels like it can only be one thing',
+      'convinced your situation is impossible to change',
+      'waiting for a solution that looks like one you’ve seen before',
+      'creative despair — unable to imagine anything new',
+      'grief over what feels like a dead end',
+      'when the only way forward requires something unprecedented',
+    ],
+    coreTeaching:
+        'Al-Badi is the Incomparable Originator — the One who creates entirely without precedent, with no model, no template, no prior reference. The Arabic root b-d-ʼa names something utterly unprecedented: bidʼa (innovation) comes from the same root. Al-Badi is the Original — the One for whom nothing is without solution because He is the One who created the very category of solution. The Quran states this Name twice in the same context. In Surah Al-Baqarah: "Badiʼu as-samawati wal-ard, wa idha qada amran fa-innama yaqulu lahu kun fa-yakun" — "He is the Originator of the heavens and earth! When He decrees a matter, He simply tells it: ‘Be!’ And it is!" (Quran 2:117). And in Surah Al-Anʿam: "Badiʼu as-samawati wal-ard, anna yakunu lahu waladun" — "He is the Originator of the heavens and earth. How could He have children?" (Quran 6:101). Both verses place Al-Badi in the context of creation that required no prior material, no pre-existing pattern, no assistance. The heavens and earth were made from nothing, by command alone. If Al-Badi could create galaxies from a single word, He can create a way out of your impossible situation from nothing. The hadith tradition affirms: He is called upon by His Greatest Name which, when invoked, brings response — and this Name is among those listed in Sunan Abi Dawud 1495: "Badiʼu as-samawati wal-ard, Ya Dhal-Jalali wal-Ikram, Ya Hayyu Ya Qayyum."',
+    propheticStory:
+        'When Allah commanded Ibrahim (عليه السلام) to leave his wife Hajar and infant son Ismaʼil in a barren valley with no water and no people, Hajar asked: "Has Allah commanded you to do this?" Ibrahim replied: "Yes." She said: "Then He will not abandon us." She then ran between Safa and Marwa searching for water. Allah’s answer was not an existing spring. He created Zamzam — water from nothing, in the most waterless place, sustained for thousands of years. Al-Badi’s solution to an impossible situation was unprecedented. It always is.',
+    dua: NameTeachingDua(
+      arabic: 'بَدِيعُ السَّمَاوَاتِ وَالْأَرْضِ ، وَإِذَا قَضَىٰ أَمْرًا فَإِنَّمَا يَقُولُ لَهُ كُن فَيَكُونُ',
+      transliteration: "Badi'u as-samawati wal-ard, wa idha qada amran fa-innama yaqulu lahu kun fa-yakun",
+      translation: 'He is the Originator of the heavens and earth. When He decrees a matter, He simply says to it: Be! And it is.',
+      source: 'Quran 2:117 (verbatim — a declaration of Al-Badi\'s unlimited creative power, used as duʿa-opening)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Al-Baqi',
+    arabic: 'الْبَاقِي',
+    emotionalContext: [
+      'grief over what cannot be recovered',
+      'watching everything you built crumble',
+      'the impermanence of everything you love',
+      'terrified of losing the people who matter most to you',
+      'struggling with aging, endings, and finitude',
+      'looking for something that will not disappear',
+    ],
+    coreTeaching:
+        'Al-Baqi is the Ever-Lasting — the One who remains when everything else has gone. This Name is the answer to every form of grief over impermanence: the relationship that ended, the health that left, the season of life that closed, the person who died. Everything that passes is passing. Only Al-Baqi remains. The Quran states the principle with startling directness in Surah Ar-Rahman: "Kullu man ʿalayha fan" — "Every being on earth is bound to perish" (Quran 55:26). And then immediately: "wa-yabqa wajhu Rabbika Dhul-Jalali wal-Ikram" — "Only your Lord Himself, full of Majesty and Honour, will remain forever" (Quran 55:27). Between those two verses is the entire human experience of loss. And its resolution: Al-Baqi. The Quran elsewhere offers the most practical expression: "ma ʿindakum yanfadu, wa-ma ʿinda Allahi baq" — "Whatever you have will end, but whatever Allah has is everlasting" (Quran 16:96). This verse was revealed in a context of reward for patience — but the principle is universal. Everything you have is on loan. Everything He has is permanent. And in Surah Al-Qasas: "kullu shayʼin halik illawajhahu" — "Everything is bound to perish except He Himself" (Quran 28:88). Al-Baqi’s permanence is not cold philosophy. It is the ground you stand on when everything else shifts. When you are afraid of losing what you love, bring that fear to the One who cannot be lost.',
+    propheticStory:
+        'When the Sahabi Khabbab ibn al-Aratt was tortured by the Meccans for years — burned, beaten, enslaved — he came to the Prophet ﷺ and said: "O Messenger of Allah, will you not ask Allah to help us?" The Prophet ﷺ, sitting with his back against the Kaaba, said: "Among those before you, a man would be placed in a ditch dug for him, and a saw would be placed on his head... and that would not cause him to abandon his religion. By Allah, this religion will be perfected until a rider travels from Sanaʼa to Hadramawt fearing nothing but Allah..." (Sahih al-Bukhari 3612). The Prophet ﷺ’s response to the suffering of the moment was to point to Al-Baqi’s timeline: what endures. The torture is temporary. The din is not. The reward is not. The promise of Al-Baqi is not.',
+    dua: NameTeachingDua(
+      arabic: 'مَا عِندَكُمْ يَنفَدُ ، وَمَا عِندَ اللَّهِ بَاقٍ ، وَلَنَجْزِيَنَّ الَّذِينَ صَبَرُوا أَجْرَهُم بِأَحْسَنِ مَا كَانُوا يَعْمَلُونَ',
+      transliteration: "Ma 'indakum yanfadu, wa ma 'inda Allahi baq, wa lanajziyana alladhina sabaru ajrahum bi ahsani ma kanu ya'malun",
+      translation: 'Whatever you have will end, but whatever Allah has is everlasting. And We will certainly reward the steadfast according to the best of their deeds.',
+      source: 'Quran 16:96 (verbatim)',
+    ),
+  ),
+
+  NameTeaching(
+    name: 'Ar-Rasheed',
+    arabic: 'الرَّشِيدُ',
+    emotionalContext: [
+      'paralysed by indecision at a crossroads',
+      'unable to tell the right path from the wrong one',
+      'aftermath of a bad decision you regret',
+      'searching for wisdom you do not feel you possess',
+      'confused by conflicting advice from people you trust',
+      'praying for clarity that hasn’t come yet',
+    ],
+    coreTeaching:
+        'Ar-Rasheed is the Infallible Guide to the Right Path — the One whose guidance is never mistaken, never late, never partial. The root r-sh-d in Arabic names guidance that reaches its mark: rashad is right direction found, not merely direction given. Ar-Rasheed’s guidance is not instruction from a distance. It is the turning of the heart, the opening of a door at the right moment, the sudden clarity that you did not manufacture. The Quran uses this root in the prayer of the companions of the Cave: "Rabbana atina min ladunka rahmatan wa-hayyiʼ lana min amrina rashada" — "Our Lord! Grant us mercy from Yourself and guide us rightly through our ordeal" (Quran 18:10). Rashad: the right way through. They did not ask for the easiest path. They asked for the guided one. The Yaqeen Ramadan series frames Ar-Rasheed with precision: "teach me to see truth instinctively. Make faith beloved to me." And the Name also appears in the Quran in a subtle moment: the jinn who accepted Islam said, "We do not know whether evil is intended for those on earth, or their Lord intends for them rashadan" — "right guidance" (Quran 72:10). Rashad is what Allah intends. The question is whether you are oriented to receive it. Istikhara — the prayer of seeking guidance — is the practice built directly on this Name. When you do not know which way to turn, Ar-Rasheed does.',
+    propheticStory:
+        'The Prophet ﷺ was asked about the verse: "And He found you lost (dallan) and guided you" (Quran 93:7). The early commentators noted: the Prophet ﷺ before prophethood did not know the full way. He was searching. Ar-Rasheed guided him — not all at once, not with a map, but revelation by revelation, moment by moment, over twenty-three years. The guidance of Ar-Rasheed is rarely the lightning flash. It is more often the gentle, persistent light that arrives as needed. Ibrahim (عليه السلام) asked for guidance before he knew toward what he was asking; the Prophet ﷺ received it in increments. Ar-Rasheed guides as the journey requires it, not all at once.',
+    dua: NameTeachingDua(
+      arabic: 'اللَّهُمَّ إنِّي أَسْأَلُكَ الهُدَىٰ وَالتُّقَىٰ وَالْعَفَافَ وَالغِنَىٰ',
+      transliteration: "Allahumma inni as'aluka al-huda wat-tuqa wal-'afafa wal-ghina",
+      translation: 'O Allah, I ask You for guidance, piety, chastity, and self-sufficiency.',
+      source: 'Sahih Muslim 2721 — narrated by Ibn Masʿud, a supplication taught by the Prophet ﷺ (verbatim)',
+    ),
+  ),
 ];
 
 /// Returns the most relevant Names of Allah for a given emotional situation.
