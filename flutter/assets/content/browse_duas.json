@@ -1239,5 +1239,762 @@
     ],
     "when_to_recite": "Recite after Fajr prayer.",
     "created_at": "2026-04-07T18:37:57.962629+00:00"
+  },
+  {
+    "id": "anger-1",
+    "category": "anger",
+    "title": "When anger overtakes you",
+    "arabic": "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ",
+    "transliteration": "A'udhu billahi mina-sh-shaytan",
+    "translation": "I seek refuge with Allah from Satan.",
+    "source": "Sahih al-Bukhari 3282",
+    "when_to_recite": "When feeling rage rising or witnessing someone in anger",
+    "emotion_tags": [
+      "anger",
+      "self-control",
+      "rage"
+    ]
+  },
+  {
+    "id": "anger-2",
+    "category": "anger",
+    "title": "Seeking refuge from Satan's provocation",
+    "arabic": "رَبِّ أَعُوذُ بِكَ مِنْ هَمَزَٰتِ ٱلشَّيَـٰطِينِ وَأَعُوذُ بِكَ رَبِّ أَن يَحْضُرُونِ",
+    "transliteration": "Rabbi a'udhu bika min hamazati-sh-shayatini wa-a'udhu bika rabbi an yahdhurun",
+    "translation": "My Lord! I seek refuge in You from the temptations of the devils. And I seek refuge in You, my Lord, that they even come near me.",
+    "source": "Quran 23:97-98",
+    "when_to_recite": "When feeling provoked, stirred to anger, or sensing evil whispers",
+    "emotion_tags": [
+      "anger",
+      "temptation",
+      "self-control",
+      "spiritual-protection"
+    ]
+  },
+  {
+    "id": "anger-3",
+    "category": "anger",
+    "title": "When the devil provokes your heart",
+    "arabic": "وَإِمَّا يَنزَغَنَّكَ مِنَ ٱلشَّيْطَـٰنِ نَزْغٌۭ فَٱسْتَعِذْ بِٱللَّهِ ۚ إِنَّهُۥ سَمِيعٌ عَلِيمٌ",
+    "transliteration": "Wa-imma yanazghannaka mina-sh-shaytani nazghun fa-sta'idh billah, innahu Sami'un 'Alim",
+    "translation": "If you are tempted by Satan, then seek refuge with Allah. Surely He is All-Hearing, All-Knowing.",
+    "source": "Quran 7:200",
+    "when_to_recite": "When feeling irritation, provocation, or a sudden surge of anger",
+    "emotion_tags": [
+      "anger",
+      "patience",
+      "spiritual-protection"
+    ]
+  },
+  {
+    "id": "envy-1",
+    "category": "envy",
+    "title": "Protection from the evil eye",
+    "arabic": "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّةِ مِنْ كُلِّ شَيْطَانٍ وَهَامَّةٍ وَمِنْ كُلِّ عَيْنٍ لاَمَّةٍ",
+    "transliteration": "A'udhu bi-kalimat-Allahi-t-tammati min kulli shaytanin wa hammatin wa-min kulli 'aynin lammah",
+    "translation": "I seek refuge in the Perfect Words of Allah from every devil, every harmful creature, and every harmful evil eye.",
+    "source": "Sunan Ibn Majah 3525",
+    "when_to_recite": "When seeking protection for yourself, your children, or loved ones from envy or the evil eye. The Prophet ﷺ used this supplication over Hasan and Husayn.",
+    "emotion_tags": [
+      "envy",
+      "evil-eye",
+      "spiritual-protection",
+      "jealousy"
+    ]
+  },
+  {
+    "id": "envy-2",
+    "category": "envy",
+    "title": "Protection from all harm through Allah's perfect words",
+    "arabic": "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ",
+    "transliteration": "A'udhu bi-kalimat-Allahi-t-tammati min sharri ma khalaq",
+    "translation": "I seek refuge in the Perfect Words of Allah from the evil of that which He has created.",
+    "source": "Sunan Ibn Majah 3518",
+    "when_to_recite": "Morning and evening, and whenever fearing envy, harm, or malice from others",
+    "emotion_tags": [
+      "envy",
+      "spiritual-protection",
+      "evil-eye",
+      "fear"
+    ]
+  },
+  {
+    "id": "envy-3",
+    "category": "envy",
+    "title": "Asking Allah to purify your heart from bitterness toward others",
+    "arabic": "رَبَّنَا ٱغْفِرْ لَنَا وَلِإِخْوَٰنِنَا ٱلَّذِينَ سَبَقُونَا بِٱلْإِيمَـٰنِ وَلَا تَجْعَلْ فِى قُلُوبِنَا غِلًّۭا لِّلَّذِينَ ءَامَنُوا۟ رَبَّنَآ إِنَّكَ رَءُوفٌۭ رَّحِيمٌ",
+    "transliteration": "Rabbana-ghfir lana wa-li-ikhwaninallladhina sabaquna bi-l-imani wa-la taj'al fi qulubina ghillan lilladhina amanu rabbana innaka Ra'ufun Rahim",
+    "translation": "Our Lord! Forgive us and our fellow believers who preceded us in faith, and do not allow bitterness into our hearts towards those who believe. Our Lord! Indeed, You are Ever Gracious, Most Merciful.",
+    "source": "Quran 59:10",
+    "when_to_recite": "When sensing jealousy or resentment stirring in the heart toward another believer",
+    "emotion_tags": [
+      "envy",
+      "jealousy",
+      "heart-purification",
+      "forgiveness"
+    ]
+  },
+  {
+    "id": "lust-1",
+    "category": "lust",
+    "title": "Asking Allah for chastity and contentment",
+    "arabic": "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى",
+    "transliteration": "Allahumma inni as'aluka-l-huda wa-t-tuqa wa-l-'afafa wa-l-ghina",
+    "translation": "O Allah, I beg of Thee the right guidance, safeguard against evils, chastity and freedom from want.",
+    "source": "Sahih Muslim 2721a",
+    "when_to_recite": "As a daily supplication, especially when struggling with desire or temptation",
+    "emotion_tags": [
+      "lust",
+      "chastity",
+      "desire",
+      "self-control",
+      "temptation"
+    ]
+  },
+  {
+    "id": "lust-2",
+    "category": "lust",
+    "title": "Yusuf's prayer for protection from temptation",
+    "arabic": "قَالَ رَبِّ ٱلسِّجْنُ أَحَبُّ إِلَىَّ مِمَّا يَدْعُونَنِىٓ إِلَيْهِ ۖ وَإِلَّا تَصْرِفْ عَنِّى كَيْدَهُنَّ أَصْبُ إِلَيْهِنَّ وَأَكُن مِّنَ ٱلْجَـٰهِلِينَ",
+    "transliteration": "Rabbi-s-sijnu ahabbu ilayya mimma yad'unani ilayhi wa-illa tasrif 'anni kaydahunna asbu ilayhinna wa-akun mina-l-jahilin",
+    "translation": "My Lord! I would rather be in jail than do what they invite me to. And if You do not turn their cunning away from me, I might yield to them and fall into ignorance.",
+    "source": "Quran 12:33",
+    "when_to_recite": "When facing sexual temptation or pressure to sin against one's own chastity",
+    "emotion_tags": [
+      "lust",
+      "temptation",
+      "chastity",
+      "strength",
+      "desire"
+    ]
+  },
+  {
+    "id": "lust-3",
+    "category": "lust",
+    "title": "Seeking refuge from the evil of one's own soul",
+    "arabic": "اللَّهُمَّ فَاطِرَ السَّمَوَاتِ وَالأَرْضِ عَالِمَ الْغَيْبِ وَالشَّهَادَةِ رَبَّ كُلِّ شَىْءٍ وَمَلِيكَهُ أَشْهَدُ أَنْ لاَ إِلَهَ إِلاَّ أَنْتَ أَعُوذُ بِكَ مِنْ شَرِّ نَفْسِي وَشَرِّ الشَّيْطَانِ وَشِرْكِهِ",
+    "transliteration": "Allahumma Fatira-s-samawati wa-l-ardi 'Alima-l-ghaybi wa-sh-shahadati Rabba kulli shay'in wa-malikahu, ash-hadu an la ilaha illa ant, a'udhu bika min sharri nafsi wa-sharri-sh-shaytani wa-shirkihi",
+    "translation": "O Allah, Creator of the heavens and the earth, Who knowest the unseen and the seen, Lord and Possessor of everything. I testify that there is no god but Thee; I seek refuge in Thee from the evil within myself, from the evil of the devil, and his incitement to attributing partners to Allah.",
+    "source": "Sunan Abi Dawud 5067",
+    "when_to_recite": "Morning, evening, and before sleep — especially when struggling with desires of the lower self (nafs)",
+    "emotion_tags": [
+      "lust",
+      "nafs",
+      "temptation",
+      "self-control",
+      "spiritual-protection"
+    ]
+  },
+  {
+    "id": "shame-1",
+    "category": "shame",
+    "title": "The Master Supplication for Forgiveness (Sayyid al-Istighfar)",
+    "arabic": "اللَّهُمَّ أَنْتَ رَبِّي لاَ إِلَهَ إِلاَّ أَنْتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَىَّ وَأَبُوءُ لَكَ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لاَ يَغْفِرُ الذُّنُوبَ إِلاَّ أَنْتَ",
+    "transliteration": "Allahumma anta Rabbi la ilaha illa ant, khalaqtani wa-ana 'abduk, wa-ana 'ala 'ahdika wa-wa'dika ma-stata't, a'udhu bika min sharri ma sana't, abu'u laka bi-ni'matika 'alayya wa-abu'u laka bi-dhanbi fa-ghfir li fa-innahu la yaghfiru-dh-dhunuba illa ant",
+    "translation": "O Allah, You are my Lord, there is none worthy of worship except You. You have created me, and I am Your servant, and I am faithful to Your covenant and promise as much as I can. I seek refuge in You from the evil of what I have done. I acknowledge Your blessings upon me, and I admit my sins. So forgive me, for none forgives sins except You.",
+    "source": "Sahih al-Bukhari 6306",
+    "when_to_recite": "Morning and evening; after any sin; when feeling shame, regret, or a crushed heart",
+    "emotion_tags": [
+      "shame",
+      "guilt",
+      "repentance",
+      "forgiveness",
+      "regret"
+    ]
+  },
+  {
+    "id": "shame-2",
+    "category": "shame",
+    "title": "Adam and Hawwa's prayer after transgression",
+    "arabic": "قَالَا رَبَّنَا ظَلَمۡنَآ أَنفُسَنَا وَإِن لَّمۡ تَغۡفِرۡ لَنَا وَتَرۡحَمۡنَا لَنَكُونَنَّ مِنَ ٱلۡخَٰسِرِينَ",
+    "transliteration": "Rabbana zalamna anfusana wa-in lam taghfir lana wa-tarhamna lanakunanna mina-l-khasirin",
+    "translation": "Our Lord! We have wronged ourselves. If You do not forgive us and have mercy on us, we will certainly be losers.",
+    "source": "Quran 7:23",
+    "when_to_recite": "After any sin or mistake; when overwhelmed with shame; when seeking Allah's mercy after wronging oneself",
+    "emotion_tags": [
+      "shame",
+      "guilt",
+      "repentance",
+      "forgiveness",
+      "self-blame"
+    ]
+  },
+  {
+    "id": "shame-3",
+    "category": "shame",
+    "title": "Asking for pardon, forgiveness, and mercy",
+    "arabic": "رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًۭا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعۡفُ عَنَّا وَٱغۡفِرۡ لَنَا وَٱرۡحَمۡنَآۚ أَنتَ مَوۡلَىٰنَا فَٱنصُرۡنَا عَلَى ٱلۡقَوۡمِ ٱلۡكَٰفِرِينَ",
+    "transliteration": "Rabbana la tu'akhidhna in nasina aw akhta'na, rabbana wa-la tahmil 'alayna isran kama hamaltahu 'ala-lladhina min qablina, rabbana wa-la tuhammilna ma la taqata lana bih, wa-'fu 'anna wa-ghfir lana wa-rhamna, anta mawlana fa-nsurna 'ala-l-qawmi-l-kafirin",
+    "translation": "Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one you placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.",
+    "source": "Quran 2:286",
+    "when_to_recite": "When carrying shame or guilt from past mistakes; before sleep; when seeking comprehensive forgiveness",
+    "emotion_tags": [
+      "shame",
+      "guilt",
+      "forgiveness",
+      "repentance",
+      "overwhelm"
+    ]
+  },
+  {
+    "id": "shame-4",
+    "category": "shame",
+    "title": "Crying out to the Ever-Living in distress",
+    "arabic": "يَا حَىُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ",
+    "transliteration": "Ya Hayyu Ya Qayyumu bi-rahmatika astaghith",
+    "translation": "O Ever-Living, O Self-Sustaining Sustainer! In Your Mercy do I seek relief.",
+    "source": "Jami' at-Tirmidhi 3524",
+    "when_to_recite": "In moments of despair, spiritual heaviness, or shame that feels unbearable",
+    "emotion_tags": [
+      "shame",
+      "despair",
+      "grief",
+      "mercy",
+      "distress"
+    ]
+  },
+  {
+    "id": "loneliness-1",
+    "category": "loneliness",
+    "title": "When you feel utterly alone",
+    "arabic": "لَّآ إِلَـٰهَ إِلَّآ أَنتَ سُبْحَـٰنَكَ إِنِّى كُنتُ مِنَ ٱلظَّـٰلِمِينَ",
+    "transliteration": "La ilaha illa anta subhanaka inni kuntu min adh-dhalimin",
+    "translation": "There is no god ˹worthy of worship˺ except You. Glory be to You! I have certainly done wrong.",
+    "source": "Quran 21:87",
+    "when_to_recite": "Recite in moments of isolation, distress, or when you feel abandoned — as Prophet Yunus (AS) called out from the darkness of the whale's belly. Allah answered him; He will answer you.",
+    "emotion_tags": [
+      "loneliness",
+      "abandonment",
+      "despair",
+      "isolation"
+    ]
+  },
+  {
+    "id": "loneliness-2",
+    "category": "loneliness",
+    "title": "During moments of distress and isolation",
+    "arabic": "لاَ إِلَهَ إِلاَّ اللَّهُ الْعَظِيمُ الْحَلِيمُ، لاَ إِلَهَ إِلاَّ اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لاَ إِلَهَ إِلاَّ اللَّهُ رَبُّ السَّمَوَاتِ، وَرَبُّ الأَرْضِ، وَرَبُّ الْعَرْشِ الْكَرِيمِ",
+    "transliteration": "La ilaha illallahu al-'Azim al-Halim, la ilaha illallahu Rabbul-'arsh il-'azim, la ilaha illallahu Rabbu-s-samawati wa Rabbul-ard wa Rabbul-'arsh il-karim",
+    "translation": "There is no god but Allah, the Magnificent, the Forbearing. There is no god but Allah, Lord of the Magnificent Throne. There is no god but Allah, Lord of the heavens, Lord of the earth, and Lord of the Noble Throne.",
+    "source": "Sahih al-Bukhari 6346",
+    "when_to_recite": "Recite at a time of distress (عِنْدَ الْكَرْبِ) — when loneliness, grief, or anxiety overwhelms you. The Prophet ﷺ used to say this during hardship.",
+    "emotion_tags": [
+      "loneliness",
+      "distress",
+      "anxiety",
+      "overwhelm"
+    ]
+  },
+  {
+    "id": "loneliness-3",
+    "category": "loneliness",
+    "title": "Returning to Allah when you feel cut off",
+    "arabic": "اللَّهُمَّ أَنْتَ رَبِّي، لاَ إِلَهَ إِلاَّ أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَىَّ وَأَبُوءُ لَكَ بِذَنْبِي، فَاغْفِرْ لِي، فَإِنَّهُ لاَ يَغْفِرُ الذُّنُوبَ إِلاَّ أَنْتَ",
+    "transliteration": "Allahumma anta rabbi, la ilaha illa anta, khalaqtani wa ana 'abduka, wa ana 'ala 'ahdika wa wa'dika masta-ta'tu, a'udhu bika min sharri ma sana'tu, abu'u laka bini'matika 'alayya wa abu'u laka bidhanbi, faghfir li, fa innahu la yaghfiru-dh-dhunuba illa ant",
+    "translation": "O Allah, You are my Lord, there is none worthy of worship except You. You have created me, and I am Your servant, and I am faithful to Your covenant and promise as much as I can. I seek refuge in You from the evil of what I have done. I acknowledge Your blessings upon me, and I admit my sins. So forgive me, for none forgives sins except You.",
+    "source": "Sahih al-Bukhari 6306",
+    "when_to_recite": "The Master of Seeking Forgiveness (Sayyid al-Istighfar) — recite in the morning and evening, and whenever you feel spiritually distant or cut off from Allah. It is a declaration of belonging: 'You are my Lord.'",
+    "emotion_tags": [
+      "loneliness",
+      "spiritual disconnection",
+      "guilt",
+      "seeking forgiveness"
+    ]
+  },
+  {
+    "id": "loneliness-4",
+    "category": "loneliness",
+    "title": "Surrendering to Allah — excerpt from the night prayer",
+    "arabic": "اللَّهُمَّ لَكَ الْحَمْدُ أَنْتَ رَبُّ السَّمَوَاتِ وَالأَرْضِ، لَكَ الْحَمْدُ أَنْتَ قَيِّمُ السَّمَوَاتِ وَالأَرْضِ وَمَنْ فِيهِنَّ، لَكَ الْحَمْدُ أَنْتَ نُورُ السَّمَوَاتِ وَالأَرْضِ، اللَّهُمَّ لَكَ أَسْلَمْتُ، وَبِكَ آمَنْتُ، وَعَلَيْكَ تَوَكَّلْتُ، وَإِلَيْكَ أَنَبْتُ، فَاغْفِرْ لِي مَا قَدَّمْتُ وَمَا أَخَّرْتُ، وَأَسْرَرْتُ وَأَعْلَنْتُ، أَنْتَ إِلَهِي لاَ إِلَهَ لِي غَيْرُكَ",
+    "transliteration": "Allahumma lakal-hamdu anta Rabbu-s-samawati wal-ard, lakal-hamdu anta qayyimu-s-samawati wal-ardi wa man fihinn, lakal-hamdu anta nuru-s-samawati wal-ard, Allahumma laka aslamtu, wa bika amantu, wa 'alayka tawakkaltu, wa ilayka anabtu, faghfir li ma qaddamtu wa ma akhkhartu, wa asrartu wa a'lantu, anta ilahi la ilaha li ghairuk",
+    "translation": "O Allah: All the Praises are for You: You are the Lord of the Heavens and the Earth. All the Praises are for You; You are the Maintainer of the Heaven and the Earth and whatever is in them. All the Praises are for You; You are the Light of the Heavens and the Earth. O Allah! I surrender myself to You, and I believe in You and I depend upon You, and I repent to You. O Allah! Forgive me my sins that I did in the past or will do in the future, and also the sins I did in secret or in public. You are my only God (Whom I worship) and there is no other God for me.",
+    "source": "Sahih al-Bukhari 7385",
+    "when_to_recite": "When loneliness makes you feel the world has left you — declare to Allah: 'You are my Light, my Lord, my only companion.' This is an excerpt from a longer dua the Prophet ﷺ would say at night.",
+    "emotion_tags": [
+      "loneliness",
+      "isolation",
+      "spiritual surrender",
+      "seeking Allah's presence"
+    ]
+  },
+  {
+    "id": "burnout-1",
+    "category": "burnout",
+    "title": "Relief from exhaustion, worry, and overwhelm",
+    "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ، وَغَلَبَةِ الرِّجَالِ",
+    "transliteration": "Allahumma inni a'udhu bika min al-hammi wal-hazani, wal-'ajzi wal-kasali, wal-jubni wal-bukhli, wa dhala'id-dayni, wa ghalabatir-rijal",
+    "translation": "O Allah! I seek refuge with You from worry and grief, from incapacity and laziness, from cowardice and miserliness, from being heavily in debt and from being overpowered by (other) men.",
+    "source": "Sahih al-Bukhari 6369",
+    "when_to_recite": "When exhaustion, overwhelm, or a crushing sense of 'I can't go on' sets in. The Prophet ﷺ frequently recited this prayer — seeking Allah's protection from the very feelings that burnout brings: worry, grief, and incapacity.",
+    "emotion_tags": [
+      "burnout",
+      "exhaustion",
+      "overwhelm",
+      "anxiety",
+      "grief"
+    ]
+  },
+  {
+    "id": "burnout-2",
+    "category": "burnout",
+    "title": "Do not burden us beyond what we can bear",
+    "arabic": "رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًۭا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ",
+    "transliteration": "Rabbana la tu'akhidhna in nasina aw akhta'na, Rabbana wa la tahmil 'alayna isran kama hamaltahu 'alal-ladhina min qablina, Rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'alal-qawmil-kafirin",
+    "translation": "Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one you placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our ˹only˺ Guardian. So grant us victory over the disbelieving people.",
+    "source": "Quran 2:286",
+    "when_to_recite": "When you feel crushed by life's weight and cannot carry on — Allah Himself promises He does not burden a soul beyond its capacity. This prayer is the closing supplication of Surah Al-Baqarah and beloved to recite morning and night.",
+    "emotion_tags": [
+      "burnout",
+      "overwhelm",
+      "exhaustion",
+      "overburdened"
+    ]
+  },
+  {
+    "id": "burnout-3",
+    "category": "burnout",
+    "title": "Musa's prayer when his people failed him",
+    "arabic": "رَبِّ لَوْ شِئْتَ أَهْلَكْتَهُم مِّن قَبْلُ وَإِيَّـٰىَ ۖ أَتُهْلِكُنَا بِمَا فَعَلَ ٱلسُّفَهَآءُ مِنَّآ ۖ إِنْ هِىَ إِلَّا فِتْنَتُكَ تُضِلُّ بِهَا مَن تَشَآءُ وَتَهْدِى مَن تَشَآءُ ۖ أَنتَ وَلِيُّنَا فَٱغْفِرْ لَنَا وَٱرْحَمْنَا ۖ وَأَنتَ خَيْرُ ٱلْغَـٰفِرِينَ",
+    "transliteration": "Rabbi law shi'ta ahlaktahum min qablu wa iyyaya, atuhlikuna bima fa'ala-s-sufaha'u minna, in hiya illa fitnatuka tudillu biha man tasha'u wa tahdi man tasha'u, anta waliyyuna faghfir lana warhamna wa anta khayrul-ghafirin",
+    "translation": "My Lord! Had You willed, You could have destroyed them long ago, and me as well. Will You destroy us for what the foolish among us have done? This is only a test from You—by which You allow whoever You will to stray and guide whoever You will. You are our Guardian. So forgive us and have mercy on us. You are the best forgiver.",
+    "source": "Quran 7:155",
+    "when_to_recite": "When you are burned out from carrying responsibility for others — leading, guiding, or caring while people around you fail. Musa (AS) prayed this when exhausted by his people's failures. Acknowledge that guidance is in Allah's hands, not yours alone.",
+    "emotion_tags": [
+      "burnout",
+      "leadership exhaustion",
+      "responsibility",
+      "feeling failed by others"
+    ]
+  },
+  {
+    "id": "burnout-4",
+    "category": "burnout",
+    "title": "Grant us mercy and guide us through our ordeal",
+    "arabic": "رَبَّنَآ ءَاتِنَا مِن لَّدُنكَ رَحْمَةًۭ وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًۭا",
+    "transliteration": "Rabbana atina min ladunka rahmatan wa hayyi' lana min amrina rashada",
+    "translation": "Our Lord! Grant us mercy from Yourself and guide us rightly through our ordeal.",
+    "source": "Quran 18:10",
+    "when_to_recite": "The prayer of the People of the Cave — young people who fled oppression and exhaustion, took refuge, and asked only for mercy and guidance. Recite when you have no energy left and need Allah to show you a way through.",
+    "emotion_tags": [
+      "burnout",
+      "exhaustion",
+      "seeking refuge",
+      "overwhelm",
+      "guidance needed"
+    ]
+  },
+  {
+    "id": "marriage_conflict-1",
+    "category": "marriage_conflict",
+    "title": "Asking Allah for a righteous and joyful marriage",
+    "arabic": "رَبَّنَا هَبْ لَنَا مِنْ أَزْوَٰجِنَا وَذُرِّيَّـٰتِنَا قُرَّةَ أَعْيُنٖ وَٱجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا",
+    "transliteration": "Rabbana hab lana min azwajina wa dhurriyyatina qurrata a'yunin waj'alna lil-muttaqina imama",
+    "translation": "Our Lord! Bless us with ˹pious˺ spouses and offspring who will be the joy of our hearts, and make us models for the righteous.",
+    "source": "Quran 25:74",
+    "when_to_recite": "When you are experiencing conflict in your marriage — ask Allah not for the conflict to disappear, but for Him to make your spouse and family the joy of your eyes. This prayer shifts perspective from grievance to aspiration.",
+    "emotion_tags": [
+      "marriage conflict",
+      "marital tension",
+      "family",
+      "longing for harmony"
+    ]
+  },
+  {
+    "id": "marriage_conflict-2",
+    "category": "marriage_conflict",
+    "title": "Grant us goodness in this life and the next",
+    "arabic": "رَبَّنَآ ءَاتِنَا فِى ٱلدُّنْيَا حَسَنَةًۭ وَفِى ٱلْـَٔاخِرَةِ حَسَنَةًۭ وَقِنَا عَذَابَ ٱلنَّارِ",
+    "transliteration": "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
+    "translation": "Our Lord! Grant us the good of this world and the Hereafter, and protect us from the torment of the Fire.",
+    "source": "Quran 2:201",
+    "when_to_recite": "The most comprehensive prayer in the Quran — recite during marital difficulties to ask Allah for what is truly good, including goodness in your marriage and home, while keeping your gaze on what endures beyond this world.",
+    "emotion_tags": [
+      "marriage conflict",
+      "seeking goodness",
+      "overall wellbeing",
+      "family peace"
+    ]
+  },
+  {
+    "id": "marriage_conflict-3",
+    "category": "marriage_conflict",
+    "title": "Join our hearts and mend what is between us",
+    "arabic": "اللَّهُمَّ أَلِّفْ بَيْنَ قُلُوبِنَا وَأَصْلِحْ ذَاتَ بَيْنِنَا وَاهْدِنَا سُبُلَ السَّلَامِ وَنَجِّنَا مِنَ الظُّلُمَاتِ إِلَى النُّورِ وَجَنِّبْنَا الْفَوَاحِشَ مَا ظَهَرَ مِنْهَا وَمَا بَطَنَ وَبَارِكْ لَنَا فِي أَسْمَاعِنَا وَأَبْصَارِنَا وَقُلُوبِنَا وَأَزْوَاجِنَا وَذُرِّيَّاتِنَا وَتُبْ عَلَيْنَا إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ وَاجْعَلْنَا شَاكِرِينَ لِنِعْمَتِكَ مُثْنِينَ بِهَا قَابِلِيهَا وَأَتِمَّهَا عَلَيْنَا",
+    "transliteration": "Allahumma allif bayna qulubina wa aslih dhata baynina, wahdina subula-s-salam, wa najjina mina-dh-dhulumati ila-n-nur, wa jannibna-l-fawahisha ma zahara minha wa ma batan, wa barik lana fi asma'ina wa absarina wa qulubina wa azwajina wa dhurriyyatina, wa tub 'alayna innaka anta-t-Tawwabu-r-Rahim, waj'alna shakirin li-ni'matika muthnina biha qabiliha wa atimmaha 'alayna",
+    "translation": "O Allah, join our hearts, mend what is between us, guide us to the paths of peace, bring us from darkness to light, keep us away from obscenities, outward and inward, and bless our hearing, our sight, our hearts, our spouses, and our children. Turn toward us, for You are the Accepter of repentance, the Most Merciful. Make us grateful for Your blessing, praising it, accepting it, and complete it upon us.",
+    "source": "Sunan Abi Dawud 969",
+    "when_to_recite": "During marital tension, family strain, or any conflict where hearts need reconciliation and Allah's guidance toward peace.",
+    "emotion_tags": [
+      "marriage conflict",
+      "marital tension",
+      "seeking Allah's help with spouse",
+      "reconciliation"
+    ]
+  },
+  {
+    "id": "marriage_conflict-4",
+    "category": "marriage_conflict",
+    "title": "Do not let our hearts deviate from one another",
+    "arabic": "رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِن لَّدُنكَ رَحْمَةً ۚ إِنَّكَ أَنتَ ٱلْوَهَّابُ",
+    "transliteration": "Rabbana la tuzigh qulubana ba'da idh hadaytana wa hab lana min ladunka rahmah, innaka anta-l-Wahhab",
+    "translation": "Our Lord! Do not let our hearts deviate after you have guided us. Grant us Your mercy. You are indeed the Giver ˹of all bounties˺.",
+    "source": "Quran 3:8",
+    "when_to_recite": "When conflict in your marriage makes hearts feel hardened or distant from each other — ask Allah, the Turner of Hearts, to keep your hearts aligned with His guidance and softened toward your spouse.",
+    "emotion_tags": [
+      "marriage conflict",
+      "hardened heart",
+      "seeking mercy",
+      "marital estrangement"
+    ]
+  },
+  {
+    "id": "parenting-1",
+    "category": "parenting",
+    "title": "Ibrahim's prayer for praying children",
+    "arabic": "رَبِّ ٱجْعَلْنِى مُقِيمَ ٱلصَّلَوٰةِ وَمِن ذُرِّيَّتِى ۚ رَبَّنَا وَتَقَبَّلْ دُعَآءِ",
+    "transliteration": "Rabbij-'alni muqimas-salati wa min dhurriyyati, Rabbana wa taqabbal du'a'",
+    "translation": "My Lord! Make me and those ˹believers˺ of my descendants keep up prayer. Our Lord! Accept my prayers.",
+    "source": "Quran 14:40",
+    "when_to_recite": "The prayer of Prophet Ibrahim (AS) — a father who worried about his children's spiritual future. Recite for your children: ask Allah to establish prayer in their hearts and accept your duas for them.",
+    "emotion_tags": [
+      "parenting",
+      "children's faith",
+      "prayer for children",
+      "spiritual upbringing"
+    ]
+  },
+  {
+    "id": "parenting-2",
+    "category": "parenting",
+    "title": "Zakariyya's prayer for righteous children",
+    "arabic": "رَبِّ هَبْ لِى مِن لَّدُنكَ ذُرِّيَّةًۭ طَيِّبَةً ۖ إِنَّكَ سَمِيعُ ٱلدُّعَآءِ",
+    "transliteration": "Rabbi hab li min ladunka dhurriyyatan tayyibah, innaka sami'ud-du'a'",
+    "translation": "My Lord! Grant me—by your grace—righteous offspring. You are certainly the Hearer of ˹all˺ prayers.",
+    "source": "Quran 3:38",
+    "when_to_recite": "The prayer of Prophet Zakariyya (AS) — said when he longed for a child who would be righteous and carry on goodness. Recite when hoping for children, or when praying for a child who has strayed, trusting that Allah hears every prayer.",
+    "emotion_tags": [
+      "parenting",
+      "longing for children",
+      "righteous children",
+      "hope",
+      "prayer for offspring"
+    ]
+  },
+  {
+    "id": "parenting-3",
+    "category": "parenting",
+    "title": "A parent's prayer for righteous children",
+    "arabic": "رَبِّ أَوْزِعْنِىٓ أَنْ أَشْكُرَ نِعْمَتَكَ ٱلَّتِىٓ أَنْعَمْتَ عَلَىَّ وَعَلَىٰ وَٰلِدَىَّ وَأَنْ أَعْمَلَ صَـٰلِحًۭا تَرْضَىٰهُ وَأَصْلِحْ لِى فِى ذُرِّيَّتِىٓ ۖ إِنِّى تُبْتُ إِلَيْكَ وَإِنِّى مِنَ ٱلْمُسْلِمِينَ",
+    "transliteration": "Rabbi awzi'ni an ashkura ni'matakallati an'amta 'alayya wa 'ala walidayya wa an a'mala salihan tardahu wa aslih li fi dhurriyyati, inni tubtu ilayka wa inni minal-muslimin",
+    "translation": "My Lord! Inspire me to ˹always˺ be thankful for Your favours which You blessed me and my parents with, and to do good deeds that please You. And instil righteousness in my offspring. I truly repent to You, and I truly submit ˹to Your Will˺.",
+    "source": "Quran 46:15",
+    "when_to_recite": "Recite at forty — or any time you feel the weight of parenthood. Ask Allah to make you a grateful child and a righteous parent, and to plant goodness in your children's hearts. 'Aslih li fi dhurriyyati' — rectify my offspring for me.",
+    "emotion_tags": [
+      "parenting",
+      "gratitude",
+      "righteous children",
+      "spiritual responsibility",
+      "family"
+    ]
+  },
+  {
+    "id": "parenting-4",
+    "category": "parenting",
+    "title": "Grant me an heir who will be pleasing to You",
+    "arabic": "فَهَبْ لِى مِن لَّدُنكَ وَلِيًّۭا ۝ يَرِثُنِى وَيَرِثُ مِنْ ءَالِ يَعْقُوبَ ۖ وَٱجْعَلْهُ رَبِّ رَضِيًّۭا",
+    "transliteration": "Fa hab li min ladunka waliyya, yarithuni wa yarithu min ali ya'quba, waj'alhu Rabbi radiyya",
+    "translation": "So grant me, by Your grace, an heir who will inherit ˹prophethood˺ from me and the family of Jacob, and make him, O Lord, pleasing ˹to You˺!",
+    "source": "Quran 19:5-6",
+    "when_to_recite": "Zakariyya (AS) was old and his wife barren, yet he asked Allah for a child who would be righteous and pleasing to Him — not for his own satisfaction, but for the continuation of goodness. Recite when longing for children or praying that your children grow up beloved to Allah.",
+    "emotion_tags": [
+      "parenting",
+      "longing for children",
+      "righteous offspring",
+      "hope",
+      "trust in Allah"
+    ]
+  },
+  {
+    "id": "addiction-1",
+    "category": "addiction",
+    "title": "When you feel powerless against a habit",
+    "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ، وَغَلَبَةِ الرِّجَالِ",
+    "transliteration": "Allahumma inni a'udhu bika minal-hammi wal-hazani, wal-'ajzi wal-kasali, wal-jubni wal-bukhli, wa dhala'id-dayni, wa ghalabatir-rijal",
+    "translation": "O Allah! I seek refuge with You from worry and grief, from incapacity and laziness, from cowardice and miserliness, from being heavily in debt and from being overpowered by (other) men.",
+    "source": "Sahih al-Bukhari 6369",
+    "when_to_recite": "Recite morning and evening, or whenever you feel overcome by compulsion, lethargy, or the sense that you cannot break free from a destructive habit.",
+    "emotion_tags": [
+      "addiction",
+      "weakness",
+      "self-control",
+      "powerlessness",
+      "anxiety"
+    ]
+  },
+  {
+    "id": "addiction-2",
+    "category": "addiction",
+    "title": "Grant my soul its piety and purify it",
+    "arabic": "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْعَجْزِ وَالْكَسَلِ وَالْجُبْنِ وَالْبُخْلِ وَالْهَرَمِ وَعَذَابِ الْقَبْرِ اللَّهُمَّ آتِ نَفْسِي تَقْوَاهَا وَزَكِّهَا أَنْتَ خَيْرُ مَنْ زَكَّاهَا",
+    "transliteration": "Allahumma inni a'udhu bika minal-'ajzi wal-kasali wal-jubni wal-bukhli wal-harami wa 'adhabil-qabri. Allahumma ati nafsi taqwaha wa zakkiha anta khayru man zakkaha",
+    "translation": "O Allah, I seek refuge in You from incapacity, from sloth, from cowardice, from miserliness, from decrepitude, and from torment of the grave. O Allah, grant to my soul the sense of righteousness and purify it, for You are the Best Purifier thereof.",
+    "source": "Sahih Muslim 2722",
+    "when_to_recite": "Recite when struggling against the nafs (self) that pulls toward sin or harmful habits, or when seeking inner purification and taqwa.",
+    "emotion_tags": [
+      "addiction",
+      "nafs",
+      "self-control",
+      "purification",
+      "spiritual-struggle"
+    ]
+  },
+  {
+    "id": "addiction-3",
+    "category": "addiction",
+    "title": "Seeking refuge when Shaytan whispers",
+    "arabic": "وَإِمَّا يَنزَغَنَّكَ مِنَ ٱلشَّيْطَـٰنِ نَزْغٌۭ فَٱسْتَعِذ بِٱللَّهِ ۚ إِنَّهُۥ سَمِيعٌ عَلِيمٌ",
+    "transliteration": "Wa imma yanzaghannaka mina ash-shaytani nazghun fas-ta'idh billah, innahu sami'un 'alim",
+    "translation": "If you are tempted by Satan, then seek refuge with Allah. Surely He is All-Hearing, All-Knowing.",
+    "source": "Quran 7:200",
+    "when_to_recite": "Recite 'A'udhu billahi min ash-shaytanir-rajim' the moment a craving or compulsion arises. This verse is the scriptural command to do so.",
+    "emotion_tags": [
+      "addiction",
+      "temptation",
+      "shaytan",
+      "self-control",
+      "craving"
+    ]
+  },
+  {
+    "id": "addiction-4",
+    "category": "addiction",
+    "title": "Acknowledging the nafs that inclines to evil",
+    "arabic": "وَمَآ أُبَرِّئُ نَفْسِىٓ ۚ إِنَّ ٱلنَّفْسَ لَأَمَّارَةٌۢ بِٱلسُّوٓءِ إِلَّا مَا رَحِمَ رَبِّىٓ ۚ إِنَّ رَبِّى غَفُورٌۭ رَّحِيمٌۭ",
+    "transliteration": "Wa ma ubarri'u nafsi, innan-nafsa la-'ammaratun bis-su'i illa ma rahima rabbi, inna rabbi ghafurun rahim",
+    "translation": "And I do not seek to free myself from blame, for indeed the soul is ever inclined to evil, except those shown mercy by my Lord. Surely my Lord is All-Forgiving, Most Merciful.",
+    "source": "Quran 12:53",
+    "when_to_recite": "Reflect on this verse when struggling with relapse or self-blame. It acknowledges the nafs's tendency honestly while affirming that Allah's mercy is the path out — not willpower alone.",
+    "emotion_tags": [
+      "addiction",
+      "shame",
+      "nafs",
+      "self-blame",
+      "mercy",
+      "relapse"
+    ]
+  },
+  {
+    "id": "illness-1",
+    "category": "illness",
+    "title": "The Prophet's healing prayer over the sick",
+    "arabic": "أَذْهِبِ الْبَاسَ رَبَّ النَّاسِ، اشْفِ وَأَنْتَ الشَّافِي، لاَ شِفَاءَ إِلاَّ شِفَاؤُكَ، شِفَاءً لاَ يُغَادِرُ سَقَمًا",
+    "transliteration": "Adh-hibil-ba'sa Rabban-nas, ishfi wa antash-shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama",
+    "translation": "Take away the disease, O the Lord of the people! Cure him as You are the One Who cures. There is no cure but Yours, a cure that leaves no disease.",
+    "source": "Sahih al-Bukhari 5675",
+    "when_to_recite": "Recite when visiting someone who is sick, or when ill yourself. The Prophet (peace be upon him) would wipe the sick person with his right hand while saying these words.",
+    "emotion_tags": [
+      "illness",
+      "healing",
+      "sickness",
+      "hope",
+      "tawakkul"
+    ]
+  },
+  {
+    "id": "illness-2",
+    "category": "illness",
+    "title": "Placing your hand on pain and seeking refuge",
+    "arabic": "بِسْمِ اللَّهِ، أَعُوذُ بِاللَّهِ وَقُدْرَتِهِ مِنْ شَرِّ مَا أَجِدُ وَأُحَاذِرُ",
+    "transliteration": "Bismillah. A'udhu billahi wa qudratihi min sharri ma ajidu wa uhadhir",
+    "translation": "In the name of Allah. I seek refuge with Allah and with His Power from the evil that I find and that I fear.",
+    "source": "Sahih Muslim 2202",
+    "when_to_recite": "When experiencing physical pain or illness. Place your hand on the site of pain, say Bismillah three times, then say the refuge prayer seven times, as the Prophet ﷺ taught Uthman ibn Abi al-'As.",
+    "emotion_tags": [
+      "illness",
+      "pain",
+      "healing",
+      "sickness",
+      "physical-distress"
+    ]
+  },
+  {
+    "id": "illness-3",
+    "category": "illness",
+    "title": "Asking Allah, Lord of the Mighty Throne, to heal",
+    "arabic": "أَسْأَلُ اللَّهَ الْعَظِيمَ رَبَّ الْعَرْشِ الْعَظِيمِ أَنْ يَشْفِيَكَ",
+    "transliteration": "As'alullaha al-'azima rabbal-'arshil-'azimi an yashfiyak",
+    "translation": "I ask Allah, the Mighty, the Lord of the Mighty Throne, to cure you.",
+    "source": "Sunan Abi Dawud 3106",
+    "when_to_recite": "Recite seven times when visiting a sick person whose time of death has not yet come. The Prophet (peace be upon him) said Allah will cure them of that disease.",
+    "emotion_tags": [
+      "illness",
+      "healing",
+      "visiting-the-sick",
+      "intercession",
+      "hope"
+    ]
+  },
+  {
+    "id": "illness-4",
+    "category": "illness",
+    "title": "Removing hardship — the Prophet's ruqyah from Sahih al-Bukhari",
+    "arabic": "امْسَحِ الْبَاسَ رَبَّ النَّاسِ، بِيَدِكَ الشِّفَاءُ، لاَ كَاشِفَ لَهُ إِلاَّ أَنْتَ",
+    "transliteration": "Imsahil-ba'sa Rabban-nas, biyadikas-shifa', la kashifa lahu illa ant",
+    "translation": "Remove the hardship, O Lord of the people. The cure is in Your Hand. There is no one who can remove it except You.",
+    "source": "Sahih al-Bukhari 5744",
+    "when_to_recite": "Recite when performing ruqyah on a sick person, passing the right hand gently over them. This is a variant of the Prophet's healing formula, narrated by Aisha (RA).",
+    "emotion_tags": [
+      "illness",
+      "healing",
+      "ruqyah",
+      "sickness",
+      "reliance-on-Allah"
+    ]
+  },
+  {
+    "id": "death_grief-1",
+    "category": "death_grief",
+    "title": "When struck by loss — Inna lillahi wa inna ilayhi raji'un",
+    "arabic": "إِنَّا لِلَّهِ وَإِنَّآ إِلَيْهِ رَٰجِعُونَ",
+    "transliteration": "Inna lillahi wa inna ilayhi raji'un",
+    "translation": "Surely to Allah we belong and to Him we will all return.",
+    "source": "Quran 2:156",
+    "when_to_recite": "Say immediately upon hearing of a death or calamity. This is the verse the Quran records believers saying when struck by any disaster. It is both a statement of faith and a supplication of surrender.",
+    "emotion_tags": [
+      "death_grief",
+      "loss",
+      "mourning",
+      "inna lillahi",
+      "calamity",
+      "patience"
+    ]
+  },
+  {
+    "id": "death_grief-2",
+    "category": "death_grief",
+    "title": "The Prophet's dua at the moment of death",
+    "arabic": "اللَّهُمَّ اغْفِرْ لأَبِي سَلَمَةَ وَارْفَعْ دَرَجَتَهُ فِي الْمَهْدِيِّينَ وَاخْلُفْهُ فِي عَقِبِهِ فِي الْغَابِرِينَ وَاغْفِرْ لَنَا وَلَهُ يَا رَبَّ الْعَالَمِينَ وَافْسَحْ لَهُ فِي قَبْرِهِ وَنَوِّرْ لَهُ فِيهِ",
+    "transliteration": "Allahumma-ghfir li Abi Salamata warfa' darajatahu fil-mahdiyyin, wakhlufhu fi 'aqibihi fil-ghābirin, waghfir lana wa lahu ya Rabbal-'alamin, waf-sah lahu fi qabrihi wa nawwir lahu fih",
+    "translation": "O Allah, forgive Abu Salama, raise his degree among those who are rightly guided, grant him a successor in his descendants who remain. Forgive us and him, O Lord of the Universe, and make his grave spacious, and grant him light in it.",
+    "source": "Sahih Muslim 920a",
+    "when_to_recite": "Recite (substituting the deceased's name) immediately after someone passes away, or at the moment of closing the eyes. The Prophet (peace be upon him) said this over Abu Salama and reminded those present: 'Do not supplicate for yourselves anything but good, for angels say Amen to what you say.'",
+    "emotion_tags": [
+      "death_grief",
+      "janazah",
+      "mourning",
+      "dua-for-deceased",
+      "funeral"
+    ]
+  },
+  {
+    "id": "death_grief-3",
+    "category": "death_grief",
+    "title": "Dua for consolation after loss — asking for a better successor",
+    "arabic": "اللَّهُمَّ اغْفِرْ لِي وَلَهُ وَأَعْقِبْنِي مِنْهُ عُقْبَى حَسَنَةً",
+    "transliteration": "Allahumma-ghfir li wa lahu wa a'qibni minhu 'uqba hasana",
+    "translation": "O Allah, forgive me and him, and grant me in his place a good successor.",
+    "source": "Sahih Muslim 919",
+    "when_to_recite": "Say when you have lost someone dear — a spouse, parent, or companion — and feel the grief of their absence. The Prophet (peace be upon him) taught Umm Salama these words after her husband's death.",
+    "emotion_tags": [
+      "death_grief",
+      "loss",
+      "mourning",
+      "consolation",
+      "acceptance",
+      "widowhood"
+    ]
+  },
+  {
+    "id": "death_grief-4",
+    "category": "death_grief",
+    "title": "Those who persevere — Allah's blessings and mercy are upon them",
+    "arabic": "أُو۟لَـٰٓئِكَ عَلَيْهِمْ صَلَوَٰتٌۭ مِّن رَّبِّهِمْ وَرَحْمَةٌۭ ۖ وَأُو۟لَـٰٓئِكَ هُمُ ٱلْمُهْتَدُونَ",
+    "transliteration": "Ula'ika 'alayhim salawatun min rabbihim wa rahma, wa ula'ika humul-muhtadun",
+    "translation": "They are the ones who will receive Allah's blessings and mercy. And it is they who are rightly guided.",
+    "source": "Quran 2:157",
+    "when_to_recite": "Recite for comfort after loss. This verse follows 2:156 (inna lillahi) and 2:155 (the promise of tests) — it is Allah's direct response to those who say 'inna lillahi', promising them His salawat (blessings) and mercy.",
+    "emotion_tags": [
+      "death_grief",
+      "patience",
+      "comfort",
+      "mercy",
+      "mourning",
+      "hope"
+    ]
+  },
+  {
+    "id": "work-1",
+    "category": "work",
+    "title": "Musa's prayer when in desperate need of provision",
+    "arabic": "رَبِّ إِنِّى لِمَآ أَنزَلْتَ إِلَىَّ مِنْ خَيْرٍۢ فَقِيرٌۭ",
+    "transliteration": "Rabbi inni lima anzalta ilayya min khayrin faqir",
+    "translation": "My Lord! I am truly in desperate need of whatever provision You may have in store for me.",
+    "source": "Quran 28:24",
+    "when_to_recite": "Recite when job-seeking, between projects, facing financial hardship, or whenever you need provision and have done what you can — then turn to Allah as Musa (AS) did after drawing water for the women.",
+    "emotion_tags": [
+      "work",
+      "provision",
+      "rizq",
+      "need",
+      "tawakkul",
+      "poverty",
+      "job-seeking"
+    ]
+  },
+  {
+    "id": "work-2",
+    "category": "work",
+    "title": "Make the halal sufficient against the haram",
+    "arabic": "اللَّهُمَّ اكْفِنِي بِحَلاَلِكَ عَنْ حَرَامِكَ وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ",
+    "transliteration": "Allahumma akfini bihalalika 'an haramika, wa aghnini bifadlika 'amman siwak",
+    "translation": "O Allah, suffice me with Your lawful against Your prohibited, and make me independent of all besides You.",
+    "source": "Jami' at-Tirmidhi 3563",
+    "when_to_recite": "Recite morning and evening, especially when facing financial pressure or temptation toward dishonest or haram earnings. The Prophet (peace be upon him) taught this to someone whose debts felt as heavy as a mountain.",
+    "emotion_tags": [
+      "work",
+      "rizq",
+      "halal",
+      "financial-pressure",
+      "debt",
+      "independence",
+      "contentment"
+    ]
+  },
+  {
+    "id": "work-3",
+    "category": "work",
+    "title": "O Allah, I ask You for guidance, piety, chastity, and sufficiency",
+    "arabic": "اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى",
+    "transliteration": "Allahumma inni as'aluka al-huda wat-tuqa wal-'afafa wal-ghina",
+    "translation": "O Allah, indeed, I ask You for guidance, piety, chastity, and sufficiency.",
+    "source": "Jami' at-Tirmidhi 3489",
+    "when_to_recite": "Recite at the start of a workday, before a business meeting, or when seeking dignified livelihood. 'Ghina' (sufficiency/contentment) and 'afaf' (chastity/dignity) together cover both the rizq and the ethical dimension of earning.",
+    "emotion_tags": [
+      "work",
+      "rizq",
+      "guidance",
+      "taqwa",
+      "contentment",
+      "dignity",
+      "livelihood"
+    ]
+  },
+  {
+    "id": "work-4",
+    "category": "work",
+    "title": "My Lord, increase me in knowledge",
+    "arabic": "وَقُل رَّبِّ زِدْنِى عِلْمًۭا",
+    "transliteration": "Wa qul rabbi zidni 'ilma",
+    "translation": "And pray, 'My Lord! Increase me in knowledge.'",
+    "source": "Quran 20:114",
+    "when_to_recite": "Recite before studying, learning a new skill, preparing for an exam, or entering any professional endeavour that requires expertise. Knowledge is the foundation of dignified, skilled work.",
+    "emotion_tags": [
+      "work",
+      "knowledge",
+      "learning",
+      "skill",
+      "career",
+      "growth"
+    ]
   }
 ]
