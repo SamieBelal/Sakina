@@ -64,43 +64,32 @@ Deferred work — not blocking the current iOS submission, but needed before spe
 
 ---
 
-## Production telemetry for unknown-name fallback
+## ~~Production telemetry for unknown-name fallback~~ ✅ DONE 2026-05-12
 
-**Trigger:** after Plan 1 (verse catalog expansion) ships — at that point most unknown-name fallback firings will be eliminated, so the residual signal is meaningful.
+Shipped via migration `20260512000000_create_reflect_unknown_name_log.sql` +
+`onFallback` callback on `normalizeApprovedVerses` (`reflection_verse_catalog.dart`)
+wired to fire-and-forget `_logUnknownNameFallback` in `ai_service.dart`
+(mirrors `_logClassifierDecision`). User-scoped RLS (INSERT-own + SELECT-own),
+no PII columns. Callback wrapped in try/catch so a misbehaving logger can
+never break the reflect flow — pinned by `reflection_verse_catalog_unknown_name_callback_test.dart`.
 
-**Status:** When `findCanonicalName` resolves an AI response to a Name not in `approvedReflectVersesByName` (or the alias map misses), `normalizeApprovedVerses` returns `[_heartsRestVerse, _noBurdenVerse]` as a safety-net pair. Today the only signal is a `debugPrint` warning that's stripped from release builds — production has zero observability.
+Migration applied + smoke-verified on remote (insert lands, RLS isolates
+owner from other users, indexes in place).
 
-**Why this matters:** Users whose reflect card hits the fallback see the same two generic verses for every unknown Name. Without telemetry we can't:
-- Detect that the AI keeps returning a specific non-canonical transliteration we should alias
-- Measure how often the user-facing experience degrades to the demo
-- Tell apart "fallback fired because we genuinely lack content" vs "fallback fired because of spelling drift"
+**Weekly review query** (run in Supabase SQL editor or via MCP):
 
-**Steps when ready (~45 min):**
-1. Add Supabase migration `<date>_create_reflect_unknown_name_log.sql`:
-   ```sql
-   create table public.reflect_unknown_name_log (
-     id uuid primary key default gen_random_uuid(),
-     user_id uuid references auth.users(id) on delete set null,
-     ai_returned_name text not null,
-     phrase_excerpt text,
-     created_at timestamptz default now()
-   );
-   alter table public.reflect_unknown_name_log enable row level security;
-   create policy "service-role insert only" on public.reflect_unknown_name_log
-     for insert with check (auth.role() = 'service_role');
-   ```
-2. In `normalizeApprovedVerses` (`reflection_verse_catalog.dart`), add a fire-and-forget logger mirroring `_logClassifierDecision` in `ai_service.dart:388`:
-   ```dart
-   unawaited(supabaseSyncService.insertRow('reflect_unknown_name_log', {
-     'user_id': supabaseSyncService.currentUserId,
-     'ai_returned_name': name,
-     'phrase_excerpt': '...optional, depending on if you want PII...',
-   }));
-   ```
-3. Keep the debug `kDebugMode` warning for local development.
-4. Add a once-weekly Supabase query that surfaces the top 10 unknown names — surfaces aliasing opportunities.
+```sql
+select ai_returned_name, count(*) as hits, max(created_at) as last_seen
+from public.reflect_unknown_name_log
+where created_at > now() - interval '7 days'
+group by 1
+order by hits desc
+limit 25;
+```
 
-**Surfaced by:** /review adversarial pass on PR #6 (2026-05-12). The reviewer flagged that the unknown-name path is silent in production.
+If the same non-canonical spelling shows up repeatedly, either add it to the
+canonical-name alias map or expand `approvedReflectVersesByName` in
+`lib/features/reflect/data/reflection_verse_catalog.dart`.
 
 ---
 
