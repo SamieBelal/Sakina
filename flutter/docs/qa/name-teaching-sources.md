@@ -115,7 +115,7 @@ Rows below are pre-populated for the 60 canonical Names that do NOT yet have a
 | Al-Muid | Quran 85:13, 10:4, 12:96 | N/A | N/A (Quran) | N/A | N/A (Quran) | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Muhyi | Quran 57:2, 36:79, 41:39, 2:258 | N/A | Sahih Muslim (paired concept) | N/A (Quran only) | Quran 40:11 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Mumeet | Quran 57:2, 3:156, 67:2 | Sahih al-Bukhari 1303 (Prophet weeping for Ibrahim) | N/A | N/A (Quran/Hadith) | Quran 2:156 | Claude-assisted — pending human scholar review | 2026-05-13 |
-| Al-Wajid | Quran 93:6, 93:8, 38:44 | Sunan Ibn Majah 3861 (99 Names list) | N/A | N/A (Quran) | Quran 21:83 | Claude-assisted — pending human scholar review | 2026-05-13 |
+| Al-Wajid | Quran 93:6, 93:8, 38:44 | Quran only | N/A (Quran) | Quran 21:83 | N/A (Quran) | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Qadir | Quran 18:45, 6:17, 6:65, 2:286 | N/A | Yaqeen Ramadan du'a series quote | N/A (Quran) | Quran 2:286 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Muqtadir | Quran 54:42, 18:45, 54:55 | N/A | Yaqeen Ramadan du'a series quote | N/A (Quran) | Quran 57:2 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Barr | Quran 52:28 | N/A | Yaqeen Ramadan du'a series quote | N/A (Quran) | Quran 52:28 | Claude-assisted — pending human scholar review | 2026-05-13 |
@@ -126,8 +126,8 @@ Rows below are pre-populated for the 60 canonical Names that do NOT yet have a
 | Al-Ghaniyy | Quran 35:15, 57:24 | Sahih Muslim 2577a | Yaqeen Ramadan du'a series | N/A (Quran/Hadith) | Sahih Muslim 2577a | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Mughni | Quran 9:28, 93:8 | N/A | N/A (Quran) | N/A (Quran) | Quran 2:201 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Mani | Quran 23:88 | Sahih al-Bukhari 6615 | N/A | N/A (Quran/Hadith) | Sahih al-Bukhari 6615 | Claude-assisted — pending human scholar review | 2026-05-13 |
-| Ad-Darr | Quran 6:17, 10:107 | Sunan Ibn Majah 3861, Tirmidhi 2516 | N/A | N/A (Quran) | Quran 10:107 | Claude-assisted — pending human scholar review | 2026-05-13 |
-| An-Nafi | Quran 10:107 | Sunan Ibn Majah 3861, Tirmidhi 3599 | N/A | N/A (Quran/Hadith) | Tirmidhi 3599 | Claude-assisted — pending human scholar review | 2026-05-13 |
+| Ad-Darr | Quran + Hasan Hadith | Quran 6:17, 10:107; Jamiʼ at-Tirmidhi 2516 | Tirmidhi 2516 (Hasan) | Quran 10:107 | N/A (Quran) | Claude-assisted — pending human scholar review | 2026-05-13 |
+| An-Nafi | Quran + Sahih Hadith | Quran 10:107; Sahih al-Bukhari 2442 | Bukhari 2442 (Sahih) | Quran 2:201 | N/A (Quran) | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Badi | Quran 2:117, 6:101 | Sunan Abi Dawud 1495 | N/A | N/A (Quran) | Quran 2:117 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Al-Baqi | Quran 55:26-27, 28:88, 16:96 | Sahih al-Bukhari 3612 | N/A | N/A (Quran) | Quran 16:96 | Claude-assisted — pending human scholar review | 2026-05-13 |
 | Ar-Rasheed | Quran 18:10, 72:10, 93:7 | Sahih Muslim 2721 | Yaqeen Ramadan du'a series | N/A (Quran/Hadith) | Sahih Muslim 2721 | Claude-assisted — pending human scholar review | 2026-05-13 |
