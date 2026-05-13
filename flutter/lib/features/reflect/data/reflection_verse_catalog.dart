@@ -122,8 +122,9 @@ List<ReflectVerse> approvedVersesForName(String name) {
 
 List<ReflectVerse> normalizeApprovedVerses(
   String name,
-  List<ReflectVerse> verses,
-) {
+  List<ReflectVerse> verses, {
+  void Function(String aiReturnedName)? onFallback,
+}) {
   final approvedByReference = _approvedReflectVersesByReference;
   final normalized = <ReflectVerse>[];
   final seen = <String>{};
@@ -153,6 +154,19 @@ List<ReflectVerse> normalizeApprovedVerses(
   if (kDebugMode) {
     debugPrint('[reflect_verse] WARN: unknown-name fallback fired for "$name". '
         'Check AI prompt + canonical-names list for spelling mismatch.');
+  }
+  // Fire-and-forget telemetry hook. Caller (ai_service.dart) wires a Supabase
+  // insert into reflect_unknown_name_log. Optional so the catalog stays
+  // dependency-free for unit tests. Wrapped in try/catch because reflect
+  // must NEVER break because of telemetry — pinned by
+  // reflection_verse_catalog_unknown_name_callback_test.dart "callback that
+  // throws" test.
+  try {
+    onFallback?.call(name);
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('[reflect_verse] onFallback threw: $e — swallowed.');
+    }
   }
   return const [_heartsRestVerse, _noBurdenVerse];
 }
