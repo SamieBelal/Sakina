@@ -787,7 +787,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildRewardCalendar() {
     final rewards = ref.watch(dailyRewardsProvider);
-    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+    final isPremium =
+        ref.watch(premiumStateProvider).value?.isPremium ?? false;
     final claimed = rewards.claimedToday;
 
     // When claimed: show a slim collapsed bar, tap to expand full calendar

@@ -3,17 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/widgets/billing_issue_banner.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('renders nothing when billingIssueProvider returns null',
+  testWidgets('renders nothing when billing issue is null',
       (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          billingIssueProvider.overrideWith((ref) async => null),
+          premiumStateProvider.overrideWith(
+            (ref) async => (isPremium: true, billingIssueAt: null),
+          ),
         ],
         child: const MaterialApp(home: BillingIssueBanner()),
       ),
@@ -32,8 +35,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          billingIssueProvider
-              .overrideWith((ref) async => '2026-04-17T12:00:00.000Z'),
+          premiumStateProvider.overrideWith(
+            (ref) async => (
+              isPremium: true,
+              billingIssueAt: '2026-04-17T12:00:00.000Z',
+            ),
+          ),
         ],
         child: const MaterialApp(home: BillingIssueBanner()),
       ),
@@ -49,11 +56,11 @@ void main() {
 
   testWidgets('renders nothing while the provider is still loading',
       (tester) async {
-    final completer = Completer<String?>();
+    final completer = Completer<PremiumState>();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          billingIssueProvider.overrideWith((ref) => completer.future),
+          premiumStateProvider.overrideWith((ref) => completer.future),
         ],
         child: const MaterialApp(home: BillingIssueBanner()),
       ),
@@ -64,7 +71,7 @@ void main() {
     expect(find.byIcon(Icons.error_outline), findsNothing);
 
     // Resolve so the widget tree can tear down cleanly.
-    completer.complete(null);
+    completer.complete((isPremium: false, billingIssueAt: null));
     await tester.pumpAndSettle();
   });
 }

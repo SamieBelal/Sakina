@@ -112,3 +112,31 @@ Specific lines on master (`fix/2026-05-12-daily-launch-overlay` HEAD shows the s
 5. Add a regression test mirroring `test/services/launch_gate_state_utc_test.dart` that mocks the new seam and pins both the SharedPrefs key shape and the `user_checkin_history.date` write.
 
 **Surfaced by:** /review on the `fix/2026-05-12-daily-launch-overlay` branch — adjacent code path with the same class of bug as the launch-gate UTC fix that shipped in that PR.
+
+---
+
+## Home-screen Premium banner (second upgrade entry)
+
+**Trigger:** Apple re-rejects citing discoverability of subscriptions even after the Settings card ships, OR analytics on `settings_premium_cta_tapped` shows a low tap-through rate (<2% of free-user Settings opens within 30 days post-launch) suggesting Settings alone isn't pulling free users to the paywall.
+
+**Status:** Spec `docs/superpowers/specs/2026-05-13-settings-premium-entry-design.md` (shipped 2026-05-13) added a `SettingsPremiumCard` upgrade entry inside `/settings` only. Apple's rejection diagnosis originally suggested a Home-screen banner as well, but the Home strip was explicitly deferred to keep the warm/devotional Home aesthetic clean and to ship the Settings fix first.
+
+**What:** a small gold strip on `lib/features/home/screens/home_screen.dart` (free users only, gated on `premiumStateProvider.isPremium == false`) sitting above or below the daily check-in CTA. Copy: "Try Sakina Premium →". Tap → `context.push('/paywall')` (same route the Settings card uses; no new route plumbing).
+
+**Why:**
+- Belt-and-braces discoverability for App Review — reviewers exercise Home far more than Settings.
+- Free users in the daily-check-in habit see the upgrade pitch in the flow of normal use, not buried in Settings.
+- Reuses every existing piece: `/paywall` route, `premiumStateProvider`, analytics events pattern.
+
+**Pros:** Bulletproof App Review fix. Lifts conversion (a Home-surface upgrade entry is the highest-converting placement in every paywall analytics study). ~40 LoC widget + 3-line Home insert.
+
+**Cons:** Adds visual weight to Home, which is currently devotional and uncluttered. Risk of feeling pushy. Premium users see nothing (good), so no negative impact on paying users.
+
+**Steps when ready (~30 min total):**
+1. Create `lib/features/home/widgets/home_premium_strip.dart` — `ConsumerWidget` watching `premiumStateProvider`, returns `SizedBox.shrink()` for premium and an `InkWell`-wrapped gold strip for free users.
+2. Insert into `home_screen.dart` build above the daily check-in CTA (find the right slot by scanning for the existing `Begin Muḥāsabah` block).
+3. Add `home_premium_strip_tapped` to `AnalyticsEvents`; fire on tap before push.
+4. Add widget test under `test/features/home/widgets/` covering both states + tap behavior.
+5. Verify on iPad Air M3 (the original App Review device) that the strip renders correctly.
+
+**Surfaced by:** /plan-eng-review on the Settings Premium Entry design (2026-05-13).

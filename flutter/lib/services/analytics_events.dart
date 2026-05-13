@@ -28,6 +28,15 @@ abstract final class AnalyticsEvents {
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
+  // Settings → Premium card. Persistent upgrade affordance added 2026-05-13
+  // in response to the App Review rejection (reviewer could not find the
+  // paywall outside onboarding). See
+  // docs/superpowers/specs/2026-05-13-settings-premium-entry-design.md.
+  static const settingsPremiumCtaTapped = 'settings_premium_cta_tapped';
+  static const settingsPremiumManageTapped = 'settings_premium_manage_tapped';
+  static const settingsPremiumBillingIssueTapped =
+      'settings_premium_billing_issue_tapped';
+
   // Keep in sync with the PageView in onboarding_screen.dart (26 pages, 0-25).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
   // PersonalizedPlanScreen pair moved from pages 16-17 into the paywall flow

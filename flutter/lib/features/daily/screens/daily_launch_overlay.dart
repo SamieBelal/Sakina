@@ -373,7 +373,8 @@ class _RewardClaimStep extends ConsumerWidget {
     final nextDay = rewards.nextClaimDay;
     // Default to free-tier display if premium status hasn't loaded yet so the
     // strip never flashes a premium label for non-premium users.
-    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
+    final isPremium =
+        ref.watch(premiumStateProvider).value?.isPremium ?? false;
     final reward = scaledRewardForDay(nextDay, isPremium: isPremium);
 
     return Padding(

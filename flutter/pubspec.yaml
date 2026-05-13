@@ -27,6 +27,7 @@ dependencies:
 
   # Payments
   purchases_flutter: ^8.6.0
+  purchases_ui_flutter: ^8.6.0
 
   # Paywall — superwallkit_flutter removed: Swift compiler error with Xcode 26. Re-add when building paywall.
 
