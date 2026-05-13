@@ -149,8 +149,8 @@ Arabic mushaf text (Uthmani with full tashkeel) and vetted English translations.
 | Al-Muhyi | Fussilat 41:39 | https://quran.com/41/39 | Al-Muhyi attested — Giver of Life to the dead |
 | Al-Mumeet | An-Najm 53:44 | https://quran.com/53/44 | Al-Mumeet attested — He causes death and gives life |
 | Al-Mumeet | Al-Imran 3:156 | https://quran.com/3/156 | Al-Mumeet attested — He gives life and causes death |
+| Al-Wajid | An-Nisa 4:64 | https://quran.com/4/64 | Al-Wajid attested via w-j-d root — `لَوَجَدُوا۟ ٱللَّهَ` (they would have found Allah) |
 | Al-Wajid | Fatir 35:15 | https://quran.com/35/15 | Al-Wajid thematic — Allah is Self-Sufficient, lacking nothing |
-| Al-Wajid | Muhammad 47:38 | https://quran.com/47/38 | Al-Wajid thematic — He lacks nothing, finds whatever He wills |
 | Al-Majid | Hud 11:73 | https://quran.com/11/73 | Al-Majid attested — Praiseworthy and Honorable |
 | Al-Majid | Al-Buruj 85:15 | https://quran.com/85/15 | Al-Majid attested — Honorable Owner of the Throne |
 | Al-Wahid | Ar-Ra'd 13:16 | https://quran.com/13/16 | Al-Wahid attested — the One, the Prevailing |

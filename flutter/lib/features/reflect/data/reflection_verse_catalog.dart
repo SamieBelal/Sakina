@@ -663,6 +663,14 @@ const ReflectVerse _verse4_58 = ReflectVerse(
   reference: 'An-Nisa 4:58',
 );
 
+// Al-Wajid (The Finder) root w-j-d attestation — `لَوَجَدُوا۟ ٱللَّهَ`.
+const ReflectVerse _verse4_64 = ReflectVerse(
+  arabic: 'وَمَآ أَرْسَلْنَا مِن رَّسُولٍ إِلَّا لِيُطَاعَ بِإِذْنِ ٱللَّهِ ۚ وَلَوْ أَنَّهُمْ إِذ ظَّلَمُوٓا۟ أَنفُسَهُمْ جَآءُوكَ فَٱسْتَغْفَرُوا۟ ٱللَّهَ وَٱسْتَغْفَرَ لَهُمُ ٱلرَّسُولُ لَوَجَدُوا۟ ٱللَّهَ تَوَّابًا رَّحِيمًا',
+  translation:
+      'And We did not send any messenger except to be obeyed by permission of Allāh. And if, when they wronged themselves, they had come to you, [O Muḥammad], and asked forgiveness of Allāh and the Messenger had asked forgiveness for them, they would have found Allāh Accepting of Repentance and Merciful.',
+  reference: 'An-Nisa 4:64',
+);
+
 const ReflectVerse _verse4_6 = ReflectVerse(
   arabic: 'وَٱبْتَلُوا۟ ٱلْيَتَـٰمَىٰ حَتَّىٰٓ إِذَا بَلَغُوا۟ ٱلنِّكَاحَ فَإِنْ ءَانَسْتُم مِّنْهُمْ رُشْدًۭا فَٱدْفَعُوٓا۟ إِلَيْهِمْ أَمْوَٰلَهُمْ ۖ وَلَا تَأْكُلُوهَآ إِسْرَافًۭا وَبِدَارًا أَن يَكْبَرُوا۟ ۚ وَمَن كَانَ غَنِيًّۭا فَلْيَسْتَعْفِفْ ۖ وَمَن كَانَ فَقِيرًۭا فَلْيَأْكُلْ بِٱلْمَعْرُوفِ ۚ فَإِذَا دَفَعْتُمْ إِلَيْهِمْ أَمْوَٰلَهُمْ فَأَشْهِدُوا۟ عَلَيْهِمْ ۚ وَكَفَىٰ بِٱللَّهِ حَسِيبًۭا',
   translation:
@@ -1070,7 +1078,7 @@ const Map<String, List<ReflectVerse>> approvedReflectVersesByName = {
   'Al-Muid': [_verse30_27, _verse85_13],
   'Al-Muhyi': [_verse30_50, _verse41_39],
   'Al-Mumeet': [_verse53_44, _verse3_156],
-  'Al-Wajid': [_verse35_15, _verse47_38],
+  'Al-Wajid': [_verse4_64, _verse35_15],
   'Al-Majid': [_verse11_73, _verse85_15],
   'Al-Wahid': [_verse13_16, _verse2_163],
   'Al-Ahad': [_verse112_1, _verse112_2],
