@@ -110,25 +110,25 @@ Hadith duas must have a grade (sahih, hasan, da'if — only sahih/hasan allowed)
 | burnout-4 | burnout | Quran 18:10 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | marriage_conflict-1 | marriage_conflict | Quran 25:74 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | marriage_conflict-2 | marriage_conflict | Quran 2:201 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
-| marriage_conflict-3 | marriage_conflict | Sunan Abi Dawud 2160 | hasan | Sunnah.com (Al-Albani grading) | Claude-assisted, pending scholar review | 2026-05-13 |
+| marriage_conflict-3 | marriage_conflict | Sunan Abi Dawud 969 | sahih | Sunnah.com (Al-Albani grading) | Claude-assisted, pending scholar review | 2026-05-13 |
 | marriage_conflict-4 | marriage_conflict | Quran 3:8 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | parenting-1 | parenting | Quran 14:40 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | parenting-2 | parenting | Quran 3:38 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | parenting-3 | parenting | Quran 46:15 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
 | parenting-4 | parenting | Quran 19:5-6 | Quran | The Clear Quran (Dr. Mustafa Khattab) — quran.com default | Claude-assisted, pending scholar review | 2026-05-13 |
-| addiction-1 | Sahih al-Bukhari 6369 | Sahih | Anas ibn Malik | Arabic + translation verified from sunnah.com |
-| addiction-2 | Sahih Muslim 2722 | Sahih | Zayd ibn Arqam | Arabic + translation verified from sunnah.com |
-| addiction-3 | Quran 7:200 | Quran | — | Arabic + translation verified from quran.com |
-| addiction-4 | Quran 12:53 | Quran | — | Arabic + translation verified from quran.com |
-| illness-1 | Sahih al-Bukhari 5675 | Sahih | Aisha (RA) | Arabic + translation verified from sunnah.com |
-| illness-2 | Sahih Muslim 2202 | Sahih | Uthman ibn Abi al-'As | Arabic + translation verified from sunnah.com |
-| illness-3 | Sunan Abi Dawud 3106 | Sahih (Al-Albani) | Ibn Abbas | Arabic + translation verified from sunnah.com |
-| illness-4 | Sahih al-Bukhari 5744 | Sahih | Aisha (RA) | Arabic + translation verified from sunnah.com |
-| death_grief-1 | Quran 2:156 | Quran | — | Arabic + translation verified from quran.com |
-| death_grief-2 | Sahih Muslim 920a | Sahih | Umm Salama | Arabic + translation verified from sunnah.com |
-| death_grief-3 | Sahih Muslim 919 | Sahih | Umm Salama | Arabic + translation verified from sunnah.com |
-| death_grief-4 | Quran 2:157 | Quran | — | Arabic + translation verified from quran.com |
-| work-1 | Quran 28:24 | Quran | — | Arabic + translation verified from quran.com |
-| work-2 | Jami' at-Tirmidhi 3563 | Hasan (Darussalam) | Ali ibn Abi Talib | Arabic + translation verified from sunnah.com |
-| work-3 | Jami' at-Tirmidhi 3489 | Sahih (Darussalam) | Abdullah ibn Mas'ud | Arabic + translation verified from sunnah.com |
-| work-4 | Quran 20:114 | Quran | — | Arabic + translation verified from quran.com |
+| addiction-1 | addiction | Sahih al-Bukhari 6369 | sahih | Sahih al-Bukhari (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| addiction-2 | addiction | Sahih Muslim 2722 | sahih | Sahih Muslim (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| addiction-3 | addiction | Quran 7:200 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
+| addiction-4 | addiction | Quran 12:53 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
+| illness-1 | illness | Sahih al-Bukhari 5675 | sahih | Sahih al-Bukhari (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| illness-2 | illness | Sahih Muslim 2202 | sahih | Sahih Muslim (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| illness-3 | illness | Sunan Abi Dawud 3106 | sahih | Sunnah.com (Al-Albani grading) | Claude-assisted, pending scholar review | 2026-05-13 |
+| illness-4 | illness | Sahih al-Bukhari 5744 | sahih | Sahih al-Bukhari (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| death_grief-1 | death_grief | Quran 2:156 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
+| death_grief-2 | death_grief | Sahih Muslim 920a | sahih | Sahih Muslim (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| death_grief-3 | death_grief | Sahih Muslim 919 | sahih | Sahih Muslim (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| death_grief-4 | death_grief | Quran 2:157 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
+| work-1 | work | Quran 28:24 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
+| work-2 | work | Jami' at-Tirmidhi 3563 | hasan | Darussalam (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| work-3 | work | Jami' at-Tirmidhi 3489 | sahih | Darussalam (sunnah.com) | Claude-assisted, pending scholar review | 2026-05-13 |
+| work-4 | work | Quran 20:114 | Quran | Dr. Mustafa Khattab, The Clear Quran (quran.com default) | Claude-assisted, pending scholar review | 2026-05-13 |
