@@ -1887,12 +1887,12 @@ const List<NameTeaching> nameTeachings = [
         'When Iblis refused to prostrate to Adam, Allah asked him directly: “O Iblis! What prevented you from prostrating to what I created with My Own Hands? Did you just become proud? Or have you always been arrogant?” (Quran 38:75) The word used there — “akbarta” — shares the root with Al-Mutakabbir. Iblis tried to claim greatness: “I am better than him. You created me from fire and created him from clay.” His logic seemed internally consistent. But he failed to see that greatness is not self-assigned under Al-Mutakabbir. The One who holds all Majesty is the only One who can assign worth. Iblis’ arrogance was not just a moral failure — it was a theological error. He forgot who was the real Mutakabbir in the room. Every human bully makes the same mistake.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّنَا لَآ تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُو عَلَى الَّذِينَ مِن قَبْلِنَا رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَآ أَنتَ مَوْلَىٰنَا فَانصُرْنَا عَلَى الْقَوْمِ الكَّفِرِينَ',
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
       transliteration:
           "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
       translation:
           'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
-      source: 'Quran 2:286 (verbatim) — the dua of those who submit to Al-Mutakabbir’s absolute greatness and ask for relief from burdens only He can remove',
+      source: 'Quran 2:286 (verbatim excerpt) — the dua of those who submit to Al-Mutakabbir’s absolute greatness and ask for relief from burdens only He can remove',
     ),
   ),
 
@@ -1968,12 +1968,12 @@ const List<NameTeaching> nameTeachings = [
         'Allah commanded the family of Dawud (عليه السلام) — a dynasty of prophets, given extraordinary gifts of knowledge, kingship, and spiritual insight — to work with those gifts in a specific way: “They made for him whatever he desired of sanctuaries, statues, basins as large as reservoirs, and cooking pots fixed into the ground. ‘Work gratefully, O family of David!’ Only a few of My servants are truly grateful.” (Quran 34:13) Notice the command: “Work gratefully.” Gratitude was not an emotion to feel after the work was done. It was the posture of the work itself. Sulayman (عليه السلام) understood this. His dua in Quran 27:19 captures it: “My Lord! Inspire me to always be thankful for Your favours which You have blessed me and my parents with, and to do good deeds that please You. Admit me, by Your mercy, into the company of Your righteous servants.” Ash-Shakur gave him everything — and Sulayman responded by asking for the capacity to be grateful for it. That is the posture Ash-Shakur calls all of us into.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّ أَوْزِعْنِيآ أَنْ أَشْكُرَ نِعْمَتَكَ الَّتِيآ أَنْعَمْتَ عَلَيَّ وَعَلَىٰ وَالِدَيّْ وَأَنْ أَعْمَلَ صَلِحًا تَرْضَىٰهُ وَأَدْخِلْنِي بِرَحْمَتِكَ فِي عِبَادِكَ الصَّالِحِينَ',
+          'رَبِّ أَوْزِعْنِىٓ أَنْ أَشْكُرَ نِعْمَتَكَ ٱلَّتِىٓ أَنْعَمْتَ عَلَىَّ وَعَلَىٰ وَٰلِدَىَّ وَأَنْ أَعْمَلَ صَـٰلِحًا تَرْضَىٰهُ وَأَدْخِلْنِى بِرَحْمَتِكَ فِى عِبَادِكَ ٱلصَّـٰلِحِينَ',
       transliteration:
           "Rabbi awzi'ni an ashkura ni'mataka allati an'amta 'alayya wa 'ala walidayya wa an a'mala salihan tardahu wa adkhilni birahmatika fi 'ibadika as-saliheen",
       translation:
           'My Lord! Inspire me to always be thankful for Your favours which You have blessed me and my parents with, and to do good deeds that please You. Admit me, by Your mercy, into the company of Your righteous servants.',
-      source: 'Quran 27:19 (verbatim) — Sulayman’s dua to Ash-Shakur; a prayer that asks for the gift of gratitude itself from the One who is Most Appreciative',
+      source: 'Quran 27:19 (verbatim excerpt) — Sulayman’s dua to Ash-Shakur; a prayer that asks for the gift of gratitude itself from the One who is Most Appreciative',
     ),
   ),
 
@@ -2020,12 +2020,12 @@ const List<NameTeaching> nameTeachings = [
         'On the Day of Judgment, Isa (عليه السلام) will be asked whether he commanded people to take him and his mother as gods. His answer, recorded in Quran 5:117, invokes Ar-Raqeeb as his witness: “I never told them anything except what You ordered me to say: ‘Worship Allah — my Lord and your Lord!’ And I was witness over them as long as I remained among them. But when You took me, You were the Witness over them — and You are a Witness over all things.” The word translated “Witness” — “rasheed” / “raqeeb” in classical tafsir — is Ar-Raqeeb’s domain. Isa could not watch over the believers after his lifting. But Ar-Raqeeb never looked away. Every hidden act of sincerity in those years was witnessed by Him.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّنَا لَآ تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُو عَلَى الَّذِينَ مِن قَبْلِنَا رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَآ أَنتَ مَوْلَىٰنَا فَانصُرْنَا عَلَى الْقَوْمِ الكَّفِرِينَ',
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
       transliteration:
           "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
       translation:
           'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
-      source: 'Quran 2:286 (verbatim) — the prayer of those who know Ar-Raqeeb sees every mistake and ask Him to pardon rather than judge what He has witnessed',
+      source: 'Quran 2:286 (verbatim excerpt) — the prayer of those who know Ar-Raqeeb sees every mistake and ask Him to pardon rather than judge what He has witnessed',
     ),
   ),
 
@@ -2101,12 +2101,12 @@ const List<NameTeaching> nameTeachings = [
         'Pharaoh declared “Ana rabbukum al-aʿla” — “I am your highest lord” (Quran 79:24) — the most brazen act of taking what belongs to Al-Mutakabbir and Al-Muzill. His punishment was designed to match the crime: he was not killed in a palace or in battle. He was drowned in the same sea that Allah parted for the very people Pharaoh had enslaved. The Quran preserves his body as a sign: “Today We will preserve your body so that you may be a sign for those who come after you.” (Quran 10:92) Al-Muzill’s act of abasement did not end at Pharaoh’s death — it became eternal testimony. The verse in Quran 3:26, “You disgrace who You please,” is not a warning to fear randomly. It is the assurance that the proud will not be exempt. Every believer who has been wronged by a tyrant carries that verse as a promise.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّنَا لَآ تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُو عَلَى الَّذِينَ مِن قَبْلِنَا رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَآ أَنتَ مَوْلَىٰنَا فَانصُرْنَا عَلَى الْقَوْمِ الكَّفِرِينَ',
+          'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
       transliteration:
           "Rabbana la tu'akhidhna in naseena aw akhta'na rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina rabbana wa la tuhammilna ma la taqata lana bihi wa'fu 'anna waghfir lana warhamna anta mawlana fansurna 'ala al-qawm il-kafirin",
       translation:
           'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
-      source: 'Quran 2:286 (verbatim) — the prayer that protects against the pride that invites Al-Muzill’s correction, and asks for mercy before judgment comes',
+      source: 'Quran 2:286 (verbatim excerpt) — the prayer that protects against the pride that invites Al-Muzill’s correction, and asks for mercy before judgment comes',
     ),
   ),
 
@@ -2312,10 +2312,10 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'The angels delivered news to Sarah, wife of Ibrahim \u0639\u0644\u064a\u0647 \u0627\u0644\u0633\u0644\u0627\u0645, that she would bear a son despite her old age. She laughed — a laugh of astonishment, not disbelief — and asked: "How can I bear a child when I am an old woman and my husband is an old man? This is truly an amazing thing!" The angels replied: "Are you astonished by Allah\'s decree? May Allah\'s mercy and blessings be upon you, O people of this house. Indeed, He is Ḥamīd, Majīd" (Quran 11:73). They named Him Al-Majeed precisely at the moment the impossible was announced. His glory does not diminish when it overflows. The miracle of Isḥāq\'s birth was not a strain on Al-Majeed — it was an expression of it.',
     dua: NameTeachingDua(
-      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَا إِن نَّسِينَا أَوْ أَخْطَأْنَا رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِن قَبْلِنَا رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا أَنتَ مَوْلَانَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
       transliteration: "Rabbana la tu'akhidhna in nasina aw akhta'na, rabbana wa la tahmil 'alayna isran kama hamaltahu 'ala alladhina min qablina, rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'ala al-qawmil kafirin",
       translation: 'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one You placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
-      source: 'Quran 2:286 — closing supplication of Surah al-Baqarah (verbatim)',
+      source: 'Quran 2:286 — closing supplication of Surah al-Baqarah (verbatim excerpt)',
     ),
   ),
 
@@ -2542,10 +2542,12 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'When the disbelieving king Nimrod challenged Ibrahim (عليه السلام), he sneered: "I too have the power to give life and cause death." Ibrahim immediately shifted ground: "Allah causes the sun to rise from the east. So make it rise from the west." And so the disbeliever was dumbstruck (Quran 2:258). The story is not primarily about the king’s defeat. It is about what Ibrahim knew: life is not a force you seize. It belongs to One. The king who claimed to give life produced theatre. Al-Muhyi does not perform — He originates. Ibrahim knew you cannot argue a person into faith using logic alone; you show them where the life truly comes from. Every dawn that follows your darkest night is Al-Muhyi making His argument again.',
     dua: NameTeachingDua(
-      arabic: 'ربَّنَا أحْيِينَا بعد ما أمتَّنَا وإليك النُّشُورُ',
-      transliteration: "Rabbana ahyina ba'da ma amattana wa ilayka an-nushur",
-      translation: 'Our Lord! Grant us life after You have caused us to die, and to You is the resurrection.',
-      source: 'Quran 40:11 (verbatim supplication of the disbelievers in the Fire who finally understand Al-Muhyi — cited in tafsir as the ultimate acknowledgment of resurrection)',
+      arabic: 'رَبَّنَآ أَمَتَّنَا ٱثْنَتَيْنِ وَأَحْيَيْتَنَا ٱثْنَتَيْنِ فَٱعْتَرَفْنَا بِذُنُوبِنَا فَهَلْ إِلَىٰ خُرُوجٍ مِّن سَبِيلٍ',
+      transliteration:
+          "Rabbana amattana ithnatayni wa ahyaytana ithnatayni fa'tarafna bidhunubina fahal ila khurujin min sabil",
+      translation:
+          'Our Lord! You made us lifeless twice and gave us life twice. Now we confess our sins. So is there any way out?',
+      source: 'Quran 40:11 (verbatim excerpt — the disbelievers in the Fire finally acknowledge resurrection)',
     ),
   ),
 
@@ -2588,10 +2590,10 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'In the story of Prophet Ayyub (عليه السلام), after years of sickness, loss, and isolation — stripped of health, wealth, and companionship — Allah describes His verdict: "Inna wajadnahu sabiran, niʿma al-ʿabd, innahu awwab" — "We truly found him patient. What an excellent servant he was! Indeed, he constantly turned to Allah" (Quran 38:44). The word wajadnahu: "We found him." Not merely "he was." Allah’s finding of Ayyub in his worst season was a divine assessment, a testimony spoken from on high. In the middle of Ayyub’s suffering — before healing, before restoration — Al-Wajid had already found him and already named what He saw: patience, excellence, devotion. Allah found him worthy in his poverty and brokenness, not after it.',
     dua: NameTeachingDua(
-      arabic: 'ربَّنِي مَسَّنِيَ الضُّرُّ وَأنتَ أرْحَمُ الرَّاحِمِينَ',
-      transliteration: "Rabbi massaniya ad-durru wa anta arhamu ar-rahimeen",
+      arabic: 'أَنِّى مَسَّنِىَ ٱلضُّرُّ وَأَنتَ أَرْحَمُ ٱلرَّٰحِمِينَ',
+      transliteration: "Anni massaniya ad-durru wa anta arhamu ar-rahimeen",
       translation: 'My Lord! Adversity has touched me, and You are the Most Merciful of the merciful.',
-      source: 'Quran 21:83 (verbatim supplication of Prophet Ayyub عليه السلام in his affliction)',
+      source: 'Quran 21:83 (verbatim excerpt — supplication of Prophet Ayyub عليه السلام in his affliction)',
     ),
   ),
 
@@ -2611,10 +2613,10 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'Before the Battle of Badr, the Muslims numbered 313 — lightly armed, outnumbered, exhausted from travel — facing a Meccan force of a thousand. The Prophet ﷺ prayed through the night: "O Allah, if this small band perishes today, You will not be worshipped on earth." He was not doubting. He was invoking Al-Qadir: the One who needs no army to accomplish His will. The Quran records the outcome in Surat Al ʿImran: "Allah has already given you victory at Badr when you were outnumbered. So be mindful of Allah, perhaps you will be grateful" (Quran 3:123). Al-Qadir’s victories do not follow military logic. They follow His will. When you are 313 and the problem before you is a thousand, Al-Qadir has not changed.',
     dua: NameTeachingDua(
-      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَا إِن نَّسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنتَ مَوْلَانَا فَانصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ',
+      arabic: 'رَبَّنَا لَا تُؤَاخِذْنَآ إِن نَّسِينَآ أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَآ إِصْرًا كَمَا حَمَلْتَهُۥ عَلَى ٱلَّذِينَ مِن قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِۦ ۖ وَٱعْفُ عَنَّا وَٱغْفِرْ لَنَا وَٱرْحَمْنَآ ۚ أَنتَ مَوْلَىٰنَا فَٱنصُرْنَا عَلَى ٱلْقَوْمِ ٱلْكَـٰفِرِينَ',
       transliteration: "Rabbana la tu'akhidhna in nasina aw akhta'na, Rabbana wa la tahmil 'alayna isran, Rabbana wa la tuhammilna ma la taqata lana bih, wa'fu 'anna waghfir lana warhamna, anta mawlana fansurna 'ala al-qawmi al-kafirin",
       translation: 'Our Lord! Do not punish us if we forget or make a mistake. Our Lord! Do not place a burden on us like the one placed on those before us. Our Lord! Do not burden us with what we cannot bear. Pardon us, forgive us, and have mercy on us. You are our only Guardian. So grant us victory over the disbelieving people.',
-      source: 'Quran 2:286 (verbatim)',
+      source: 'Quran 2:286 (verbatim excerpt)',
     ),
   ),
 
@@ -2634,7 +2636,7 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'The people of Pharaoh had enslaved an entire nation for four hundred years. By any human reckoning, Pharaoh’s power was permanent. Moses (عليه السلام) arrived with a staff and a brother. When Bani Israel reached the sea and Pharaoh’s armies closed in, they cried: "We are overtaken!" Moses replied: "No! Indeed, with me is my Lord; He will guide me" (Quran 26:61-62). Allah then parted the sea. The most powerful military force of its age was swallowed by water at the command of Al-Muqtadir. The lesson is precise: Al-Muqtadir does not need your resources. He uses what is already there. The sea was always the sea.',
     dua: NameTeachingDua(
-      arabic: 'لَهُ مُلْكُ السَّمَاوَاتِ وَالْأَرْضِ ، يُحْيِي وَيُمِيتُ ، وَهُوَ عَلَىٰ كُلِّ شَيْءو قَدِيرٌ',
+      arabic: 'لَهُۥ مُلْكُ ٱلسَّمَـٰوَٰتِ وَٱلْأَرْضِ ۖ يُحْىِۦ وَيُمِيتُ ۖ وَهُوَ عَلَىٰ كُلِّ شَىْءٍ قَدِيرٌ',
       transliteration: "Lahu mulku as-samawati wal-ard, yuhyi wa-yumeet, wa-huwa 'ala kulli shay'in qadir",
       translation: 'To Him belongs the kingdom of the heavens and the earth. He gives life and causes death. And He is Most Capable of everything.',
       source: 'Quran 57:2 (verbatim)',
@@ -2703,7 +2705,7 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'When the Romans (Byzantines) were defeated by the Persians, the pagan Arabs of Mecca celebrated — enemies of the Muslims beating what they saw as a rival monotheistic empire. The Quran revealed: "The Romans have been defeated in the nearest land. But following their defeat, they will triumph within three to nine years" (Quran 30:2-4). It was a prophecy attached to a wager. The Muslims believed it; the pagans doubted. Within the predicted timeframe, the Romans defeated the Persians exactly as promised. This was a demonstration of Malik-ul-Mulk’s knowledge of every kingdom’s fate — before the battle had been fought, He had already written its reversal. No outcome in history catches Him by surprise.',
     dua: NameTeachingDua(
-      arabic: 'قُلِ اللَّهُمَّ مَالِكَ الْمُلْكِ تُؤْتِي الْمُلْكَ مَن تَشَآءُ وَتَنزِعُ الْمُلْكَ مِمَّن تَشَآءُ وَتُعِزُّ مَن تَشَآءُ وَتُذِلُّ مَن تَشَآءُ ، بِيَدِكَ الْخَيْرُ ، إِنَّكَ عَلَىٰ كُلِّ شَيْءأ قَدِيرٌ',
+      arabic: 'قُلِ ٱللَّهُمَّ مَـٰلِكَ ٱلْمُلْكِ تُؤْتِى ٱلْمُلْكَ مَن تَشَآءُ وَتَنزِعُ ٱلْمُلْكَ مِمَّن تَشَآءُ وَتُعِزُّ مَن تَشَآءُ وَتُذِلُّ مَن تَشَآءُ ۖ بِيَدِكَ ٱلْخَيْرُ ۖ إِنَّكَ عَلَىٰ كُلِّ شَىْءٍ قَدِيرٌ',
       transliteration: "Qul Allahumma Malika al-mulki tu'ti al-mulka man tasha' wa-tanzi'u al-mulka mimman tasha', wa-tu'izzu man tasha' wa-tudhillu man tasha', biyadika al-khayr, innaka 'ala kulli shay'in qadir",
       translation: 'Say: O Allah! Lord over all authorities! You give authority to whoever You please and remove it from whom You please; You honour whoever You please and disgrace whom You please — all good is in Your Hands. Surely You alone are Most Capable of everything.',
       source: 'Quran 3:26 (verbatim)',
