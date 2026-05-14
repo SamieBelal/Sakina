@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/env.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/app_session.dart';
 import '../../../features/daily/providers/daily_rewards_provider.dart';
@@ -183,6 +184,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final pkg = plan == _PlanType.annual ? _annualPackage : _weeklyPackage;
     final intro = pkg?.storeProduct.introductoryPrice;
     return intro != null && intro.price == 0;
+  }
+
+  /// Locale-aware priceString for the currently selected plan. Used by the
+  /// honest-billing footer to surface the literal post-trial charge.
+  /// Falls back to the static USD constant when offerings haven't loaded —
+  /// the footer is gated on `_planHasTrial`, which requires the package to
+  /// be loaded, so in practice the fallback only fires in test stubs that
+  /// skip offerings loading.
+  String _activePackagePriceString() {
+    if (_selectedPlan == _PlanType.annual) {
+      return _annualPackage?.storeProduct.priceString ??
+          AppStrings.paywallAnnualPrice;
+    }
+    return _weeklyPackage?.storeProduct.priceString ??
+        AppStrings.paywallWeeklyPrice;
   }
 
   @override
@@ -582,24 +598,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         }),
                         const SizedBox(height: AppSpacing.md),
 
-                        // Honest trial timeline — only when the selected
-                        // plan actually has a free intro on its StoreKit
-                        // product. Otherwise the timeline would lie about
-                        // a "Day 3 charged" event that won't happen.
-                        if (hasTrial) ...[
-                          _TrialTimelineStrip(
-                            chargeOnDay3:
-                                _selectedPlan == _PlanType.annual
-                                    ? (_annualPackage
-                                            ?.storeProduct.priceString ??
-                                        AppStrings.paywallAnnualPrice)
-                                    : (_weeklyPackage
-                                            ?.storeProduct.priceString ??
-                                        AppStrings.paywallWeeklyPrice),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
-
                         // Side-by-side pricing — Cal AI pattern. Annual on
                         // the left (default-selected, "best value"), weekly
                         // on the right.
@@ -763,6 +761,32 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             style: AppTypography.bodySmall.copyWith(
                               color: AppColors.textTertiaryLight,
                               fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+
+                        // Blinkist-style honest-billing footer. Single
+                        // explicit line beneath the CTA + "No payment
+                        // today" microcopy. Gated on `_planHasTrial` so
+                        // storefronts without an intro offer don't get a
+                        // false trial promise. The flag is for rollback
+                        // only — default is true (see Env doc-comment).
+                        // Per Blinkist's public case study, this single-
+                        // line explicit billing copy lifts conversion
+                        // ~23% and reduces refund complaints ~55%.
+                        if (hasTrial && Env.paywallHonestBillingEnabled) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            (_selectedPlan == _PlanType.annual
+                                    ? AppStrings.paywallHonestBillingAnnual
+                                    : AppStrings.paywallHonestBillingWeekly)
+                                .replaceAll(
+                                    '{price}', _activePackagePriceString()),
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textTertiaryLight,
+                              fontSize: 11.5,
+                              height: 1.35,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -1261,93 +1285,6 @@ class _PaywallHero extends StatelessWidget {
   }
 }
 
-
-/// "Honest paywall" trial timeline. Three small cards: Today (full access),
-/// Day 2 (reminder), Day 3 (charged or cancel). Lifts trust and conversion
-/// over the tiny gray legal-line approach.
-class _TrialTimelineStrip extends StatelessWidget {
-  const _TrialTimelineStrip({required this.chargeOnDay3});
-
-  /// Localized price string for the selected plan ("$49.99", "$4.99", etc.).
-  final String chargeOnDay3;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: _TimelineStep(
-            icon: Icons.lock_open_rounded,
-            iconColor: AppColors.primary,
-            heading: AppStrings.paywallTimelineTodayHeading,
-            label: AppStrings.paywallTimelineTodayLabel,
-          ),
-        ),
-        const Expanded(
-          child: _TimelineStep(
-            icon: Icons.notifications_active_rounded,
-            iconColor: AppColors.streakAmber,
-            heading: AppStrings.paywallTimelineDay2Heading,
-            label: AppStrings.paywallTimelineDay2Label,
-          ),
-        ),
-        Expanded(
-          child: _TimelineStep(
-            icon: Icons.payments_rounded,
-            iconColor: AppColors.textSecondaryLight,
-            heading: AppStrings.paywallTimelineDay3Heading,
-            label: '$chargeOnDay3 ${AppStrings.paywallTimelineDay3Label}',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({
-    required this.icon,
-    required this.iconColor,
-    required this.heading,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String heading;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: iconColor),
-        const SizedBox(height: 4),
-        Text(
-          heading,
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.textPrimaryLight,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          label,
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.textTertiaryLight,
-            fontSize: 11,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-}
 
 /// Bottom sheet shown when the user taps X with annual selected. Offers the
 /// weekly plan (a price alternative, NOT a different product) so we stay
