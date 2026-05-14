@@ -41,7 +41,7 @@ void main() {
     expect(getPublicCatalogJson(PublicCatalogKeys.collectibleNames), isNotNull);
 
     expect(dailyQuestionsCatalog.length, 30);
-    expect(browseDuasCatalog.length, 76);
+    expect(browseDuasCatalog.length, 121);
     expect(discoveryQuizQuestionsCatalog.length, 18);
     expect(nameAnchorsCatalog.length, 98);
     expect(currentCollectibleNames().length, 99);
@@ -75,7 +75,7 @@ void main() {
     await refreshPublicCatalogsFromSupabase(skipClientCheck: true);
 
     expect(getPublicCatalogJson(PublicCatalogKeys.browseDuas), original);
-    expect(browseDuasCatalog.length, 76);
+    expect(browseDuasCatalog.length, 121);
   });
 
   test('refresh rejects partial remote catalogs and keeps snapshot cache',

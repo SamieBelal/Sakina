@@ -38,7 +38,11 @@ const browseDuasPublicCatalog = PublicCatalogContract(
   table: 'browse_duas',
   orderBy: 'id',
   fileName: 'browse_duas.json',
-  expectedCount: 76,
+  // 121 entries after PR #12 (feat(duas): expand browse_duas 76 → 121).
+  // Contract was missed in that PR and only surfaced when the test suite
+  // ran cleanly; bumped here so PublicCatalogService.bootstrap doesn't
+  // silently reject the catalog and keep the stale 76-row cache.
+  expectedCount: 121,
   requiredKeys: [
     'id',
     'category',
