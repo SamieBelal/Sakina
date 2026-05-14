@@ -64,6 +64,11 @@ class GiftService {
   @visibleForTesting
   static DateTime Function() debugGiftClock = () => DateTime.now().toUtc();
 
+  /// Production read of the seamed clock. Callers outside the test layer
+  /// must use this — direct reads of [debugGiftClock] trip
+  /// `invalid_use_of_visible_for_testing_member`.
+  static DateTime currentClock() => debugGiftClock();
+
   /// Calls the `claim_sakina_gift` RPC for the given occasion. On success
   /// (`granted=true`), persists the returned `expires_at` to a user-scoped
   /// SharedPreferences key so `PurchaseService._isGiftPremium()` can read
