@@ -11,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
+import '../../../services/purchase_service.dart';
+import '../../../services/referral_service.dart';
 import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
 import '../../../core/env.dart';
@@ -512,6 +514,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();
+
+    // Refer-to-Unlock confirm hook: if this user was referred, flip their
+    // referrals row pending → confirmed. The SQL RPC handles the 30d grant
+    // for the referrer atomically when the 3-confirmed threshold is crossed.
+    // Wrapped in try/catch — must NEVER block onboarding completion. The
+    // post-RPC refreshReferralPremiumCache surfaces any new window the
+    // referee earned to PurchaseService.isPremium().
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) {
+        await ReferralService(Supabase.instance.client)
+            .confirmReferralIfPending(uid);
+        // Also refresh for the referee branch — in case their own 7d window
+        // was granted earlier via apply_referral but the cache hasn't been
+        // populated yet on this device.
+        await PurchaseService().refreshReferralPremiumCache();
+      }
+    } catch (e, stack) {
+      debugPrint('[Onboarding] referral confirm failed (non-fatal): $e\n$stack');
+    }
 
     // Mark onboarded in the single source of truth
     await appSession.markOnboarded();

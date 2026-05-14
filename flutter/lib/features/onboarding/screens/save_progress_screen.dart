@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/referral_service.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -35,6 +36,26 @@ class SaveProgressScreen extends ConsumerStatefulWidget {
 class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   bool _isLoading = false;
 
+  /// Two-step referral hook, called from both _signInWithApple and
+  /// _signInWithGoogle AFTER the auth response resolves but BEFORE
+  /// persistOnboardingToSupabase. Wrapped in try/catch — referral failures
+  /// must never block signup. The defensive cold-launch path in
+  /// AppSessionNotifier retries applyPendingReferralIfAny if a kill window
+  /// strands a pending code in SharedPreferences.
+  Future<void> _applyReferralHooks(String userId) async {
+    try {
+      await ref.read(referralServiceProvider).ensureReferralCode(userId);
+    } catch (e) {
+      debugPrint('[SaveProgress] ensureReferralCode failed (non-fatal): $e');
+    }
+    try {
+      await ref.read(referralServiceProvider).applyPendingReferralIfAny(userId);
+    } catch (e) {
+      debugPrint(
+          '[SaveProgress] applyPendingReferralIfAny failed (non-fatal): $e');
+    }
+  }
+
   Future<void> _signInWithApple() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.signupMethodSelected, properties: {'method': 'apple'});
     setState(() => _isLoading = true);
@@ -52,6 +73,14 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       }
       ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
+
+      // Refer-to-Unlock signup hook. Must run BEFORE persistOnboardingToSupabase
+      // so the referral row is written under the freshly authenticated
+      // session. ensure_referral_code populates the user's own code;
+      // applyPendingReferralIfAny drains any inbound code from
+      // SharedPreferences (set by main.dart's deep-link capture).
+      await _applyReferralHooks(userId);
+
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
@@ -85,6 +114,10 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       }
       ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
+
+      // Same referral hook as Apple — see _signInWithApple comment.
+      await _applyReferralHooks(userId);
+
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();

@@ -108,6 +108,27 @@ abstract final class AnalyticsEvents {
   // the implicit "onboarding" trigger (no property set today).
   static const paywallTriggerIapToSubUpsell = 'iap_to_sub_upsell';
 
+  // Refer-to-Unlock (forward-instrumented per CEO review — there's no v1
+  // baseline yet; these events power the post-launch cannibalization +
+  // dwell + mutual-grant dashboards. See
+  // docs/superpowers/plans/2026-05-14-refer-unlock.md Task 5 Step 3).
+  static const referUnlockShown = 'refer_unlock_shown';
+  static const referUnlockShareTapped = 'refer_unlock_share_tapped';
+  /// Fired on every share in v1. Lets Phase 2 dashboards compare the install
+  /// funnel before/after universal-link rollout.
+  static const referUnlockShareNoUniversalLinks =
+      'refer_unlock_share_no_universal_links';
+  static const referUnlockStartTrialTapped = 'refer_unlock_start_trial_tapped';
+  static const referUnlockBackToPaywall = 'refer_unlock_back_to_paywall';
+  /// Fired client-side when apply_referral RPC succeeds (referee side).
+  static const refereeSignedUpWithReferral = 'referee_signed_up_with_referral';
+  /// Fired client-side when confirm_referral_if_pending returns granted=true
+  /// (the referrer just crossed the 3-confirmed threshold).
+  static const referrerGranted30dWindow = 'referrer_granted_30d_window';
+  /// Fired client-side when apply_referral returns granted_referee_7d=true
+  /// (mutual reward fired for the referee).
+  static const refereeGranted7dWindow = 'referee_granted_7d_window';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
