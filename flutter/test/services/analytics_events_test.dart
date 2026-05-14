@@ -100,13 +100,19 @@ void main() {
   });
 
   group('AnalyticsEvents.stepNames', () {
-    test('covers all 26 onboarding pages', () {
-      for (int i = 0; i <= 25; i++) {
+    test('covers all 27 onboarding pages (rating gate at 25, paywall at 26)', () {
+      // Updated 2026-05-14 by rating-gate insertion. The map carries entries
+      // for indices 0..26 regardless of `Env.ratingGateEnabled` so analytics
+      // funnel queries remain stable across the kill-switch toggle; when the
+      // gate is off the PageView simply never emits step_index=25 events.
+      for (int i = 0; i <= 26; i++) {
         expect(AnalyticsEvents.stepNames[i], isNotNull,
             reason: 'Missing step name for index $i');
       }
-      expect(AnalyticsEvents.stepNames[26], isNull,
-          reason: 'No step at index 26 after paywall flow redesign');
+      expect(AnalyticsEvents.stepNames[25], 'rating_gate');
+      expect(AnalyticsEvents.stepNames[26], 'paywall');
+      expect(AnalyticsEvents.stepNames[27], isNull,
+          reason: 'No step at index 27 after rating-gate insertion');
     });
 
     test('does not include the removed social_proof_interstitial step', () {
