@@ -1154,7 +1154,7 @@ class _PricingCard extends StatelessWidget {
             ),
           ),
 
-          // SAVE 81% badge — floats above the card's top-left edge. Gold
+          // SAVE 50% badge — floats above the card's top-left edge. Gold
           // against either white or emerald-tinted card; harmonizes with
           // the warm cream page background.
           //
