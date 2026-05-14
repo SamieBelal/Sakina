@@ -12,6 +12,7 @@ import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
+import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -194,7 +195,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               _buildGreetingRow(state),
               const SizedBox(height: AppSpacing.md),
 
-              // 2. Unified dashboard card
+              // 2. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
+              //    nothing outside occasion windows; gated by Env kill switch
+              //    and the GiftService loading-gate per CLAUDE.md PR #8.
+              const RamadanGiftCard(),
+              const SizedBox(height: AppSpacing.md),
+
+              // 3. Unified dashboard card
               _buildDashboardCard(state, hero),
               // Just enough to breathe above the bottom nav. The
               // SingleChildScrollView's pagePadding already adds ~24px

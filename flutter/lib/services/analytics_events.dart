@@ -180,6 +180,13 @@ abstract final class AnalyticsEvents {
   static const referralSourceOnboardingField = 'onboarding_field';
   static const referralSourceSettingsRedeem = 'settings_redeem';
 
+  // Ramadan / Eid Sakina Gift. Brand-additive 7-day premium window granted
+  // once per Islamic occasion per user. See
+  // docs/superpowers/plans/2026-05-14-ramadan-gift.md.
+  static const ramadanGiftShown = 'ramadan_gift_shown';
+  static const ramadanGiftClaimed = 'ramadan_gift_claimed';
+  static const ramadanGiftWindowExpired = 'ramadan_gift_window_expired';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
