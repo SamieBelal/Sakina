@@ -231,8 +231,18 @@ class _PreClaimCard extends StatelessWidget {
   final bool claiming;
   final VoidCallback onAccept;
 
-  bool get _isEid => occasionId.startsWith('eid_') || occasionId.startsWith('mawlid_');
-  String get _arabicHeader => _isEid ? 'عيد مبارك' : 'رمضان مبارك';
+  /// Arabic header chosen per occasion family. Mawlid intentionally renders
+  /// "مولد مبارك" rather than "عيد مبارك" — some Islamic schools regard
+  /// celebrating Mawlid as bid'ah and do not consider it an Eid, so calling
+  /// it Eid in a spiritual app risks alienating those users. The three
+  /// families covered match the occasion-id prefixes seeded by the
+  /// islamic_occasions migration.
+  String get _arabicHeader {
+    if (occasionId.startsWith('mawlid_')) return 'مولد مبارك';
+    if (occasionId.startsWith('eid_')) return 'عيد مبارك';
+    return 'رمضان مبارك';
+  }
+
   String get _englishHeadline {
     if (occasionId.startsWith('ramadan_')) return 'A gift from Sakina for Ramadan';
     if (occasionId.startsWith('eid_fitr_')) return 'A gift from Sakina for Eid al-Fitr';
