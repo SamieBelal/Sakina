@@ -237,10 +237,14 @@ class AuthService {
     // Capture uid BEFORE signOut — afterwards currentUser is null.
     final userId = _supabase.auth.currentUser?.id;
     await _supabase.auth.signOut();
+    final prefs = await SharedPreferences.getInstance();
     if (userId != null && userId.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
       await clearScopedPreferencesForUser(prefs, userId);
     }
+    // Drain any stranded inbound referral code so a sign-in to a different
+    // account doesn't accidentally redeem a code that was captured for the
+    // previous (now-signed-out) account.
+    await prefs.remove('pending_referral');
   }
 
   Future<void> deleteAccount() async {
