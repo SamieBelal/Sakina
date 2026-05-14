@@ -59,6 +59,14 @@
 					<string>com.googleusercontent.apps.30664219897-fo5o1l3okkt00ojhp10k5ec2b5el5cfb</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>com.sakina.app.referral</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>sakina</string>
+				</array>
+			</dict>
 		</array>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>

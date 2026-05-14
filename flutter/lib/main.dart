@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,8 +26,50 @@ import 'services/purchase_service.dart';
 import 'widgets/billing_issue_banner.dart';
 import 'widgets/iap_to_sub_upsell_banner.dart';
 
+/// SharedPreferences key for an inbound referral code captured via the
+/// `sakina://r/<code>` custom scheme. NOT user-scoped: the user is typically
+/// not yet authenticated when the deep link fires (they may not have signed
+/// up). The signup flow consumes the key in [_applyPendingReferral] (see
+/// [ReferralService.applyPendingReferralIfAny]) and clears it on success.
+const String pendingReferralPrefsKey = 'pending_referral';
+
+/// Captures an inbound `sakina://r/<code>` link and persists the code to
+/// SharedPreferences. The signup flow consumes it on the next authenticated
+/// session. Called from [main] BEFORE [runApp] so the cold-launch URI is
+/// committed before any code that might read it.
+///
+/// Universal-link handling (`https://sakina.app/r/<code>`) is OUT OF SCOPE
+/// for v1 — we don't own the domain, so AASA/assetlinks.json hosting isn't
+/// available. See docs/superpowers/plans/2026-05-14-refer-unlock.md.
+Future<void> _captureInboundReferral(AppLinks appLinks) async {
+  try {
+    final initial = await appLinks.getInitialLink();
+    if (initial != null) await _persistReferralFromUri(initial);
+  } catch (_) {
+    // First-launch on Android can throw on getInitialLink — non-fatal.
+  }
+  // Warm-launch deep links: subscribe AFTER awaiting the initial-link so
+  // the cold-launch URI is committed first.
+  appLinks.uriLinkStream.listen(_persistReferralFromUri);
+}
+
+Future<void> _persistReferralFromUri(Uri uri) async {
+  // v1: custom scheme only. Universal-link path (https://sakina.app/r/<code>)
+  // is deferred to Phase 2 (post-domain-acquisition).
+  if (uri.scheme != 'sakina' || uri.host != 'r') return;
+  if (uri.pathSegments.isEmpty) return;
+  final code = uri.pathSegments[0];
+  if (code.isEmpty) return;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(pendingReferralPrefsKey, code);
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Capture any inbound referral deep link BEFORE further init so the
+  // pending_referral prefs key is committed by the time the signup flow runs.
+  await _captureInboundReferral(AppLinks());
 
   // Load onboarding flag and cached onboarding state
   final prefs = await SharedPreferences.getInstance();
