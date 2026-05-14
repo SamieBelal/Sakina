@@ -12,16 +12,19 @@ import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/gift_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
-import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Surface state for the home-screen gift card. The card's three rendered
 /// states are:
 ///
 /// 1. `loading` — `currentOccasion()` + cached-expiry lookup is in flight.
-///    The home stack renders a skeleton until this resolves; we never show
-///    a flicker of "no card → card appears" on cold launch. This mirrors
-///    the `_rewardsLoaded` pattern from `daily_launch_overlay.dart` per PR #8.
+///    Renders `SizedBox.shrink()` (zero height) rather than a 220-tall
+///    skeleton: occasion windows are active <5% of the calendar year, so
+///    on a typical cold launch the loader would flash for one frame and
+///    then collapse to `inactive`, causing a visible reflow on the home
+///    dashboard. Silent async resolve is the correct UX — when an occasion
+///    IS active, the card fades in via `flutter_animate` once `_resolve()`
+///    flips to pre/post-claim.
 /// 2. `inactive` — outside every seeded occasion window OR the kill switch
 ///    is tripped. Card renders nothing (consumers handle the empty case).
 /// 3. `preClaim(occasionId)` — inside an occasion window, user has not yet
@@ -201,7 +204,10 @@ class _RamadanGiftCardState extends ConsumerState<RamadanGiftCard> {
   @override
   Widget build(BuildContext context) {
     return switch (_state) {
-      _GiftCardLoading() => const _LoadingSkeleton(),
+      // Loading collapses to the same zero-height surface as inactive — the
+      // card is rare enough that resolving silently beats a 220px flash on
+      // every cold launch outside of an occasion window. See state-doc above.
+      _GiftCardLoading() => const SizedBox.shrink(),
       _GiftCardInactive() => const SizedBox.shrink(),
       _GiftCardPreClaim(:final occasionId) => _PreClaimCard(
           occasionId: occasionId,
@@ -211,18 +217,6 @@ class _RamadanGiftCardState extends ConsumerState<RamadanGiftCard> {
       _GiftCardPostClaim(:final expiresAt) =>
         _PostClaimStatus(expiresAt: expiresAt),
     };
-  }
-}
-
-class _LoadingSkeleton extends StatelessWidget {
-  const _LoadingSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 220,
-      child: Center(child: SakinaLoader()),
-    );
   }
 }
 

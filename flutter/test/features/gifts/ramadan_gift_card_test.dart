@@ -9,7 +9,6 @@ import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/gift_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
-import 'package:sakina/widgets/sakina_loader.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
 
@@ -55,8 +54,8 @@ void main() {
   }
 
   testWidgets(
-      'shows SakinaLoader skeleton while currentOccasion() is in flight, then '
-      'transitions to pre-claim card', (tester) async {
+      'renders zero-height during loading (no 220px flash), then transitions '
+      'to pre-claim card', (tester) async {
     fakeSync.publicRows['islamic_occasions'] = [
       {
         'id': 'ramadan_2027',
@@ -67,15 +66,21 @@ void main() {
 
     await tester.pumpWidget(buildHarness(const RamadanGiftCard()));
 
-    // First frame: loading skeleton.
-    expect(find.byType(SakinaLoader), findsOneWidget);
+    // First frame (loading state): widget collapses to SizedBox.shrink so
+    // the home dashboard doesn't reflow on every cold launch outside an
+    // occasion window. The RamadanGiftCard itself paints zero pixels and
+    // shows none of its content.
     expect(find.text('Accept your gift'), findsNothing);
+    expect(find.byType(AdjustedArabicDisplay), findsNothing);
+    expect(tester.getSize(find.byType(RamadanGiftCard)), Size.zero);
 
-    // Let resolve() complete.
-    await tester.pumpAndSettle();
+    // Let resolve() complete. Pump once for the microtask + post-frame
+    // callback chain that `_resolve()` schedules, then settle the pre-claim
+    // card's flutter_animate fadeIn (400ms).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Pre-claim card visible.
-    expect(find.byType(SakinaLoader), findsNothing);
     expect(find.text('Accept your gift'), findsOneWidget);
     expect(find.text('A gift from Sakina for Ramadan'), findsOneWidget);
     expect(find.byType(AdjustedArabicDisplay), findsOneWidget);
@@ -108,7 +113,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Accept your gift'), findsNothing);
-    expect(find.byType(SakinaLoader), findsNothing);
     // The widget is collapsed to SizedBox.shrink — no gift-specific text.
     expect(
       analytics.events.where((e) => e.event == AnalyticsEvents.ramadanGiftShown),
@@ -174,7 +178,10 @@ void main() {
     ];
 
     await tester.pumpWidget(buildHarness(const RamadanGiftCard()));
-    await tester.pumpAndSettle();
+    // Pump for resolve() microtasks, then settle the post-claim status
+    // row's flutter_animate fadeIn (300ms).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Post-claim wins over pre-claim — the user has already accepted.
     expect(find.text('Accept your gift'), findsNothing);
