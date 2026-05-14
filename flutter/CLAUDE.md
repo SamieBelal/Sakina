@@ -80,6 +80,13 @@ dart run build_runner build --delete-conflicting-outputs
 
 # Lint
 flutter analyze
+
+# Pre-release: fail if any FAKE_DO_NOT_SHIP_ placeholders remain in lib/.
+# Run before any `flutter build ios --release` or TestFlight / App Store
+# push. Tripwire against shipping fabricated testimonials (Apple 3.1.1 +
+# FTC endorsement rules). See docs/superpowers/plans/2026-05-14-paywall-rebuild.md
+# Task 6.
+./scripts/check_no_fake_strings.sh
 ```
 
 ## Environment Configuration

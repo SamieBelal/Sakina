@@ -151,7 +151,20 @@ class PurchaseService {
     if (!_initialized) return [];
 
     final offerings = await Purchases.getOfferings();
-    return offerings.current?.availablePackages ?? [];
+    final packages = offerings.current?.availablePackages ?? [];
+    // Defense-in-depth: even if the RC dashboard's `default` offering is
+    // misconfigured with a monthly package, the client never surfaces it.
+    // Weekly + annual only — 2026 research shows monthly cannibalizes
+    // annual LTV without lifting trial-start rate. The paywall screen
+    // already picks by PackageType, but defending at the service boundary
+    // protects every future consumer (winback sheets, debug surfaces, A/B
+    // variants) without each having to remember the rule.
+    return packages.where((p) {
+      return p.packageType != PackageType.monthly &&
+          p.packageType != PackageType.twoMonth &&
+          p.packageType != PackageType.threeMonth &&
+          p.packageType != PackageType.sixMonth;
+    }).toList();
   }
 
   /// Returns packages from the `consumables` offering — the token and scroll
