@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/gift_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,12 +58,49 @@ class PurchaseService {
   }
 
   Future<bool> isPremium() async {
+    // The RevenueCat entitlement check requires the SDK to be initialized.
+    // The gift-window check does not — it reads a SharedPrefs cache populated
+    // server-side by claim_sakina_gift. So check the gift path even when RC
+    // hasn't initialized yet (e.g. on a TestFlight build with the kill switch
+    // tripped, or on first-launch before RC has connected).
+    if (await _isGiftPremium()) return true;
     if (!_initialized) return false;
 
     try {
       final customerInfo = await Purchases.getCustomerInfo();
       return customerInfo.entitlements.active.containsKey('premium');
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// Returns true when the current user has an active Sakina Gift window —
+  /// i.e. SharedPrefs holds a `gift_premium_until:<uid>` timestamp in the
+  /// future relative to [GiftService.debugGiftClock].
+  ///
+  /// The SharedPrefs cache is populated by `GiftService.claim()` at claim
+  /// time. user_profiles.gift_premium_until on the server is authoritative;
+  /// the cache is best-effort for cold-launch entitlement checks without a
+  /// network round-trip.
+  ///
+  /// Sibling to the (future) `_isReferralPremium()` path. Kept structurally
+  /// separate so refer-unlock and gift unlock can be reasoned about
+  /// independently and so analytics can attribute "what kept premium on"
+  /// when both paths overlap.
+  Future<bool> _isGiftPremium() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(
+        supabaseSyncService.scopedKey(giftPremiumUntilPrefsBaseKey),
+      );
+      if (raw == null) return false;
+      final until = DateTime.tryParse(raw)?.toUtc();
+      if (until == null) return false;
+      return GiftService.currentClock().isBefore(until);
+    } catch (_) {
+      // SharedPreferences unavailable (e.g. unit test without the mock
+      // installed) — fall through to the RC entitlement check rather than
+      // throwing out of isPremium().
       return false;
     }
   }
