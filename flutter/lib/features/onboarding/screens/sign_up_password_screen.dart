@@ -6,6 +6,7 @@ import '../../../core/utils/keyboard.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/referral_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -76,6 +77,24 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       }
       ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'email'});
+
+      // Refer-to-Unlock signup hook (mirrors save_progress_screen's social
+      // paths). Runs BEFORE persistOnboardingToSupabase so referral rows
+      // are written under the authenticated session.
+      try {
+        await ref.read(referralServiceProvider).ensureReferralCode(userId);
+      } catch (e) {
+        debugPrint('[SignUpPassword] ensureReferralCode failed (non-fatal): $e');
+      }
+      try {
+        await ref
+            .read(referralServiceProvider)
+            .applyPendingReferralIfAny(userId);
+      } catch (e) {
+        debugPrint(
+            '[SignUpPassword] applyPendingReferralIfAny failed (non-fatal): $e');
+      }
+
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onNext();
