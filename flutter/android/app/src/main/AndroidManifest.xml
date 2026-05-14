@@ -24,6 +24,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Refer-to-Unlock custom-scheme deep link: sakina://r/<code>.
+                 Captured in main.dart via app_links and persisted to
+                 SharedPreferences as `pending_referral` for the signup flow.
+                 Universal links / App Links are out of scope for v1 (we
+                 don't own sakina.app yet — see
+                 docs/superpowers/plans/2026-05-14-refer-unlock.md). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sakina" android:host="r" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
