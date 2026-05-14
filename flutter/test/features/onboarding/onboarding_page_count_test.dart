@@ -2,9 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 
 void main() {
-  group('onboarding page-index constants (pinned by paywall flow redesign)', () {
-    test('onboardingLastPageIndex is 25', () {
-      expect(onboardingLastPageIndex, 25);
+  group('onboarding page-index constants (pinned by rating-gate insertion 2026-05-14)', () {
+    test('onboardingLastPageIndex is 26 (rating gate at 25, paywall at 26)', () {
+      // Assumes Env.ratingGateEnabled defaults to true. If the kill switch
+      // ships in the off position via env.json, this expectation collapses
+      // to 25 — see docs/superpowers/plans/2026-05-14-rating-gate.md.
+      expect(onboardingLastPageIndex, 26);
     });
 
     test('onboardingPasswordPageIndex is 20', () {

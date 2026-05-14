@@ -201,19 +201,37 @@ void main() {
 
     expect(notifier.state.firstStepsCompleted, isEmpty,
         reason: 'Beginner state must not advance when scroll grant fails');
+
+    // The daily-path early-return on scroll failure only fires when the
+    // rotated quest has scrollReward > 0 (completeQuest at
+    // quests_provider.dart:922 gates the scroll grant on `scrollReward > 0`).
+    // The daily muhasabah template at quests_provider.dart:222 currently has
+    // no scrollReward (defaults to 0), so when poolIndex 4 is rotated in,
+    // the daily path proceeds to completion + XP/token grant regardless of
+    // the failed scroll handler. Gate the daily-path invariants on the
+    // rotated quest actually carrying a scroll reward.
     final dailyHit = notifier.state.daily
         .where((q) => q.poolIndex == 4)
         .cast<Quest?>()
         .firstWhere((_) => true, orElse: () => null);
-    if (dailyHit != null) {
+    final dailyHasScrollReward =
+        dailyHit != null && dailyHit.scrollReward > 0;
+    if (dailyHasScrollReward) {
       expect(notifier.state.completedIds.contains(dailyHit.id), isFalse,
           reason:
               'Daily quest must not mark complete when scroll grant fails');
     }
-    expect(rpcCount('award_xp'), 0,
-        reason: 'XP must not be granted on the scroll-failure branch');
-    expect(rpcCount('earn_tokens'), 0,
-        reason: 'Tokens must not be granted on the scroll-failure branch');
+    if (dailyHit == null || dailyHasScrollReward) {
+      // Beginner path early-returns before XP/tokens. Daily path also
+      // early-returns only when scrollReward > 0. If muhasabah is rotated
+      // in with scrollReward == 0, the daily path will grant XP+tokens
+      // and these assertions cannot hold — that is correct production
+      // behavior, not a regression.
+      expect(rpcCount('award_xp'), 0,
+          reason: 'XP must not be granted on the scroll-failure branch');
+      expect(rpcCount('earn_tokens'), 0,
+          reason: 'Tokens must not be granted on the scroll-failure branch');
+    }
 
     notifier.dispose();
   });

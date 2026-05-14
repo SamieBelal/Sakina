@@ -229,7 +229,7 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 ## Onboarding Flow
 
-Canonical page order (updated 2026-05-05; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
+Canonical page order (updated 2026-05-14 by rating-gate insertion; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
 
 0. **First Check-in** — "How are you feeling today?" + emotion chips → `NameRevealOverlay` → "Your Reflection" result teaser
 1. **Name** — "What should we call you?"
@@ -256,13 +256,14 @@ Canonical page order (updated 2026-05-05; see `docs/qa/ui-map.md` for coords and
 22. **Paywall flow — Generating** — 4-step loader, ~3.5s
 23. **Paywall flow — Personalized Plan** — "Your plan, <name>" summary with gold "Crafted for you" ribbon
 24. **Paywall flow — Your Journey** — "Where you'll be in 30 days, <name>" milestones (Day 1 / Day 7 / Day 30)
-25. **Paywall** — RevenueCat (annual + weekly offerings); shrunken hero + personalized header + new CTA copy; close X routes to home
+25. **Rating gate** — "{name}, before you see your plan…" + service-framed ask; OS rating prompt via `SKStoreReviewController` / Play in-app review; CTA flips "Leave a rating" → "I rated". Gated by `Env.ratingGateEnabled` (default true) — flip to false in `env.json` to elide entirely. See `docs/superpowers/plans/2026-05-14-rating-gate.md`.
+26. **Paywall** — RevenueCat (annual + weekly offerings); shrunken hero + personalized header + new CTA copy; close X routes to home
 
-Constant: `onboardingLastPageIndex = 25` in `onboarding_provider.dart` (PageView has 26 children; gacha on page 0 is an overlay, not a page).
+Constant: `onboardingLastPageIndex = 26` in `onboarding_provider.dart` when `Env.ratingGateEnabled` is true (PageView has 27 children); collapses to `25` / 26 children when the kill switch is off. Gacha on page 0 is an overlay, not a page.
 
-**Progress bar:** segments show pages outside the paywall flow (paywall flow pages 22-25 + both encouragement interstitials sit outside the bar).
+**Progress bar:** segments show pages outside the paywall flow (paywall flow pages 22-26 + both encouragement interstitials sit outside the bar).
 
-**Paywall flow (pages 22-25):** Loader → Personalized Plan → Your Journey → Price screen.
+**Paywall flow (pages 22-26):** Loader → Personalized Plan → Your Journey → Rating gate (kill-switch gated) → Price screen.
 Inserted 2026-05-05 to lift trial-start conversion (Cal AI–style multi-screen flow).
 The pre-existing GeneratingScreen and PersonalizedPlanScreen relocated from pages 16-17
 into this flow. Progress bar hidden on these pages — they have their own visual identity.

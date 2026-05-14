@@ -12,6 +12,13 @@ abstract final class AnalyticsEvents {
   static const signupFailed = 'signup_failed';
   static const notificationPermissionResult = 'notification_permission_result';
   static const surveyAnswered = 'survey_answered';
+
+  // Rating gate (page 25, inserted between YourJourney and Paywall — see
+  // docs/superpowers/plans/2026-05-14-rating-gate.md).
+  static const ratingGateShown = 'rating_gate_shown';
+  static const ratingGatePromptTriggered = 'rating_gate_prompt_triggered';
+  static const ratingGateContinueTapped = 'rating_gate_continue_tapped';
+
   static const paywallViewed = 'paywall_viewed';
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
@@ -37,10 +44,14 @@ abstract final class AnalyticsEvents {
   static const settingsPremiumBillingIssueTapped =
       'settings_premium_billing_issue_tapped';
 
-  // Keep in sync with the PageView in onboarding_screen.dart (26 pages, 0-25).
+  // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
+  // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
   // PersonalizedPlanScreen pair moved from pages 16-17 into the paywall flow
-  // at pages 22-23; YourJourneyScreen new at page 24; paywall now at page 25.
+  // at pages 22-23; YourJourneyScreen new at page 24; paywall at page 25.
+  // Updated 2026-05-14 by rating-gate insertion — gate added at index 25
+  // (when enabled), paywall shifts to 26. See docs/superpowers/plans/
+  // 2026-05-14-rating-gate.md.
   static const stepNames = <int, String>{
     0: 'first_checkin',
     1: 'name_input',
@@ -67,7 +78,8 @@ abstract final class AnalyticsEvents {
     22: 'paywall_flow_loader',
     23: 'paywall_flow_plan',
     24: 'paywall_flow_journey',
-    25: 'paywall',
+    25: 'rating_gate',
+    26: 'paywall',
   };
 }
 

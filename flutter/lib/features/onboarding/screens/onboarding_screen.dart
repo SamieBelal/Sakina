@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/app_session.dart';
+import '../../../core/env.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../providers/onboarding_provider.dart';
@@ -23,6 +24,7 @@ import 'paywall_screen.dart';
 import 'personalized_plan_screen.dart';
 import 'prayer_frequency_screen.dart';
 import 'quran_connection_screen.dart';
+import 'rating_gate_screen.dart';
 import 'reminder_time_screen.dart';
 import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
@@ -263,7 +265,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           PersonalizedPlanScreen(onNext: _next, onBack: _back),
           // 24 — Your Journey (NEW 2026-05-05)
           YourJourneyScreen(onNext: _next, onBack: _back),
-          // 25 — Paywall (was 24)
+          // 25 — Rating gate (NEW 2026-05-14, gated by Env.ratingGateEnabled —
+          //   when flag is false the gate is elided at compile time and
+          //   paywall sits at index 25 exactly as before. See
+          //   docs/superpowers/plans/2026-05-14-rating-gate.md.)
+          if (Env.ratingGateEnabled)
+            RatingGateScreen(onNext: _next, onBack: _back),
+          // 26 — Paywall (was 25 — see Env.ratingGateEnabled)
           PaywallScreen(onComplete: _completeOnboarding),
         ],
       ),
