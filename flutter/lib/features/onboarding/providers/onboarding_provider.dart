@@ -13,15 +13,22 @@ import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
 import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
+import '../../../core/env.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView (paywall at index 25).
-/// PageView has 26 children. Updated 2026-05-05 by paywall flow redesign:
-/// the existing GeneratingScreen + PersonalizedPlanScreen pair moved from
-/// pages 16-17 into the paywall flow at pages 22-23, plus a new
-/// YourJourneyScreen at page 24, before the paywall at page 25.
-const int onboardingLastPageIndex = 25;
+/// Last index in [OnboardingScreen]'s PageView. Computed from the rating-gate
+/// kill switch so the "gate on" and "gate off" paths stay in sync:
+///   * `Env.ratingGateEnabled == true`  → 27 children (0..26), paywall at 26.
+///   * `Env.ratingGateEnabled == false` → 26 children (0..25), paywall at 25.
+///
+/// `Env.ratingGateEnabled` is a compile-time `bool.fromEnvironment` constant,
+/// so the ternary collapses to a single int at compile time.
+///
+/// Updated 2026-05-14 by rating-gate insertion (page 25 when enabled). Prior
+/// 2026-05-05 paywall flow redesign moved Generating/PersonalizedPlan into
+/// the paywall flow at pages 22-23 and added YourJourneyScreen at page 24.
+const int onboardingLastPageIndex = Env.ratingGateEnabled ? 26 : 25;
 
 /// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
 /// Shifted -2 from old index 22 because Generating + PersonalPlan were

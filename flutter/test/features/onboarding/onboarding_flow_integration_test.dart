@@ -22,9 +22,9 @@ void main() {
     final pv = tester.widget<PageView>(find.byType(PageView));
     expect(
       (pv.childrenDelegate as SliverChildListDelegate).children.length,
-      26,
+      27,
     );
-    expect(onboardingLastPageIndex, 25);
+    expect(onboardingLastPageIndex, 26);
     expect(onboardingPasswordPageIndex, 20);
     expect(onboardingEncouragementPageIndex, 21);
 
