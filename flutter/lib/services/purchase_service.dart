@@ -6,6 +6,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PurchaseService {
   PurchaseService._();
@@ -56,14 +57,91 @@ class PurchaseService {
     }
   }
 
-  Future<bool> isPremium() async {
-    if (!_initialized) return false;
+  /// Base SharedPreferences key for the cached `referral_premium_until` ISO
+  /// string. Scoped to the user via [SupabaseSyncService.scopedKey] before
+  /// read/write so a shared device doesn't bleed referral premium across
+  /// accounts.
+  @visibleForTesting
+  static const String referralPremiumUntilPrefsBaseKey = 'referral_premium_until';
 
+  /// True iff RevenueCat reports the `premium` entitlement OR the local
+  /// referral-premium cache holds a future ISO timestamp.
+  ///
+  /// Hot-path constraint: called from 8+ providers / services on every render
+  /// pass. The referral side reads SharedPreferences only — never touches
+  /// Supabase. Refresh happens at deterministic moments (auth foreground,
+  /// completeOnboarding, post-RPC) via [refreshReferralPremiumCache].
+  Future<bool> isPremium() async {
+    if (_initialized) {
+      try {
+        final customerInfo = await Purchases.getCustomerInfo();
+        if (customerInfo.entitlements.active.containsKey('premium')) {
+          return true;
+        }
+      } catch (_) {
+        // Fall through to referral check.
+      }
+    }
+    return _isReferralPremium();
+  }
+
+  /// Reads from the local cache only. The cache is populated by
+  /// [refreshReferralPremiumCache] at auth foreground, after signup, and
+  /// after referral RPCs return. Never hits Supabase from the hot path.
+  Future<bool> _isReferralPremium() async {
+    final uid = _safeCurrentUserId();
+    if (uid == null || uid.isEmpty) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final scopedKey =
+        supabaseSyncService.scopedKey(referralPremiumUntilPrefsBaseKey);
+    final iso = prefs.getString(scopedKey);
+    if (iso == null || iso.isEmpty) return false;
     try {
-      final customerInfo = await Purchases.getCustomerInfo();
-      return customerInfo.entitlements.active.containsKey('premium');
+      // DateTime.parse handles all the timestamptz ISO shapes Supabase emits:
+      //   "2026-06-13T12:34:56.789+00:00", "2026-06-13T12:34:56Z", etc.
+      // Compare against now().toUtc() so we're timezone-stable across
+      // devices and clocks.
+      return DateTime.parse(iso).isAfter(DateTime.now().toUtc());
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Fetches `referral_premium_until` from Supabase and updates the local
+  /// cache. Call at: app foreground (authenticated), after
+  /// [OnboardingNotifier.completeOnboarding], after `apply_referral` /
+  /// `confirm_referral_if_pending` RPC returns.
+  ///
+  /// Best-effort — silently swallows network errors; stale cache is
+  /// acceptable until the next refresh moment.
+  Future<void> refreshReferralPremiumCache() async {
+    final uid = _safeCurrentUserId();
+    if (uid == null || uid.isEmpty) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('user_profiles')
+          .select('referral_premium_until')
+          .eq('id', uid)
+          .maybeSingle();
+      final iso = row?['referral_premium_until'] as String?;
+      final prefs = await SharedPreferences.getInstance();
+      final scopedKey =
+          supabaseSyncService.scopedKey(referralPremiumUntilPrefsBaseKey);
+      if (iso == null) {
+        await prefs.remove(scopedKey);
+      } else {
+        await prefs.setString(scopedKey, iso);
+      }
+    } catch (_) {
+      // Best-effort; next refresh moment will retry.
+    }
+  }
+
+  String? _safeCurrentUserId() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return null;
     }
   }
 

@@ -121,6 +121,13 @@ class AppSessionNotifier extends ChangeNotifier {
       } catch (e) {
         debugPrint('app_session: RevenueCat setUserId failed: $e');
       }
+
+      // Refresh the referral-premium cache so PurchaseService.isPremium()
+      // picks up any server-side grant for the user without paying a
+      // Supabase round-trip on the hot path. Fire-and-forget — failure
+      // here is non-critical (the cache will refresh again on the next
+      // auth change or RPC return).
+      unawaited(PurchaseService().refreshReferralPremiumCache());
     }
 
     await _hydrateAndNotify();
