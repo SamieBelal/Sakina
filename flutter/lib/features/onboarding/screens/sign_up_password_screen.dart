@@ -93,6 +93,12 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       // Refer-to-Unlock signup hook (mirrors save_progress_screen's social
       // paths). Runs BEFORE persistOnboardingToSupabase so referral rows
       // are written under the authenticated session.
+      //
+      // Safe to run before persistOnboardingToSupabase because the
+      // `user_profiles` row that apply_referral targets is created by the
+      // `handle_new_user` trigger on auth.users insert (initial_schema.sql
+      // L631-633). signUpWithEmail completes only after the trigger fires,
+      // so the row is guaranteed to exist here.
       try {
         await ref.read(referralServiceProvider).ensureReferralCode(userId);
       } catch (e) {

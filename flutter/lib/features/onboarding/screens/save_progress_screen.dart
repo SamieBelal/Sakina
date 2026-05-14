@@ -42,6 +42,17 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   /// must never block signup. The defensive cold-launch path in
   /// AppSessionNotifier retries applyPendingReferralIfAny if a kill window
   /// strands a pending code in SharedPreferences.
+  ///
+  /// Why this is safe to run BEFORE persistOnboardingToSupabase: the
+  /// `user_profiles` row that `apply_referral` updates is created
+  /// synchronously by the `handle_new_user` trigger on `auth.users` insert
+  /// (supabase/migrations/20260407000000_initial_schema.sql L631-633, body
+  /// updated by 20260407200000_fix_handle_new_user_display_name.sql). By the
+  /// time `signInWithApple/Google` returns, the row exists — so the
+  /// `apply_referral` UPDATE on `user_profiles.referral_premium_until`
+  /// affects exactly 1 row and the referee's 7d window is set correctly.
+  /// `persistOnboardingToSupabase` runs an UPDATE on the same row to fill
+  /// onboarding fields; the two writes don't conflict.
   Future<void> _applyReferralHooks(String userId) async {
     try {
       await ref.read(referralServiceProvider).ensureReferralCode(userId);
