@@ -260,6 +260,19 @@ abstract final class AppStrings {
   static const paywallFlowGeneratingStep3 = 'Curating verses for your heart';
   static const paywallFlowGeneratingStep4 = 'Setting your daily rhythm';
 
+  // Testimonials rotated on GeneratingScreen during the ~3.5s pre-paywall
+  // loader. These placeholders are FLAG-GATED OFF in v1 (see
+  // Env.paywallTestimonialsEnabled, default false) and MUST be replaced
+  // with real attributable reviews before the flag is flipped to true.
+  // Fabricated reviews violate Apple guideline 3.1.1 and FTC endorsement
+  // rules. The `FAKE_DO_NOT_SHIP_` prefix is grep-gated by
+  // scripts/check_no_fake_strings.sh (Task 6 of the paywall rebuild plan).
+  static const generatingTestimonials = <String>[
+    'FAKE_DO_NOT_SHIP_"This is the first app that gets what I needed as a Muslim." — Layla, NJ',
+    'FAKE_DO_NOT_SHIP_"I open it before fajr. It centers me." — Yusuf, London',
+    'FAKE_DO_NOT_SHIP_"Finally something for my heart." — Aaliyah, Toronto',
+  ];
+
   // ───── Paywall flow — Your Journey screen (page 24) ─────
   // Copy is qualitative, not quantified — the gacha + streak system can't
   // guarantee specific Name/reflection counts (OV8 in eng review).
