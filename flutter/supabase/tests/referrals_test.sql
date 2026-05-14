@@ -319,6 +319,32 @@ begin
     '10.2 authenticated UPDATE of referral_code raises check_violation');
 
   -- =========================================================================
+  -- 10b. Authorization: as authenticated user A, apply_referral with
+  --      p_referee = B (a victim) must be rejected. Pins the auth.uid()
+  --      self-check from 20260514000002_referrals_auth_uid_self_check.
+  -- =========================================================================
+  -- We're still set as authenticated (sub=aid) from step 10. Try to refer
+  -- bid (a different user) using sid's code as the referrer code.
+  res := public.apply_referral(code_s, bid);
+  perform pg_temp.expect(
+    (res->>'ok')::boolean = false and (res->>'reason') = 'not_authorized',
+    '10b.1 apply_referral rejects cross-user p_referee (auth.uid() != p_referee)');
+
+  res := public.confirm_referral_if_pending(bid);
+  perform pg_temp.expect(
+    (res->>'ok')::boolean = false and (res->>'reason') = 'not_authorized',
+    '10b.2 confirm_referral_if_pending rejects cross-user p_referee');
+
+  raised := false;
+  begin
+    perform public.ensure_referral_code(bid);
+  exception when others then
+    raised := true;
+  end;
+  perform pg_temp.expect(raised,
+    '10b.3 ensure_referral_code raises when caller != p_user');
+
+  -- =========================================================================
   -- 11. service_role bypass smoke: direct postgres UPDATE works.
   -- =========================================================================
   perform set_config('request.jwt.claims', '', true);
