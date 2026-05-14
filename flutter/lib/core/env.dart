@@ -38,4 +38,12 @@ class Env {
       String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
   static const String googleIosClientId =
       String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
+  /// Compile-time kill switch for the onboarding rating gate. Defaults to
+  /// `true` so a missing env entry doesn't silently disable the gate; flip
+  /// to `"false"` in `env.json` and rebuild to roll back without an App
+  /// Review cycle. See docs/superpowers/plans/2026-05-14-rating-gate.md
+  /// (Rollback / Kill Switch).
+  static const bool ratingGateEnabled =
+      bool.fromEnvironment('RATING_GATE_ENABLED', defaultValue: true);
 }
