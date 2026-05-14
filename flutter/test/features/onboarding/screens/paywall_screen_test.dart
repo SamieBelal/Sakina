@@ -5,6 +5,17 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 
 void main() {
+  // Repeating breathing-CTA + SAVE-badge shimmer animations introduced
+  // by the 2026-05-14 paywall rebuild would make pumpAndSettle hang
+  // forever. The seam flips them off for the duration of this file.
+  setUp(() {
+    debugDisablePaywallAnimations = true;
+  });
+
+  tearDown(() {
+    debugDisablePaywallAnimations = false;
+  });
+
   Widget harness(ProviderContainer container) {
     return UncontrolledProviderScope(
       container: container,
