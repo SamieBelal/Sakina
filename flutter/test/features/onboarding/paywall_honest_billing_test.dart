@@ -116,6 +116,10 @@ void main() {
     );
     PurchaseService.debugSetOverride(purchaseService);
     debugSetPremiumGrantPurchaseService(purchaseService);
+    // Disable breathing CTA + shimmer animations — they never stop, so
+    // pumpAndSettle would hang. The compile-time Env flag drives prod
+    // behavior independently.
+    debugDisablePaywallAnimations = true;
 
     // Expand the test viewport so the footer (which sits below the CTA at
     // the bottom of the screen) lands within the rendered frame instead of
@@ -130,6 +134,7 @@ void main() {
     debugResetPremiumGrantService();
     PurchaseService.debugClearOverride();
     SupabaseSyncService.debugReset();
+    debugDisablePaywallAnimations = false;
   });
 
   testWidgets(

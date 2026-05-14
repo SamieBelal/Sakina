@@ -45,6 +45,20 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
 enum _PlanType { annual, weekly }
 
+/// Test-only seam: when `true`, both `_maybeBreathe` and `_maybeShimmerBadge`
+/// short-circuit to a no-op wrapper regardless of `Env.paywallAnimationsEnabled`.
+/// Tests use `tester.pumpAndSettle()` which never settles against the
+/// repeating breathing / shimmer animations introduced by the 2026-05-14
+/// paywall rebuild — flipping this in `setUp` keeps existing widget tests
+/// (and any new ones) green without each one having to switch to manual
+/// `tester.pump(Duration)` calls.
+///
+/// Production code never sets this — the compile-time `Env` flag is the
+/// real rollback path. See docs/superpowers/plans/2026-05-14-paywall-rebuild.md
+/// (Rollback / Kill Switch).
+@visibleForTesting
+bool debugDisablePaywallAnimations = false;
+
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   static const _offeringsErrorMessage =
       'Unable to load subscription options right now. Please try again.';
@@ -199,6 +213,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
     return _weeklyPackage?.storeProduct.priceString ??
         AppStrings.paywallWeeklyPrice;
+  }
+
+  /// Wraps the CTA's inner `Text` (NOT the button container) with a subtle
+  /// breathing scale animation when `Env.paywallAnimationsEnabled` is true.
+  /// Wrapping the inner Text means the animation simply doesn't exist
+  /// while the `_purchasing` spinner takes over the child slot — no
+  /// jitter, no conflict.
+  ///
+  /// 2.5% scale, 1.4s cycle — breathing-soft to match the Sakina /
+  /// tranquility brand. Per Adapty's 2026 report, animated paywall
+  /// elements lift conversion 12-18% vs. static; anything bigger reads
+  /// as gimmicky on a premium spiritual app.
+  Widget _maybeBreathe(Widget child) {
+    if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+      return child;
+    }
+    return child
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .scaleXY(
+          begin: 1.0,
+          end: 1.025,
+          duration: 1400.ms,
+          curve: Curves.easeInOut,
+        );
   }
 
   @override
@@ -741,15 +779,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                       color: AppColors.textOnPrimary,
                                     ),
                                   )
-                                : Text(
-                                    hasTrial
-                                        ? AppStrings.paywallCtaTrial
-                                        : AppStrings.paywallCtaSubscribeRevised,
-                                    style:
-                                        AppTypography.labelLarge.copyWith(
-                                      color: AppColors.textOnPrimary,
-                                      fontSize: 16,
-                                      letterSpacing: 0.2,
+                                : _maybeBreathe(
+                                    Text(
+                                      hasTrial
+                                          ? AppStrings.paywallCtaTrial
+                                          : AppStrings
+                                              .paywallCtaSubscribeRevised,
+                                      style: AppTypography.labelLarge.copyWith(
+                                        color: AppColors.textOnPrimary,
+                                        fontSize: 16,
+                                        letterSpacing: 0.2,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -1117,34 +1157,44 @@ class _PricingCard extends StatelessWidget {
           // SAVE 81% badge — floats above the card's top-left edge. Gold
           // against either white or emerald-tinted card; harmonizes with
           // the warm cream page background.
+          //
+          // Optional gold shimmer pass (gated on Env.paywallAnimationsEnabled).
+          // Slow, ~2.4s shimmer with a 1.2s delay between passes — subtle
+          // enough to read as polish, not as a Vegas slot-machine effect.
+          // Per Adapty's 2026 report, animated paywall elements lift
+          // conversion 12-18%; we keep the SAVE % math unchanged (still
+          // the existing 2x anchor) — fabricating a bigger headline number
+          // is deceptive under Apple guideline 3.1.1.
           if (badge != null)
             Positioned(
               top: -11,
               left: 12,
               child: IgnorePointer(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                child: _maybeShimmerBadge(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      badge!,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textOnPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        letterSpacing: 0.6,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    badge!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textOnPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                      letterSpacing: 0.6,
                     ),
                   ),
                 ),
@@ -1159,6 +1209,25 @@ class _PricingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wraps the SAVE badge with a slow gold shimmer pass when
+/// `Env.paywallAnimationsEnabled` is true. When the flag is off, returns
+/// the unwrapped widget — no animation wrapper, no perf cost. Top-level
+/// helper so the stateless `_PricingCard` can use it without a state
+/// object. White shimmer overlay at 55% alpha gives a clean "polished gold"
+/// pass against the emerald badge surface.
+Widget _maybeShimmerBadge(Widget child) {
+  if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+    return child;
+  }
+  return child
+      .animate(onPlay: (c) => c.repeat())
+      .shimmer(
+        duration: 2400.ms,
+        delay: 1200.ms,
+        color: Colors.white.withValues(alpha: 0.55),
+      );
 }
 
 /// Hero block — the visual centerpiece at the top of the paywall. Renders
