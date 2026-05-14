@@ -13,7 +13,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/../lib"
 
-if grep -rE 'FAKE_DO_NOT_SHIP_' "${LIB_DIR}" ; then
+# Match only string literals (a quote character must immediately follow the
+# marker), not the doc comments in lib/core/env.dart and
+# lib/core/constants/app_strings.dart that mention the token by name.
+# Without this scoping, the gate would stay red forever after the
+# placeholders in AppStrings.generatingTestimonials are replaced with real
+# reviews, because the explanatory comments still contain the literal token.
+# `\x27` is the escape for a single quote inside the bracket class.
+if grep -rnE 'FAKE_DO_NOT_SHIP_["\x27]' "${LIB_DIR}" ; then
   echo ""
   echo "ERROR: FAKE_DO_NOT_SHIP_ placeholders found in lib/."
   echo "Replace with real attributable content before merging."
