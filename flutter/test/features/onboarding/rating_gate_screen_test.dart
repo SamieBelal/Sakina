@@ -22,7 +22,7 @@ void main() {
   });
 
   testWidgets(
-      'CTA starts as "Leave a rating", flips to "I rated" after tap, headline personalizes from signUpName',
+      'CTA starts as "Send a sign", flips to "I rated" after tap, headline personalizes from signUpName',
       (tester) async {
     final spy = _TrackingSpy();
     var nextCalled = false;
@@ -55,14 +55,14 @@ void main() {
     // Headline should contain the user's name (personalized).
     expect(find.textContaining('Aisha'), findsOneWidget);
 
-    expect(find.text('Leave a rating'), findsOneWidget);
+    expect(find.text('Send a sign'), findsOneWidget);
     expect(find.text('I rated'), findsNothing);
     expect(nextCalled, isFalse);
 
-    await tester.tap(find.text('Leave a rating'));
+    await tester.tap(find.text('Send a sign'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Leave a rating'), findsNothing);
+    expect(find.text('Send a sign'), findsNothing);
     expect(find.text('I rated'), findsOneWidget);
     expect(nextCalled, isFalse,
         reason: 'First tap triggers the OS prompt only, does not advance');
@@ -127,6 +127,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('I rated'), findsOneWidget);
-    expect(find.text('Leave a rating'), findsNothing);
+    expect(find.text('Send a sign'), findsNothing);
   });
 }

@@ -100,7 +100,7 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
   String _buildHeadline() {
     final name = ref.read(onboardingProvider).signUpName?.trim();
     final greeting = (name == null || name.isEmpty) ? 'Friend' : name;
-    return '$greeting, before you see your plan…';
+    return '$greeting, one small thing first.';
   }
 
   /// Service-framed subhead. Sakina (سَكِينَة, tranquility) is brand-positioned
@@ -110,13 +110,12 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
   String _buildSubhead() {
     final intention = ref.read(onboardingProvider).intention;
     if (intention != null && intention.isNotEmpty) {
-      return 'You came to Sakina for ${intention.toLowerCase()}. Would you '
-          'leave a sign on the road for the next Muslim searching for the '
-          'same? It helps Sakina reach more hearts, in shā\u02BCa Allāh.';
+      return 'You came to Sakina for ${intention.toLowerCase()}. Leave a '
+          'sign on the road for the next Muslim searching for the same — '
+          'in shā\u02BCa Allāh.';
     }
-    return 'Would you leave a sign on the road for the next Muslim searching '
-        "for what you've just found? It helps Sakina reach more hearts, "
-        'in shā\u02BCa Allāh.';
+    return 'Leave a sign on the road for the next Muslim searching for '
+        "what you've just found — in shā\u02BCa Allāh.";
   }
 
   @override
@@ -128,14 +127,28 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: Column(
             children: [
-              const Spacer(),
+              // Weighted spacers (1 top : 2 bottom) anchor content around the
+              // upper third of the viewport so the headline lands at a
+              // natural reading position rather than crowding the CTA.
+              const Spacer(flex: 1),
+              const Icon(
+                Icons.star_rounded,
+                size: 56,
+                color: AppColors.secondary,
+              ).animate().fadeIn(duration: 400.ms).scale(
+                    begin: const Offset(0.8, 0.8),
+                    end: const Offset(1, 1),
+                    duration: 400.ms,
+                    curve: Curves.easeOutBack,
+                  ),
+              const SizedBox(height: AppSpacing.xl),
               Text(
                 _buildHeadline(),
                 style: AppTypography.displaySmall.copyWith(
                   color: AppColors.textPrimaryLight,
                 ),
                 textAlign: TextAlign.center,
-              ).animate().fadeIn(duration: 400.ms),
+              ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
               const SizedBox(height: AppSpacing.lg),
               Text(
                 _buildSubhead(),
@@ -143,8 +156,8 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
                   color: AppColors.textSecondaryLight,
                 ),
                 textAlign: TextAlign.center,
-              ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
-              const Spacer(),
+              ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
+              const Spacer(flex: 2),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -159,7 +172,7 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
                     ),
                   ),
                   child: Text(
-                    _rated ? 'I rated' : 'Leave a rating',
+                    _rated ? 'I rated' : 'Send a sign',
                     style: AppTypography.labelLarge,
                   ),
                 ),
