@@ -55,17 +55,6 @@ class Env {
   static const bool paywallAnimationsEnabled =
       bool.fromEnvironment('PAYWALL_ANIMATIONS_ENABLED', defaultValue: true);
 
-  /// Compile-time kill switch for the rotating testimonials overlay on
-  /// `GeneratingScreen`. Defaults to `false` in v1 because Sakina is
-  /// pre-launch and has no real, attributable reviews to quote — fabricated
-  /// testimonials violate Apple guideline 3.1.1 and FTC endorsement rules.
-  /// Flip to `"true"` only after replacing the `FAKE_DO_NOT_SHIP_`
-  /// placeholders in `AppStrings.generatingTestimonials` with real,
-  /// permissioned reviews. The CI grep gate
-  /// (`scripts/check_no_fake_strings.sh`) is the second line of defense.
-  static const bool paywallTestimonialsEnabled =
-      bool.fromEnvironment('PAYWALL_TESTIMONIALS_ENABLED', defaultValue: false);
-
   /// Compile-time kill switch for the Blinkist-style explicit honest-billing
   /// footer beneath the paywall CTA. Defaults to `true`; flip to `"false"`
   /// in `env.json` and rebuild to hide the footer without an App Review
