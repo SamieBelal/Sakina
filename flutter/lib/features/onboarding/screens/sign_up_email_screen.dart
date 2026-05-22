@@ -21,6 +21,19 @@ class SignUpEmailScreen extends ConsumerStatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
+  // Pragmatic RFC-5322 subset: local-part of one or more allowed chars, `@`,
+  // domain label(s) separated by dots, TLD ≥ 2 letters. Rejects the garbage
+  // the previous `contains('@') && contains('.')` check waved through
+  // (e.g. `a@.`, `me@@x.com`, `test@.com`) which then failed at the
+  // Supabase auth layer with no analytics trail — see PR notes on the
+  // sign-up password session-race fix shipped alongside this regex.
+  static final RegExp emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?'
+    r'(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$',
+  );
+
+  static bool isValidEmail(String text) => emailRegex.hasMatch(text.trim());
+
   @override
   ConsumerState<SignUpEmailScreen> createState() => _SignUpEmailScreenState();
 }
@@ -42,10 +55,7 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
     super.dispose();
   }
 
-  bool get _isValidEmail {
-    final text = _controller.text.trim();
-    return text.contains('@') && text.contains('.');
-  }
+  bool get _isValidEmail => SignUpEmailScreen.isValidEmail(_controller.text);
 
   void _submit() {
     if (!_isValidEmail) return;

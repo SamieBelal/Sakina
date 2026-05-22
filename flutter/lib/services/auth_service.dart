@@ -30,6 +30,20 @@ Future<int> clearScopedPreferencesForUser(
 class AuthService {
   late final _supabase = Supabase.instance.client;
 
+  // Default written to `user_profiles.display_name` when onboarding state
+  // has no usable name. Without this, the column persisted null for a
+  // handful of users and their push notifications rendered the literal
+  // word "Sakina" (the app name) as the greeting — see OneSignal history
+  // from 2026-05-19 onward. English fallback chosen so the greeting reads
+  // naturally in both LTR and RTL layouts.
+  static const String defaultDisplayName = 'Friend';
+
+  static String resolveDisplayName(String? name) {
+    if (name == null) return defaultDisplayName;
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? defaultDisplayName : trimmed;
+  }
+
   Future<AuthResponse> signUpWithEmail(
     String email,
     String password, {
@@ -148,8 +162,7 @@ class AuthService {
     if (userId == null) return;
 
     await _supabase.from('user_profiles').update({
-      if (displayName != null && displayName.isNotEmpty)
-        'display_name': displayName,
+      'display_name': resolveDisplayName(displayName),
       'onboarding_intention': intention,
       'onboarding_familiarity': familiarity,
       'onboarding_quran_connection': quranConnection,

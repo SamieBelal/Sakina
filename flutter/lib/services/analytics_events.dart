@@ -10,6 +10,12 @@ abstract final class AnalyticsEvents {
   static const signupMethodSelected = 'signup_method_selected';
   static const signupCompleted = 'signup_completed';
   static const signupFailed = 'signup_failed';
+
+  // Reason values for `signup_failed.error` — typed here so the password
+  // screen's session-race branch (previously a silent SnackBar+return) and
+  // the analytics test stay in lockstep.
+  static const signupFailedReasonSessionRace = 'session_race';
+  static const signupFailedReasonUnknown = 'unknown';
   static const notificationPermissionResult = 'notification_permission_result';
   static const surveyAnswered = 'survey_answered';
 

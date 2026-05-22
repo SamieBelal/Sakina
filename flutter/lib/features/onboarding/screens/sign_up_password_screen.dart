@@ -67,10 +67,22 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       ref.read(onboardingProvider.notifier).setSignedUp(true);
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) {
-        // Post-signup session race — bail out gracefully instead of crashing.
+        // Post-signup session race: auth.signUp resolved but currentUser
+        // hasn't propagated yet (intermittent on iOS). Previously returned
+        // silently — no analytics — so this churn was invisible. Now we
+        // fire signup_failed so the funnel reflects reality, and the
+        // outer `finally` resets the loading state so the user can tap
+        // Continue again without restarting onboarding.
         debugPrint('[SignUpPassword] currentUser null after signUpWithEmail');
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.signupFailed,
+          properties: {
+            'method': 'email',
+            'error': AnalyticsEvents.signupFailedReasonSessionRace,
+          },
+        );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign-up succeeded but session is not ready. Please try again.')),
+          const SnackBar(content: Text('Account created — tap Continue to finish signing in.')),
         );
         return;
       }
@@ -87,7 +99,13 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'email', 'error': 'unknown'});
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.signupFailed,
+        properties: {
+          'method': 'email',
+          'error': AnalyticsEvents.signupFailedReasonUnknown,
+        },
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Something went wrong. Please try again.')),

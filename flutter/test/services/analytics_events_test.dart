@@ -99,6 +99,16 @@ void main() {
     });
   });
 
+  group('signup_failed reason constants', () {
+    // The sign-up password screen's session-race branch (previously a silent
+    // SnackBar+return) now fires signup_failed with this exact reason — pin
+    // the contract so a rename in either side surfaces as a test failure.
+    test('exposes session_race + unknown as typed constants', () {
+      expect(AnalyticsEvents.signupFailedReasonSessionRace, 'session_race');
+      expect(AnalyticsEvents.signupFailedReasonUnknown, 'unknown');
+    });
+  });
+
   group('AnalyticsEvents.stepNames', () {
     test('covers all 27 onboarding pages (rating gate at 25, paywall at 26)', () {
       // Updated 2026-05-14 by rating-gate insertion. The map carries entries
