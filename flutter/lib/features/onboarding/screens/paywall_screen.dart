@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/env.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/app_session.dart';
 import '../../../features/daily/providers/daily_rewards_provider.dart';
@@ -43,6 +44,20 @@ class PaywallScreen extends ConsumerStatefulWidget {
 }
 
 enum _PlanType { annual, weekly }
+
+/// Test-only seam: when `true`, both `_maybeBreathe` and `_maybeShimmerBadge`
+/// short-circuit to a no-op wrapper regardless of `Env.paywallAnimationsEnabled`.
+/// Tests use `tester.pumpAndSettle()` which never settles against the
+/// repeating breathing / shimmer animations introduced by the 2026-05-14
+/// paywall rebuild — flipping this in `setUp` keeps existing widget tests
+/// (and any new ones) green without each one having to switch to manual
+/// `tester.pump(Duration)` calls.
+///
+/// Production code never sets this — the compile-time `Env` flag is the
+/// real rollback path. See docs/superpowers/plans/2026-05-14-paywall-rebuild.md
+/// (Rollback / Kill Switch).
+@visibleForTesting
+bool debugDisablePaywallAnimations = false;
 
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   static const _offeringsErrorMessage =
@@ -183,6 +198,45 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final pkg = plan == _PlanType.annual ? _annualPackage : _weeklyPackage;
     final intro = pkg?.storeProduct.introductoryPrice;
     return intro != null && intro.price == 0;
+  }
+
+  /// Locale-aware priceString for the currently selected plan. Used by the
+  /// honest-billing footer to surface the literal post-trial charge.
+  /// Falls back to the static USD constant when offerings haven't loaded —
+  /// the footer is gated on `_planHasTrial`, which requires the package to
+  /// be loaded, so in practice the fallback only fires in test stubs that
+  /// skip offerings loading.
+  String _activePackagePriceString() {
+    if (_selectedPlan == _PlanType.annual) {
+      return _annualPackage?.storeProduct.priceString ??
+          AppStrings.paywallAnnualPrice;
+    }
+    return _weeklyPackage?.storeProduct.priceString ??
+        AppStrings.paywallWeeklyPrice;
+  }
+
+  /// Wraps the CTA's inner `Text` (NOT the button container) with a subtle
+  /// breathing scale animation when `Env.paywallAnimationsEnabled` is true.
+  /// Wrapping the inner Text means the animation simply doesn't exist
+  /// while the `_purchasing` spinner takes over the child slot — no
+  /// jitter, no conflict.
+  ///
+  /// 2.5% scale, 1.4s cycle — breathing-soft to match the Sakina /
+  /// tranquility brand. Per Adapty's 2026 report, animated paywall
+  /// elements lift conversion 12-18% vs. static; anything bigger reads
+  /// as gimmicky on a premium spiritual app.
+  Widget _maybeBreathe(Widget child) {
+    if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+      return child;
+    }
+    return child
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .scaleXY(
+          begin: 1.0,
+          end: 1.025,
+          duration: 1400.ms,
+          curve: Curves.easeInOut,
+        );
   }
 
   @override
@@ -582,24 +636,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         }),
                         const SizedBox(height: AppSpacing.md),
 
-                        // Honest trial timeline — only when the selected
-                        // plan actually has a free intro on its StoreKit
-                        // product. Otherwise the timeline would lie about
-                        // a "Day 3 charged" event that won't happen.
-                        if (hasTrial) ...[
-                          _TrialTimelineStrip(
-                            chargeOnDay3:
-                                _selectedPlan == _PlanType.annual
-                                    ? (_annualPackage
-                                            ?.storeProduct.priceString ??
-                                        AppStrings.paywallAnnualPrice)
-                                    : (_weeklyPackage
-                                            ?.storeProduct.priceString ??
-                                        AppStrings.paywallWeeklyPrice),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
-
                         // Side-by-side pricing — Cal AI pattern. Annual on
                         // the left (default-selected, "best value"), weekly
                         // on the right.
@@ -743,15 +779,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                       color: AppColors.textOnPrimary,
                                     ),
                                   )
-                                : Text(
-                                    hasTrial
-                                        ? AppStrings.paywallCtaTrial
-                                        : AppStrings.paywallCtaSubscribeRevised,
-                                    style:
-                                        AppTypography.labelLarge.copyWith(
-                                      color: AppColors.textOnPrimary,
-                                      fontSize: 16,
-                                      letterSpacing: 0.2,
+                                : _maybeBreathe(
+                                    Text(
+                                      hasTrial
+                                          ? AppStrings.paywallCtaTrial
+                                          : AppStrings
+                                              .paywallCtaSubscribeRevised,
+                                      style: AppTypography.labelLarge.copyWith(
+                                        color: AppColors.textOnPrimary,
+                                        fontSize: 16,
+                                        letterSpacing: 0.2,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -763,6 +801,32 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             style: AppTypography.bodySmall.copyWith(
                               color: AppColors.textTertiaryLight,
                               fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+
+                        // Blinkist-style honest-billing footer. Single
+                        // explicit line beneath the CTA + "No payment
+                        // today" microcopy. Gated on `_planHasTrial` so
+                        // storefronts without an intro offer don't get a
+                        // false trial promise. The flag is for rollback
+                        // only — default is true (see Env doc-comment).
+                        // Per Blinkist's public case study, this single-
+                        // line explicit billing copy lifts conversion
+                        // ~23% and reduces refund complaints ~55%.
+                        if (hasTrial && Env.paywallHonestBillingEnabled) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            (_selectedPlan == _PlanType.annual
+                                    ? AppStrings.paywallHonestBillingAnnual
+                                    : AppStrings.paywallHonestBillingWeekly)
+                                .replaceAll(
+                                    '{price}', _activePackagePriceString()),
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textTertiaryLight,
+                              fontSize: 11.5,
+                              height: 1.35,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -1090,37 +1154,47 @@ class _PricingCard extends StatelessWidget {
             ),
           ),
 
-          // SAVE 81% badge — floats above the card's top-left edge. Gold
+          // SAVE 50% badge — floats above the card's top-left edge. Gold
           // against either white or emerald-tinted card; harmonizes with
           // the warm cream page background.
+          //
+          // Optional gold shimmer pass (gated on Env.paywallAnimationsEnabled).
+          // Slow, ~2.4s shimmer with a 1.2s delay between passes — subtle
+          // enough to read as polish, not as a Vegas slot-machine effect.
+          // Per Adapty's 2026 report, animated paywall elements lift
+          // conversion 12-18%; we keep the SAVE % math unchanged (still
+          // the existing 2x anchor) — fabricating a bigger headline number
+          // is deceptive under Apple guideline 3.1.1.
           if (badge != null)
             Positioned(
               top: -11,
               left: 12,
               child: IgnorePointer(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                child: _maybeShimmerBadge(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      badge!,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textOnPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        letterSpacing: 0.6,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    badge!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textOnPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                      letterSpacing: 0.6,
                     ),
                   ),
                 ),
@@ -1135,6 +1209,25 @@ class _PricingCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wraps the SAVE badge with a slow gold shimmer pass when
+/// `Env.paywallAnimationsEnabled` is true. When the flag is off, returns
+/// the unwrapped widget — no animation wrapper, no perf cost. Top-level
+/// helper so the stateless `_PricingCard` can use it without a state
+/// object. White shimmer overlay at 55% alpha gives a clean "polished gold"
+/// pass against the emerald badge surface.
+Widget _maybeShimmerBadge(Widget child) {
+  if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+    return child;
+  }
+  return child
+      .animate(onPlay: (c) => c.repeat())
+      .shimmer(
+        duration: 2400.ms,
+        delay: 1200.ms,
+        color: Colors.white.withValues(alpha: 0.55),
+      );
 }
 
 /// Hero block — the visual centerpiece at the top of the paywall. Renders
@@ -1261,93 +1354,6 @@ class _PaywallHero extends StatelessWidget {
   }
 }
 
-
-/// "Honest paywall" trial timeline. Three small cards: Today (full access),
-/// Day 2 (reminder), Day 3 (charged or cancel). Lifts trust and conversion
-/// over the tiny gray legal-line approach.
-class _TrialTimelineStrip extends StatelessWidget {
-  const _TrialTimelineStrip({required this.chargeOnDay3});
-
-  /// Localized price string for the selected plan ("$49.99", "$4.99", etc.).
-  final String chargeOnDay3;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Expanded(
-          child: _TimelineStep(
-            icon: Icons.lock_open_rounded,
-            iconColor: AppColors.primary,
-            heading: AppStrings.paywallTimelineTodayHeading,
-            label: AppStrings.paywallTimelineTodayLabel,
-          ),
-        ),
-        const Expanded(
-          child: _TimelineStep(
-            icon: Icons.notifications_active_rounded,
-            iconColor: AppColors.streakAmber,
-            heading: AppStrings.paywallTimelineDay2Heading,
-            label: AppStrings.paywallTimelineDay2Label,
-          ),
-        ),
-        Expanded(
-          child: _TimelineStep(
-            icon: Icons.payments_rounded,
-            iconColor: AppColors.textSecondaryLight,
-            heading: AppStrings.paywallTimelineDay3Heading,
-            label: '$chargeOnDay3 ${AppStrings.paywallTimelineDay3Label}',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({
-    required this.icon,
-    required this.iconColor,
-    required this.heading,
-    required this.label,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String heading;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: iconColor),
-        const SizedBox(height: 4),
-        Text(
-          heading,
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.textPrimaryLight,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          label,
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.textTertiaryLight,
-            fontSize: 11,
-          ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-}
 
 /// Bottom sheet shown when the user taps X with annual selected. Offers the
 /// weekly plan (a price alternative, NOT a different product) so we stay

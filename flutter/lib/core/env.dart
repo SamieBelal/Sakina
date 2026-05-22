@@ -46,4 +46,21 @@ class Env {
   /// (Rollback / Kill Switch).
   static const bool ratingGateEnabled =
       bool.fromEnvironment('RATING_GATE_ENABLED', defaultValue: true);
+
+  /// Compile-time kill switch for paywall animations (breathing CTA Text
+  /// and gold shimmer on the SAVE badge). Defaults to `true`; flip to
+  /// `"false"` in `env.json` and rebuild to disable both without an App
+  /// Review cycle. See docs/superpowers/plans/2026-05-14-paywall-rebuild.md
+  /// (Rollback / Kill Switch).
+  static const bool paywallAnimationsEnabled =
+      bool.fromEnvironment('PAYWALL_ANIMATIONS_ENABLED', defaultValue: true);
+
+  /// Compile-time kill switch for the Blinkist-style explicit honest-billing
+  /// footer beneath the paywall CTA. Defaults to `true`; flip to `"false"`
+  /// in `env.json` and rebuild to hide the footer without an App Review
+  /// cycle (e.g. if App Review pushes back on the literal price quote,
+  /// which is the Blinkist pattern Apple has approved elsewhere).
+  static const bool paywallHonestBillingEnabled =
+      bool.fromEnvironment('PAYWALL_HONEST_BILLING_ENABLED',
+          defaultValue: true);
 }

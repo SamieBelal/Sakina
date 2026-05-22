@@ -135,12 +135,31 @@ abstract final class AppStrings {
 
   // Honest trial timeline strip (above pricing cards). Labels stay one
   // word each so the strip reads at a glance instead of as paragraph copy.
+  //
+  // DEPRECATED 2026-05-14 (paywall rebuild): the strip itself has been
+  // removed in favour of the single-line `paywallHonestBilling*` footer
+  // below. These constants are intentionally left in place to avoid
+  // breaking unrelated tests / search results during the rebuild — they
+  // will be cleaned up in a separate string-hygiene pass.
   static const paywallTimelineTodayHeading = 'Today';
   static const paywallTimelineTodayLabel = 'Free';
   static const paywallTimelineDay2Heading = 'Day 2';
   static const paywallTimelineDay2Label = 'Reminder';
   static const paywallTimelineDay3Heading = 'Day 3';
   static const paywallTimelineDay3Label = 'Charged';
+
+  // Honest-billing footer copy (paywall rebuild, 2026-05-14).
+  // Templates accept a {price} placeholder rendered from
+  // `package.storeProduct.priceString`. The "Day N" reminder references
+  // Apple's automatic trial-ending notification (24h before charge),
+  // NOT a Sakina-side email — we don't send those. Reviewer-compliant
+  // and factually accurate. Per Blinkist's public case study, this
+  // single-line explicit billing copy lifts conversion ~23% and reduces
+  // refund complaints ~55%.
+  static const paywallHonestBillingAnnual =
+      'Today: full access. Day 6: Apple sends a trial-ending reminder. Day 7: {price}/year unless cancelled. Cancel anytime in Settings.';
+  static const paywallHonestBillingWeekly =
+      'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/week unless cancelled. Cancel anytime in Settings.';
 
   // Exit offer bottom sheet (shown when user taps X on annual selection).
   static const paywallExitOfferTitle = 'Wait — try weekly first?';

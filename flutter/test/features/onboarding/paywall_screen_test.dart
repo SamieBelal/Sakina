@@ -214,6 +214,11 @@ void main() {
     SupabaseSyncService.debugSetInstance(fakeSync);
     purchaseService = FakePurchaseService();
     onboardingNotifier = FakeOnboardingNotifier();
+    // Repeating breathing-CTA + SAVE-badge shimmer animations introduced
+    // by the 2026-05-14 paywall rebuild would make pumpAndSettle hang
+    // forever. The seam flips them off for tests; the compile-time Env
+    // flag still drives prod behavior.
+    debugDisablePaywallAnimations = true;
     appSession = AppSessionNotifier(
       initialOnboarded: false,
       authStateChanges: const Stream<AuthState>.empty(),
@@ -240,6 +245,7 @@ void main() {
     debugResetPremiumGrantService();
     PurchaseService.debugClearOverride();
     SupabaseSyncService.debugReset();
+    debugDisablePaywallAnimations = false;
   });
 
   testWidgets('Annual purchase success completes onboarding', (tester) async {

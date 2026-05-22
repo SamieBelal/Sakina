@@ -136,6 +136,7 @@ class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
                   ),
                 ).animate().fadeIn(duration: 400.ms, delay: (index * 100).ms);
               }),
+
               const Spacer(flex: 4),
             ],
                   ),
