@@ -194,14 +194,23 @@ class _ReferUnlockScreenState extends ConsumerState<ReferUnlockScreen> {
                     .fadeIn(duration: 500.ms, delay: 160.ms)
                     .slideY(begin: 0.04, end: 0),
                 const SizedBox(height: AppSpacing.md),
-                // Bottom card — Send a dua to 3 friends.
+                // Bottom card — Send a dua to 3 friends. The hadith body is
+                // the canonical English from sunnah.com Sahih Muslim 2732b
+                // (narrator Umm Darda'); the mutual-reward mechanic of this
+                // PR is literally the hadith ("Amen, and it is for you also")
+                // so we cite it directly instead of restating in our own
+                // voice. Do NOT paraphrase — see CLAUDE.md "NEVER generate
+                // or fabricate Quran verses, hadith, or scholarly content."
                 _PathCard(
                   badge: 'OPTION 2',
                   title: 'Send a dua to 3 friends',
                   body:
-                      'You unlock 30 days + a Gold card. They each get 7 days free.\n\n'
-                      'The act of sending the link is itself a dua for your friend — '
-                      'a gift, not a transaction.',
+                      'You unlock 30 days + a Gold card. They each get 7 days free.',
+                  quote:
+                      'He who supplicates for his brother behind his back (in his absence), '
+                      'the Angel commissioned (for carrying supplication to his Lord) says: '
+                      'Amen, and it is for you also.',
+                  quoteCitation: 'Sahih Muslim 2732b',
                   ctaLabel: _loadingCode
                       ? 'Loading…'
                       : 'Send to friends ($_confirmedCount / 3 joined)',
@@ -244,6 +253,8 @@ class _PathCard extends StatelessWidget {
     required this.onTap,
     required this.badgeColor,
     required this.primary,
+    this.quote,
+    this.quoteCitation,
   });
 
   final String badge;
@@ -259,6 +270,14 @@ class _PathCard extends StatelessWidget {
   /// (most reach). Both must feel viable; neither is the "obvious wrong
   /// choice".
   final bool primary;
+
+  /// Optional scripture block rendered beneath [body] with a thin warm
+  /// divider above. Italicized, with [quoteCitation] right-aligned in gold
+  /// beneath. Used on the share card to render the Sahih Muslim 2732b
+  /// hadith that literally describes the mutual-reward mechanic. Both must
+  /// be non-null to render — passing only one is a no-op.
+  final String? quote;
+  final String? quoteCitation;
 
   @override
   Widget build(BuildContext context) {
@@ -312,6 +331,36 @@ class _PathCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
+          if (quote != null && quoteCitation != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              height: 1,
+              color: AppColors.dividerLight,
+            ),
+            const SizedBox(height: AppSpacing.sm + 2),
+            Text(
+              '\u201C$quote\u201D',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+                height: 1.45,
+                fontStyle: FontStyle.italic,
+                fontSize: 13.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '\u2014 $quoteCitation',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.secondary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             width: double.infinity,

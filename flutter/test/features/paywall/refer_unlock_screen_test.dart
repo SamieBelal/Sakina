@@ -88,6 +88,35 @@ void main() {
     expect(find.text('Get a free month'), findsNothing);
   });
 
+  testWidgets('Sahih Muslim 2732b hadith block is rendered with citation',
+      (tester) async {
+    // The Option 2 card cites Sahih Muslim 2732b directly because the
+    // hadith literally describes the mutual-reward mechanic of this
+    // feature ("Amen, and it is for you also"). Pin both the citation
+    // and the closing clause so a future copy edit can't accidentally
+    // paraphrase scripture or drop the attribution — both would violate
+    // CLAUDE.md's "NEVER fabricate hadith" rule and the sunnah.com
+    // verbatim contract.
+    final spy = _TrackingSpy();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [analyticsProvider.overrideWithValue(spy)],
+      child: MaterialApp(
+        home: ReferUnlockScreen(
+          onStartTrial: () {},
+          onClose: () {},
+          shareOverride: (text) async {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('\u2014 Sahih Muslim 2732b'), findsOneWidget);
+    expect(
+      find.textContaining('Amen, and it is for you also'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Back gesture invokes onClose and refer_unlock_back_to_paywall',
       (tester) async {
     final spy = _TrackingSpy();
