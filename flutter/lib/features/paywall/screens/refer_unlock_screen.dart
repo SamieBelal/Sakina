@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -10,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/referral_service.dart';
+import '../../../widgets/subpage_header.dart';
 
 /// Full-screen route shown after the user dismisses the onboarding paywall
 /// for the FIRST time (subsequent dismisses go to the WinbackScreen). Reframes
@@ -57,6 +57,13 @@ class _ReferUnlockScreenState extends ConsumerState<ReferUnlockScreen> {
   String? _myCode;
   int _confirmedCount = 0;
   bool _loadingCode = false;
+
+  /// Set true when the user taps one of our own CTAs (back / start trial)
+  /// before we trigger a programmatic pop. PopScope.onPopInvokedWithResult
+  /// reads this to distinguish "user used an in-screen button" (we fired
+  /// analytics already) from "user used the iOS back-swipe / Android back
+  /// button" (we need to fire back-to-paywall analytics + onClose).
+  bool _explicitlyExiting = false;
 
   @override
   void initState() {
@@ -111,45 +118,43 @@ class _ReferUnlockScreenState extends ConsumerState<ReferUnlockScreen> {
       if (_myCode == null) return;
     }
     final myCode = _myCode!;
-    final shareText =
-        "I made a dua for you. Sakina helped me reflect on Allah's Names "
-        '— open this to join me: sakina://r/$myCode';
-    final shareFn = widget.shareOverride;
-    if (shareFn != null) {
-      await shareFn(shareText);
-      return;
-    }
-    // iOS 13+ requires a non-zero sharePositionOrigin for Share.share —
-    // iPad uses it as the popover anchor, iPhone ignores the geometry but
-    // the call throws PlatformException("must be non-zero...") if the rect
-    // is {0,0,0,0}. Anchor to the screen's RenderBox so the iPad popover
-    // points at a sane location (top-left of the page) and iPhone passes
-    // the non-zero check.
     if (!mounted) return;
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = (box != null && box.hasSize)
-        ? box.localToGlobal(Offset.zero) & box.size
-        : null;
-    await Share.share(shareText, sharePositionOrigin: origin);
+    // Share-text + iPad popover-origin logic factored into
+    // ReferralService.shareMyCode so both this screen and the My Referrals
+    // screen stay in lockstep. The widget-level shareOverride test seam is
+    // forwarded as the override arg.
+    await ref.read(referralServiceProvider).shareMyCode(
+          context,
+          myCode,
+          override: widget.shareOverride,
+        );
   }
 
   void _onStartTrial() {
     ref.read(analyticsProvider).track(AnalyticsEvents.referUnlockStartTrialTapped);
+    _explicitlyExiting = true;
     widget.onStartTrial();
   }
 
-  Future<bool> _onWillPop() async {
+  Future<void> _onWillPop() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.referUnlockBackToPaywall);
+    _explicitlyExiting = true;
     widget.onClose();
-    return false; // We handle the pop ourselves.
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
+      // canPop: true so programmatic pops from our own CTAs go through
+      // (PopScope with canPop:false silently blocks Navigator.pop calls,
+      // which is what made Start Trial freeze the screen). We still want
+      // to fire back-to-paywall analytics when the user uses a SYSTEM
+      // back gesture (iOS edge-swipe, Android back) — distinguish via
+      // [_explicitlyExiting], which our own buttons set before popping.
+      canPop: true,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        if (!didPop) return;
+        if (_explicitlyExiting) return;
         await _onWillPop();
       },
       child: Scaffold(
@@ -157,42 +162,25 @@ class _ReferUnlockScreenState extends ConsumerState<ReferUnlockScreen> {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.pagePadding,
-                vertical: AppSpacing.lg,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.pagePadding,
+                AppSpacing.md,
+                AppSpacing.pagePadding,
+                AppSpacing.lg,
               ),
               child: ConstrainedBox(
                 constraints:
-                    BoxConstraints(minHeight: constraints.maxHeight - 48),
+                    BoxConstraints(minHeight: constraints.maxHeight - 40),
                 child: IntrinsicHeight(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    onPressed: _onWillPop,
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: AppColors.textPrimaryLight),
-                  ),
+                SubpageHeader(
+                  title: 'Two paths forward',
+                  subtitle: 'Both unlock everything. Pick what feels right.',
+                  onBack: _onWillPop,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Two paths forward',
-                  style: AppTypography.displaySmall.copyWith(
-                    color: AppColors.textPrimaryLight,
-                  ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.04, end: 0),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Both unlock everything. Pick what feels right.',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.textSecondaryLight,
-                  ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(duration: 500.ms, delay: 80.ms),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 // Top card — Start trial.
                 _PathCard(
                   badge: 'OPTION 1',

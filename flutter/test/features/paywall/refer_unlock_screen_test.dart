@@ -132,8 +132,8 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    // Tap the back arrow.
-    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    // Tap the back arrow. SubpageHeader renders Icons.arrow_back_ios_new_rounded.
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
     expect(closed, 1);
     expect(
