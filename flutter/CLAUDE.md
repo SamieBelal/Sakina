@@ -233,6 +233,16 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 **Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is enabled and drives subscription entitlement; the token economy layers on top. Simulator cannot complete StoreKit purchases — verify purchase flows on a physical device.
 
+**Refer-to-Unlock (PR #16 + PR #18 hybrid).** Premium is a two-source value: (1) RevenueCat entitlement (the paid path, source of truth for billing) OR (2) `user_profiles.referral_premium_until > now()` (the referred path, granted via SECURITY DEFINER RPC, never converts to RC). Mutual reward — referrer gets 30 days + Gold card on 3rd confirmed referee; referee gets 7 days at the moment they apply a valid code. `PurchaseService.isPremium()` ORs over both sources, cached in user-scoped SharedPreferences (`referral_premium_until:<uid>`) refreshed only on auth changes + RPC returns (zero added hot-path traffic).
+
+**Three referral code ingress paths**, all funnel through the same `pending_referral` SharedPreferences key + `applyPendingReferralIfAny` drain (Settings path bypasses prefs because the user is already authenticated):
+
+1. **Deep link** (`sakina://r/<code>`) — captured in `lib/main.dart:_captureInboundReferral` via `app_links`. Writes only the code key.
+2. **In-onboarding field** — "Did a friend send you a gift?" disclosure on `save_progress_screen.dart` (onboarding page 18). Writes the code AND `pending_referral_source = 'onboarding_field'` companion key.
+3. **Settings → Redeem a referral code** — bottom sheet via `lib/features/settings/widgets/redeem_code_sheet.dart`. Calls `ReferralService.redeemCodeNow` directly with `source: 'settings_redeem'`.
+
+If you're adding a 4th path, REUSE one of these drains — do NOT add a parallel one. Source attribution is on the `refereeSignedUpWithReferral` / `refereeGranted7dWindow` analytics events. See `docs/superpowers/plans/2026-05-14-refer-unlock.md` and `docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md`.
+
 ## Onboarding Flow
 
 Canonical page order (updated 2026-05-14 by rating-gate insertion; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
