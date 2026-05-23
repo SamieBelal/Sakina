@@ -157,6 +157,22 @@ abstract final class AnalyticsEvents {
   /// and refereeGranted7dWindow when a window was actually granted).
   static const referralSettingsRedeemSubmitted = 'referral_settings_redeem_submitted';
 
+  // My Referrals screen (Settings → Refer a friend). Forward-instrumented
+  // per docs/superpowers/plans/2026-05-23-my-referrals-screen.md so the
+  // post-launch dashboards can measure whether the permanent Settings entry
+  // actually drives re-shares + opens at different progress states.
+  /// Fired in initState after the screen loads its referrals state. Carries
+  /// `confirmed_count` + `grants_count` properties so Mixpanel can slice
+  /// "how many people open the screen with 0 vs 2 referrals".
+  static const myReferralsShown = 'my_referrals_shown';
+
+  /// Fired when the Share button on the My Referrals screen is tapped.
+  static const myReferralsShareTapped = 'my_referrals_share_tapped';
+
+  /// Fired when the user taps the code card to copy their referral code
+  /// to the clipboard on the My Referrals screen.
+  static const myReferralsCodeCopied = 'my_referrals_code_copied';
+
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
   // funnel-splitting across the 3 referral ingress paths.

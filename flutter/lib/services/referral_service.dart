@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -222,6 +223,147 @@ class ReferralService {
       return 0;
     }
   }
+
+  /// One-shot load of everything the My Referrals screen needs: the user's
+  /// referral code, total confirmed-referral count, and the full grants
+  /// ledger (newest first). Fires the three reads in parallel via
+  /// `Future.wait` so p95 stays ~one-round-trip.
+  ///
+  /// Throws an [Exception] on any underlying failure — the screen catches
+  /// and renders a retry button. Returning null/empty would silently mask
+  /// the wrong code; loud failure is correct here.
+  Future<MyReferralsState> getMyReferralsState(String userId) async {
+    if (userId.isEmpty) {
+      throw Exception('getMyReferralsState requires a non-empty userId');
+    }
+    try {
+      final results = await Future.wait<dynamic>([
+        _supabase
+            .from('referrals')
+            .select('id')
+            .eq('referrer_id', userId)
+            .eq('status', 'confirmed'),
+        _supabase
+            .from('referral_grants')
+            .select('granted_at, expires_at, card_tier')
+            .eq('referrer_id', userId)
+            .order('granted_at', ascending: false),
+        getMyReferralCode(userId),
+      ]);
+
+      final confirmedRows = results[0] as List;
+      final grantRows = results[1] as List;
+      final code = (results[2] as String?) ?? '';
+
+      final grants = grantRows
+          .map<MyReferralGrant>((dynamic row) {
+            final map = Map<String, dynamic>.from(row as Map);
+            return MyReferralGrant(
+              grantedAt: DateTime.parse(map['granted_at'] as String),
+              expiresAt: DateTime.parse(map['expires_at'] as String),
+              cardTier: (map['card_tier'] as String?) ?? 'gold',
+            );
+          })
+          .toList(growable: false);
+
+      return MyReferralsState(
+        code: code,
+        confirmedCount: confirmedRows.length,
+        grants: grants,
+      );
+    } catch (e) {
+      debugPrint('[ReferralService] getMyReferralsState failed: $e');
+      throw Exception('Could not load referrals: $e');
+    }
+  }
+
+  /// Shared share-sheet wire used by both [ReferUnlockScreen] and the My
+  /// Referrals screen. Canonical share copy + iPad popover-origin gotcha
+  /// live here so both surfaces stay in lockstep.
+  ///
+  /// If [override] is non-null it is invoked instead of [Share.share] — this
+  /// is the deterministic test seam (previously a per-widget shareOverride
+  /// param).
+  Future<void> shareMyCode(
+    BuildContext context,
+    String code, {
+    Future<void> Function(String)? override,
+  }) async {
+    if (code.isEmpty) return;
+    final shareText =
+        "I made a dua for you. Sakina helped me reflect on Allah's Names "
+        '— open this to join me: sakina://r/$code';
+    if (override != null) {
+      await override(shareText);
+      return;
+    }
+    // iOS 13+ requires a non-zero sharePositionOrigin for Share.share —
+    // iPad uses it as the popover anchor, iPhone ignores the geometry but
+    // the call throws PlatformException("must be non-zero...") if the rect
+    // is {0,0,0,0}. Anchor to the screen's RenderBox so the iPad popover
+    // points at a sane location (top-left of the page) and iPhone passes
+    // the non-zero check.
+    if (!context.mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    await Share.share(shareText, sharePositionOrigin: origin);
+  }
+}
+
+/// Snapshot of everything the My Referrals screen renders. Immutable —
+/// rebuild via [ReferralService.getMyReferralsState] on retry.
+@immutable
+class MyReferralsState {
+  const MyReferralsState({
+    required this.code,
+    required this.confirmedCount,
+    required this.grants,
+  });
+
+  /// 8-char A-HJ-NP-Z2-9 referral code (empty string if the user has no
+  /// code yet — shouldn't normally happen because [ensureReferralCode] runs
+  /// at signup, but the UI still renders gracefully).
+  final String code;
+
+  /// Total number of `referrals` rows for this referrer with
+  /// `status = 'confirmed'`. Strictly monotonic over a user's lifetime.
+  final int confirmedCount;
+
+  /// Grants earned — newest first. One row per 30-day window awarded
+  /// (each award = 3 NEW confirmed referees since the previous grant).
+  final List<MyReferralGrant> grants;
+
+  /// Confirmed referees since the most-recent grant (or all confirmed if
+  /// no grant yet). Drives the "X / 3" progress dots on the screen.
+  ///
+  /// The server-side trigger awards at +3 NEW confirmations since the last
+  /// grant. We mirror that by computing
+  /// `confirmedCount - grants.length * 3`, clamped to `[0, 3]`. Exact and
+  /// stable across the grant flow because each grant consumes exactly 3
+  /// confirmations.
+  int get progressTowardNext {
+    if (grants.isEmpty) return confirmedCount.clamp(0, 3);
+    return (confirmedCount - grants.length * 3).clamp(0, 3);
+  }
+}
+
+/// One row from `referral_grants` — a 30-day premium window + card grant
+/// awarded for every 3 confirmed referrals.
+@immutable
+class MyReferralGrant {
+  const MyReferralGrant({
+    required this.grantedAt,
+    required this.expiresAt,
+    required this.cardTier,
+  });
+
+  final DateTime grantedAt;
+  final DateTime expiresAt;
+
+  /// Card tier ('gold', etc.) granted alongside the premium window.
+  final String cardTier;
 }
 
 final referralServiceProvider = Provider<ReferralService>(
