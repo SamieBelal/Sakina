@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -11,6 +12,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/referral_service.dart';
+import '../../../widgets/referral_code_field.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -35,6 +37,38 @@ class SaveProgressScreen extends ConsumerStatefulWidget {
 
 class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   bool _isLoading = false;
+
+  // ── Referral disclosure state ──
+  // Collapsed by default. If pending_referral exists in SharedPreferences (e.g.
+  // a deep-link captured the code BEFORE the user opened the app), the
+  // disclosure auto-expands AND renders the pre-fill as read-only — see
+  // _buildReferralDisclosure(). The user can clear the lock via "Change code".
+  bool _isReferralExpanded = false;
+  bool _isPrefillLocked = false;
+  String? _prefilledCode;
+  bool _hasPendingCode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Read prefs in a microtask — initState can't await directly. The default
+    // (collapsed, no prefill) is fine until the future resolves.
+    _hydrateReferralPrefs();
+  }
+
+  Future<void> _hydrateReferralPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(referralPendingReferralPrefsKey);
+    if (!mounted) return;
+    if (code != null && code.isNotEmpty) {
+      setState(() {
+        _isReferralExpanded = true;
+        _isPrefillLocked = true;
+        _prefilledCode = code;
+        _hasPendingCode = true;
+      });
+    }
+  }
 
   /// Two-step referral hook, called from both _signInWithApple and
   /// _signInWithGoogle AFTER the auth response resolves but BEFORE
@@ -145,6 +179,181 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     }
   }
 
+  // ── Referral field handlers ──
+
+  void _onReferralDisclosureTap() {
+    if (_isReferralExpanded) return;
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.referralFieldRevealed);
+    setState(() => _isReferralExpanded = true);
+  }
+
+  Future<void> _onChangePrefilledCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(referralPendingReferralPrefsKey);
+    await prefs.remove(referralPendingReferralSourcePrefsKey);
+    if (!mounted) return;
+    setState(() {
+      _isPrefillLocked = false;
+      _prefilledCode = null;
+      _hasPendingCode = false;
+    });
+  }
+
+  Future<void> _onCodeChanged(
+      String code, ReferralCodeValidationState state) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (code.isEmpty) {
+      await prefs.remove(referralPendingReferralPrefsKey);
+      await prefs.remove(referralPendingReferralSourcePrefsKey);
+      if (_hasPendingCode) {
+        ref
+            .read(analyticsProvider)
+            .track(AnalyticsEvents.referralFieldCodeCleared);
+      }
+      if (mounted) setState(() => _hasPendingCode = false);
+      return;
+    }
+    // Skip transient states — let the user finish typing / let validation
+    // settle. The widget itself only fires onCodeChanged on debounced
+    // settled edges, but validating/tooShort still slip through and we
+    // don't want to persist mid-flight values.
+    if (state == ReferralCodeValidationState.validating ||
+        state == ReferralCodeValidationState.tooShort) {
+      return;
+    }
+    await prefs.setString(referralPendingReferralPrefsKey, code);
+    await prefs.setString(
+      referralPendingReferralSourcePrefsKey,
+      AnalyticsEvents.referralSourceOnboardingField,
+    );
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.referralFieldCodeEntered);
+    if (mounted) setState(() => _hasPendingCode = true);
+  }
+
+  Widget _buildReferralDisclosure() {
+    if (!_isReferralExpanded) {
+      return InkWell(
+        onTap: _onReferralDisclosureTap,
+        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.card_giftcard_rounded,
+                size: 16,
+                color: AppColors.textSecondaryLight,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // Flexible so the text ellipsizes on narrow viewports
+              // (iPhone SE ~375 logical px) instead of overflowing the Row.
+              // Tested-with widget tests use the standard iPhone 13 viewport
+              // (390 logical px) where this Row had ~166px of overflow without
+              // the Flexible wrapper. See onboarding_auth_routing_test.dart.
+              Flexible(
+                child: Text(
+                  'Did a friend send you a gift?',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.textSecondaryLight,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Expanded state.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Got a code from a friend? Enter it here for 7 free days of '
+          'Sakina, our gift to you.',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_isPrefillLocked && _prefilledCode != null)
+          _buildPrefilledChip(_prefilledCode!)
+        else
+          ReferralCodeField(
+            key: const ValueKey('referral-code-field'),
+            onCodeChanged: _onCodeChanged,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPrefilledChip(String code) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            color: AppColors.primary,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              code,
+              style: AppTypography.bodyLarge.copyWith(
+                color: AppColors.textPrimaryLight,
+                letterSpacing: 1.5,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _onChangePrefilledCode,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Change code',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authError = ref.watch(
@@ -192,6 +401,11 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
           const SizedBox(height: AppSpacing.lg),
+          // "Did a friend send you a gift?" disclosure — collapsed by default,
+          // auto-expanded + locked when a pending_referral pref is present.
+          // Optional: never gates the Continue/Apple/Google/Email buttons.
+          _buildReferralDisclosure(),
+          const SizedBox(height: AppSpacing.md),
           // Apple Sign-In
           SocialSignInButton(
             label: AppStrings.signUpChoiceApple,
