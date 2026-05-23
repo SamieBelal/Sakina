@@ -10,6 +10,7 @@ class SubpageHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.onBack,
   });
 
   final String title;
@@ -20,9 +21,14 @@ class SubpageHeader extends StatelessWidget {
   /// line with the title rather than centered against the subtitle.
   final Widget? trailing;
 
+  /// Override the back tap. Defaults to `context.pop()` when the route can
+  /// pop. Pass this when the caller needs to run analytics or custom close
+  /// logic instead of a plain pop (e.g. ReferUnlock returning to paywall).
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
-    final showBackButton = context.canPop();
+    final showBackButton = onBack != null || context.canPop();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +36,7 @@ class SubpageHeader extends StatelessWidget {
         if (showBackButton)
           _HeaderIconButton(
             icon: Icons.arrow_back_ios_new_rounded,
-            onTap: context.pop,
+            onTap: onBack ?? context.pop,
           )
         else
           const SizedBox(width: 44),
