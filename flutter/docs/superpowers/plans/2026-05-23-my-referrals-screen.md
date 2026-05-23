@@ -192,7 +192,7 @@ Properties on `myReferralsShown`: `confirmed_count`, `grants_count`. Lets Mixpan
 
 ---
 
-## Push notification on confirm (v1 — added 2026-05-23)
+## Push notification on confirm (v1 — added 2026-05-23, hardened 2026-05-23 post-/review)
 
 Free tier confirmed adequate (see "Also in v1" above). Implementation:
 
@@ -201,28 +201,36 @@ Free tier confirmed adequate (see "Also in v1" above). Implementation:
 The OneSignal REST key must never live in the DB. Instead, mirror the pattern already used by `send-scheduled-notifications`: a thin plpgsql trigger that POSTs to a new edge function via `net.http_post`, and the edge function holds the OneSignal credentials in its `Deno.env`.
 
 - Verify `pg_net` extension is enabled on this project (`select * from pg_extension where extname = 'pg_net';`).
-- `ONESIGNAL_API_KEY` and `ONESIGNAL_APP_ID` are already deployed as Supabase Edge Function secrets — they power `send-scheduled-notifications`. No new secrets required.
+- `ONESIGNAL_API_KEY` and `ONESIGNAL_APP_ID` are already deployed as Supabase Edge Function secrets — they power `send-scheduled-notifications`. **One NEW edge-function secret required:** `NOTIFY_REFERRAL_SECRET` (32-char random string, e.g. `openssl rand -hex 16`). Set via `supabase secrets set NOTIFY_REFERRAL_SECRET=...`.
+- **Two NEW Postgres GUCs required** (set per-environment, NOT in the migration):
+  - `alter database postgres set app.notify_referral_url = 'https://<project-ref>.supabase.co/functions/v1/notify-referral-confirmed';`
+  - `alter database postgres set app.notify_referral_secret = '<same-secret-as-edge-side>';`
+  - Reconnect sessions after `alter database` for the new values to apply.
 - **New edge function** `supabase/functions/notify-referral-confirmed/index.ts`:
-  - Reads `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ONESIGNAL_APP_ID`, `ONESIGNAL_API_KEY` from `Deno.env` (same names as `send-scheduled-notifications`).
-  - Accepts POST `{referrer_id: uuid, referee_id: uuid}` with UUID-shape validation.
-  - Looks up `display_name` from `user_profiles` for the referee via service-role supabase client; falls back to `'A friend'` when null/blank.
+  - Reads `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ONESIGNAL_APP_ID`, `ONESIGNAL_API_KEY`, `NOTIFY_REFERRAL_SECRET` from `Deno.env`. Fails-closed 500 on missing env.
+  - **Shared-secret gate (S1 fix):** rejects any request without header `X-Notify-Secret: <NOTIFY_REFERRAL_SECRET>` with 401. Without this, --no-verify-jwt + URL leak = anyone can spam pushes.
+  - **Display-name sanitization (S2 + S9 fix):** NFKC normalize → strip control/zero-width/bidi-override chars → reject if contains `://` / `http` / `www.` / `@` → cap at 30 chars → fallback `'A friend'`. Prevents a malicious user from setting their display_name to a phishing string ("Free 1yr → bit.ly/xyz") that gets pushed to legitimate referrers.
+  - Method gate: POST only (405 on anything else). UUID shape validation on `referrer_id` + `referee_id`.
+  - Looks up `display_name` from `user_profiles` for the referee via service-role supabase client; sanitizes per above.
   - POSTs to `https://api.onesignal.com/notifications` with header `Authorization: Key ${REST_KEY}` (modern format — `Basic` is deprecated) and body shape `{app_id, include_aliases: {external_id: [referrer_id]}, target_channel: 'push', contents: {en: "{name} just joined Sakina with your code 🌙"}, headings: {en: 'A friend joined'}, data: {type: 'referral_confirmed', referee_id}}`.
   - Best-effort delivery: any OneSignal non-2xx or `recipients: 0` is logged but the function still returns 200, because the caller is a DB trigger and a 5xx response cannot be usefully retried.
-  - Deployed `--no-verify-jwt`. No shared-secret auth header — matches the existing posture of `send-scheduled-notifications`, which is also called from inside the project (pg_cron) without a secret. Phase 2 hardening if abuse appears.
+  - **No CORS headers (S8 fix):** function is trigger-only, not browser-callable. Removing CORS prevents future drift ("the web build can fetch this — CORS allows it").
+  - Deployed `--no-verify-jwt` (shared secret IS the auth gate).
 - **New migration** `supabase/migrations/20260523010000_push_on_referral_confirm.sql`:
   - `notify_referrer_on_confirm()` SECURITY DEFINER with `set search_path = public, extensions, pg_temp`.
+  - **Env-bound URL (S3 fix):** reads `current_setting('app.notify_referral_url', true)` instead of hardcoded prod subdomain. No-ops if unset (cannot accidentally fire prod pushes from staging).
+  - **Shared-secret header (S1 fix):** reads `current_setting('app.notify_referral_secret', true)` and passes as `X-Notify-Secret` header. No-ops if unset.
   - Body wrapped in `BEGIN ... EXCEPTION WHEN OTHERS THEN RAISE WARNING ... RETURN NEW; END;` — push failure must never roll back the confirmation transaction.
-  - Calls `net.http_post(url := 'https://smhvsqrxqoehqncphjrq.supabase.co/functions/v1/notify-referral-confirmed', body := jsonb_build_object('referrer_id', NEW.referrer_id::text, 'referee_id', NEW.referee_id::text), headers := jsonb_build_object('Content-Type', 'application/json'))`. No Authorization header — matches the existing `send-scheduled-notifications` cron invocation in `20260512000000_daily_reminder_uses_user_reminder_time.sql`.
-  - Trigger `trg_notify_referrer_on_confirm` on `public.referrals` for `AFTER UPDATE OF status FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM 'confirmed' AND NEW.status = 'confirmed')` — guarantees a single fire per real pending→confirmed flip and never fires on confirmed→confirmed re-writes.
+  - **Tightened WHEN clause (S4 fix):** `WHEN (OLD.status = 'pending' AND NEW.status = 'confirmed')` — only the legitimate `pending → confirmed` transition fires. Blocks `rejected → confirmed` resurrection from firing a push.
   - `REVOKE EXECUTE ... FROM public, anon, authenticated` on the trigger function — trigger machinery is the only caller (matches the lockdown pattern in `20260514000000_referrals.sql`).
 
 **SQL test:**
-- `supabase/tests/push_on_referral_confirm_test.sql` — uses `pgtap` to assert the trigger fires on status flip but NOT on insert with status='pending'. We can't actually fire the HTTP call in test, so we mock `net.http_post` or just assert the trigger row count via a helper log table written by a test-only branch of the function.
+- `supabase/tests/push_on_referral_confirm_test.sql` — pgtap with stubbed `net.http_post`. 15 assertions covering: function structure (exists, SECURITY DEFINER, REVOKEd), INSERT-pending no-op, INSERT-confirmed-direct no-op (S7), pending→confirmed happy path, env-bound URL from GUC (S3), referrer + referee body fields, X-Notify-Secret header from GUC (S1), confirmed→confirmed no re-fire, rejected→confirmed no fire (S4), non-status column update no fire (S7), fail-soft on unset GUC, header key spelling canary.
 
 **Manual QA via OneSignal MCP / dashboard:**
 - After triggering a real confirmation flow on the simulator, check OneSignal's Delivery dashboard for the resulting message — verify external_user_id matches the referrer.
 
-Estimated: ~2h including the SQL test and Vault setup.
+Estimated: ~2h including the SQL test, env-var setup, and the post-/review hardening pass.
 
 ---
 
