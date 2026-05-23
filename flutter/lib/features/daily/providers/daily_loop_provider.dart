@@ -515,6 +515,22 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
     }
   }
 
+  /// Day-1 freebie variant (PR 4 of plan 2026-05-23, EXP-2). Atomic on
+  /// the server with no token at stake — no commit/cancel flow. If the
+  /// AI/upsert in [discoverName] fails after the claim succeeded, the
+  /// user has consumed their global Day-1 freebie and falls back to
+  /// paid bypass on retry. Intentional — see plan §EXP-2.
+  Future<void> discoverNameWithFirstBypass() async {
+    if (state.checkinLoading) return;
+    final claimed =
+        await GatingService().claimFirstBypass(GatedFeature.discoverName);
+    if (!claimed) {
+      state = state.copyWith(error: 'Freebie unavailable. Try again.');
+      return;
+    }
+    await discoverName();
+  }
+
   // ---------------------------------------------------------------------------
   // Step 1: Check-in (DEPRECATED multi-question flow)
   //

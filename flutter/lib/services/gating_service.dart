@@ -462,6 +462,131 @@ class GatingService {
     }
   }
 
+  // ---- Day-1 freebie (EXP-2 / PR 4 of plan 2026-05-23) -------------------
+
+  /// True when the user is within 24h of signup AND hasn't yet consumed
+  /// the global one-shot Day-1 freebie. Drives DailyCapSheet STATE D —
+  /// the "One more on us, {name}" gold-accent variant that lets a brand-
+  /// new user blow past their first cap-hit without spending tokens.
+  ///
+  /// Server is the final arbiter — `claim_first_bypass` re-checks the
+  /// same predicates inside a `FOR UPDATE` lock so a client whose cache
+  /// is stale or has been tampered with cannot double-claim. The cached
+  /// flag exists only to render the sheet variant without a round-trip.
+  ///
+  /// Returns false for: premium users (they never see DailyCapSheet),
+  /// users whose signup is unknown (defense against profile corruption),
+  /// users past the 24h window, and anyone who has already claimed.
+  Future<bool> firstBypassEligible() async {
+    if (await PurchaseService().isPremium()) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final consumed = prefs.getBool(
+          supabaseSyncService.scopedKey(_firstBypassConsumedBaseKey),
+        ) ??
+        false;
+    if (consumed) return false;
+
+    final signupAtIso = prefs.getString(
+      supabaseSyncService.scopedKey(_signupAtBaseKey),
+    );
+    if (signupAtIso == null) return false;
+
+    final signupAt = DateTime.tryParse(signupAtIso);
+    if (signupAt == null) return false;
+
+    return signupAt.isAfter(_nowUtc().subtract(const Duration(hours: 24)));
+  }
+
+  /// Returns the cached display_name set on `user_profiles`, falling back
+  /// to `AuthService.defaultDisplayName` ("Friend"). STATE D renders the
+  /// "One more on us, {name}" headline when this is NOT the default —
+  /// otherwise it shows "One more on us" so we don't greet someone as
+  /// "Friend".
+  Future<String> displayName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(
+          supabaseSyncService.scopedKey(_displayNameBaseKey),
+        ) ??
+        defaultDisplayName;
+  }
+
+  /// One-shot per-user, atomic on the server. Increments the per-feature
+  /// bypass counter WITHOUT debiting tokens, flips the consumed latch.
+  /// Different shape from [reserveBypass] — no reservation flow because
+  /// nothing is at stake (no token spend → nothing to refund on AI failure;
+  /// the user just retries the freebie, which is now ineligible — so they
+  /// fall back to the normal token-spend bypass on retry).
+  ///
+  /// Returns true on success (server flipped the flag + incremented the
+  /// counter; client caches mirrored). Returns false on any rejection —
+  /// the [GatingService.onAnalyticsEvent] hook fires with the typed
+  /// reason for funnel attribution.
+  Future<bool> claimFirstBypass(GatedFeature feature) async {
+    if (await PurchaseService().isPremium()) return false;
+
+    final featureKey = _bypassFeatureKey(feature);
+    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'claim_first_bypass',
+      {'p_feature': featureKey},
+    );
+    if (result == null) {
+      onAnalyticsEvent?.call('first_bypass_rejected', {
+        'feature': featureKey,
+        'reason': 'network',
+      });
+      return false;
+    }
+    if (result['ok'] != true) {
+      onAnalyticsEvent?.call('first_bypass_rejected', {
+        'feature': featureKey,
+        'reason': result['reason'] ?? 'unknown',
+      });
+      return false;
+    }
+
+    final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
+    if (bypassesUsed == null) {
+      onAnalyticsEvent?.call('first_bypass_rejected', {
+        'feature': featureKey,
+        'reason': 'malformed_response',
+      });
+      return false;
+    }
+
+    // Mirror server state. Flip the consumed latch so the very next
+    // DailyCapSheet render across the app shows STATE A/B/C (not STATE D
+    // again), and increment the local bypass counter so the bypass-cap
+    // arithmetic stays consistent with the server.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      supabaseSyncService.scopedKey(_firstBypassConsumedBaseKey),
+      true,
+    );
+    await _incrementBypassCache(feature);
+
+    onAnalyticsEvent?.call('first_bypass_claimed', {
+      'feature': featureKey,
+      'bypasses_used_today': bypassesUsed,
+    });
+
+    return true;
+  }
+
+  static const String _firstBypassConsumedBaseKey = 'first_bypass_consumed';
+  static const String _signupAtBaseKey = 'signup_at';
+  static const String _displayNameBaseKey = 'display_name';
+
+  /// Fallback display name — mirrors `AuthService.defaultDisplayName`.
+  /// Kept in lockstep here so gating_service doesn't take a dependency on
+  /// auth_service for a single 6-char string. Pinned by widget test.
+  static const String defaultDisplayName = 'Friend';
+
+  /// Test seam for the 24h Day-1 window. Production reads UTC `now()`.
+  @visibleForTesting
+  static DateTime Function()? debugNowUtc;
+  DateTime _nowUtc() => (debugNowUtc ?? () => DateTime.now().toUtc())();
+
   // ---- had_trial latch ----------------------------------------------------
 
   /// Shared SharedPreferences base key for the had_trial latch. Both
@@ -510,6 +635,35 @@ class GatingService {
         hadTrialRaw,
       );
     }
+
+    // Day-1 freebie hydration (PR 4 of plan 2026-05-23). Server is the
+    // source of truth for both fields; absence in the payload means a
+    // pre-PR4 backend — leave the cache untouched so the gate falls
+    // back to "ineligible" (default false) rather than silently flipping
+    // a flag the server can't validate.
+    final firstBypassConsumedRaw = profile['first_bypass_consumed'];
+    if (firstBypassConsumedRaw is bool) {
+      await prefs.setBool(
+        supabaseSyncService.scopedKey(_firstBypassConsumedBaseKey),
+        firstBypassConsumedRaw,
+      );
+    }
+
+    final createdAtRaw = profile['created_at'];
+    if (createdAtRaw is String && createdAtRaw.isNotEmpty) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_signupAtBaseKey),
+        createdAtRaw,
+      );
+    }
+
+    final displayNameRaw = profile['display_name'];
+    if (displayNameRaw is String && displayNameRaw.isNotEmpty) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_displayNameBaseKey),
+        displayNameRaw,
+      );
+    }
   }
 
   // ---- test helpers -------------------------------------------------------
@@ -522,6 +676,11 @@ class GatingService {
       await prefs.remove(_warmupPrefsKey(f));
     }
     await prefs.remove(supabaseSyncService.scopedKey(_hadTrialBaseKey));
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_firstBypassConsumedBaseKey),
+    );
+    await prefs.remove(supabaseSyncService.scopedKey(_signupAtBaseKey));
+    await prefs.remove(supabaseSyncService.scopedKey(_displayNameBaseKey));
   }
 
   /// Force a specific warmup remaining count for tests.

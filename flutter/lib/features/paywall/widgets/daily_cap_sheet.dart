@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/services/gating_service.dart';
 
 import 'warmup_exhausted_sheet.dart' show GatedFeature, PaywallSheetScaffold;
@@ -38,6 +40,16 @@ class DailyCapSheet extends StatelessWidget {
   final int? bypassesUsedToday;
   final bool isPremium;
 
+  /// Day-1 freebie variant (STATE D). When [firstBypassAvailable] is true and
+  /// [onFirstBypassRequested] is wired, the sheet renders gold-themed copy +
+  /// "X one more time, free" primary CTA INSTEAD of the standard "Unlock
+  /// unlimited" + token-bypass layout. EXP-2 of plan 2026-05-23 — the point
+  /// is product discovery of the bypass mechanic, not monetization, so the
+  /// "Unlock unlimited" CTA is intentionally hidden in this state.
+  final bool firstBypassAvailable;
+  final ValueChanged<GatedFeature>? onFirstBypassRequested;
+  final String? userDisplayName;
+
   const DailyCapSheet({
     super.key,
     required this.feature,
@@ -48,6 +60,9 @@ class DailyCapSheet extends StatelessWidget {
     this.tokenBalance,
     this.bypassesUsedToday,
     this.isPremium = false,
+    this.firstBypassAvailable = false,
+    this.onFirstBypassRequested,
+    this.userDisplayName,
   });
 
   /// Telemetry hook for `ai_bypass_offered` (PR 3 of plan 2026-05-23).
@@ -68,12 +83,27 @@ class DailyCapSheet extends StatelessWidget {
     int? tokenBalance,
     int? bypassesUsedToday,
     bool isPremium = false,
+    bool firstBypassAvailable = false,
+    ValueChanged<GatedFeature>? onFirstBypassRequested,
+    String? userDisplayName,
   }) {
-    final willRenderBypassSlot = !isPremium &&
+    // STATE D takes precedence over the token-bypass slot — when the user
+    // qualifies for the Day-1 freebie, the sheet shows ONLY the freebie CTA
+    // (the paid-bypass slot is hidden so we don't ask someone to spend
+    // tokens 1ms before offering them the same thing for free).
+    final willRenderStateD = firstBypassAvailable &&
+        !isPremium &&
+        onFirstBypassRequested != null;
+    final willRenderBypassSlot = !willRenderStateD &&
+        !isPremium &&
         onBypassRequested != null &&
         tokenBalance != null &&
         bypassesUsedToday != null;
-    if (willRenderBypassSlot) {
+    if (willRenderStateD) {
+      onAnalyticsEvent?.call('first_bypass_offered', {
+        'feature': _featureKey(feature),
+      });
+    } else if (willRenderBypassSlot) {
       onAnalyticsEvent?.call('ai_bypass_offered', {
         'feature': _featureKey(feature),
         'token_balance': tokenBalance,
@@ -93,6 +123,9 @@ class DailyCapSheet extends StatelessWidget {
           tokenBalance: tokenBalance,
           bypassesUsedToday: bypassesUsedToday,
           isPremium: isPremium,
+          firstBypassAvailable: firstBypassAvailable,
+          onFirstBypassRequested: onFirstBypassRequested,
+          userDisplayName: userDisplayName,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
             onUpgrade();
@@ -141,6 +174,47 @@ class DailyCapSheet extends StatelessWidget {
     }
   }
 
+  bool get _isStateD =>
+      firstBypassAvailable && !isPremium && onFirstBypassRequested != null;
+
+  /// STATE D headline. Uses the user's display_name when set and not the
+  /// default "Friend" placeholder — greeting someone by a generic
+  /// placeholder is worse than no greeting at all.
+  String get _stateDHeadline {
+    final name = userDisplayName;
+    if (name == null ||
+        name.isEmpty ||
+        name == AuthService.defaultDisplayName) {
+      return 'One more on us';
+    }
+    return 'One more on us, $name';
+  }
+
+  String get _stateDBody {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return "We saved you an extra reflection for today. "
+            "Tomorrow you'll get one a day.";
+      case GatedFeature.builtDua:
+        return "We saved you an extra dua for today. "
+            "Tomorrow you'll get one a day.";
+      case GatedFeature.discoverName:
+        return "We saved you an extra Name discovery for today. "
+            "Tomorrow you'll get one a day.";
+    }
+  }
+
+  String get _stateDPrimaryLabel {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'Reflect one more time, free';
+      case GatedFeature.builtDua:
+        return 'Build one more dua, free';
+      case GatedFeature.discoverName:
+        return 'Discover one more Name, free';
+    }
+  }
+
   /// True when the sheet should render the AI-bypass middle CTA at all.
   /// Hidden for premium users (defense-in-depth — premium should never
   /// reach this sheet, but if they do, never offer the bypass CTA) and
@@ -181,6 +255,26 @@ class DailyCapSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isStateD) {
+      return PaywallSheetScaffold(
+        icon: Icons.workspace_premium,
+        headline: _stateDHeadline,
+        body: _stateDBody,
+        // STATE D collapses to a single gold primary + tertiary dismiss.
+        // "Unlock unlimited" is intentionally hidden — the freebie's job is
+        // product discovery, not sub upsell. Token-bypass slot also hidden
+        // because asking someone to pay 1ms after offering a freebie would
+        // be insulting.
+        primaryLabel: _stateDPrimaryLabel,
+        primaryColor: AppColors.secondary,
+        secondaryLabel: 'Maybe later',
+        onPrimary: () {
+          Navigator.of(context).pop();
+          onFirstBypassRequested!(feature);
+        },
+        onSecondary: onDismiss,
+      );
+    }
     return PaywallSheetScaffold(
       icon: Icons.wb_sunny_outlined,
       headline: headlineOverride ?? _defaultHeadline,

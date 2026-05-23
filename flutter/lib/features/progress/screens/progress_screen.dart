@@ -639,6 +639,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       final bypassesUsed =
           await daily_usage.getDiscoverNameBypassesUsedToday();
       final premium = await PurchaseService().isPremium();
+      final firstBypassEligible =
+          await GatingService().firstBypassEligible();
+      final displayName = await GatingService().displayName();
       if (!sheetContext.mounted) return;
       final notifier = ref.read(dailyLoopProvider.notifier);
       DailyCapSheet.show(
@@ -652,6 +655,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           // screen so the gacha animation plays. Mirrors the natural-flow
           // sequencing in this card.
           await notifier.discoverNameWithBypass();
+          if (sheetContext.mounted) sheetContext.push('/muhasabah');
+        },
+        firstBypassAvailable: firstBypassEligible,
+        userDisplayName: displayName,
+        onFirstBypassRequested: (_) async {
+          await notifier.discoverNameWithFirstBypass();
           if (sheetContext.mounted) sheetContext.push('/muhasabah');
         },
         // Premium users hitting the 30/day fair-use ceiling see the same sheet

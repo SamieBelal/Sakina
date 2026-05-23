@@ -235,6 +235,155 @@ void main() {
       expect(events, isEmpty);
     });
 
+    testWidgets(
+        'STATE D: firstBypassAvailable=true → gold freebie CTA, no '
+        'Unlock unlimited (PR 4 plan 2026-05-23)',
+        (tester) async {
+      var claimed = 0;
+      GatedFeature? receivedFeature;
+      await tester.pumpWidget(
+        _wrap(
+          DailyCapSheet(
+            feature: GatedFeature.reflect,
+            firstBypassAvailable: true,
+            userDisplayName: 'Aisha',
+            onFirstBypassRequested: (f) {
+              claimed++;
+              receivedFeature = f;
+            },
+            // STATE A props also provided — STATE D must take precedence
+            // and ignore them (otherwise we'd render the gold + the paid
+            // bypass slot together, asking users to pay 1ms after offering
+            // the same thing free).
+            tokenBalance: 87,
+            bypassesUsedToday: 0,
+            isPremium: false,
+            onBypassRequested: (_) {},
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('One more on us, Aisha'), findsOneWidget);
+      expect(find.text('Reflect one more time, free'), findsOneWidget);
+      // Sub upsell is hidden in STATE D — the freebie's job is product
+      // discovery, not monetization.
+      expect(find.text('Unlock unlimited'), findsNothing);
+      // Paid bypass slot hidden — see comment above.
+      expect(find.textContaining('Use 25 tokens'), findsNothing);
+      expect(find.text('Maybe later'), findsOneWidget);
+
+      await tester.tap(find.text('Reflect one more time, free'));
+      await tester.pump();
+      expect(claimed, 1);
+      expect(receivedFeature, GatedFeature.reflect);
+    });
+
+    testWidgets(
+        'STATE D headline falls back to "One more on us" when name is '
+        'default "Friend" placeholder', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          DailyCapSheet(
+            feature: GatedFeature.builtDua,
+            firstBypassAvailable: true,
+            userDisplayName: 'Friend',
+            onFirstBypassRequested: (_) {},
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('One more on us'), findsOneWidget,
+          reason: 'No awkward greeting when name == default placeholder');
+      expect(find.text('One more on us, Friend'), findsNothing);
+      expect(find.text('Build one more dua, free'), findsOneWidget);
+    });
+
+    testWidgets(
+        'STATE D headline falls back when userDisplayName is null entirely',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          DailyCapSheet(
+            feature: GatedFeature.discoverName,
+            firstBypassAvailable: true,
+            onFirstBypassRequested: (_) {},
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+      expect(find.text('One more on us'), findsOneWidget);
+      expect(find.text('Discover one more Name, free'), findsOneWidget);
+    });
+
+    testWidgets(
+        'STATE D suppressed for premium users → falls back to standard sheet',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          DailyCapSheet(
+            feature: GatedFeature.reflect,
+            firstBypassAvailable: true,
+            userDisplayName: 'Aisha',
+            onFirstBypassRequested: (_) {},
+            isPremium: true,
+            onUpgrade: () {},
+            onDismiss: () {},
+          ),
+        ),
+      );
+      // Premium never sees DailyCapSheet for real, but defense-in-depth:
+      // even if shown with firstBypassAvailable=true + isPremium=true,
+      // STATE D must NOT render (no freebie for premium).
+      expect(find.text('One more on us, Aisha'), findsNothing);
+      expect(find.text("You've reflected today"), findsOneWidget);
+      expect(find.text('Unlock unlimited'), findsOneWidget);
+    });
+
+    testWidgets(
+        'show() fires first_bypass_offered when STATE D will render',
+        (tester) async {
+      final events = <(String, Map<String, dynamic>)>[];
+      DailyCapSheet.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => DailyCapSheet.onAnalyticsEvent = null);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => DailyCapSheet.show(
+                  context,
+                  feature: GatedFeature.reflect,
+                  onUpgrade: () {},
+                  firstBypassAvailable: true,
+                  userDisplayName: 'Aisha',
+                  onFirstBypassRequested: (_) {},
+                  // STATE A props also wired — show() must fire ONLY the
+                  // first_bypass_offered event, not also ai_bypass_offered
+                  // (would double-count in the funnel).
+                  tokenBalance: 87,
+                  bypassesUsedToday: 0,
+                  onBypassRequested: (_) {},
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(events, hasLength(1));
+      expect(events.first.$1, 'first_bypass_offered');
+      expect(events.first.$2, {'feature': 'reflect'});
+    });
+
     testWidgets('onBypassRequested null → legacy 2-CTA layout (no regression)',
         (tester) async {
       await tester.pumpWidget(

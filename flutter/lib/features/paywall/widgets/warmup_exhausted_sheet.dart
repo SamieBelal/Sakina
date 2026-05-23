@@ -99,6 +99,7 @@ class _PaywallSheetScaffold extends StatelessWidget {
   final VoidCallback? onMiddle;
   final bool middleEnabled;
   final String? middleDisabledHint;
+  final Color? primaryColor;
 
   const _PaywallSheetScaffold({
     required this.icon,
@@ -112,6 +113,7 @@ class _PaywallSheetScaffold extends StatelessWidget {
     this.onMiddle,
     this.middleEnabled = true,
     this.middleDisabledHint,
+    this.primaryColor,
   });
 
   @override
@@ -195,7 +197,7 @@ class _PaywallSheetScaffold extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onPrimary,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: primaryColor ?? AppColors.primary,
                     foregroundColor: AppColors.textOnPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -314,6 +316,13 @@ class PaywallSheetScaffold extends StatelessWidget {
   final bool middleEnabled;
   final String? middleDisabledHint;
 
+  /// Optional override for the primary CTA fill color. Defaults to
+  /// `AppColors.primary` (deep emerald). DailyCapSheet STATE D (Day-1
+  /// freebie variant) passes `AppColors.secondary` (warm matte gold) to
+  /// visually distinguish the "one free, on us" moment from the
+  /// monetization-oriented green Unlock-unlimited CTA.
+  final Color? primaryColor;
+
   const PaywallSheetScaffold({
     super.key,
     required this.icon,
@@ -327,6 +336,7 @@ class PaywallSheetScaffold extends StatelessWidget {
     this.onMiddle,
     this.middleEnabled = true,
     this.middleDisabledHint,
+    this.primaryColor,
   });
 
   @override
@@ -343,6 +353,7 @@ class PaywallSheetScaffold extends StatelessWidget {
       onMiddle: onMiddle,
       middleEnabled: middleEnabled,
       middleDisabledHint: middleDisabledHint,
+      primaryColor: primaryColor,
     );
   }
 }

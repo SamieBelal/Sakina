@@ -67,6 +67,27 @@ abstract final class AnalyticsEvents {
   static const aiBypassRejectedReasonBypassCap = 'bypass_cap';
   static const aiBypassRejectedReasonNetwork = 'network';
 
+  // Day-1 freebie funnel (PR 4 of plan 2026-05-23, EXP-2). Mirrors the
+  // ai_bypass_* triplet but with no token cost — the Day-1 path is
+  // demonstration of the bypass mechanic, not monetization.
+  // Funnel:
+  //   daily_cap_hit (signup<24h, !consumed) → first_bypass_offered
+  //     → first_bypass_claimed
+  // first_bypass_rejected branches off when the server RPC declines
+  // (already_consumed, window_expired, no_signup_at, network, etc.)
+  static const firstBypassOffered = 'first_bypass_offered';
+  static const firstBypassClaimed = 'first_bypass_claimed';
+  static const firstBypassRejected = 'first_bypass_rejected';
+
+  // Reason values for `first_bypass_rejected.reason` — server RPC returns
+  // these strings on the failure path. `network` is the client-side
+  // fallback for transport failure. Pinned by analytics_events_test.
+  static const firstBypassRejectedReasonAlreadyConsumed = 'already_consumed';
+  static const firstBypassRejectedReasonWindowExpired = 'window_expired';
+  static const firstBypassRejectedReasonNoSignupAt = 'no_signup_at';
+  static const firstBypassRejectedReasonInvalidFeature = 'invalid_feature';
+  static const firstBypassRejectedReasonNetwork = 'network';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
