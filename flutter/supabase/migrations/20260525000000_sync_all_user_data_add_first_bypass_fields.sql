@@ -59,7 +59,11 @@ begin
           from public.user_tokens t
           where t.user_id = current_user_id
         ),
-        jsonb_build_object('balance', 0, 'total_spent', 0, 'tier_up_scrolls', 0)
+        jsonb_build_object(
+          'balance', 100,
+          'total_spent', 0,
+          'tier_up_scrolls', 0
+        )
       ),
     'streak',
       coalesce(
@@ -82,27 +86,52 @@ begin
       coalesce(
         (
           select jsonb_build_object(
-            'last_claim_date', dr.last_claim_date,
-            'next_day_to_claim', dr.next_day_to_claim,
-            'cycle_started_at', dr.cycle_started_at
+            'current_day', r.current_day,
+            'last_claim_date', r.last_claim_date,
+            'streak_freeze_owned', r.streak_freeze_owned,
+            'last_premium_grant_month', r.last_premium_grant_month
           )
-          from public.user_daily_rewards dr
-          where dr.user_id = current_user_id
+          from public.user_daily_rewards r
+          where r.user_id = current_user_id
         ),
         jsonb_build_object(
+          'current_day', 0,
           'last_claim_date', null,
-          'next_day_to_claim', 1,
-          'cycle_started_at', null
+          'streak_freeze_owned', false,
+          'last_premium_grant_month', null
         )
+      ),
+    'checkin_history',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'checked_in_at', c.checked_in_at,
+              'q1', c.q1,
+              'q2', c.q2,
+              'q3', c.q3,
+              'q4', c.q4,
+              'name_returned', c.name_returned,
+              'name_arabic', c.name_arabic
+            )
+            order by c.checked_in_at desc
+          )
+          from public.user_checkin_history c
+          where c.user_id = current_user_id
+        ),
+        '[]'::jsonb
       ),
     'reflections',
       coalesce(
         (
           select jsonb_agg(
             jsonb_build_object(
-              'created_at', r.created_at,
+              'id', r.id,
+              'saved_at', r.saved_at,
+              'user_text', r.user_text,
               'name', r.name,
               'name_arabic', r.name_arabic,
+              'reframe_preview', r.reframe_preview,
               'reframe', r.reframe,
               'story', r.story,
               'verses', r.verses,
@@ -110,34 +139,30 @@ begin
               'dua_transliteration', r.dua_transliteration,
               'dua_translation', r.dua_translation,
               'dua_source', r.dua_source,
-              'related_names', r.related_names,
-              'user_text', r.user_text,
-              'selected_emotions', r.selected_emotions,
-              'follow_up_answers', r.follow_up_answers,
-              'off_topic', r.off_topic
+              'related_names', r.related_names
             )
-            order by r.created_at desc
+            order by r.saved_at desc
           )
           from public.user_reflections r
           where r.user_id = current_user_id
         ),
         '[]'::jsonb
       ),
-    'duas',
+    'built_duas',
       coalesce(
         (
           select jsonb_agg(
             jsonb_build_object(
-              'created_at', d.created_at,
-              'category', d.category,
+              'id', d.id,
+              'saved_at', d.saved_at,
+              'need', d.need,
               'arabic', d.arabic,
               'transliteration', d.transliteration,
-              'translation', d.translation,
-              'source', d.source
+              'translation', d.translation
             )
-            order by d.created_at desc
+            order by d.saved_at desc
           )
-          from public.user_duas d
+          from public.user_built_duas d
           where d.user_id = current_user_id
         ),
         '[]'::jsonb
