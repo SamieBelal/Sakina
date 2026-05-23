@@ -23,7 +23,10 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
+import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
@@ -258,6 +261,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await context.push('/discovery-quiz');
     if (!mounted) return;
     await _loadData();
+  }
+
+  void _openRedeemCodeSheet() {
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.referralSettingsRedeemOpened);
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+        ),
+        child: RedeemCodeSheet(userId: userId),
+      ),
+    );
   }
 
   Future<void> _openLegalUrl(String url) async {
@@ -990,6 +1014,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.storefront_rounded,
             label: 'Store',
             onTap: () => context.push('/store'),
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.lg),
+        // Redeem a referral code — added 2026-05-23 (PR #18 hybrid pattern).
+        // Permanent entry point; complements the in-onboarding field. Both
+        // surfaces funnel through ReferralService → apply_referral RPC.
+        _buildSettingsCard([
+          _buildSettingsRow(
+            icon: Icons.card_giftcard_rounded,
+            label: 'Redeem a referral code',
+            onTap: _openRedeemCodeSheet,
           ),
         ]),
         const SizedBox(height: AppSpacing.lg),
