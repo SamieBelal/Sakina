@@ -85,6 +85,17 @@ class GatingService {
     _debugOverride = null;
   }
 
+  /// Telemetry hook for the AI-bypass funnel (PR 3 of plan 2026-05-23).
+  /// Set once at app startup in `main.dart` to bridge to `AnalyticsService`.
+  /// Left null in tests so no real Mixpanel hits fire; widget/unit tests can
+  /// install a spy to assert on emitted events.
+  ///
+  /// Fires `ai_bypass_purchased` after a successful reservation and
+  /// `ai_bypass_rejected` when the RPC returns `ok=false` or null. The
+  /// matching `ai_bypass_offered` fires from [DailyCapSheet.show].
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   /// Premium fair-use ceiling per feature per day. Silent — UI must surface
   /// a "take a breath" message, NOT route to a paywall (the user is already
   /// paying).
@@ -331,17 +342,34 @@ class GatingService {
   Future<BypassReservation?> reserveBypass(GatedFeature feature) async {
     if (await PurchaseService().isPremium()) return null;
 
+    final featureKey = _bypassFeatureKey(feature);
     final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
       'reserve_ai_bypass',
-      {'p_feature': _bypassFeatureKey(feature)},
+      {'p_feature': featureKey},
     );
-    if (result == null) return null;
-    if (result['ok'] != true) return null;
+    if (result == null) {
+      onAnalyticsEvent?.call('ai_bypass_rejected', {
+        'feature': featureKey,
+        'reason': 'network',
+      });
+      return null;
+    }
+    if (result['ok'] != true) {
+      onAnalyticsEvent?.call('ai_bypass_rejected', {
+        'feature': featureKey,
+        'reason': result['reason'] ?? 'unknown',
+      });
+      return null;
+    }
 
     final reservationId = result['reservation_id'] as String?;
     final balance = (result['balance'] as num?)?.toInt();
     final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
     if (reservationId == null || balance == null || bypassesUsed == null) {
+      onAnalyticsEvent?.call('ai_bypass_rejected', {
+        'feature': featureKey,
+        'reason': 'malformed_response',
+      });
       return null;
     }
 
@@ -349,6 +377,12 @@ class GatingService {
     // sees the debited balance + incremented counter without a round-trip.
     await tokens.hydrateTokenCache(balance: balance);
     await _incrementBypassCache(feature);
+
+    onAnalyticsEvent?.call('ai_bypass_purchased', {
+      'feature': featureKey,
+      'token_balance_after': balance,
+      'bypasses_used_today': bypassesUsed,
+    });
 
     return BypassReservation(
       reservationId: reservationId,

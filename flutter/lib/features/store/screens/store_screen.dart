@@ -375,7 +375,9 @@ class _TokensTab extends StatelessWidget {
         children: [
           const _SectionHeader(
             title: 'Buy Tokens',
-            subtitle: 'Use tokens for extra reflections and duas.',
+            subtitle:
+                '25 tokens = 1 extra reflection, dua, or name discovery. '
+                'Max 2 extra per feature per day.',
           ),
           const SizedBox(height: AppSpacing.lg),
           _IapItem(

@@ -99,6 +99,29 @@ void main() {
     });
   });
 
+  group('AI bypass event + reason constants (plan 2026-05-23, PR 3)', () {
+    // Pin the wire-protocol strings. The Mixpanel funnel
+    //   daily_cap_hit → ai_bypass_offered → ai_bypass_purchased
+    // and the dashboards that read it are keyed off these exact names.
+    // Renaming either constant in Dart MUST be a deliberate analytics-team
+    // coordination, not a silent refactor — these tests are the tripwire.
+    test('event names match Mixpanel funnel + dashboard contract', () {
+      expect(AnalyticsEvents.aiBypassOffered, 'ai_bypass_offered');
+      expect(AnalyticsEvents.aiBypassPurchased, 'ai_bypass_purchased');
+      expect(AnalyticsEvents.aiBypassRejected, 'ai_bypass_rejected');
+    });
+
+    test('rejection reason values match server RPC + client fallback', () {
+      // `no_tokens` and `bypass_cap` are returned by the server RPC
+      // `reserve_ai_bypass`; `network` is the client-side fallback for an
+      // RPC that returns null (transport failure). Server SQL test pins
+      // the same strings on the backend side.
+      expect(AnalyticsEvents.aiBypassRejectedReasonNoTokens, 'no_tokens');
+      expect(AnalyticsEvents.aiBypassRejectedReasonBypassCap, 'bypass_cap');
+      expect(AnalyticsEvents.aiBypassRejectedReasonNetwork, 'network');
+    });
+  });
+
   group('signup_failed reason constants', () {
     // The sign-up password screen's session-race branch (previously a silent
     // SnackBar+return) now fires signup_failed with this exact reason — pin

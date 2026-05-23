@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart'
     show GatedFeature;
+import 'package:sakina/services/analytics_events.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
@@ -130,6 +131,108 @@ void main() {
       // Primary + tertiary CTAs still render normally.
       expect(find.text('Unlock unlimited'), findsOneWidget);
       expect(find.text('Maybe later'), findsOneWidget);
+    });
+
+    testWidgets(
+        'show() fires ai_bypass_offered when bypass slot will render '
+        '(PR 3 plan 2026-05-23)',
+        (tester) async {
+      final events = <(String, Map<String, dynamic>)>[];
+      DailyCapSheet.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => DailyCapSheet.onAnalyticsEvent = null);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => DailyCapSheet.show(
+                  context,
+                  feature: GatedFeature.builtDua,
+                  onUpgrade: () {},
+                  onBypassRequested: (_) {},
+                  tokenBalance: 87,
+                  bypassesUsedToday: 0,
+                  isPremium: false,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(events, hasLength(1));
+      expect(events.first.$1, AnalyticsEvents.aiBypassOffered);
+      expect(events.first.$2, {
+        'feature': 'built_dua',
+        'token_balance': 87,
+        'bypasses_used_today': 0,
+      });
+    });
+
+    testWidgets('show() does NOT fire ai_bypass_offered for premium users',
+        (tester) async {
+      final events = <(String, Map<String, dynamic>)>[];
+      DailyCapSheet.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => DailyCapSheet.onAnalyticsEvent = null);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => DailyCapSheet.show(
+                  context,
+                  feature: GatedFeature.reflect,
+                  onUpgrade: () {},
+                  onBypassRequested: (_) {},
+                  tokenBalance: 500,
+                  bypassesUsedToday: 0,
+                  isPremium: true,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(events, isEmpty,
+          reason: 'Premium sheets never render the bypass slot');
+    });
+
+    testWidgets(
+        'show() does NOT fire ai_bypass_offered when onBypassRequested is null',
+        (tester) async {
+      final events = <(String, Map<String, dynamic>)>[];
+      DailyCapSheet.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => DailyCapSheet.onAnalyticsEvent = null);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => DailyCapSheet.show(
+                  context,
+                  feature: GatedFeature.reflect,
+                  onUpgrade: () {},
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(events, isEmpty);
     });
 
     testWidgets('onBypassRequested null → legacy 2-CTA layout (no regression)',
