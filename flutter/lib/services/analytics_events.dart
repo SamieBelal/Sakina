@@ -129,6 +129,41 @@ abstract final class AnalyticsEvents {
   /// (mutual reward fired for the referee).
   static const refereeGranted7dWindow = 'referee_granted_7d_window';
 
+  // In-onboarding referral code entry + Settings redeem (hybrid pattern).
+  // Forward-instrumented for the v1 launch — pairs with refereeSignedUpWithReferral's
+  // new `source` property ('deep_link' / 'onboarding_field' / 'settings_redeem') so
+  // the post-launch funnel dashboards can split the 3 ingress paths. See
+  // docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md.
+
+  /// Fired when the onboarding "Did a friend send you a gift?" disclosure
+  /// is expanded by the user. Funnel start for the code-entry path.
+  static const referralFieldRevealed = 'referral_field_revealed';
+
+  /// Fired when a code (>= 8 chars) is persisted to pending_referral prefs
+  /// via the onboarding field. Debounced 300ms (one event per settled code,
+  /// not one per keystroke).
+  static const referralFieldCodeEntered = 'referral_field_code_entered';
+
+  /// Fired when a user clears a previously-entered code via the onboarding
+  /// field.
+  static const referralFieldCodeCleared = 'referral_field_code_cleared';
+
+  /// Fired when the Settings → Redeem a referral code row is tapped (the
+  /// sheet opens).
+  static const referralSettingsRedeemOpened = 'referral_settings_redeem_opened';
+
+  /// Fired when Redeem is tapped in the Settings sheet (whether successful
+  /// or not — paired with refereeSignedUpWithReferral for the success case
+  /// and refereeGranted7dWindow when a window was actually granted).
+  static const referralSettingsRedeemSubmitted = 'referral_settings_redeem_submitted';
+
+  // Source values for the `source` property attached to
+  // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
+  // funnel-splitting across the 3 referral ingress paths.
+  static const referralSourceDeepLink = 'deep_link';
+  static const referralSourceOnboardingField = 'onboarding_field';
+  static const referralSourceSettingsRedeem = 'settings_redeem';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
