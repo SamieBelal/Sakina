@@ -16,8 +16,10 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -201,16 +203,28 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   void _showDiscoverGateSheet(GateReason reason) {
-    DailyCapSheet.show(
-      context,
-      feature: GatedFeature.discoverName,
-      onUpgrade: buildPaywallUpgradeCallback(
-        reason: reason,
-        pushPaywall: () {
-          if (mounted) GoRouter.of(context).push('/paywall');
-        },
-      ),
-    );
+    () async {
+      final balance = (await getTokens()).balance;
+      final bypassesUsed =
+          await daily_usage.getDiscoverNameBypassesUsedToday();
+      final premium = await PurchaseService().isPremium();
+      if (!mounted) return;
+      final notifier = ref.read(dailyLoopProvider.notifier);
+      DailyCapSheet.show(
+        context,
+        feature: GatedFeature.discoverName,
+        tokenBalance: balance,
+        bypassesUsedToday: bypassesUsed,
+        isPremium: premium,
+        onBypassRequested: (_) => notifier.discoverNameWithBypass(),
+        onUpgrade: buildPaywallUpgradeCallback(
+          reason: reason,
+          pushPaywall: () {
+            if (mounted) GoRouter.of(context).push('/paywall');
+          },
+        ),
+      );
+    }();
   }
 
   Widget _buildCheckinResult(DailyLoopState state, DailyLoopNotifier notifier) {

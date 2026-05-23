@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/token_service.dart' as tokens;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,23 @@ class GateResult {
   });
 }
 
+/// Successful response from [GatingService.reserveBypass]. Caller must hold
+/// [reservationId] for the lifetime of the AI call and pass it to either
+/// [GatingService.commitBypass] (on success) or [GatingService.cancelBypass]
+/// (on failure / abandonment). If neither fires, the server-side orphan-
+/// cleanup cron will cancel the reservation after 15 minutes.
+class BypassReservation {
+  final String reservationId;
+  final int newBalance;
+  final int bypassesUsedToday;
+
+  const BypassReservation({
+    required this.reservationId,
+    required this.newBalance,
+    required this.bypassesUsedToday,
+  });
+}
+
 class GatingService {
   GatingService._();
 
@@ -71,6 +89,18 @@ class GatingService {
   /// a "take a breath" message, NOT route to a paywall (the user is already
   /// paying).
   static const int premiumDailyFairUseCap = 30;
+
+  /// Token cost to bypass the daily cap for one extra AI use. Mirrors the
+  /// server's `app_config.bypass_token_cost` seed value (PR 1 migration
+  /// `20260523000000_ai_bypass_reservations_and_rpcs.sql`). Server is the
+  /// source of truth — the constant here is a defensive fallback used by
+  /// the DailyCapSheet copy when the server value hasn't been hydrated yet.
+  static const int bypassTokenCost = 25;
+
+  /// Maximum number of bypass spends per feature per day. Matches the
+  /// server's `app_config.max_bypasses_per_day` seed value. Same fallback
+  /// rationale as [bypassTokenCost].
+  static const int maxBypassesPerDayPerFeature = 2;
 
   /// Lifetime warmup budgets per feature.
   static const Map<GatedFeature, int> warmupBudget = {
@@ -261,6 +291,141 @@ class GatingService {
       {'id': userId, _warmupColumn(feature): next},
       onConflict: 'id',
     );
+  }
+
+  // ---- AI bypass (reserve / commit / cancel) ------------------------------
+
+  /// Reads the local bypass-counter cache for [feature]. Server is the source
+  /// of truth — the cache is hydrated on each `sync_all_user_data` and
+  /// mutated optimistically by [reserveBypass] / [cancelBypass].
+  Future<int> bypassesUsedToday(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return daily.getReflectBypassesUsedToday();
+      case GatedFeature.builtDua:
+        return daily.getBuiltDuaBypassesUsedToday();
+      case GatedFeature.discoverName:
+        return daily.getDiscoverNameBypassesUsedToday();
+    }
+  }
+
+  /// Reserves a bypass on [feature]. Calls the `reserve_ai_bypass` RPC which
+  /// atomically debits [bypassTokenCost] tokens, increments the daily bypass
+  /// counter, and inserts a pending row in `ai_bypass_reservations`. On
+  /// success, returns a [BypassReservation] whose `reservationId` the caller
+  /// MUST hold and pass to [commitBypass] (on AI success) or [cancelBypass]
+  /// (on AI failure).
+  ///
+  /// Returns null when:
+  /// - The user is premium ([PurchaseService.isPremium] short-circuit — the
+  ///   bypass path is a free-tier mechanic).
+  /// - The RPC rejects (insufficient tokens, bypass cap reached, bad feature).
+  /// - The RPC call itself fails (network, auth). In that case the local
+  ///   cache stays untouched — the user can retry.
+  ///
+  /// TEST-C (defense-in-depth, plan 2026-05-23 line 247): the premium
+  /// short-circuit happens BEFORE the RPC fires. Premium users should never
+  /// reach this surface — but pinning it at the service layer means a
+  /// future UI bug that surfaces the bypass CTA to a premium user cannot
+  /// accidentally debit their tokens.
+  Future<BypassReservation?> reserveBypass(GatedFeature feature) async {
+    if (await PurchaseService().isPremium()) return null;
+
+    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'reserve_ai_bypass',
+      {'p_feature': _bypassFeatureKey(feature)},
+    );
+    if (result == null) return null;
+    if (result['ok'] != true) return null;
+
+    final reservationId = result['reservation_id'] as String?;
+    final balance = (result['balance'] as num?)?.toInt();
+    final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
+    if (reservationId == null || balance == null || bypassesUsed == null) {
+      return null;
+    }
+
+    // Mirror server state into local caches so the next DailyCapSheet build
+    // sees the debited balance + incremented counter without a round-trip.
+    await tokens.hydrateTokenCache(balance: balance);
+    await _incrementBypassCache(feature);
+
+    return BypassReservation(
+      reservationId: reservationId,
+      newBalance: balance,
+      bypassesUsedToday: bypassesUsed,
+    );
+  }
+
+  /// Marks a reservation as committed. Fire-and-forget — failures here are
+  /// not surfaced to the user because the server-side orphan-cleanup cron
+  /// will NOT touch already-committed reservations, and the orphan window
+  /// (15 min) only triggers cancel on `status='pending'` rows. So a missed
+  /// commit means: the reservation stays pending in the DB for up to 15 min,
+  /// then gets cancelled and tokens get refunded. The user already received
+  /// the AI value at that point — they got a free use. Acceptable failure.
+  Future<void> commitBypass(String reservationId) async {
+    await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'commit_ai_bypass',
+      {'p_reservation_id': reservationId},
+    );
+  }
+
+  /// Cancels a pending reservation. Atomic on the server: flips status,
+  /// refunds [bypassTokenCost] tokens, decrements the bypass counter. The
+  /// returned bool lets the UI distinguish "cancel succeeded, show refunded
+  /// toast" from "cancel failed (network) — orphan cron will rescue within
+  /// 15 min, show 'reservation will refund shortly' toast".
+  Future<bool> cancelBypass(
+    String reservationId,
+    GatedFeature feature,
+  ) async {
+    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'cancel_ai_bypass',
+      {'p_reservation_id': reservationId},
+    );
+    if (result == null) return false;
+    if (result['ok'] != true) return false;
+
+    final refundedBalance = (result['balance'] as num?)?.toInt();
+    if (refundedBalance != null) {
+      await tokens.hydrateTokenCache(balance: refundedBalance);
+    }
+    await _decrementBypassCache(feature);
+    return true;
+  }
+
+  String _bypassFeatureKey(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'reflect';
+      case GatedFeature.builtDua:
+        return 'built_dua';
+      case GatedFeature.discoverName:
+        return 'discover_name';
+    }
+  }
+
+  Future<void> _incrementBypassCache(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return daily.incrementReflectBypassUsage();
+      case GatedFeature.builtDua:
+        return daily.incrementBuiltDuaBypassUsage();
+      case GatedFeature.discoverName:
+        return daily.incrementDiscoverNameBypassUsage();
+    }
+  }
+
+  Future<void> _decrementBypassCache(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return daily.decrementReflectBypassUsage();
+      case GatedFeature.builtDua:
+        return daily.decrementBuiltDuaBypassUsage();
+      case GatedFeature.discoverName:
+        return daily.decrementDiscoverNameBypassUsage();
+    }
   }
 
   // ---- had_trial latch ----------------------------------------------------

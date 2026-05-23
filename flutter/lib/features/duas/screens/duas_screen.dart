@@ -14,6 +14,9 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -88,16 +91,28 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         _buildController.clear();
       }
       if (next.buildGateResult != null && prev?.buildGateResult == null) {
-        DailyCapSheet.show(
-          context,
-          feature: GatedFeature.builtDua,
-          onUpgrade: buildPaywallUpgradeCallback(
-            reason: next.buildGateResult!.reason,
-            pushPaywall: () {
-              if (mounted) GoRouter.of(context).push('/paywall');
-            },
-          ),
-        ).whenComplete(notifier.dismissBuildGate);
+        final sheetContext = context;
+        () async {
+          final balance = (await getTokens()).balance;
+          final bypassesUsed =
+              await daily_usage.getBuiltDuaBypassesUsedToday();
+          final premium = await PurchaseService().isPremium();
+          if (!sheetContext.mounted) return;
+          DailyCapSheet.show(
+            sheetContext,
+            feature: GatedFeature.builtDua,
+            tokenBalance: balance,
+            bypassesUsedToday: bypassesUsed,
+            isPremium: premium,
+            onBypassRequested: (_) => notifier.submitBuildWithBypass(),
+            onUpgrade: buildPaywallUpgradeCallback(
+              reason: next.buildGateResult!.reason,
+              pushPaywall: () {
+                if (mounted) GoRouter.of(context).push('/paywall');
+              },
+            ),
+          ).whenComplete(notifier.dismissBuildGate);
+        }();
       }
       // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL build that
       // decremented warmup from 1 to 0.

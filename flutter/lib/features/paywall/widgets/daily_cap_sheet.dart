@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:sakina/services/gating_service.dart';
+
 import 'warmup_exhausted_sheet.dart' show GatedFeature, PaywallSheetScaffold;
 
 /// Bottom sheet shown to a free user who has already used their 1/day Reflect
@@ -7,12 +9,34 @@ import 'warmup_exhausted_sheet.dart' show GatedFeature, PaywallSheetScaffold;
 /// triggers (post-streak-milestone, post-card-collected) — in which case the
 /// caller passes [headlineOverride] for context-specific copy.
 ///
-/// Body copy stays the same regardless of headline override per spec.
+/// Adds a middle "AI bypass" CTA when [onBypassRequested] is supplied (PR 2
+/// of the AI bypass plan, 2026-05-23). The bypass slot renders in one of
+/// three states depending on [tokenBalance], [bypassesUsedToday], and
+/// [isPremium]:
+///
+///   STATE A — enough tokens + bypasses_today < cap: enabled "Use 25 tokens
+///             for one more (you have N)"
+///   STATE B — tokens < 25 + bypasses_today < cap:   disabled, hint
+///             "You have N tokens. Need 25."
+///   STATE C — bypasses_today >= cap:                disabled, hint
+///             "Bypass cap reached. Resets tomorrow."
+///   isPremium == true:                              bypass slot hidden
+///             entirely (premium uses fair-use ceiling, not this sheet).
+///
+/// When [onBypassRequested] is null, the sheet renders the legacy two-CTA
+/// layout (primary + tertiary) so existing callers without the bypass props
+/// stay backward-compatible.
 class DailyCapSheet extends StatelessWidget {
   final GatedFeature feature;
   final String? headlineOverride;
   final VoidCallback onUpgrade;
   final VoidCallback onDismiss;
+
+  /// Required for the bypass slot. When null, the bypass CTA is hidden.
+  final ValueChanged<GatedFeature>? onBypassRequested;
+  final int? tokenBalance;
+  final int? bypassesUsedToday;
+  final bool isPremium;
 
   const DailyCapSheet({
     super.key,
@@ -20,6 +44,10 @@ class DailyCapSheet extends StatelessWidget {
     required this.onUpgrade,
     required this.onDismiss,
     this.headlineOverride,
+    this.onBypassRequested,
+    this.tokenBalance,
+    this.bypassesUsedToday,
+    this.isPremium = false,
   });
 
   static Future<void> show(
@@ -27,6 +55,10 @@ class DailyCapSheet extends StatelessWidget {
     required GatedFeature feature,
     required VoidCallback onUpgrade,
     String? headlineOverride,
+    ValueChanged<GatedFeature>? onBypassRequested,
+    int? tokenBalance,
+    int? bypassesUsedToday,
+    bool isPremium = false,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -37,6 +69,10 @@ class DailyCapSheet extends StatelessWidget {
         return DailyCapSheet(
           feature: feature,
           headlineOverride: headlineOverride,
+          onBypassRequested: onBypassRequested,
+          tokenBalance: tokenBalance,
+          bypassesUsedToday: bypassesUsedToday,
+          isPremium: isPremium,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
             onUpgrade();
@@ -69,6 +105,44 @@ class DailyCapSheet extends StatelessWidget {
     }
   }
 
+  /// True when the sheet should render the AI-bypass middle CTA at all.
+  /// Hidden for premium users (defense-in-depth — premium should never
+  /// reach this sheet, but if they do, never offer the bypass CTA) and
+  /// when the caller didn't wire the callback.
+  bool get _shouldRenderBypassSlot {
+    return !isPremium &&
+        onBypassRequested != null &&
+        tokenBalance != null &&
+        bypassesUsedToday != null;
+  }
+
+  bool get _bypassEnabled {
+    if (!_shouldRenderBypassSlot) return false;
+    final balance = tokenBalance ?? 0;
+    final used = bypassesUsedToday ?? 0;
+    return balance >= GatingService.bypassTokenCost &&
+        used < GatingService.maxBypassesPerDayPerFeature;
+  }
+
+  String get _bypassLabel {
+    final balance = tokenBalance ?? 0;
+    return 'Use ${GatingService.bypassTokenCost} tokens for one more '
+        '(you have $balance)';
+  }
+
+  String? get _bypassDisabledHint {
+    if (!_shouldRenderBypassSlot) return null;
+    final balance = tokenBalance ?? 0;
+    final used = bypassesUsedToday ?? 0;
+    if (used >= GatingService.maxBypassesPerDayPerFeature) {
+      return "You've used today's bypasses. They reset tomorrow.";
+    }
+    if (balance < GatingService.bypassTokenCost) {
+      return 'You have $balance tokens. Need ${GatingService.bypassTokenCost}.';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return PaywallSheetScaffold(
@@ -79,6 +153,18 @@ class DailyCapSheet extends StatelessWidget {
       secondaryLabel: 'Maybe later',
       onPrimary: onUpgrade,
       onSecondary: onDismiss,
+      middleLabel: _shouldRenderBypassSlot ? _bypassLabel : null,
+      middleEnabled: _bypassEnabled,
+      middleDisabledHint: _bypassDisabledHint,
+      onMiddle: _shouldRenderBypassSlot
+          ? () {
+              // Sheet closes synchronously; provider takes over the
+              // reserve → AI → commit/cancel flow. If reserve fails, the
+              // provider surfaces a toast or re-opens the sheet.
+              Navigator.of(context).pop();
+              onBypassRequested!(feature);
+            }
+          : null,
     );
   }
 }

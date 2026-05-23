@@ -8,6 +8,12 @@ import 'warmup_exhausted_sheet.dart' show PaywallSheetScaffold;
 ///
 /// Falls back to generic copy if [momentsDuringTrial] is 0 (we couldn't
 /// resolve trial activity) so the sheet always renders sensible copy.
+///
+/// **Invariant (plan 2026-05-23 line 307):** the lapsed-trialer Day-1 moment
+/// is the strongest sub-upsell window in the entire app. It intentionally
+/// does NOT offer the AI-bypass CTA — token spend would compete with the
+/// subscription ask and dilute conversion. Days 2+ for lapsed trialers
+/// fall through to DailyCapSheet (States A/B/C) where the bypass IS shown.
 class LapsedTrialSheet extends StatelessWidget {
   /// Total spiritual actions the user took during their trial — reflects,
   /// built duas, and discovered names summed together. The rendered copy

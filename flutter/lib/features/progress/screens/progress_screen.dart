@@ -17,7 +17,10 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/lapsed_trial_service.dart';
+import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
@@ -630,21 +633,40 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   void _showDiscoverGateSheet(BuildContext context, GateReason reason) {
-    DailyCapSheet.show(
-      context,
-      feature: GatedFeature.discoverName,
-      // Premium users hitting the 30/day fair-use ceiling see the same sheet
-      // as free users hitting their 1/day cap, but the upgrade CTA must be a
-      // no-op for them — they're already paying. `buildPaywallUpgradeCallback`
-      // returns no-op for `premiumFairUse` and pushes /paywall otherwise.
-      // Mirrors the muhasabah_screen completed-state CTA.
-      onUpgrade: buildPaywallUpgradeCallback(
-        reason: reason,
-        pushPaywall: () {
-          if (mounted) GoRouter.of(context).push('/paywall');
+    final sheetContext = context;
+    () async {
+      final balance = (await getTokens()).balance;
+      final bypassesUsed =
+          await daily_usage.getDiscoverNameBypassesUsedToday();
+      final premium = await PurchaseService().isPremium();
+      if (!sheetContext.mounted) return;
+      final notifier = ref.read(dailyLoopProvider.notifier);
+      DailyCapSheet.show(
+        sheetContext,
+        feature: GatedFeature.discoverName,
+        tokenBalance: balance,
+        bypassesUsedToday: bypassesUsed,
+        isPremium: premium,
+        onBypassRequested: (_) async {
+          // After a successful bypass discover, route into the muhasabah
+          // screen so the gacha animation plays. Mirrors the natural-flow
+          // sequencing in this card.
+          await notifier.discoverNameWithBypass();
+          if (sheetContext.mounted) sheetContext.push('/muhasabah');
         },
-      ),
-    );
+        // Premium users hitting the 30/day fair-use ceiling see the same sheet
+        // as free users hitting their 1/day cap, but the upgrade CTA must be a
+        // no-op for them — they're already paying. `buildPaywallUpgradeCallback`
+        // returns no-op for `premiumFairUse` and pushes /paywall otherwise.
+        // Mirrors the muhasabah_screen completed-state CTA.
+        onUpgrade: buildPaywallUpgradeCallback(
+          reason: reason,
+          pushPaywall: () {
+            if (mounted) GoRouter.of(context).push('/paywall');
+          },
+        ),
+      );
+    }();
   }
 
   Widget _buildMuhasabahRow(DailyLoopState state) {

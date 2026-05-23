@@ -315,6 +315,15 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   final ReflectDependencies _dependencies;
   bool _consumeFreeUsageOnSuccess = false;
 
+  /// Reservation id held during a bypass-funded submit. Set by [submitWithBypass]
+  /// before the AI call, cleared on either successful commit or after
+  /// `GatingService.cancelBypass` returns. Non-null means a reserve has fired
+  /// and the token+counter mutations are in flight on the server.
+  ///
+  /// If a 4th gated feature is added, extract a BypassFlowMixin — three sites
+  /// is the YAGNI threshold (plan 2026-05-23 line 305).
+  String? _activeBypassReservationId;
+
   /// Captured during [submit] alongside `_consumeFreeUsageOnSuccess` so the
   /// follow-on [GatingService.markUsed] call can skip a redundant
   /// `PurchaseService().isPremium()` round-trip (RevenueCat method-channel
@@ -383,6 +392,42 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     }
   }
 
+  /// Submit user text using an AI bypass: spend tokens to get one extra
+  /// reflection past the daily cap. Reserves on the server first (atomic
+  /// token debit + bypass-counter increment), then runs the same AI flow
+  /// as [submit]. On AI success the reservation is committed; on AI failure
+  /// the reservation is cancelled and tokens refunded.
+  ///
+  /// Returns silently when the reserve RPC rejects (insufficient tokens,
+  /// bypass cap reached, premium short-circuit). The screen-level toast
+  /// is the caller's responsibility — they already know the local state.
+  Future<void> submitWithBypass() async {
+    if (_submitInFlight ||
+        state.screenState == ReflectScreenState.loading) {
+      return;
+    }
+    _submitInFlight = true;
+    try {
+      final reservation =
+          await GatingService().reserveBypass(GatedFeature.reflect);
+      if (reservation == null) {
+        // Sheet caller stays open / re-renders with stale-state copy.
+        state = state.copyWith(error: 'Bypass unavailable. Try again.');
+        return;
+      }
+      _activeBypassReservationId = reservation.reservationId;
+      // The bypass path doesn't count against the warmup/daily counters via
+      // markUsed — the reserve RPC already incremented the daily-uses row
+      // server-side, and the warmup counter is unrelated (bypass is a
+      // post-warmup mechanic). Skip both markers.
+      _consumeFreeUsageOnSuccess = false;
+      _premiumAtSubmit = false;
+      await _doSubmit();
+    } finally {
+      _submitInFlight = false;
+    }
+  }
+
   Future<void> _doSubmit() async {
     try {
       state = state.copyWith(
@@ -404,6 +449,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
+      await _cancelActiveBypassIfAny();
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
@@ -493,6 +539,15 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   void reset() {
     _consumeFreeUsageOnSuccess = false;
     _premiumAtSubmit = null;
+    // If a reset lands while a bypass is mid-flight, fire-and-forget the
+    // cancel so the user's tokens don't sit reserved until the orphan cron
+    // rescues. We intentionally don't await — reset() is sync-shaped for
+    // UI callers.
+    final id = _activeBypassReservationId;
+    _activeBypassReservationId = null;
+    if (id != null) {
+      GatingService().cancelBypass(id, GatedFeature.reflect);
+    }
     state = ReflectState(savedReflections: state.savedReflections);
   }
 
@@ -511,6 +566,10 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       if (response.offTopic) {
         _consumeFreeUsageOnSuccess = false;
         _premiumAtSubmit = null;
+        // Off-topic is treated as "no value delivered" — cancel any active
+        // bypass so the user gets their tokens back. Mirrors the existing
+        // free-usage no-consume behaviour just above.
+        await _cancelActiveBypassIfAny();
         state = state.copyWith(
           screenState: ReflectScreenState.offtopic,
           result: response,
@@ -533,6 +592,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
                 state.copyWith(warmupJustExhausted: GatedFeature.reflect);
           }
         }
+        await _commitActiveBypassIfAny();
         // Track streak (XP for Reflect is intentionally zero — only Muhasabah,
         // quests, and streak milestones grant XP).
         await markActiveToday();
@@ -543,11 +603,33 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
+      await _cancelActiveBypassIfAny();
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
       );
     }
+  }
+
+  /// Fire-and-forget commit of an active bypass reservation. Failures here
+  /// are absorbed because the server-side orphan-cleanup cron will rescue a
+  /// missed-commit by cancelling the (still-pending) reservation after 15
+  /// min — at which point the user already received the AI value, so they
+  /// effectively got a free use. Acceptable failure mode.
+  Future<void> _commitActiveBypassIfAny() async {
+    final id = _activeBypassReservationId;
+    if (id == null) return;
+    _activeBypassReservationId = null;
+    await GatingService().commitBypass(id);
+  }
+
+  Future<void> _cancelActiveBypassIfAny() async {
+    final id = _activeBypassReservationId;
+    if (id == null) return;
+    _activeBypassReservationId = null;
+    // Best-effort: a cancel-RPC failure (offline, RLS race) just means the
+    // reservation stays pending until the orphan-cleanup cron picks it up.
+    await GatingService().cancelBypass(id, GatedFeature.reflect);
   }
 
   String _buildCombinedText(List<String> answers) {

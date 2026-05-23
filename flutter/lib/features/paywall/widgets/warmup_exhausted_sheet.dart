@@ -79,7 +79,14 @@ class WarmupExhaustedSheet extends StatelessWidget {
 }
 
 /// Shared scaffold so all three paywall sheets render with the same visual
-/// language (drag handle, icon, headline, body, primary + secondary CTAs).
+/// language (drag handle, icon, headline, body, primary + optional middle +
+/// secondary CTAs).
+///
+/// The middle CTA is the AI-bypass slot (plan 2026-05-23). When [middleLabel]
+/// is non-null it renders as a 48dp outlined button between the primary fill
+/// CTA and the tertiary text CTA. When [middleEnabled] is false the button
+/// renders dimmed and ignores taps, and [middleDisabledHint] (when supplied)
+/// appears as 12dp secondary-text underneath explaining why.
 class _PaywallSheetScaffold extends StatelessWidget {
   final IconData icon;
   final String headline;
@@ -88,6 +95,10 @@ class _PaywallSheetScaffold extends StatelessWidget {
   final String secondaryLabel;
   final VoidCallback onPrimary;
   final VoidCallback onSecondary;
+  final String? middleLabel;
+  final VoidCallback? onMiddle;
+  final bool middleEnabled;
+  final String? middleDisabledHint;
 
   const _PaywallSheetScaffold({
     required this.icon,
@@ -97,6 +108,10 @@ class _PaywallSheetScaffold extends StatelessWidget {
     required this.secondaryLabel,
     required this.onPrimary,
     required this.onSecondary,
+    this.middleLabel,
+    this.onMiddle,
+    this.middleEnabled = true,
+    this.middleDisabledHint,
   });
 
   @override
@@ -198,6 +213,56 @@ class _PaywallSheetScaffold extends StatelessWidget {
                   ),
                 ),
               ),
+              if (middleLabel != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                // Middle outlined CTA (AI-bypass slot). 48dp height vs.
+                // primary's 52dp — the visual hierarchy keeps "Unlock
+                // unlimited" as the unambiguous primary action.
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: middleEnabled ? onMiddle : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      disabledForegroundColor:
+                          AppColors.textTertiaryLight,
+                      side: BorderSide(
+                        color: middleEnabled
+                            ? AppColors.primary
+                            : AppColors.borderLight,
+                        width: 1,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.buttonRadius,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      middleLabel!,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: middleEnabled
+                            ? AppColors.primary
+                            : AppColors.textTertiaryLight,
+                      ),
+                    ),
+                  ),
+                ),
+                if (!middleEnabled && middleDisabledHint != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    middleDisabledHint!,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textTertiaryLight,
+                    ),
+                  ),
+                ],
+              ],
               const SizedBox(height: AppSpacing.sm),
               // Secondary text-only CTA
               TextButton(
@@ -241,6 +306,14 @@ class PaywallSheetScaffold extends StatelessWidget {
   final VoidCallback onPrimary;
   final VoidCallback onSecondary;
 
+  /// Optional outlined middle CTA. Used by DailyCapSheet to render the
+  /// AI-bypass "Use 25 tokens for one more" button. Omit for sheets that
+  /// only need primary + secondary (e.g. WarmupExhaustedSheet).
+  final String? middleLabel;
+  final VoidCallback? onMiddle;
+  final bool middleEnabled;
+  final String? middleDisabledHint;
+
   const PaywallSheetScaffold({
     super.key,
     required this.icon,
@@ -250,6 +323,10 @@ class PaywallSheetScaffold extends StatelessWidget {
     required this.secondaryLabel,
     required this.onPrimary,
     required this.onSecondary,
+    this.middleLabel,
+    this.onMiddle,
+    this.middleEnabled = true,
+    this.middleDisabledHint,
   });
 
   @override
@@ -262,6 +339,10 @@ class PaywallSheetScaffold extends StatelessWidget {
       secondaryLabel: secondaryLabel,
       onPrimary: onPrimary,
       onSecondary: onSecondary,
+      middleLabel: middleLabel,
+      onMiddle: onMiddle,
+      middleEnabled: middleEnabled,
+      middleDisabledHint: middleDisabledHint,
     );
   }
 }
