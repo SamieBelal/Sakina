@@ -1017,10 +1017,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ]),
         const SizedBox(height: AppSpacing.lg),
-        // Redeem a referral code — added 2026-05-23 (PR #18 hybrid pattern).
-        // Permanent entry point; complements the in-onboarding field. Both
-        // surfaces funnel through ReferralService → apply_referral RPC.
+        // Referral entry points. "Refer a friend" sits ABOVE the receiver
+        // action ("Redeem a referral code") so the referrer flow leads — the
+        // re-share loop is the higher-leverage retention surface. See
+        // docs/superpowers/plans/2026-05-23-my-referrals-screen.md.
         _buildSettingsCard([
+          _buildSettingsRow(
+            icon: Icons.send_rounded,
+            label: 'Refer a friend',
+            onTap: () => context.push('/my-referrals'),
+          ),
           _buildSettingsRow(
             icon: Icons.card_giftcard_rounded,
             label: 'Redeem a referral code',
