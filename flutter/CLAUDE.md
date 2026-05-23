@@ -243,6 +243,8 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 If you're adding a 4th path, REUSE one of these drains — do NOT add a parallel one. Source attribution is on the `refereeSignedUpWithReferral` / `refereeGranted7dWindow` analytics events. See `docs/superpowers/plans/2026-05-14-refer-unlock.md` and `docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md`.
 
+**Referrer-side progress surface (PR-19).** Settings → "Refer a friend" → `/my-referrals` (`lib/features/referrals/screens/my_referrals_screen.dart`) is the always-reachable post-onboarding surface for the referrer. Shows code (tap-to-copy), Share CTA, X/3 progress dots toward next reward, and a list of grants earned. Reads state via `ReferralService.getMyReferralsState(userId)` which fans out two parallel queries (`referrals` confirmed count + `referral_grants` rows). Share-text + iPad popover-origin logic is factored into `ReferralService.shareMyCode(...)` and reused by both this screen and `ReferUnlockScreen` — do not duplicate it.
+
 ## Onboarding Flow
 
 Canonical page order (updated 2026-05-14 by rating-gate insertion; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
