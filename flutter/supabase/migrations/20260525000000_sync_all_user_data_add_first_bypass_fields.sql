@@ -67,7 +67,7 @@ begin
           select jsonb_build_object(
             'current_streak', s.current_streak,
             'longest_streak', s.longest_streak,
-            'last_streak_date', s.last_streak_date
+            'last_active', s.last_active
           )
           from public.user_streaks s
           where s.user_id = current_user_id
@@ -75,7 +75,7 @@ begin
         jsonb_build_object(
           'current_streak', 0,
           'longest_streak', 0,
-          'last_streak_date', null
+          'last_active', null
         )
       ),
     'daily_rewards',
