@@ -114,8 +114,23 @@ class _ReferUnlockScreenState extends ConsumerState<ReferUnlockScreen> {
     final shareText =
         "I made a dua for you. Sakina helped me reflect on Allah's Names "
         '— open this to join me: sakina://r/$myCode';
-    final shareFn = widget.shareOverride ?? Share.share;
-    await shareFn(shareText);
+    final shareFn = widget.shareOverride;
+    if (shareFn != null) {
+      await shareFn(shareText);
+      return;
+    }
+    // iOS 13+ requires a non-zero sharePositionOrigin for Share.share —
+    // iPad uses it as the popover anchor, iPhone ignores the geometry but
+    // the call throws PlatformException("must be non-zero...") if the rect
+    // is {0,0,0,0}. Anchor to the screen's RenderBox so the iPad popover
+    // points at a sane location (top-left of the page) and iPhone passes
+    // the non-zero check.
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    await Share.share(shareText, sharePositionOrigin: origin);
   }
 
   void _onStartTrial() {
@@ -364,7 +379,10 @@ class _PathCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            // 54 (was 48) to give descenders breathing room — at 48 the
+            // "p" in "Start free trial" was visibly grazing the bottom
+            // edge on physical iPhone. Matches the paywall main CTA.
+            height: 54,
             child: primary
                 ? ElevatedButton(
                     onPressed: onTap,
