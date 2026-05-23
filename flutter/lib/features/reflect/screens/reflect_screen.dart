@@ -16,6 +16,7 @@ import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
@@ -100,6 +101,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           final bypassesUsed = await daily_usage
               .getReflectBypassesUsedToday();
           final premium = await PurchaseService().isPremium();
+          final firstBypassEligible =
+              await GatingService().firstBypassEligible();
+          final displayName = await GatingService().displayName();
           if (!sheetContext.mounted) return;
           DailyCapSheet.show(
             sheetContext,
@@ -108,6 +112,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
             bypassesUsedToday: bypassesUsed,
             isPremium: premium,
             onBypassRequested: (_) => notifier.submitWithBypass(),
+            firstBypassAvailable: firstBypassEligible,
+            userDisplayName: displayName,
+            onFirstBypassRequested: (_) => notifier.submitWithFirstBypass(),
             onUpgrade: buildPaywallUpgradeCallback(
               reason: next.gateResult!.reason,
               pushPaywall: () {

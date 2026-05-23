@@ -208,6 +208,9 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       final bypassesUsed =
           await daily_usage.getDiscoverNameBypassesUsedToday();
       final premium = await PurchaseService().isPremium();
+      final firstBypassEligible =
+          await GatingService().firstBypassEligible();
+      final displayName = await GatingService().displayName();
       if (!mounted) return;
       final notifier = ref.read(dailyLoopProvider.notifier);
       DailyCapSheet.show(
@@ -217,6 +220,9 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         bypassesUsedToday: bypassesUsed,
         isPremium: premium,
         onBypassRequested: (_) => notifier.discoverNameWithBypass(),
+        firstBypassAvailable: firstBypassEligible,
+        userDisplayName: displayName,
+        onFirstBypassRequested: (_) => notifier.discoverNameWithFirstBypass(),
         onUpgrade: buildPaywallUpgradeCallback(
           reason: reason,
           pushPaywall: () {

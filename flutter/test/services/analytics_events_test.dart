@@ -99,6 +99,34 @@ void main() {
     });
   });
 
+  group('Day-1 first-bypass event + reason constants (plan 2026-05-23, PR 4)',
+      () {
+    // Pins for the Day-1 freebie funnel:
+    //   daily_cap_hit → first_bypass_offered → first_bypass_claimed
+    // Mixpanel dashboards key off these exact strings. Renames must
+    // coordinate with analytics, not happen silently.
+    test('event names', () {
+      expect(AnalyticsEvents.firstBypassOffered, 'first_bypass_offered');
+      expect(AnalyticsEvents.firstBypassClaimed, 'first_bypass_claimed');
+      expect(AnalyticsEvents.firstBypassRejected, 'first_bypass_rejected');
+    });
+
+    test('rejection reason values match server RPC + client fallback', () {
+      // `already_consumed`, `window_expired`, `no_signup_at`,
+      // `invalid_feature` returned by claim_first_bypass RPC; `network`
+      // is the client-side fallback for transport failure.
+      expect(AnalyticsEvents.firstBypassRejectedReasonAlreadyConsumed,
+          'already_consumed');
+      expect(AnalyticsEvents.firstBypassRejectedReasonWindowExpired,
+          'window_expired');
+      expect(AnalyticsEvents.firstBypassRejectedReasonNoSignupAt,
+          'no_signup_at');
+      expect(AnalyticsEvents.firstBypassRejectedReasonInvalidFeature,
+          'invalid_feature');
+      expect(AnalyticsEvents.firstBypassRejectedReasonNetwork, 'network');
+    });
+  });
+
   group('AI bypass event + reason constants (plan 2026-05-23, PR 3)', () {
     // Pin the wire-protocol strings. The Mixpanel funnel
     //   daily_cap_hit → ai_bypass_offered → ai_bypass_purchased

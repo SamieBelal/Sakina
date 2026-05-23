@@ -428,6 +428,40 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     }
   }
 
+  /// Day-1 freebie variant (PR 4 of plan 2026-05-23, EXP-2). Calls
+  /// [GatingService.claimFirstBypass] — atomic on the server with no token
+  /// at stake. On success, runs the same AI submit flow as a normal
+  /// bypass; on rejection, surfaces an error and lets the sheet re-render.
+  ///
+  /// Different from [submitWithBypass]: no reservation tracking. The
+  /// freebie has no cancel/commit lifecycle — it's a one-shot atomic
+  /// counter bump. If the AI call later fails, the user has consumed
+  /// their Day-1 freebie and falls back to paid bypass on retry.
+  /// (Intentional — see plan §EXP-2 "product discovery, not unlimited
+  /// Day-1 access".)
+  Future<void> submitWithFirstBypass() async {
+    if (_submitInFlight ||
+        state.screenState == ReflectScreenState.loading) {
+      return;
+    }
+    _submitInFlight = true;
+    try {
+      final claimed =
+          await GatingService().claimFirstBypass(GatedFeature.reflect);
+      if (!claimed) {
+        state = state.copyWith(
+          error: 'Freebie unavailable. Try again.',
+        );
+        return;
+      }
+      _consumeFreeUsageOnSuccess = false;
+      _premiumAtSubmit = false;
+      await _doSubmit();
+    } finally {
+      _submitInFlight = false;
+    }
+  }
+
   Future<void> _doSubmit() async {
     try {
       state = state.copyWith(

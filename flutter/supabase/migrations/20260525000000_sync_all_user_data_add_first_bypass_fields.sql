@@ -1,0 +1,283 @@
+-- 2026-05-25: Extend sync_all_user_data() with first_bypass_consumed +
+-- display_name for the EXP-2 Day-1 freebie sheet (PR 4 of plan
+-- docs/superpowers/plans/2026-05-23-ai-bypass-token-spend.md).
+--
+-- DailyCapSheet STATE D (the "One more on us, {name}" Day-1 freebie variant)
+-- needs two fresh client-side fields to render correctly:
+--
+--   1. first_bypass_consumed (bool) — gates the offer entirely. Without
+--      this in the sync payload the client would have to either (a) round-
+--      trip to claim_first_bypass on every cap-hit just to learn it's
+--      already consumed (wasted RPC + extra latency on the worst UX moment),
+--      or (b) hold the offer state in app memory only (lost on every
+--      reinstall — exactly when the Day-1 path matters most).
+--
+--   2. display_name (text) — drives the "One more on us, {name}" headline
+--      with a fallback to "One more on us" when the user signed up with the
+--      default "Friend" placeholder. Surfacing it here keeps the UI render
+--      pure-client; no second fetch from the gating sheet.
+--
+-- Forward-only re-issue of sync_all_user_data() — body is byte-for-byte
+-- identical to 20260524000000_sync_all_user_data_add_bypass_counters.sql
+-- except the profile jsonb_build_object now also includes the two new
+-- fields. Mirrors the established forward-only pattern.
+
+create or replace function public.sync_all_user_data()
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  return jsonb_build_object(
+    'xp',
+      coalesce(
+        (
+          select jsonb_build_object(
+            'total_xp', x.total_xp
+          )
+          from public.user_xp x
+          where x.user_id = current_user_id
+        ),
+        jsonb_build_object('total_xp', 0)
+      ),
+    'tokens',
+      coalesce(
+        (
+          select jsonb_build_object(
+            'balance', t.balance,
+            'total_spent', t.total_spent,
+            'tier_up_scrolls', t.tier_up_scrolls
+          )
+          from public.user_tokens t
+          where t.user_id = current_user_id
+        ),
+        jsonb_build_object('balance', 0, 'total_spent', 0, 'tier_up_scrolls', 0)
+      ),
+    'streak',
+      coalesce(
+        (
+          select jsonb_build_object(
+            'current_streak', s.current_streak,
+            'longest_streak', s.longest_streak,
+            'last_streak_date', s.last_streak_date
+          )
+          from public.user_streaks s
+          where s.user_id = current_user_id
+        ),
+        jsonb_build_object(
+          'current_streak', 0,
+          'longest_streak', 0,
+          'last_streak_date', null
+        )
+      ),
+    'daily_rewards',
+      coalesce(
+        (
+          select jsonb_build_object(
+            'last_claim_date', dr.last_claim_date,
+            'next_day_to_claim', dr.next_day_to_claim,
+            'cycle_started_at', dr.cycle_started_at
+          )
+          from public.user_daily_rewards dr
+          where dr.user_id = current_user_id
+        ),
+        jsonb_build_object(
+          'last_claim_date', null,
+          'next_day_to_claim', 1,
+          'cycle_started_at', null
+        )
+      ),
+    'reflections',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'created_at', r.created_at,
+              'name', r.name,
+              'name_arabic', r.name_arabic,
+              'reframe', r.reframe,
+              'story', r.story,
+              'verses', r.verses,
+              'dua_arabic', r.dua_arabic,
+              'dua_transliteration', r.dua_transliteration,
+              'dua_translation', r.dua_translation,
+              'dua_source', r.dua_source,
+              'related_names', r.related_names,
+              'user_text', r.user_text,
+              'selected_emotions', r.selected_emotions,
+              'follow_up_answers', r.follow_up_answers,
+              'off_topic', r.off_topic
+            )
+            order by r.created_at desc
+          )
+          from public.user_reflections r
+          where r.user_id = current_user_id
+        ),
+        '[]'::jsonb
+      ),
+    'duas',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'created_at', d.created_at,
+              'category', d.category,
+              'arabic', d.arabic,
+              'transliteration', d.transliteration,
+              'translation', d.translation,
+              'source', d.source
+            )
+            order by d.created_at desc
+          )
+          from public.user_duas d
+          where d.user_id = current_user_id
+        ),
+        '[]'::jsonb
+      ),
+    'card_collection',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'name_id', cc.name_id,
+              'tier', cc.tier,
+              'discovered_at', cc.discovered_at,
+              'last_engaged_at', cc.last_engaged_at
+            )
+            order by cc.discovered_at asc
+          )
+          from public.user_card_collection cc
+          where cc.user_id = current_user_id
+        ),
+        '[]'::jsonb
+      ),
+    'profile',
+      coalesce(
+        (
+          select jsonb_build_object(
+            'selected_title', p.selected_title,
+            'is_auto_title', p.is_auto_title,
+            'created_at', p.created_at,
+            'warmup_reflect_remaining', p.warmup_reflect_remaining,
+            'warmup_built_dua_remaining', p.warmup_built_dua_remaining,
+            'warmup_discover_name_remaining', p.warmup_discover_name_remaining,
+            'had_trial', p.had_trial,
+            'first_bypass_consumed', p.first_bypass_consumed,
+            'display_name', p.display_name
+          )
+          from public.user_profiles p
+          where p.id = current_user_id
+        ),
+        jsonb_build_object(
+          'selected_title', null,
+          'is_auto_title', true,
+          'created_at', null,
+          'warmup_reflect_remaining', 10,
+          'warmup_built_dua_remaining', 10,
+          'warmup_discover_name_remaining', 5,
+          'had_trial', false,
+          'first_bypass_consumed', false,
+          'display_name', 'Friend'
+        )
+      ),
+    'achievements',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'achievement_id', a.achievement_id,
+              'unlocked_at', a.unlocked_at
+            )
+            order by a.unlocked_at desc
+          )
+          from public.user_achievements a
+          where a.user_id = current_user_id
+        ),
+        '[]'::jsonb
+      ),
+    'discovery_results',
+      (
+        select jsonb_build_object(
+          'anchor_names', d.anchor_names
+        )
+        from public.user_discovery_results d
+        where d.user_id = current_user_id
+      ),
+    'daily_usage',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'usage_date', u.usage_date,
+              'reflect_uses', u.reflect_uses,
+              'built_dua_uses', u.built_dua_uses,
+              'discover_name_uses', u.discover_name_uses,
+              'reflect_bypasses_used', u.reflect_bypasses_used,
+              'built_dua_bypasses_used', u.built_dua_bypasses_used,
+              'discover_name_bypasses_used', u.discover_name_bypasses_used
+            )
+            order by u.usage_date desc
+          )
+          from public.user_daily_usage u
+          where u.user_id = current_user_id
+            and u.usage_date between
+              timezone('utc', now())::date - 1 and
+              timezone('utc', now())::date + 1
+        ),
+        '[]'::jsonb
+      ),
+    'daily_answers',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'answered_at', da.answered_at,
+              'question_id', da.question_id,
+              'selected_option', da.selected_option,
+              'name_returned', da.name_returned,
+              'name_arabic', da.name_arabic,
+              'teaching', da.teaching,
+              'dua_arabic', da.dua_arabic,
+              'dua_transliteration', da.dua_transliteration,
+              'dua_translation', da.dua_translation
+            )
+            order by da.answered_at desc
+          )
+          from public.user_daily_answers da
+          where da.user_id = current_user_id
+            and da.answered_at::date between
+              timezone('utc', now())::date - 1 and
+              timezone('utc', now())::date
+        ),
+        '[]'::jsonb
+      ),
+    'quest_progress',
+      coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'quest_id', q.quest_id,
+              'cadence', q.cadence,
+              'progress', q.progress,
+              'completed', q.completed,
+              'period_start', q.period_start,
+              'updated_at', q.updated_at
+            )
+            order by q.updated_at desc
+          )
+          from public.user_quest_progress q
+          where q.user_id = current_user_id
+        ),
+        '[]'::jsonb
+      )
+  );
+end;
+$$;

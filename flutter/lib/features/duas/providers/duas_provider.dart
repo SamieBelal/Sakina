@@ -491,6 +491,29 @@ class DuasNotifier extends StateNotifier<DuasState> {
     }
   }
 
+  /// Day-1 freebie variant (PR 4 of plan 2026-05-23, EXP-2). See the
+  /// matching `ReflectNotifier.submitWithFirstBypass` for rationale on
+  /// why this is atomic (no commit/cancel flow needed — no tokens
+  /// at stake).
+  Future<void> submitBuildWithFirstBypass() async {
+    if (_submitInFlight || state.buildLoading) return;
+    if (state.buildNeed.trim().isEmpty) return;
+    _submitInFlight = true;
+    try {
+      final claimed =
+          await GatingService().claimFirstBypass(GatedFeature.builtDua);
+      if (!claimed) {
+        state = state.copyWith(
+          error: () => 'Freebie unavailable. Try again.',
+        );
+        return;
+      }
+      await _doBuild(consumeFreeUsage: false, isPremiumHint: false);
+    } finally {
+      _submitInFlight = false;
+    }
+  }
+
   /// Clears the build gate-blocked flag after the paywall sheet is dismissed.
   void dismissBuildGate() {
     state = state.copyWith(clearBuildGateResult: true);
