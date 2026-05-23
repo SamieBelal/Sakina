@@ -15,6 +15,9 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -87,16 +90,32 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       }
 
       if (next.gateResult != null && prev?.gateResult == null) {
-        DailyCapSheet.show(
-          context,
-          feature: GatedFeature.reflect,
-          onUpgrade: buildPaywallUpgradeCallback(
-            reason: next.gateResult!.reason,
-            pushPaywall: () {
-              if (mounted) GoRouter.of(context).push('/paywall');
-            },
-          ),
-        ).whenComplete(notifier.dismissGate);
+        // Snapshot bypass state at sheet-open time. Async — sheet renders
+        // after these complete, which is fine: dailyCap is a paywall, not a
+        // hot path. If a tap-then-quick-second-tap races the load, the
+        // worst case is a stale balance shown for ~50ms.
+        final sheetContext = context;
+        () async {
+          final balance = (await getTokens()).balance;
+          final bypassesUsed = await daily_usage
+              .getReflectBypassesUsedToday();
+          final premium = await PurchaseService().isPremium();
+          if (!sheetContext.mounted) return;
+          DailyCapSheet.show(
+            sheetContext,
+            feature: GatedFeature.reflect,
+            tokenBalance: balance,
+            bypassesUsedToday: bypassesUsed,
+            isPremium: premium,
+            onBypassRequested: (_) => notifier.submitWithBypass(),
+            onUpgrade: buildPaywallUpgradeCallback(
+              reason: next.gateResult!.reason,
+              pushPaywall: () {
+                if (mounted) GoRouter.of(context).push('/paywall');
+              },
+            ),
+          ).whenComplete(notifier.dismissGate);
+        }();
       }
       // One-shot warmup-exhaustion sheet — fires on the SUCCESSFUL reflect
       // that decremented warmup from 1 to 0, distinct from the recurring

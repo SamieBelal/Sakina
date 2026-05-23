@@ -10,6 +10,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/economy_events.dart';
+import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
@@ -476,6 +477,41 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
       debugPrint('[DISCOVER NAME ERROR] $e');
       state = state.copyWith(
           checkinLoading: false, error: 'Something went wrong. Try again.');
+    }
+  }
+
+  /// Discover-name path funded by an AI bypass (token spend). Reserves on
+  /// the server first; on success runs the same in-app card pick + engage
+  /// flow as [discoverName], then commits. On any failure cancels the
+  /// reservation so tokens are refunded.
+  ///
+  /// Discover-name has no observable AI-failure mode (it's a local card
+  /// lookup), so in practice the cancel path is only hit when the reserve
+  /// itself races a server-side state change. The retry surface is the
+  /// muhasabah CTA — see plan 2026-05-23 line 304.
+  ///
+  /// If a 4th gated feature is added, extract a BypassFlowMixin — three sites
+  /// is the YAGNI threshold (plan 2026-05-23 line 305).
+  Future<void> discoverNameWithBypass() async {
+    if (state.checkinLoading) return;
+    final reservation =
+        await GatingService().reserveBypass(GatedFeature.discoverName);
+    if (reservation == null) {
+      state = state.copyWith(error: 'Bypass unavailable. Try again.');
+      return;
+    }
+    await discoverName();
+    // discoverName() catches its own exceptions and surfaces them via
+    // state.error, so we inspect state to decide commit-vs-cancel rather
+    // than wrapping in try/catch. Local card lookup rarely fails — the
+    // only realistic failure is a Supabase upsert (engageCard) timing out.
+    if (state.error != null) {
+      await GatingService().cancelBypass(
+        reservation.reservationId,
+        GatedFeature.discoverName,
+      );
+    } else {
+      await GatingService().commitBypass(reservation.reservationId);
     }
   }
 
