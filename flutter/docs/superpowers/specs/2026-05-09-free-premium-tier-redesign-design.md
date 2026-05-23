@@ -80,7 +80,12 @@ Once any one budget is exhausted, that feature transitions to the **1/day hard c
 
 After warm-up exhaustion (or immediately for lapsed trialers), each AI feature is limited to **1 use per calendar day**, resetting at local midnight (matches existing `daily_usage_service.dart` date-keying pattern).
 
-These caps are **hard**: no token override, no "watch ad to unlock," no friend-invite bypass. The only way past the cap is `isPremium() == true`.
+These caps are **soft via paid bypass, hard via grind**. The only ways past the 1/day cap are:
+
+1. `isPremium() == true` (unlimited, subject to the 30/day fair-use ceiling), OR
+2. Spend tokens for a **bounded** bypass: max 2 bypasses per feature per day, 25 tokens each.
+
+> **Amended 2026-05-23** — the original 2026-05-09 invariant was "no token override, no watch-ad, no friend-invite bypass." The token-bypass exception is added because (a) the Store screen already promises "Use tokens for extra reflections and duas" but no spend path existed, (b) tokens are already buyable as IAP at $1.99-$6.99, surfacing a non-subscription revenue path for users who refuse subs, and (c) the daily ceiling of 2 bypasses caps both grind and OpenAI cost at 3/feature/day (well below premium's 30). The "no watch-ad, no friend-invite" invariants stand. See `docs/superpowers/plans/2026-05-23-ai-bypass-token-spend.md` for the bypass implementation. The grind-proofing math: earned token rate is ~100/wk; sustaining 2 bypasses/day across 3 features would cost 1,050 tokens/wk, requiring IAP.
 
 ### Premium fair-use ceiling
 
