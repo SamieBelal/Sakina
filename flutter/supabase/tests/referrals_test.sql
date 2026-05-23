@@ -170,6 +170,42 @@ begin
     '4.2 referee window unchanged on re-apply');
 
   -- =========================================================================
+  -- 4b. Reason-split on the duplicate-conflict path (closes A1; see
+  --     20260523000001_apply_referral_reason_split.sql). Same code returns
+  --     reason='idempotent_same_code'; a DIFFERENT code applied to an
+  --     already-referred referee returns reason='already_referred_other_code'
+  --     so the UI can distinguish a benign no-op from a silent lockout.
+  -- =========================================================================
+  res := public.apply_referral(code_r, aid);
+  perform pg_temp.expect(
+    (res->>'ok')::boolean = true
+      and (res->>'granted_referee_7d')::boolean = false
+      and (res->>'reason') = 'idempotent_same_code',
+    '4b.1 re-apply SAME code returns reason=idempotent_same_code');
+
+  -- Apply a DIFFERENT code (sid's) to aid, who is already referred by rid.
+  -- The unique(referee_id) constraint drops sid's code on the floor; the
+  -- new branch surfaces that explicitly.
+  res := public.apply_referral(code_s, aid);
+  perform pg_temp.expect(
+    (res->>'ok')::boolean = true
+      and (res->>'granted_referee_7d')::boolean = false
+      and (res->>'reason') = 'already_referred_other_code',
+    '4b.2 apply DIFFERENT code to already-referred referee returns '
+    'reason=already_referred_other_code (silent-clobber surfaced)');
+
+  -- Referee window must NOT change in either branch.
+  perform pg_temp.expect(
+    (select referral_premium_until from public.user_profiles where id = aid)
+      = pri_until_post,
+    '4b.3 referee window unchanged on duplicate-conflict re-apply (both branches)');
+
+  -- The original referrer (rid) is still the one of record.
+  perform pg_temp.expect(
+    (select referrer_id from public.referrals where referee_id = aid) = rid,
+    '4b.4 referrer of record stays as rid (sid is dropped)');
+
+  -- =========================================================================
   -- 5. chain-referral rejection.
   -- =========================================================================
   declare
