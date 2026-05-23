@@ -50,6 +50,23 @@ abstract final class AnalyticsEvents {
   static const settingsPremiumBillingIssueTapped =
       'settings_premium_billing_issue_tapped';
 
+  // AI bypass funnel (plan 2026-05-23, PR 3 of 5). Funnel:
+  //   daily_cap_hit → ai_bypass_offered → ai_bypass_purchased
+  // ai_bypass_rejected branches off the path between offered and purchased
+  // when the server RPC declines (insufficient tokens / cap reached / race).
+  static const aiBypassOffered = 'ai_bypass_offered';
+  static const aiBypassPurchased = 'ai_bypass_purchased';
+  static const aiBypassRejected = 'ai_bypass_rejected';
+
+  // Reason values for `ai_bypass_rejected.reason` — typed here so the
+  // gating-service RPC error mapping and the analytics test stay in
+  // lockstep. `no_tokens` and `bypass_cap` are returned by the server
+  // RPC `reserve_ai_bypass`; `network` is the client-side fallback when
+  // the RPC returns null (transport / connectivity failure).
+  static const aiBypassRejectedReasonNoTokens = 'no_tokens';
+  static const aiBypassRejectedReasonBypassCap = 'bypass_cap';
+  static const aiBypassRejectedReasonNetwork = 'network';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +

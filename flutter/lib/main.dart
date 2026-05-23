@@ -17,6 +17,8 @@ import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/auth_service.dart';
 import 'services/consumable_grants_service.dart';
+import 'services/gating_service.dart';
+import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
@@ -96,6 +98,15 @@ Future<void> main() async {
   analytics.track(AnalyticsEvents.appOpened, properties: {
     'is_first_open': !onboardingCompleted,
   });
+
+  // Wire AI-bypass funnel hooks (PR 3 of plan 2026-05-23). Service-layer
+  // and widget-layer code in those files has no Riverpod access; the static
+  // hook indirection lets them emit telemetry without taking on an
+  // analytics dependency. Tests leave both null.
+  GatingService.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
+  DailyCapSheet.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),

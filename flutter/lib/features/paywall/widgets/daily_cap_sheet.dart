@@ -50,6 +50,15 @@ class DailyCapSheet extends StatelessWidget {
     this.isPremium = false,
   });
 
+  /// Telemetry hook for `ai_bypass_offered` (PR 3 of plan 2026-05-23).
+  /// Set once at app startup in `main.dart` to bridge to `AnalyticsService`.
+  /// Fires inside [show] whenever the bypass middle slot will actually
+  /// render (`!isPremium && onBypassRequested != null && counters supplied`).
+  /// Matching `ai_bypass_purchased` / `ai_bypass_rejected` fire from the
+  /// `GatingService.reserveBypass` hook.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   static Future<void> show(
     BuildContext context, {
     required GatedFeature feature,
@@ -60,6 +69,17 @@ class DailyCapSheet extends StatelessWidget {
     int? bypassesUsedToday,
     bool isPremium = false,
   }) {
+    final willRenderBypassSlot = !isPremium &&
+        onBypassRequested != null &&
+        tokenBalance != null &&
+        bypassesUsedToday != null;
+    if (willRenderBypassSlot) {
+      onAnalyticsEvent?.call('ai_bypass_offered', {
+        'feature': _featureKey(feature),
+        'token_balance': tokenBalance,
+        'bypasses_used_today': bypassesUsedToday,
+      });
+    }
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -81,6 +101,22 @@ class DailyCapSheet extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Mirrors `GatingService._bypassFeatureKey` — kept duplicated rather than
+  /// exported because (a) the gating service version is private to that
+  /// file's RPC contract and (b) this is the analytics-side string, which
+  /// we want frozen against accidental renames in either layer. Tests pin
+  /// both values to the same 3 literals.
+  static String _featureKey(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'reflect';
+      case GatedFeature.builtDua:
+        return 'built_dua';
+      case GatedFeature.discoverName:
+        return 'discover_name';
+    }
   }
 
   String get _defaultHeadline {

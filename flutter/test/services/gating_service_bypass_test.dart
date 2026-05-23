@@ -42,6 +42,7 @@ void main() {
   tearDown(() {
     SupabaseSyncService.debugReset();
     PurchaseService.debugClearOverride();
+    GatingService.onAnalyticsEvent = null;
   });
 
   group('reserveBypass', () {
@@ -260,6 +261,103 @@ void main() {
 
     test('maxBypassesPerDayPerFeature is 2 (matches app_config seed)', () {
       expect(GatingService.maxBypassesPerDayPerFeature, 2);
+    });
+  });
+
+  group('Analytics hook (PR 3 of plan 2026-05-23)', () {
+    test('reserveBypass success fires ai_bypass_purchased with full props',
+        () async {
+      final events = <(String, Map<String, dynamic>)>[];
+      GatingService.onAnalyticsEvent = (e, p) => events.add((e, p));
+
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+            'ok': true,
+            'reservation_id': 'res-a',
+            'balance': 75,
+            'bypasses_used': 1,
+          };
+
+      await gating.reserveBypass(GatedFeature.reflect);
+
+      expect(events, hasLength(1));
+      expect(events.first.$1, 'ai_bypass_purchased');
+      expect(events.first.$2, {
+        'feature': 'reflect',
+        'token_balance_after': 75,
+        'bypasses_used_today': 1,
+      });
+    });
+
+    test('reserveBypass rejected (ok=false) fires ai_bypass_rejected with reason',
+        () async {
+      final events = <(String, Map<String, dynamic>)>[];
+      GatingService.onAnalyticsEvent = (e, p) => events.add((e, p));
+
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+            'ok': false,
+            'reason': 'bypass_cap',
+          };
+
+      await gating.reserveBypass(GatedFeature.builtDua);
+
+      expect(events, hasLength(1));
+      expect(events.first.$1, 'ai_bypass_rejected');
+      expect(events.first.$2, {
+        'feature': 'built_dua',
+        'reason': 'bypass_cap',
+      });
+    });
+
+    test('reserveBypass RPC null (network) fires ai_bypass_rejected/network',
+        () async {
+      final events = <(String, Map<String, dynamic>)>[];
+      GatingService.onAnalyticsEvent = (e, p) => events.add((e, p));
+      // No handler → callRpc returns null.
+
+      await gating.reserveBypass(GatedFeature.discoverName);
+
+      expect(events, hasLength(1));
+      expect(events.first.$1, 'ai_bypass_rejected');
+      expect(events.first.$2, {
+        'feature': 'discover_name',
+        'reason': 'network',
+      });
+    });
+
+    test('premium short-circuit does NOT fire any analytics event', () async {
+      // Critical invariant: premium users never see the bypass CTA in the
+      // first place, so an emitted event would be misleading dashboard
+      // noise — a "rejection" the user never experienced.
+      fakePurchase.premium = true;
+      final events = <(String, Map<String, dynamic>)>[];
+      GatingService.onAnalyticsEvent = (e, p) => events.add((e, p));
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+            'ok': true,
+            'reservation_id': 'r',
+            'balance': 0,
+            'bypasses_used': 0,
+          };
+
+      await gating.reserveBypass(GatedFeature.reflect);
+
+      expect(events, isEmpty,
+          reason: 'Premium short-circuit must not pollute the funnel');
+    });
+
+    test('null hook is safe — no NPE when analytics not wired (tests, early boot)',
+        () async {
+      // Default in tests + during app startup before main.dart runs the
+      // wiring line. Must be a no-op, not a crash.
+      GatingService.onAnalyticsEvent = null;
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+            'ok': true,
+            'reservation_id': 'r',
+            'balance': 50,
+            'bypasses_used': 1,
+          };
+
+      final result = await gating.reserveBypass(GatedFeature.reflect);
+      expect(result, isNotNull);
     });
   });
 
