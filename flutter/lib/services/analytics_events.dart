@@ -88,6 +88,20 @@ abstract final class AnalyticsEvents {
   static const firstBypassRejectedReasonInvalidFeature = 'invalid_feature';
   static const firstBypassRejectedReasonNetwork = 'network';
 
+  // IAP→sub upsell banner (PR 5 of plan 2026-05-23, EXP-3). Surfaced on home
+  // after a free user commits 6+ paid bypasses lifetime. Trigger string flows
+  // through `paywall_viewed.trigger` so the dashboard can attribute trial
+  // starts from the upsell path vs. other entry points (settings card,
+  // daily_cap sheet, onboarding).
+  static const iapToSubBannerShown = 'iap_to_sub_banner_shown';
+  static const iapToSubBannerTapped = 'iap_to_sub_banner_tapped';
+  static const iapToSubBannerDismissed = 'iap_to_sub_banner_dismissed';
+
+  // Paywall trigger string — passed as the `trigger` property on
+  // `paywall_viewed`. New entry point introduced by PR 5; coexists with
+  // the implicit "onboarding" trigger (no property set today).
+  static const paywallTriggerIapToSubUpsell = 'iap_to_sub_upsell';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +

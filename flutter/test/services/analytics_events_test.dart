@@ -150,6 +150,34 @@ void main() {
     });
   });
 
+  group('IAP→sub upsell banner constants (plan 2026-05-23, PR 5)', () {
+    // Pins the wire-protocol strings for the EXP-3 banner.
+    //   iap_to_sub_banner_shown   — fires once per home-visit-session when
+    //                               the banner first renders (handled by the
+    //                               provider's autoDispose lifecycle).
+    //   iap_to_sub_banner_tapped  — user tapped the banner body (routes to
+    //                               paywall + emits paywall_viewed too).
+    //   iap_to_sub_banner_dismissed — user tapped the close icon. Server
+    //                                  records dismissed_at; banner re-shows
+    //                                  after the 14-day suppression window.
+    test('event names', () {
+      expect(AnalyticsEvents.iapToSubBannerShown, 'iap_to_sub_banner_shown');
+      expect(AnalyticsEvents.iapToSubBannerTapped, 'iap_to_sub_banner_tapped');
+      expect(
+          AnalyticsEvents.iapToSubBannerDismissed,
+          'iap_to_sub_banner_dismissed');
+    });
+
+    test('paywall_viewed.trigger value', () {
+      // The banner-tap path fires paywall_viewed with trigger='iap_to_sub_upsell'
+      // so the funnel can attribute trial starts from this surface separately
+      // from the onboarding paywall (no trigger property) and the daily-cap
+      // sheet (trigger='daily_cap_with_bypass_option').
+      expect(
+          AnalyticsEvents.paywallTriggerIapToSubUpsell, 'iap_to_sub_upsell');
+    });
+  });
+
   group('signup_failed reason constants', () {
     // The sign-up password screen's session-race branch (previously a silent
     // SnackBar+return) now fires signup_failed with this exact reason — pin
