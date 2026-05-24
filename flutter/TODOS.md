@@ -15,33 +15,32 @@ Pre-launch code review findings, organized into four parallel workstreams.
 
 ## P1 — Deferred follow-ups from PR #26 (AI-bypass P0 hotfix bundle)
 
-### Wire CI for flutter test + SQL test suites
+<!-- ### ~~Wire CI for flutter test + SQL test suites~~ — DONE 2026-05-24 in PR #25 commit 78ac6d0
+  - Added `.github/workflows/test.yml` with `flutter-tests` job (always) +
+    `sql-tests` job (PR-only) that polls Supabase Preview Branch readiness,
+    fetches the DATABASE_URL, runs `flutter/scripts/run_sql_tests.sh`.
+  - Required GitHub secrets to wire up before this can pass green:
+    `SUPABASE_ACCESS_TOKEN` (PAT, branches:read scope), `SUPABASE_PROJECT_ID`.
+  - Required toggle: Supabase GitHub Preview Branches integration must be
+    enabled in the project dashboard so per-PR branch DBs auto-create.
+  - Self-seed audit: `freemium_guards_bypass_fields_test.sql` updated; other 6
+    SQL test files were already self-seeding via `pg_temp.test_insert_auth_user`. -->
 
-**What:** Add `.github/workflows/test.yml` that runs `flutter test` and a script to execute every `supabase/tests/*.sql` file against a branch DB on every PR.
-
-**Why:** The 2,500+ lines of new Dart tests and ~1,400 lines of SQL pgTAP-style tests added across the AI-bypass feature (PRs #20-24) and the P0 hotfix bundle (PR #26) are aspirational-only. The repo has zero `.github/workflows/`. Any regression in those areas ships silently until someone runs the tests locally.
-
-**Pros:** Existing test investment becomes load-bearing. PRs get a green check before merge. SQL guard regressions caught at PR time, not in production.
-
-**Cons:** Supabase branch DB cost (small). CI run time (~3 min flutter test). Requires `flutter` setup action + psql client + a way to seed at least one auth user for the SQL tests.
-
-**Context:** PR #26 plan — `docs/superpowers/plans/2026-05-23-ai-bypass-p0-bundle.md`. Eng review (`/plan-eng-review`) surfaced this as a P2 distribution gap; deferred from the P0 bundle to keep scope tight.
-
-**Depends on / blocked by:** none.
-
-### Hoist DailyLoopNotifier bypass reservation into a field so dispose can cancel it
-
-**What:** `DailyLoopNotifier.discoverNameWithBypass` currently holds the reservation id as a local variable inside the function body (awaiting `reserveBypass` → `discoverName()` → `commit`/`cancel` inline). Move it to a field like `_activeBypassReservationId` matching `ReflectNotifier` and `DuasNotifier`, then add the same `dispose()` override.
-
-**Why:** P0-4 fixed dispose-mid-flight reservation leaks for Reflect and Build-a-Dua. The discover-name flow has the same leak — if the user backgrounds the app during the AI call, 25 tokens are locked until the 15-min orphan cron rescues. Lower-impact than reflect (less frequent flow) but architecturally inconsistent.
-
-**Pros:** Closes the last dispose-leak gap. Restores symmetry across the three bypass notifiers.
-
-**Cons:** Requires a small refactor of `discoverNameWithBypass` to thread the field correctly across the await points. Need to verify no other code path concurrently overwrites the field. ~30 min including regression test.
-
-**Context:** PR #26 plan + the P0-4 commit message explicitly flags this as deferred. Test pattern is `test/features/reflect/reflect_dispose_cancel_test.dart` — copy and adapt.
-
-**Depends on / blocked by:** none.
+<!-- ### ~~Hoist DailyLoopNotifier bypass reservation into a field so dispose can cancel it~~ — DONE 2026-05-24 in PR #25 commits c6e14f7 + 5e42281 + 8bf7a5f
+  - Extracted `BypassFlowMixin` at `lib/services/bypass_flow_mixin.dart` (the
+    code's own 3-site YAGNI threshold from `reflect_provider.dart:323-324`
+    was crossed when DailyLoop became the 3rd consumer).
+  - ReflectNotifier + DuasNotifier refactored to consume the mixin
+    (-211/+52 lines net dedup, all existing dispose-cancel tests pass
+    unchanged → regression contract preserved).
+  - DailyLoopNotifier consumes the mixin, hoists the reservation through
+    `trackActiveBypassReservation()`, adds `!mounted` guards after both
+    awaits in `discoverNameWithBypass`, and extends the re-entry guard to
+    `discoverNameWithFirstBypass` (closes the Day-1 freebie rapid-tap leak
+    surfaced by /plan-eng-review).
+  - Coverage: 8 mixin unit tests + 7 DailyLoop regression tests added
+    (2 mandatory commit/cancel regressions, 3 dispose paths, 2 rapid-tap
+    pins). Final test count 914/914. -->
 
 ### Drop the 1-arg reserve_ai_bypass shim after IPA drain
 
