@@ -383,6 +383,7 @@ class GatingService {
     final reservationId = result['reservation_id'] as String?;
     final balance = (result['balance'] as num?)?.toInt();
     final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
+    final replayed = result['replayed'] == true;
     if (reservationId == null || balance == null || bypassesUsed == null) {
       onAnalyticsEvent?.call('ai_bypass_rejected', {
         'feature': featureKey,
@@ -393,8 +394,20 @@ class GatingService {
 
     // Mirror server state into local caches so the next DailyCapSheet build
     // sees the debited balance + incremented counter without a round-trip.
+    // Always hydrate the token cache — server's reported balance is the
+    // source of truth.
     await tokens.hydrateTokenCache(balance: balance);
-    await _incrementBypassCache(feature);
+
+    // P2-1 (2026-05-25): only increment the local bypass counter on a TRUE
+    // reservation, not a replay. On a replay the original call already
+    // incremented the counter; double-incrementing would over-count the
+    // local cache. Defense-in-depth against future key-reuse code paths —
+    // today's fresh-UUID-per-call flow doesn't trip this branch, but a
+    // future caller that retries with the same idempotency key would.
+    // See docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md (P2-1).
+    if (!replayed) {
+      await _incrementBypassCache(feature);
+    }
 
     onAnalyticsEvent?.call('ai_bypass_purchased', {
       'feature': featureKey,

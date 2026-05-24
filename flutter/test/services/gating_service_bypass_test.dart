@@ -177,6 +177,43 @@ void main() {
       expect(keys.length, 2);
       expect(keys[0], isNot(equals(keys[1])));
     });
+
+    test(
+        'P2-1: reserveBypass skips bypass-cache increment when server returns replayed:true',
+        () async {
+      // Simulate a replay path: a prior reservation already incremented
+      // both the server counter AND the local cache (during its honest
+      // first run). The replay returns the SAME reservation_id + the
+      // server-side counter value, but the local cache must NOT be
+      // double-incremented. See docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md
+      // (P2-1).
+      //
+      // Seed the local bypass cache to 1 to mirror the state that exists
+      // after the original (non-replayed) reservation succeeded.
+      await daily.incrementReflectBypassUsage();
+      expect(await daily.getReflectBypassesUsedToday(), 1);
+
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
+            'ok': true,
+            'replayed': true,
+            'reservation_id': 'res-replayed-abc',
+            'balance': 75,
+            'bypasses_used': 1,
+          };
+
+      final result = await gating.reserveBypass(GatedFeature.reflect);
+
+      expect(result, isNotNull);
+      expect(result!.reservationId, 'res-replayed-abc');
+      // Token cache STILL gets hydrated from the server-reported balance.
+      expect((await getTokens()).balance, 75);
+      // But the local bypass counter must remain at 1, NOT 2 — the
+      // original reservation already counted, and the replay must not
+      // double-count.
+      expect(await daily.getReflectBypassesUsedToday(), 1,
+          reason:
+              'Replayed reservation must not double-increment local bypass cache');
+    });
   });
 
   group('commitBypass', () {
