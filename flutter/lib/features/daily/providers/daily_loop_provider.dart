@@ -572,6 +572,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         return;
       }
       await _runDiscoverName();
+      // After AI work: bail out if disposed mid-flight. `_runDiscoverName`
+      // itself writes state.error on failure paths; we don't want to layer
+      // additional writes on a torn-down notifier. The unconditional
+      // `clearBypassInFlight()` in the finally below is safe post-dispose
+      // (instance-field write, doesn't throw).
+      if (!mounted) return;
     } finally {
       clearBypassInFlight();
     }

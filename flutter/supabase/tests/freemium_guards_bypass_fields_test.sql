@@ -118,15 +118,18 @@ do $$ declare v boolean := false; begin
   perform pg_temp.expect(v, 'decrement lifetime_bypasses_purchased is blocked');
 end $$;
 
--- TEST 6: monotonic increment still allowed (honest happy path)
+-- TEST 6: monotonic increment still allowed (honest happy path).
+-- Step the value from 2 → 3 (a REAL increment, not NEW=OLD) so this test
+-- would catch a regression where the guard was accidentally tightened to
+-- `NEW <= OLD → raise` instead of `NEW < OLD → raise`.
 do $$ declare v boolean := false; begin
   begin
-    update public.user_daily_usage set reflect_bypasses_used=2
+    update public.user_daily_usage set reflect_bypasses_used=3
       where user_id=current_setting('test.uid')::uuid
         and usage_date=(timezone('utc',now()))::date;
     v := true;
   exception when others then v := false; end;
-  perform pg_temp.expect(v, 'incrementing reflect_bypasses_used to same value still works');
+  perform pg_temp.expect(v, 'incrementing reflect_bypasses_used monotonically still works');
 end $$;
 
 -- TEST 7: incrementing lifetime is still allowed

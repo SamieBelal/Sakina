@@ -44,8 +44,9 @@ jobs:
           PR_BRANCH:             ${{ github.head_ref }}
         run: |
           set -euo pipefail
-          # Poll until the preview branch for this PR shows ACTIVE.
-          # Per Supabase docs the branch is keyed by git branch name.
+          # Phase 1: poll until the preview branch is in an ACTIVE state.
+          # Supabase docs: branch is keyed by git branch name; integration
+          # auto-creates it on every PR push.
           for i in {1..30}; do
             BRANCH_JSON=$(supabase branches list \
               --project-ref "$SUPABASE_PROJECT_ID" \
@@ -54,22 +55,69 @@ jobs:
                   '.[] | select(.name == $b)')
             STATUS=$(printf '%s' "$BRANCH_JSON" | jq -r '.status // empty')
             if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "ACTIVE" ]; then
-              echo "Branch ready (status=$STATUS)"
+              echo "Branch reached $STATUS"
               break
             fi
             echo "Branch not ready yet (status=${STATUS:-pending}), retry $i/30..."
             sleep 10
           done
-          # Fetch the branch DB connection string.
-          DB_URL=$(supabase branches get "$PR_BRANCH" \
+
+          # Phase 2: construct DATABASE_URL from individual fields. The
+          # `supabase branches get` JSON exposes db_host/db_port/db_user/
+          # db_pass — there's no single canonical URL field that's stable
+          # across CLI versions, so we assemble it explicitly. Fail fast if
+          # any required field is missing rather than masking schema drift.
+          GET_JSON=$(supabase branches get "$PR_BRANCH" \
             --project-ref "$SUPABASE_PROJECT_ID" \
-            --output json | jq -r '.db.postgres_url // .postgres_version // empty')
-          if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ]; then
-            echo "Failed to resolve DATABASE_URL for branch $PR_BRANCH" >&2
+            --output json)
+          DB_HOST=$(printf '%s' "$GET_JSON" | jq -r '.db_host // .database.host // empty')
+          DB_PORT=$(printf '%s' "$GET_JSON" | jq -r '.db_port // .database.port // 5432')
+          DB_USER=$(printf '%s' "$GET_JSON" | jq -r '.db_user // .database.user // "postgres"')
+          DB_PASS=$(printf '%s' "$GET_JSON" | jq -r '.db_pass // .database.password // empty')
+          DB_NAME=$(printf '%s' "$GET_JSON" | jq -r '.db_name // .database.name // "postgres"')
+          if [ -z "$DB_HOST" ] || [ "$DB_HOST" = "null" ] || [ -z "$DB_PASS" ] || [ "$DB_PASS" = "null" ]; then
+            echo "::error::Could not resolve DATABASE_URL fields for branch $PR_BRANCH" >&2
+            echo "Branch JSON keys: $(printf '%s' "$GET_JSON" | jq -r 'keys | join(",")')" >&2
             exit 1
           fi
-          # Mask the URL in CI logs and export to subsequent steps.
+          # URL-encode the password (it may contain special chars like @)
+          DB_PASS_ENC=$(printf '%s' "$DB_PASS" | jq -sRr @uri)
+          DB_URL="postgresql://${DB_USER}:${DB_PASS_ENC}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
+
+          # Mask both the password and the assembled URL so they don't leak
+          # if a subsequent step echoes them.
+          echo "::add-mask::$DB_PASS"
           echo "::add-mask::$DB_URL"
+
+          # Phase 3: ACTIVE_HEALTHY means the DB is provisioned, but the
+          # Supabase GitHub integration applies migrations asynchronously.
+          # Poll the supabase_migrations.schema_migrations table until the
+          # newest migration shipped on this branch is present. Without
+          # this wait, fresh-push CI runs race the migration apply and
+          # tests run against a stale schema.
+          NEWEST_MIGRATION=$(ls -1 flutter/supabase/migrations/*.sql 2>/dev/null \
+            | sed 's|.*/||;s|\.sql$||;s|^[0-9]*_||' \
+            | tail -1)
+          if [ -n "$NEWEST_MIGRATION" ]; then
+            echo "Waiting for migration '$NEWEST_MIGRATION' to apply..."
+            for i in {1..30}; do
+              APPLIED=$(PGPASSWORD="$DB_PASS" psql \
+                "host=$DB_HOST port=$DB_PORT user=$DB_USER dbname=$DB_NAME sslmode=require" \
+                -tAc "select 1 from supabase_migrations.schema_migrations where name = '$NEWEST_MIGRATION';" \
+                2>/dev/null || echo "")
+              if [ "$APPLIED" = "1" ]; then
+                echo "Migration applied."
+                break
+              fi
+              echo "Migration not yet applied (retry $i/30)..."
+              sleep 10
+            done
+            if [ "$APPLIED" != "1" ]; then
+              echo "::error::Migration '$NEWEST_MIGRATION' never applied to branch $PR_BRANCH" >&2
+              exit 1
+            fi
+          fi
+
           echo "database_url=$DB_URL" >> "$GITHUB_OUTPUT"
 
       - name: Run SQL tests
