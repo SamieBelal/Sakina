@@ -94,6 +94,11 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
     widget.onNext();
   }
 
+  void _onSkip() {
+    ref.read(analyticsProvider).track(AnalyticsEvents.ratingGateSkipped);
+    widget.onNext();
+  }
+
   /// Personalized headline using the name the user entered on page 1 of
   /// onboarding (`signUpName`). Falls back to "Friend" so the screen never
   /// breaks for users who somehow reach the gate without a name set.
@@ -158,24 +163,42 @@ class _RatingGateScreenState extends ConsumerState<RatingGateScreen> {
                 textAlign: TextAlign.center,
               ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
               const Spacer(flex: 2),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _rated ? _onContinue : _onPrimary,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.buttonRadius),
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _rated ? _onContinue : _onPrimary,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.buttonRadius),
+                        ),
+                      ),
+                      child: Text(
+                        _rated ? 'I rated' : 'Send a sign',
+                        style: AppTypography.labelLarge,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    _rated ? 'I rated' : 'Send a sign',
-                    style: AppTypography.labelLarge,
-                  ),
-                ),
+                  ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+                  const SizedBox(height: AppSpacing.sm),
+                  // "Maybe later" tertiary skip — added 2026-05-24 (P1-4 fix)
+                  // so users are not forced into the OS rating prompt to
+                  // advance onboarding. Tappable from t=0, no gating.
+                  TextButton(
+                    onPressed: _onSkip,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondaryLight,
+                    ),
+                    child: Text(
+                      'Maybe later',
+                      style: AppTypography.labelLarge,
+                    ),
+                  ).animate().fadeIn(delay: 250.ms, duration: 400.ms),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
             ],

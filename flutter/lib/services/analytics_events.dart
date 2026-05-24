@@ -24,6 +24,7 @@ abstract final class AnalyticsEvents {
   static const ratingGateShown = 'rating_gate_shown';
   static const ratingGatePromptTriggered = 'rating_gate_prompt_triggered';
   static const ratingGateContinueTapped = 'rating_gate_continue_tapped';
+  static const ratingGateSkipped = 'rating_gate_skipped';
 
   static const paywallViewed = 'paywall_viewed';
   static const paywallPlanSelected = 'paywall_plan_selected';

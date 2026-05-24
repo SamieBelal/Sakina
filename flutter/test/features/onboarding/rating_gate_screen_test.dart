@@ -129,4 +129,88 @@ void main() {
     expect(find.text('I rated'), findsOneWidget);
     expect(find.text('Send a sign'), findsNothing);
   });
+
+  // ----------------------------------------------------------------
+  // P1-4 fix (2026-05-24): "Maybe later" tertiary skip button.
+  // The rating gate must offer a no-rating path forward so users
+  // are not forced into invoking the OS rating prompt to advance
+  // onboarding (Apple guideline 4.5.4 + dark-pattern hygiene).
+  // ----------------------------------------------------------------
+
+  testWidgets(
+      'Maybe later button renders alongside Send a sign on initial state',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          analyticsProvider.overrideWithValue(_TrackingSpy()),
+        ],
+        child: MaterialApp(
+          home: RatingGateScreen(
+            onNext: () {},
+            onBack: () {},
+            requestReviewOverride: () async => true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Send a sign'), findsOneWidget);
+    expect(find.text('Maybe later'), findsOneWidget);
+  });
+
+  testWidgets('Tapping Maybe later fires ratingGateSkipped analytics',
+      (tester) async {
+    final spy = _TrackingSpy();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          analyticsProvider.overrideWithValue(spy),
+        ],
+        child: MaterialApp(
+          home: RatingGateScreen(
+            onNext: () {},
+            onBack: () {},
+            requestReviewOverride: () async => true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Maybe later'));
+    await tester.pumpAndSettle();
+
+    final skipEvents = spy.tracked
+        .where((e) => e.$1 == AnalyticsEvents.ratingGateSkipped)
+        .toList();
+    expect(skipEvents.length, 1);
+  });
+
+  testWidgets('Tapping Maybe later calls onNext()', (tester) async {
+    var nextCount = 0;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          analyticsProvider.overrideWithValue(_TrackingSpy()),
+        ],
+        child: MaterialApp(
+          home: RatingGateScreen(
+            onNext: () => nextCount++,
+            onBack: () {},
+            requestReviewOverride: () async => true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(nextCount, 0);
+    await tester.tap(find.text('Maybe later'));
+    await tester.pumpAndSettle();
+    expect(nextCount, 1);
+  });
 }
