@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
+import 'package:sakina/features/onboarding/screens/encouragement_screen.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/sign_up_email_screen.dart';
+import 'package:sakina/features/onboarding/screens/sign_up_password_screen.dart';
 import 'package:sakina/features/onboarding/widgets/onboarding_autofocus_text_field.dart';
 
 import 'screens/_test_utils.dart';
@@ -98,4 +100,85 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     },
   );
+
+  // Structural pin: the 3 sign-up indices must map to their expected
+  // screens. If a future PageView reshuffle silently moves SignUpEmailScreen
+  // (or password / encouragement) to a different index, this test fails
+  // loudly and the diff points the fix at the right place — instead of
+  // autofocus quietly stopping work in the wild. The positive autofocus
+  // test above implicitly relies on this too, but pinning it explicitly
+  // makes the structural invariant obvious to anyone reordering pages.
+  group('Sign-up PageView index structural pin', () {
+    Future<void> pumpOnboardingAtPage(WidgetTester tester, int page) async {
+      useOnboardingViewport(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cachedOnboardingStateProvider.overrideWithValue(
+              OnboardingState(currentPage: page),
+            ),
+          ],
+          child: const MaterialApp(home: OnboardingScreen()),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets(
+      'PageView index 19 (onboardingEmailPageIndex) is SignUpEmailScreen',
+      (tester) async {
+        await pumpOnboardingAtPage(tester, onboardingEmailPageIndex);
+        expect(
+          find.byType(SignUpEmailScreen),
+          findsOneWidget,
+          reason:
+              'PageView index 19 must build SignUpEmailScreen. If this fails '
+              'after a reorder, update onboardingEmailPageIndex in '
+              'onboarding_provider.dart to the new PageView index AND audit '
+              'the autofocus gate in sign_up_email_screen.dart for the same '
+              'shift.',
+        );
+        // Let pending timers (entrance animations) settle so the test
+        // teardown doesn't flag "Timer still pending."
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets(
+      'PageView index 20 (onboardingPasswordPageIndex) is SignUpPasswordScreen',
+      (tester) async {
+        await pumpOnboardingAtPage(tester, onboardingPasswordPageIndex);
+        expect(
+          find.byType(SignUpPasswordScreen),
+          findsOneWidget,
+          reason:
+              'PageView index 20 must build SignUpPasswordScreen. Update '
+              'onboardingPasswordPageIndex if this reshuffled.',
+        );
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    testWidgets(
+      'PageView index 21 (onboardingEncouragementPageIndex) is '
+      'EncouragementScreen',
+      (tester) async {
+        await pumpOnboardingAtPage(tester, onboardingEncouragementPageIndex);
+        expect(
+          find.byType(EncouragementScreen),
+          findsOneWidget,
+          reason:
+              'PageView index 21 must build EncouragementScreen. Update '
+              'onboardingEncouragementPageIndex if this reshuffled.',
+        );
+        await tester.pump(const Duration(seconds: 2));
+      },
+    );
+
+    test('constant values match expected PageView indices', () {
+      expect(onboardingEmailPageIndex, 19);
+      expect(onboardingPasswordPageIndex, 20);
+      expect(onboardingEncouragementPageIndex, 21);
+    });
+  });
 }
