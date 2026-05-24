@@ -56,14 +56,21 @@ void main() {
       useOnboardingViewport(tester);
 
       // Render the email screen in isolation while the provider says we are
-      // on a different page. PageView in OnboardingScreen is lazy and may not
-      // build the email subtree from an arbitrary starting index, so we mount
-      // the screen directly to exercise its own gating logic.
+      // on page 21 — the exact value the ORIGINAL bug used. Reverting the
+      // fix to `currentPage == 21` would re-trigger autofocus here and
+      // this assertion would flip from isFalse to isTrue, failing the test.
+      // (Pre-fix code: `state.currentPage == 21` while screen actually sits
+      // at PageView index 19. Page 21 was EncouragementScreen, so autofocus
+      // never fired in practice — but as a regression pin, page 21 is the
+      // most aggressive value to test against.)
+      // PageView in OnboardingScreen is lazy and may not build the email
+      // subtree from an arbitrary starting index, so we mount the screen
+      // directly to exercise its own gating logic in isolation.
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: 18),
+              const OnboardingState(currentPage: 21),
             ),
           ],
           child: MaterialApp(

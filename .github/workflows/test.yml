@@ -68,8 +68,11 @@ jobs:
       - name: Verify migrations applied
         run: |
           set -euo pipefail
+          # LC_ALL=C locks lexicographic sort order so it doesn't drift
+          # under different runner locales (closes finding from /review).
           NEWEST_MIGRATION=$(ls -1 supabase/migrations/*.sql 2>/dev/null \
             | sed 's|.*/||;s|\.sql$||' \
+            | LC_ALL=C sort \
             | tail -1)
           if [ -n "$NEWEST_MIGRATION" ]; then
             echo "Verifying migration '$NEWEST_MIGRATION' is applied..."

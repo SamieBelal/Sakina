@@ -324,6 +324,14 @@ begin
 end;
 $shim$;
 
+-- Lock down the shim immediately after CREATE: by default Postgres
+-- grants EXECUTE to PUBLIC on a newly-defined SECURITY DEFINER function.
+-- Even though the outer BEGIN/ROLLBACK confines the function's lifetime
+-- to this transaction, a concurrent PostgREST session in that window
+-- could in principle call it. Belt + braces.
+revoke all on function public.reserve_ai_bypass_test8_shim(text, text)
+  from public, anon, authenticated;
+
 -- Step 3: call the shim with the pre-existing key. Must hit
 -- unique_violation and return the pre-existing reservation_id via the
 -- replay helper.
