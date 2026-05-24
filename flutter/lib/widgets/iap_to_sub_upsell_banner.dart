@@ -325,13 +325,24 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
   }
 
   Future<void> _onDismissTap() async {
+    // P2-4: Fire dismiss analytics AFTER the server confirms (2026-05-25, per
+    // docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md). The previous
+    // implementation fired iapToSubBannerDismissed unconditionally before
+    // the await, biasing the dismiss funnel when the RPC failed (network /
+    // auth / server). Now: await the RPC first, fire the success event on
+    // ok==true, fire the paired iapToSubBannerDismissFailed on ok==false so
+    // the funnel can model retry behavior without silent skew.
     final analytics = ref.read(analyticsProvider);
-    analytics.track(AnalyticsEvents.iapToSubBannerDismissed);
     final ok = await GatingService().dismissIapToSubBanner();
-    if (ok && mounted) {
-      // Invalidate so the banner re-evaluates and hides itself immediately
-      // (the local cache was updated by `dismissIapToSubBanner`).
-      ref.invalidate(iapToSubBannerStateProvider);
+    if (ok) {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissed);
+      if (mounted) {
+        // Invalidate so the banner re-evaluates and hides itself immediately
+        // (the local cache was updated by `dismissIapToSubBanner`).
+        ref.invalidate(iapToSubBannerStateProvider);
+      }
+    } else {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissFailed);
     }
   }
 }

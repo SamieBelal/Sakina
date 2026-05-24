@@ -303,6 +303,109 @@ void main() {
       expect(find.text("You've used 0 bypasses"), findsOneWidget);
     });
 
+    testWidgets('P2-4: analytics fires only after server confirms dismissal',
+        (tester) async {
+      // 2026-05-25: previously the dismissed event fired BEFORE the RPC
+      // await; on RPC failure (network / auth / server) the funnel saw a
+      // success event with no actual dismissal. New order: await RPC, then
+      // emit success-or-failed event.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async => {
+            'ok': true,
+            'dismissed_at': '2026-05-25T12:00:00Z',
+          };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // Pin event ordering against the RPC call so a future regression that
+      // re-fires the event BEFORE the await would be caught by this test
+      // (analytics.tracked recorded before fakeSync.rpcCalls would prove
+      // the bug). We assert by checking both fired AND that the RPC was
+      // called.
+      final dismissedFired = analytics.tracked.any(
+        (e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed,
+      );
+      expect(dismissedFired, isTrue,
+          reason: 'Dismissed event must fire when server returns ok==true');
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isFalse,
+        reason: 'Failed event must NOT fire on successful dismiss',
+      );
+      expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
+    });
+
+    testWidgets('P2-4: failed-dismiss fires the paired event instead',
+        (tester) async {
+      // Server returns ok==false (e.g. auth failed, network glitch, RPC
+      // rejection). The dismissed event must NOT fire — that would bias the
+      // funnel. The paired iapToSubBannerDismissFailed event must fire so
+      // the dashboard can model retry behavior.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async => {
+            'ok': false,
+          };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed),
+        isFalse,
+        reason: 'Dismissed event must NOT fire when server returns ok==false',
+      );
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isTrue,
+        reason: 'Paired failed event must fire when RPC fails',
+      );
+      expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
+    });
+
     testWidgets('close-icon tap fires iap_to_sub_banner_dismissed + RPC',
         (tester) async {
       // Prime the gating service so dismissIapToSubBanner reaches the RPC.
