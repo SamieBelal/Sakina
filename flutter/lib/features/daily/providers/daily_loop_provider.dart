@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -214,8 +215,13 @@ class DailyLoopState {
 @visibleForTesting
 DateTime Function() debugDailyLoopClock = () => DateTime.now().toUtc();
 
-class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
-  DailyLoopNotifier() : super(const DailyLoopState()) {
+class DailyLoopNotifier extends StateNotifier<DailyLoopState>
+    with BypassFlowMixin<DailyLoopState> {
+  DailyLoopNotifier({
+    @visibleForTesting Future<void> Function(DailyLoopNotifier self)?
+        discoverNameOverride,
+  })  : _discoverNameOverride = discoverNameOverride,
+        super(const DailyLoopState()) {
     // Subscribe BEFORE _initialize so consumable grants that fire while
     // initial hydration is in flight (e.g., the customerInfo listener in
     // main.dart firing on app boot with a pending receipt) update the
@@ -251,8 +257,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   String? _deeperReflectKey;
   int _deeperReflectGeneration = 0;
 
+  /// Test-only seam for [discoverName]. When non-null, the bypass wrappers
+  /// ([discoverNameWithBypass], [discoverNameWithFirstBypass]) invoke this
+  /// instead of the real `discoverName()` work, letting tests inject a
+  /// Completer-backed stub that succeeds, fails, or hangs deterministically
+  /// without driving the full Supabase + card-service surface. Production
+  /// callers leave it null and get the real implementation.
+  final Future<void> Function(DailyLoopNotifier self)? _discoverNameOverride;
+
+  /// The gated feature this notifier owns. Consumed by [BypassFlowMixin] as
+  /// the cancel-RPC argument.
+  @override
+  GatedFeature get bypassFeature => GatedFeature.discoverName;
+
   @override
   void dispose() {
+    // P0-4 + P1-B: cancel any active or in-flight bypass reservation so the
+    // user's tokens are refunded immediately instead of waiting up to 15 min
+    // for the server-side orphan cron. MUST run before super.dispose() so
+    // the mixin's private state is still readable.
+    disposeBypassFlow();
     _deeperReflectGeneration++;
     _grantsSub?.cancel();
     super.dispose();
@@ -490,28 +514,39 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   /// itself races a server-side state change. The retry surface is the
   /// muhasabah CTA — see plan 2026-05-23 line 304.
   ///
-  /// If a 4th gated feature is added, extract a BypassFlowMixin — three sites
-  /// is the YAGNI threshold (plan 2026-05-23 line 305).
+  /// Runs the real [discoverName] body, or the test-only override when one
+  /// has been injected via the constructor seam. Centralized so both bypass
+  /// wrappers share the same indirection point.
+  Future<void> _runDiscoverName() {
+    final override = _discoverNameOverride;
+    if (override != null) return override(this);
+    return discoverName();
+  }
+
   Future<void> discoverNameWithBypass() async {
-    if (state.checkinLoading) return;
-    final reservation =
-        await GatingService().reserveBypass(GatedFeature.discoverName);
-    if (reservation == null) {
-      state = state.copyWith(error: 'Bypass unavailable. Try again.');
-      return;
-    }
-    await discoverName();
-    // discoverName() catches its own exceptions and surfaces them via
-    // state.error, so we inspect state to decide commit-vs-cancel rather
-    // than wrapping in try/catch. Local card lookup rarely fails — the
-    // only realistic failure is a Supabase upsert (engageCard) timing out.
-    if (state.error != null) {
-      await GatingService().cancelBypass(
-        reservation.reservationId,
-        GatedFeature.discoverName,
-      );
-    } else {
-      await GatingService().commitBypass(reservation.reservationId);
+    if (state.checkinLoading || bypassInFlight) return;
+    try {
+      final reservation = await reserveActiveBypass();
+      if (!mounted) return; // dispose chain owns cleanup
+      if (reservation == null) {
+        state = state.copyWith(error: 'Bypass unavailable. Try again.');
+        return;
+      }
+      trackActiveBypassReservation(reservation.reservationId);
+      await _runDiscoverName();
+      if (!mounted) return; // dispose chain owns commit/cancel
+      // discoverName() catches its own exceptions and surfaces them via
+      // state.error, so we inspect state to decide commit-vs-cancel rather
+      // than wrapping in try/catch. Local card lookup rarely fails — the
+      // only realistic failure is a Supabase upsert (engageCard) timing out.
+      if (state.error != null) {
+        await cancelActiveBypassIfAny();
+      } else {
+        await commitActiveBypassIfAny();
+      }
+    } finally {
+      // Unconditional: instance-field writes don't throw on disposed notifiers.
+      clearBypassInFlight();
     }
   }
 
@@ -521,14 +556,25 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   /// user has consumed their global Day-1 freebie and falls back to
   /// paid bypass on retry. Intentional — see plan §EXP-2.
   Future<void> discoverNameWithFirstBypass() async {
-    if (state.checkinLoading) return;
-    final claimed =
-        await GatingService().claimFirstBypass(GatedFeature.discoverName);
-    if (!claimed) {
-      state = state.copyWith(error: 'Freebie unavailable. Try again.');
-      return;
+    if (state.checkinLoading || bypassInFlight) return;
+    // Flip the re-entry flag synchronously before the first await so a
+    // rapid double-tap collapses to a single `claim_first_bypass` RPC.
+    // The bypass-reserve path doesn't need this — `reserveActiveBypass`
+    // flips the flag itself; the freebie path has no reserve call so we
+    // arm it here directly.
+    markBypassInFlight();
+    try {
+      final claimed =
+          await GatingService().claimFirstBypass(GatedFeature.discoverName);
+      if (!mounted) return;
+      if (!claimed) {
+        state = state.copyWith(error: 'Freebie unavailable. Try again.');
+        return;
+      }
+      await _runDiscoverName();
+    } finally {
+      clearBypassInFlight();
     }
-    await discoverName();
   }
 
   // ---------------------------------------------------------------------------
@@ -719,6 +765,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState> {
   @visibleForTesting
   void debugSetCheckinLoading(bool value) {
     state = state.copyWith(checkinLoading: value);
+  }
+
+  /// Test seam — lets the discover-name dispose/cancel suite synthesize a
+  /// `state.error` from inside an injected `discoverNameOverride` closure
+  /// without reaching into protected StateNotifier internals. Mirrors the
+  /// branch the real `discoverName()` takes when its Supabase upsert fails.
+  @visibleForTesting
+  void debugSetError(String message) {
+    state = state.copyWith(error: message);
   }
 
   /// Test seam — exposes `_handleXpAward` so the EconomyEvents XpGranted
