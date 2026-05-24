@@ -1,0 +1,79 @@
+name: test
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  flutter-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  sql-tests:
+    runs-on: ubuntu-latest
+    # Skip on push-to-master since master commits don't get a preview branch
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Wait for preview branch + fetch DATABASE_URL
+        id: branch
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID:   ${{ secrets.SUPABASE_PROJECT_ID }}
+          PR_BRANCH:             ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          # Poll until the preview branch for this PR shows ACTIVE.
+          # Per Supabase docs the branch is keyed by git branch name.
+          for i in {1..30}; do
+            BRANCH_JSON=$(supabase branches list \
+              --project-ref "$SUPABASE_PROJECT_ID" \
+              --output json 2>/dev/null \
+              | jq -r --arg b "$PR_BRANCH" \
+                  '.[] | select(.name == $b)')
+            STATUS=$(printf '%s' "$BRANCH_JSON" | jq -r '.status // empty')
+            if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "ACTIVE" ]; then
+              echo "Branch ready (status=$STATUS)"
+              break
+            fi
+            echo "Branch not ready yet (status=${STATUS:-pending}), retry $i/30..."
+            sleep 10
+          done
+          # Fetch the branch DB connection string.
+          DB_URL=$(supabase branches get "$PR_BRANCH" \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --output json | jq -r '.db.postgres_url // .postgres_version // empty')
+          if [ -z "$DB_URL" ] || [ "$DB_URL" = "null" ]; then
+            echo "Failed to resolve DATABASE_URL for branch $PR_BRANCH" >&2
+            exit 1
+          fi
+          # Mask the URL in CI logs and export to subsequent steps.
+          echo "::add-mask::$DB_URL"
+          echo "database_url=$DB_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run SQL tests
+        env:
+          DATABASE_URL: ${{ steps.branch.outputs.database_url }}
+        working-directory: flutter
+        run: ./scripts/run_sql_tests.sh

@@ -32,14 +32,17 @@ select set_config('test.total','0',false),
        set_config('test.passed','0',false),
        set_config('test.failed_names','',false);
 
--- Pick a known user. If none exists in dev, the test errors clearly.
+-- Self-seed an auth.users row so the test is independent of branch DB data.
+-- The handle_new_user trigger creates user_profiles, user_streaks, user_xp,
+-- and user_tokens rows automatically, which subsequent UPDATEs target.
 do $$
-declare v_uid uuid;
+declare v_uid uuid := gen_random_uuid();
 begin
-  select id into v_uid from auth.users order by created_at limit 1;
-  if v_uid is null then
-    raise exception 'No auth.users to test against — seed at least one user first';
-  end if;
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, created_at, updated_at)
+  values (v_uid, '00000000-0000-0000-0000-000000000000', 'authenticated',
+          'authenticated', 'plan-test-' || v_uid::text || '@example.com',
+          '', now(), now(), now());
   perform set_config('test.uid', v_uid::text, false);
 end $$;
 
