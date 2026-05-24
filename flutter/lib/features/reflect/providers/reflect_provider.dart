@@ -324,6 +324,15 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// is the YAGNI threshold (plan 2026-05-23 line 305).
   String? _activeBypassReservationId;
 
+  /// In-flight `reserveBypass` Future. Tracked separately from
+  /// [_activeBypassReservationId] so [dispose] can chain a cancel on the
+  /// reservation even if dispose fires BEFORE the reserve RPC resolves
+  /// (the TOCTOU window between line ~412 `await reserveBypass(...)` and
+  /// line ~418 `_activeBypassReservationId = ...`). Without this, a user
+  /// who backgrounds the app mid-reserve leaks the reservation until the
+  /// 15-min orphan cron rescues. P1-B fix from PR #25 /review.
+  Future<BypassReservation?>? _inflightReserveFuture;
+
   /// Captured during [submit] alongside `_consumeFreeUsageOnSuccess` so the
   /// follow-on [GatingService.markUsed] call can skip a redundant
   /// `PurchaseService().isPremium()` round-trip (RevenueCat method-channel
@@ -407,9 +416,20 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       return;
     }
     _submitInFlight = true;
+    final future = GatingService().reserveBypass(GatedFeature.reflect);
+    _inflightReserveFuture = future;
     try {
-      final reservation =
-          await GatingService().reserveBypass(GatedFeature.reflect);
+      final reservation = await future;
+      // P1-B: dispose may have fired while we were awaiting. State writes on
+      // a disposed notifier throw. Check `mounted` before any state mutation
+      // beyond this point. The dispose path's chained then() already handles
+      // cancelling the reservation if one came back.
+      if (!mounted) return;
+      // Ownership handoff: once we have (or don't have) the reservation, the
+      // dispose path no longer needs to watch the Future.
+      if (identical(_inflightReserveFuture, future)) {
+        _inflightReserveFuture = null;
+      }
       if (reservation == null) {
         // Sheet caller stays open / re-renders with stale-state copy.
         state = state.copyWith(error: 'Bypass unavailable. Try again.');
@@ -424,6 +444,9 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       _premiumAtSubmit = false;
       await _doSubmit();
     } finally {
+      if (identical(_inflightReserveFuture, future)) {
+        _inflightReserveFuture = null;
+      }
       _submitInFlight = false;
     }
   }
@@ -578,13 +601,34 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     // shutdown-time RPC throws don't escape into Flutter's unhandled-
     // error logger.
     final id = _activeBypassReservationId;
+    final inflight = _inflightReserveFuture;
     _activeBypassReservationId = null;
+    _inflightReserveFuture = null;
     if (id != null) {
       try {
         GatingService().cancelBypass(id, GatedFeature.reflect).ignore();
       } catch (_) {
         // Tearing down; orphan cron will refund.
       }
+    } else if (inflight != null) {
+      // P1-B: dispose fired BEFORE the reserve RPC resolved. Chain a cancel
+      // on the in-flight Future so when (if) it eventually returns a
+      // reservation, we immediately cancel it. Without this, the in-flight
+      // reservation leaks until the 15-min orphan cron rescues.
+      inflight.then((reservation) {
+        if (reservation != null) {
+          try {
+            GatingService()
+                .cancelBypass(reservation.reservationId, GatedFeature.reflect)
+                .ignore();
+          } catch (_) {
+            // Tearing down; orphan cron will refund.
+          }
+        }
+      }).catchError((_) {
+        // The reserve RPC threw — nothing to cancel, no reservation exists
+        // on the server. Orphan cron is not relevant; nothing to clean up.
+      });
     }
     super.dispose();
   }

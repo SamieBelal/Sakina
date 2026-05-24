@@ -334,6 +334,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
   /// is the YAGNI threshold (plan 2026-05-23 line 305).
   String? _activeBypassReservationId;
 
+  /// In-flight `reserveBypass` Future. See `ReflectNotifier._inflightReserveFuture`
+  /// for full rationale. P1-B fix from PR #25 /review.
+  Future<BypassReservation?>? _inflightReserveFuture;
+
   static const String _namesInvokedKey = 'sakina_names_invoked';
 
   Future<void> _trackNamesInvoked(List<String> names) async {
@@ -358,13 +362,31 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // shutdown-time RPC throws don't escape into Flutter's unhandled-
     // error logger.
     final id = _activeBypassReservationId;
+    final inflight = _inflightReserveFuture;
     _activeBypassReservationId = null;
+    _inflightReserveFuture = null;
     if (id != null) {
       try {
         GatingService().cancelBypass(id, GatedFeature.builtDua).ignore();
       } catch (_) {
         // Tearing down; orphan cron will refund.
       }
+    } else if (inflight != null) {
+      // P1-B: dispose fired BEFORE the reserve RPC resolved. Chain a cancel
+      // on the in-flight Future. See ReflectNotifier.dispose for full rationale.
+      inflight.then((reservation) {
+        if (reservation != null) {
+          try {
+            GatingService()
+                .cancelBypass(reservation.reservationId, GatedFeature.builtDua)
+                .ignore();
+          } catch (_) {
+            // Tearing down; orphan cron will refund.
+          }
+        }
+      }).catchError((_) {
+        // The reserve RPC threw — nothing to cancel.
+      });
     }
     super.dispose();
   }
@@ -491,9 +513,16 @@ class DuasNotifier extends StateNotifier<DuasState> {
     if (_submitInFlight || state.buildLoading) return;
     if (state.buildNeed.trim().isEmpty) return;
     _submitInFlight = true;
+    final future = GatingService().reserveBypass(GatedFeature.builtDua);
+    _inflightReserveFuture = future;
     try {
-      final reservation =
-          await GatingService().reserveBypass(GatedFeature.builtDua);
+      final reservation = await future;
+      // P1-B: dispose may have fired while we were awaiting. See
+      // ReflectNotifier.submitWithBypass for full rationale.
+      if (!mounted) return;
+      if (identical(_inflightReserveFuture, future)) {
+        _inflightReserveFuture = null;
+      }
       if (reservation == null) {
         state = state.copyWith(error: () => 'Bypass unavailable. Try again.');
         return;
@@ -502,6 +531,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // Bypass owns the daily-counter increment server-side; skip markUsed.
       await _doBuild(consumeFreeUsage: false, isPremiumHint: false);
     } finally {
+      if (identical(_inflightReserveFuture, future)) {
+        _inflightReserveFuture = null;
+      }
       _submitInFlight = false;
     }
   }
