@@ -68,10 +68,14 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Email screen sits at index 21 (was 22 before the single-Name refactor
-    // shifted everything down by 1). Autofocus only when actually displayed.
+    // Email screen sits at PageView index 19. Autofocus only when actually
+    // displayed. (progressSegment is the visual segment number = 21, which
+    // is offset from PageView index by +2 due to removed Generating/PersonalPlan
+    // pages — keep that value.)
     final isActive = ref.watch(
-      onboardingProvider.select((state) => state.currentPage == 21),
+      onboardingProvider.select(
+        (state) => state.currentPage == onboardingEmailPageIndex,
+      ),
     );
 
     return GestureDetector(
