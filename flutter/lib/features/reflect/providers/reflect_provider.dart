@@ -569,6 +569,26 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     state = state.copyWith(savedReflections: reflections);
   }
 
+  @override
+  void dispose() {
+    // P0-4: cancel any in-flight bypass reservation so the user's tokens
+    // are refunded immediately instead of waiting up to 15 min for the
+    // server-side orphan cron. Fire-and-forget — we're tearing down,
+    // failures here are unrecoverable. Wrap in try/catch + .ignore() so
+    // shutdown-time RPC throws don't escape into Flutter's unhandled-
+    // error logger.
+    final id = _activeBypassReservationId;
+    _activeBypassReservationId = null;
+    if (id != null) {
+      try {
+        GatingService().cancelBypass(id, GatedFeature.reflect).ignore();
+      } catch (_) {
+        // Tearing down; orphan cron will refund.
+      }
+    }
+    super.dispose();
+  }
+
   /// Reset to input state (preserves saved reflections).
   void reset() {
     _consumeFreeUsageOnSuccess = false;
