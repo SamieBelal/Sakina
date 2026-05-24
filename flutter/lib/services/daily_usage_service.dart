@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -28,8 +29,25 @@ const int dailyFreeReflects = 1;
 const int dailyFreeBuiltDuas = 1;
 const int dailyFreeDiscoverNames = 1;
 
+/// Debug seam mirroring `debugRewardsClock` and `debugLaunchGateClock` so
+/// tests can pin a known UTC instant. Always returns UTC.
+///
+/// Production callers should leave this null. The default reads
+/// `DateTime.now().toUtc()` to match the server (Supabase stores
+/// user_daily_usage.usage_date in UTC, set via `timezone('utc', now())`).
+///
+/// Previously this used `DateTime.now()` (local), which caused the
+/// client cap state to disagree with the server near local-but-not-UTC
+/// midnight (e.g. 11pm EDT). Same regression class as the
+/// daily-launch overlay UTC fix in PR #8 — see CLAUDE.md Known Bugs.
+@visibleForTesting
+DateTime Function()? debugDailyUsageClock;
+
+DateTime _nowUtc() =>
+    (debugDailyUsageClock ?? () => DateTime.now().toUtc())();
+
 String _today() {
-  final now = DateTime.now();
+  final now = _nowUtc();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
