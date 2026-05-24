@@ -397,6 +397,58 @@ void main() {
       expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
     });
 
+    testWidgets('P2-4: RPC exception fires the paired fail event',
+        (tester) async {
+      // REVIEW Finding 3 (2026-05-25): GatingService.dismissIapToSubBanner
+      // does not try/catch its `callRpc`. A thrown exception (network
+      // timeout, expired JWT, 5xx) propagates up to _onDismissTap. Without
+      // the catch in _onDismissTap, NEITHER analytics event would fire —
+      // the funnel would silently undercount dismiss attempts. Pin: the
+      // failed event fires on exception, same shape as the ok==false branch.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      // Make the fake sync RPC throw, simulating a network failure.
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async {
+        throw Exception('simulated network failure');
+      };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // Tap should not crash the widget, even though the RPC throws.
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed),
+        isFalse,
+        reason: 'Dismissed event must NOT fire when RPC throws',
+      );
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isTrue,
+        reason: 'Paired failed event must fire when RPC throws (network/auth/5xx)',
+      );
+    });
+
     testWidgets('close-icon tap fires iap_to_sub_banner_dismissed + RPC',
         (tester) async {
       // Prime the gating service so dismissIapToSubBanner reaches the RPC.

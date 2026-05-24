@@ -338,8 +338,22 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
     // auth / server). Now: await the RPC first, fire the success event on
     // ok==true, fire the paired iapToSubBannerDismissFailed on ok==false so
     // the funnel can model retry behavior without silent skew.
+    //
+    // REVIEW Finding 3 (2026-05-25): GatingService.dismissIapToSubBanner has
+    // no try/catch around `callRpc`, so a thrown exception (network timeout,
+    // expired JWT, 5xx) propagates here. Without the catch below, neither
+    // analytics event would fire on exception — the funnel would silently
+    // undercount dismiss attempts. The catch treats exception as a failed
+    // dismiss, same shape as the ok==false branch. Pinned by the widget
+    // test 'P2-4: RPC exception fires the paired fail event'.
     final analytics = ref.read(analyticsProvider);
-    final ok = await GatingService().dismissIapToSubBanner();
+    bool ok;
+    try {
+      ok = await GatingService().dismissIapToSubBanner();
+    } catch (_) {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissFailed);
+      return;
+    }
     if (ok) {
       analytics.track(AnalyticsEvents.iapToSubBannerDismissed);
       if (mounted) {
