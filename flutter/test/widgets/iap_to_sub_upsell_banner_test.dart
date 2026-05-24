@@ -1,0 +1,368 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_service.dart';
+import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/widgets/achievement_toast.dart' show rootNavigatorKey;
+import 'package:sakina/widgets/iap_to_sub_upsell_banner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support/fake_supabase_sync_service.dart';
+
+class _TrackingSpy extends AnalyticsService {
+  final List<(String, Map<String, dynamic>?)> tracked = [];
+
+  @override
+  void track(String event, {Map<String, dynamic>? properties}) {
+    tracked.add((event, properties));
+  }
+}
+
+class _FakePurchaseService extends PurchaseService {
+  _FakePurchaseService() : super.test();
+  bool premium = false;
+  @override
+  Future<bool> isPremium() async => premium;
+}
+
+Widget _wrap({
+  required ProviderContainer container,
+  required Widget child,
+}) {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(path: '/', builder: (_, __) => Scaffold(body: child)),
+      GoRoute(
+        path: '/paywall',
+        builder: (_, __) =>
+            const Scaffold(body: Center(child: Text('PAYWALL'))),
+      ),
+    ],
+  );
+  return UncontrolledProviderScope(
+    container: container,
+    child: MaterialApp.router(routerConfig: router),
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late FakeSupabaseSyncService fakeSync;
+  late _FakePurchaseService fakePurchase;
+  late GatingService gating;
+  late _TrackingSpy analytics;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+    fakePurchase = _FakePurchaseService();
+    PurchaseService.debugSetOverride(fakePurchase);
+    gating = GatingService.test();
+    GatingService.debugSetOverride(gating);
+    analytics = _TrackingSpy();
+  });
+
+  tearDown(() {
+    SupabaseSyncService.debugReset();
+    PurchaseService.debugClearOverride();
+    GatingService.debugClearOverride();
+    GatingService.debugNowUtc = null;
+  });
+
+  group('IapToSubUpsellBanner', () {
+    testWidgets('renders nothing when ineligible (clean install)',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => IapToSubBannerState.hidden,
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      expect(find.byType(IapToSubUpsellBanner), findsOneWidget);
+      expect(find.byIcon(Icons.workspace_premium), findsNothing,
+          reason: 'Hidden state must collapse to SizedBox.shrink');
+    });
+
+    testWidgets(r'renders headline with computed $X and weekly price '
+        'when eligible', (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 10,
+            weeklyPriceString: r'$9.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // 10 bypasses × $0.50 = $5
+      expect(find.text(r"You've spent $5 on bypasses"), findsOneWidget);
+      expect(
+        find.textContaining(r'Weekly sub at $9.99 unlocks unlimited'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+    });
+
+    testWidgets('drops the price entirely when RC returns no price',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: null,
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // 6 × $0.50 = $3 (floor)
+      expect(find.text(r"You've spent $3 on bypasses"), findsOneWidget);
+      expect(
+        find.text(
+            'Weekly sub unlocks unlimited reflections, duas, and discoveries.'),
+        findsOneWidget,
+        reason: 'No price in the copy when RC fallback fires — better than '
+            'showing a hardcoded figure that drifts from the real product '
+            r'pricing (e.g. $9.99 vs the actual $4.99 weekly).',
+      );
+      expect(
+        find.textContaining(r'$9.99'),
+        findsNothing,
+        reason: r'The old hardcoded $9.99 fallback must NOT appear — that '
+            'figure drifted from the real RC weekly price.',
+      );
+    });
+
+    testWidgets('banner tap fires iap_to_sub_banner_tapped + paywall_viewed '
+        'with trigger, then routes to /paywall', (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$9.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(InkWell).first);
+      await tester.pumpAndSettle();
+
+      expect(analytics.tracked.length, 2);
+      expect(analytics.tracked[0].$1, AnalyticsEvents.iapToSubBannerTapped);
+      expect(analytics.tracked[1].$1, AnalyticsEvents.paywallViewed);
+      expect(analytics.tracked[1].$2, {
+        'trigger': AnalyticsEvents.paywallTriggerIapToSubUpsell,
+      });
+
+      expect(find.text('PAYWALL'), findsOneWidget,
+          reason: 'Banner tap must route to /paywall');
+    });
+
+    testWidgets('close-icon tap fires iap_to_sub_banner_dismissed + RPC',
+        (tester) async {
+      // Prime the gating service so dismissIapToSubBanner reaches the RPC.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async => {
+            'ok': true,
+            'dismissed_at': '2026-05-25T12:00:00Z',
+          };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$9.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(analytics.tracked.any(
+        (e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed,
+      ), isTrue);
+      expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
+    });
+  });
+
+  group('IapToSubUpsellBanner — route hiding (PR 5 review fix)', () {
+    // The banner mounts at MaterialApp.builder level (above the Navigator).
+    // It listens to GoRouter via the global `rootNavigatorKey` to hide on
+    // routes where the banner would be redundant or annoying — see
+    // `hiddenBannerRoutes` for the list. These tests use the production
+    // mount pattern (builder + rootNavigatorKey) to verify the gate.
+    Widget productionWrap({
+      required ProviderContainer container,
+      required String initialLocation,
+    }) {
+      final router = GoRouter(
+        navigatorKey: rootNavigatorKey,
+        initialLocation: initialLocation,
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('HOME'))),
+          ),
+          GoRoute(
+            path: '/paywall',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('PAYWALL'))),
+          ),
+          GoRoute(
+            path: '/onboarding',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('ONBOARDING'))),
+          ),
+          GoRoute(
+            path: '/welcome',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('WELCOME'))),
+          ),
+          GoRoute(
+            path: '/signin',
+            builder: (_, __) =>
+                const Scaffold(body: Center(child: Text('SIGNIN'))),
+          ),
+        ],
+      );
+      return UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          // Match production: banner mounted in builder, above the
+          // Navigator. This is the only place rootNavigatorKey is the
+          // GoRouter's navigatorKey (vs. inside-a-route mounting which
+          // tests above use).
+          builder: (context, child) => Column(
+            children: [
+              const IapToSubUpsellBanner(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          ),
+        ),
+      );
+    }
+
+    ProviderContainer eligibleContainer() => ProviderContainer(overrides: [
+          analyticsProvider.overrideWithValue(analytics),
+          iapToSubBannerStateProvider.overrideWith(
+            (ref) async => const IapToSubBannerState(
+              visible: true,
+              lifetimeBypassesPurchased: 6,
+              weeklyPriceString: r'$4.99',
+            ),
+          ),
+        ]);
+
+    testWidgets('hiddenBannerRoutes contains the 4 expected routes',
+        (tester) async {
+      // Pin the contract so future contributors don't silently drop one.
+      expect(
+        hiddenBannerRoutes,
+        equals({'/paywall', '/onboarding', '/welcome', '/signin'}),
+      );
+    });
+
+    testWidgets('renders on / (home) when eligible', (tester) async {
+      final container = eligibleContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        productionWrap(container: container, initialLocation: '/'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.workspace_premium), findsOneWidget,
+          reason: 'Banner must render on the home route');
+      expect(find.text('HOME'), findsOneWidget);
+    });
+
+    for (final hiddenRoute in const ['/paywall', '/onboarding', '/welcome', '/signin']) {
+      testWidgets('hides on $hiddenRoute even when eligible', (tester) async {
+        final container = eligibleContainer();
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          productionWrap(container: container, initialLocation: hiddenRoute),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.workspace_premium), findsNothing,
+            reason: 'Banner must NOT render on $hiddenRoute');
+      });
+    }
+
+    testWidgets('hides after dynamic navigation from / to /paywall',
+        (tester) async {
+      // Pin the reactive listener — banner must react to route changes,
+      // not just initial mount. The reverse (pop → re-appear) is covered
+      // by the simulator verification screenshots in the PR description.
+      final container = eligibleContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        productionWrap(container: container, initialLocation: '/'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.workspace_premium), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.workspace_premium));
+      await tester.pumpAndSettle();
+      expect(find.text('PAYWALL'), findsOneWidget);
+      expect(find.byIcon(Icons.workspace_premium), findsNothing,
+          reason: 'Banner must vanish on /paywall destination');
+    });
+  });
+}

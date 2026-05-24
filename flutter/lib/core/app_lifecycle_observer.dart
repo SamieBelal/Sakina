@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/daily/providers/daily_rewards_provider.dart';
+import '../services/gating_service.dart';
+import '../widgets/iap_to_sub_upsell_banner.dart';
 import 'app_session.dart';
 
 /// Invalidates `premiumStateProvider` whenever the app returns to the
@@ -43,6 +45,17 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     // Guarded because appSessionProvider is not always overridden in tests
     // that only care about lifecycle-state behavior. Skipping the auth-hook
     // is acceptable in that case (the resume path still invalidates).
+    // Bridge GatingService's post-hydration signal into Riverpod-land: every
+    // sync_all_user_data hydration writes new lifetime_bypasses_purchased /
+    // iap_upsell_banner_dismissed_at values into SharedPrefs, but the
+    // FutureProvider that drives the IAP→sub banner has no other way to learn
+    // those keys changed. Without this, the banner evaluates once at mount
+    // (with stale defaults) and never re-renders.
+    GatingService.onProfileHydrated = () {
+      if (!mounted) return;
+      ref.invalidate(iapToSubBannerStateProvider);
+    };
+
     try {
       _session = ref.read(appSessionProvider);
       _lastAuth = _session?.isAuthenticated;
@@ -56,6 +69,7 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _session?.removeListener(_onSessionChanged);
+    GatingService.onProfileHydrated = null;
     super.dispose();
   }
 

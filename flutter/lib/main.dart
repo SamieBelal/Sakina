@@ -23,6 +23,7 @@ import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
 import 'widgets/billing_issue_banner.dart';
+import 'widgets/iap_to_sub_upsell_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,6 +147,7 @@ class SakinaApp extends StatelessWidget {
       builder: (context, child) => Column(
         children: [
           const BillingIssueBanner(),
+          const IapToSubUpsellBanner(),
           Expanded(child: child ?? const SizedBox.shrink()),
         ],
       ),

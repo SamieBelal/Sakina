@@ -96,6 +96,20 @@ class GatingService {
   static void Function(String event, Map<String, dynamic> props)?
       onAnalyticsEvent;
 
+  /// Fires after [hydrateFromProfile] finishes writing all per-user
+  /// SharedPreferences keys from a `sync_all_user_data` payload. Wired in
+  /// `AppLifecycleObserver` to `ref.invalidate(iapToSubBannerStateProvider)`
+  /// so the home-screen banner re-reads its eligibility predicates against
+  /// the freshly-hydrated cache. Without this signal, the banner's
+  /// FutureProvider would evaluate once at first widget mount — typically
+  /// BEFORE sync completes — see a default `lifetime_bypasses_purchased=0`,
+  /// resolve to "hidden", and never re-render for the rest of the session.
+  ///
+  /// Left null in tests so widget tests don't take a dependency on Riverpod
+  /// container plumbing. Production wires it exactly once in
+  /// `AppLifecycleObserver.initState`.
+  static void Function()? onProfileHydrated;
+
   /// Premium fair-use ceiling per feature per day. Silent — UI must surface
   /// a "take a breath" message, NOT route to a paywall (the user is already
   /// paying).
@@ -573,9 +587,120 @@ class GatingService {
     return true;
   }
 
+  /// Lifetime count of COMMITTED bypass purchases (cancelled reservations
+  /// never increment). Mirrors `user_profiles.lifetime_bypasses_purchased`
+  /// hydrated from `sync_all_user_data`. Used by the IAP→sub upsell banner
+  /// to decide whether the user has demonstrated enough IAP velocity to be
+  /// worth converting to subscription.
+  Future<int> lifetimeBypassesPurchased() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(
+          supabaseSyncService.scopedKey(_lifetimeBypassesPurchasedBaseKey),
+        ) ??
+        0;
+  }
+
+  /// Returns the cached dismissal timestamp for the IAP→sub upsell banner,
+  /// or null if never dismissed. Server is the source of truth (the close-
+  /// tap writes via `dismiss_iap_upsell_banner` RPC); this cache exists
+  /// only so the banner can decide whether to render without a round-trip.
+  Future<DateTime?> iapBannerDismissedAt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final iso = prefs.getString(
+      supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
+    );
+    if (iso == null) return null;
+    return DateTime.tryParse(iso);
+  }
+
+  /// Returns true when the IAP→sub upsell banner should render. ALL of:
+  ///
+  ///   * user is NOT premium (premium users are already on the destination
+  ///     surface — the banner would be insulting), AND
+  ///   * lifetime_bypasses_purchased >= 6 (demonstrated IAP intent), AND
+  ///   * days_since_signup >= 7 (don't harass brand-new heavy users), AND
+  ///   * (never dismissed OR dismissed > 14 days ago) — re-prompt cadence.
+  ///
+  /// Defensive: returns false if signup_at is missing or unparseable —
+  /// same posture as `firstBypassEligible`. A corrupted profile must not
+  /// silently qualify for the upsell.
+  Future<bool> iapToSubBannerEligible() async {
+    if (await PurchaseService().isPremium()) return false;
+
+    final lifetime = await lifetimeBypassesPurchased();
+    if (lifetime < iapToSubBannerLifetimeBypassesThreshold) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final signupAtIso = prefs.getString(
+      supabaseSyncService.scopedKey(_signupAtBaseKey),
+    );
+    if (signupAtIso == null) return false;
+    final signupAt = DateTime.tryParse(signupAtIso);
+    if (signupAt == null) return false;
+
+    final now = _nowUtc();
+    final daysSinceSignup = now.difference(signupAt).inDays;
+    if (daysSinceSignup < iapToSubBannerMinDaysSinceSignup) return false;
+
+    final dismissedAt = await iapBannerDismissedAt();
+    if (dismissedAt != null) {
+      final age = now.difference(dismissedAt);
+      if (age < iapToSubBannerDismissalSuppression) return false;
+    }
+
+    return true;
+  }
+
+  /// Writes the dismissal timestamp server-side via `dismiss_iap_upsell_banner`
+  /// RPC and mirrors it locally. Returns true on RPC success (banner will
+  /// suppress for 14 days), false on network/RPC failure (banner stays —
+  /// the user can dismiss again on next render).
+  ///
+  /// Premium users short-circuit to true with no RPC call — the banner is
+  /// already hidden for them; nothing to persist.
+  Future<bool> dismissIapToSubBanner() async {
+    if (await PurchaseService().isPremium()) return true;
+
+    final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'dismiss_iap_upsell_banner',
+      const {},
+    );
+    if (result == null || result['ok'] != true) return false;
+
+    final dismissedAtIso = result['dismissed_at'];
+    if (dismissedAtIso is! String) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
+      dismissedAtIso,
+    );
+    return true;
+  }
+
   static const String _firstBypassConsumedBaseKey = 'first_bypass_consumed';
   static const String _signupAtBaseKey = 'signup_at';
   static const String _displayNameBaseKey = 'display_name';
+  static const String _lifetimeBypassesPurchasedBaseKey =
+      'lifetime_bypasses_purchased';
+  static const String _iapBannerDismissedAtBaseKey =
+      'iap_upsell_banner_dismissed_at';
+
+  /// IAP→sub upsell threshold — the banner appears once a free user has
+  /// committed 6+ paid bypasses lifetime. Pinned in plan; encoded here so a
+  /// dashboard tune can move it via constant-flip rather than RPC redeploy.
+  static const int iapToSubBannerLifetimeBypassesThreshold = 6;
+
+  /// Days-since-signup floor — don't harass brand-new heavy IAP users. A user
+  /// who hits 6 bypasses in their first week is already on the consideration
+  /// path; surfacing the upsell on Day 8 lets the natural friction land first.
+  static const int iapToSubBannerMinDaysSinceSignup = 7;
+
+  /// Suppression window after the user dismisses the banner. Re-shows after
+  /// 14 days if they're still ineligible-by-IAP-velocity for premium. CEO
+  /// review's cadence — long enough not to annoy, short enough not to forget.
+  static const Duration iapToSubBannerDismissalSuppression =
+      Duration(days: 14);
 
   /// Fallback display name — mirrors `AuthService.defaultDisplayName`.
   /// Kept in lockstep here so gating_service doesn't take a dependency on
@@ -664,6 +789,38 @@ class GatingService {
         displayNameRaw,
       );
     }
+
+    // EXP-3 IAP→sub upsell banner hydration (PR 5 of plan 2026-05-23). Server
+    // is the source of truth: `lifetime_bypasses_purchased` is incremented by
+    // `commit_ai_bypass` RPC; `iap_upsell_banner_dismissed_at` by the
+    // `dismiss_iap_upsell_banner` RPC.
+    final lifetimeBypassesRaw = profile['lifetime_bypasses_purchased'];
+    if (lifetimeBypassesRaw is num) {
+      await prefs.setInt(
+        supabaseSyncService.scopedKey(_lifetimeBypassesPurchasedBaseKey),
+        lifetimeBypassesRaw.toInt(),
+      );
+    }
+
+    final iapDismissedAtRaw = profile['iap_upsell_banner_dismissed_at'];
+    if (iapDismissedAtRaw is String && iapDismissedAtRaw.isNotEmpty) {
+      await prefs.setString(
+        supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
+        iapDismissedAtRaw,
+      );
+    } else if (iapDismissedAtRaw == null) {
+      // Server says never dismissed (or pre-PR5 backend): clear the local
+      // cache so a stale dismissal can't keep the banner suppressed forever
+      // after an admin reset.
+      await prefs.remove(
+        supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
+      );
+    }
+
+    // Signal listeners (currently: the IAP→sub banner provider) that the
+    // per-user cache is fresh and they should re-evaluate. See the
+    // [onProfileHydrated] docstring for the why.
+    onProfileHydrated?.call();
   }
 
   // ---- test helpers -------------------------------------------------------
@@ -681,6 +838,12 @@ class GatingService {
     );
     await prefs.remove(supabaseSyncService.scopedKey(_signupAtBaseKey));
     await prefs.remove(supabaseSyncService.scopedKey(_displayNameBaseKey));
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_lifetimeBypassesPurchasedBaseKey),
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_iapBannerDismissedAtBaseKey),
+    );
   }
 
   /// Force a specific warmup remaining count for tests.
