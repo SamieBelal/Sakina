@@ -181,6 +181,12 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
     );
 
     if (!state.visible) return const SizedBox.shrink();
+    // P2-2 (REVIEW Finding 2): defense-in-depth widget gate. Production's
+    // iap_to_sub_banner_eligible RPC requires lifetime_bypasses_purchased >= 6
+    // before returning visible=true, so this branch is unreachable today. If
+    // a future server-side refactor relaxes that threshold, we never render
+    // the awkward "You've used 0 bypasses" headline. Belt-and-braces.
+    if (state.lifetimeBypassesPurchased < 1) return const SizedBox.shrink();
 
     // P0-5: fire shown event once per visible mount. Sticky boolean so
     // rebuilds (route changes, theme changes, parent invalidations) don't
@@ -199,11 +205,18 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
       });
     }
 
-    // $X spent: compute from lifetime count × $0.50 (the lowest token-pack
-    // unit price — bypass = 25 tokens ≈ $0.50 at the smallest pack). Rounded
-    // down per plan. This is illustrative, not a financial figure.
-    final dollarsSpent = (state.lifetimeBypassesPurchased * 0.5).floor();
-    final headline = "You've spent \$$dollarsSpent on bypasses";
+    // P2-2: Headline switched from a fabricated "$X spent" figure to a
+    // count-based one (2026-05-25, per docs/qa/findings/2026-05-24-ai-bypass-
+    // p1-p2-review.md). The previous formula was lifetimeBypasses * $0.50,
+    // labelled "illustrative" — Apple 3.1.1 / FTC endorsement risk for
+    // presenting a synthetic number as user spend. Real per-bypass cost
+    // varies by token-pack size; recomputing actual dollars requires
+    // server-side aggregation across RevenueCat nonSubscriptionTransactions,
+    // tracked separately as a growth-team initiative.
+    final count = state.lifetimeBypassesPurchased;
+    final headline = count == 1
+        ? "You've used 1 bypass"
+        : "You've used $count bypasses";
     // Drop the price entirely on RC fallback. A hardcoded fallback ($9.99)
     // would drift from the real RC value ($4.99 today) and surface a wrong
     // figure in the upsell copy — worse than no figure.
@@ -318,13 +331,38 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
   }
 
   Future<void> _onDismissTap() async {
+    // P2-4: Fire dismiss analytics AFTER the server confirms (2026-05-25, per
+    // docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md). The previous
+    // implementation fired iapToSubBannerDismissed unconditionally before
+    // the await, biasing the dismiss funnel when the RPC failed (network /
+    // auth / server). Now: await the RPC first, fire the success event on
+    // ok==true, fire the paired iapToSubBannerDismissFailed on ok==false so
+    // the funnel can model retry behavior without silent skew.
+    //
+    // REVIEW Finding 3 (2026-05-25): GatingService.dismissIapToSubBanner has
+    // no try/catch around `callRpc`, so a thrown exception (network timeout,
+    // expired JWT, 5xx) propagates here. Without the catch below, neither
+    // analytics event would fire on exception — the funnel would silently
+    // undercount dismiss attempts. The catch treats exception as a failed
+    // dismiss, same shape as the ok==false branch. Pinned by the widget
+    // test 'P2-4: RPC exception fires the paired fail event'.
     final analytics = ref.read(analyticsProvider);
-    analytics.track(AnalyticsEvents.iapToSubBannerDismissed);
-    final ok = await GatingService().dismissIapToSubBanner();
-    if (ok && mounted) {
-      // Invalidate so the banner re-evaluates and hides itself immediately
-      // (the local cache was updated by `dismissIapToSubBanner`).
-      ref.invalidate(iapToSubBannerStateProvider);
+    bool ok;
+    try {
+      ok = await GatingService().dismissIapToSubBanner();
+    } catch (_) {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissFailed);
+      return;
+    }
+    if (ok) {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissed);
+      if (mounted) {
+        // Invalidate so the banner re-evaluates and hides itself immediately
+        // (the local cache was updated by `dismissIapToSubBanner`).
+        ref.invalidate(iapToSubBannerStateProvider);
+      }
+    } else {
+      analytics.track(AnalyticsEvents.iapToSubBannerDismissFailed);
     }
   }
 }

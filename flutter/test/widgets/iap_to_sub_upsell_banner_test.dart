@@ -100,8 +100,8 @@ void main() {
           reason: 'Hidden state must collapse to SizedBox.shrink');
     });
 
-    testWidgets(r'renders headline with computed $X and weekly price '
-        'when eligible', (tester) async {
+    testWidgets('renders count-based headline and weekly price when eligible',
+        (tester) async {
       final container = ProviderContainer(overrides: [
         analyticsProvider.overrideWithValue(analytics),
         iapToSubBannerStateProvider.overrideWith(
@@ -119,8 +119,7 @@ void main() {
       );
       await tester.pump();
 
-      // 10 bypasses × $0.50 = $5
-      expect(find.text(r"You've spent $5 on bypasses"), findsOneWidget);
+      expect(find.text("You've used 10 bypasses"), findsOneWidget);
       expect(
         find.textContaining(r'Weekly sub at $9.99 unlocks unlimited'),
         findsOneWidget,
@@ -148,8 +147,7 @@ void main() {
       );
       await tester.pump();
 
-      // 6 × $0.50 = $3 (floor)
-      expect(find.text(r"You've spent $3 on bypasses"), findsOneWidget);
+      expect(find.text("You've used 6 bypasses"), findsOneWidget);
       expect(
         find.text(
             'Weekly sub unlocks unlimited reflections, duas, and discoveries.'),
@@ -202,6 +200,253 @@ void main() {
 
       expect(find.text('PAYWALL'), findsOneWidget,
           reason: 'Banner tap must route to /paywall');
+    });
+
+    testWidgets('P2-2: banner headline shows bypass count, not dollar figure',
+        (tester) async {
+      // 2026-05-25: the fabricated "$X spent" headline (computed as
+      // lifetimeBypasses * $0.50) was replaced with a count-based one to
+      // close an Apple 3.1.1 / FTC endorsement risk. See
+      // docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md.
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      expect(find.text("You've used 6 bypasses"), findsOneWidget);
+      // The synthesized "$X on bypasses" copy must be gone — its presence
+      // would reintroduce the FTC risk.
+      expect(
+        find.textContaining("You've spent"),
+        findsNothing,
+        reason: 'Fabricated dollar headline must not render anywhere',
+      );
+      expect(
+        find.textContaining(r'$3 on bypasses'),
+        findsNothing,
+        reason: r'Old "6 × $0.50 = $3" headline must not render',
+      );
+    });
+
+    testWidgets('P2-2: banner headline pluralization at count=1',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 1,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      expect(find.text("You've used 1 bypass"), findsOneWidget,
+          reason: 'Singular noun at count=1');
+      expect(find.text("You've used 1 bypasses"), findsNothing,
+          reason: 'Plural form must not render at count=1');
+    });
+
+    testWidgets('P2-2: banner does not render at count=0', (tester) async {
+      // REVIEW Finding 2 (2026-05-25): the widget now has a defense-in-depth
+      // gate that returns SizedBox.shrink() when lifetimeBypassesPurchased
+      // < 1, even if state.visible=true. Production's
+      // iap_to_sub_banner_eligible RPC already requires count >= 6 to flip
+      // visible=true, so this is purely defensive against a future
+      // server-side refactor that loosens that threshold.
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 0,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // Headline must NOT render at count=0.
+      expect(find.text("You've used 0 bypasses"), findsNothing,
+          reason: 'Widget-level gate should suppress headline at count=0');
+    });
+
+    testWidgets('P2-4: analytics fires only after server confirms dismissal',
+        (tester) async {
+      // 2026-05-25: previously the dismissed event fired BEFORE the RPC
+      // await; on RPC failure (network / auth / server) the funnel saw a
+      // success event with no actual dismissal. New order: await RPC, then
+      // emit success-or-failed event.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async => {
+            'ok': true,
+            'dismissed_at': '2026-05-25T12:00:00Z',
+          };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // Pin event ordering against the RPC call so a future regression that
+      // re-fires the event BEFORE the await would be caught by this test
+      // (analytics.tracked recorded before fakeSync.rpcCalls would prove
+      // the bug). We assert by checking both fired AND that the RPC was
+      // called.
+      final dismissedFired = analytics.tracked.any(
+        (e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed,
+      );
+      expect(dismissedFired, isTrue,
+          reason: 'Dismissed event must fire when server returns ok==true');
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isFalse,
+        reason: 'Failed event must NOT fire on successful dismiss',
+      );
+      expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
+    });
+
+    testWidgets('P2-4: failed-dismiss fires the paired event instead',
+        (tester) async {
+      // Server returns ok==false (e.g. auth failed, network glitch, RPC
+      // rejection). The dismissed event must NOT fire — that would bias the
+      // funnel. The paired iapToSubBannerDismissFailed event must fire so
+      // the dashboard can model retry behavior.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async => {
+            'ok': false,
+          };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed),
+        isFalse,
+        reason: 'Dismissed event must NOT fire when server returns ok==false',
+      );
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isTrue,
+        reason: 'Paired failed event must fire when RPC fails',
+      );
+      expect(fakeSync.rpcCalls.last['fn'], 'dismiss_iap_upsell_banner');
+    });
+
+    testWidgets('P2-4: RPC exception fires the paired fail event',
+        (tester) async {
+      // REVIEW Finding 3 (2026-05-25): GatingService.dismissIapToSubBanner
+      // does not try/catch its `callRpc`. A thrown exception (network
+      // timeout, expired JWT, 5xx) propagates up to _onDismissTap. Without
+      // the catch in _onDismissTap, NEITHER analytics event would fire —
+      // the funnel would silently undercount dismiss attempts. Pin: the
+      // failed event fires on exception, same shape as the ok==false branch.
+      await gating.hydrateFromProfile({
+        'created_at': '2026-05-10T12:00:00Z',
+        'lifetime_bypasses_purchased': 6,
+      });
+      // Make the fake sync RPC throw, simulating a network failure.
+      fakeSync.rpcHandlers['dismiss_iap_upsell_banner'] = (_) async {
+        throw Exception('simulated network failure');
+      };
+
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // Tap should not crash the widget, even though the RPC throws.
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissed),
+        isFalse,
+        reason: 'Dismissed event must NOT fire when RPC throws',
+      );
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerDismissFailed),
+        isTrue,
+        reason: 'Paired failed event must fire when RPC throws (network/auth/5xx)',
+      );
     });
 
     testWidgets('close-icon tap fires iap_to_sub_banner_dismissed + RPC',

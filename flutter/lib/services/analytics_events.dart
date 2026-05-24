@@ -97,6 +97,11 @@ abstract final class AnalyticsEvents {
   static const iapToSubBannerShown = 'iap_to_sub_banner_shown';
   static const iapToSubBannerTapped = 'iap_to_sub_banner_tapped';
   static const iapToSubBannerDismissed = 'iap_to_sub_banner_dismissed';
+  // P2-4 (2026-05-25): paired failure event for when the dismiss RPC fails.
+  // Lets the funnel model retry behavior without silent skew. See
+  // docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md.
+  static const String iapToSubBannerDismissFailed =
+      'iap_to_sub_banner_dismiss_failed';
 
   // Paywall trigger string — passed as the `trigger` property on
   // `paywall_viewed`. New entry point introduced by PR 5; coexists with
