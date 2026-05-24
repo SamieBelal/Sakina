@@ -393,33 +393,42 @@ begin
   );
 end $$;
 
--- TEST 14: Ramadan-gift grant RPC writes gift_premium_until.
--- The dedicated grant RPC is not yet in the local migration tree (column
--- exists on prod from an unreviewed source; no public.*ramadan*/grant_gift_*
--- RPC matches a Glob search in supabase/migrations/). Until the RPC lands in
--- the repo, this slot is held as a structural placeholder: we simulate the
--- honest path by writing as `postgres` (the same role any future SECURITY
--- DEFINER RPC owned by postgres would run under inside its body) and assert
--- the guard does not block it.
--- TODO(ramadan-gift-rpc): when the RPC migration lands, replace this body
--- with an end-to-end call through the RPC.
+-- TEST 14: claim_sakina_gift (SECURITY DEFINER) writes gift_premium_until.
+-- The Ramadan-gifts migration (20260514175835) defines claim_sakina_gift(uuid, text)
+-- which is SECURITY DEFINER owned by postgres. Inside the RPC current_user='postgres'
+-- so the guard's bypass list lets the write through. Real end-to-end verification.
 do $$
-declare v_before timestamptz; v_after timestamptz;
+declare v_before timestamptz; v_after timestamptz; r jsonb;
+  v_test_occasion text := 'test_occasion_for_guard_check';
 begin
   reset role;
   perform set_config('request.jwt.claims', '', true);
+
+  -- Seed a synthetic occasion whose window straddles now() so the RPC's window check passes.
+  insert into public.islamic_occasions(id, display_name, starts_at, ends_at)
+    values (v_test_occasion, 'Test Occasion',
+            now() - interval '1 hour', now() + interval '1 hour')
+    on conflict (id) do update
+      set starts_at = excluded.starts_at, ends_at = excluded.ends_at;
+
   select gift_premium_until into v_before from public.user_profiles
     where id = current_setting('test.victim')::uuid;
-  -- This UPDATE runs as `postgres` (current_user in guard bypass list).
-  update public.user_profiles
-    set gift_premium_until = coalesce(v_before, now()) + interval '30 days'
-    where id = current_setting('test.victim')::uuid;
+
+  -- Call as authenticated victim — auth.uid() check inside the RPC requires it.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', current_setting('test.victim'), 'role','authenticated')::text, true);
+  set local role authenticated;
+  r := public.claim_sakina_gift(current_setting('test.victim')::uuid, v_test_occasion);
+  reset role;
+
   select gift_premium_until into v_after from public.user_profiles
     where id = current_setting('test.victim')::uuid;
 
   perform pg_temp.expect(
-    v_after is distinct from v_before,
-    'TEST14 HONEST PATH: postgres-owner write to gift_premium_until passes the guard (RPC pending)'
+    (r->>'granted')::boolean = true
+      and v_after is distinct from v_before
+      and v_after > now(),
+    'TEST14 HONEST PATH: claim_sakina_gift writes gift_premium_until through guard'
   );
 end $$;
 
