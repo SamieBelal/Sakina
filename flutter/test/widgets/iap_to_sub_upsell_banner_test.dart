@@ -266,19 +266,12 @@ void main() {
     });
 
     testWidgets('P2-2: banner does not render at count=0', (tester) async {
-      // ENG-REVIEW gap test: what does the banner do when the eligibility
-      // predicates are satisfied but the lifetime count is 0? Production
-      // gating naturally excludes count<6 via the server's eligibility
-      // check, but if a stale local cache ever surfaces visible=true with
-      // count=0, the banner shouldn't render an "0 bypasses" oddity.
-      //
-      // Current behavior: the state provider is the gate; the build()
-      // method itself only checks `state.visible`. So if visible=true AND
-      // count=0 (a state production never produces today, but a defensive
-      // pin still worth having), the banner renders "You've used 0
-      // bypasses". This test documents that contract: if someone changes
-      // the build() to gate-on-count later, this test should be updated
-      // accordingly. Filed as a UX TODO in the implementation report.
+      // REVIEW Finding 2 (2026-05-25): the widget now has a defense-in-depth
+      // gate that returns SizedBox.shrink() when lifetimeBypassesPurchased
+      // < 1, even if state.visible=true. Production's
+      // iap_to_sub_banner_eligible RPC already requires count >= 6 to flip
+      // visible=true, so this is purely defensive against a future
+      // server-side refactor that loosens that threshold.
       final container = ProviderContainer(overrides: [
         analyticsProvider.overrideWithValue(analytics),
         iapToSubBannerStateProvider.overrideWith(
@@ -296,11 +289,9 @@ void main() {
       );
       await tester.pump();
 
-      // Banner renders because the state provider — not the widget — is the
-      // count gate. Production state provider never returns visible=true at
-      // count=0 (server `iap_to_sub_banner_eligible` requires 6+), so this
-      // is a defensive contract pin, not a real user-visible path.
-      expect(find.text("You've used 0 bypasses"), findsOneWidget);
+      // Headline must NOT render at count=0.
+      expect(find.text("You've used 0 bypasses"), findsNothing,
+          reason: 'Widget-level gate should suppress headline at count=0');
     });
 
     testWidgets('P2-4: analytics fires only after server confirms dismissal',

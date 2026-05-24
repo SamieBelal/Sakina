@@ -724,24 +724,46 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         ? '${response.reframe.substring(0, 150)}...'
         : response.reframe;
 
+    // P2-5 (REVIEW Finding 1): clamp at construction time so local state,
+    // SharedPrefs persistence, and the share-card image renderer all see
+    // the same truncated values as the server row. Clamping only at
+    // `toSupabaseRow` left the share-card surface attackable on the
+    // owner's own device (the original P2-5 threat model included
+    // screenshot-and-post-to-social as an attack vector).
+    final clampedVerses = response.verses
+        .take(_versesMaxCount)
+        .map((v) => ReflectVerse(
+              arabic: _clampText(v.arabic, _verseArabicMaxChars),
+              translation: _clampText(v.translation, _verseTranslationMaxChars),
+              reference: _clampText(v.reference, _verseReferenceMaxChars),
+            ))
+        .toList();
+    final clampedRelatedNames = response.relatedNames
+        .take(_relatedNamesMaxCount)
+        .map((r) => {
+              'name': _clampText(r.name, _nameMaxChars),
+              'nameArabic': _clampText(r.nameArabic, _nameArabicMaxChars),
+            })
+        .toList();
+
     final reflectionId = _dependencies.createId();
     final reflection = SavedReflection(
       id: reflectionId,
       date: _dependencies.now().toIso8601String(),
-      userText: state.userText,
-      name: response.name,
-      nameArabic: response.nameArabic,
-      reframePreview: preview,
-      reframe: response.reframe,
-      story: response.story,
-      verses: response.verses,
-      duaArabic: response.duaArabic,
-      duaTransliteration: response.duaTransliteration,
-      duaTranslation: response.duaTranslation,
-      duaSource: response.duaSource,
-      relatedNames: response.relatedNames
-          .map((r) => {'name': r.name, 'nameArabic': r.nameArabic})
-          .toList(),
+      userText: _clampText(state.userText, _userTextMaxChars),
+      name: _clampText(response.name, _nameMaxChars),
+      nameArabic: _clampText(response.nameArabic, _nameArabicMaxChars),
+      reframePreview: _clampText(preview, _reframePreviewMaxChars),
+      reframe: _clampText(response.reframe, _reframeMaxChars),
+      story: _clampText(response.story, _storyMaxChars),
+      verses: clampedVerses,
+      duaArabic: _clampText(response.duaArabic, _duaArabicMaxChars),
+      duaTransliteration:
+          _clampText(response.duaTransliteration, _duaTransliterationMaxChars),
+      duaTranslation:
+          _clampText(response.duaTranslation, _duaTranslationMaxChars),
+      duaSource: _clampText(response.duaSource, _duaSourceMaxChars),
+      relatedNames: clampedRelatedNames,
     );
 
     // P2-5 (ENG-REVIEW Finding 2): write to Supabase FIRST. With the new
@@ -750,9 +772,8 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     // we updated local state first, the UI would render a "saved"
     // reflection that doesn't exist server-side and a future sync would
     // silently drop it. Reordering means a rejected insert throws and the
-    // local list stays clean. The clamp in `toSupabaseRow` already ensures
-    // both writes see identical truncated values, so honest payloads still
-    // round-trip.
+    // local list stays clean. The reflection is already clamped above
+    // (REVIEW Finding 1), so both writes see identical truncated values.
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
       await supabaseSyncService.insertRow(

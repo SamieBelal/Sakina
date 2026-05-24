@@ -181,6 +181,12 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
     );
 
     if (!state.visible) return const SizedBox.shrink();
+    // P2-2 (REVIEW Finding 2): defense-in-depth widget gate. Production's
+    // iap_to_sub_banner_eligible RPC requires lifetime_bypasses_purchased >= 6
+    // before returning visible=true, so this branch is unreachable today. If
+    // a future server-side refactor relaxes that threshold, we never render
+    // the awkward "You've used 0 bypasses" headline. Belt-and-braces.
+    if (state.lifetimeBypassesPurchased < 1) return const SizedBox.shrink();
 
     // P0-5: fire shown event once per visible mount. Sticky boolean so
     // rebuilds (route changes, theme changes, parent invalidations) don't
