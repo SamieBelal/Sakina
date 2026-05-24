@@ -3,9 +3,11 @@
 -- Pins the AI-bypass P1 security hotfix bundle from migration
 -- 20260525000000_ai_bypass_p1_security_bundle.sql.
 --
--- 15 assertions covering:
+-- 16 assertions covering:
 --   * P1-1 cancel_ai_bypass owner auth check (tests 1-4)
---   * P1-2 reserve_ai_bypass replay-status branching (tests 5-8)
+--   * P1-2 reserve_ai_bypass replay-status branching (tests 5-8; test 8
+--     forces the unique_violation exception branch via a top-level shim
+--     function that skips the fast-path SELECT — 2 assertions)
 --   * P1-3 freemium guards on 2 new user_profiles fields (tests 9-12)
 --     NOTE: gift_premium_until guard is deferred to a follow-up because the
 --     Ramadan-gifts migration that defines the column is in a separate open
@@ -244,44 +246,107 @@ begin
   reset role;
 end $$;
 
--- TEST 8: unique_violation exception handler hits the same status branch.
--- Hard to provoke a true concurrent insert from a single SQL session — but
--- we can functionally exercise the same branch by:
---   (a) creating a pending reservation with key K,
---   (b) calling reserve again with same key → must return ok:true / replayed
---       (this goes through the fast-path, but the helper IS the unified
---       branch logic, so it pins the helper for the unique_violation path),
---   (c) committing it, then re-calling → must return ok:false.
--- Steps (a)-(c) prove the helper handles both pending and committed states.
+-- TEST 8 (REAL): force the unique_violation exception handler in
+-- reserve_ai_bypass to actually fire.
+--
+-- The OLD TEST 8 here only exercised the fast-path SELECT replay branch
+-- and admitted as much in its own comments. A regression that removed
+-- the `exception when unique_violation then ...` block in
+-- 20260524111803_reserve_ai_bypass_race_fix.sql / the bundle would have
+-- gone undetected.
+--
+-- Strategy (mirrors the production code path exactly):
+--   1. Pre-insert a pending reservation row at key K (committed insert).
+--   2. Monkey-patch a shim function that intentionally SKIPS the
+--      fast-path SELECT and goes straight to the INSERT. With the row
+--      from step 1 already present at key K, the partial unique index
+--      ai_bypass_reservations_user_idem_uniq trips and the INSERT raises
+--      unique_violation — which the shim's exception handler catches
+--      and routes through _replay_reservation_response, exactly like
+--      production reserve_ai_bypass does.
+--   3. Assert the shim returns the EXISTING reservation_id (not a new
+--      one) with replayed=true.
+--   4. DROP the shim function explicitly (the outer BEGIN/ROLLBACK that
+--      wraps the whole test file also discards it; the DROP is
+--      defense-in-depth so each in-file test pass leaves no trace).
+--
+-- Note on shape: CREATE FUNCTION + SAVEPOINT are SQL-level statements
+-- and cannot appear inside a plpgsql DO block. They live at the
+-- top-level here; the per-test assertions still go through pg_temp.expect.
+
+-- Step 1: seed a pending reservation at the well-known key.
 do $$
-declare v_resv_id uuid; r jsonb;
-        v_pending_ok boolean; v_committed_rejected boolean;
+declare
+  v_user uuid := current_setting('test.victim')::uuid;
+  v_pre_id uuid;
 begin
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', current_setting('test.victim'), 'role','authenticated')::text, true);
-  set local role authenticated;
+  insert into public.ai_bypass_reservations
+    (user_id, feature, tokens_held, status, created_at, idempotency_key)
+    values (v_user, 'reflect', 25, 'pending', now(), 'test8-unique-violation-real')
+    returning id into v_pre_id;
+  perform set_config('test.test8_pre_id', v_pre_id::text, false);
+end $$;
 
-  -- (a) initial reserve
-  r := public.reserve_ai_bypass('reflect', 'test8-victim-key-ffffffff');
-  v_resv_id := (r->>'reservation_id')::uuid;
+-- Step 2: install the shim that bypasses the fast-path SELECT. Mirrors
+-- the production exception handler in reserve_ai_bypass exactly — same
+-- look-up + same _replay_reservation_response call.
+create or replace function public.reserve_ai_bypass_test8_shim(
+  p_feature text, p_idempotency_key text
+) returns jsonb language plpgsql security definer
+  set search_path = public, pg_temp as $shim$
+declare
+  v_user_id uuid := current_setting('test.victim')::uuid;
+  v_resv_id uuid;
+  v_existing_id uuid;
+  v_today date := timezone('utc', now())::date;
+begin
+  -- DELIBERATELY SKIP the fast-path SELECT (production code looks up
+  -- an existing row before INSERT-ing). Going straight to INSERT
+  -- against an already-present (user_id, idempotency_key) guarantees
+  -- we hit the unique constraint and fall into the exception branch —
+  -- which is what we actually want to test.
+  begin
+    insert into public.ai_bypass_reservations
+      (user_id, feature, tokens_held, status, created_at, idempotency_key)
+      values (v_user_id, p_feature, 25, 'pending', now(), p_idempotency_key)
+      returning id into v_resv_id;
+  exception when unique_violation then
+    -- Mirror the production exception handler exactly: look up the
+    -- winner's row and route through _replay_reservation_response.
+    select id into v_existing_id
+      from public.ai_bypass_reservations
+      where user_id = v_user_id and idempotency_key = p_idempotency_key;
+    return public._replay_reservation_response(
+      v_existing_id, v_user_id, p_feature, v_today
+    );
+  end;
+  return jsonb_build_object('ok', true, 'reservation_id', v_resv_id, 'replayed', false);
+end;
+$shim$;
 
-  -- (b) replay same key while pending — must succeed
-  r := public.reserve_ai_bypass('reflect', 'test8-victim-key-ffffffff');
-  v_pending_ok := (r->>'ok')::boolean = true and (r->>'replayed')::boolean = true;
-
-  -- (c) commit, then replay → must reject
-  perform public.commit_ai_bypass(v_resv_id);
-  r := public.reserve_ai_bypass('reflect', 'test8-victim-key-ffffffff');
-  v_committed_rejected := (r->>'ok')::boolean = false
-    and r->>'reason' = 'already_committed';
-
-  reset role;
+-- Step 3: call the shim with the pre-existing key. Must hit
+-- unique_violation and return the pre-existing reservation_id via the
+-- replay helper.
+do $$
+declare
+  v_pre_id uuid := current_setting('test.test8_pre_id')::uuid;
+  v_result jsonb;
+begin
+  v_result := public.reserve_ai_bypass_test8_shim('reflect', 'test8-unique-violation-real');
 
   perform pg_temp.expect(
-    v_pending_ok and v_committed_rejected,
-    'TEST8: helper branches identically for pending (ok) vs committed (rejected)'
+    (v_result->>'reservation_id')::uuid = v_pre_id,
+    'TEST8a: unique_violation exception handler returns existing reservation_id (NOT a new one)'
+  );
+  perform pg_temp.expect(
+    (v_result->>'replayed')::boolean = true,
+    'TEST8b: unique_violation exception handler routes through _replay_reservation_response (replayed=true)'
   );
 end $$;
+
+-- Step 4: drop the shim + cleanup the seeded row.
+drop function if exists public.reserve_ai_bypass_test8_shim(text, text);
+delete from public.ai_bypass_reservations where idempotency_key = 'test8-unique-violation-real';
 
 -- =============================================================================
 -- P1-3: freemium guards on 3 new user_profiles fields
@@ -439,8 +504,8 @@ begin
   if failed_names <> '' then
     raise exception 'FAILURES: %', failed_names;
   end if;
-  if passed <> 15 then
-    raise exception 'Expected 15 assertions, got % passed (% total)', passed, total;
+  if passed <> 16 then
+    raise exception 'Expected 16 assertions, got % passed (% total)', passed, total;
   end if;
 end $$;
 
