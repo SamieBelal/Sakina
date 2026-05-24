@@ -15,6 +15,38 @@ import 'package:uuid/uuid.dart';
 const _uuid = Uuid();
 const String _reflectionsKey = 'saved_reflections';
 
+// P2-5: Length caps for user_reflections columns. Mirror the server-side
+// CHECK constraints in `supabase/migrations/20260526000000_user_reflections_length_caps.sql`
+// EXACTLY — both client and server count codepoints (Dart `String.length` /
+// Postgres `length()`). The earlier draft used `bytes/2 runes` which
+// over-truncated honest Arabic content; ENG-REVIEW Finding 1 corrected this.
+// See `docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md` (P2-5).
+const int _reframeMaxChars = 4096;
+const int _storyMaxChars = 4096;
+const int _reframePreviewMaxChars = 300;
+const int _nameMaxChars = 200;
+const int _nameArabicMaxChars = 200;
+const int _duaSourceMaxChars = 200;
+const int _duaArabicMaxChars = 1024;
+const int _duaTransliterationMaxChars = 1024;
+const int _duaTranslationMaxChars = 1024;
+const int _userTextMaxChars = 2048;
+const int _verseArabicMaxChars = 2048;
+const int _verseTranslationMaxChars = 2048;
+const int _verseReferenceMaxChars = 200;
+const int _versesMaxCount = 8;
+const int _relatedNamesMaxCount = 8;
+
+/// Clamp a string to at most [maxChars] codepoints (Dart `String.length`).
+/// Matches the server's Postgres `length()` CHECK which also counts codepoints.
+/// Returns '' for null so the row always has explicit values (the schema
+/// declares every text column NOT NULL).
+String _clampText(String? value, int maxChars) {
+  if (value == null) return '';
+  if (value.length <= maxChars) return value;
+  return value.substring(0, maxChars);
+}
+
 typedef ReflectFollowUpLoader = Future<List<ai.FollowUpQuestion>> Function(
   String userText,
 );
@@ -133,22 +165,37 @@ class SavedReflection {
       );
 
   /// Convert to Supabase row format.
+  ///
+  /// P2-5: Every text field is clamped via [_clampText] to match the server
+  /// CHECKs in `20260526000000_user_reflections_length_caps.sql`. Arrays
+  /// (`verses`, `related_names`) are truncated to the server-side cap of 8.
+  /// Per-verse fields are also clamped so each element passes the shape
+  /// trigger. See `docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md`.
   Map<String, dynamic> toSupabaseRow(String userId) => {
         'id': id,
         'user_id': userId,
         'saved_at': date,
-        'user_text': userText,
-        'name': name,
-        'name_arabic': nameArabic,
-        'reframe_preview': reframePreview,
-        'reframe': reframe,
-        'story': story,
-        'verses': verses.map((v) => v.toJson()).toList(),
-        'dua_arabic': duaArabic,
-        'dua_transliteration': duaTransliteration,
-        'dua_translation': duaTranslation,
-        'dua_source': duaSource,
-        'related_names': relatedNames,
+        'user_text': _clampText(userText, _userTextMaxChars),
+        'name': _clampText(name, _nameMaxChars),
+        'name_arabic': _clampText(nameArabic, _nameArabicMaxChars),
+        'reframe_preview':
+            _clampText(reframePreview, _reframePreviewMaxChars),
+        'reframe': _clampText(reframe, _reframeMaxChars),
+        'story': _clampText(story, _storyMaxChars),
+        'verses': verses.take(_versesMaxCount).map((v) => {
+              'arabic': _clampText(v.arabic, _verseArabicMaxChars),
+              'translation':
+                  _clampText(v.translation, _verseTranslationMaxChars),
+              'reference': _clampText(v.reference, _verseReferenceMaxChars),
+            }).toList(),
+        'dua_arabic': _clampText(duaArabic, _duaArabicMaxChars),
+        'dua_transliteration':
+            _clampText(duaTransliteration, _duaTransliterationMaxChars),
+        'dua_translation':
+            _clampText(duaTranslation, _duaTranslationMaxChars),
+        'dua_source': _clampText(duaSource, _duaSourceMaxChars),
+        'related_names':
+            relatedNames.take(_relatedNamesMaxCount).toList(),
       };
 
   /// Create from a Supabase row.
@@ -697,11 +744,15 @@ class ReflectNotifier extends StateNotifier<ReflectState>
           .toList(),
     );
 
-    final updated = [reflection, ...state.savedReflections];
-    state = state.copyWith(savedReflections: updated);
-    await _persistReflections(updated);
-
-    // Write to Supabase
+    // P2-5 (ENG-REVIEW Finding 2): write to Supabase FIRST. With the new
+    // length + shape CHECKs from migration 20260526000000, a malformed
+    // (or attacker-crafted) AI response can be rejected by the server. If
+    // we updated local state first, the UI would render a "saved"
+    // reflection that doesn't exist server-side and a future sync would
+    // silently drop it. Reordering means a rejected insert throws and the
+    // local list stays clean. The clamp in `toSupabaseRow` already ensures
+    // both writes see identical truncated values, so honest payloads still
+    // round-trip.
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
       await supabaseSyncService.insertRow(
@@ -709,6 +760,10 @@ class ReflectNotifier extends StateNotifier<ReflectState>
         reflection.toSupabaseRow(userId),
       );
     }
+
+    final updated = [reflection, ...state.savedReflections];
+    state = state.copyWith(savedReflections: updated);
+    await _persistReflections(updated);
   }
 
   Future<void> _loadSavedReflections() async {
