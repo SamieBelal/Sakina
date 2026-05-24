@@ -3,11 +3,14 @@
 -- Pins the AI-bypass P1 security hotfix bundle from migration
 -- 20260525000000_ai_bypass_p1_security_bundle.sql.
 --
--- 17 assertions covering:
+-- 15 assertions covering:
 --   * P1-1 cancel_ai_bypass owner auth check (tests 1-4)
 --   * P1-2 reserve_ai_bypass replay-status branching (tests 5-8)
---   * P1-3 freemium guards on 3 new user_profiles fields (tests 9-14)
---   * P2-3 app_config CHECK constraints (tests 15-17)
+--   * P1-3 freemium guards on 2 new user_profiles fields (tests 9-12)
+--     NOTE: gift_premium_until guard is deferred to a follow-up because the
+--     Ramadan-gifts migration that defines the column is in a separate open
+--     PR. See findings doc for the residual P1 entry.
+--   * P2-3 app_config CHECK constraints (tests 13-15)
 --
 -- Wrapped in BEGIN / ROLLBACK — no live state persisted.
 --
@@ -287,8 +290,7 @@ end $$;
 -- Seed: postgres-owner write so we have an OLD value to test "distinct from"
 update public.user_profiles
   set last_winback_grant_at = now() - interval '7 days',
-      iap_upsell_banner_dismissed_at = now() - interval '7 days',
-      gift_premium_until = now() + interval '7 days'
+      iap_upsell_banner_dismissed_at = now() - interval '7 days'
   where id = current_setting('test.victim')::uuid;
 
 -- TEST 9: authenticated UPDATE last_winback_grant_at rejected
@@ -321,22 +323,7 @@ begin
   perform pg_temp.expect(v, 'TEST10: authenticated UPDATE iap_upsell_banner_dismissed_at rejected');
 end $$;
 
--- TEST 11: authenticated UPDATE gift_premium_until rejected
-do $$
-declare v boolean := false;
-begin
-  perform set_config('request.jwt.claims',
-    json_build_object('sub', current_setting('test.victim'), 'role','authenticated')::text, true);
-  set local role authenticated;
-  begin
-    update public.user_profiles set gift_premium_until = '2999-01-01'
-      where id = current_setting('test.victim')::uuid;
-  exception when others then v := true; end;
-  reset role;
-  perform pg_temp.expect(v, 'TEST11: authenticated UPDATE gift_premium_until rejected');
-end $$;
-
--- TEST 12: grant_winback_tokens (SECURITY DEFINER) still writes last_winback_grant_at.
+-- TEST 11: grant_winback_tokens (SECURITY DEFINER) still writes last_winback_grant_at.
 -- Call as service_role; the function is SECURITY DEFINER owned by postgres, so
 -- inside the function current_user='postgres' which is in the guard bypass list.
 do $$
@@ -360,11 +347,11 @@ begin
 
   perform pg_temp.expect(
     (r->>'ok')::boolean = true and v_after > v_before,
-    'TEST12 HONEST PATH: grant_winback_tokens writes last_winback_grant_at through guard'
+    'TEST11 HONEST PATH: grant_winback_tokens writes last_winback_grant_at through guard'
   );
 end $$;
 
--- TEST 13: dismiss_iap_upsell_banner (SECURITY DEFINER) still writes
+-- TEST 12: dismiss_iap_upsell_banner (SECURITY DEFINER) still writes
 -- iap_upsell_banner_dismissed_at. Call as authenticated (the function grant
 -- is to authenticated). SECURITY DEFINER means current_user='postgres' inside,
 -- so the guard's bypass list lets the write through.
@@ -389,38 +376,7 @@ begin
 
   perform pg_temp.expect(
     (r->>'ok')::boolean = true and v_after > v_before,
-    'TEST13 HONEST PATH: dismiss_iap_upsell_banner writes through guard'
-  );
-end $$;
-
--- TEST 14: postgres-role write to gift_premium_until passes the guard.
--- Mirrors how Tests 12 + 13 verify the honest path: any SECURITY DEFINER RPC
--- owned by postgres (e.g. claim_sakina_gift from the Ramadan-gifts migration)
--- runs with current_user='postgres' inside its body, which is in the guard's
--- bypass list at line 365 of the bundle migration. This test exercises that
--- bypass directly. End-to-end verification of claim_sakina_gift itself lives
--- in the Ramadan-gifts feature's own test suite (out of scope for this PR
--- which only extends the guard, not the RPC).
-do $$
-declare v_before timestamptz; v_after timestamptz;
-begin
-  reset role;
-  perform set_config('request.jwt.claims', '', true);
-
-  select gift_premium_until into v_before from public.user_profiles
-    where id = current_setting('test.victim')::uuid;
-
-  -- Run as `postgres` (current_user in the guard's bypass list).
-  update public.user_profiles
-    set gift_premium_until = coalesce(v_before, now()) + interval '30 days'
-    where id = current_setting('test.victim')::uuid;
-
-  select gift_premium_until into v_after from public.user_profiles
-    where id = current_setting('test.victim')::uuid;
-
-  perform pg_temp.expect(
-    v_after is distinct from v_before,
-    'TEST14 HONEST PATH: postgres-role write to gift_premium_until passes the guard'
+    'TEST12 HONEST PATH: dismiss_iap_upsell_banner writes through guard'
   );
 end $$;
 
@@ -428,7 +384,7 @@ end $$;
 -- P2-3: app_config CHECK constraints
 -- =============================================================================
 
--- TEST 15: UPDATE bypass_token_cost=0 fails the CHECK
+-- TEST 13: UPDATE bypass_token_cost=0 fails the CHECK
 do $$
 declare v boolean := false;
 begin
@@ -437,10 +393,10 @@ begin
   begin
     update public.app_config set value = to_jsonb(0) where key = 'bypass_token_cost';
   exception when check_violation then v := true; end;
-  perform pg_temp.expect(v, 'TEST15: UPDATE bypass_token_cost=0 fails CHECK');
+  perform pg_temp.expect(v, 'TEST13: UPDATE bypass_token_cost=0 fails CHECK');
 end $$;
 
--- TEST 16: UPDATE max_bypasses_per_day=99 fails the CHECK
+-- TEST 14: UPDATE max_bypasses_per_day=99 fails the CHECK
 do $$
 declare v boolean := false;
 begin
@@ -449,10 +405,10 @@ begin
   begin
     update public.app_config set value = to_jsonb(99) where key = 'max_bypasses_per_day';
   exception when check_violation then v := true; end;
-  perform pg_temp.expect(v, 'TEST16: UPDATE max_bypasses_per_day=99 fails CHECK');
+  perform pg_temp.expect(v, 'TEST14: UPDATE max_bypasses_per_day=99 fails CHECK');
 end $$;
 
--- TEST 17: UPDATE bypass_token_cost=30 succeeds (in-range)
+-- TEST 15: UPDATE bypass_token_cost=30 succeeds (in-range)
 do $$
 declare v boolean := false;
 begin
@@ -462,7 +418,7 @@ begin
     update public.app_config set value = to_jsonb(30) where key = 'bypass_token_cost';
     v := true;
   exception when others then v := false; end;
-  perform pg_temp.expect(v, 'TEST17: UPDATE bypass_token_cost=30 succeeds (in-range)');
+  perform pg_temp.expect(v, 'TEST15: UPDATE bypass_token_cost=30 succeeds (in-range)');
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -483,8 +439,8 @@ begin
   if failed_names <> '' then
     raise exception 'FAILURES: %', failed_names;
   end if;
-  if passed <> 17 then
-    raise exception 'Expected 17 assertions, got % passed (% total)', passed, total;
+  if passed <> 15 then
+    raise exception 'Expected 15 assertions, got % passed (% total)', passed, total;
   end if;
 end $$;
 

@@ -98,12 +98,14 @@ Pin with a regression test that reserves → cancels → replays the same key, a
 
 ---
 
-### P1-3 — Missing freemium guards on `last_winback_grant_at` + `iap_upsell_banner_dismissed_at` + `gift_premium_until` **[LIVE-VERIFIED]**
+### P1-3 — Missing freemium guards on `last_winback_grant_at` + `iap_upsell_banner_dismissed_at` **[LIVE-VERIFIED]**
 
-- **File:** `supabase/migrations/20260524050655_extend_freemium_guards_for_bypass_fields.sql` (gap) + `20260514175600_referrals.sql` (gap)
-- **Affected columns on `user_profiles`:** `last_winback_grant_at`, `iap_upsell_banner_dismissed_at`, **`gift_premium_until`** (surfaced 2026-05-24 by eng-review audit; same risk shape as `referral_premium_until` which IS guarded)
-- **Confidence:** 10/10 (all three live-reproduced)
-- **Category:** freemium guard gap (same class as P0-1, missed three columns)
+> **Scope note:** the eng-review audit also surfaced `gift_premium_until` as unguarded with the same risk shape (live-reproduced setting to '2999-01-01'). Its guard rule is **deferred** because the column is defined by the Ramadan-gifts migration which lives in a separate open PR. Pulling that migration into this hotfix would mix unrelated feature code with a security PR. Tracked as a separate P1 follow-up that should land in a small PR after the Ramadan-gifts feature PR is merged. **Residual exploit on prod until then.**
+
+- **File:** `supabase/migrations/20260524050655_extend_freemium_guards_for_bypass_fields.sql` (gap)
+- **Affected columns on `user_profiles`:** `last_winback_grant_at`, `iap_upsell_banner_dismissed_at`
+- **Confidence:** 10/10 (both live-reproduced)
+- **Category:** freemium guard gap (same class as P0-1, missed two columns)
 
 **Additional live reproduction for `gift_premium_until` (2026-05-24, prod Supabase):**
 

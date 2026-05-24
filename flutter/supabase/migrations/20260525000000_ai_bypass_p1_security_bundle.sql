@@ -17,13 +17,18 @@
 --         client fire AI calls for free. Affects BOTH the fast-path
 --         lookup AND the unique_violation exception handler.
 --
---   P1-3  Three user_profiles columns (`last_winback_grant_at`,
---         `iap_upsell_banner_dismissed_at`, `gift_premium_until`) were
---         freely UPDATEable by authenticated clients. Exploits: re-trigger
---         winback grants by NULLing the timestamp; permanently suppress
---         the EXP-3 banner by pushing dismissed_at to 2999; grant self
---         977 years of premium by setting gift_premium_until to 2999.
---         Same class as the P0-1 fix that missed these three columns.
+--   P1-3  Two user_profiles columns (`last_winback_grant_at`,
+--         `iap_upsell_banner_dismissed_at`) were freely UPDATEable by
+--         authenticated clients. Exploits: re-trigger winback grants by
+--         NULLing the timestamp; permanently suppress the EXP-3 banner
+--         by pushing dismissed_at to 2999. Same class as the P0-1 fix
+--         that missed these two columns.
+--
+--         A third column (gift_premium_until) is also exploitable on prod
+--         but its guard is deferred to a follow-up because the column is
+--         defined by the Ramadan-gifts migration which lives in a separate
+--         open PR. Pulling that migration into this hotfix would mix
+--         unrelated feature code with a security PR.
 --
 --   P2-3  app_config had only a PK — no CHECKs on the bounded fields.
 --         A service-role accidental UPDATE (or compromised key) setting
@@ -343,16 +348,16 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- P1-3: extend guard_user_profiles_freemium_fields to cover three more cols.
+-- P1-3: extend guard_user_profiles_freemium_fields to cover two more cols.
 --
--- Existing rules from 20260524050655 preserved verbatim. Three new
--- distinct-from rules appended: last_winback_grant_at,
--- iap_upsell_banner_dismissed_at, gift_premium_until.
+-- Existing rules from 20260524050655 preserved verbatim. Two new
+-- distinct-from rules appended: last_winback_grant_at and
+-- iap_upsell_banner_dismissed_at. (A third column, gift_premium_until,
+-- is deferred — see the file-level header.)
 --
--- Honest paths (grant_winback_tokens, dismiss_iap_upsell_banner, and the
--- Ramadan-gift grant RPC) are all SECURITY DEFINER owned by `postgres`,
--- which is in the current_user bypass list at the top of this trigger.
--- They continue to work.
+-- Honest paths (grant_winback_tokens, dismiss_iap_upsell_banner) are
+-- both SECURITY DEFINER owned by `postgres`, which is in the current_user
+-- bypass list at the top of this trigger. They continue to work.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.guard_user_profiles_freemium_fields()
@@ -407,16 +412,17 @@ begin
   end if;
 
   -- P1-3 NEW rules (2026-05-25 — this migration)
+  -- NOTE: gift_premium_until is exploitable on prod (same risk shape) but its
+  -- guard rule is deferred to a follow-up. The column is defined by the
+  -- Ramadan-gifts migration which lives in a separate open PR — guarding it
+  -- here would require pulling that migration into this hotfix, mixing scopes.
+  -- Tracked as a P1 follow-up in docs/qa/findings/.
   if new.last_winback_grant_at is distinct from old.last_winback_grant_at then
     raise exception 'cannot modify freemium gating field: last_winback_grant_at; must go through SECURITY DEFINER RPC'
       using errcode = 'check_violation';
   end if;
   if new.iap_upsell_banner_dismissed_at is distinct from old.iap_upsell_banner_dismissed_at then
     raise exception 'cannot modify freemium gating field: iap_upsell_banner_dismissed_at; must go through SECURITY DEFINER RPC'
-      using errcode = 'check_violation';
-  end if;
-  if new.gift_premium_until is distinct from old.gift_premium_until then
-    raise exception 'cannot modify freemium gating field: gift_premium_until; must go through SECURITY DEFINER RPC'
       using errcode = 'check_violation';
   end if;
 
