@@ -28,7 +28,15 @@ jobs:
       # that pre-date this PR. Errors and warnings remain fatal so new
       # code can't introduce real problems.
       - run: flutter analyze --no-fatal-infos
-      - run: flutter test
+      # TZ=America/New_York forces the runner off UTC so date-bucketing
+      # regressions (e.g. ._today() calling .toLocal() instead of .toUtc())
+      # actually surface in CI. GitHub Actions defaults to UTC, which
+      # makes any local-vs-UTC conversion test pass vacuously.
+      # Closes review finding #7 (2026-05-24).
+      - name: Run flutter tests under non-UTC TZ
+        env:
+          TZ: America/New_York
+        run: flutter test
 
   sql-tests:
     runs-on: ubuntu-latest
@@ -79,10 +87,11 @@ jobs:
                 2>/dev/null || echo "")
             fi
             if [ "$APPLIED" != "1" ]; then
-              echo "::warning::Newest migration not found in schema_migrations; tests may run against partial schema"
+              echo "::error::Newest migration '$NEWEST_MIGRATION' (or alt '$ALT_NAME') not found in schema_migrations after supabase start. SQL tests would run against a partial schema."
               PGPASSWORD=postgres psql \
                 "host=127.0.0.1 port=54322 user=postgres dbname=postgres" \
-                -c "select name from supabase_migrations.schema_migrations order by name desc limit 5;"
+                -c "select name, version from supabase_migrations.schema_migrations order by version desc limit 10;"
+              exit 1
             else
               echo "Migration applied."
             fi
