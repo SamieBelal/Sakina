@@ -4,6 +4,7 @@ import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart' as tokens;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 // ---------------------------------------------------------------------------
 // Gating Service
@@ -359,7 +360,10 @@ class GatingService {
     final featureKey = _bypassFeatureKey(feature);
     final result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
       'reserve_ai_bypass',
-      {'p_feature': featureKey},
+      {
+        'p_feature': featureKey,
+        'p_idempotency_key': const Uuid().v4(),
+      },
     );
     if (result == null) {
       onAnalyticsEvent?.call('ai_bypass_rejected', {
