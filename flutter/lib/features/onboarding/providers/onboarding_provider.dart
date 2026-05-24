@@ -30,6 +30,11 @@ const _prefsKey = 'onboarding_state';
 /// the paywall flow at pages 22-23 and added YourJourneyScreen at page 24.
 const int onboardingLastPageIndex = Env.ratingGateEnabled ? 26 : 25;
 
+/// Index of the Sign-up email screen in [OnboardingScreen]'s PageView.
+/// Shifted -2 from old index 21 because Generating + PersonalPlan were
+/// removed from earlier in the flow.
+const int onboardingEmailPageIndex = 19;
+
 /// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
 /// Shifted -2 from old index 22 because Generating + PersonalPlan were
 /// removed from earlier in the flow.
