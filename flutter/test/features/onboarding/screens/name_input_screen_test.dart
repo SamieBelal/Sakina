@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/name_input_screen.dart';
 
 void main() {

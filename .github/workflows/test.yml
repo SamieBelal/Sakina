@@ -1,0 +1,100 @@
+name: test
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  flutter-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # Generate Freezed/json_serializable outputs. The .freezed.dart and
+      # .g.dart files are intentionally NOT committed (per Dart codegen
+      # convention) so they have to be built fresh on every CI run before
+      # analyze/test can resolve their imports.
+      - run: dart run build_runner build --delete-conflicting-outputs
+      # `--no-fatal-infos` keeps the analyzer permissive on legacy style
+      # nits (knowledge_base double-quotes, dev_tools tearoff hints, etc.)
+      # that pre-date this PR. Errors and warnings remain fatal so new
+      # code can't introduce real problems.
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  sql-tests:
+    runs-on: ubuntu-latest
+    # Free alternative to Supabase Preview Branches: spin up a local
+    # Supabase stack via `supabase start` (Docker), apply migrations from
+    # supabase/migrations/, then run the test SQL files via psql.
+    # No PAT secret, no branching cost — just runner minutes.
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack
+        # `supabase start` boots Postgres + GoTrue (auth) + PostgREST + storage
+        # in Docker, all on localhost. Migrations under `supabase/migrations/`
+        # are applied automatically as part of startup. Ephemeral, fully
+        # isolated per workflow run. No cloud cost.
+        run: supabase start --workdir .
+
+      - name: Verify migrations applied
+        run: |
+          set -euo pipefail
+          NEWEST_MIGRATION=$(ls -1 supabase/migrations/*.sql 2>/dev/null \
+            | sed 's|.*/||;s|\.sql$||' \
+            | tail -1)
+          if [ -n "$NEWEST_MIGRATION" ]; then
+            echo "Verifying migration '$NEWEST_MIGRATION' is applied..."
+            APPLIED=$(PGPASSWORD=postgres psql \
+              "host=127.0.0.1 port=54322 user=postgres dbname=postgres" \
+              -tAc "select 1 from supabase_migrations.schema_migrations where name = '$NEWEST_MIGRATION' limit 1;" \
+              2>/dev/null || echo "")
+            if [ "$APPLIED" != "1" ]; then
+              # Migration list strips the timestamp prefix on some CLI
+              # versions; try the full filename minus .sql.
+              ALT_NAME=$(echo "$NEWEST_MIGRATION" | sed 's|^[0-9]*_||')
+              APPLIED=$(PGPASSWORD=postgres psql \
+                "host=127.0.0.1 port=54322 user=postgres dbname=postgres" \
+                -tAc "select 1 from supabase_migrations.schema_migrations where name = '$ALT_NAME' limit 1;" \
+                2>/dev/null || echo "")
+            fi
+            if [ "$APPLIED" != "1" ]; then
+              echo "::warning::Newest migration not found in schema_migrations; tests may run against partial schema"
+              PGPASSWORD=postgres psql \
+                "host=127.0.0.1 port=54322 user=postgres dbname=postgres" \
+                -c "select name from supabase_migrations.schema_migrations order by name desc limit 5;"
+            else
+              echo "Migration applied."
+            fi
+          fi
+
+      - name: Run SQL tests
+        env:
+          # supabase start exposes Postgres on localhost:54322 with the
+          # postgres/postgres credentials (canonical local default).
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: ./scripts/run_sql_tests.sh
+
+      - name: Stop Supabase stack
+        if: always()
+        run: supabase stop --no-backup --workdir . || true

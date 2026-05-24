@@ -62,10 +62,10 @@ void main() {
       expect(result.newBalance, 75);
       expect(result.bypassesUsedToday, 1);
       expect(fakeSync.rpcCalls.last['fn'], 'reserve_ai_bypass');
-      expect(
-        fakeSync.rpcCalls.last['params'],
-        {'p_feature': 'reflect'},
-      );
+      final happyParams =
+          fakeSync.rpcCalls.last['params'] as Map<String, dynamic>;
+      expect(happyParams['p_feature'], 'reflect');
+      expect(happyParams['p_idempotency_key'], isA<String>());
 
       // Local caches mirror the server side-effects.
       expect((await getTokens()).balance, 75);
@@ -81,15 +81,21 @@ void main() {
           };
 
       await gating.reserveBypass(GatedFeature.reflect);
-      expect(fakeSync.rpcCalls.last['params'], {'p_feature': 'reflect'});
+      expect(
+        (fakeSync.rpcCalls.last['params'] as Map<String, dynamic>)['p_feature'],
+        'reflect',
+      );
 
       await gating.reserveBypass(GatedFeature.builtDua);
-      expect(fakeSync.rpcCalls.last['params'], {'p_feature': 'built_dua'});
+      expect(
+        (fakeSync.rpcCalls.last['params'] as Map<String, dynamic>)['p_feature'],
+        'built_dua',
+      );
 
       await gating.reserveBypass(GatedFeature.discoverName);
       expect(
-        fakeSync.rpcCalls.last['params'],
-        {'p_feature': 'discover_name'},
+        (fakeSync.rpcCalls.last['params'] as Map<String, dynamic>)['p_feature'],
+        'discover_name',
       );
     });
 
@@ -133,6 +139,43 @@ void main() {
       expect(result, isNull);
       expect((await getTokens()).balance, 100);
       expect(await daily.getReflectBypassesUsedToday(), 0);
+    });
+
+    test('P0-2: reserveBypass sends an idempotency_key (uuid v4)', () async {
+      Map<String, dynamic>? capturedArgs;
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (args) {
+        capturedArgs = args;
+        return {
+          'ok': true,
+          'reservation_id': 'r-1',
+          'balance': 75,
+          'bypasses_used': 1,
+        };
+      };
+      await gating.reserveBypass(GatedFeature.reflect);
+      expect(capturedArgs, isNotNull);
+      expect(capturedArgs!['p_feature'], 'reflect');
+      expect(capturedArgs!['p_idempotency_key'], isA<String>());
+      // UUID v4 is 36 chars (8-4-4-4-12 + hyphens)
+      expect((capturedArgs!['p_idempotency_key'] as String).length, 36);
+    });
+
+    test('P0-2: two reserveBypass calls send DIFFERENT idempotency keys',
+        () async {
+      final keys = <String>[];
+      fakeSync.rpcHandlers['reserve_ai_bypass'] = (args) {
+        keys.add(args!['p_idempotency_key'] as String);
+        return {
+          'ok': true,
+          'reservation_id': 'r-${keys.length}',
+          'balance': 75,
+          'bypasses_used': keys.length,
+        };
+      };
+      await gating.reserveBypass(GatedFeature.reflect);
+      await gating.reserveBypass(GatedFeature.reflect);
+      expect(keys.length, 2);
+      expect(keys[0], isNot(equals(keys[1])));
     });
   });
 

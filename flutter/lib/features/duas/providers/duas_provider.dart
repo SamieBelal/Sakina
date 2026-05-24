@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
@@ -307,7 +308,8 @@ class DuasState {
 // Notifier
 // ---------------------------------------------------------------------------
 
-class DuasNotifier extends StateNotifier<DuasState> {
+class DuasNotifier extends StateNotifier<DuasState>
+    with BypassFlowMixin<DuasState> {
   DuasNotifier({
     DuasDependencies? dependencies,
     @visibleForTesting bool loadOnInit = true,
@@ -321,18 +323,12 @@ class DuasNotifier extends StateNotifier<DuasState> {
     }
   }
 
+  @override
+  GatedFeature get bypassFeature => GatedFeature.builtDua;
+
   Timer? _progressTimer;
   final DuasDependencies _dependencies;
   final Duration _resultRevealDelay;
-
-  /// Reservation id held during a bypass-funded build. Set by
-  /// [submitBuildWithBypass] before the AI call, cleared in success/failure
-  /// paths inside [_doBuild]. Non-null means a reserve has fired and the
-  /// token+counter mutations are in flight on the server.
-  ///
-  /// If a 4th gated feature is added, extract a BypassFlowMixin — three sites
-  /// is the YAGNI threshold (plan 2026-05-23 line 305).
-  String? _activeBypassReservationId;
 
   static const String _namesInvokedKey = 'sakina_names_invoked';
 
@@ -351,6 +347,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
   @override
   void dispose() {
     _progressTimer?.cancel();
+    // P0-4 + P1-B: cancel any in-flight bypass reservation (or chain a
+    // cancel on the still-pending reserve future) via the shared mixin.
+    disposeBypassFlow();
     super.dispose();
   }
 
@@ -438,19 +437,10 @@ class DuasNotifier extends StateNotifier<DuasState> {
     state = state.copyWith(buildNeed: value);
   }
 
-  /// Synchronous re-entry flag. Flipped true at the very top of
-  /// [submitBuild] / [submitBuildWithToken] BEFORE any `await`, so a second
-  /// tap that lands while the first is still inside `GatingService.canUse()` is
-  /// rejected. Using `state.buildLoading` for this is not enough: that flag
-  /// is only set inside `_doBuild`, which runs after the async free-check —
-  /// so two taps race past it and both increment the counter. Regression for
-  /// §7 D-E5 (verified failing on sim 2026-04-26 with `built_dua_uses=2`).
-  bool _submitInFlight = false;
-
   Future<void> submitBuild() async {
-    if (_submitInFlight || state.buildLoading) return;
+    if (bypassInFlight || state.buildLoading) return;
     if (state.buildNeed.trim().isEmpty) return;
-    _submitInFlight = true;
+    markBypassInFlight();
     try {
       // Resolve premium status ONCE for the whole submit cycle so canUse and
       // the follow-on markUsed share a single RevenueCat round-trip.
@@ -463,7 +453,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       }
       await _doBuild(consumeFreeUsage: true, isPremiumHint: premium);
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -473,21 +463,22 @@ class DuasNotifier extends StateNotifier<DuasState> {
   /// `_consumeFreeUsageOnSuccess` is false here — we lean on the explicit
   /// commit/cancel calls in [_doBuild] instead.
   Future<void> submitBuildWithBypass() async {
-    if (_submitInFlight || state.buildLoading) return;
+    if (bypassInFlight || state.buildLoading) return;
     if (state.buildNeed.trim().isEmpty) return;
-    _submitInFlight = true;
     try {
-      final reservation =
-          await GatingService().reserveBypass(GatedFeature.builtDua);
+      final reservation = await reserveActiveBypass();
+      // P1-B: dispose may have fired while we were awaiting. See
+      // ReflectNotifier.submitWithBypass for full rationale.
+      if (!mounted) return;
       if (reservation == null) {
         state = state.copyWith(error: () => 'Bypass unavailable. Try again.');
         return;
       }
-      _activeBypassReservationId = reservation.reservationId;
+      trackActiveBypassReservation(reservation.reservationId);
       // Bypass owns the daily-counter increment server-side; skip markUsed.
       await _doBuild(consumeFreeUsage: false, isPremiumHint: false);
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -496,9 +487,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
   /// why this is atomic (no commit/cancel flow needed — no tokens
   /// at stake).
   Future<void> submitBuildWithFirstBypass() async {
-    if (_submitInFlight || state.buildLoading) return;
+    if (bypassInFlight || state.buildLoading) return;
     if (state.buildNeed.trim().isEmpty) return;
-    _submitInFlight = true;
+    markBypassInFlight();
     try {
       final claimed =
           await GatingService().claimFirstBypass(GatedFeature.builtDua);
@@ -510,7 +501,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       }
       await _doBuild(consumeFreeUsage: false, isPremiumHint: false);
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -567,7 +558,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
     // Check for off-topic or harmful input
     if (_isDuaOffTopic(state.buildNeed)) {
       // If this came in as a bypass attempt, refund — the user got no value.
-      await _cancelActiveBypassIfAny();
+      await cancelActiveBypassIfAny();
       state = state.copyWith(
         error: () =>
             'This place is for your heart. Please describe a sincere need or intention for your dua.',
@@ -618,9 +609,9 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // Bypass commit/cancel mirror the same "got real value" gate. Empty
       // breakdown = off-topic = refund the bypass; non-empty = commit.
       if (result.breakdown.isEmpty) {
-        await _cancelActiveBypassIfAny();
+        await cancelActiveBypassIfAny();
       } else {
-        await _commitActiveBypassIfAny();
+        await commitActiveBypassIfAny();
       }
       _progressTimer?.cancel();
       // Jump to 100%
@@ -642,7 +633,7 @@ class DuasNotifier extends StateNotifier<DuasState> {
       // No XP — only Muhasabah, quests, and streak milestones grant XP.
     } catch (e) {
       _progressTimer?.cancel();
-      await _cancelActiveBypassIfAny();
+      await cancelActiveBypassIfAny();
       state = state.copyWith(
         buildLoading: false,
         buildProgress: 0.0,
@@ -651,20 +642,6 @@ class DuasNotifier extends StateNotifier<DuasState> {
         error: () => 'Something went wrong. Please try again.',
       );
     }
-  }
-
-  Future<void> _commitActiveBypassIfAny() async {
-    final id = _activeBypassReservationId;
-    if (id == null) return;
-    _activeBypassReservationId = null;
-    await GatingService().commitBypass(id);
-  }
-
-  Future<void> _cancelActiveBypassIfAny() async {
-    final id = _activeBypassReservationId;
-    if (id == null) return;
-    _activeBypassReservationId = null;
-    await GatingService().cancelBypass(id, GatedFeature.builtDua);
   }
 
   void nextBuildSection() {

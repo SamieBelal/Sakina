@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,10 +188,15 @@ void main() {
       await tester.tap(find.byType(InkWell).first);
       await tester.pumpAndSettle();
 
-      expect(analytics.tracked.length, 2);
-      expect(analytics.tracked[0].$1, AnalyticsEvents.iapToSubBannerTapped);
-      expect(analytics.tracked[1].$1, AnalyticsEvents.paywallViewed);
-      expect(analytics.tracked[1].$2, {
+      // Filter out the P0-5 shown event (fires once on first visible render)
+      // so the tap-flow assertion remains focused on tap + paywall_viewed.
+      final tapFlow = analytics.tracked
+          .where((e) => e.$1 != AnalyticsEvents.iapToSubBannerShown)
+          .toList();
+      expect(tapFlow.length, 2);
+      expect(tapFlow[0].$1, AnalyticsEvents.iapToSubBannerTapped);
+      expect(tapFlow[1].$1, AnalyticsEvents.paywallViewed);
+      expect(tapFlow[1].$2, {
         'trigger': AnalyticsEvents.paywallTriggerIapToSubUpsell,
       });
 
@@ -363,6 +370,87 @@ void main() {
       expect(find.text('PAYWALL'), findsOneWidget);
       expect(find.byIcon(Icons.workspace_premium), findsNothing,
           reason: 'Banner must vanish on /paywall destination');
+    });
+  });
+
+  group('IapToSubUpsellBanner — shown event (P0-5)', () {
+    testWidgets(
+        'REGRESSION P0-5: iap_to_sub_banner_shown fires once when banner becomes visible',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 8,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      final shownCalls = analytics.tracked
+          .where((e) => e.$1 == AnalyticsEvents.iapToSubBannerShown)
+          .toList();
+      expect(shownCalls.length, 1,
+          reason: 'should fire exactly once on first visible render');
+      expect(shownCalls.single.$2?['lifetime_bypasses_purchased'], 8,
+          reason: 'event includes the lifetime count for funnel segmentation');
+
+      await tester.pump();
+      await tester.pump();
+      expect(
+        analytics.tracked
+            .where((e) => e.$1 == AnalyticsEvents.iapToSubBannerShown)
+            .length,
+        1,
+        reason: 'sticky guard prevents re-fire on rebuild',
+      );
+    });
+
+    testWidgets(
+        'REGRESSION P0-5: iap_to_sub_banner_shown does NOT fire when banner is hidden',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => IapToSubBannerState.hidden,
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        analytics.tracked
+            .any((e) => e.$1 == AnalyticsEvents.iapToSubBannerShown),
+        isFalse,
+      );
+    });
+
+    // Structural test — catches the next event-without-producer.
+    test('iapToSubBannerShown has at least one producer in lib/', () async {
+      final dir = Directory('lib/');
+      final hits = <String>[];
+      await for (final f in dir.list(recursive: true)) {
+        if (f is File && f.path.endsWith('.dart')) {
+          final content = await f.readAsString();
+          if (content.contains('AnalyticsEvents.iapToSubBannerShown')) {
+            hits.add(f.path);
+          }
+        }
+      }
+      expect(hits, isNotEmpty,
+          reason: 'event must have a producer (P0-5 regression pin)');
     });
   });
 }

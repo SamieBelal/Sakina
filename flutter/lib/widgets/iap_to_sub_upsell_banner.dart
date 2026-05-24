@@ -118,6 +118,7 @@ class IapToSubUpsellBanner extends ConsumerStatefulWidget {
 class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
   GoRouter? _router;
   String _currentPath = '/';
+  bool _shownEventFired = false;
 
   @override
   void initState() {
@@ -180,6 +181,23 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
     );
 
     if (!state.visible) return const SizedBox.shrink();
+
+    // P0-5: fire shown event once per visible mount. Sticky boolean so
+    // rebuilds (route changes, theme changes, parent invalidations) don't
+    // re-emit. Post-frame so we don't emit during layout. Mounted guard
+    // for the dispose-mid-frame edge case.
+    if (!_shownEventFired) {
+      _shownEventFired = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.iapToSubBannerShown,
+          properties: {
+            'lifetime_bypasses_purchased': state.lifetimeBypassesPurchased,
+          },
+        );
+      });
+    }
 
     // $X spent: compute from lifetime count × $0.50 (the lowest token-pack
     // unit price — bypass = 25 tokens ≈ $0.50 at the smallest pack). Rounded

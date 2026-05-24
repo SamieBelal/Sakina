@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
+import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -301,7 +302,8 @@ class ReflectState {
 // Notifier
 // ---------------------------------------------------------------------------
 
-class ReflectNotifier extends StateNotifier<ReflectState> {
+class ReflectNotifier extends StateNotifier<ReflectState>
+    with BypassFlowMixin<ReflectState> {
   ReflectNotifier({
     ReflectDependencies? dependencies,
     @visibleForTesting bool loadOnInit = true,
@@ -312,33 +314,17 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     }
   }
 
+  @override
+  GatedFeature get bypassFeature => GatedFeature.reflect;
+
   final ReflectDependencies _dependencies;
   bool _consumeFreeUsageOnSuccess = false;
-
-  /// Reservation id held during a bypass-funded submit. Set by [submitWithBypass]
-  /// before the AI call, cleared on either successful commit or after
-  /// `GatingService.cancelBypass` returns. Non-null means a reserve has fired
-  /// and the token+counter mutations are in flight on the server.
-  ///
-  /// If a 4th gated feature is added, extract a BypassFlowMixin — three sites
-  /// is the YAGNI threshold (plan 2026-05-23 line 305).
-  String? _activeBypassReservationId;
 
   /// Captured during [submit] alongside `_consumeFreeUsageOnSuccess` so the
   /// follow-on [GatingService.markUsed] call can skip a redundant
   /// `PurchaseService().isPremium()` round-trip (RevenueCat method-channel
   /// hop). Cleared in the same paths that clear `_consumeFreeUsageOnSuccess`.
   bool? _premiumAtSubmit;
-
-  /// Synchronous re-entry flag. Flipped true at the very top of [submit]
-  /// BEFORE any `await`, so a second tap that lands while the first is still
-  /// inside `GatingService.canUse()` is rejected. Using
-  /// `state.screenState == loading` for this is not enough: that flag is only
-  /// set inside `_doSubmit`, which runs after the async gate-check — so two
-  /// taps race past it and both increment the counter. Mirrors the duas
-  /// `_submitInFlight` regression fix from §7 D-E5 (2026-04-26, verified live
-  /// with `built_dua_uses=2` after a single double-tap).
-  bool _submitInFlight = false;
 
   void setUserText(String text) {
     state = state.copyWith(userText: text);
@@ -368,11 +354,11 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// Submit user text. Checks the gating layer first; if blocked, exposes the
   /// [GateResult] on state for the screen to render the right paywall sheet.
   Future<void> submit() async {
-    if (_submitInFlight ||
+    if (bypassInFlight ||
         state.screenState == ReflectScreenState.loading) {
       return;
     }
-    _submitInFlight = true;
+    markBypassInFlight();
     try {
       // Resolve premium status ONCE for this submit cycle. Both canUse and
       // the follow-on markUsed need it; without the cache each one fires its
@@ -388,7 +374,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       _consumeFreeUsageOnSuccess = true;
       await _doSubmit();
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -402,20 +388,23 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// bypass cap reached, premium short-circuit). The screen-level toast
   /// is the caller's responsibility — they already know the local state.
   Future<void> submitWithBypass() async {
-    if (_submitInFlight ||
+    if (bypassInFlight ||
         state.screenState == ReflectScreenState.loading) {
       return;
     }
-    _submitInFlight = true;
     try {
-      final reservation =
-          await GatingService().reserveBypass(GatedFeature.reflect);
+      final reservation = await reserveActiveBypass();
+      // P1-B: dispose may have fired while we were awaiting. State writes on
+      // a disposed notifier throw. Check `mounted` before any state mutation
+      // beyond this point. The mixin's dispose path already handles
+      // cancelling a reservation that lands after teardown.
+      if (!mounted) return;
       if (reservation == null) {
         // Sheet caller stays open / re-renders with stale-state copy.
         state = state.copyWith(error: 'Bypass unavailable. Try again.');
         return;
       }
-      _activeBypassReservationId = reservation.reservationId;
+      trackActiveBypassReservation(reservation.reservationId);
       // The bypass path doesn't count against the warmup/daily counters via
       // markUsed — the reserve RPC already incremented the daily-uses row
       // server-side, and the warmup counter is unrelated (bypass is a
@@ -424,7 +413,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       _premiumAtSubmit = false;
       await _doSubmit();
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -440,11 +429,11 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
   /// (Intentional — see plan §EXP-2 "product discovery, not unlimited
   /// Day-1 access".)
   Future<void> submitWithFirstBypass() async {
-    if (_submitInFlight ||
+    if (bypassInFlight ||
         state.screenState == ReflectScreenState.loading) {
       return;
     }
-    _submitInFlight = true;
+    markBypassInFlight();
     try {
       final claimed =
           await GatingService().claimFirstBypass(GatedFeature.reflect);
@@ -458,7 +447,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
       _premiumAtSubmit = false;
       await _doSubmit();
     } finally {
-      _submitInFlight = false;
+      clearBypassInFlight();
     }
   }
 
@@ -483,7 +472,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
-      await _cancelActiveBypassIfAny();
+      await cancelActiveBypassIfAny();
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
@@ -569,6 +558,17 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     state = state.copyWith(savedReflections: reflections);
   }
 
+  @override
+  void dispose() {
+    // P0-4 + P1-B: cancel any in-flight bypass reservation (or chain a
+    // cancel on the still-pending reserve future) so the user's tokens are
+    // refunded immediately instead of waiting up to 15 min for the
+    // server-side orphan cron. Mixin handles both the post-assignment
+    // (P0-4) and pre-assignment (P1-B) cases.
+    disposeBypassFlow();
+    super.dispose();
+  }
+
   /// Reset to input state (preserves saved reflections).
   void reset() {
     _consumeFreeUsageOnSuccess = false;
@@ -577,11 +577,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     // cancel so the user's tokens don't sit reserved until the orphan cron
     // rescues. We intentionally don't await — reset() is sync-shaped for
     // UI callers.
-    final id = _activeBypassReservationId;
-    _activeBypassReservationId = null;
-    if (id != null) {
-      GatingService().cancelBypass(id, GatedFeature.reflect);
-    }
+    cancelActiveBypassIfAny().ignore();
     state = ReflectState(savedReflections: state.savedReflections);
   }
 
@@ -603,7 +599,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
         // Off-topic is treated as "no value delivered" — cancel any active
         // bypass so the user gets their tokens back. Mirrors the existing
         // free-usage no-consume behaviour just above.
-        await _cancelActiveBypassIfAny();
+        await cancelActiveBypassIfAny();
         state = state.copyWith(
           screenState: ReflectScreenState.offtopic,
           result: response,
@@ -626,7 +622,7 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
                 state.copyWith(warmupJustExhausted: GatedFeature.reflect);
           }
         }
-        await _commitActiveBypassIfAny();
+        await commitActiveBypassIfAny();
         // Track streak (XP for Reflect is intentionally zero — only Muhasabah,
         // quests, and streak milestones grant XP).
         await markActiveToday();
@@ -637,33 +633,12 @@ class ReflectNotifier extends StateNotifier<ReflectState> {
     } catch (e) {
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = null;
-      await _cancelActiveBypassIfAny();
+      await cancelActiveBypassIfAny();
       state = state.copyWith(
         screenState: ReflectScreenState.input,
         error: 'Something went wrong. Please try again.',
       );
     }
-  }
-
-  /// Fire-and-forget commit of an active bypass reservation. Failures here
-  /// are absorbed because the server-side orphan-cleanup cron will rescue a
-  /// missed-commit by cancelling the (still-pending) reservation after 15
-  /// min — at which point the user already received the AI value, so they
-  /// effectively got a free use. Acceptable failure mode.
-  Future<void> _commitActiveBypassIfAny() async {
-    final id = _activeBypassReservationId;
-    if (id == null) return;
-    _activeBypassReservationId = null;
-    await GatingService().commitBypass(id);
-  }
-
-  Future<void> _cancelActiveBypassIfAny() async {
-    final id = _activeBypassReservationId;
-    if (id == null) return;
-    _activeBypassReservationId = null;
-    // Best-effort: a cancel-RPC failure (offline, RLS race) just means the
-    // reservation stays pending until the orphan-cleanup cron picks it up.
-    await GatingService().cancelBypass(id, GatedFeature.reflect);
   }
 
   String _buildCombinedText(List<String> answers) {
