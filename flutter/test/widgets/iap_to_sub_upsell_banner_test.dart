@@ -100,8 +100,8 @@ void main() {
           reason: 'Hidden state must collapse to SizedBox.shrink');
     });
 
-    testWidgets(r'renders headline with computed $X and weekly price '
-        'when eligible', (tester) async {
+    testWidgets('renders count-based headline and weekly price when eligible',
+        (tester) async {
       final container = ProviderContainer(overrides: [
         analyticsProvider.overrideWithValue(analytics),
         iapToSubBannerStateProvider.overrideWith(
@@ -119,8 +119,7 @@ void main() {
       );
       await tester.pump();
 
-      // 10 bypasses × $0.50 = $5
-      expect(find.text(r"You've spent $5 on bypasses"), findsOneWidget);
+      expect(find.text("You've used 10 bypasses"), findsOneWidget);
       expect(
         find.textContaining(r'Weekly sub at $9.99 unlocks unlimited'),
         findsOneWidget,
@@ -148,8 +147,7 @@ void main() {
       );
       await tester.pump();
 
-      // 6 × $0.50 = $3 (floor)
-      expect(find.text(r"You've spent $3 on bypasses"), findsOneWidget);
+      expect(find.text("You've used 6 bypasses"), findsOneWidget);
       expect(
         find.text(
             'Weekly sub unlocks unlimited reflections, duas, and discoveries.'),
@@ -202,6 +200,107 @@ void main() {
 
       expect(find.text('PAYWALL'), findsOneWidget,
           reason: 'Banner tap must route to /paywall');
+    });
+
+    testWidgets('P2-2: banner headline shows bypass count, not dollar figure',
+        (tester) async {
+      // 2026-05-25: the fabricated "$X spent" headline (computed as
+      // lifetimeBypasses * $0.50) was replaced with a count-based one to
+      // close an Apple 3.1.1 / FTC endorsement risk. See
+      // docs/qa/findings/2026-05-24-ai-bypass-p1-p2-review.md.
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 6,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      expect(find.text("You've used 6 bypasses"), findsOneWidget);
+      // The synthesized "$X on bypasses" copy must be gone — its presence
+      // would reintroduce the FTC risk.
+      expect(
+        find.textContaining("You've spent"),
+        findsNothing,
+        reason: 'Fabricated dollar headline must not render anywhere',
+      );
+      expect(
+        find.textContaining(r'$3 on bypasses'),
+        findsNothing,
+        reason: r'Old "6 × $0.50 = $3" headline must not render',
+      );
+    });
+
+    testWidgets('P2-2: banner headline pluralization at count=1',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 1,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      expect(find.text("You've used 1 bypass"), findsOneWidget,
+          reason: 'Singular noun at count=1');
+      expect(find.text("You've used 1 bypasses"), findsNothing,
+          reason: 'Plural form must not render at count=1');
+    });
+
+    testWidgets('P2-2: banner does not render at count=0', (tester) async {
+      // ENG-REVIEW gap test: what does the banner do when the eligibility
+      // predicates are satisfied but the lifetime count is 0? Production
+      // gating naturally excludes count<6 via the server's eligibility
+      // check, but if a stale local cache ever surfaces visible=true with
+      // count=0, the banner shouldn't render an "0 bypasses" oddity.
+      //
+      // Current behavior: the state provider is the gate; the build()
+      // method itself only checks `state.visible`. So if visible=true AND
+      // count=0 (a state production never produces today, but a defensive
+      // pin still worth having), the banner renders "You've used 0
+      // bypasses". This test documents that contract: if someone changes
+      // the build() to gate-on-count later, this test should be updated
+      // accordingly. Filed as a UX TODO in the implementation report.
+      final container = ProviderContainer(overrides: [
+        analyticsProvider.overrideWithValue(analytics),
+        iapToSubBannerStateProvider.overrideWith(
+          (ref) async => const IapToSubBannerState(
+            visible: true,
+            lifetimeBypassesPurchased: 0,
+            weeklyPriceString: r'$4.99',
+          ),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        _wrap(container: container, child: const IapToSubUpsellBanner()),
+      );
+      await tester.pump();
+
+      // Banner renders because the state provider — not the widget — is the
+      // count gate. Production state provider never returns visible=true at
+      // count=0 (server `iap_to_sub_banner_eligible` requires 6+), so this
+      // is a defensive contract pin, not a real user-visible path.
+      expect(find.text("You've used 0 bypasses"), findsOneWidget);
     });
 
     testWidgets('close-icon tap fires iap_to_sub_banner_dismissed + RPC',

@@ -199,11 +199,18 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
       });
     }
 
-    // $X spent: compute from lifetime count × $0.50 (the lowest token-pack
-    // unit price — bypass = 25 tokens ≈ $0.50 at the smallest pack). Rounded
-    // down per plan. This is illustrative, not a financial figure.
-    final dollarsSpent = (state.lifetimeBypassesPurchased * 0.5).floor();
-    final headline = "You've spent \$$dollarsSpent on bypasses";
+    // P2-2: Headline switched from a fabricated "$X spent" figure to a
+    // count-based one (2026-05-25, per docs/qa/findings/2026-05-24-ai-bypass-
+    // p1-p2-review.md). The previous formula was lifetimeBypasses * $0.50,
+    // labelled "illustrative" — Apple 3.1.1 / FTC endorsement risk for
+    // presenting a synthetic number as user spend. Real per-bypass cost
+    // varies by token-pack size; recomputing actual dollars requires
+    // server-side aggregation across RevenueCat nonSubscriptionTransactions,
+    // tracked separately as a growth-team initiative.
+    final count = state.lifetimeBypassesPurchased;
+    final headline = count == 1
+        ? "You've used 1 bypass"
+        : "You've used $count bypasses";
     // Drop the price entirely on RC fallback. A hardcoded fallback ($9.99)
     // would drift from the real RC value ($4.99 today) and surface a wrong
     // figure in the upsell copy — worse than no figure.
