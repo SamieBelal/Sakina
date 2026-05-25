@@ -130,6 +130,11 @@ class AppSessionNotifier extends ChangeNotifier {
       // auth change or RPC return).
       unawaited(PurchaseService().refreshReferralPremiumCache());
 
+      // Same shape for the Sakina Gift window — cross-device sign-in restores
+      // entitlement without requiring the user to tap Accept again. Server is
+      // authoritative; we just refresh the SharedPrefs cache.
+      unawaited(PurchaseService().refreshGiftPremiumCache());
+
       // Defensive cold-launch reconciliation for Refer-to-Unlock. There's a
       // kill-window between signup completing and applyPendingReferralIfAny
       // succeeding (or its RPC being submitted): the user could force-quit.

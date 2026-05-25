@@ -63,4 +63,13 @@ class Env {
   static const bool paywallHonestBillingEnabled =
       bool.fromEnvironment('PAYWALL_HONEST_BILLING_ENABLED',
           defaultValue: true);
+
+  /// Compile-time kill switch for the Ramadan / Eid Sakina Gift surface.
+  /// Defaults to `true` so a missing env entry doesn't silently disable the
+  /// gift; flip to `"false"` in `env.json` and rebuild to hide the home-
+  /// screen card entirely. The server-side claim RPC is unaffected by this
+  /// flag — it gates only the client-side rendering and claim trigger.
+  /// See docs/superpowers/plans/2026-05-14-ramadan-gift.md.
+  static const bool ramadanGiftEnabled =
+      bool.fromEnvironment('RAMADAN_GIFT_ENABLED', defaultValue: true);
 }

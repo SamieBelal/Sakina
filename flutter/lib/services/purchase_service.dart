@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/gift_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -64,14 +65,23 @@ class PurchaseService {
   @visibleForTesting
   static const String referralPremiumUntilPrefsBaseKey = 'referral_premium_until';
 
-  /// True iff RevenueCat reports the `premium` entitlement OR the local
-  /// referral-premium cache holds a future ISO timestamp.
+  /// True iff any premium source is active: Sakina Gift window, RevenueCat
+  /// `premium` entitlement, or the local referral-premium cache.
+  ///
+  /// Order matters:
+  /// 1. Gift check first — reads SharedPrefs only, doesn't require RC init,
+  ///    so a kill-switched / not-yet-initialized RC build still honors an
+  ///    active gift.
+  /// 2. RC entitlement next — authoritative billing source when initialized.
+  /// 3. Referral cache last — SharedPrefs only, populated at deterministic
+  ///    refresh moments (auth foreground, post-signup, post-RPC) via
+  ///    [refreshReferralPremiumCache].
   ///
   /// Hot-path constraint: called from 8+ providers / services on every render
-  /// pass. The referral side reads SharedPreferences only — never touches
-  /// Supabase. Refresh happens at deterministic moments (auth foreground,
-  /// completeOnboarding, post-RPC) via [refreshReferralPremiumCache].
+  /// pass. Neither the gift nor referral path hits Supabase from the hot
+  /// path — both read user-scoped SharedPreferences.
   Future<bool> isPremium() async {
+    if (await _isGiftPremium()) return true;
     if (_initialized) {
       try {
         final customerInfo = await Purchases.getCustomerInfo();
@@ -142,6 +152,67 @@ class PurchaseService {
       return Supabase.instance.client.auth.currentUser?.id;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Fetches `user_profiles.gift_premium_until` from Supabase and updates the
+  /// local cache. Sibling to [refreshReferralPremiumCache] — call at the same
+  /// moments (app foreground while authenticated, after signup) so
+  /// cross-device sign-in restores gift entitlement without requiring the
+  /// user to re-tap Accept.
+  ///
+  /// Best-effort — silently swallows network errors. Next refresh moment will
+  /// retry.
+  Future<void> refreshGiftPremiumCache() async {
+    final uid = _safeCurrentUserId();
+    if (uid == null || uid.isEmpty) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('user_profiles')
+          .select('gift_premium_until')
+          .eq('id', uid)
+          .maybeSingle();
+      final iso = row?['gift_premium_until'] as String?;
+      final prefs = await SharedPreferences.getInstance();
+      final scopedKey =
+          supabaseSyncService.scopedKey(giftPremiumUntilPrefsBaseKey);
+      if (iso == null) {
+        await prefs.remove(scopedKey);
+      } else {
+        await prefs.setString(scopedKey, iso);
+      }
+    } catch (_) {
+      // Best-effort; next refresh moment will retry.
+    }
+  }
+
+  /// Returns true when the current user has an active Sakina Gift window —
+  /// i.e. SharedPrefs holds a `gift_premium_until:<uid>` timestamp in the
+  /// future relative to [GiftService.debugGiftClock].
+  ///
+  /// The SharedPrefs cache is populated by `GiftService.claim()` at claim
+  /// time. user_profiles.gift_premium_until on the server is authoritative;
+  /// the cache is best-effort for cold-launch entitlement checks without a
+  /// network round-trip.
+  ///
+  /// Sibling to the [_isReferralPremium] path. Kept structurally separate so
+  /// refer-unlock and gift unlock can be reasoned about independently and so
+  /// analytics can attribute "what kept premium on" when both paths overlap.
+  Future<bool> _isGiftPremium() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(
+        supabaseSyncService.scopedKey(giftPremiumUntilPrefsBaseKey),
+      );
+      if (raw == null) return false;
+      final until = DateTime.tryParse(raw)?.toUtc();
+      if (until == null) return false;
+      return GiftService.currentClock().isBefore(until);
+    } catch (_) {
+      // SharedPreferences unavailable (e.g. unit test without the mock
+      // installed) — fall through to the RC entitlement check rather than
+      // throwing out of isPremium().
+      return false;
     }
   }
 
