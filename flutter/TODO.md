@@ -93,6 +93,22 @@ canonical-name alias map or expand `approvedReflectVersesByName` in
 
 ---
 
+## Arabic + English mixed in single Text widget on home screen header
+
+**Trigger:** when polishing the home screen visuals, OR if a user reports the home greeting wraps oddly or shows reversed punctuation. Not blocking but visually fragile.
+
+**Status:** `lib/features/feelings/screens/home_screen.dart:192` (or current equivalent — line may have shifted) mixes Arabic and English text inside one `Text` widget. Flutter's RTL rendering on the Arabic substring bleeds into adjacent layout, causing the surrounding UI to occasionally reflow in unexpected ways. CLAUDE.md's Critical Rules section forbids this pattern but a legacy violation slipped through.
+
+**Steps when ready (~10 min):**
+
+1. Grep `lib/` for any `Text(...)` literals containing both Arabic Unicode (U+0600–U+06FF) and ASCII letters in the same string.
+2. Split each into two `Text` widgets in a `Row`, each with explicit `textDirection`. For the Arabic side use `TextDirection.rtl`.
+3. Add a regression test that loads the home screen and asserts both substrings render in their own widgets (look up by key or by `find.text(...)`).
+
+**Surfaced by:** /review on 2026-05-24.
+
+---
+
 ## Daily-loop cache key + checkin_history.date use local time, not UTC
 
 **Trigger:** next time a user reports "I did my muhasabah but the streak didn't update" or "I lost my daily progress crossing midnight". Also good to bundle into the next correctness pass on the daily flow.

@@ -1,399 +1,133 @@
-# Sakina
+# Sakina — Claude Code Project Memory
 
 Islamic spiritual wellness app. User says how they feel → app maps it to a Name of Allah, Quran verses, and a dua. Flutter mobile app with Supabase backend.
 
-> **See also:** [`TODO.md`](./TODO.md) — deferred production-readiness work (Android signing, OpenAI proxy, etc.) with triggers and step-by-step recipes. Check before starting any Play Store work or external TestFlight/App Store release.
-
-## Why This Exists
-
-There is no "Bible Feels for Muslims." 2 billion Muslims, zero polished apps that connect emotions to Islamic scripture. The Christian equivalents (Hallow, Glorify, Bible Feels) have raised $240M+ combined. This is a wedge into that market.
-
-The app does ONE thing: "Tell me how you feel, and I'll show you what Allah says."
-
-## Core Loop (this IS the product)
-
-1. User opens app → "How are you feeling?" (free-text input OR tap from emotion grid)
-2. AI matches feeling → returns a Name of Allah + 1-2 Quran verses + a dua
-3. User sees a beautiful result card they can save, share, or reflect on
-4. Streak tracks daily check-ins. Widget pulls them back in.
-
-Everything in the app serves this loop or retains users around it. If a feature doesn't map to this loop, don't build it.
-
-## Tech Stack
-
-- **Frontend:** Flutter (Dart)
-- **Backend:** Supabase (auth, Postgres DB, edge functions, storage)
-- **AI:** OpenAI Chat Completions (`gpt-4o-mini`) for emotion → content matching
-- **Payments:** RevenueCat (enabled; purchases do not work on iOS simulator — test on a physical device)
-- **Paywall:** RevenueCat Paywalls (native, integrated)
-- **Analytics:** Mixpanel
-- **Push Notifications:** OneSignal
-- **State Management:** Riverpod
-- **Routing:** GoRouter
-
-## Project Structure
-
-```
-lib/
-  core/           # Theme, constants, router, app session, utilities
-  features/
-    auth/         # Apple + Google Sign In
-    onboarding/   # Goals, pain points, notifications, paywall
-    daily/        # Daily check-in modal, muhasabah, daily rewards, gacha reveal
-    reflect/      # AI-powered reflection on feelings
-    duas/         # Dua browser & AI suggestions
-    names/        # 99 Names of Allah browser
-    discovery/    # Discovery quiz (emotion-to-name matching)
-    journal/      # Saved check-in history
-    collection/   # Collectible cards (bronze, silver, gold, emerald tiers)
-    store/        # Premium card shop (free + premium tabs)
-    quests/       # Quest system + First Steps beginner quests
-    streaks/      # Streak tracking UI
-    progress/     # XP/level progress
-    settings/     # Profile, preferences, account deletion
-  widgets/        # Reusable UI components
-  models/         # Data models (Feeling, NameOfAllah, Verse, Dua, Card, etc.)
-  services/       # Supabase, AI, analytics, economy, sync services
-```
+> **See also:** [`TODO.md`](./TODO.md) for deferred production-readiness work (Android signing, OpenAI proxy, open bugs, etc.) with triggers and step-by-step recipes. Check before starting any Play Store / TestFlight / App Store release.
 
 ## Commands
 
 ```bash
-# Run app (always pass env.json — see Environment Configuration below)
+# Run app (ALWAYS pass env.json — required for Supabase/OpenAI/RevenueCat keys)
 flutter run --dart-define-from-file=env.json
-
-# Run on specific device
 flutter run -d <device_id> --dart-define-from-file=env.json
 
-# Build release for TestFlight / App Store
+# Build release
 flutter build ios --release --dart-define-from-file=env.json
 flutter build appbundle --release --dart-define-from-file=env.json
 
-# Run tests (no env values needed for most)
+# Tests + lint
 flutter test
-
-# Run single test file
-flutter test test/path/to/test.dart
-
-# Generate code (Freezed, Riverpod codegen)
-dart run build_runner build --delete-conflicting-outputs
-
-# Lint
+flutter test test/path/to/test.dart   # single file
 flutter analyze
 
-# Pre-release: fail if any FAKE_DO_NOT_SHIP_ placeholders remain in lib/.
-# Run before any `flutter build ios --release` or TestFlight / App Store
-# push. Tripwire against shipping fabricated copy (Apple 3.1.1 +
-# FTC endorsement rules).
+# Codegen (Freezed, JSON serialization)
+dart run build_runner build --delete-conflicting-outputs
+
+# Pre-release tripwire (run before any TestFlight / App Store push)
 ./scripts/check_no_fake_strings.sh
 ```
 
-## Environment Configuration
+## Critical rules (read first)
 
-All env values (Supabase, OpenAI, RevenueCat, Mixpanel, OneSignal, Google Sign-In) are compile-time constants injected via `--dart-define-from-file=env.json`. There is no `flutter_dotenv`, no `.env` asset, and no runtime asset load.
+- **NEVER fabricate Quran verses, hadith, or scholarly content.** All Islamic content must come from the pre-verified Supabase database. The AI selects from existing entries only — it does not generate scripture.
+- **NEVER mix Arabic and English in a single `Text` widget.** Mixed direction causes RTL bleed into adjacent UI. Use separate widgets with explicit `textDirection`, or `RichText` with `TextSpan`.
+- **NEVER write to economy tables directly from Flutter.** Tokens / XP / streaks / achievements / titles all flow through `sync_all_user_data()` RPC via the service layer.
+- **NEVER skip `--dart-define-from-file=env.json`.** All env values (Supabase, OpenAI, RevenueCat, Mixpanel, OneSignal) are compile-time constants — without the flag the app boots with empty keys and silently degrades.
+- **NEVER add server-only secrets to `env.json`.** `SUPABASE_SERVICE_ROLE_KEY` and `REVENUECAT_WEBHOOK_SECRET` belong in Supabase Edge Function secrets only — they would otherwise be baked into every IPA.
+- **iOS Simulator screenshots: always `sips -Z 1600 <path>.png` immediately after capture.** Native @3x resolution (~3-5MB) trips Claude Code's image size cap. 1600px is above the internal downscale floor so visual quality is preserved while files drop under 500KB.
 
-**How to read env values:** import `lib/core/env.dart` and use `Env.openAiApiKey`, `Env.supabaseUrl`, etc. Each field is `static const String = String.fromEnvironment('KEY')` and falls back to empty string when the build wasn't given the key.
+## Tech stack
 
-```dart
-import 'package:sakina/core/env.dart';
+Flutter (Dart) · Supabase (Postgres + Edge Functions + auth + storage) · Riverpod · GoRouter · OpenAI Chat Completions (`gpt-4o-mini`) · RevenueCat (subs + paywall) · Mixpanel · OneSignal. Light mode default; physical device required for any RevenueCat purchase flow (simulator can't complete StoreKit).
 
-const apiKey = Env.openAiApiKey;
-if (apiKey.isEmpty) return getDemoResponse();
-```
-
-**Files:**
-- `env.json` — gitignored. Holds real values for local dev + TestFlight builds.
-- `env.example.json` — committed. Placeholder shape so clean checkouts know which keys to fill in.
-- `lib/core/env.dart` — the `Env` constants class. Add a new `static const` field here when introducing a new key.
-- `pubspec.yaml` — does NOT list `env.json` or `.env` under `assets:`. Bundling them as assets would leak secrets in the IPA.
-
-**Adding a new env value:** add the key to `env.json` and `env.example.json`, add a matching `static const` to `Env` in `lib/core/env.dart`, and reference it as `Env.<fieldName>` at the call site. Never use `String.fromEnvironment` inline at random call sites — keep it centralized in `Env`.
-
-**Server-only secrets that must NOT go in `env.json`** (would otherwise be baked into every IPA):
-- `SUPABASE_SERVICE_ROLE_KEY` — bypasses RLS; server-only.
-- `REVENUECAT_WEBHOOK_SECRET` — only the `revenuecat-webhook` Edge Function reads this; configure as a Supabase Edge Function secret.
-
-These stay in a local `.env` for backend tools/scripts, never referenced from Dart code.
-
-**Security caveat:** `String.fromEnvironment` values are baked into the compiled Dart snapshot. Harder to extract than a plain text asset, but a determined attacker with `strings` / Hopper / Ghidra still gets them. **Any key that costs money to abuse (currently `OPENAI_API_KEY`) should move behind a Supabase Edge Function before an external TestFlight or App Store release** — the function holds the key in its server-side env, validates the user JWT, and proxies to OpenAI. Pattern is already proven by `revenuecat-webhook`.
-
-The `SUPABASE_ANON_KEY` and RevenueCat public SDK keys are *designed* to be public — security on those comes from Supabase RLS and RevenueCat's server-side entitlement model, not from key secrecy. Safe to ship.
-
-**Why this pattern:** Confirmed canonical via [Flutter docs](https://docs.flutter.dev/) + [Code with Andrea](https://codewithandrea.com/articles/flutter-api-keys-dart-define-env-files/). The previous `flutter_dotenv` setup bundled `.env` as a Flutter asset, meaning anyone who unpacked the signed IPA could read all keys in plaintext.
-
-## Design System & UI
-
-IMPORTANT: The UI must feel premium, warm, and spiritually grounded — like opening a beautiful devotional book, not a tech product.
-
-**Design references (study these closely):**
-
-- **Glorify** — THE primary visual reference. Warm cream/off-white backgrounds, editorial layout, generous whitespace, soft rounded cards, navy headings, golden accents. The daily devotional flow (quote → passage → devotional → reflection) is the UX model. Light mode is the default.
-- **Hallow** — Reference for the dark mode option. Warm charcoal (NOT pure black), nature photography behind session cards, gold/amber highlights, cream text. Feels like a candlelit chapel. Also reference their session cards and prayer journal UI.
-- **Duolingo** — Reference ONLY for gamification UI patterns: streak flame icon, daily progress ring, celebration animations on completion, the "streak freeze" ice cube. Borrow the mechanics and interaction patterns, NOT the bright/playful color palette.
-- **Cal AI** — Reference for onboarding flow: short demo video → personalization questions → social proof → paywall. Minimal friction to first value moment.
-- **Calm** — Reference for how they make wellness feel premium: soft gradients, nature imagery, rounded shapes, breathing animations.
-
-**Visual direction:**
-
-- Light mode is the DEFAULT. Warm, cream-toned, editorial, like a beautifully typeset mushaf. Dark mode is a secondary option.
-- Arabic calligraphy is a first-class visual element displayed large and beautifully, not squeezed into a corner
-- Generous whitespace everywhere — 20-30% more padding than feels necessary
-- Soft, rounded cards (12-16px border radius) with subtle shadows
-- Soft entrance animations on result cards (fade + slight upward drift, 300ms ease-out)
-- Islamic geometric patterns used VERY sparingly as decorative accents on section dividers or card backgrounds at 5-8% opacity — never busy or competing with content
-- The result card (Name of Allah + verse + dua) must be beautiful enough that users screenshot and share it on Instagram/TikTok unprompted. This is a growth mechanic, not just aesthetics.
-
-**Fonts:**
-
-- Arabic scripture: Amiri (for Quran verses — elegant, naskh style) or Scheherazade New
-- Arabic display: Aref Ruqaa for the Name of Allah hero display (decorative, calligraphic)
-- English display/headings: DM Serif Display (warm, high-contrast transitional serif — the Google Fonts equivalent of Apple's New York font used by Hallow. Editorial and devotional, NOT a basic serif like Lora or Times)
-- English body/UI: DM Sans (clean, rounded, warm sans-serif — same design family as DM Serif Display, pairs naturally. Similar to the body fonts Glorify and Calm use)
-
-**Color Palette — Light Mode (default):**
+## Project structure
 
 ```
-Background:        #FBF7F2  (warm cream — Glorify-style, NOT cold white)
-Surface/Cards:     #FFFFFF  (white cards on cream bg for subtle lift)
-Surface Alt:       #F3EDE4  (slightly warmer for alternating sections)
-
-Primary:           #1B6B4A  (deep emerald green — traditional Islamic color, grounded and trustworthy)
-Primary Light:     #E8F5EE  (soft green tint for selected states, badges, streak backgrounds)
-Primary Dark:      #134D36  (pressed/active states)
-
-Secondary:         #C8985E  (warm matte gold — for Arabic calligraphy accents, premium highlights, stars)
-Secondary Light:   #F5EBD9  (gold tint for subtle highlights)
-
-Text Primary:      #1A1A2E  (near-black with warmth — NOT pure #000000)
-Text Secondary:    #6B7280  (muted gray for captions, timestamps, secondary info)
-Text Tertiary:     #9CA3AF  (placeholder text, disabled states)
-Text On Primary:   #FFFFFF  (white text on green buttons)
-
-Streak/Success:    #F59E0B  (warm amber — for streak flame, XP celebrations, achievement badges)
-Streak Background: #FEF3C7  (soft amber tint behind streak counters)
-
-Error:             #DC2626  (red for errors, broken streaks)
-Error Background:  #FEE2E2  (soft red tint)
-
-Border:            #E5E0D8  (warm light border — NOT cold gray)
-Divider:           #F0EBE3  (barely visible warm divider)
+lib/
+  core/           # Theme, constants, router, env, app session
+  features/      # auth, onboarding, daily, reflect, duas, names, discovery,
+                  # journal, collection, store, quests, streaks, progress,
+                  # settings, gifts, referrals, paywall
+  widgets/        # Reusable UI
+  models/         # Freezed data models
+  services/       # Supabase, AI, analytics, economy, sync, gating, gift,
+                  # purchase, referral
+supabase/
+  migrations/     # Source of truth for schema + RPCs + RLS
+  tests/          # pgtap files (run via psql in CI)
+  functions/      # Edge functions (Deno)
+docs/
+  superpowers/    # Plans for major features
+  qa/             # Manual QA plans, findings, ui-map
+  decisions/      # ADRs
 ```
 
-**Color Palette — Dark Mode (optional):**
+## Code conventions
 
-```
-Background:        #1C1917  (warm charcoal — stone-900, NOT cold navy or pure black)
-Surface/Cards:     #292524  (stone-800, elevated cards)
-Surface Alt:       #1E1B19  (subtle variation)
+- **State management:** Riverpod. No `setState` except trivial local UI state.
+- **Service layer required:** never call Supabase or external APIs directly from widgets — always go through `lib/services/`.
+- **Models:** Freezed for immutability + JSON serialization.
+- **Async errors:** wrap in try/catch, surface user-facing errors via snackbars.
+- **File/symbol naming:** `snake_case.dart` files · `PascalCase` classes · `camelCase` vars/functions.
+- **Widget size:** one widget per file, keep under 200 lines (extract sub-widgets).
+- **i18n-ready:** all user-facing strings should be extractable for Arabic, Urdu, Malay, Turkish, French (priority languages).
+- **Testing:** unit tests for service classes + business logic; widget tests for critical flows (onboarding, check-in, paywall).
+- **Env values:** import `lib/core/env.dart`, use `Env.openAiApiKey` etc. Never `String.fromEnvironment` inline at call sites.
 
-Primary:           #4ADE80  (bright emerald green — desaturated from light mode for dark bg readability)
-Primary Light:     #1A3A2A  (dark green tint for selected states)
+## Design system
 
-Secondary:         #D4A44C  (warm gold — slightly brighter for dark bg contrast)
-Secondary Light:   #3D2E1A  (dark gold tint)
+UI must feel premium, warm, spiritually grounded — like opening a beautifully typeset mushaf, not a tech product. Light mode is the DEFAULT (warm cream `#FBF7F2`), dark mode is secondary (warm charcoal, NOT pure black).
 
-Text Primary:      #F5F0EB  (warm off-white — NOT pure #FFFFFF to reduce glare)
-Text Secondary:    #A8A29E  (stone-400)
+- **Colors:** full palettes in `lib/core/constants/app_colors.dart`. Primary is deep emerald `#1B6B4A`, secondary is warm matte gold `#C8985E`.
+- **Fonts:** Amiri / Scheherazade New for Quran verses, Aref Ruqaa for Name-of-Allah hero display (use [`AdjustedArabicDisplay`](./lib/widgets/adjusted_arabic_display.dart) — direct Aref Ruqaa text bleeds into surrounding UI). DM Serif Display for English headings, DM Sans for body/UI.
+- **References:** Glorify (primary visual reference) · Hallow (dark mode reference) · Calm (premium wellness feel) · Duolingo (gamification mechanics only — NOT the bright palette) · Cal AI (onboarding flow).
+- **Generous whitespace (20-30% more padding than feels necessary). Soft 12-16px rounded cards. Islamic geometric patterns ONLY as 5-8% opacity decorative accents.**
+- The result card (Name + verse + dua) must be share-worthy unprompted — that's a growth mechanic, not just aesthetics.
 
-Streak/Success:    #FBBF24  (brighter amber for dark mode visibility)
-Error:             #F87171
-Border:            #44403C  (stone-700)
-```
-
-**Gamification visual patterns (borrowed from Duolingo):**
-
-- Streak flame: warm amber (#F59E0B) icon that glows/pulses when active. Show streak count prominently on home screen.
-- Daily check-in ring: circular progress indicator around the user's emotion check-in. Green fill on completion.
-- Celebration on save: when user completes a check-in, play a brief confetti/sparkle animation with a gentle haptic. Keep it tasteful — 500ms max, not Duolingo-loud.
-- Streak freeze: show as an ice crystal icon in settings. Premium feature.
-
-## Content Data
-
-The 99 Names of Allah, Quran verses, and duas are stored in Supabase. Each Name has:
-
-- `name_arabic` — Arabic text
-- `name_transliteration` — English transliteration
-- `name_english` — English meaning
-- `description` — Brief explanation of the Name's significance
-- `emotions` — Array of emotion tags this Name maps to
-- `related_verses` — Foreign keys to Quran verses table
-- `related_duas` — Foreign keys to duas table
-
-The AI service receives the user's free-text emotion input and returns a structured response mapping to existing content in the database. The AI does NOT generate Quran verses or hadith — it only selects from the pre-verified dataset. This is critical for Islamic scholarly accuracy.
-
-## Economy & Monetization
-
-**Tokens:** In-app currency. Earned via daily rewards, quests, and streak milestones. Gate premium actions (AI reflect, dua generation, card upgrades).
-
-**Cards:** Collectible card system with tiers — Bronze → Silver → Gold → Emerald. Cards are earned through daily gacha (after check-in) or purchased in the Store. Each Name of Allah has a corresponding collectible card.
-
-**XP & Levels:** Users gain XP from check-ins, quests, and achievements. Level progression unlocks cosmetics and titles.
-
-**Titles:** User badges/display names earned from achievements, synced to Supabase via the title service.
-
-**Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is enabled and drives subscription entitlement; the token economy layers on top. Simulator cannot complete StoreKit purchases — verify purchase flows on a physical device.
-
-**Refer-to-Unlock (PR #16 + PR #18 hybrid).** Premium is a two-source value: (1) RevenueCat entitlement (the paid path, source of truth for billing) OR (2) `user_profiles.referral_premium_until > now()` (the referred path, granted via SECURITY DEFINER RPC, never converts to RC). Mutual reward — referrer gets 30 days + Gold card on 3rd confirmed referee; referee gets 7 days at the moment they apply a valid code. `PurchaseService.isPremium()` ORs over both sources, cached in user-scoped SharedPreferences (`referral_premium_until:<uid>`) refreshed only on auth changes + RPC returns (zero added hot-path traffic).
-
-**Three referral code ingress paths**, all funnel through the same `pending_referral` SharedPreferences key + `applyPendingReferralIfAny` drain (Settings path bypasses prefs because the user is already authenticated):
-
-1. **Deep link** (`sakina://r/<code>`) — captured in `lib/main.dart:_captureInboundReferral` via `app_links`. Writes only the code key.
-2. **In-onboarding field** — "Did a friend send you a gift?" disclosure on `save_progress_screen.dart` (onboarding page 18). Writes the code AND `pending_referral_source = 'onboarding_field'` companion key.
-3. **Settings → Redeem a referral code** — bottom sheet via `lib/features/settings/widgets/redeem_code_sheet.dart`. Calls `ReferralService.redeemCodeNow` directly with `source: 'settings_redeem'`.
-
-If you're adding a 4th path, REUSE one of these drains — do NOT add a parallel one. Source attribution is on the `refereeSignedUpWithReferral` / `refereeGranted7dWindow` analytics events. See `docs/superpowers/plans/2026-05-14-refer-unlock.md` and `docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md`.
-
-**Referrer-side progress surface (PR-19).** Settings → "Refer a friend" → `/my-referrals` (`lib/features/referrals/screens/my_referrals_screen.dart`) is the always-reachable post-onboarding surface for the referrer. Shows code (tap-to-copy), Share CTA, X/3 progress dots toward next reward, and a list of grants earned. Reads state via `ReferralService.getMyReferralsState(userId)` which fans out two parallel queries (`referrals` confirmed count + `referral_grants` rows). Share-text + iPad popover-origin logic is factored into `ReferralService.shareMyCode(...)` and reused by both this screen and `ReferUnlockScreen` — do not duplicate it.
-
-**Push on referral confirmation (PR-19).** When a `referrals` row flips `pending → confirmed`, `trg_notify_referrer_on_confirm` (`supabase/migrations/20260523010000_push_on_referral_confirm.sql`) does `net.http_post` to the `notify-referral-confirmed` edge function. The edge function reads `ONESIGNAL_APP_ID` + `ONESIGNAL_API_KEY` from `Deno.env` (same secrets that power `send-scheduled-notifications` — no new OneSignal keys) and POSTs to `https://api.onesignal.com/notifications` with `Authorization: Key <REST_KEY>` + modern shape `{include_aliases: {external_id: [referrer_id]}, target_channel: 'push', ...}`. **Security gates:** (1) shared `NOTIFY_REFERRAL_SECRET` (32-char random) — edge function requires `X-Notify-Secret` header matching the env var, fail-closed 401 otherwise; the trigger reads the same secret from `current_setting('app.notify_referral_secret', true)` and passes it; (2) display_name is sanitized in the edge function (NFKC + strip control/bidi/zero-width + reject URLs/mentions + 30-char cap) so a malicious user can't weaponize their own display_name as a phishing channel; (3) `net.http_post` URL is read from `current_setting('app.notify_referral_url', true)` so the migration is env-portable — applying it to staging won't fire prod pushes. **Setup per environment:** `ALTER DATABASE postgres SET app.notify_referral_url = '...'` + `app.notify_referral_secret = '...'` + `supabase secrets set NOTIFY_REFERRAL_SECRET=<same>` + `supabase functions deploy notify-referral-confirmed --no-verify-jwt`.
-
-## Onboarding Flow
-
-Canonical page order (updated 2026-05-14 by rating-gate insertion; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
-
-0. **First Check-in** — "How are you feeling today?" + emotion chips → `NameRevealOverlay` → "Your Reflection" result teaser
-1. **Name** — "What should we call you?"
-2. **Age range** — 13–17 / 18–24 / 25–34 / 35–44 / 45–54 / 55+
-3. **Intention** — "What brings you here?" (Spiritual Growth / Difficult Time / Just Curious / Build a Daily Habit)
-4. **Prayer frequency** — 5 options with warm copy
-5. **Quran connection** — Daily / Weekly / Occasionally / Rarely
-6. **99 Names familiarity** — Just Getting Started / Somewhat Familiar / Very Familiar
-7. **Dua topics** — multi-select chips + optional "something else on your heart" text field
-8. **Common emotions** — multi-select chips
-9. **Aspirations** — pick up to 3 (More patient / More grateful / Closer to Allah / More present / Stronger faith / More consistent)
-10. **Daily commitment minutes** — 1 / 3 / 5 / 10 / Custom
-11. **Attribution** — "Where did you hear about Sakina?" (multi-select)
-12. **Encouragement interstitial** — "You're not alone in this."
-13. **Reminder time** — time picker (default 08:00 AM)
-14. **Notifications** — OS permission ask ("Enable Notifications" / "Not now")
-15. **Commitment pact** — "I commit to X min a day" + Tap to commit
-16. **Value prop** — Daily check-in / 99 Names / Journal
-17. **Social proof** — 4.9 stars + testimonials
-18. **Save Your Progress** — Apple / Google / Continue with Email
-19. **Email** — enter email
-20. **Password** — ≥6 chars, `Create Account` triggers Supabase signup + analytics identify + onboarding-data persist
-21. **Encouragement** — "Something beautiful awaits you, <name>" (now includes "Your plan is ready, just past the gate" tease)
-22. **Paywall flow — Generating** — 4-step loader, ~3.5s
-23. **Paywall flow — Personalized Plan** — "Your plan, <name>" summary with gold "Crafted for you" ribbon
-24. **Paywall flow — Your Journey** — "Where you'll be in 30 days, <name>" milestones (Day 1 / Day 7 / Day 30)
-25. **Rating gate** — "{name}, before you see your plan…" + service-framed ask; OS rating prompt via `SKStoreReviewController` / Play in-app review; CTA flips "Leave a rating" → "I rated". Gated by `Env.ratingGateEnabled` (default true) — flip to false in `env.json` to elide entirely. See `docs/superpowers/plans/2026-05-14-rating-gate.md`.
-26. **Paywall** — RevenueCat (annual + weekly offerings); shrunken hero + personalized header + new CTA copy; close X routes to home
-
-Constant: `onboardingLastPageIndex = 26` in `onboarding_provider.dart` when `Env.ratingGateEnabled` is true (PageView has 27 children); collapses to `25` / 26 children when the kill switch is off. Gacha on page 0 is an overlay, not a page.
-
-**Progress bar:** segments show pages outside the paywall flow (paywall flow pages 22-26 + both encouragement interstitials sit outside the bar).
-
-**Paywall flow (pages 22-26):** Loader → Personalized Plan → Your Journey → Rating gate (kill-switch gated) → Price screen.
-Inserted 2026-05-05 to lift trial-start conversion (Cal AI–style multi-screen flow).
-The pre-existing GeneratingScreen and PersonalizedPlanScreen relocated from pages 16-17
-into this flow. Progress bar hidden on these pages — they have their own visual identity.
-
-**Key onboarding notes:**
-- Social auth (`onSocialAuthComplete`) calls `_skipToEncouragement`, jumping from page 18 (Save Progress) to page 21 (Encouragement). Pages 19 (Email) and 20 (Password) only exist to create a Supabase account via `signUpWithEmail`, so Apple/Google users — who already have a session — must skip them. Pinned by `test/features/onboarding/onboarding_auth_routing_test.dart`.
-- Password screen calls `persistOnboardingToSupabase` immediately after `authService.signUpWithEmail` (so RLS-authorized writes succeed); `completeOnboarding` also calls it as a belt-and-braces flush
-- `saveOnboardingData` in `auth_service.dart` writes to `user_profiles` and must use exact column names: `display_name`, `onboarding_intention`, `onboarding_familiarity`, `onboarding_quran_connection`, `onboarding_attribution`, `age_range`, `prayer_frequency`, **`resonant_name_id`** (NOT `resonant_name_slug`), `dua_topics`, `dua_topics_other`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`. A single mis-named column will silently fail the whole UPDATE.
-- All survey/feature screens end with `SizedBox(height: AppSpacing.lg)` after `OnboardingContinueButton` for consistent button positioning
-- Any text-entry screen must wrap its `Column` in `LayoutBuilder → SingleChildScrollView → ConstrainedBox(minHeight: constraints.maxHeight) → IntrinsicHeight` so the keyboard doesn't cause bottom overflow. `first_checkin_screen`, `sign_up_email_screen`, `sign_up_password_screen` use this pattern.
-
-## Code Conventions
-
-- Use Riverpod for all state management. No setState except in trivial local UI state.
-- All API calls go through service classes in `lib/services/`. Never call Supabase or external APIs directly from widgets.
-- Models use Freezed for immutability and JSON serialization.
-- Error handling: wrap all async calls in try/catch, surface user-friendly error messages via snackbars.
-- File naming: `snake_case.dart` for files, `PascalCase` for classes, `camelCase` for variables/functions.
-- One widget per file. Keep widget files under 200 lines — extract sub-widgets if they grow beyond this.
-- All user-facing strings must be extracted for future localization (Arabic, Urdu, Malay, Turkish, French are priority languages).
-- Write unit tests for all service classes and core business logic. Widget tests for critical flows (onboarding, emotion check-in, paywall).
-
-## Daily flow — two muhasabah paths
+## Daily flow — two muhasabah paths (intentionally different)
 
 There are two entry points with intentionally different behavior:
 
-1. **DailyLaunchOverlay** (`lib/features/daily/screens/daily_launch_overlay.dart`) → calls `answerCheckin()` in `daily_loop_provider.dart:465`. Walks the user through 4 check-in questions, then AI-generates a Name match. Used on the "fresh launch of the day" path.
-2. **Home's `Begin Muḥāsabah` CTA** routes to `/muhasabah` (`lib/features/daily/screens/muhasabah_screen.dart:173-178`) which auto-triggers `discoverName()` in `daily_loop_provider.dart:402`. **Skips questions entirely**, picks an undiscovered/lowest-tier card, jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty. This is **intentional** — empty q2/q3/q4 in the DB on this path is not a bug.
+1. **`DailyLaunchOverlay`** (`lib/features/daily/screens/daily_launch_overlay.dart`) → calls `answerCheckin()` in `daily_loop_provider.dart`. Walks the user through 4 check-in questions, then AI-generates a Name match. Used on the "fresh launch of the day" path.
+2. **Home `Begin Muḥāsabah` CTA** → routes to `/muhasabah` (`muhasabah_screen.dart`) which auto-triggers `discoverName()`. **Skips questions entirely**, picks an undiscovered/lowest-tier card, jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty — **intentional, not a bug**.
 
-`answerCheckin` is referred to as "legacy — used by deeper reflection" in code comments but is still the live multi-question path on the launch overlay.
+## Onboarding flow
 
-## Agent conventions
+27 pages (0-indexed) when `Env.ratingGateEnabled` is true (26 pages when false). Canonical order is the source of truth in `onboarding_provider.dart` (`onboardingLastPageIndex` constant) and `docs/qa/ui-map.md`. Paywall flow lives at pages 22-26 (loader → plan → journey → rating gate → paywall) with the progress bar hidden — they have their own visual identity.
 
-### iOS Simulator screenshots — always resize before reading
+**Key onboarding gotchas:**
+- Social auth (`onSocialAuthComplete`) jumps from page 18 (Save Progress) directly to page 21 (Encouragement), skipping the email/password screens. Pinned by `test/features/onboarding/onboarding_auth_routing_test.dart`.
+- Password screen calls `persistOnboardingToSupabase` immediately after `signUpWithEmail` so RLS-authorized writes succeed.
+- `saveOnboardingData` in `auth_service.dart` writes to `user_profiles` using **exact** column names — a single mismatched column silently fails the whole UPDATE.
+- Any text-entry screen wraps its `Column` in `LayoutBuilder → SingleChildScrollView → ConstrainedBox → IntrinsicHeight` so the keyboard doesn't cause bottom overflow.
 
-After EVERY `mcp__ios-simulator__screenshot` (and any other PNG capture from the sim), immediately run:
+## Economy & monetization
 
-```bash
-sips -Z 1600 /path/to/screenshot.png
-```
+- **Premium has two server-side sources:** RevenueCat entitlement (paid path, source of truth for billing) OR `user_profiles.referral_premium_until > now()` / `gift_premium_until > now()` (granted via SECURITY DEFINER RPCs, never converts to RC). `PurchaseService.isPremium()` ORs over all three, cached per-user in SharedPreferences.
+- **Tokens / Cards / XP / Levels / Titles:** all sync through `sync_all_user_data()` RPC — never write directly.
+- **Cards:** Bronze → Silver → Gold → Emerald tiers, earned via daily gacha or Store. Each Name of Allah has a corresponding card.
+- **AI bypass:** free users can pay 25 tokens to bypass the daily 1-use-per-AI-feature cap (max 2/day). Premium users must NEVER reach `GatingService.reserveBypass` — short-circuit pinned at `gating_service.dart`. Entitlement columns (`referral_premium_until`, `gift_premium_until`) and bypass counters are protected by the freemium-guard triggers.
 
-This is in-place, preserves aspect ratio, and caps the longest side at 1600px. iPhone sim screenshots come out at native @3x resolution (e.g. 2796×1290 for iPhone 16 Pro, 2556×1179 for iPhone 15) which trips Claude Code's tool-result size cap and surfaces as `image exceeds dimensions`. 1600px is above Claude's internal 1568px downscale floor so quality is preserved for visual review while the PNG drops from ~3-5MB to under ~500KB.
+## Public catalog content
 
-Do this every time, not just when you hit the error — the error mid-flow wastes a tool call.
+99 Names of Allah, Quran verses, duas, and quiz questions are anonymously readable via `public_catalog_service.dart` — no auth needed and no RLS guards. Do NOT add auth on public content fetches.
 
-**Always resize, even when you're not planning to read the image.** PNGs may be picked up later in the session, by a subagent, or by the user, and the size cap applies to anyone reading them. Resize on capture, not on read.
+## Sakina Gift (Ramadan / Eid)
 
-## Gotchas
+`RamadanGiftCard` (`lib/features/gifts/widgets/`) renders during seeded `islamic_occasions` windows. `claim_sakina_gift` RPC is SECURITY DEFINER, atomic via `INSERT … ON CONFLICT DO NOTHING`, mirrors `expires_at` to `user_profiles.gift_premium_until` via `greatest()` coalesce. Client clock seam: `GiftService.debugGiftClock`. Server is the timestamp authority — client clocks only decide whether to RENDER the card, never grant out-of-window.
 
-- NEVER generate or fabricate Quran verses, hadith, or scholarly content. All Islamic content must come from the pre-verified database. The AI selects from existing entries only.
-- Arabic text rendering in Flutter requires explicit `TextDirection.rtl` and careful font handling. Never mix Arabic and English in a single `Text` widget — use separate widgets with explicit text direction, or use `RichText` with `TextSpan`. Mixing directions in one widget causes RTL bleed into adjacent UI.
-- All economy/user data (tokens, XP, streaks, achievements, titles) syncs through `sync_all_user_data()` RPC. Do NOT write directly to individual economy tables from Flutter — always go through the service layer which calls the RPC.
-- Public catalog content (names, duas, quiz questions) uses `public_catalog_service.dart` with anonymous read access. No auth is needed to read content — do not add auth guards to public content fetches.
-- Supabase Row Level Security must be enabled on all user-facing tables. Users should only access their own journal entries, streak data, check-in history, and economy data.
-- The shareable result card is generated as an image (not a screenshot). Use a Flutter widget-to-image approach so the card always looks clean regardless of device.
+## Environment configuration
 
-## Known Bugs
+All env values are compile-time constants via `--dart-define-from-file=env.json`. There is no `flutter_dotenv` and no runtime asset load.
 
-- ~~**Gacha overlay eager-dismiss**~~ (FIXED 2026-04-27 — `name_reveal_overlay.dart:107` now gates the outer `GestureDetector` on `_phase >= 3` so phase-2 taps are absorbed. Regression-pinned by `test/features/daily/name_reveal_overlay_phase_gate_test.dart` — a structural test that fails if the gate is loosened back to `>= 2`.)
-- ~~**Level-up overlay double-continue**~~ (FIXED 2026-05-09 — same shape as the gacha bug above. `level_up_overlay.dart:88` now gates the outer "tap anywhere" `GestureDetector` on `_phase >= 3`, with phase 3 set 1400ms after phase 2 (matching the Continue button's `delay: 900ms + duration: 500ms` fade-in). During the fade-in window the inner Continue button's detector wins the gesture arena cleanly. Regression-pinned by `test/features/daily/level_up_overlay_phase_gate_test.dart` — fails if the gate is loosened back to `>= 2`.)
-- ~~**Daily-launch overlay re-fired after a valid claim across UTC midnight**~~ (FIXED 2026-05-12 in PR #8 — `launch_gate_state.dart` was keying the marker by `DateTime.now()` (local date) while `daily_rewards_service._today()` and the `claim_daily_reward` SQL RPC both use UTC. Near local-but-not-UTC midnight (e.g. 11pm EDT) the marker disagreed with the UTC clock and the overlay re-fired the next morning. Both clocks are now UTC via `@visibleForTesting debugLaunchGateClock` / `debugRewardsClock` seams. Regression-pinned by `test/services/launch_gate_state_utc_test.dart` at a local-vs-UTC midnight boundary.)
-- ~~**Daily-launch overlay re-shows on every cold launch after delete+reinstall**~~ (FIXED 2026-05-12 in PR #8 — `shouldShowDailyLaunch()` previously returned true purely from marker absence, ignoring server claim state. On a fresh install where the server already says `claimedToday=true`, the overlay walked the user through a redundant "Reward Claimed!" screen on every cold launch. After reconcile we now consult `getDailyRewards()`; if `claimedToday` is true and the marker is missing, we persist the marker and return false. Regression-pinned by `test/services/launch_gate_service_reinstall_test.dart`.)
-- ~~**Daily-launch overlay shows "Day 2" but Claim awards Day 4**~~ (FIXED 2026-05-12 in PR #8 — `_RewardClaimStep` rendered the strip + Day-N highlight from local SharedPrefs before `reload()` reconciled with the server. yoyoyo@gmail.com reported seeing "Day 2" highlighted but receiving the Day 4 streak-freeze reward. `_RewardClaimStep` now short-circuits to `Center(child: SakinaLoader())` until a new `_rewardsLoaded` flag flips true after reload. Reload also wrapped in `.timeout(10s)` so a hung network can't trap the user on an infinite spinner. Regression-pinned by `test/features/daily/daily_launch_overlay_loading_gate_test.dart` (pre-claim Day == post-claim Day) and `integration_test/daily_launch_overlay_smoke_test.dart` on iOS Metal.)
-- **Arabic text bleeding into header** (e.g. `flutter/lib/features/feelings/screens/home_screen.dart:192`): Mixed Arabic + English in a single `Text` widget causes RTL rendering to bleed into surrounding UI. Fix: split into two separate `Text` widgets with explicit `textDirection` on the Arabic one.
-- **`daily_loop_provider._todayKey` uses local time, not UTC** (`lib/features/daily/providers/daily_loop_provider.dart:254`, also lines 445 + 610 writing `user_checkin_history.date` from local time): same class of bug as the launch-gate UTC fix in PR #8 but in adjacent code introduced by commit `8d135808` (2026-04-03). A user crossing local midnight while still in the same UTC day sees "fresh muhasabah" state even though the streak/reward services already counted the cycle. Filed as a follow-up in `TODO.md` (~20 min fix mirroring the `debugRewardsClock` seam pattern).
-- ~~**Freemium guards missing for AI-bypass counters (P0-1)**~~ (FIXED 2026-05-24 in P0 hotfix bundle — the AI-bypass feature added 3 columns to `user_daily_usage` and 2 to `user_profiles` that all participate in gating, but the freemium-guard triggers from `20260510010000_lock_freemium_gating_fields.sql` were not extended. Any authenticated user could `UPDATE user_daily_usage SET reflect_bypasses_used = 0` against their own row to defeat the 2/day cap, flip `first_bypass_consumed` true→false to re-claim the Day-1 freebie, or decrement `lifetime_bypasses_purchased` to hide spend from the EXP-3 upsell. Verified live: 3-of-3 exploit attempts succeeded against master, all blocked post-fix. Honest paths (commit/cancel/claim RPCs) all run as SECURITY DEFINER owned by `postgres` which is in the guard bypass list, so they keep working. Regression-pinned by `supabase/tests/freemium_guards_bypass_fields_test.sql` — 8 assertions including a SECURITY DEFINER honest-path pin.)
-- ~~**`reserve_ai_bypass` had no idempotency key (P0-2)**~~ (FIXED 2026-05-24 in P0 hotfix bundle — plan doc claimed idempotency keys were honored but neither the table nor the function had one. Double-tap during network latency triggered two reservations and debited 50 tokens for one user action. Migration adds `ai_bypass_reservations.idempotency_key` + partial unique index + 2-arg `reserve_ai_bypass(text, text)` that replays the prior reservation on same key. Client generates UUID v4 per call via `package:uuid`. **Backwards-compat shim:** the 1-arg signature is preserved as a wrapper that auto-generates a server-side key, so pre-PR-26 IPAs in the wild keep working — they retain their original double-debit bug but the RPC keeps responding. Regression-pinned by `supabase/tests/reserve_ai_bypass_idempotency_test.sql`.)
-- ~~**`daily_usage_service._today()` used local time (P0-3)**~~ (FIXED 2026-05-24 in P0 hotfix bundle — exact regression class of the PR #8 launch-gate UTC bug. Server stores `usage_date` as UTC; client was keying SharedPreferences by local date. Near local-but-not-UTC midnight the client said `bypassesUsedToday=0` while the server said 2, surfacing a "Use 25 tokens" CTA the server rejected. Added `@visibleForTesting debugDailyUsageClock` seam mirroring the existing `debugRewardsClock` pattern. **One-time grace period on deploy:** users in non-UTC timezones may see one bonus free use on the day they upgrade because the new code reads UTC-date prefs keys while the old code wrote local-date keys. Self-corrects after first usage on the new code. Regression-pinned by `test/services/daily_usage_service_utc_test.dart`.)
-- ~~**Notifier dispose leaked in-flight bypass reservations (P0-4)**~~ (FIXED 2026-05-24 in P0 hotfix bundle — `ReflectNotifier` and `DuasNotifier` tracked `_activeBypassReservationId` while AI was in flight but never overrode `dispose()`. When the user backgrounded the app or popped the route mid-AI-call, the reservation sat pending until the 15-min orphan cron rescued it, locking 25 tokens. Both now override `dispose()` to fire-and-forget `GatingService().cancelBypass(id, feature).ignore()` wrapped in try/catch for shutdown safety. **Update 2026-05-24 (PR #25 follow-up):** the same gap on `DailyLoopNotifier.discoverNameWithBypass` (reservation held as a local variable, not a field) was also closed — see the `BypassFlowMixin` entry below. Regression-pinned by `test/features/reflect/reflect_dispose_cancel_test.dart`, `test/features/duas/build_dua_dispose_cancel_test.dart`, `test/features/daily/discover_name_dispose_cancel_test.dart`.)
-- ~~**`iap_to_sub_banner_shown` declared but never emitted (P0-5)**~~ (FIXED 2026-05-24 in P0 hotfix bundle — the event was declared in `analytics_events.dart` and pinned by name in `analytics_events_test.dart` but had zero call sites. The EXP-3 funnel (shown → tapped → dismissed) had no denominator. `IapToSubUpsellBanner.build()` now fires the event once per visible mount via a sticky boolean, deferred via `addPostFrameCallback` with a `mounted` guard. Uses the existing `ref.read(analyticsProvider).track(...)` pattern. Regression-pinned by `test/widgets/iap_to_sub_upsell_banner_test.dart` plus a structural producer-pin test that scans `lib/` for at least one emit site — catches the next event-without-producer regression.)
-- ~~**`gift_premium_until` unprotected by freemium guard (P1-3 residual from 2026-05-24 review)**~~ (FIXED 2026-05-25 in `20260525200000_extend_freemium_guard_for_gift_premium_until.sql` — PR #17 (Ramadan/Eid Gift) added `user_profiles.gift_premium_until` which drives `PurchaseService.isPremium()` via `_isGiftPremium`, but the freemium guard couldn't be extended in that PR because the column didn't exist on master yet. Any authenticated user could `UPDATE user_profiles SET gift_premium_until = '2999-01-01'` against their own row to grant themselves effectively-permanent free premium with no payment. Same trivial RLS-write exploit shape as P0-1 and P1-3's other columns. **Live-reproduced on prod 2026-05-24 setting to 2999-01-01.** Fix mirrors the existing `referral_premium_until` clause: `new.gift_premium_until is distinct from old.gift_premium_until → raise check_violation`. Honest path through `claim_sakina_gift` (SECURITY DEFINER owned by `postgres`) still stamps the column unchanged. Live-verified on prod: 3-of-3 exploit shapes (far-future, near-future, clear non-null→null) all blocked, claim RPC honest path still stamps. Regression-pinned by `supabase/tests/freemium_guard_gift_premium_until_test.sql` — 4 assertions including an honest-path SECURITY DEFINER pin.)
+- `env.json` — gitignored, real values.
+- `env.example.json` — committed, placeholder shape.
+- `lib/core/env.dart` — `Env` constants class. **Add new keys here, never `String.fromEnvironment` inline.**
+- `pubspec.yaml` — does NOT bundle `env.json` as an asset.
 
-### AI-bypass feature — quick reference (added 2026-05-24)
+**`OPENAI_API_KEY` is currently baked into the IPA via `String.fromEnvironment`.** A determined attacker with one IPA and `strings`/Hopper recovers it. Must move behind a Supabase Edge Function proxy before any external TestFlight / App Store release — see `TODO.md` for the recipe. `SUPABASE_ANON_KEY` and RevenueCat public SDK keys are designed to be public; safe to ship.
 
-The 2026-05-23 AI-bypass feature (PRs #20-24) lets free users pay 25 tokens to bypass the daily 1-use-per-AI-feature cap (max 2 bypasses/day per feature). Brand-new users (within 24h of signup) get one free bypass via `claim_first_bypass`. Free users with 6+ lifetime paid bypasses see an IAP→sub upsell banner.
-
-Reserve/commit/cancel flow:
-1. Client calls `reserve_ai_bypass(feature, idempotency_key)` — debits tokens, increments counter, returns a `reservation_id`. **Idempotency key (UUID v4) is mandatory** for new clients; same key replays the prior reservation.
-2. Client runs the AI call.
-3. On success → `commit_ai_bypass(reservation_id)`. On failure → `cancel_ai_bypass(reservation_id)` which refunds tokens + decrements counter.
-4. 15-min orphan cron sweeps pending reservations and cancels them (rescue path for crashed clients).
-
-Premium users must NEVER reach `GatingService.reserveBypass` — pinned at the service layer (`gating_service.dart:357`) which short-circuits on `PurchaseService().isPremium()`. Bypass-counter columns (`reflect_bypasses_used`, `built_dua_bypasses_used`, `discover_name_bypasses_used`) and profile fields (`first_bypass_consumed`, `lifetime_bypasses_purchased`, plus the entitlement-conferring columns `referral_premium_until` and `gift_premium_until`) are protected by `guard_user_daily_usage_freemium_fields` / `guard_user_profiles_freemium_fields` — see P0-1 and `gift_premium_until` entries above.
-
-### BypassFlowMixin — client lifecycle abstraction (added 2026-05-24)
-
-The 3 notifiers that consume the bypass flow (`ReflectNotifier`, `DuasNotifier`, `DailyLoopNotifier`) share `BypassFlowMixin<S>` at `lib/services/bypass_flow_mixin.dart`. The mixin owns:
-- `_activeBypassReservationId` + `_inflightReserveFuture` + `_submitInFlight` (private state).
-- `reserveActiveBypass()` — RPC + future tracking; caller MUST check `!mounted` after await.
-- `trackActiveBypassReservation(id)` — call after a non-null reserve before any further awaits, so `dispose` can see the id.
-- `commitActiveBypassIfAny()` / `cancelActiveBypassIfAny()` — clear id before await so dispose can't double-fire.
-- `markBypassInFlight()` / `clearBypassInFlight()` — re-entry guard for both bypass and non-bypass submit flavors.
-- `disposeBypassFlow()` — call BEFORE `super.dispose()`. Fires cancel for an assigned id OR chains a cancel on a still-in-flight reserve future (the P1-B case).
-
-**When adding a 4th gated feature:** adopt the mixin verbatim. Do NOT copy-paste the lifecycle. Verify behavior by running the existing dispose-cancel tests on the new notifier with the same shape.
-
-CI for `flutter test` + `psql -f supabase/tests/*.sql` is wired in `.github/workflows/test.yml`. Required GitHub secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`. Required dashboard toggle: Supabase GitHub Preview Branches must be enabled.
-
-## Aref Ruqaa Font Metric Fix
-
-Aref Ruqaa (`AppTypography.nameOfAllahDisplay`) has a large built-in ascender — ~32% of font size of invisible whitespace above the visible glyphs. This causes Arabic calligraphy to visually bleed into whatever sits above it regardless of `height`, `StrutStyle`, `FittedBox`, or `OverflowBox` — all of those either clip glyphs or don't actually shift the glyph position within its line box.
-
-**The fix:** Use `AdjustedArabicDisplay` (`flutter/lib/widgets/adjusted_arabic_display.dart`) instead of a raw `Text` widget for any large Aref Ruqaa display. It applies `Transform.translate(offset: Offset(0, -(fontSize * 0.05)))` — a small upward visual shift without affecting layout — and you compensate with explicit `SizedBox` padding above/below:
-
-- **Above the Arabic:** `SizedBox(height: 44)` for fontSize 48, scale proportionally for other sizes (e.g. `height: 33` for fontSize 36)
-- **Below the Arabic:** `SizedBox(height: 20)`
-
-Do NOT attempt to fix this with `height`, `StrutStyle(forceStrutHeight: true)`, `FittedBox`, `OverflowBox`, `ClipRect`, or negative padding — none of these work reliably across navigation rebuilds.
-
-## What NOT to Build
+## What NOT to build
 
 These remain out of scope — don't get distracted:
 
@@ -402,7 +136,7 @@ These remain out of scope — don't get distracted:
 - Hadith collection browser
 - Audio library / nasheed playlists
 - Sleep content
-- Community features / social
+- Community / social features
 - Chat or AI conversation mode
 - Multi-day courses or guided plans
-- Dhikr/tasbeeh counter (it's tempting — resist it)
+- Dhikr / tasbeeh counter (resist it — it's tempting and off-mission)
