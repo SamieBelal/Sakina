@@ -155,6 +155,37 @@ class PurchaseService {
     }
   }
 
+  /// Fetches `user_profiles.gift_premium_until` from Supabase and updates the
+  /// local cache. Sibling to [refreshReferralPremiumCache] — call at the same
+  /// moments (app foreground while authenticated, after signup) so
+  /// cross-device sign-in restores gift entitlement without requiring the
+  /// user to re-tap Accept.
+  ///
+  /// Best-effort — silently swallows network errors. Next refresh moment will
+  /// retry.
+  Future<void> refreshGiftPremiumCache() async {
+    final uid = _safeCurrentUserId();
+    if (uid == null || uid.isEmpty) return;
+    try {
+      final row = await Supabase.instance.client
+          .from('user_profiles')
+          .select('gift_premium_until')
+          .eq('id', uid)
+          .maybeSingle();
+      final iso = row?['gift_premium_until'] as String?;
+      final prefs = await SharedPreferences.getInstance();
+      final scopedKey =
+          supabaseSyncService.scopedKey(giftPremiumUntilPrefsBaseKey);
+      if (iso == null) {
+        await prefs.remove(scopedKey);
+      } else {
+        await prefs.setString(scopedKey, iso);
+      }
+    } catch (_) {
+      // Best-effort; next refresh moment will retry.
+    }
+  }
+
   /// Returns true when the current user has an active Sakina Gift window —
   /// i.e. SharedPrefs holds a `gift_premium_until:<uid>` timestamp in the
   /// future relative to [GiftService.debugGiftClock].

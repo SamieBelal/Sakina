@@ -558,6 +558,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         // was granted earlier via apply_referral but the cache hasn't been
         // populated yet on this device.
         await PurchaseService().refreshReferralPremiumCache();
+        // And the Sakina Gift cache — if the user pre-claimed on another
+        // device, restore that entitlement immediately on this one.
+        await PurchaseService().refreshGiftPremiumCache();
       }
     } catch (e, stack) {
       debugPrint('[Onboarding] referral confirm failed (non-fatal): $e\n$stack');

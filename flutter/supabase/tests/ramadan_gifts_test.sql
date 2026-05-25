@@ -1,6 +1,6 @@
 begin;
 
-select plan(13);
+select plan(14);
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -107,24 +107,38 @@ select ok(
 -- ---------------------------------------------------------------------------
 -- 2. Idempotency: granted_at + expires_at unchanged on re-claim
 -- ---------------------------------------------------------------------------
--- Capture row, re-call, compare.
-with snapshot as (
-  select granted_at, expires_at
-    from public.sakina_gifts
-   where user_id = '00000000-0000-0000-0000-000000000201'::uuid
-     and occasion_id = 'test_active'
-), recall as (
-  select public.claim_sakina_gift(
-    '00000000-0000-0000-0000-000000000201'::uuid,
-    'test_active'
-  ) as payload
-)
+-- Snapshot the existing row's timestamps, re-call the RPC, then assert the
+-- row's timestamps did NOT shift. Previously this block used unreferenced
+-- CTEs that Postgres optimized away, so the re-call never fired and only
+-- the row count was asserted (already implied by the PK). Now we stash the
+-- pre-call snapshot in a temp table, run the recall as its own statement
+-- (so its side effects definitely materialize), and compare in-place.
+create temporary table _gift_test_snapshot on commit drop as
+select granted_at, expires_at
+  from public.sakina_gifts
+ where user_id = '00000000-0000-0000-0000-000000000201'::uuid
+   and occasion_id = 'test_active';
+
+select public.claim_sakina_gift(
+  '00000000-0000-0000-0000-000000000201'::uuid,
+  'test_active'
+);
+
 select is(
   (select count(*) from public.sakina_gifts
     where user_id = '00000000-0000-0000-0000-000000000201'::uuid
       and occasion_id = 'test_active')::int,
   1,
   'idempotent — no duplicate row inserted'
+);
+
+select ok(
+  (select s.granted_at = g.granted_at and s.expires_at = g.expires_at
+     from _gift_test_snapshot s
+     join public.sakina_gifts g
+       on g.user_id = '00000000-0000-0000-0000-000000000201'::uuid
+      and g.occasion_id = 'test_active'),
+  'idempotent — granted_at + expires_at unchanged on re-call'
 );
 
 -- ---------------------------------------------------------------------------
