@@ -20,7 +20,7 @@ import '../../../widgets/referral_code_field.dart';
 ///      apply_referral with source='settings_redeem').
 ///   3. The sheet body swaps to a result panel based on the structured
 ///      result's reason string (verified against the SQL contract in
-///      supabase/migrations/20260514000000_referrals.sql + the
+///      supabase/migrations/20260514175600_referrals.sql + the
 ///      20260523000001 reason-split patch).
 ///
 /// Test pin: `test/features/settings/redeem_code_sheet_test.dart`. The

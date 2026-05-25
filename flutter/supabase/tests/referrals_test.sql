@@ -1,5 +1,5 @@
 -- Regression test for:
---   * 20260514000000_referrals.sql
+--   * 20260514175600_referrals.sql
 --
 -- Verifies refer-to-unlock end-to-end:
 --   * ensure_referral_code returns the same code on repeat calls.
@@ -357,7 +357,7 @@ begin
   -- =========================================================================
   -- 10b. Authorization: as authenticated user A, apply_referral with
   --      p_referee = B (a victim) must be rejected. Pins the auth.uid()
-  --      self-check from 20260514000002_referrals_auth_uid_self_check.
+  --      self-check from 20260514183034_referrals_auth_uid_self_check.
   -- =========================================================================
   -- We're still set as authenticated (sub=aid) from step 10. Try to refer
   -- bid (a different user) using sid's code as the referrer code.

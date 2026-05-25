@@ -34,7 +34,7 @@ import 'widgets/iap_to_sub_upsell_banner.dart';
 const String pendingReferralPrefsKey = 'pending_referral';
 
 /// Max length of a referral code we will persist from a deep link.
-/// Current `ensure_referral_code` (supabase/migrations/20260514000000_referrals.sql)
+/// Current `ensure_referral_code` (supabase/migrations/20260514175600_referrals.sql)
 /// emits 8 chars from alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. Capped at
 /// 16 to leave headroom if we ever widen the alphabet, while still rejecting
 /// pathological inputs (e.g. a 10KB blob from a hostile URL).

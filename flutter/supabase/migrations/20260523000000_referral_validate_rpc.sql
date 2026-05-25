@@ -10,7 +10,7 @@
 -- code" without the client having to know the referrer's id).
 --
 -- 8-char minimum is intentional: ensure_referral_code (see
--- 20260514000000_referrals.sql) always emits 8-char codes from a 32-char
+-- 20260514175600_referrals.sql) always emits 8-char codes from a 32-char
 -- alphabet, so a 4-char input has no legitimate origin. Tightening to
 -- {8,16} also closes the 32^4 ≈ 1M enumeration surface that {4,16} would
 -- expose to the anon role; 32^8 ≈ 1.1T is intractable.

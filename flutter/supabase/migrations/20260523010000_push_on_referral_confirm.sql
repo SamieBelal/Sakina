@@ -130,6 +130,6 @@ create trigger trg_notify_referrer_on_confirm
 
 -- ---------------------------------------------------------------------------
 -- 3. Lockdown — only trigger machinery should invoke this function.
---    Matches the EXECUTE lockdown pattern from 20260514000000_referrals.sql.
+--    Matches the EXECUTE lockdown pattern from 20260514175600_referrals.sql.
 -- ---------------------------------------------------------------------------
 revoke execute on function public.notify_referrer_on_confirm() from public, anon, authenticated;

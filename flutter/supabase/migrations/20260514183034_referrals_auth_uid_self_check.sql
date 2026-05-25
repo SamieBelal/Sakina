@@ -1,6 +1,6 @@
 -- 2026-05-14: Refer-to-Unlock — critical follow-up.
 --
--- The original migration (20260514000000_referrals.sql) shipped apply_referral
+-- The original migration (20260514175600_referrals.sql) shipped apply_referral
 -- and confirm_referral_if_pending as SECURITY DEFINER without enforcing
 -- `auth.uid() = p_referee`. Because both RPCs take p_referee as a bare
 -- parameter and run with elevated privileges, ANY authenticated user could

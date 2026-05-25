@@ -3,7 +3,7 @@
 -- See docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md
 -- (closes A1 from eng review).
 --
--- The original migration (20260514000000_referrals.sql) returns the same
+-- The original migration (20260514175600_referrals.sql) returns the same
 -- shape (`ok=true, granted_referee_7d=false`) for BOTH:
 --   1. The same code re-applied (genuine idempotent no-op — expected).
 --   2. A DIFFERENT code applied to a referee who is already-referred
@@ -23,7 +23,7 @@
 -- the invalid_code / self_referral / chain_referral guards, the
 -- v_inserted insert+grant block) is preserved verbatim from the original
 -- migration. The auth.uid() = p_referee self-check added in
--- 20260514000002_referrals_auth_uid_self_check.sql is also preserved.
+-- 20260514183034_referrals_auth_uid_self_check.sql is also preserved.
 --
 -- Re-runnable: uses create or replace.
 

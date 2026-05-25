@@ -149,7 +149,7 @@ class ReferralService {
   /// user is already authenticated — calls apply_referral directly with the
   /// settings_redeem source. Returns a structured result the sheet UI can
   /// dispatch on (matches the exact reason strings emitted by
-  /// supabase/migrations/20260514000000_referrals.sql + the 20260523000001
+  /// supabase/migrations/20260514175600_referrals.sql + the 20260523000001
   /// reason-split patch).
   ///
   /// Analytics: on ok+granted, fires refereeSignedUpWithReferral and
