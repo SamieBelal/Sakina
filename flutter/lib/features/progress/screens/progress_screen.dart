@@ -253,6 +253,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
 
+    // Replay-tour re-trigger: Settings "Replay app tour" flips
+    // guidedSequenceActiveProvider to true while we're already mounted
+    // (tab-switch, not full route push). initState's post-frame hook won't
+    // re-run. Listen for the false → true transition and re-fire the Home
+    // tour. The listener fires once per transition (no spam).
+    ref.listen<bool>(guidedSequenceActiveProvider, (prev, next) {
+      if (next && (prev != true)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _maybeStartHomeTour();
+        });
+      }
+    });
+
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors
     // DailyLaunchOverlay so the user sees one consistent Name from the
