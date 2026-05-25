@@ -177,7 +177,14 @@ void main() {
             ],
           },
           'daily_usage': {
-            'usage_date': todayStr(),
+            // UTC — daily_usage_service._findTodayUsageRow filters
+            // rows by `usage_date == _today()` where `_today()` uses
+            // DateTime.now().toUtc(). A local-date string here would
+            // be silently dropped under TZ=America/New_York CI during
+            // the local-vs-UTC midnight window, causing the
+            // getReflectUsageToday() / getBuiltDuaUsageToday()
+            // assertions below to fail.
+            'usage_date': todayUtcStr(),
             'reflect_uses': 2,
             'built_dua_uses': 1,
           },
