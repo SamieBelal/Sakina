@@ -56,6 +56,7 @@ class PersonalizedPlanScreen extends ConsumerWidget {
         value: translit,
         emphasize: true,
       ),
+      // ignore: prefer_const_constructors
       _PlanTile(
         icon: Icons.favorite_rounded,
         label: 'You often feel',

@@ -40,7 +40,7 @@ void main() {
     // 7 hours ago — past 6h TTL
     await prefs.setInt(
       'app_config_cache_v1_test_key_at',
-      DateTime.now().millisecondsSinceEpoch - Duration(hours: 7).inMilliseconds,
+      DateTime.now().millisecondsSinceEpoch - const Duration(hours: 7).inMilliseconds,
     );
     final svc = AppConfigService.forTest();
     final result = await svc.getBool('test_key', fallback: true);

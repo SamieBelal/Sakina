@@ -13,7 +13,7 @@ import 'screens/_test_utils.dart';
 // Trimmed-flow refactor (2026-05-25, Option α): page indices renumbered.
 // New trimmed indices: email=14, password=15, post-signup=16.
 class _StubAppConfig extends AppConfigService {
-  _StubAppConfig({this.trimmed = true}) : super.forTest();
+  _StubAppConfig() : trimmed = true, super.forTest();
   final bool trimmed;
   @override
   Future<bool> getBool(String key, {required bool fallback}) async => trimmed;

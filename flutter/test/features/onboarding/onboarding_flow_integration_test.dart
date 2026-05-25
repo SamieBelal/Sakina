@@ -9,7 +9,7 @@ import 'package:sakina/services/app_config_service.dart';
 // children. T8/T9 in onboarding_dual_flow_test verify both branches —
 // this file only exercises the trimmed (default) path.
 class _StubAppConfig extends AppConfigService {
-  _StubAppConfig({this.trimmed = true}) : super.forTest();
+  _StubAppConfig() : trimmed = true, super.forTest();
   final bool trimmed;
   @override
   Future<bool> getBool(String key, {required bool fallback}) async => trimmed;
