@@ -84,6 +84,16 @@ begin
       using errcode = 'check_violation';
   end if;
 
+  -- Existing rules from 20260524154019_ai_bypass_p1_security_bundle (P1-3 fix)
+  if new.last_winback_grant_at is distinct from old.last_winback_grant_at then
+    raise exception 'cannot modify freemium gating field: last_winback_grant_at; must go through SECURITY DEFINER RPC'
+      using errcode = 'check_violation';
+  end if;
+  if new.iap_upsell_banner_dismissed_at is distinct from old.iap_upsell_banner_dismissed_at then
+    raise exception 'cannot modify freemium gating field: iap_upsell_banner_dismissed_at; must go through SECURITY DEFINER RPC'
+      using errcode = 'check_violation';
+  end if;
+
   -- New rule (2026-05-25 — this migration)
   if new.gift_premium_until is distinct from old.gift_premium_until then
     raise exception
