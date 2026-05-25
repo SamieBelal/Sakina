@@ -42,6 +42,11 @@ abstract final class AnalyticsEvents {
   static const onboardingCompleted = 'onboarding_completed';
   static const onboardingAnswerCaptured = 'onboarding_answer_captured';
 
+  /// Fired on app resume when the user was paused for 24h+ mid-onboarding.
+  /// Properties: `page` (int index), `gone_hours` (int hours since pause).
+  /// Powers the Phase A abandonment funnel for the trimmed onboarding flow.
+  static const onboardingAbandonedAtPage = 'onboarding_abandoned_at_page';
+
   // Settings → Premium card. Persistent upgrade affordance added 2026-05-13
   // in response to the App Review rejection (reviewer could not find the
   // paywall outside onboarding). See

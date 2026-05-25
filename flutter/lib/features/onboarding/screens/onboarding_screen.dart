@@ -5,6 +5,7 @@ import '../../../core/app_session.dart';
 import '../../../core/env.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/app_config_service.dart';
 import '../providers/onboarding_provider.dart';
 import 'age_range_screen.dart';
 import 'aspirations_screen.dart';
@@ -34,6 +35,17 @@ import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
 import 'your_journey_screen.dart';
 
+/// Returns true when [resumedAt] is more than 24 hours after [pausedAt].
+/// Extracted as a top-level helper so the abandonment threshold logic is
+/// directly unit-testable (see test/features/onboarding/abandonment_telemetry_test.dart).
+@visibleForTesting
+bool shouldFireAbandonment({
+  required DateTime pausedAt,
+  required DateTime resumedAt,
+}) {
+  return resumedAt.difference(pausedAt) > const Duration(hours: 24);
+}
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -41,12 +53,20 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
+    with WidgetsBindingObserver {
   late final PageController _pageController;
+  late final Future<bool> _useTrimmedFlowFuture;
   bool _navigating = false;
   bool _paywallEventsFired = false;
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
+
+  // Abandonment telemetry (Task A10): when the app is backgrounded mid-
+  // onboarding for 24h+, fire `onboarding_abandoned_at_page` on resume so
+  // the funnel can attribute drop-offs to specific pages.
+  DateTime? _pausedAt;
+  int? _pausedAtPage;
 
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
@@ -70,6 +90,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    _useTrimmedFlowFuture = ref
+        .read(appConfigServiceProvider)
+        .getBool('onboarding_trim_enabled', fallback: true);
+    WidgetsBinding.instance.addObserver(this);
     final restoredPage = ref.read(onboardingProvider).currentPage;
     final initialPage = restoredPage.clamp(0, onboardingLastPageIndex);
     _pageController = PageController(initialPage: initialPage);
@@ -91,8 +115,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+      _pausedAtPage = ref.read(onboardingProvider).currentPage;
+    } else if (state == AppLifecycleState.resumed && _pausedAt != null) {
+      final resumedAt = DateTime.now();
+      if (_pausedAtPage != null &&
+          shouldFireAbandonment(pausedAt: _pausedAt!, resumedAt: resumedAt)) {
+        final gone = resumedAt.difference(_pausedAt!);
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.onboardingAbandonedAtPage,
+          properties: {
+            'page': _pausedAtPage,
+            'gone_hours': gone.inHours,
+          },
+        );
+      }
+      _pausedAt = null;
+      _pausedAtPage = null;
+    }
   }
 
   void _goToPage(int page) {
@@ -132,7 +180,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (current < onboardingLastPageIndex) _goToPage(current + 1);
   }
 
-  void _skipToEncouragement() => _goToPage(onboardingEncouragementPageIndex);
+  /// Trimmed-flow social-auth landing: jump to Generating (16).
+  void _skipToPostSignup() => _goToPage(onboardingPostSignupPageIndex);
+
+  /// Legacy-flow social-auth landing: jump to Encouragement (21).
+  /// Kept while the dual-flow kill switch is live; PR-2b will delete the
+  /// legacy children + this helper after 7 days stable in prod.
+  void _skipToEncouragement() =>
+      _goToPage(onboardingLegacyEncouragementPageIndex);
 
   void _back() {
     final current = ref.read(onboardingProvider).currentPage;
@@ -154,9 +209,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (state.familiarity != null) {
       profileProps['familiarity'] = state.familiarity;
     }
-    if (state.quranConnection != null) {
-      profileProps['quran_connection'] = state.quranConnection;
-    }
     if (state.attribution.isNotEmpty) {
       profileProps['attribution'] = state.attribution.toList();
     }
@@ -172,12 +224,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     if (state.duaTopicsOther != null) {
       profileProps['dua_topics_other'] = state.duaTopicsOther;
-    }
-    if (state.commonEmotions.isNotEmpty) {
-      profileProps['common_emotions'] = state.commonEmotions.toList();
-    }
-    if (state.aspirations.isNotEmpty) {
-      profileProps['aspirations'] = state.aspirations.toList();
     }
     if (state.dailyCommitmentMinutes != null) {
       profileProps['daily_commitment_minutes'] = state.dailyCommitmentMinutes;
@@ -198,83 +244,157 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (mounted) context.go('/');
   }
 
+  /// Trimmed 20-screen flow (Phase A target, 2026-05-25 trim).
+  List<Widget> _trimmedChildren() {
+    return [
+      // 0 — First check-in hook (gacha overlay fires here, not a separate page).
+      FirstCheckinScreen(onNext: _next, onBack: _back),
+      // 1 — Name input
+      NameInputScreen(onNext: _next, onBack: _back),
+      // 2 — Age range
+      AgeRangeScreen(onNext: _next, onBack: _back),
+      // 3 — Intention
+      IntentionScreen(onNext: _next, onBack: _back),
+      // 4 — Prayer frequency
+      PrayerFrequencyScreen(onNext: _next, onBack: _back),
+      // 5 — Familiarity with the 99 Names
+      FamiliarityScreen(onNext: _next, onBack: _back),
+      // 6 — Dua topics
+      DuaTopicsScreen(onNext: _next, onBack: _back),
+      // 7 — Daily commitment minutes
+      DailyCommitmentScreen(onNext: _next, onBack: _back),
+      // 8 — Attribution
+      AttributionScreen(onNext: _next, onBack: _back),
+      // 9 — Reminder time
+      ReminderTimeScreen(onNext: _next, onBack: _back),
+      // 10 — Notifications permission
+      NotificationScreen(onNext: _next, onBack: _back),
+      // 11 — Commitment pact
+      CommitmentPactScreen(onNext: _next, onBack: _back),
+      // 12 — Social proof (pre-signup)
+      SocialProofScreen(onNext: _next, onBack: _back),
+      // 13 — Save progress (sign-up choice)
+      SaveProgressScreen(
+        onNext: _next,
+        onBack: _back,
+        onSocialAuthComplete: _skipToPostSignup,
+      ),
+      // 14 — Sign-up email
+      SignUpEmailScreen(onNext: _next, onBack: _back),
+      // 15 — Sign-up password
+      SignUpPasswordScreen(onNext: _next, onBack: _back),
+      // — Paywall flow begins. Progress bar hidden on these. —
+      // 16 — Generating (loader)
+      GeneratingScreen(onNext: _next),
+      // 17 — Personalized plan
+      PersonalizedPlanScreen(onNext: _next, onBack: _back),
+      // 18 — Rating gate (gated by Env.ratingGateEnabled)
+      if (Env.ratingGateEnabled)
+        RatingGateScreen(onNext: _next, onBack: _back),
+      // 19 — Paywall
+      PaywallScreen(onComplete: _completeOnboarding),
+    ];
+  }
+
+  /// Legacy 27-screen flow. Retained behind the
+  /// `onboarding_trim_enabled=false` app_config flag so we can kill-switch
+  /// back without a redeploy. PR-2b will delete this method + the seven
+  /// referenced screen files after 7 days stable in prod.
+  List<Widget> _legacyChildren() {
+    return [
+      // 0 — First check-in hook (gacha overlay fires here, not a separate page).
+      FirstCheckinScreen(onNext: _next, onBack: _back),
+      // 1 — Name input
+      NameInputScreen(onNext: _next, onBack: _back),
+      // 2 — Age range
+      AgeRangeScreen(onNext: _next, onBack: _back),
+      // 3 — Intention
+      IntentionScreen(onNext: _next, onBack: _back),
+      // 4 — Prayer frequency
+      PrayerFrequencyScreen(onNext: _next, onBack: _back),
+      // 5 — Quran connection
+      QuranConnectionScreen(onNext: _next, onBack: _back),
+      // 6 — Familiarity with the 99 Names
+      FamiliarityScreen(onNext: _next, onBack: _back),
+      // 7 — Dua topics
+      DuaTopicsScreen(onNext: _next, onBack: _back),
+      // 8 — Common emotions
+      CommonEmotionsScreen(onNext: _next, onBack: _back),
+      // 9 — Aspirations
+      AspirationsScreen(onNext: _next, onBack: _back),
+      // 10 — Daily commitment minutes
+      DailyCommitmentScreen(onNext: _next, onBack: _back),
+      // 11 — Attribution
+      AttributionScreen(onNext: _next, onBack: _back),
+      // 12 — "You're not alone" support interstitial
+      StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
+      // 13 — Reminder time
+      ReminderTimeScreen(onNext: _next, onBack: _back),
+      // 14 — Notifications permission
+      NotificationScreen(onNext: _next, onBack: _back),
+      // 15 — Commitment pact
+      CommitmentPactScreen(onNext: _next, onBack: _back),
+      // 16 — Value prop
+      ValuePropScreen(onNext: _next, onBack: _back),
+      // 17 — Social proof (pre-signup)
+      SocialProofScreen(onNext: _next, onBack: _back),
+      // 18 — Save progress (sign-up choice)
+      SaveProgressScreen(
+        onNext: _next,
+        onBack: _back,
+        onSocialAuthComplete: _skipToEncouragement,
+      ),
+      // 19 — Sign-up email
+      SignUpEmailScreen(onNext: _next, onBack: _back),
+      // 20 — Sign-up password
+      SignUpPasswordScreen(onNext: _next, onBack: _back),
+      // 21 — Encouragement #2 (social-auth users land here)
+      EncouragementScreen(onNext: _next, onBack: _back),
+      // — Paywall flow begins. Progress bar hidden on these. —
+      // 22 — Generating (loader)
+      GeneratingScreen(onNext: _next),
+      // 23 — Personalized plan
+      PersonalizedPlanScreen(onNext: _next, onBack: _back),
+      // 24 — Your Journey
+      YourJourneyScreen(onNext: _next, onBack: _back),
+      // 25 — Rating gate (gated by Env.ratingGateEnabled)
+      if (Env.ratingGateEnabled)
+        RatingGateScreen(onNext: _next, onBack: _back),
+      // 26 — Paywall
+      PaywallScreen(onComplete: _completeOnboarding),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentPage = ref.watch(
       onboardingProvider.select((state) => state.currentPage),
     );
 
-    return Scaffold(
-      resizeToAvoidBottomInset: currentPage != 0 && currentPage != 7,
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          // 0 — First check-in hook (gacha overlay fires here, not a separate page).
-          FirstCheckinScreen(onNext: _next, onBack: _back),
-          // 1 — Name input
-          NameInputScreen(onNext: _next, onBack: _back),
-          // 2 — Age range
-          AgeRangeScreen(onNext: _next, onBack: _back),
-          // 3 — Intention
-          IntentionScreen(onNext: _next, onBack: _back),
-          // 4 — Prayer frequency
-          PrayerFrequencyScreen(onNext: _next, onBack: _back),
-          // 5 — Quran connection
-          QuranConnectionScreen(onNext: _next, onBack: _back),
-          // 6 — Familiarity with the 99 Names
-          FamiliarityScreen(onNext: _next, onBack: _back),
-          // 7 — Dua topics
-          DuaTopicsScreen(onNext: _next, onBack: _back),
-          // 8 — Common emotions
-          CommonEmotionsScreen(onNext: _next, onBack: _back),
-          // 9 — Aspirations
-          AspirationsScreen(onNext: _next, onBack: _back),
-          // 10 — Daily commitment minutes
-          DailyCommitmentScreen(onNext: _next, onBack: _back),
-          // 11 — Attribution
-          AttributionScreen(onNext: _next, onBack: _back),
-          // 12 — "You're not alone" support interstitial
-          StruggleSupportInterstitialScreen(onNext: _next, onBack: _back),
-          // 13 — Reminder time
-          ReminderTimeScreen(onNext: _next, onBack: _back),
-          // 14 — Notifications permission
-          NotificationScreen(onNext: _next, onBack: _back),
-          // 15 — Commitment pact
-          CommitmentPactScreen(onNext: _next, onBack: _back),
-          // 16 — Value prop  (was 18 pre-2026-05-05; +2 from removing Generating + PersonalPlan)
-          ValuePropScreen(onNext: _next, onBack: _back),
-          // 17 — Social proof (pre-signup)
-          SocialProofScreen(onNext: _next, onBack: _back),
-          // 18 — Save progress (sign-up choice)
-          SaveProgressScreen(
-            onNext: _next,
-            onBack: _back,
-            onSocialAuthComplete: _skipToEncouragement,
+    return FutureBuilder<bool>(
+      future: _useTrimmedFlowFuture,
+      builder: (context, snapshot) {
+        // Optimistic default — trim is the new shipping flow. Cached value
+        // resolves synchronously on subsequent launches via AppConfigService.
+        final trimmed = snapshot.data ?? true;
+        final children = trimmed ? _trimmedChildren() : _legacyChildren();
+
+        // Pages that should NOT resize for keyboard:
+        //   trimmed: 0 (first check-in) and 6 (dua topics)
+        //   legacy:  0 (first check-in) and 7 (dua topics)
+        final keepBottomInset = trimmed
+            ? (currentPage != 0 && currentPage != 6)
+            : (currentPage != 0 && currentPage != 7);
+
+        return Scaffold(
+          resizeToAvoidBottomInset: keepBottomInset,
+          body: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: children,
           ),
-          // 19 — Sign-up email
-          SignUpEmailScreen(onNext: _next, onBack: _back),
-          // 20 — Sign-up password
-          SignUpPasswordScreen(onNext: _next, onBack: _back),
-          // 21 — Encouragement #2  (social-auth users land here; tease added 2026-05-05)
-          EncouragementScreen(onNext: _next, onBack: _back),
-          // — Paywall flow begins. Progress bar hidden on these. —
-          // 22 — Generating (loader; relocated from old page 16; copy updated to 4 steps)
-          GeneratingScreen(onNext: _next),
-          // 23 — Personalized plan (relocated from old page 17; reskinned to plain Scaffold)
-          PersonalizedPlanScreen(onNext: _next, onBack: _back),
-          // 24 — Your Journey (NEW 2026-05-05)
-          YourJourneyScreen(onNext: _next, onBack: _back),
-          // 25 — Rating gate (NEW 2026-05-14, gated by Env.ratingGateEnabled —
-          //   when flag is false the gate is elided at compile time and
-          //   paywall sits at index 25 exactly as before. See
-          //   docs/superpowers/plans/2026-05-14-rating-gate.md.)
-          if (Env.ratingGateEnabled)
-            RatingGateScreen(onNext: _next, onBack: _back),
-          // 26 — Paywall (was 25 — see Env.ratingGateEnabled)
-          PaywallScreen(onComplete: _completeOnboarding),
-        ],
-      ),
+        );
+      },
     );
   }
 }

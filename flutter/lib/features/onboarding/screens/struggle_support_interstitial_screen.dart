@@ -6,7 +6,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
-import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
@@ -20,26 +19,12 @@ class StruggleSupportInterstitialScreen extends ConsumerWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  // Only heavy/negative emotions land right in "Many who started with {X}
-  // found peace here." — skip grateful/joyful/hopeful.
-  static const _focusEmotions = {
-    'overwhelmed',
-    'anxious',
-    'grief',
-    'sad',
-    'lonely',
-    'numb',
-    'angry',
-  };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final emotions = ref.watch(onboardingProvider).commonEmotions;
-    final picked = emotions.firstWhere(
-      _focusEmotions.contains,
-      orElse: () => '',
-    );
-    final focus = picked.isNotEmpty ? picked : "what you're carrying";
+    // Trimmed-flow refactor (2026-05-25, Option α): `commonEmotions` was
+    // removed from OnboardingState. Legacy screen falls back to the default
+    // generic copy.
+    const focus = "what you're carrying";
 
     return OnboardingPageWrapper(
       progressSegment: 12,

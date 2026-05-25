@@ -19,34 +19,38 @@ import '../../../core/env.dart';
 
 const _prefsKey = 'onboarding_state';
 
-/// Last index in [OnboardingScreen]'s PageView. Computed from the rating-gate
-/// kill switch so the "gate on" and "gate off" paths stay in sync:
-///   * `Env.ratingGateEnabled == true`  → 27 children (0..26), paywall at 26.
-///   * `Env.ratingGateEnabled == false` → 26 children (0..25), paywall at 25.
+/// Last index in [OnboardingScreen]'s trimmed PageView. The legacy 27-screen
+/// flow lives behind the `onboarding_trim_enabled` app_config flag (Option α
+/// dual-flow strategy from 2026-05-25 eng review).
+///   * Trimmed flow: 20 children (0..19), paywall at 19 (when rating gate on).
+///   * Legacy flow: 27 children (0..26), paywall at 26 (preserved for rollback).
 ///
-/// `Env.ratingGateEnabled` is a compile-time `bool.fromEnvironment` constant,
-/// so the ternary collapses to a single int at compile time.
-///
-/// Updated 2026-05-14 by rating-gate insertion (page 25 when enabled). Prior
-/// 2026-05-05 paywall flow redesign moved Generating/PersonalizedPlan into
-/// the paywall flow at pages 22-23 and added YourJourneyScreen at page 24.
-const int onboardingLastPageIndex = Env.ratingGateEnabled ? 26 : 25;
+/// Trimmed flow indices:
+///   0 First check-in, 1 Name, 2 Age, 3 Intention, 4 Prayer,
+///   5 Familiarity, 6 Dua topics, 7 Daily commitment, 8 Attribution,
+///   9 Reminder time, 10 Notifications, 11 Commitment pact, 12 Social proof,
+///   13 Save progress, 14 Email, 15 Password, 16 Generating,
+///   17 Personalized plan, 18 Rating gate (if env on), 19 Paywall.
+const int onboardingLastPageIndex = Env.ratingGateEnabled ? 19 : 18;
 
-/// Index of the Sign-up email screen in [OnboardingScreen]'s PageView.
-/// Shifted -2 from old index 21 because Generating + PersonalPlan were
-/// removed from earlier in the flow.
-const int onboardingEmailPageIndex = 19;
+/// Legacy 27-screen flow last index. Used when `onboarding_trim_enabled=false`.
+const int onboardingLegacyLastPageIndex = Env.ratingGateEnabled ? 26 : 25;
 
-/// Index of the Sign-up password screen in [OnboardingScreen]'s PageView.
-/// Shifted -2 from old index 22 because Generating + PersonalPlan were
-/// removed from earlier in the flow.
-const int onboardingPasswordPageIndex = 20;
+/// Trimmed-flow sign-up email page index.
+const int onboardingEmailPageIndex = 14;
 
-/// Where social-auth (Apple/Google) users land after OAuth succeeds. They are
-/// already authenticated, so the email (19) and password (20) screens are
-/// skipped — the user goes straight to the Encouragement interstitial.
-/// Shifted -2 from old index 23.
-const int onboardingEncouragementPageIndex = 21;
+/// Trimmed-flow sign-up password page index.
+const int onboardingPasswordPageIndex = 15;
+
+/// Where social-auth (Apple/Google) users land after OAuth succeeds in the
+/// trimmed flow. Replaces the old `onboardingEncouragementPageIndex` — the
+/// Encouragement interstitial was removed; users go straight to Generating.
+const int onboardingPostSignupPageIndex = 16;
+
+/// Legacy flow constants (kept for backwards-compat while dual-flow is live).
+const int onboardingLegacyEmailPageIndex = 19;
+const int onboardingLegacyPasswordPageIndex = 20;
+const int onboardingLegacyEncouragementPageIndex = 21;
 
 class OnboardingState {
   const OnboardingState({
@@ -57,7 +61,6 @@ class OnboardingState {
     this.demoCheckinCompleted = false,
     this.isLoadingDemoResult = false,
     this.familiarity,
-    this.quranConnection,
     this.attribution = const {},
     this.generateProgress = 0.0,
     this.isSignedUp = false,
@@ -70,8 +73,6 @@ class OnboardingState {
     this.starterNameId,
     this.duaTopics = const {},
     this.duaTopicsOther,
-    this.commonEmotions = const {},
-    this.aspirations = const {},
     this.dailyCommitmentMinutes,
     this.reminderTime,
     this.commitmentAccepted = false,
@@ -85,7 +86,6 @@ class OnboardingState {
   final bool demoCheckinCompleted;
   final bool isLoadingDemoResult;
   final String? familiarity;
-  final String? quranConnection;
   final Set<String> attribution;
   final double generateProgress;
   final bool isSignedUp;
@@ -97,8 +97,6 @@ class OnboardingState {
   final int? starterNameId;
   final Set<String> duaTopics;
   final String? duaTopicsOther;
-  final Set<String> commonEmotions;
-  final Set<String> aspirations;
   final int? dailyCommitmentMinutes;
   final String? reminderTime; // "HH:mm" 24h
   final bool commitmentAccepted;
@@ -121,7 +119,6 @@ class OnboardingState {
     bool? demoCheckinCompleted,
     bool? isLoadingDemoResult,
     String? familiarity,
-    String? quranConnection,
     Set<String>? attribution,
     double? generateProgress,
     bool? isSignedUp,
@@ -137,8 +134,6 @@ class OnboardingState {
     Set<String>? duaTopics,
     String? duaTopicsOther,
     bool clearDuaTopicsOther = false,
-    Set<String>? commonEmotions,
-    Set<String>? aspirations,
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool? commitmentAccepted,
@@ -154,7 +149,6 @@ class OnboardingState {
       demoCheckinCompleted: demoCheckinCompleted ?? this.demoCheckinCompleted,
       isLoadingDemoResult: isLoadingDemoResult ?? this.isLoadingDemoResult,
       familiarity: familiarity ?? this.familiarity,
-      quranConnection: quranConnection ?? this.quranConnection,
       attribution: attribution ?? this.attribution,
       generateProgress: generateProgress ?? this.generateProgress,
       isSignedUp: isSignedUp ?? this.isSignedUp,
@@ -167,8 +161,6 @@ class OnboardingState {
       duaTopics: duaTopics ?? this.duaTopics,
       duaTopicsOther:
           clearDuaTopicsOther ? null : (duaTopicsOther ?? this.duaTopicsOther),
-      commonEmotions: commonEmotions ?? this.commonEmotions,
-      aspirations: aspirations ?? this.aspirations,
       dailyCommitmentMinutes:
           dailyCommitmentMinutes ?? this.dailyCommitmentMinutes,
       reminderTime: reminderTime ?? this.reminderTime,
@@ -180,13 +172,12 @@ class OnboardingState {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 6,
+        'version': 7,
         'currentPage': currentPage,
         'intention': intention,
         'notificationPermissionGranted': notificationPermissionGranted,
         'demoCheckinCompleted': demoCheckinCompleted,
         'familiarity': familiarity,
-        'quranConnection': quranConnection,
         'attribution': attribution.toList(),
         'signUpName': signUpName,
         'signUpEmail': signUpEmail,
@@ -195,19 +186,18 @@ class OnboardingState {
         'starterNameId': starterNameId,
         'duaTopics': duaTopics.toList(),
         'duaTopicsOther': duaTopicsOther,
-        'commonEmotions': commonEmotions.toList(),
-        'aspirations': aspirations.toList(),
         'dailyCommitmentMinutes': dailyCommitmentMinutes,
         'reminderTime': reminderTime,
         'commitmentAccepted': commitmentAccepted,
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
-    // Bumped to 6 with the paywall flow redesign (page indices changed).
-    // Old v5 blobs reference page indices that no longer exist after the
-    // reorder, so they are discarded and the user starts fresh.
+    // Bumped to 7 with the onboarding-trim refactor (page indices changed,
+    // quranConnection / commonEmotions / aspirations fields removed). Old
+    // blobs reference page indices that no longer exist after the trim, so
+    // they are discarded and the user starts fresh.
     final version = json['version'] as int? ?? 0;
-    if (version < 6) return const OnboardingState();
+    if (version < 7) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
     currentPage = currentPage.clamp(0, onboardingLastPageIndex);
@@ -222,7 +212,6 @@ class OnboardingState {
           json['notificationPermissionGranted'] as bool? ?? false,
       demoCheckinCompleted: json['demoCheckinCompleted'] as bool? ?? false,
       familiarity: json['familiarity'] as String?,
-      quranConnection: json['quranConnection'] as String?,
       attribution: readSet(json['attribution']),
       signUpName: json['signUpName'] as String?,
       signUpEmail: json['signUpEmail'] as String?,
@@ -231,8 +220,6 @@ class OnboardingState {
       starterNameId: (json['starterNameId'] as num?)?.toInt(),
       duaTopics: readSet(json['duaTopics']),
       duaTopicsOther: json['duaTopicsOther'] as String?,
-      commonEmotions: readSet(json['commonEmotions']),
-      aspirations: readSet(json['aspirations']),
       dailyCommitmentMinutes: json['dailyCommitmentMinutes'] as int?,
       reminderTime: json['reminderTime'] as String?,
       commitmentAccepted: json['commitmentAccepted'] as bool? ?? false,
@@ -311,11 +298,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     _saveToPrefs();
   }
 
-  void setQuranConnection(String quranConnection) {
-    state = state.copyWith(quranConnection: quranConnection);
-    _saveToPrefs();
-  }
-
   void toggleAttribution(String source) {
     final updated = Set<String>.from(state.attribution);
     if (updated.contains(source)) {
@@ -363,20 +345,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
             chars.length > 280 ? chars.take(280).toString() : trimmed,
       );
     }
-    _saveToPrefs();
-  }
-
-  void toggleCommonEmotion(String emotion) {
-    state = state.copyWith(
-      commonEmotions: _toggled(state.commonEmotions, emotion),
-    );
-    _saveToPrefs();
-  }
-
-  void toggleAspiration(String aspiration) {
-    state = state.copyWith(
-      aspirations: _toggled(state.aspirations, aspiration),
-    );
     _saveToPrefs();
   }
 
@@ -482,15 +450,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         displayName: state.signUpName,
         intention: state.intention,
         familiarity: state.familiarity,
-        quranConnection: state.quranConnection,
         attribution: state.attribution.toList(),
         ageRange: state.ageRange,
         prayerFrequency: state.prayerFrequency,
         starterNameId: state.starterNameId,
         duaTopics: state.duaTopics.toList(),
         duaTopicsOther: state.duaTopicsOther,
-        commonEmotions: state.commonEmotions.toList(),
-        aspirations: state.aspirations.toList(),
         dailyCommitmentMinutes: state.dailyCommitmentMinutes,
         reminderTime: state.reminderTime,
         commitmentAccepted: state.commitmentAccepted,

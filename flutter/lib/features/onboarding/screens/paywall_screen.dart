@@ -402,19 +402,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   String _personalizedHeadline() {
     final s = ref.read(onboardingProvider);
-    final aspiration =
-        switch (s.aspirations.isNotEmpty ? s.aspirations.first : '') {
-      'morePatient' => 'more patient',
-      'moreGrateful' => 'more grateful',
-      'closerToAllah' => 'closer to Allah',
-      'morePresent' => 'more present',
-      'strongerFaith' => 'stronger in faith',
-      'moreConsistent' => 'more consistent',
-      // Shorter fallback so the headline still wraps to 2 lines (not 3).
-      // "the person you want to be" was the longest variant and the only
-      // one that pushed the layout off-screen.
-      _ => 'your best self',
-    };
+    // Trimmed-flow refactor (2026-05-25, Option α): `aspirations` was removed
+    // from OnboardingState. We now always render the shorter fallback. The
+    // Phase B copy refresh will rewrite this headline against the trimmed
+    // signals we still capture (intention / familiarity / dua_topics).
+    const aspiration = 'your best self';
     final mins = s.dailyCommitmentMinutes ?? 3;
     final minLabel = mins == 1 ? '1 minute' : '$mins minutes';
     // Reframe so the time is the commitment, not the deadline. The old

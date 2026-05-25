@@ -33,18 +33,15 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     return 'Ar-Rahman';
   }
 
-  static String _titleCase(String id) =>
-      '${id.substring(0, 1).toUpperCase()}${id.substring(1)}';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForCatalogId(state.starterNameId);
-    final emotions = (state.commonEmotions.toList()..sort())
-        .take(3)
-        .map(_titleCase)
-        .join(', ');
-    final struggle = emotions.isNotEmpty ? emotions : 'Whatever comes up';
+    // Trimmed-flow refactor (2026-05-25, Option α): `commonEmotions` was
+    // removed from OnboardingState. The "You often feel" tile now falls back
+    // to its existing default copy; Phase B copy refresh will rewrite the
+    // tile against the trimmed signals (intention / dua_topics).
+    const struggle = 'Whatever comes up';
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
