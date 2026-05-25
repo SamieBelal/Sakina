@@ -140,7 +140,7 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
                 subtitle:
                     'Send a dua to 3 friends to unlock 30 days + a Gold card.',
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.xl),
               Expanded(child: _buildBody()),
             ],
           ),
@@ -160,34 +160,58 @@ class _MyReferralsScreenState extends ConsumerState<MyReferralsScreen> {
     if (s == null) {
       return _ErrorRetry(onRetry: _load);
     }
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _CodeCard(code: s.code, onCopy: () => _onCopyCode(s.code)),
-          const SizedBox(height: AppSpacing.md),
-          _ShareButton(onTap: () => _onShare(s.code)),
-          const SizedBox(height: AppSpacing.xl),
-          _ProgressSection(state: s),
-          if (s.grants.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            const _SectionLabel('Rewards earned'),
-            const SizedBox(height: AppSpacing.sm),
-            ...s.grants.map((g) => _GrantRow(grant: g)),
-          ],
-          if (s.confirmedCount == 0 && s.grants.isEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              "No one's joined yet. Share your code with a friend who'd love this.",
-              textAlign: TextAlign.center,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
+    final hasGrants = s.grants.isNotEmpty;
+    final isEmpty = s.confirmedCount == 0 && !hasGrants;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _CodeCard(
+                            code: s.code,
+                            onCopy: () => _onCopyCode(s.code),
+                          ),
+                          const SizedBox(height: 14),
+                          _ShareButton(onTap: () => _onShare(s.code)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  _ProgressSection(state: s),
+                  if (hasGrants) ...[
+                    const SizedBox(height: AppSpacing.xl),
+                    const _SectionLabel('Rewards earned'),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...s.grants.map((g) => _GrantRow(grant: g)),
+                  ],
+                  if (isEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      "No one's joined yet. Share your code with a friend who'd love this.",
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textSecondaryLight,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-          const SizedBox(height: AppSpacing.xl),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -202,40 +226,53 @@ class _CodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surfaceLight,
-      borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 2),
+      borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 4),
       child: InkWell(
         onTap: onCopy,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 2),
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 4),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          constraints: const BoxConstraints(minHeight: 174),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 30,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 2),
+            borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 4),
             border: Border.all(color: AppColors.borderLight, width: 1.2),
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'Your code',
-                style: AppTypography.bodySmall.copyWith(
+                style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.textSecondaryLight,
-                  letterSpacing: 1.0,
+                  fontSize: 15,
+                  letterSpacing: 1.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  code.isEmpty ? '— — — —' : code,
+                  maxLines: 1,
+                  style: AppTypography.displayMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontSize: 38,
+                    height: 1.12,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    letterSpacing: 4.8,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                code.isEmpty ? '— — — —' : code,
-                style: AppTypography.displayMedium.copyWith(
-                  color: AppColors.textPrimaryLight,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  letterSpacing: 4.0,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
                 'Tap to copy',
-                style: AppTypography.bodySmall.copyWith(
+                style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.textTertiaryLight,
+                  fontSize: 15,
                 ),
               ),
             ],
@@ -255,7 +292,7 @@ class _ShareButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 56,
       child: ElevatedButton.icon(
         onPressed: onTap,
         icon: const Icon(Icons.ios_share, size: 18),
@@ -309,47 +346,54 @@ class _ProgressSection extends StatelessWidget {
 
     // Headline count — when the user is mid-cycle after a grant we want the
     // "X of 3" to reflect the NEW progress, not their lifetime confirmed.
-    final headlineCount = hasGrants ? progress : state.confirmedCount.clamp(0, 3);
+    final headlineCount =
+        hasGrants ? progress : state.confirmedCount.clamp(0, 3);
 
     final caption = (progress == 0 && hasGrants)
         ? 'Your last reward is active until ${_formatExpiry(state.grants.first.expiresAt)}. Send to 3 more to earn another.'
         : 'Sending love means a dua for them too — the Angel says Ameen for you in return.';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          '$headlineCount of 3 friends joined',
-          style: AppTypography.headlineMedium.copyWith(
-            color: AppColors.textPrimaryLight,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius + 4),
+        border: Border.all(color: AppColors.borderLight, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '$headlineCount of 3 friends joined',
+            style: AppTypography.headlineMedium.copyWith(
+              color: AppColors.textPrimaryLight,
+              fontSize: 19,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List<Widget>.generate(3, (i) {
-            final filled = i < progress;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _ProgressDot(filled: filled),
-            );
-          }),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List<Widget>.generate(3, (i) {
+              final filled = i < progress;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: _ProgressDot(filled: filled),
+              );
+            }),
+          ),
+          const SizedBox(height: 14),
+          Text(
             caption,
             textAlign: TextAlign.center,
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textSecondaryLight,
-              height: 1.5,
+              height: 1.45,
               fontStyle: FontStyle.italic,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -362,11 +406,11 @@ class _ProgressDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 18,
-      height: 18,
+      width: 16,
+      height: 16,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: filled ? AppColors.primary : Colors.transparent,
+        color: filled ? AppColors.primary : AppColors.surfaceLight,
         border: Border.all(
           color: filled ? AppColors.primary : AppColors.borderLight,
           width: 2,

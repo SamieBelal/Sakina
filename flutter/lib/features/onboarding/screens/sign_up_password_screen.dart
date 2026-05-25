@@ -105,9 +105,19 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
         debugPrint('[SignUpPassword] ensureReferralCode failed (non-fatal): $e');
       }
       try {
-        await ref
+        final result = await ref
             .read(referralServiceProvider)
             .applyPendingReferralIfAny(userId);
+        // Same recovery-snackbar contract as the social paths in
+        // save_progress_screen.dart — only invalid / self_referral surface to
+        // the user via the OnboardingState flag drained on EncouragementScreen.
+        if (!result.ok &&
+            (result.reason == 'invalid' || result.reason == 'self_referral')) {
+          if (!mounted) return;
+          ref
+              .read(onboardingProvider.notifier)
+              .setReferralApplyFailedReason(result.reason!);
+        }
       } catch (e) {
         debugPrint(
             '[SignUpPassword] applyPendingReferralIfAny failed (non-fatal): $e');

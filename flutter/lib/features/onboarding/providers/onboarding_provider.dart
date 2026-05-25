@@ -75,6 +75,7 @@ class OnboardingState {
     this.dailyCommitmentMinutes,
     this.reminderTime,
     this.commitmentAccepted = false,
+    this.referralApplyFailedReason,
   });
 
   final int currentPage;
@@ -101,6 +102,16 @@ class OnboardingState {
   final int? dailyCommitmentMinutes;
   final String? reminderTime; // "HH:mm" 24h
   final bool commitmentAccepted;
+
+  /// One-shot signal set by sign-up callers (Apple/Google in
+  /// SaveProgressScreen, email in SignUpPasswordScreen) when `apply_referral`
+  /// returns `ok:false` with reason `invalid` or `self_referral`. The
+  /// EncouragementScreen drains it on mount and shows a recovery snackbar
+  /// pointing the user at Settings → Redeem. Intentionally NOT persisted to
+  /// prefs — it's a transient UI signal. The cold-launch defensive retry in
+  /// `app_session.dart` does NOT write this flag, so a stale invalid code
+  /// can never surface as a snackbar days after onboarding.
+  final String? referralApplyFailedReason;
 
   OnboardingState copyWith({
     int? currentPage,
@@ -131,6 +142,8 @@ class OnboardingState {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool? commitmentAccepted,
+    String? referralApplyFailedReason,
+    bool clearReferralApplyFailedReason = false,
   }) {
     return OnboardingState(
       currentPage: currentPage ?? this.currentPage,
@@ -160,6 +173,9 @@ class OnboardingState {
           dailyCommitmentMinutes ?? this.dailyCommitmentMinutes,
       reminderTime: reminderTime ?? this.reminderTime,
       commitmentAccepted: commitmentAccepted ?? this.commitmentAccepted,
+      referralApplyFailedReason: clearReferralApplyFailedReason
+          ? null
+          : (referralApplyFailedReason ?? this.referralApplyFailedReason),
     );
   }
 
@@ -426,6 +442,18 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void clearAuthError() {
     state = state.copyWith(clearAuthError: true);
+  }
+
+  /// Set when the post-signup `apply_referral` call returns `ok:false` with
+  /// reason `invalid` or `self_referral`. Read once by EncouragementScreen
+  /// and cleared via [clearReferralApplyFailedReason] so re-mounts don't
+  /// double-fire the snackbar.
+  void setReferralApplyFailedReason(String reason) {
+    state = state.copyWith(referralApplyFailedReason: reason);
+  }
+
+  void clearReferralApplyFailedReason() {
+    state = state.copyWith(clearReferralApplyFailedReason: true);
   }
 
   void setSignUpName(String name) {

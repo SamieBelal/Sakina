@@ -47,6 +47,11 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   bool _isPrefillLocked = false;
   String? _prefilledCode;
   bool _hasPendingCode = false;
+  // Validation state for the pre-filled chip. null = still validating (renders
+  // optimistic green check so the happy path has no flicker). Then resolves to
+  // one of valid / invalid / networkError, mirroring `ReferralCodeField`'s
+  // three-state chip vocabulary.
+  ReferralCodeValidationState? _prefilledCodeState;
 
   @override
   void initState() {
@@ -60,14 +65,32 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(referralPendingReferralPrefsKey);
     if (!mounted) return;
-    if (code != null && code.isNotEmpty) {
-      setState(() {
-        _isReferralExpanded = true;
-        _isPrefillLocked = true;
-        _prefilledCode = code;
-        _hasPendingCode = true;
-      });
+    if (code == null || code.isEmpty) return;
+    setState(() {
+      _isReferralExpanded = true;
+      _isPrefillLocked = true;
+      _prefilledCode = code;
+      _hasPendingCode = true;
+      _prefilledCodeState = null; // loading
+    });
+    await _validatePrefilledCode(code);
+  }
+
+  Future<void> _validatePrefilledCode(String code) async {
+    ReferralCodeValidationState next;
+    try {
+      final ok = await ref.read(referralServiceProvider).validateCode(code);
+      next = ok
+          ? ReferralCodeValidationState.valid
+          : ReferralCodeValidationState.invalid;
+    } catch (_) {
+      next = ReferralCodeValidationState.networkError;
     }
+    if (!mounted) return;
+    // Race guard: if the user tapped "Change code" mid-validate, the lock is
+    // gone and writing back state would re-show the chip.
+    if (!_isPrefillLocked || _prefilledCode != code) return;
+    setState(() => _prefilledCodeState = next);
   }
 
   /// Two-step referral hook, called from both _signInWithApple and
@@ -94,7 +117,21 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       debugPrint('[SaveProgress] ensureReferralCode failed (non-fatal): $e');
     }
     try {
-      await ref.read(referralServiceProvider).applyPendingReferralIfAny(userId);
+      final result = await ref
+          .read(referralServiceProvider)
+          .applyPendingReferralIfAny(userId);
+      // Surface invalid / self_referral via the OnboardingState flag — the
+      // EncouragementScreen reads + clears it on mount to show a recovery
+      // snackbar pointing the user at Settings → Redeem. Other ok:false
+      // reasons (already_referred_*) are legitimate idempotency, not user-
+      // visible failures.
+      if (!result.ok &&
+          (result.reason == 'invalid' || result.reason == 'self_referral')) {
+        if (!mounted) return;
+        ref
+            .read(onboardingProvider.notifier)
+            .setReferralApplyFailedReason(result.reason!);
+      }
     } catch (e) {
       debugPrint(
           '[SaveProgress] applyPendingReferralIfAny failed (non-fatal): $e');
@@ -198,6 +235,7 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       _isPrefillLocked = false;
       _prefilledCode = null;
       _hasPendingCode = false;
+      _prefilledCodeState = null;
     });
   }
 
@@ -303,52 +341,95 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   }
 
   Widget _buildPrefilledChip(String code) {
+    // Three resolved states, plus a loading state (null) that renders
+    // optimistically as valid so the happy path has no flicker (~300-1000ms
+    // RPC). Invalid + networkError get a muted icon + helper subtitle that
+    // matches the in-onboarding typed-field chip vocabulary in
+    // `widgets/referral_code_field.dart`.
+    final state = _prefilledCodeState;
+    final isInvalid = state == ReferralCodeValidationState.invalid;
+    final isNetworkError = state == ReferralCodeValidationState.networkError;
+    final isProblem = isInvalid || isNetworkError;
+
+    final Color borderColor = isProblem
+        ? AppColors.borderLight
+        : AppColors.primary.withValues(alpha: 0.3);
+    final Color backgroundColor =
+        isProblem ? AppColors.surfaceLight : AppColors.primaryLight;
+    final IconData iconData = isInvalid
+        ? Icons.help_outline_rounded
+        : isNetworkError
+            ? Icons.wifi_off_rounded
+            : Icons.check_circle_rounded;
+    final Color iconColor =
+        isProblem ? AppColors.textTertiaryLight : AppColors.primary;
+    final String? subtitle = isInvalid
+        ? "We couldn't verify this code. You can continue or change it."
+        : isNetworkError
+            ? "Couldn't check right now — we'll verify when you sign up."
+            : null;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primaryLight,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        border: Border.all(color: borderColor),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.check_circle_rounded,
-            color: AppColors.primary,
-            size: 18,
+          Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  code,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    letterSpacing: 1.5,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _onChangePrefilledCode,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Change code',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: isProblem
+                        ? AppColors.textSecondaryLight
+                        : AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              code,
-              style: AppTypography.bodyLarge.copyWith(
-                color: AppColors.textPrimaryLight,
-                letterSpacing: 1.5,
-                fontFeatures: const [FontFeature.tabularFigures()],
+          if (subtitle != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.only(left: 26),
+              child: Text(
+                subtitle,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: _onChangePrefilledCode,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              'Change code',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );

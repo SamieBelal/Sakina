@@ -140,3 +140,121 @@ Specific lines on master (`fix/2026-05-12-daily-launch-overlay` HEAD shows the s
 5. Verify on iPad Air M3 (the original App Review device) that the strip renders correctly.
 
 **Surfaced by:** /plan-eng-review on the Settings Premium Entry design (2026-05-13).
+
+## Drop the 1-arg reserve_ai_bypass shim after IPA drain
+
+**Trigger:** when ≤1% of `reserve_ai_bypass` calls come from app versions older than the first version shipped with PR #26 (i.e., pre-idempotency-key clients have drained from the install base). Track via Mixpanel app-version segmentation on the `reserve_ai_bypass` event. Realistic window: 60+ days after PR #26 hits the App Store, longer if any holdout cohort persists.
+
+**Status:** PR #26 kept the 1-arg `reserve_ai_bypass(text)` as a backwards-compat shim that auto-generates a server-side idempotency key. Old IPAs lose idempotency (each call generates a fresh key on the server), keeping their original double-debit bug. Acceptable transitional state — should not be permanent.
+
+**What to do:**
+
+1. Confirm the adoption threshold in Mixpanel (≤1% of calls from pre-PR-26 versions).
+2. Write a follow-up migration that drops the 1-arg overload, leaving only the canonical 2-arg `reserve_ai_bypass(text, idempotency_key)` signature.
+3. Add a `raise exception` or NOTICE to the dropped function path during a soft-deprecation window so we catch any unexpected callers before the hard drop.
+4. Verify no Edge Function or other Postgres code still invokes the 1-arg form.
+
+**Pros:** Single canonical signature. Cleaner schema. Forces upgrades for the holdouts (who would have lost idempotency anyway on the shim path).
+
+**Cons:** Any user still on a pre-PR-26 IPA after the drop will see silent failure on their bypass action. Pick the threshold carefully.
+
+**Context:** the original shim ships with a note in `supabase/migrations/20260524010000_reserve_ai_bypass_idempotency.sql` explaining when to drop it. Originally tracked in `TODOS.md` under "P1 — Deferred follow-ups from PR #26"; consolidated into this file on 2026-05-25.
+
+---
+
+## TZ-flake risk on 4 service tests with local-date prefs keys
+
+**Trigger:** if CI starts intermittently failing on overnight runs (between roughly 20:00–23:59 EDT, i.e., 00:00–03:59 UTC) after the `TZ: America/New_York` env var landed on the flutter-tests job in PR #28. Surface = a previously-green test sporadically reporting "expected X, got Y" on the date bucket.
+
+**Status:** 4 service tests build their prefs date key from `DateTime.now()` (LOCAL) but the services they exercise key by UTC (`DateTime.now().toUtc()`) post the P0-3 fix. They passed under `TZ=America/New_York` in PR #28's pre-merge run because the local date and UTC date matched at runtime, but they live inside a 4-hour daily window where local-vs-UTC date diverges and the tests would write to one prefs bucket while the service reads another.
+
+Affected tests:
+- `test/services/daily_rewards_service_test.dart:24`
+- `test/services/daily_usage_service_test.dart:14`
+- `test/services/gating_service_test.dart:55`
+- `test/services/user_data_batch_sync_service_test.dart:34, 623`
+
+**Steps when ready (~30 min total):**
+
+1. For each file, replace the raw `DateTime.now()` used to build the prefs date string with `DateTime.now().toUtc()`. Verify by reading the service's `_today()` (e.g., `daily_usage_service.dart:36-49`) to confirm it uses `.toUtc()` and match.
+2. Alternative if the service exposes a debug clock seam: inject `debugXxxClock = () => DateTime.utc(...)` in `setUp()` and use the same fixed instant in the test's prefs-key construction.
+3. Run `TZ=America/New_York flutter test test/services/` and confirm green. Then re-run with `TZ=Pacific/Auckland` (positive offset) and `TZ=America/Los_Angeles` to cover both directions.
+4. Once green under 3 different TZs, the flake window is closed.
+
+**Surfaced by:** /plan-eng-review on PR #28 (Task 5+7 subagent + adversarial reviewer agreed). Did not flake in PR #28's actual CI run, but the window is real.
+
+---
+
+## Email regex ASCII-only excludes internationalized email
+
+**Trigger:** before localization expands beyond English (Arabic, Urdu, Malay, Turkish, French are priority languages per CLAUDE.md). Turkish/French users with diacritics in their local-part (e.g., `josé@example.com`) currently hit "Please enter a valid email" at the onboarding signup step and bounce out of the funnel.
+
+**Status:** `lib/features/onboarding/screens/sign_up_email_screen.dart:30` uses an ASCII-only regex (`^[a-zA-Z0-9...]+@[a-zA-Z0-9...]+\.[a-zA-Z0-9]+$`). Supabase auth itself accepts Unicode emails — only the client validation rejects them. Net effect: no security issue (we'd just allow the value to be sent), but real users get a confusing client-side error.
+
+**Steps when ready (~10 min):**
+
+1. Replace the regex with either:
+   - `^[^\s@]+@[^\s@]+\.[^\s@]+$` (loose — matches what Supabase actually accepts), OR
+   - `RegExp(r'^[\p{L}\p{N}._%+\-]+@[\p{L}\p{N}.\-]+\.[\p{L}]{2,}$', unicode: true)` (Unicode-aware, stricter)
+2. Add 3-4 test cases to `test/features/onboarding/sign_up_email_screen_test.dart` (or wherever validation tests live) covering `josé@example.com`, `用户@例え.jp`, and a deliberately-invalid `not@an@email`.
+
+**Surfaced by:** Subagent paywall review during the 2026-05-24 master review.
+
+---
+
+## Session-race recovery on signup loops users back to the same error
+
+**Trigger:** if support tickets show a pattern of "I'm stuck on the password screen, retried but it keeps failing" specifically on slow networks. Has not been observed in production yet but is structurally present in the code.
+
+**Status:** `lib/features/onboarding/screens/sign_up_password_screen.dart:84` handles the rare race where `supabase.auth.signUp()` returns success but `Supabase.instance.client.auth.currentUser` is still null on the next read (network reordering). The current behavior is: show snackbar "tap Continue to finish signing in" and return. But tapping Continue re-runs `signUpWithEmail()` against the same email/password, which on Supabase returns "User already registered" — looping the user with no recovery path other than backing out and changing email.
+
+**Steps when ready (~20 min):**
+
+1. On session-race, instead of just returning, retry `Supabase.instance.client.auth.currentUser` once after a 500ms delay before showing the snackbar. If it's now populated, proceed to persist + advance.
+2. If still null after the retry, call `Supabase.instance.client.auth.signInWithPassword(email, password)` to recover the session rather than re-invoking `signUp`.
+3. Only show the snackbar if both fallbacks fail — at that point the user genuinely needs to manually retry, and the snackbar copy can be honest about it.
+4. Add a regression test that mocks the race (signUp returns success, currentUser returns null, then on retry returns the user) and asserts the password screen completes.
+
+**Surfaced by:** Subagent paywall review during the 2026-05-24 master review.
+
+---
+
+## Tripwire + producer-pin coverage gaps
+
+**Trigger:** before the next polish pass on the AI-bypass funnel OR after the next IPA-2-to-sub upsell experiment iteration. Not blocking anything today.
+
+**Status:** Two gaps in the analytics + release-tripwire infra surfaced during the 2026-05-24 master review:
+
+1. **Producer-pin only covers `iapToSubBannerShown`.** The structural test at `test/widgets/iap_to_sub_upsell_banner_test.dart:686-699` scans `lib/` for at least one producer of `iapToSubBannerShown`. Good — pins finding P0-5. But the paired events `iapToSubBannerDismissed` and `iapToSubBannerDismissFailed` (added in P2-4) have no equivalent producer-pin. A refactor that removed the producer for either would slip through silently, recreating the original P0-5 class of bug (event declared but never emitted).
+
+2. **`scripts/check_no_fake_strings.sh` covers only `FAKE_DO_NOT_SHIP_` placeholders.** It doesn't catch the next P2-2-class regression (the IAP→sub banner once had a fabricated-dollar `$X spent` figure). The shape of that bug — copy claiming a specific monetary value not backed by real accounting — is exactly what FTC endorsement rules + Apple 3.1.1 care about. The current tripwire is too narrow.
+
+**Steps when ready (~30 min total):**
+
+1. **Extend the producer-pin test** (test/widgets/iap_to_sub_upsell_banner_test.dart) to enumerate all 4 banner events (shown / tapped / dismissed / dismissFailed) in a loop, asserting each has ≥1 producer file in `lib/`. Same scan pattern as the existing test, just iterate the constants.
+2. **Add a second guard to `scripts/check_no_fake_strings.sh`** that greps `lib/widgets/iap_to_sub_upsell_banner.dart` (or all `lib/widgets/`) for any literal string matching `\$\d+\s*(spent|saved)` or "You.?ve spent" patterns. Fails the build if found — forces the dev to either (a) hard-code "you've used N bypasses" style copy without monetary claims, or (b) wire a real accounting integration.
+3. Run `./scripts/check_no_fake_strings.sh` locally to confirm clean.
+
+**Surfaced by:** /plan-eng-review on PR #28 (testing specialist subagent).
+
+---
+
+## SQL hygiene grab-bag
+
+**Trigger:** before the next significant Supabase schema change, OR if a security audit (internal or external) is ever scoped. None of these are exploitable today; they're posture + readability improvements.
+
+**Status:** Four small SQL items surfaced during the 2026-05-24 master review:
+
+1. **`cancel_ai_bypass` original vulnerable body in `20260523213854_ai_bypass_reservations_and_rpcs.sql:337`** is fine in practice (patched by the `20260524154019_ai_bypass_p1_security_bundle.sql` migration) but anyone reading the migrations chronologically sees the vulnerable body first. Add a one-line header comment to the earlier migration pointing forward to the P1 bundle to prevent confused readers / accidental reverts.
+
+2. **`grant_winback_tokens(uuid, int)` in `20260523213854_ai_bypass_reservations_and_rpcs.sql:589`** has `revoke execute ... from public, anon, authenticated` but no explicit `grant ... to service_role`. Works today via default ACL (service_role inherits postgres's grants), but explicit grants defend against a future `revoke all on schema public from service_role` blast radius. Append `grant execute on function public.grant_winback_tokens(uuid, int) to service_role;`.
+
+3. **Local cron stub `20260416080000_local_dev_cron_stub.sql:49`** only implements the 3-arg `cron.schedule(jobname, schedule, command)` overload. Real pg_cron also supports the 2-arg form. No current migration uses 2-arg, but the next one to use it will fail only locally / in CI while passing on prod. Add the 2-arg overload to the stub.
+
+4. **`get_eligible_notification_users` in `20260512212403_daily_reminder_uses_user_reminder_time.sql:46`** is `SECURITY DEFINER` with `set search_path = public, auth`. The function joins `auth.users` (already qualified inline), so the wider `auth` in search_path isn't strictly needed. Tightening to `set search_path = public, pg_temp` matches the project convention and narrows the trust surface. Verify the qualified `auth.users` references still resolve after the tighten.
+
+**Steps when ready (~20 min total):**
+
+Bundle into a single follow-up migration `<timestamp>_sql_hygiene_grab_bag.sql` that applies all 4 changes. Comment header should reference this TODO entry.
+
+**Surfaced by:** Subagent migration review during the 2026-05-24 master review.

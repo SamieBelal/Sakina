@@ -140,9 +140,10 @@ class _ReferralCodeFieldState extends ConsumerState<ReferralCodeField> {
           ? ReferralCodeValidationState.valid
           : ReferralCodeValidationState.invalid;
     } catch (_) {
-      // ReferralService.validateCode already swallows RPC errors and
-      // returns false. This catch is belt-and-braces for any unexpected
-      // throw (e.g. test fakes that throw deliberately).
+      // ReferralService.validateCode rethrows on RPC failure (2026-05-25
+      // change) so we can distinguish "server said no" (invalid) from
+      // "couldn't reach the server" (networkError). This catch is the
+      // canonical handler for the network-error branch.
       next = ReferralCodeValidationState.networkError;
     }
 

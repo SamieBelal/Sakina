@@ -53,11 +53,16 @@ class ReferralService {
   /// `onboarding_field` for codes typed into the new in-onboarding field
   /// (PR #18). The disambiguation is best-effort and based on whether a
   /// `pending_referral_source` prefs key was set alongside the code.
-  Future<void> applyPendingReferralIfAny(String userId) async {
-    if (userId.isEmpty) return;
+  Future<({bool ok, bool granted7d, String? reason})>
+      applyPendingReferralIfAny(String userId) async {
+    if (userId.isEmpty) {
+      return (ok: false, granted7d: false, reason: null);
+    }
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(referralPendingReferralPrefsKey);
-    if (code == null || code.isEmpty) return;
+    if (code == null || code.isEmpty) {
+      return (ok: false, granted7d: false, reason: null);
+    }
     // Default to deep_link for pre-PR-18 codes that were captured before the
     // source key existed. The onboarding-field path writes both keys; deep
     // link path writes only the code key.
@@ -80,20 +85,23 @@ class ReferralService {
     await prefs.remove(referralPendingReferralPrefsKey);
     await prefs.remove(referralPendingReferralSourcePrefsKey);
 
-    if (result != null) {
-      final ok = result['ok'] == true;
-      if (ok) {
-        _analytics?.track(AnalyticsEvents.refereeSignedUpWithReferral,
+    final ok = result?['ok'] == true;
+    final granted = result?['granted_referee_7d'] == true;
+    final reason = result?['reason'] as String?;
+
+    if (ok) {
+      _analytics?.track(AnalyticsEvents.refereeSignedUpWithReferral,
+          properties: {'source': source});
+      if (granted) {
+        _analytics?.track(AnalyticsEvents.refereeGranted7dWindow,
             properties: {'source': source});
-        if (result['granted_referee_7d'] == true) {
-          _analytics?.track(AnalyticsEvents.refereeGranted7dWindow,
-              properties: {'source': source});
-        }
       }
     }
 
     // Refresh the cache so isPremium() picks up any 7d window granted here.
     await PurchaseService().refreshReferralPremiumCache();
+
+    return (ok: ok, granted7d: granted, reason: reason);
   }
 
   /// Ensures the user has a `referral_code` populated. Calls
@@ -128,21 +136,20 @@ class ReferralService {
 
   /// Returns true iff the code matches a valid foreign referral_code on the
   /// server. Returns false for empty/short codes (no RPC fired), invalid
-  /// codes, self-codes, and any RPC errors (swallowed so the widget UX
-  /// stays soft-fail). Used by [ReferralCodeField] for live validation
-  /// feedback on the in-onboarding "Did a friend send you a gift?" field
-  /// and on the Settings → Redeem sheet (see PR #18 / Task 2 of
-  /// docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md).
+  /// codes, and self-codes. **Rethrows on RPC failure** so callers can
+  /// distinguish "we asked the server and it said no" from "we couldn't
+  /// reach the server" — important for the validation chips, which render
+  /// different copy in each case (`invalid` vs `networkError`).
+  ///
+  /// Used by [ReferralCodeField] for live validation feedback on the
+  /// in-onboarding "Did a friend send you a gift?" field, on the Settings →
+  /// Redeem sheet, and by the pre-fill chip on `SaveProgressScreen` for
+  /// codes captured via deep link.
   Future<bool> validateCode(String code) async {
     if (code.isEmpty || code.length < 8) return false;
-    try {
-      final raw = await _supabase.rpc<dynamic>('validate_referral_code',
-          params: <String, dynamic>{'p_code': code});
-      return raw == true;
-    } catch (e) {
-      debugPrint('[ReferralService] validateCode failed: $e');
-      return false;
-    }
+    final raw = await _supabase.rpc<dynamic>('validate_referral_code',
+        params: <String, dynamic>{'p_code': code});
+    return raw == true;
   }
 
   /// Settings-path redeem. Bypasses the SharedPreferences drain because the

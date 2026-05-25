@@ -315,6 +315,22 @@ There are two entry points with intentionally different behavior:
 
 `answerCheckin` is referred to as "legacy — used by deeper reflection" in code comments but is still the live multi-question path on the launch overlay.
 
+## Agent conventions
+
+### iOS Simulator screenshots — always resize before reading
+
+After EVERY `mcp__ios-simulator__screenshot` (and any other PNG capture from the sim), immediately run:
+
+```bash
+sips -Z 1600 /path/to/screenshot.png
+```
+
+This is in-place, preserves aspect ratio, and caps the longest side at 1600px. iPhone sim screenshots come out at native @3x resolution (e.g. 2796×1290 for iPhone 16 Pro, 2556×1179 for iPhone 15) which trips Claude Code's tool-result size cap and surfaces as `image exceeds dimensions`. 1600px is above Claude's internal 1568px downscale floor so quality is preserved for visual review while the PNG drops from ~3-5MB to under ~500KB.
+
+Do this every time, not just when you hit the error — the error mid-flow wastes a tool call.
+
+**Always resize, even when you're not planning to read the image.** PNGs may be picked up later in the session, by a subagent, or by the user, and the size cap applies to anyone reading them. Resize on capture, not on read.
+
 ## Gotchas
 
 - NEVER generate or fabricate Quran verses, hadith, or scholarly content. All Islamic content must come from the pre-verified database. The AI selects from existing entries only.

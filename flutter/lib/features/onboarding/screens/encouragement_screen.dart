@@ -10,7 +10,7 @@ import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
 
-class EncouragementScreen extends ConsumerWidget {
+class EncouragementScreen extends ConsumerStatefulWidget {
   const EncouragementScreen({
     required this.onNext,
     required this.onBack,
@@ -34,17 +34,52 @@ class EncouragementScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EncouragementScreen> createState() =>
+      _EncouragementScreenState();
+}
+
+class _EncouragementScreenState extends ConsumerState<EncouragementScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Drain the one-shot recovery-snackbar flag (set by the 3 sign-up
+    // paths when apply_referral returns ok:false reason:invalid|self_referral).
+    // Deferred to a post-frame callback so the ScaffoldMessenger lookup hits
+    // the wrapped Scaffold reliably. The cold-launch defensive retry in
+    // app_session.dart does NOT write this flag, so users won't see a stale
+    // snackbar days after onboarding.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final reason =
+          ref.read(onboardingProvider).referralApplyFailedReason;
+      if (reason == null) return;
+      ref
+          .read(onboardingProvider.notifier)
+          .clearReferralApplyFailedReason();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "We couldn't apply your friend's code. You can try again in Settings → Redeem a referral code.",
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(onboardingProvider);
     final name = state.signUpName ?? '';
     final headline = name.isNotEmpty
         ? 'Something beautiful awaits you, $name'
         : 'Something beautiful awaits you';
-    final subtitle = _subtitleForFamiliarity(state.familiarity);
+    final subtitle =
+        EncouragementScreen._subtitleForFamiliarity(state.familiarity);
 
     return OnboardingPageWrapper(
       progressSegment: 23,
-      onBack: onBack,
+      onBack: widget.onBack,
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           child: ConstrainedBox(
@@ -98,7 +133,7 @@ class EncouragementScreen extends ConsumerWidget {
           const Spacer(flex: 3),
           OnboardingContinueButton(
             label: AppStrings.continueButton,
-            onPressed: onNext,
+            onPressed: widget.onNext,
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
