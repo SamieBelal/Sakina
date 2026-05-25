@@ -21,7 +21,11 @@ void main() {
   tearDown(SupabaseSyncService.debugReset);
 
   test('hydrateDailyRewardsCache writes freeze ownership', () async {
-    final today = DateTime.now();
+    // UTC — daily_rewards_service._today() uses DateTime.now().toUtc() via
+    // debugRewardsClock. Local time would mismatch under TZ=America/New_York
+    // CI near midnight UTC. Same bug class as gating_service_test +
+    // user_data_batch_sync_service_test (commits 0fb4885, 4df7be4).
+    final today = DateTime.now().toUtc();
     final todayStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 

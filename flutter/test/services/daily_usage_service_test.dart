@@ -11,7 +11,12 @@ void main() {
   late FakeSupabaseSyncService fakeSync;
 
   String todayDate() {
-    final now = DateTime.now();
+    // MUST be UTC — this entire test file exercises daily_usage_service
+    // which uses DateTime.now().toUtc() everywhere to match the server's
+    // usage_date column. Local DateTime.now() would mismatch under
+    // TZ=America/New_York CI near midnight UTC. See sibling fix in
+    // user_data_batch_sync_service_test.dart (commit 4df7be4).
+    final now = DateTime.now().toUtc();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
