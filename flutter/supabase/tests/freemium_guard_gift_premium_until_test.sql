@@ -157,9 +157,9 @@ end $$;
 
 reset role;
 
--- Cleanup the test occasion (the rollback below covers everything, but be
--- explicit about ownership of side effects.)
-delete from public.islamic_occasions where id = 'guard_test_active';
+-- (The rollback below cleans up everything including the sakina_gifts row
+-- that TEST 4 inserted via the honest path. Don't delete the occasion
+-- explicitly here — its sakina_gifts row would FK-block the delete.)
 
 -- Final report
 do $$
