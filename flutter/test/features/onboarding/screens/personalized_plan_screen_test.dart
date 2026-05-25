@@ -26,7 +26,6 @@ void main() {
     addTearDown(container.dispose);
     // 6 = As-Salam in collectible_names catalog.
     container.read(onboardingProvider.notifier).setStarterName(6);
-    container.read(onboardingProvider.notifier).toggleCommonEmotion('anxious');
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
@@ -59,7 +58,6 @@ void main() {
     notifier.setDailyCommitmentMinutes(5);
     notifier.setReminderTime('07:30');
     notifier.setIntention('spiritual-growth');
-    notifier.toggleCommonEmotion('lonely');
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
@@ -69,8 +67,9 @@ void main() {
     expect(find.textContaining('07:30'), findsOneWidget);
     // Intention phrase rendered.
     expect(find.textContaining('spiritual-growth'), findsOneWidget);
-    // Focus emotion rendered as a title-cased adjective.
-    expect(find.text('Lonely'), findsOneWidget);
+    // Trimmed-flow refactor (2026-05-25): commonEmotions removed; the
+    // "You often feel" tile now always shows the fallback copy.
+    expect(find.text('Whatever comes up'), findsOneWidget);
     // Name translit rendered.
     expect(find.textContaining('Ash-Shakur'), findsOneWidget);
   });

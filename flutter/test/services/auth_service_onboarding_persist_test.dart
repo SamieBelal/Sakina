@@ -3,6 +3,8 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Trimmed-flow refactor (2026-05-25, Option α): the
+// quranConnection / commonEmotions / aspirations fields were removed.
 class _FakeAuthService extends AuthService {
   Map<String, dynamic>? captured;
   @override
@@ -10,15 +12,12 @@ class _FakeAuthService extends AuthService {
     String? displayName,
     String? intention,
     String? familiarity,
-    String? quranConnection,
     List<String> attribution = const [],
     String? ageRange,
     String? prayerFrequency,
     int? starterNameId,
     List<String> duaTopics = const [],
     String? duaTopicsOther,
-    List<String> commonEmotions = const [],
-    List<String> aspirations = const [],
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
@@ -27,15 +26,12 @@ class _FakeAuthService extends AuthService {
       'displayName': displayName,
       'intention': intention,
       'familiarity': familiarity,
-      'quranConnection': quranConnection,
       'attribution': attribution,
       'ageRange': ageRange,
       'prayerFrequency': prayerFrequency,
       'starterNameId': starterNameId,
       'duaTopics': duaTopics,
       'duaTopicsOther': duaTopicsOther,
-      'commonEmotions': commonEmotions,
-      'aspirations': aspirations,
       'dailyCommitmentMinutes': dailyCommitmentMinutes,
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
@@ -56,15 +52,12 @@ void main() {
     notifier
       ..setIntention('spiritualGrowth')
       ..setFamiliarity('some')
-      ..setQuranConnection('weak')
       ..toggleAttribution('tiktok')
       ..setAgeRange('25_34')
       ..setPrayerFrequency('someDaily')
       ..setStarterName(2)
       ..toggleDuaTopic('health')
       ..setDuaTopicsOther('exam success')
-      ..toggleCommonEmotion('anxiety')
-      ..toggleAspiration('morePatient')
       ..setDailyCommitmentMinutes(5)
       ..setReminderTime('08:30')
       ..setCommitmentAccepted(true);
@@ -76,8 +69,6 @@ void main() {
     expect(fake.captured!['starterNameId'], 2);
     expect(fake.captured!['duaTopics'], ['health']);
     expect(fake.captured!['duaTopicsOther'], 'exam success');
-    expect(fake.captured!['commonEmotions'], ['anxiety']);
-    expect(fake.captured!['aspirations'], ['morePatient']);
     expect(fake.captured!['dailyCommitmentMinutes'], 5);
     expect(fake.captured!['reminderTime'], '08:30');
     expect(fake.captured!['commitmentAccepted'], isTrue);
