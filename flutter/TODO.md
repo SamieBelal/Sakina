@@ -109,25 +109,17 @@ canonical-name alias map or expand `approvedReflectVersesByName` in
 
 ---
 
-## Daily-loop cache key + checkin_history.date use local time, not UTC
+## ~~Daily-loop cache key + checkin_history.date use local time, not UTC~~ ✅ DONE 2026-05-12
 
-**Trigger:** next time a user reports "I did my muhasabah but the streak didn't update" or "I lost my daily progress crossing midnight". Also good to bundle into the next correctness pass on the daily flow.
+Shipped via PR #9 (commit `013cc73`) — `debugDailyLoopClock` seam added to
+`daily_loop_provider.dart`, all three `DateTime.now()` callsites
+(`_todayKey` + both `CheckInRecord.date` writes) routed through it.
+`debugQuestBoundariesClock` seam added to `quests_provider.dart` so
+`_weekStart()`/`_monthStart()` agree with the now-UTC `CheckInRecord.date`
+they compare against. Pinned by `test/features/daily/daily_loop_utc_test.dart`
+and `test/features/quests/quests_provider_utc_boundaries_test.dart`.
 
-**Status:** `lib/features/daily/providers/daily_loop_provider.dart` keys SharedPrefs and writes `user_checkin_history.date` from `DateTime.now()` (LOCAL), while `daily_rewards_service` (`_today()`/`_yesterday()`) and `streak_service` (`_todayString()`) both key by UTC. Pre-existing — commit `8d135808` from 2026-04-03 introduced the local-time key. Unrelated to the daily-launch fix shipped on 2026-05-12 but the same bug shape.
-
-Specific lines on master (`fix/2026-05-12-daily-launch-overlay` HEAD shows the same):
-- `daily_loop_provider.dart:254` — `String get _todayKey` builds the SharedPrefs cache key from local date. Used at lines 710, 984, 993. Effect: a user crossing local midnight on the same UTC day re-loads with empty "daily loop" state (questions un-answered, fresh muhasabah) even though the streak/reward services already counted the cycle.
-- `daily_loop_provider.dart:445, 610` — both `final today = DateTime.now();` write into `user_checkin_history.date` as a local-date string. Server-side queries that compare `user_checkin_history.date` against `user_streaks.last_active` (UTC) will mismatch in the same window.
-
-**Steps when ready (~20 min total):**
-
-1. Apply the same `debugRewardsClock`-style seam pattern (`lib/services/daily_rewards_service.dart:215-222`) to a new top-level `debugDailyLoopClock = () => DateTime.now().toUtc()` in `daily_loop_provider.dart`.
-2. Replace the three `DateTime.now()` callsites (254, 445, 610) with `debugDailyLoopClock()`.
-3. Decide on a migration story for the SharedPrefs key. On first load post-upgrade, the user's existing `daily_loop_<local-date>` key won't match the new `daily_loop_<UTC-date>` key, so they'll see one "fresh muhasabah" state. Acceptable — it's a one-time blip and the server-side streak/reward is unaffected.
-4. Decide whether to backfill `user_checkin_history.date` rows whose `date` disagrees with the `checked_in_at` UTC date. Probably not worth it — historical analytics only.
-5. Add a regression test mirroring `test/services/launch_gate_state_utc_test.dart` that mocks the new seam and pins both the SharedPrefs key shape and the `user_checkin_history.date` write.
-
-**Surfaced by:** /review on the `fix/2026-05-12-daily-launch-overlay` branch — adjacent code path with the same class of bug as the launch-gate UTC fix that shipped in that PR.
+Plan: `docs/superpowers/plans/2026-05-12-daily-loop-utc-migration.md`.
 
 ---
 
@@ -178,26 +170,22 @@ Specific lines on master (`fix/2026-05-12-daily-launch-overlay` HEAD shows the s
 
 ---
 
-## TZ-flake risk on 4 service tests with local-date prefs keys
+## ~~TZ-flake risk on 4 service tests with local-date prefs keys~~ ✅ DONE 2026-05-25
 
-**Trigger:** if CI starts intermittently failing on overnight runs (between roughly 20:00–23:59 EDT, i.e., 00:00–03:59 UTC) after the `TZ: America/New_York` env var landed on the flutter-tests job in PR #28. Surface = a previously-green test sporadically reporting "expected X, got Y" on the date bucket.
+Three of the four files had already been migrated to `DateTime.now().toUtc()`
+(`daily_rewards_service_test.dart:28`, `daily_usage_service_test.dart:19`,
+`gating_service_test.dart:63`). `user_data_batch_sync_service_test.dart`
+already had the `todayUtcStr()` helper in place; the remaining gap was the
+`usage_date` field on the fake `daily_usage` RPC payload, which still used
+the local-date `todayStr()`. Production filters that field via
+`_findTodayUsageRow` against `_today()` (UTC), so a local-date value would
+be silently dropped under `TZ=America/New_York` CI during the local-vs-UTC
+midnight window, failing `getReflectUsageToday()` / `getBuiltDuaUsageToday()`
+assertions. Patched to `todayUtcStr()`.
 
-**Status:** 4 service tests build their prefs date key from `DateTime.now()` (LOCAL) but the services they exercise key by UTC (`DateTime.now().toUtc()`) post the P0-3 fix. They passed under `TZ=America/New_York` in PR #28's pre-merge run because the local date and UTC date matched at runtime, but they live inside a 4-hour daily window where local-vs-UTC date diverges and the tests would write to one prefs bucket while the service reads another.
-
-Affected tests:
-- `test/services/daily_rewards_service_test.dart:24`
-- `test/services/daily_usage_service_test.dart:14`
-- `test/services/gating_service_test.dart:55`
-- `test/services/user_data_batch_sync_service_test.dart:34, 623`
-
-**Steps when ready (~30 min total):**
-
-1. For each file, replace the raw `DateTime.now()` used to build the prefs date string with `DateTime.now().toUtc()`. Verify by reading the service's `_today()` (e.g., `daily_usage_service.dart:36-49`) to confirm it uses `.toUtc()` and match.
-2. Alternative if the service exposes a debug clock seam: inject `debugXxxClock = () => DateTime.utc(...)` in `setUp()` and use the same fixed instant in the test's prefs-key construction.
-3. Run `TZ=America/New_York flutter test test/services/` and confirm green. Then re-run with `TZ=Pacific/Auckland` (positive offset) and `TZ=America/Los_Angeles` to cover both directions.
-4. Once green under 3 different TZs, the flake window is closed.
-
-**Surfaced by:** /plan-eng-review on PR #28 (Task 5+7 subagent + adversarial reviewer agreed). Did not flake in PR #28's actual CI run, but the window is real.
+The remaining `todayStr()` usages in that file are intentional — they back
+`daily_answer_*` keys which `daily_question_provider.todayKey()` writes
+using LOCAL date in production, so test and production agree.
 
 ---
 
