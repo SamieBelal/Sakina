@@ -194,7 +194,7 @@ update public.user_profiles
 insert into public.islamic_occasions(id, display_name, starts_at, ends_at)
 values ('test_active_2', 'Active 2', now() - interval '1 day', now() + interval '1 day');
 
-perform public.claim_sakina_gift(
+select public.claim_sakina_gift(
   '00000000-0000-0000-0000-000000000201'::uuid,
   'test_active_2'
 );
