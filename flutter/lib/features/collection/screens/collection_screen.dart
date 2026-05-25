@@ -84,10 +84,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
     setState(() => _collectionTourEligible = should);
   }
 
-  /// Single-beat empty-state teach: fire start + complete in the same frame,
-  /// mark seen, and (if the sequenced walk is active) hand off to Journal.
-  /// Idempotent via [_collectionTourHandled].
-  void _completeCollectionTourBeat() {
+  /// Single-beat empty-state teach: fire start + complete, mark seen, and
+  /// (if the sequenced walk is active) hand off to Journal. Always called
+  /// from a post-frame callback by the caller, so state mutations and
+  /// analytics fires here are safe. Idempotent via [_collectionTourHandled].
+  Future<void> _completeCollectionTourBeat() async {
     if (_collectionTourHandled) return;
     _collectionTourHandled = true;
     final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -98,16 +99,12 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         properties: {'tour': 'collection'});
     analytics.track(AnalyticsEvents.tourCompleted,
         properties: {'tour': 'collection'});
-    // Schedule after the current build completes — the markSeen + route push
-    // must not happen mid-build. The mounted check inside guards teardown.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await svc.markSeen(userId, TourKey.collection);
-      if (!mounted) return;
-      if (ref.read(guidedSequenceActiveProvider)) {
-        await Future.delayed(const Duration(milliseconds: 280));
-        if (mounted) context.go('/journal');
-      }
-    });
+    await svc.markSeen(userId, TourKey.collection);
+    if (!mounted) return;
+    if (ref.read(guidedSequenceActiveProvider)) {
+      await Future.delayed(const Duration(milliseconds: 280));
+      if (mounted) context.go('/journal');
+    }
   }
 
   void _onSessionChange() {
@@ -278,10 +275,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 collection.totalDiscovered == 1)
               SliverToBoxAdapter(
                 child: Builder(builder: (_) {
-                  // Trigger the single-beat analytics + handoff. Safe to call
-                  // here because the method itself is idempotent and the
-                  // post-frame callback handles the route push.
-                  _completeCollectionTourBeat();
+                  // Trigger the single-beat analytics + handoff in a post-frame
+                  // callback so we never mutate state / fire side-effects during
+                  // build. The method itself remains idempotent via
+                  // [_collectionTourHandled] for double-build races.
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    _completeCollectionTourBeat();
+                  });
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.pagePadding,

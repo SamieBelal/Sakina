@@ -20,10 +20,15 @@ class CoachmarkController {
   int _index = 0;
   OverlayEntry? _entry;
   BuildContext? _ctx;
+  bool _started = false;
 
   /// Call from a post-first-frame callback after the target widgets are laid
-  /// out. No-op if [steps] is empty.
+  /// out. No-op if [steps] is empty OR if [start] has already been called
+  /// (double-start protection — hot reload + parent rebuilds could otherwise
+  /// re-enter mid-sequence).
   void start(BuildContext context) {
+    if (_started) return;
+    _started = true;
     if (steps.isEmpty) {
       onComplete();
       return;

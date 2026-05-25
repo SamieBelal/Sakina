@@ -780,9 +780,23 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         state.checkinDone || state.currentStep != DailyLoopStep.checkin;
     final promptLabel = _buildMuhasabahPromptLabel(state);
 
+    // Tour anchor: single key wraps both conditional branches via KeyedSubtree
+    // so the GlobalKey is never attached to two simultaneously-mounted widgets
+    // (Flutter throws "Multiple widgets used the same GlobalKey" otherwise).
+    return KeyedSubtree(
+      key: _muhasabahCtaKey,
+      child: _buildMuhasabahRowInner(state, completed, inProgress, promptLabel),
+    );
+  }
+
+  Widget _buildMuhasabahRowInner(
+    DailyLoopState state,
+    bool completed,
+    bool inProgress,
+    String promptLabel,
+  ) {
     if (completed) {
       return GestureDetector(
-        key: _muhasabahCtaKey,
         onTap: () async {
           // Synchronous re-entry guard. A double-tap that lands while the
           // first call is still inside `GatingService.canUse()` previously
@@ -854,7 +868,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
     // Not started or in progress
     return GestureDetector(
-      key: _muhasabahCtaKey,
       onTap: () {
         HapticFeedback.mediumImpact();
         context.push('/muhasabah');

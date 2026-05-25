@@ -91,11 +91,19 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     super.initState();
     _tab = TabController(length: 4, vsync: this);
     _tab.addListener(() => setState(() {}));
+    // Cache providers in initState so dispose() can fire the skip-on-back
+    // analytics + markSeen without touching `ref` after disposal.
+    // AppShell needed the same fix for the tab-bar key cleanup.
+    _cachedAnalytics = ref.read(analyticsProvider);
+    _cachedTourService = ref.read(tourServiceProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _resolveJournalTourEligibility();
     });
   }
+
+  late final dynamic _cachedAnalytics;
+  late final TourService _cachedTourService;
 
   Future<void> _resolveJournalTourEligibility() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -118,15 +126,15 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     _journalTourSettled = true;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
-    final analytics = ref.read(analyticsProvider);
-    final svc = ref.read(tourServiceProvider);
-    analytics.track(
+    // Use cached providers so dispose() path (mounted=false) doesn't throw
+    // "Cannot use ref after the widget was disposed".
+    _cachedAnalytics.track(
       completed
           ? AnalyticsEvents.tourCompleted
           : AnalyticsEvents.tourSkipped,
       properties: {'tour': 'journal'},
     );
-    await svc.markSeen(userId, TourKey.journal);
+    await _cachedTourService.markSeen(userId, TourKey.journal);
     if (!mounted) return;
     if (ref.read(guidedSequenceActiveProvider)) {
       await Future.delayed(const Duration(milliseconds: 280));

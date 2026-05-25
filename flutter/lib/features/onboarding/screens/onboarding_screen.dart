@@ -67,6 +67,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // the funnel can attribute drop-offs to specific pages.
   DateTime? _pausedAt;
   int? _pausedAtPage;
+  // Set as soon as _completeOnboarding starts so a backgrounding during the
+  // post-paywall Supabase round-trip doesn't log abandonment-at-last-page.
+  bool _completing = false;
 
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
@@ -95,7 +98,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         .getBool('onboarding_trim_enabled', fallback: true);
     WidgetsBinding.instance.addObserver(this);
     final restoredPage = ref.read(onboardingProvider).currentPage;
-    final initialPage = restoredPage.clamp(0, onboardingLastPageIndex);
+    // Clamp against the LEGACY max since the dual-flow decision (trimmed vs
+    // legacy) is async — clamping against trimmedLastIndex prematurely would
+    // strand a legacy-flow returner (e.g. saved currentPage=24, YourJourney)
+    // at the trimmed paywall. The FutureBuilder + PageView will re-correct
+    // bounds once the flow resolves. legacyMax >= trimmedMax always, so
+    // trimmed-flow users are unaffected.
+    const maxInitial =
+        onboardingLegacyLastPageIndex > onboardingLastPageIndex
+            ? onboardingLegacyLastPageIndex
+            : onboardingLastPageIndex;
+    final initialPage = restoredPage.clamp(0, maxInitial);
     _pageController = PageController(initialPage: initialPage);
     if (initialPage != restoredPage) {
       Future(() => ref.read(onboardingProvider.notifier).setPage(initialPage));
@@ -127,7 +140,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       _pausedAtPage = ref.read(onboardingProvider).currentPage;
     } else if (state == AppLifecycleState.resumed && _pausedAt != null) {
       final resumedAt = DateTime.now();
+      // Suppress abandonment fire when:
+      // (a) Paused on the paywall (final page) — they reached the end of the
+      //     funnel, they're not "abandoned at page N", they just didn't buy.
+      //     The funnel has paywall_viewed for that signal.
+      // (b) Mid-completion — _completing flips on as soon as the paywall's
+      //     onComplete fires; a backgrounded app during the await chain
+      //     would otherwise log both "completed" and "abandoned at last page".
+      final isPaywallPage = _pausedAtPage == onboardingLastPageIndex;
       if (_pausedAtPage != null &&
+          !isPaywallPage &&
+          !_completing &&
           shouldFireAbandonment(pausedAt: _pausedAt!, resumedAt: resumedAt)) {
         final gone = resumedAt.difference(_pausedAt!);
         ref.read(analyticsProvider).track(
@@ -199,6 +222,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Future<void> _completeOnboarding() async {
+    _completing = true;
     final analytics = ref.read(analyticsProvider);
     analytics.track(AnalyticsEvents.onboardingCompleted);
     analytics.setSuperProperties({'onboarding_completed': true});
@@ -378,6 +402,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         // resolves synchronously on subsequent launches via AppConfigService.
         final trimmed = snapshot.data ?? true;
         final children = trimmed ? _trimmedChildren() : _legacyChildren();
+
+        // Re-clamp once the flow resolves: if the user's restored page is
+        // past the end of the chosen flow's children, snap them to the last
+        // valid page. Defer to the next frame so we don't setState during
+        // build. Idempotent — no-op when currentPage is already in bounds.
+        final maxIdx = children.length - 1;
+        if (currentPage > maxIdx) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.read(onboardingProvider.notifier).setPage(maxIdx);
+            if (_pageController.hasClients) {
+              _pageController.jumpToPage(maxIdx);
+            }
+          });
+        }
 
         // Pages that should NOT resize for keyboard:
         //   trimmed: 0 (first check-in) and 6 (dua topics)

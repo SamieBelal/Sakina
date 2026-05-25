@@ -6,14 +6,19 @@ import 'package:sakina/services/tour_service.dart';
 /// T24 — copy table guard.
 ///
 /// Per the design review: every string in [TourCopy] must be referenced
-/// somewhere in `lib/features/` (verbatim) or via its `TourCopy.<name>`
-/// identifier. This guards against copy drift — a strings-only sweep that
-/// silently breaks the feature wiring.
+/// somewhere in `lib/features/` via its `TourCopy.<name>` identifier (the
+/// constant lookup, not a hardcoded literal). This guards against copy
+/// drift — a strings-only sweep that silently breaks the feature wiring.
+///
+/// Excludes:
+///   * `lib/services/tour_service.dart` itself — the literals live there as
+///     `static const` definitions and would trivially match themselves.
+///   * `winBackPushTitle` / `winBackPushBody` — these are consumed in
+///     OneSignal config (manual setup per docs/runbooks/onesignal-segments.md),
+///     not in Dart code. They are validated by reading the runbook below.
 void main() {
-  test('T24: every TourCopy string appears in lib/', () async {
-    // Static const reflection isn't available; list them explicitly. Keep in
-    // sync with TourCopy in lib/services/tour_service.dart.
-    final strings = <String, String>{
+  test('T24: every TourCopy code-side string is referenced in lib/features/', () async {
+    final codeSideStrings = <String, String>{
       'homeStep1': TourCopy.homeStep1,
       'homeStep2': TourCopy.homeStep2,
       'homeStep3': TourCopy.homeStep3,
@@ -23,42 +28,47 @@ void main() {
       'journalEmptyCta': TourCopy.journalEmptyCta,
       'duasStep1': TourCopy.duasStep1,
       'settingsReplayLabel': TourCopy.settingsReplayLabel,
-      'winBackPushTitle': TourCopy.winBackPushTitle,
-      'winBackPushBody': TourCopy.winBackPushBody,
     };
 
-    final allDartContent = StringBuffer();
-    // Walk lib/features (where the feature wiring lives) and the
-    // tour_service.dart file (the copy source-of-truth). The win-back push
-    // strings live in OneSignal config, not Dart code — they're referenced
-    // via `TourCopy.winBackPushTitle` in tour_service.dart itself, which
-    // satisfies the guard.
-    final libDir = Directory('lib/features');
-    if (libDir.existsSync()) {
-      await for (final entity in libDir.list(recursive: true)) {
-        if (entity is File && entity.path.endsWith('.dart')) {
-          allDartContent.write(await entity.readAsString());
-          allDartContent.write('\n');
-        }
+    final featuresContent = StringBuffer();
+    final featuresDir = Directory('lib/features');
+    expect(featuresDir.existsSync(), isTrue,
+        reason: 'lib/features must exist for this test to be meaningful');
+    await for (final entity in featuresDir.list(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.dart')) {
+        featuresContent.write(await entity.readAsString());
+        featuresContent.write('\n');
       }
     }
-    final tourSvc = File('lib/services/tour_service.dart');
-    if (tourSvc.existsSync()) {
-      allDartContent.write(await tourSvc.readAsString());
-    }
+    final content = featuresContent.toString();
 
-    final content = allDartContent.toString();
     final missing = <String>[];
-    for (final entry in strings.entries) {
-      final literalUsed = content.contains(entry.value);
+    for (final entry in codeSideStrings.entries) {
+      // Strict: require the TourCopy.<name> identifier reference. Hardcoded
+      // literal copies would still pass a contains-check but defeat the
+      // whole point of the copy table.
       final identifierUsed = content.contains('TourCopy.${entry.key}');
-      if (!literalUsed && !identifierUsed) {
-        missing.add('${entry.key}: "${entry.value}"');
+      if (!identifierUsed) {
+        missing.add('TourCopy.${entry.key} ("${entry.value}")');
       }
     }
     expect(missing, isEmpty,
-        reason:
-            'Every TourCopy string must be referenced somewhere in lib/features/ '
-            'via either the literal text or TourCopy.<name>. Missing:\n${missing.join('\n')}');
+        reason: 'Every TourCopy code-side string MUST be referenced via the '
+            'TourCopy.<name> identifier in lib/features/. Hardcoded literals '
+            'defeat the copy table guard. Missing references:\n${missing.join('\n')}');
+  });
+
+  test('T24b: win-back push copy is referenced in the OneSignal runbook', () async {
+    // winBackPushTitle / winBackPushBody live in OneSignal config (not Dart).
+    // Verify the runbook documents both literals so a future engineer can
+    // rebuild the template if it's deleted from the OneSignal dashboard.
+    final runbook = File('docs/runbooks/onesignal-segments.md');
+    expect(runbook.existsSync(), isTrue,
+        reason: 'OneSignal runbook missing — win-back push copy has no spec');
+    final body = await runbook.readAsString();
+    expect(body, contains(TourCopy.winBackPushTitle),
+        reason: 'OneSignal runbook must document the literal winBackPushTitle');
+    expect(body, contains(TourCopy.winBackPushBody),
+        reason: 'OneSignal runbook must document the literal winBackPushBody');
   });
 }
