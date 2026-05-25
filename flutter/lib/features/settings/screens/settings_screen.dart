@@ -27,6 +27,7 @@ import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/tour_service.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
@@ -71,7 +72,14 @@ Future<void> performCardCollectionDangerReset({
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.autoAction});
+
+  /// Optional deep-link action consumed on first build. Today the only
+  /// supported value is `replay_tour` — see [_handleAutoAction]. Propagated
+  /// from the GoRouter `/settings?action=` query param so the E5 win-back
+  /// push (`sakina://settings?action=replay_tour`) can trigger Replay
+  /// without the user tapping the row.
+  final String? autoAction;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -101,6 +109,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadData();
+    // Handle deep-link auto-actions (E5 win-back). Schedules a post-frame
+    // callback so context.go() during the autoAction handler runs after
+    // build, not during it.
+    if (widget.autoAction != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _handleAutoAction(widget.autoAction!);
+      });
+    }
+  }
+
+  /// Programmatic Replay-tour invocation (E5 win-back push deep link).
+  /// Mirrors the user-tap path in [_replayTour] exactly so both ingress
+  /// surfaces behave identically.
+  Future<void> _handleAutoAction(String action) async {
+    if (action == 'replay_tour') {
+      await _replayTour();
+    }
+  }
+
+  Future<void> _replayTour() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+    await ref.read(tourServiceProvider).resetAll(uid);
+    ref.read(analyticsProvider).track(AnalyticsEvents.tourReplayTapped);
+    // E6: activate the sequenced walk. Home tour will check this on its
+    // onComplete + chain to Collection → Journal → Duas.
+    ref.read(guidedSequenceActiveProvider.notifier).state = true;
+    if (!mounted) return;
+    context.go('/');
   }
 
   Future<void> _loadData() async {
@@ -1099,6 +1137,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.info_outline_rounded,
             label: 'Version 1.0.0',
             showChevron: false,
+          ),
+          _buildDivider(),
+          // Phase H — replay the post-onboarding tour. Tapping resets all
+          // four TourKey seen flags + activates the sequenced walk so the
+          // user is led Home → Collection → Journal → Duas.
+          _buildSettingsRow(
+            icon: Icons.info_outline,
+            label: TourCopy.settingsReplayLabel,
+            onTap: _replayTour,
           ),
           _buildDivider(),
           _buildSettingsRow(

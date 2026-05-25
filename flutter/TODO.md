@@ -262,3 +262,7 @@ using LOCAL date in production, so test and production agree.
 Bundle into a single follow-up migration `<timestamp>_sql_hygiene_grab_bag.sql` that applies all 4 changes. Comment header should reference this TODO entry.
 
 **Surfaced by:** Subagent migration review during the 2026-05-24 master review.
+
+## Localize win-back push
+
+Push template `win_back_tour_replay` (see `docs/runbooks/onesignal-segments.md`) is EN only — localize when project i18n infrastructure exists.

@@ -179,9 +179,15 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
           ),
           GoRoute(
             path: '/settings',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsScreen(),
-            ),
+            pageBuilder: (context, state) {
+              // E5 win-back deep link: `sakina://settings?action=replay_tour`.
+              // SettingsScreen consumes the param on first build via a
+              // post-frame callback that mirrors the user-tap Replay path.
+              final action = state.uri.queryParameters['action'];
+              return NoTransitionPage(
+                child: SettingsScreen(autoAction: action),
+              );
+            },
           ),
           GoRoute(
             path: '/store',
