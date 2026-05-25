@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
@@ -10,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/referral_service.dart';
+import '../../../widgets/referral_code_field.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
@@ -35,6 +38,106 @@ class SaveProgressScreen extends ConsumerStatefulWidget {
 class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
   bool _isLoading = false;
 
+  // ── Referral disclosure state ──
+  // Collapsed by default. If pending_referral exists in SharedPreferences (e.g.
+  // a deep-link captured the code BEFORE the user opened the app), the
+  // disclosure auto-expands AND renders the pre-fill as read-only — see
+  // _buildReferralDisclosure(). The user can clear the lock via "Change code".
+  bool _isReferralExpanded = false;
+  bool _isPrefillLocked = false;
+  String? _prefilledCode;
+  bool _hasPendingCode = false;
+  // Validation state for the pre-filled chip. null = still validating (renders
+  // optimistic green check so the happy path has no flicker). Then resolves to
+  // one of valid / invalid / networkError, mirroring `ReferralCodeField`'s
+  // three-state chip vocabulary.
+  ReferralCodeValidationState? _prefilledCodeState;
+
+  @override
+  void initState() {
+    super.initState();
+    // Read prefs in a microtask — initState can't await directly. The default
+    // (collapsed, no prefill) is fine until the future resolves.
+    _hydrateReferralPrefs();
+  }
+
+  Future<void> _hydrateReferralPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(referralPendingReferralPrefsKey);
+    if (!mounted) return;
+    if (code == null || code.isEmpty) return;
+    setState(() {
+      _isReferralExpanded = true;
+      _isPrefillLocked = true;
+      _prefilledCode = code;
+      _hasPendingCode = true;
+      _prefilledCodeState = null; // loading
+    });
+    await _validatePrefilledCode(code);
+  }
+
+  Future<void> _validatePrefilledCode(String code) async {
+    ReferralCodeValidationState next;
+    try {
+      final ok = await ref.read(referralServiceProvider).validateCode(code);
+      next = ok
+          ? ReferralCodeValidationState.valid
+          : ReferralCodeValidationState.invalid;
+    } catch (_) {
+      next = ReferralCodeValidationState.networkError;
+    }
+    if (!mounted) return;
+    // Race guard: if the user tapped "Change code" mid-validate, the lock is
+    // gone and writing back state would re-show the chip.
+    if (!_isPrefillLocked || _prefilledCode != code) return;
+    setState(() => _prefilledCodeState = next);
+  }
+
+  /// Two-step referral hook, called from both _signInWithApple and
+  /// _signInWithGoogle AFTER the auth response resolves but BEFORE
+  /// persistOnboardingToSupabase. Wrapped in try/catch — referral failures
+  /// must never block signup. The defensive cold-launch path in
+  /// AppSessionNotifier retries applyPendingReferralIfAny if a kill window
+  /// strands a pending code in SharedPreferences.
+  ///
+  /// Why this is safe to run BEFORE persistOnboardingToSupabase: the
+  /// `user_profiles` row that `apply_referral` updates is created
+  /// synchronously by the `handle_new_user` trigger on `auth.users` insert
+  /// (supabase/migrations/20260407000000_initial_schema.sql L631-633, body
+  /// updated by 20260407200000_fix_handle_new_user_display_name.sql). By the
+  /// time `signInWithApple/Google` returns, the row exists — so the
+  /// `apply_referral` UPDATE on `user_profiles.referral_premium_until`
+  /// affects exactly 1 row and the referee's 7d window is set correctly.
+  /// `persistOnboardingToSupabase` runs an UPDATE on the same row to fill
+  /// onboarding fields; the two writes don't conflict.
+  Future<void> _applyReferralHooks(String userId) async {
+    try {
+      await ref.read(referralServiceProvider).ensureReferralCode(userId);
+    } catch (e) {
+      debugPrint('[SaveProgress] ensureReferralCode failed (non-fatal): $e');
+    }
+    try {
+      final result = await ref
+          .read(referralServiceProvider)
+          .applyPendingReferralIfAny(userId);
+      // Surface invalid / self_referral via the OnboardingState flag — the
+      // EncouragementScreen reads + clears it on mount to show a recovery
+      // snackbar pointing the user at Settings → Redeem. Other ok:false
+      // reasons (already_referred_*) are legitimate idempotency, not user-
+      // visible failures.
+      if (!result.ok &&
+          (result.reason == 'invalid' || result.reason == 'self_referral')) {
+        if (!mounted) return;
+        ref
+            .read(onboardingProvider.notifier)
+            .setReferralApplyFailedReason(result.reason!);
+      }
+    } catch (e) {
+      debugPrint(
+          '[SaveProgress] applyPendingReferralIfAny failed (non-fatal): $e');
+    }
+  }
+
   Future<void> _signInWithApple() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.signupMethodSelected, properties: {'method': 'apple'});
     setState(() => _isLoading = true);
@@ -52,6 +155,14 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       }
       ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'apple'});
+
+      // Refer-to-Unlock signup hook. Must run BEFORE persistOnboardingToSupabase
+      // so the referral row is written under the freshly authenticated
+      // session. ensure_referral_code populates the user's own code;
+      // applyPendingReferralIfAny drains any inbound code from
+      // SharedPreferences (set by main.dart's deep-link capture).
+      await _applyReferralHooks(userId);
+
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
@@ -85,6 +196,10 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
       }
       ref.read(analyticsProvider).identify(userId);
       ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'google'});
+
+      // Same referral hook as Apple — see _signInWithApple comment.
+      await _applyReferralHooks(userId);
+
       await ref.read(onboardingProvider.notifier).persistOnboardingToSupabase();
       if (!mounted) return;
       widget.onSocialAuthComplete();
@@ -99,6 +214,225 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ── Referral field handlers ──
+
+  void _onReferralDisclosureTap() {
+    if (_isReferralExpanded) return;
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.referralFieldRevealed);
+    setState(() => _isReferralExpanded = true);
+  }
+
+  Future<void> _onChangePrefilledCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(referralPendingReferralPrefsKey);
+    await prefs.remove(referralPendingReferralSourcePrefsKey);
+    if (!mounted) return;
+    setState(() {
+      _isPrefillLocked = false;
+      _prefilledCode = null;
+      _hasPendingCode = false;
+      _prefilledCodeState = null;
+    });
+  }
+
+  Future<void> _onCodeChanged(
+      String code, ReferralCodeValidationState state) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (code.isEmpty) {
+      await prefs.remove(referralPendingReferralPrefsKey);
+      await prefs.remove(referralPendingReferralSourcePrefsKey);
+      if (_hasPendingCode) {
+        ref
+            .read(analyticsProvider)
+            .track(AnalyticsEvents.referralFieldCodeCleared);
+      }
+      if (mounted) setState(() => _hasPendingCode = false);
+      return;
+    }
+    // Skip transient states — let the user finish typing / let validation
+    // settle. The widget itself only fires onCodeChanged on debounced
+    // settled edges, but validating/tooShort still slip through and we
+    // don't want to persist mid-flight values.
+    if (state == ReferralCodeValidationState.validating ||
+        state == ReferralCodeValidationState.tooShort) {
+      return;
+    }
+    await prefs.setString(referralPendingReferralPrefsKey, code);
+    await prefs.setString(
+      referralPendingReferralSourcePrefsKey,
+      AnalyticsEvents.referralSourceOnboardingField,
+    );
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.referralFieldCodeEntered);
+    if (mounted) setState(() => _hasPendingCode = true);
+  }
+
+  Widget _buildReferralDisclosure() {
+    if (!_isReferralExpanded) {
+      return InkWell(
+        onTap: _onReferralDisclosureTap,
+        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.card_giftcard_rounded,
+                size: 16,
+                color: AppColors.textSecondaryLight,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // Flexible so the text ellipsizes on narrow viewports
+              // (iPhone SE ~375 logical px) instead of overflowing the Row.
+              // Tested-with widget tests use the standard iPhone 13 viewport
+              // (390 logical px) where this Row had ~166px of overflow without
+              // the Flexible wrapper. See onboarding_auth_routing_test.dart.
+              Flexible(
+                child: Text(
+                  'Did a friend send you a gift?',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: AppColors.textSecondaryLight,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Expanded state.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Got a code from a friend? Enter it here for 7 free days of '
+          'Sakina, our gift to you.',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (_isPrefillLocked && _prefilledCode != null)
+          _buildPrefilledChip(_prefilledCode!)
+        else
+          ReferralCodeField(
+            key: const ValueKey('referral-code-field'),
+            onCodeChanged: _onCodeChanged,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPrefilledChip(String code) {
+    // Three resolved states, plus a loading state (null) that renders
+    // optimistically as valid so the happy path has no flicker (~300-1000ms
+    // RPC). Invalid + networkError get a muted icon + helper subtitle that
+    // matches the in-onboarding typed-field chip vocabulary in
+    // `widgets/referral_code_field.dart`.
+    final state = _prefilledCodeState;
+    final isInvalid = state == ReferralCodeValidationState.invalid;
+    final isNetworkError = state == ReferralCodeValidationState.networkError;
+    final isProblem = isInvalid || isNetworkError;
+
+    final Color borderColor = isProblem
+        ? AppColors.borderLight
+        : AppColors.primary.withValues(alpha: 0.3);
+    final Color backgroundColor =
+        isProblem ? AppColors.surfaceLight : AppColors.primaryLight;
+    final IconData iconData = isInvalid
+        ? Icons.help_outline_rounded
+        : isNetworkError
+            ? Icons.wifi_off_rounded
+            : Icons.check_circle_rounded;
+    final Color iconColor =
+        isProblem ? AppColors.textTertiaryLight : AppColors.primary;
+    final String? subtitle = isInvalid
+        ? "We couldn't verify this code. You can continue or change it."
+        : isNetworkError
+            ? "Couldn't check right now — we'll verify when you sign up."
+            : null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(AppSpacing.inputRadius),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 18),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  code,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    letterSpacing: 1.5,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _onChangePrefilledCode,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Change code',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: isProblem
+                        ? AppColors.textSecondaryLight
+                        : AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.only(left: 26),
+              child: Text(
+                subtitle,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   @override
@@ -148,6 +482,11 @@ class _SaveProgressScreenState extends ConsumerState<SaveProgressScreen> {
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
           const SizedBox(height: AppSpacing.lg),
+          // "Did a friend send you a gift?" disclosure — collapsed by default,
+          // auto-expanded + locked when a pending_referral pref is present.
+          // Optional: never gates the Continue/Apple/Google/Email buttons.
+          _buildReferralDisclosure(),
+          const SizedBox(height: AppSpacing.md),
           // Apple Sign-In
           SocialSignInButton(
             label: AppStrings.signUpChoiceApple,

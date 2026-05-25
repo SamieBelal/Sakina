@@ -233,6 +233,20 @@ The AI service receives the user's free-text emotion input and returns a structu
 
 **Store:** Two tabs — free cards (earnable with tokens) and premium cards (higher tier). RevenueCat is enabled and drives subscription entitlement; the token economy layers on top. Simulator cannot complete StoreKit purchases — verify purchase flows on a physical device.
 
+**Refer-to-Unlock (PR #16 + PR #18 hybrid).** Premium is a two-source value: (1) RevenueCat entitlement (the paid path, source of truth for billing) OR (2) `user_profiles.referral_premium_until > now()` (the referred path, granted via SECURITY DEFINER RPC, never converts to RC). Mutual reward — referrer gets 30 days + Gold card on 3rd confirmed referee; referee gets 7 days at the moment they apply a valid code. `PurchaseService.isPremium()` ORs over both sources, cached in user-scoped SharedPreferences (`referral_premium_until:<uid>`) refreshed only on auth changes + RPC returns (zero added hot-path traffic).
+
+**Three referral code ingress paths**, all funnel through the same `pending_referral` SharedPreferences key + `applyPendingReferralIfAny` drain (Settings path bypasses prefs because the user is already authenticated):
+
+1. **Deep link** (`sakina://r/<code>`) — captured in `lib/main.dart:_captureInboundReferral` via `app_links`. Writes only the code key.
+2. **In-onboarding field** — "Did a friend send you a gift?" disclosure on `save_progress_screen.dart` (onboarding page 18). Writes the code AND `pending_referral_source = 'onboarding_field'` companion key.
+3. **Settings → Redeem a referral code** — bottom sheet via `lib/features/settings/widgets/redeem_code_sheet.dart`. Calls `ReferralService.redeemCodeNow` directly with `source: 'settings_redeem'`.
+
+If you're adding a 4th path, REUSE one of these drains — do NOT add a parallel one. Source attribution is on the `refereeSignedUpWithReferral` / `refereeGranted7dWindow` analytics events. See `docs/superpowers/plans/2026-05-14-refer-unlock.md` and `docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md`.
+
+**Referrer-side progress surface (PR-19).** Settings → "Refer a friend" → `/my-referrals` (`lib/features/referrals/screens/my_referrals_screen.dart`) is the always-reachable post-onboarding surface for the referrer. Shows code (tap-to-copy), Share CTA, X/3 progress dots toward next reward, and a list of grants earned. Reads state via `ReferralService.getMyReferralsState(userId)` which fans out two parallel queries (`referrals` confirmed count + `referral_grants` rows). Share-text + iPad popover-origin logic is factored into `ReferralService.shareMyCode(...)` and reused by both this screen and `ReferUnlockScreen` — do not duplicate it.
+
+**Push on referral confirmation (PR-19).** When a `referrals` row flips `pending → confirmed`, `trg_notify_referrer_on_confirm` (`supabase/migrations/20260523010000_push_on_referral_confirm.sql`) does `net.http_post` to the `notify-referral-confirmed` edge function. The edge function reads `ONESIGNAL_APP_ID` + `ONESIGNAL_API_KEY` from `Deno.env` (same secrets that power `send-scheduled-notifications` — no new OneSignal keys) and POSTs to `https://api.onesignal.com/notifications` with `Authorization: Key <REST_KEY>` + modern shape `{include_aliases: {external_id: [referrer_id]}, target_channel: 'push', ...}`. **Security gates:** (1) shared `NOTIFY_REFERRAL_SECRET` (32-char random) — edge function requires `X-Notify-Secret` header matching the env var, fail-closed 401 otherwise; the trigger reads the same secret from `current_setting('app.notify_referral_secret', true)` and passes it; (2) display_name is sanitized in the edge function (NFKC + strip control/bidi/zero-width + reject URLs/mentions + 30-char cap) so a malicious user can't weaponize their own display_name as a phishing channel; (3) `net.http_post` URL is read from `current_setting('app.notify_referral_url', true)` so the migration is env-portable — applying it to staging won't fire prod pushes. **Setup per environment:** `ALTER DATABASE postgres SET app.notify_referral_url = '...'` + `app.notify_referral_secret = '...'` + `supabase secrets set NOTIFY_REFERRAL_SECRET=<same>` + `supabase functions deploy notify-referral-confirmed --no-verify-jwt`.
+
 ## Onboarding Flow
 
 Canonical page order (updated 2026-05-14 by rating-gate insertion; see `docs/qa/ui-map.md` for coords and `docs/manual-test-plan.md` §3 for test steps):
@@ -300,6 +314,22 @@ There are two entry points with intentionally different behavior:
 2. **Home's `Begin Muḥāsabah` CTA** routes to `/muhasabah` (`lib/features/daily/screens/muhasabah_screen.dart:173-178`) which auto-triggers `discoverName()` in `daily_loop_provider.dart:402`. **Skips questions entirely**, picks an undiscovered/lowest-tier card, jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty. This is **intentional** — empty q2/q3/q4 in the DB on this path is not a bug.
 
 `answerCheckin` is referred to as "legacy — used by deeper reflection" in code comments but is still the live multi-question path on the launch overlay.
+
+## Agent conventions
+
+### iOS Simulator screenshots — always resize before reading
+
+After EVERY `mcp__ios-simulator__screenshot` (and any other PNG capture from the sim), immediately run:
+
+```bash
+sips -Z 1600 /path/to/screenshot.png
+```
+
+This is in-place, preserves aspect ratio, and caps the longest side at 1600px. iPhone sim screenshots come out at native @3x resolution (e.g. 2796×1290 for iPhone 16 Pro, 2556×1179 for iPhone 15) which trips Claude Code's tool-result size cap and surfaces as `image exceeds dimensions`. 1600px is above Claude's internal 1568px downscale floor so quality is preserved for visual review while the PNG drops from ~3-5MB to under ~500KB.
+
+Do this every time, not just when you hit the error — the error mid-flow wastes a tool call.
+
+**Always resize, even when you're not planning to read the image.** PNGs may be picked up later in the session, by a subagent, or by the user, and the size cap applies to anyone reading them. Resize on capture, not on read.
 
 ## Gotchas
 

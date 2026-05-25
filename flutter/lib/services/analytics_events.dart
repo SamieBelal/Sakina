@@ -108,6 +108,78 @@ abstract final class AnalyticsEvents {
   // the implicit "onboarding" trigger (no property set today).
   static const paywallTriggerIapToSubUpsell = 'iap_to_sub_upsell';
 
+  // Refer-to-Unlock (forward-instrumented per CEO review — there's no v1
+  // baseline yet; these events power the post-launch cannibalization +
+  // dwell + mutual-grant dashboards. See
+  // docs/superpowers/plans/2026-05-14-refer-unlock.md Task 5 Step 3).
+  static const referUnlockShown = 'refer_unlock_shown';
+  static const referUnlockShareTapped = 'refer_unlock_share_tapped';
+  /// Fired on every share in v1. Lets Phase 2 dashboards compare the install
+  /// funnel before/after universal-link rollout.
+  static const referUnlockShareNoUniversalLinks =
+      'refer_unlock_share_no_universal_links';
+  static const referUnlockStartTrialTapped = 'refer_unlock_start_trial_tapped';
+  static const referUnlockBackToPaywall = 'refer_unlock_back_to_paywall';
+  /// Fired client-side when apply_referral RPC succeeds (referee side).
+  static const refereeSignedUpWithReferral = 'referee_signed_up_with_referral';
+  /// Fired client-side when confirm_referral_if_pending returns granted=true
+  /// (the referrer just crossed the 3-confirmed threshold).
+  static const referrerGranted30dWindow = 'referrer_granted_30d_window';
+  /// Fired client-side when apply_referral returns granted_referee_7d=true
+  /// (mutual reward fired for the referee).
+  static const refereeGranted7dWindow = 'referee_granted_7d_window';
+
+  // In-onboarding referral code entry + Settings redeem (hybrid pattern).
+  // Forward-instrumented for the v1 launch — pairs with refereeSignedUpWithReferral's
+  // new `source` property ('deep_link' / 'onboarding_field' / 'settings_redeem') so
+  // the post-launch funnel dashboards can split the 3 ingress paths. See
+  // docs/superpowers/plans/2026-05-23-onboarding-referral-code-entry.md.
+
+  /// Fired when the onboarding "Did a friend send you a gift?" disclosure
+  /// is expanded by the user. Funnel start for the code-entry path.
+  static const referralFieldRevealed = 'referral_field_revealed';
+
+  /// Fired when a code (>= 8 chars) is persisted to pending_referral prefs
+  /// via the onboarding field. Debounced 300ms (one event per settled code,
+  /// not one per keystroke).
+  static const referralFieldCodeEntered = 'referral_field_code_entered';
+
+  /// Fired when a user clears a previously-entered code via the onboarding
+  /// field.
+  static const referralFieldCodeCleared = 'referral_field_code_cleared';
+
+  /// Fired when the Settings → Redeem a referral code row is tapped (the
+  /// sheet opens).
+  static const referralSettingsRedeemOpened = 'referral_settings_redeem_opened';
+
+  /// Fired when Redeem is tapped in the Settings sheet (whether successful
+  /// or not — paired with refereeSignedUpWithReferral for the success case
+  /// and refereeGranted7dWindow when a window was actually granted).
+  static const referralSettingsRedeemSubmitted = 'referral_settings_redeem_submitted';
+
+  // My Referrals screen (Settings → Refer a friend). Forward-instrumented
+  // per docs/superpowers/plans/2026-05-23-my-referrals-screen.md so the
+  // post-launch dashboards can measure whether the permanent Settings entry
+  // actually drives re-shares + opens at different progress states.
+  /// Fired in initState after the screen loads its referrals state. Carries
+  /// `confirmed_count` + `grants_count` properties so Mixpanel can slice
+  /// "how many people open the screen with 0 vs 2 referrals".
+  static const myReferralsShown = 'my_referrals_shown';
+
+  /// Fired when the Share button on the My Referrals screen is tapped.
+  static const myReferralsShareTapped = 'my_referrals_share_tapped';
+
+  /// Fired when the user taps the code card to copy their referral code
+  /// to the clipboard on the My Referrals screen.
+  static const myReferralsCodeCopied = 'my_referrals_code_copied';
+
+  // Source values for the `source` property attached to
+  // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
+  // funnel-splitting across the 3 referral ingress paths.
+  static const referralSourceDeepLink = 'deep_link';
+  static const referralSourceOnboardingField = 'onboarding_field';
+  static const referralSourceSettingsRedeem = 'settings_redeem';
+
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +

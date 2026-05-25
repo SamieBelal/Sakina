@@ -35,6 +35,16 @@ void main() {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
+  /// UTC variant. MUST be used for any `daily_usage_*` key construction
+  /// because daily_usage_service._today() reads via DateTime.now().toUtc()
+  /// to match the server's usage_date column. Under TZ=America/New_York
+  /// CI, the local-vs-UTC dates differ near midnight UTC and using the
+  /// plain `todayStr()` writes to a key the service never reads.
+  String todayUtcStr() {
+    final now = DateTime.now().toUtc();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
   test('hydrateUserDataFromBatchRpc hydrates all user data caches', () async {
     SharedPreferences.setMockInitialValues({
       'saved_related_duas': jsonEncode([
@@ -545,8 +555,9 @@ void main() {
       'hydrateUserDataFromBatchRpc seeds daily usage when server section is null',
       () async {
     SharedPreferences.setMockInitialValues({
-      'daily_usage_reflect_${todayStr()}:user-1': 2,
-      'daily_usage_built_dua_${todayStr()}:user-1': 1,
+      // UTC date — must match daily_usage_service which uses .toUtc().
+      'daily_usage_reflect_${todayUtcStr()}:user-1': 2,
+      'daily_usage_built_dua_${todayUtcStr()}:user-1': 1,
     });
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
@@ -684,7 +695,9 @@ void main() {
     fakeSync.rowLists['user_daily_usage'] = [
       {
         'user_id': 'user-1',
-        'usage_date': todayStr(),
+        // UTC date — the hydrate path keys the SharedPrefs entry by this
+        // value and the read at getReflectUsageToday() uses UTC.
+        'usage_date': todayUtcStr(),
         'reflect_uses': 2,
         'built_dua_uses': 1,
       },

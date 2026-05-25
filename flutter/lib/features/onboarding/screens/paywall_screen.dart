@@ -15,9 +15,13 @@ import '../../../core/env.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/app_session.dart';
 import '../../../features/daily/providers/daily_rewards_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/purchase_service.dart';
+import '../../../services/supabase_sync_service.dart';
+import '../../paywall/screens/refer_unlock_screen.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/premium_celebration_overlay.dart';
 
@@ -88,6 +92,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   // Exit offer shown at most once per session. If the user declines weekly
   // and taps X again, we close immediately — no second nag.
   bool _exitOfferShown = false;
+
+  /// Timestamp when the paywall first became visible — used to compute
+  /// `paywall_dwell_seconds` (forwarded as a property on `refer_unlock_shown`
+  /// per the CEO review's cannibalization-vs-conversion instrumentation).
+  DateTime? _shownAt;
 
   String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
 
@@ -242,6 +251,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   void initState() {
     super.initState();
+    _shownAt = DateTime.now();
     _closeButtonTimer = Timer(_closeButtonRevealDelay, () {
       if (mounted) setState(() => _canClose = true);
     });
@@ -300,11 +310,65 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       await _showExitOffer();
       return;
     }
-    _doClose();
+    unawaited(_doClose());
   }
 
-  void _doClose() {
+  /// Base SharedPreferences key for the post-dismiss routing counter.
+  /// User-scoped via [SupabaseSyncService.scopedKey] so a shared device
+  /// doesn't bleed dismiss state across accounts.
+  ///
+  /// - count == 1 → first dismiss → push [ReferUnlockScreen] (refer-to-unlock
+  ///   reframe).
+  /// - count >= 2 → second+ dismiss → just close (WinbackScreen lives in a
+  ///   separate plan; landing it together is not blocking).
+  static const String paywallDismissCountPrefsBaseKey = 'paywall_dismiss_count';
+
+  Future<void> _doClose() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+
+    // Read + increment the user-scoped dismiss counter. If the user is
+    // somehow not authenticated at this point (shouldn't happen — paywall
+    // is post-signup — but defensively), fall back to the bare key.
+    final prefs = await SharedPreferences.getInstance();
+    final scopedKey =
+        supabaseSyncService.scopedKey(paywallDismissCountPrefsBaseKey);
+    final count = (prefs.getInt(scopedKey) ?? 0) + 1;
+    await prefs.setInt(scopedKey, count);
+
+    if (!mounted) {
+      widget.onComplete();
+      return;
+    }
+
+    // First dismiss → route to ReferUnlockScreen. The screen has two CTAs:
+    // (1) "Start trial" → pops back to here and the user can purchase, (2)
+    // "Send a dua to 3 friends" → opens the share sheet. Either way, on
+    // pop we call widget.onComplete() so onboarding finishes.
+    if (count == 1 && widget.inOnboardingFlow) {
+      final dwellSeconds = _shownAt == null
+          ? null
+          : DateTime.now().difference(_shownAt!).inSeconds;
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ReferUnlockScreen(
+            paywallDwellSeconds: dwellSeconds,
+            onStartTrial: () {
+              // Pop the ReferUnlockScreen; user lands back on the paywall
+              // with the trial CTA in focus.
+              Navigator.of(context, rootNavigator: true).maybePop();
+            },
+            onClose: () {
+              // User declined both paths → finish onboarding (paywall
+              // already counted this as a dismiss).
+              Navigator.of(context, rootNavigator: true).maybePop();
+              if (mounted) widget.onComplete();
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     widget.onComplete();
   }
 

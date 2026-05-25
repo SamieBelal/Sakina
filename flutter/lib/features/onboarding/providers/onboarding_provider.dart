@@ -11,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
+import '../../../services/purchase_service.dart';
+import '../../../services/referral_service.dart';
 import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
 import '../../../core/env.dart';
@@ -73,6 +75,7 @@ class OnboardingState {
     this.dailyCommitmentMinutes,
     this.reminderTime,
     this.commitmentAccepted = false,
+    this.referralApplyFailedReason,
   });
 
   final int currentPage;
@@ -99,6 +102,16 @@ class OnboardingState {
   final int? dailyCommitmentMinutes;
   final String? reminderTime; // "HH:mm" 24h
   final bool commitmentAccepted;
+
+  /// One-shot signal set by sign-up callers (Apple/Google in
+  /// SaveProgressScreen, email in SignUpPasswordScreen) when `apply_referral`
+  /// returns `ok:false` with reason `invalid` or `self_referral`. The
+  /// EncouragementScreen drains it on mount and shows a recovery snackbar
+  /// pointing the user at Settings → Redeem. Intentionally NOT persisted to
+  /// prefs — it's a transient UI signal. The cold-launch defensive retry in
+  /// `app_session.dart` does NOT write this flag, so a stale invalid code
+  /// can never surface as a snackbar days after onboarding.
+  final String? referralApplyFailedReason;
 
   OnboardingState copyWith({
     int? currentPage,
@@ -129,6 +142,8 @@ class OnboardingState {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool? commitmentAccepted,
+    String? referralApplyFailedReason,
+    bool clearReferralApplyFailedReason = false,
   }) {
     return OnboardingState(
       currentPage: currentPage ?? this.currentPage,
@@ -158,6 +173,9 @@ class OnboardingState {
           dailyCommitmentMinutes ?? this.dailyCommitmentMinutes,
       reminderTime: reminderTime ?? this.reminderTime,
       commitmentAccepted: commitmentAccepted ?? this.commitmentAccepted,
+      referralApplyFailedReason: clearReferralApplyFailedReason
+          ? null
+          : (referralApplyFailedReason ?? this.referralApplyFailedReason),
     );
   }
 
@@ -426,6 +444,18 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(clearAuthError: true);
   }
 
+  /// Set when the post-signup `apply_referral` call returns `ok:false` with
+  /// reason `invalid` or `self_referral`. Read once by EncouragementScreen
+  /// and cleared via [clearReferralApplyFailedReason] so re-mounts don't
+  /// double-fire the snackbar.
+  void setReferralApplyFailedReason(String reason) {
+    state = state.copyWith(referralApplyFailedReason: reason);
+  }
+
+  void clearReferralApplyFailedReason() {
+    state = state.copyWith(clearReferralApplyFailedReason: true);
+  }
+
   void setSignUpName(String name) {
     state = state.copyWith(signUpName: name);
     _saveToPrefs();
@@ -512,6 +542,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();
+
+    // Refer-to-Unlock confirm hook: if this user was referred, flip their
+    // referrals row pending → confirmed. The SQL RPC handles the 30d grant
+    // for the referrer atomically when the 3-confirmed threshold is crossed.
+    // Wrapped in try/catch — must NEVER block onboarding completion. The
+    // post-RPC refreshReferralPremiumCache surfaces any new window the
+    // referee earned to PurchaseService.isPremium().
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) {
+        await ReferralService(Supabase.instance.client)
+            .confirmReferralIfPending(uid);
+        // Also refresh for the referee branch — in case their own 7d window
+        // was granted earlier via apply_referral but the cache hasn't been
+        // populated yet on this device.
+        await PurchaseService().refreshReferralPremiumCache();
+      }
+    } catch (e, stack) {
+      debugPrint('[Onboarding] referral confirm failed (non-fatal): $e\n$stack');
+    }
 
     // Mark onboarded in the single source of truth
     await appSession.markOnboarded();

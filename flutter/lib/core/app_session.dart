@@ -11,6 +11,7 @@ import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
 import '../services/notification_service.dart';
 import '../services/purchase_service.dart';
+import '../services/referral_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
 
@@ -121,9 +122,36 @@ class AppSessionNotifier extends ChangeNotifier {
       } catch (e) {
         debugPrint('app_session: RevenueCat setUserId failed: $e');
       }
+
+      // Refresh the referral-premium cache so PurchaseService.isPremium()
+      // picks up any server-side grant for the user without paying a
+      // Supabase round-trip on the hot path. Fire-and-forget — failure
+      // here is non-critical (the cache will refresh again on the next
+      // auth change or RPC return).
+      unawaited(PurchaseService().refreshReferralPremiumCache());
+
+      // Defensive cold-launch reconciliation for Refer-to-Unlock. There's a
+      // kill-window between signup completing and applyPendingReferralIfAny
+      // succeeding (or its RPC being submitted): the user could force-quit.
+      // After relaunch they're authenticated AND `pending_referral` is still
+      // in prefs, but no referrals row exists. The RPC is idempotent on the
+      // referrals.(referee_id) unique constraint — calling twice is safe.
+      unawaited(_reconcilePendingReferralOnAuth(purchaseUserId));
     }
 
     await _hydrateAndNotify();
+  }
+
+  Future<void> _reconcilePendingReferralOnAuth(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pending = prefs.getString(referralPendingReferralPrefsKey);
+      if (pending == null || pending.isEmpty) return;
+      await ReferralService(Supabase.instance.client)
+          .applyPendingReferralIfAny(userId);
+    } catch (e) {
+      debugPrint('app_session: defensive applyPendingReferral failed: $e');
+    }
   }
 
   Future<void> _hydrateAndNotify() async {

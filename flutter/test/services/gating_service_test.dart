@@ -52,7 +52,15 @@ void main() {
       GatedFeature.builtDua => 'built_dua',
       GatedFeature.discoverName => 'discover_name',
     };
-    final now = DateTime.now();
+    // MUST use UTC to match daily_usage_service._today() which calls
+    // DateTime.now().toUtc(). Using DateTime.now() (local) here writes the
+    // key under the local date; when CI runs under TZ=America/New_York and
+    // the wall clock has crossed midnight UTC but not midnight EDT, the
+    // local date is "yesterday" while the service reads "today" — the keys
+    // don't match and the test fails with Expected:false/Actual:true.
+    // See .github/workflows/test.yml ("forces the runner off UTC so
+    // date-bucketing regressions actually surface in CI").
+    final now = DateTime.now().toUtc();
     final today =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final scoped = fakeSync.scopedKey('daily_usage_${featureKey}_$today');
