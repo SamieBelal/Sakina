@@ -11,8 +11,12 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/tour_service.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
@@ -73,16 +77,76 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   bool _questFired = false;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
 
+  // Phase F: journal empty-state teach. We render the illustrated empty card
+  // only when the user has zero entries AND the tour service hasn't recorded
+  // a seen flag yet. The CTA tap fires tour_completed; back-out fires
+  // tour_skipped — both call markSeen so the empty state doesn't re-prompt.
+  bool _journalTourEligible = false;
+  bool _journalTourStartFired = false;
+  bool _journalTourSettled = false;
+  bool _hadEntriesAtMount = false;
+
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 4, vsync: this);
     _tab.addListener(() => setState(() {}));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _resolveJournalTourEligibility();
+    });
+  }
+
+  Future<void> _resolveJournalTourEligibility() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final should =
+        await ref.read(tourServiceProvider).shouldShow(userId, TourKey.journal);
+    if (!mounted) return;
+    setState(() => _journalTourEligible = should);
+  }
+
+  void _fireJournalTourStartIfNeeded() {
+    if (_journalTourStartFired) return;
+    _journalTourStartFired = true;
+    ref.read(analyticsProvider).track(AnalyticsEvents.tourStarted,
+        properties: {'tour': 'journal'});
+  }
+
+  Future<void> _settleJournalTour({required bool completed}) async {
+    if (_journalTourSettled) return;
+    _journalTourSettled = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final analytics = ref.read(analyticsProvider);
+    final svc = ref.read(tourServiceProvider);
+    analytics.track(
+      completed
+          ? AnalyticsEvents.tourCompleted
+          : AnalyticsEvents.tourSkipped,
+      properties: {'tour': 'journal'},
+    );
+    await svc.markSeen(userId, TourKey.journal);
+    if (!mounted) return;
+    if (ref.read(guidedSequenceActiveProvider)) {
+      await Future.delayed(const Duration(milliseconds: 280));
+      if (mounted) context.go('/duas');
+    }
   }
 
   @override
   void dispose() {
     _tab.dispose();
+    // If the user backed out without tapping the CTA AND we did surface the
+    // empty state on this visit, treat it as a skip so it doesn't re-prompt
+    // every Journal open. Guard on `_hadEntriesAtMount` so we don't mark the
+    // tour seen for users who already had entries (they never saw it).
+    if (_journalTourEligible && !_journalTourSettled && !_hadEntriesAtMount) {
+      // Fire-and-forget. Settle on skip — no route push (we're already
+      // unmounting); the sequenced walk handoff inside _settleJournalTour
+      // is mounted-guarded.
+      _settleJournalTour(completed: false);
+    }
     super.dispose();
   }
 
@@ -121,6 +185,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
     ]..sort((a, b) => b.date.compareTo(a.date));
 
     final totalCount = reflections.length + builtDuas.length + savedDuas.length;
+    // Capture the entry-count snapshot on first build that resolves data.
+    // Used by dispose() to decide whether to settle the journal tour as a
+    // skip — we only skip-mark if the user actually saw the empty state.
+    if (totalCount > 0 && !_hadEntriesAtMount) {
+      _hadEntriesAtMount = true;
+    }
 
     // Surface delete failures: deleteReflection / removeSavedBuiltDua roll back
     // state on server error and set state.error. Without these listeners, the
@@ -491,6 +561,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   Widget _buildAllFeed(List<_JournalEntry> entries) {
     if (entries.isEmpty) {
+      if (_journalTourEligible) {
+        // Defer the start-event to a post-frame callback so we don't fire
+        // analytics during a build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _fireJournalTourStartIfNeeded();
+        });
+        return _buildTourEmptyState();
+      }
       return _buildEmptyState();
     }
 
@@ -933,6 +1011,77 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         ],
       ),
     );
+  }
+
+  // ── Tour empty state (Phase F) ──────────────────────────────────────────────
+
+  /// Phase F illustrated empty state for the first journal visit. CTA jumps
+  /// to the Reflect screen as the closest "compose new entry" surface —
+  /// the standalone editor doesn't exist yet (TODO when journal editor lands).
+  Widget _buildTourEmptyState() {
+    return Align(
+      alignment: const Alignment(0, -0.4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/illustrations/journal_empty.svg',
+              width: 160,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              TourCopy.journalEmptyTitle,
+              style: AppTypography.headlineMedium.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontFamily: 'DM Serif Display',
+                fontSize: 22,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              TourCopy.journalEmptyBody,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondaryLight,
+                fontFamily: 'DM Sans',
+                fontSize: 15,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () async {
+                HapticFeedback.lightImpact();
+                await _settleJournalTour(completed: true);
+                if (!mounted) return;
+                // TODO: when a dedicated journal entry composer ships,
+                // route there instead. Reflect is the closest existing
+                // surface for "compose a reflection / first entry".
+                context.go('/reflect');
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.buttonRadius),
+                ),
+                child: Text(
+                  TourCopy.journalEmptyCta,
+                  style: AppTypography.labelLarge
+                      .copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
   // ── Empty state ─────────────────────────────────────────────────────────────

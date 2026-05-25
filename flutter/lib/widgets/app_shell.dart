@@ -8,6 +8,7 @@ import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
+import '../features/tour/providers/tab_bar_key_provider.dart';
 import '../services/economy_events.dart';
 import '../services/xp_service.dart';
 import '../widgets/quest_completion_toast.dart';
@@ -23,10 +24,25 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   StreamSubscription<EconomyEvent>? _econSub;
+  // GlobalKey for the bottom tab bar — published into `tabBarKeyProvider`
+  // so the Home tour's 3rd coachmark can anchor to it. Per eng review 1.5,
+  // ownership stays here (per-screen) rather than in a global TourKeys
+  // provider.
+  final GlobalKey _tabBarKey = GlobalKey(debugLabel: 'tour.tabBar');
+  // Cached notifier so dispose() doesn't have to call `ref.read` (which
+  // throws once the ConsumerStatefulElement is disposed). Set in the
+  // post-frame callback below alongside the publish.
+  StateController<GlobalKey?>? _tabBarKeyController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = ref.read(tabBarKeyProvider.notifier);
+      _tabBarKeyController = controller;
+      controller.state = _tabBarKey;
+    });
     _econSub = EconomyEvents.stream.listen((event) {
       if (event is XpGranted && event.leveledUp && event.rewards != null) {
         // Use addPostFrameCallback (NOT microtask) to match muhasabah_screen's
@@ -56,6 +72,14 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void dispose() {
     _econSub?.cancel();
+    // Only clear if our key is still the published one — avoids stomping on
+    // a fresh AppShell that already registered its own key during a
+    // hot-reload remount. Use the cached controller so we don't touch `ref`
+    // after the ConsumerStatefulElement is disposed (which throws).
+    final controller = _tabBarKeyController;
+    if (controller != null && controller.state == _tabBarKey) {
+      controller.state = null;
+    }
     super.dispose();
   }
 
@@ -150,6 +174,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
+        key: _tabBarKey,
         // BottomNavigationBar requires a valid index. When the user is on a
         // pushed sub-route (e.g. /quests, /settings, /store) we still need
         // to pass a legal index, but we visually deselect everything by

@@ -31,6 +31,14 @@ import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/app_config_service.dart';
+import 'package:sakina/services/tour_service.dart';
+import 'package:sakina/features/tour/providers/tab_bar_key_provider.dart';
+import 'package:sakina/widgets/coachmark/coachmark_controller.dart';
+import 'package:sakina/widgets/coachmark/coachmark_step.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Resolved hero-tile content for the home dashboard's "Today's Name" /
 /// "Your Starting Name" section. Pure-function output so the day-0 vs
@@ -101,12 +109,92 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
   bool _discoverInFlight = false;
 
+  // Home-tour anchor keys. Per-screen ownership (eng review 1.5).
+  final GlobalKey _muhasabahCtaKey = GlobalKey(debugLabel: 'tour.muhasabahCta');
+  final GlobalKey _streakPillKey = GlobalKey(debugLabel: 'tour.streakPill');
+  CoachmarkController? _tourCtrl;
+
   @override
   void initState() {
     super.initState();
     _checkDiscoveryQuiz();
     _maybeShowDailyLaunch();
     _maybeShowLapsedTrialSheet();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartHomeTour());
+  }
+
+  @override
+  void dispose() {
+    _tourCtrl?.dispose();
+    super.dispose();
+  }
+
+  /// Fires the Home tour on first launch if eligible. Eligibility:
+  ///   (a) the user is signed in,
+  ///   (b) the `guided_tour_enabled` app_config flag is true (default true),
+  ///   (c) `TourService.shouldShow(userId, TourKey.home)` is true,
+  ///   (d) AppShell has registered its tab bar key (otherwise the 3rd step
+  ///       has nothing to anchor to — we no-op and retry on next launch).
+  Future<void> _maybeStartHomeTour() async {
+    if (!mounted) return;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final cfg = ref.read(appConfigServiceProvider);
+    final tourEnabled =
+        await cfg.getBool('guided_tour_enabled', fallback: true);
+    if (!tourEnabled) return;
+
+    final svc = ref.read(tourServiceProvider);
+    if (!await svc.shouldShow(userId, TourKey.home)) return;
+    if (!mounted) return;
+
+    final tabKey = ref.read(tabBarKeyProvider);
+    if (tabKey == null) return; // AppShell hasn't registered yet — retry next launch.
+
+    final analytics = ref.read(analyticsProvider);
+    analytics.track(AnalyticsEvents.tourStarted,
+        properties: {'tour': 'home'});
+    analytics.track(AnalyticsEvents.tourStepViewed,
+        properties: {'tour': 'home', 'step': 0});
+
+    _tourCtrl = CoachmarkController(
+      steps: [
+        CoachmarkStep(target: _muhasabahCtaKey, message: TourCopy.homeStep1),
+        CoachmarkStep(target: _streakPillKey, message: TourCopy.homeStep2),
+        CoachmarkStep(
+          target: tabKey,
+          message: TourCopy.homeStep3,
+          tooltipBelow: false,
+        ),
+      ],
+      onComplete: () async {
+        analytics.track(AnalyticsEvents.tourCompleted,
+            properties: {'tour': 'home'});
+        await svc.markSeen(userId, TourKey.home);
+        // E6 sequenced walk hook: if the user came from Settings → Replay,
+        // continue to the next surface.
+        if (!mounted) return;
+        if (ref.read(guidedSequenceActiveProvider)) {
+          await Future.delayed(const Duration(milliseconds: 280));
+          if (mounted) context.go('/collection');
+        }
+      },
+      onSkip: () async {
+        analytics.track(AnalyticsEvents.tourSkipped,
+            properties: {'tour': 'home'});
+        await svc.markSeen(userId, TourKey.home);
+        if (!mounted) return;
+        // Tear down the sequenced walk on skip — user opted out.
+        ref.read(guidedSequenceActiveProvider.notifier).state = false;
+        // E5 win-back signal: stamps the skip moment for the OneSignal
+        // segment `tour_skipped_no_checkin_3d`.
+        analytics.setUserProperties({
+          'tour_home_skipped_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      },
+    );
+    _tourCtrl!.start(context);
   }
 
   /// Fires the LapsedTrialSheet on the first home view after a trial lapses.
@@ -377,8 +465,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Streak pill
+              // Streak pill — keyed for the Home tour step 2 coachmark anchor.
               Container(
+                key: _streakPillKey,
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.streakBackground,
@@ -693,6 +782,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
     if (completed) {
       return GestureDetector(
+        key: _muhasabahCtaKey,
         onTap: () async {
           // Synchronous re-entry guard. A double-tap that lands while the
           // first call is still inside `GatingService.canUse()` previously
@@ -764,6 +854,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
     // Not started or in progress
     return GestureDetector(
+      key: _muhasabahCtaKey,
       onTap: () {
         HapticFeedback.mediumImpact();
         context.push('/muhasabah');

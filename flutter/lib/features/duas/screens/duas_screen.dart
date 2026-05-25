@@ -14,10 +14,17 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/app_config_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/tour_service.dart';
+import 'package:sakina/widgets/coachmark/coachmark_controller.dart';
+import 'package:sakina/widgets/coachmark/coachmark_step.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -36,7 +43,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
   final TextEditingController _buildController = TextEditingController();
   final ScrollController _buildScrollController = ScrollController();
   final GlobalKey _textFieldKey = GlobalKey();
+  // Phase G: anchor for the dua-save heart coachmark. Attached to the first
+  // related-dua heart icon on the Ameen result screen. Per-screen ownership.
+  final GlobalKey _firstHeartKey = GlobalKey(debugLabel: 'tour.duasFirstHeart');
   bool _hasFocus = false;
+
+  // Phase G tour state.
+  bool _duasTourEligible = false;
+  bool _duasTourFired = false;
+  CoachmarkController? _tourCtrl;
 
   @override
   void initState() {
@@ -47,6 +62,61 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         duration: const Duration(milliseconds: 1600),
       );
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _resolveDuasTourEligibility();
+    });
+  }
+
+  Future<void> _resolveDuasTourEligibility() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final cfg = ref.read(appConfigServiceProvider);
+    final enabled = await cfg.getBool('guided_tour_enabled', fallback: true);
+    if (!enabled) return;
+    final should =
+        await ref.read(tourServiceProvider).shouldShow(userId, TourKey.duas);
+    if (!mounted) return;
+    setState(() => _duasTourEligible = should);
+  }
+
+  void _maybeStartDuasTour() {
+    if (_duasTourFired || !_duasTourEligible) return;
+    if (_firstHeartKey.currentContext == null) return;
+    _duasTourFired = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final analytics = ref.read(analyticsProvider);
+    final svc = ref.read(tourServiceProvider);
+    analytics.track(AnalyticsEvents.tourStarted,
+        properties: {'tour': 'duas'});
+    analytics.track(AnalyticsEvents.tourStepViewed,
+        properties: {'tour': 'duas', 'step': 0});
+
+    Future<void> settle({required bool completed}) async {
+      analytics.track(
+        completed
+            ? AnalyticsEvents.tourCompleted
+            : AnalyticsEvents.tourSkipped,
+        properties: {'tour': 'duas'},
+      );
+      await svc.markSeen(userId, TourKey.duas);
+      if (!mounted) return;
+      // Last surface in the sequenced walk — flip the flag off either way.
+      ref.read(guidedSequenceActiveProvider.notifier).state = false;
+    }
+
+    _tourCtrl = CoachmarkController(
+      steps: [
+        CoachmarkStep(
+          target: _firstHeartKey,
+          message: TourCopy.duasStep1,
+        ),
+      ],
+      onComplete: () => settle(completed: true),
+      onSkip: () => settle(completed: false),
+    );
+    _tourCtrl!.start(context);
   }
 
   void _startRipple() {
@@ -71,6 +141,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     }
     _buildController.dispose();
     _buildScrollController.dispose();
+    _tourCtrl?.dispose();
     super.dispose();
   }
 
@@ -810,6 +881,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       });
     }
 
+    // Phase G: try to start the first-heart coachmark once the Ameen screen
+    // has laid out. Idempotent + gated on eligibility.
+    if (_duasTourEligible && !_duasTourFired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeStartDuasTour();
+      });
+    }
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: SafeArea(
@@ -1085,7 +1164,10 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...result.relatedDuas.map((d) => Container(
+                    ...result.relatedDuas.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final d = entry.value;
+                      return Container(
                           margin: const EdgeInsets.only(top: 12),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceAltLight,
@@ -1108,6 +1190,11 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                       CrossAxisAlignment.start,
                                   children: [
                                     GestureDetector(
+                                      // Anchor the Phase G coachmark to the
+                                      // first heart only — i==0 ensures we
+                                      // never have a stale GlobalKey on
+                                      // re-builds for non-first cards.
+                                      key: i == 0 ? _firstHeartKey : null,
                                       onTap: () {
                                         HapticFeedback.mediumImpact();
                                         final wasSaved =
@@ -1179,7 +1266,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                               ],
                             ),
                           ),
-                        )),
+                        );
+                    }),
                   ],
                 ),
               ).animate().fadeIn(duration: 500.ms, delay: 700.ms),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -11,12 +12,16 @@ import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/tour_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -43,6 +48,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   NavigatorState? _sheetNavigator;
   AppSessionNotifier? _session;
 
+  // Collection-tour state (Phase E). Empty-state teach is a single beat:
+  // when the user has exactly 1 card AND TourService says we haven't shown
+  // it yet, render the ornament SVG + caption under the starter card, fire
+  // tour_started + tour_completed in the same frame, mark seen, and (if the
+  // sequenced walk is active) hand off to Journal.
+  bool _collectionTourEligible = false;
+  bool _collectionTourHandled = false;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +70,42 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         session.addListener(_onSessionChange);
       } else {
         ref.read(tierUpScrollProvider.notifier).reload();
+      }
+      _resolveCollectionTourEligibility();
+    });
+  }
+
+  Future<void> _resolveCollectionTourEligibility() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final svc = ref.read(tourServiceProvider);
+    final should = await svc.shouldShow(userId, TourKey.collection);
+    if (!mounted) return;
+    setState(() => _collectionTourEligible = should);
+  }
+
+  /// Single-beat empty-state teach: fire start + complete in the same frame,
+  /// mark seen, and (if the sequenced walk is active) hand off to Journal.
+  /// Idempotent via [_collectionTourHandled].
+  void _completeCollectionTourBeat() {
+    if (_collectionTourHandled) return;
+    _collectionTourHandled = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final analytics = ref.read(analyticsProvider);
+    final svc = ref.read(tourServiceProvider);
+    analytics.track(AnalyticsEvents.tourStarted,
+        properties: {'tour': 'collection'});
+    analytics.track(AnalyticsEvents.tourCompleted,
+        properties: {'tour': 'collection'});
+    // Schedule after the current build completes — the markSeen + route push
+    // must not happen mid-build. The mounted check inside guards teardown.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await svc.markSeen(userId, TourKey.collection);
+      if (!mounted) return;
+      if (ref.read(guidedSequenceActiveProvider)) {
+        await Future.delayed(const Duration(milliseconds: 280));
+        if (mounted) context.go('/journal');
       }
     });
   }
@@ -221,6 +270,45 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                 ),
               ),
             ),
+            // Phase E starter-card caption — exactly 1 card discovered AND
+            // tour service says we haven't shown it yet. Fires tour analytics
+            // + markSeen on first build via [_completeCollectionTourBeat].
+            if (_collectionTourEligible &&
+                !_collectionTourHandled &&
+                collection.totalDiscovered == 1)
+              SliverToBoxAdapter(
+                child: Builder(builder: (_) {
+                  // Trigger the single-beat analytics + handoff. Safe to call
+                  // here because the method itself is idempotent and the
+                  // post-frame callback handles the route push.
+                  _completeCollectionTourBeat();
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.md,
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                    ),
+                    child: Column(
+                      children: [
+                        SvgPicture.asset(
+                          'assets/illustrations/collection_starter_ornament.svg',
+                          width: 200,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          TourCopy.collectionEmptyCaption,
+                          style: AppTypography.bodyMedium.copyWith(
+                            color: AppColors.textSecondaryLight,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.pagePadding),
