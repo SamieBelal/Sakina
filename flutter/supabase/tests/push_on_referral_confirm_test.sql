@@ -58,15 +58,22 @@ select has_trigger('public', 'referrals', 'trg_notify_referrer_on_confirm',
 -- clause as Postgres normalized it. Asserting on this catches a regression
 -- in ANY of: AFTER vs BEFORE, INSERT/UPDATE vs other event, FOR EACH ROW
 -- vs STATEMENT, the OF status column filter, AND the WHEN clause text.
-select like(
+--
+-- Use ok((expr) LIKE 'pattern', 'desc') rather than pgtap's like(): the
+-- function-form `like(text, unknown, unknown)` errors with "function does
+-- not exist" because Postgres can't disambiguate the bare string literals
+-- (unknown type) — pgtap's like() is `(text, text, text)` and the parser
+-- doesn't auto-cast. Using the LIKE operator inside ok() side-steps the
+-- ambiguity entirely.
+select ok(
   (select pg_get_triggerdef(t.oid)
      from pg_trigger t
      join pg_class c on c.oid = t.tgrelid
      join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
       and c.relname = 'referrals'
-      and t.tgname = 'trg_notify_referrer_on_confirm'),
-  '%AFTER UPDATE OF status%FOR EACH ROW%OLD.status = ''pending''%NEW.status = ''confirmed''%',
+      and t.tgname = 'trg_notify_referrer_on_confirm') LIKE
+    '%AFTER UPDATE OF status%FOR EACH ROW%OLD.status = ''pending''%NEW.status = ''confirmed''%',
   'trigger DDL: AFTER UPDATE OF status, FOR EACH ROW, tightened pending->confirmed WHEN (S4 fix)');
 
 select * from finish();
