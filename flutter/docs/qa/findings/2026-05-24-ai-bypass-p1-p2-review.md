@@ -100,7 +100,7 @@ Pin with a regression test that reserves → cancels → replays the same key, a
 
 ### P1-3 — Missing freemium guards on `last_winback_grant_at` + `iap_upsell_banner_dismissed_at` **[LIVE-VERIFIED]**
 
-> **Scope note:** the eng-review audit also surfaced `gift_premium_until` as unguarded with the same risk shape (live-reproduced setting to '2999-01-01'). Its guard rule is **deferred** because the column is defined by the Ramadan-gifts migration which lives in a separate open PR. Pulling that migration into this hotfix would mix unrelated feature code with a security PR. Tracked as a separate P1 follow-up that should land in a small PR after the Ramadan-gifts feature PR is merged. **Residual exploit on prod until then.**
+> **Scope note:** the eng-review audit also surfaced `gift_premium_until` as unguarded with the same risk shape (live-reproduced setting to '2999-01-01'). Its guard rule was deferred because the column is defined by the Ramadan-gifts migration which lived in a separate open PR. **RESOLVED 2026-05-25** in the gift_premium_until follow-up — migration `20260525200000_extend_freemium_guard_for_gift_premium_until.sql` extends `guard_user_profiles_freemium_fields` to reject any direct UPDATE on the column from non-postgres roles. Live-verified on prod: exploit attempt raises `check_violation`, honest path via `claim_sakina_gift` still stamps the column. Pinned by `supabase/tests/freemium_guard_gift_premium_until_test.sql`.
 
 - **File:** `supabase/migrations/20260524050655_extend_freemium_guards_for_bypass_fields.sql` (gap)
 - **Affected columns on `user_profiles`:** `last_winback_grant_at`, `iap_upsell_banner_dismissed_at`
