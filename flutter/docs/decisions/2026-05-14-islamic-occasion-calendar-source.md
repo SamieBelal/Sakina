@@ -15,7 +15,6 @@ windows for the Ramadan/Eid Gift mechanic. Boundaries are `timestamptz` at
 | Ramadan 2027      | 2027-02-17 00:00:00+00    | 2027-03-19 23:59:59+00    | ~30-day window                     |
 | Eid al-Fitr 2027  | 2027-03-20 00:00:00+00    | 2027-03-22 23:59:59+00    | 3-day window                       |
 | Eid al-Adha 2027  | 2027-05-27 00:00:00+00    | 2027-06-04 23:59:59+00    | Hajj period + 3-day Eid            |
-| Mawlid 2027       | 2027-09-04 00:00:00+00    | 2027-09-04 23:59:59+00    | Single day; window expansion is v2 |
 
 ## Source
 

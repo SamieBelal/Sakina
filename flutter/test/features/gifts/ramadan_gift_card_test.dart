@@ -98,33 +98,6 @@ void main() {
     );
   });
 
-  testWidgets(
-      'renders "مولد مبارك" (not "عيد مبارك") for Mawlid occasions',
-      (tester) async {
-    // Mawlid an-Nabi 1448 AH ≈ 2026-09-04 (approximate; the seed migration
-    // owns the canonical window). We pick a clock inside the seeded window.
-    fakeSync.publicRows['islamic_occasions'] = [
-      {
-        'id': 'mawlid_2026',
-        'starts_at': '2026-09-01T00:00:00.000Z',
-        'ends_at': '2026-09-07T23:59:59.000Z',
-      },
-    ];
-    GiftService.debugGiftClock = () => DateTime.utc(2026, 9, 4);
-
-    await tester.pumpWidget(buildHarness(const RamadanGiftCard()));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-
-    expect(find.text('Accept your gift'), findsOneWidget);
-    expect(find.text('A gift from Sakina for Mawlid'), findsOneWidget);
-
-    // Mawlid Mubarak — NOT Eid Mubarak. Some Islamic schools regard
-    // celebrating Mawlid as bid'ah and do not consider it an Eid.
-    expect(find.text('مولد مبارك'), findsOneWidget);
-    expect(find.text('عيد مبارك'), findsNothing);
-  });
-
   testWidgets('renders nothing when clock is outside every occasion window',
       (tester) async {
     fakeSync.publicRows['islamic_occasions'] = [

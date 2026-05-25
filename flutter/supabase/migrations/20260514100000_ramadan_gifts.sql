@@ -133,6 +133,5 @@ revoke execute on function public.claim_sakina_gift(uuid, text) from anon;
 insert into public.islamic_occasions(id, display_name, starts_at, ends_at) values
   ('ramadan_2027',    'Ramadan 2027',     '2027-02-17 00:00:00+00', '2027-03-19 23:59:59+00'),
   ('eid_fitr_2027',   'Eid al-Fitr 2027', '2027-03-20 00:00:00+00', '2027-03-22 23:59:59+00'),
-  ('eid_adha_2027',   'Eid al-Adha 2027', '2027-05-27 00:00:00+00', '2027-06-04 23:59:59+00'),
-  ('mawlid_2027',     'Mawlid 2027',      '2027-09-04 00:00:00+00', '2027-09-04 23:59:59+00')
+  ('eid_adha_2027',   'Eid al-Adha 2027', '2027-05-27 00:00:00+00', '2027-06-04 23:59:59+00')
 on conflict (id) do nothing;

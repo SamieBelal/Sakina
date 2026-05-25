@@ -2,14 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement a calendar-anchored "Sakina Gift" that grants any signed-in user 7 days of full premium during Islamic occasions (Ramadan, Eid al-Fitr, Eid al-Adha, Mawlid al-Nabi). The gift is automatic (no dismissal trigger, no countdown, no discount), shown as a beautiful welcome card on app open during the occasion window, and never gated behind any dark pattern. It serves as both retention (existing free users get a glimpse of premium during their highest spiritual-engagement moments) and growth (premium users feel rewarded; share-worthy moment). Brand-additive, not brand-extractive.
+**Goal:** Implement a calendar-anchored "Sakina Gift" that grants any signed-in user 7 days of full premium during Islamic occasions (Ramadan, Eid al-Fitr, Eid al-Adha). The gift is automatic (no dismissal trigger, no countdown, no discount), shown as a beautiful welcome card on app open during the occasion window, and never gated behind any dark pattern. It serves as both retention (existing free users get a glimpse of premium during their highest spiritual-engagement moments) and growth (premium users feel rewarded; share-worthy moment). Brand-additive, not brand-extractive.
 
 **Architecture:** A new `RamadanGiftCard` shown on home-screen mount during active occasion windows. Server-side `islamic_occasions` table (or hardcoded constants for v1) defines the calendar:
 
 - Ramadan 2027: 2027-02-17 to 2027-03-19
 - Eid al-Fitr 2027: 2027-03-20 to 2027-03-22
 - Hajj/Eid al-Adha 2027: 2027-05-27 to 2027-06-04
-- Mawlid 2027: 2027-09-04 (single day)
 
 Each user gets ONE 7-day premium window per occasion per year, granted on first qualifying app open during the window. Tracked server-side via `sakina_gifts` table (user_id, occasion_id, granted_at, expires_at). Mechanism: same `referral_premium_until` column pattern from refer-unlock (or a sibling `gift_premium_until` for clarity) — Supabase-only, never RevenueCat, no StoreKit involvement.
 
@@ -25,7 +24,7 @@ Sakina is named after the Arabic word for tranquility (sakīna). A ticking gold 
 
 > **App Review reviewer note (copy this into the App Store Connect review note field when submitting):**
 >
-> Sakina grants signed-in users a 7-day full-premium window once per Islamic occasion per year (Ramadan, Eid al-Fitr, Eid al-Adha, Mawlid). This is non-IAP content delivery, calendar-anchored, never triggered by user behavior or dismissal. There is no discount, no countdown timer, no urgency UX. Server-enforced single-claim per occasion. RevenueCat entitlements are NOT touched; the gift is purely a Supabase-side feature-access window. No StoreKit interaction.
+> Sakina grants signed-in users a 7-day full-premium window once per Islamic occasion per year (Ramadan, Eid al-Fitr, Eid al-Adha). This is non-IAP content delivery, calendar-anchored, never triggered by user behavior or dismissal. There is no discount, no countdown timer, no urgency UX. Server-enforced single-claim per occasion. RevenueCat entitlements are NOT touched; the gift is purely a Supabase-side feature-access window. No StoreKit interaction.
 
 Sakina is pre-launch with zero users, so cannibalization, baseline-measurement, and price-anchor concerns from the original winback plan are moot. Brand stance is **no urgency** (Hallow/Glorify/Calm spectrum) — not heavy urgency (Duolingo/Cal-AI). This mechanic is the v2 direction per CEO review's 10x recommendation.
 
@@ -71,7 +70,6 @@ Canonical seed for 2027:
 | Ramadan 2027      | 2027-02-17   | 2027-03-19   | ~30-day window                       |
 | Eid al-Fitr 2027  | 2027-03-20   | 2027-03-22   | 3-day window                         |
 | Eid al-Adha 2027  | 2027-05-27   | 2027-06-04   | Hajj period + 3-day Eid              |
-| Mawlid 2027       | 2027-09-04   | 2027-09-04   | Single day; window expansion v2      |
 
 All `starts_at` / `ends_at` are `timestamptz` boundaries at `00:00:00Z` and `23:59:59Z` respectively. Server-side `now() between starts_at and ends_at` is the authoritative check.
 
@@ -190,8 +188,7 @@ revoke execute on function public.claim_sakina_gift(uuid, text) from anon;
 insert into public.islamic_occasions(id, display_name, starts_at, ends_at) values
   ('ramadan_2027',    'Ramadan 2027',     '2027-02-17 00:00:00+00', '2027-03-19 23:59:59+00'),
   ('eid_fitr_2027',   'Eid al-Fitr 2027', '2027-03-20 00:00:00+00', '2027-03-22 23:59:59+00'),
-  ('eid_adha_2027',   'Eid al-Adha 2027', '2027-05-27 00:00:00+00', '2027-06-04 23:59:59+00'),
-  ('mawlid_2027',     'Mawlid 2027',      '2027-09-04 00:00:00+00', '2027-09-04 23:59:59+00')
+  ('eid_adha_2027',   'Eid al-Adha 2027', '2027-05-27 00:00:00+00', '2027-06-04 23:59:59+00')
 on conflict (id) do nothing;
 ```
 
@@ -218,8 +215,8 @@ git commit -m "feat(gifts): islamic_occasions + sakina_gifts + claim RPC
 
 Calendar-anchored 7-day premium gift granted once per Islamic occasion
 per user. SECURITY DEFINER claim RPC with pinned search_path, owner-only
-RLS on the gifts table. Seed data for Ramadan, Eid al-Fitr, Eid al-Adha,
-and Mawlid 2027."
+RLS on the gifts table. Seed data for Ramadan, Eid al-Fitr, and Eid
+al-Adha 2027."
 ```
 
 ---
