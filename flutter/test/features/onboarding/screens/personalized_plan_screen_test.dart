@@ -67,9 +67,10 @@ void main() {
     expect(find.textContaining('07:30'), findsOneWidget);
     // Intention phrase rendered.
     expect(find.textContaining('spiritual-growth'), findsOneWidget);
-    // Trimmed-flow refactor (2026-05-25): commonEmotions removed; the
-    // "You often feel" tile now always shows the fallback copy.
-    expect(find.text('Whatever comes up'), findsOneWidget);
+    // Trimmed-flow refactor (2026-05-25): the "You often feel" tile was
+    // dropped entirely since its source field (commonEmotions) was removed.
+    expect(find.text('Whatever comes up'), findsNothing);
+    expect(find.text('You often feel'), findsNothing);
     // Name translit rendered.
     expect(find.textContaining('Ash-Shakur'), findsOneWidget);
   });

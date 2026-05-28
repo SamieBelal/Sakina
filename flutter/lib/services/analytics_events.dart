@@ -196,9 +196,12 @@ abstract final class AnalyticsEvents {
   // docs/superpowers/plans/2026-05-25-onboarding-trim-guided-tour.md.
   static const String tourStarted = 'tour_started';
   static const String tourStepViewed = 'tour_step_viewed';
+  static const String tourStepAdvanced = 'tour_step_advanced';
   static const String tourCompleted = 'tour_completed';
   static const String tourSkipped = 'tour_skipped';
   static const String tourReplayTapped = 'tour_replay_tapped';
+  static const String tourAnchorTimeout = 'tour_anchor_timeout';
+  static const String tourStartSkipped = 'tour_start_skipped';
 
   // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
   // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).

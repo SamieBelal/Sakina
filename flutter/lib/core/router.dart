@@ -16,6 +16,7 @@ import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
+import '../features/tour/providers/tour_route_observer.dart';
 import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
@@ -30,6 +31,11 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>()
 GoRouter buildRouter({required AppSessionNotifier appSession}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
+    // Singleton tour route observer (lib/features/tour/providers/tour_route_observer.dart).
+    // Tracks the topmost route's settings.name so OnboardingTourOverlayHost
+    // can hide while a blocking modal (NameRevealOverlay, etc.) is up, and
+    // detect the DuaDetailPage back-gesture for step 13 completion.
+    observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
     redirect: (context, state) {

@@ -25,12 +25,13 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
-import 'package:sakina/services/tour_service.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// F1 fix (2026-04-26): pure resolver for the Settings profile-card display
@@ -130,15 +131,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _replayTour() async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return;
-    await ref.read(tourServiceProvider).resetAll(uid);
-    ref.read(analyticsProvider).track(AnalyticsEvents.tourReplayTapped);
-    // E6: activate the sequenced walk. Home tour will check this on its
-    // onComplete + chain to Collection → Journal → Duas.
-    ref.read(guidedSequenceActiveProvider.notifier).state = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    // Clear the unified tour-seen flag so the controller can re-arm.
+    await prefs.remove(onboardingTourSeenFlag(userId));
     if (!mounted) return;
+    // Jump to Home so step 1's anchor (Begin Muhasabah) is mounted.
     context.go('/');
+    // Restart the tour controller.
+    ref.read(onboardingTourControllerProvider.notifier).replay();
+    // Existing analytics track
+    ref.read(analyticsProvider).track(AnalyticsEvents.tourReplayTapped);
   }
 
   Future<void> _loadData() async {
@@ -1139,12 +1143,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             showChevron: false,
           ),
           _buildDivider(),
-          // Phase H — replay the post-onboarding tour. Tapping resets all
-          // four TourKey seen flags + activates the sequenced walk so the
-          // user is led Home → Collection → Journal → Duas.
+          // Replay the unified interactive guided tour from step 1. Clears
+          // the onboarding_tour_v1_seen flag and calls
+          // OnboardingTourController.replay() — see _replayTour.
           _buildSettingsRow(
             icon: Icons.info_outline,
-            label: TourCopy.settingsReplayLabel,
+            label: 'Replay app tour',
             onTap: _replayTour,
           ),
           _buildDivider(),

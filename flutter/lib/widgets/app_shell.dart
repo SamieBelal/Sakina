@@ -8,9 +8,10 @@ import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
-import '../features/tour/providers/tab_bar_key_provider.dart';
+import '../features/tour/models/onboarding_tour_step.dart';
 import '../services/economy_events.dart';
 import '../services/xp_service.dart';
+import '../widgets/coachmark/tour_anchor.dart';
 import '../widgets/quest_completion_toast.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -24,25 +25,10 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   StreamSubscription<EconomyEvent>? _econSub;
-  // GlobalKey for the bottom tab bar — published into `tabBarKeyProvider`
-  // so the Home tour's 3rd coachmark can anchor to it. Per eng review 1.5,
-  // ownership stays here (per-screen) rather than in a global TourKeys
-  // provider.
-  final GlobalKey _tabBarKey = GlobalKey(debugLabel: 'tour.tabBar');
-  // Cached notifier so dispose() doesn't have to call `ref.read` (which
-  // throws once the ConsumerStatefulElement is disposed). Set in the
-  // post-frame callback below alongside the publish.
-  StateController<GlobalKey?>? _tabBarKeyController;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final controller = ref.read(tabBarKeyProvider.notifier);
-      _tabBarKeyController = controller;
-      controller.state = _tabBarKey;
-    });
     _econSub = EconomyEvents.stream.listen((event) {
       if (event is XpGranted && event.leveledUp && event.rewards != null) {
         // Use addPostFrameCallback (NOT microtask) to match muhasabah_screen's
@@ -72,14 +58,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void dispose() {
     _econSub?.cancel();
-    // Only clear if our key is still the published one — avoids stomping on
-    // a fresh AppShell that already registered its own key during a
-    // hot-reload remount. Use the cached controller so we don't touch `ref`
-    // after the ConsumerStatefulElement is disposed (which throws).
-    final controller = _tabBarKeyController;
-    if (controller != null && controller.state == _tabBarKey) {
-      controller.state = null;
-    }
     super.dispose();
   }
 
@@ -87,6 +65,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final nav = Navigator.of(context, rootNavigator: true);
     nav.push(
       PageRouteBuilder(
+        settings: const RouteSettings(name: 'LevelUpOverlay'),
         opaque: true,
         barrierDismissible: false,
         pageBuilder: (_, __, ___) => LevelUpOverlay(
@@ -114,6 +93,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           navigator
               .push(
                 MaterialPageRoute(
+                  settings: const RouteSettings(name: 'FirstStepsOverlay'),
                   fullscreenDialog: true,
                   builder: (_) => FirstStepsOverlay(
                     tokensAwarded: celebration.tokens,
@@ -174,7 +154,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
-        key: _tabBarKey,
         // BottomNavigationBar requires a valid index. When the user is on a
         // pushed sub-route (e.g. /quests, /settings, /store) we still need
         // to pass a legal index, but we visually deselect everything by
@@ -195,31 +174,51 @@ class _AppShellState extends ConsumerState<AppShell> {
         // about where they are.
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabHome',
+              child: Icon(Icons.home_outlined),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.home_outlined : Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.style_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabCollection',
+              child: Icon(Icons.style_outlined),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.style_outlined : Icons.style),
             label: 'Collection',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.favorite_outline),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabReflect',
+              child: Icon(Icons.favorite_outline),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.favorite_outline : Icons.favorite),
             label: 'Reflect',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.auto_awesome_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabDuas',
+              child: Icon(Icons.auto_awesome_outlined),
+            ),
             activeIcon: Icon(
                 isOffTab ? Icons.auto_awesome_outlined : Icons.auto_awesome),
             label: 'Duas',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.book_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabJournal',
+              child: Icon(Icons.book_outlined),
+            ),
             activeIcon: Icon(isOffTab ? Icons.book_outlined : Icons.book),
             label: 'Journal',
           ),

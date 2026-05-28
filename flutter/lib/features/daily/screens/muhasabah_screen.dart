@@ -13,6 +13,7 @@ import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -23,6 +24,7 @@ import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 
 /// Full-screen Muhasabah experience — check-in → deeper → completion.
@@ -151,6 +153,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     final rootNav = Navigator.of(context, rootNavigator: true);
     await rootNav.push(
       PageRouteBuilder(
+        settings: const RouteSettings(name: 'NameRevealOverlay'),
         opaque: true,
         barrierDismissible: false,
         pageBuilder: (_, __, ___) => NameRevealOverlay(
@@ -316,31 +319,35 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           // additional muhasabah is collected at the "Seek Another Name" /
           // "Discover a New Name" entry CTAs, so once the user is in the
           // flow there's no further token gating.
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              notifier.startDeeper();
-            },
-            child: Container(
-              width: double.infinity,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+          TourAnchor(
+            surface: TourSurface.muhasabah,
+            anchorId: 'goDeeperCta',
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                notifier.startDeeper();
+              },
+              child: Container(
+                width: double.infinity,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(100),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'Go Deeper',
+                  style: AppTypography.labelLarge.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
-              child: Text(
-                'Go Deeper',
-                style: AppTypography.labelLarge.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -447,38 +454,42 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               const SizedBox(height: AppSpacing.lg),
               // Button
               if (isAmeen)
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    final tieredUp =
-                        state.cardEngageResult?.tierChanged == true;
-                    notifier.advanceReflectStep();
-                    final qn = ref.read(questsProvider.notifier);
-                    qn.onMuhasabahCompleted();
-                    // Every Muhasabah pulls a card → mark as a discovery.
-                    qn.onNameDiscovered();
-                    if (tieredUp) qn.onCardTieredUp();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(100),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.35),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                TourAnchor(
+                  surface: TourSurface.muhasabah,
+                  anchorId: 'ameenCta',
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      final tieredUp =
+                          state.cardEngageResult?.tierChanged == true;
+                      notifier.advanceReflectStep();
+                      final qn = ref.read(questsProvider.notifier);
+                      qn.onMuhasabahCompleted();
+                      // Every Muhasabah pulls a card → mark as a discovery.
+                      qn.onNameDiscovered();
+                      if (tieredUp) qn.onCardTieredUp();
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 56,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        'Ameen',
+                        style: AppTypography.headlineMedium.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      'Ameen',
-                      style: AppTypography.headlineMedium.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -487,27 +498,42 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     .fadeIn(duration: 500.ms, delay: 500.ms)
                     .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
               else
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    notifier.advanceReflectStep();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.buttonRadius),
+                Builder(builder: (context) {
+                  // Only the step-1 "Read the Story" button is a tour anchor.
+                  // Step 0 ("See Reflection") and step 2 ("See the Dua") are
+                  // intentionally NOT wrapped — see tour step list.
+                  final isReadStory = step == 1;
+                  final button = GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      notifier.advanceReflectStep();
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
+                      child: Text(
+                        buttonLabel,
+                        style: AppTypography.labelLarge
+                            .copyWith(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    child: Text(
-                      buttonLabel,
-                      style: AppTypography.labelLarge
-                          .copyWith(color: Colors.white),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                  );
+                  final wrapped = isReadStory
+                      ? TourAnchor(
+                          surface: TourSurface.muhasabah,
+                          anchorId: 'readStoryCta',
+                          child: button,
+                        )
+                      : button;
+                  return wrapped.animate().fadeIn(
+                      duration: 400.ms, delay: 500.ms);
+                }),
             ],
           ),
         )
@@ -771,23 +797,27 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
                 const SizedBox(height: 24),
                 // Return home
-                GestureDetector(
-                  onTap: () {
-                    // Invalidate economy providers so Home reads fresh
-                    // values after muhasabah rewards are granted (fixes the
-                    // "token pill shows stale 1004 while DB has 1059" bug).
-                    // Order doesn't matter anymore — there's no in-build
-                    // auto-trigger to race against, so the invalidation
-                    // can't accidentally re-fire discoverName.
-                    ref.invalidate(dailyLoopProvider);
-                    ref.invalidate(tierUpScrollProvider);
-                    ref.invalidate(dailyRewardsProvider);
-                    context.go('/');
-                  },
-                  child: Text(
-                    'Return to Home',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
+                TourAnchor(
+                  surface: TourSurface.muhasabah,
+                  anchorId: 'returnHomeCta',
+                  child: GestureDetector(
+                    onTap: () {
+                      // Invalidate economy providers so Home reads fresh
+                      // values after muhasabah rewards are granted (fixes the
+                      // "token pill shows stale 1004 while DB has 1059" bug).
+                      // Order doesn't matter anymore — there's no in-build
+                      // auto-trigger to race against, so the invalidation
+                      // can't accidentally re-fire discoverName.
+                      ref.invalidate(dailyLoopProvider);
+                      ref.invalidate(tierUpScrollProvider);
+                      ref.invalidate(dailyRewardsProvider);
+                      context.go('/');
+                    },
+                    child: Text(
+                      'Return to Home',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.textTertiaryLight,
+                      ),
                     ),
                   ),
                 ).animate().fadeIn(duration: 300.ms, delay: 600.ms),

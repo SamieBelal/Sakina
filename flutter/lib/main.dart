@@ -13,6 +13,7 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
+import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'services/analytics_events.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
@@ -231,7 +232,11 @@ class SakinaApp extends StatelessWidget {
         children: [
           const BillingIssueBanner(),
           const IapToSubUpsellBanner(),
-          Expanded(child: child ?? const SizedBox.shrink()),
+          Expanded(
+            child: OnboardingTourOverlayHost(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         ],
       ),
     );

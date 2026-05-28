@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -31,14 +33,9 @@ import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
-import 'package:sakina/services/analytics_events.dart';
-import 'package:sakina/services/analytics_provider.dart';
-import 'package:sakina/services/app_config_service.dart';
-import 'package:sakina/services/tour_service.dart';
-import 'package:sakina/features/tour/providers/tab_bar_key_provider.dart';
-import 'package:sakina/widgets/coachmark/coachmark_controller.dart';
-import 'package:sakina/widgets/coachmark/coachmark_step.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
+import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 
 /// Resolved hero-tile content for the home dashboard's "Today's Name" /
 /// "Your Starting Name" section. Pure-function output so the day-0 vs
@@ -109,92 +106,20 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
   bool _discoverInFlight = false;
 
-  // Home-tour anchor keys. Per-screen ownership (eng review 1.5).
-  final GlobalKey _muhasabahCtaKey = GlobalKey(debugLabel: 'tour.muhasabahCta');
-  final GlobalKey _streakPillKey = GlobalKey(debugLabel: 'tour.streakPill');
-  CoachmarkController? _tourCtrl;
-
   @override
   void initState() {
     super.initState();
     _checkDiscoveryQuiz();
-    _maybeShowDailyLaunch();
     _maybeShowLapsedTrialSheet();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartHomeTour());
-  }
-
-  @override
-  void dispose() {
-    _tourCtrl?.dispose();
-    super.dispose();
-  }
-
-  /// Fires the Home tour on first launch if eligible. Eligibility:
-  ///   (a) the user is signed in,
-  ///   (b) the `guided_tour_enabled` app_config flag is true (default true),
-  ///   (c) `TourService.shouldShow(userId, TourKey.home)` is true,
-  ///   (d) AppShell has registered its tab bar key (otherwise the 3rd step
-  ///       has nothing to anchor to — we no-op and retry on next launch).
-  Future<void> _maybeStartHomeTour() async {
-    if (!mounted) return;
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    final cfg = ref.read(appConfigServiceProvider);
-    final tourEnabled =
-        await cfg.getBool('guided_tour_enabled', fallback: true);
-    if (!tourEnabled) return;
-
-    final svc = ref.read(tourServiceProvider);
-    if (!await svc.shouldShow(userId, TourKey.home)) return;
-    if (!mounted) return;
-
-    final tabKey = ref.read(tabBarKeyProvider);
-    if (tabKey == null) return; // AppShell hasn't registered yet — retry next launch.
-
-    final analytics = ref.read(analyticsProvider);
-    analytics.track(AnalyticsEvents.tourStarted,
-        properties: {'tour': 'home'});
-    analytics.track(AnalyticsEvents.tourStepViewed,
-        properties: {'tour': 'home', 'step': 0});
-
-    _tourCtrl = CoachmarkController(
-      steps: [
-        CoachmarkStep(target: _muhasabahCtaKey, message: TourCopy.homeStep1),
-        CoachmarkStep(target: _streakPillKey, message: TourCopy.homeStep2),
-        CoachmarkStep(
-          target: tabKey,
-          message: TourCopy.homeStep3,
-          tooltipBelow: false,
-        ),
-      ],
-      onComplete: () async {
-        analytics.track(AnalyticsEvents.tourCompleted,
-            properties: {'tour': 'home'});
-        await svc.markSeen(userId, TourKey.home);
-        // E6 sequenced walk hook: if the user came from Settings → Replay,
-        // continue to the next surface.
-        if (!mounted) return;
-        if (ref.read(guidedSequenceActiveProvider)) {
-          await Future.delayed(const Duration(milliseconds: 280));
-          if (mounted) context.go('/collection');
-        }
-      },
-      onSkip: () async {
-        analytics.track(AnalyticsEvents.tourSkipped,
-            properties: {'tour': 'home'});
-        await svc.markSeen(userId, TourKey.home);
-        if (!mounted) return;
-        // Tear down the sequenced walk on skip — user opted out.
-        ref.read(guidedSequenceActiveProvider.notifier).state = false;
-        // E5 win-back signal: stamps the skip moment for the OneSignal
-        // segment `tour_skipped_no_checkin_3d`.
-        analytics.setUserProperties({
-          'tour_home_skipped_at': DateTime.now().toUtc().toIso8601String(),
-        });
-      },
-    );
-    _tourCtrl!.start(context);
+    // Chain tour-start onto launch-overlay dismissal: when DailyLaunchOverlay
+    // is showing (day-0 starter-name claim, daily reward sheet), the tour
+    // would otherwise punch through and highlight widgets behind it. The
+    // tour controller also has its own route-stack guard in
+    // OnboardingTourOverlayHost as belt-and-braces.
+    _maybeShowDailyLaunch().then((_) {
+      if (!mounted) return;
+      ref.read(onboardingTourControllerProvider.notifier).start();
+    });
   }
 
   /// Fires the LapsedTrialSheet on the first home view after a trial lapses.
@@ -219,23 +144,35 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   Future<void> _maybeShowDailyLaunch() async {
     final should = await shouldShowDailyLaunch();
     if (!mounted) return;
-    if (should) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context, rootNavigator: true).push(
-          PageRouteBuilder(
-            opaque: true,
-            pageBuilder: (_, __, ___) => const DailyLaunchOverlay(),
-            transitionsBuilder: (_, anim, __, child) =>
-                FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 300),
-          ),
-        );
-        setState(() => _launchGateReady = true);
-      });
-    } else {
+    if (!should) {
       setState(() => _launchGateReady = true);
+      return;
     }
+    // Defer the push until after the first frame so the route stack is
+    // ready, then await the route so the returned Future resolves when the
+    // user dismisses the overlay (tour caller depends on this).
+    final completer = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        completer.complete();
+        return;
+      }
+      setState(() => _launchGateReady = true);
+      await Navigator.of(context, rootNavigator: true).push(
+        PageRouteBuilder(
+          // Named so TourRouteObserver can detect it as a blocking route
+          // and hide the tour overlay while it's on top.
+          settings: const RouteSettings(name: 'DailyLaunchOverlay'),
+          opaque: true,
+          pageBuilder: (_, __, ___) => const DailyLaunchOverlay(),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+      completer.complete();
+    });
+    return completer.future;
   }
 
   Future<void> _checkDiscoveryQuiz() async {
@@ -253,19 +190,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
 
-    // Replay-tour re-trigger: Settings "Replay app tour" flips
-    // guidedSequenceActiveProvider to true while we're already mounted
-    // (tab-switch, not full route push). initState's post-frame hook won't
-    // re-run. Listen for the false → true transition and re-fire the Home
-    // tour. The listener fires once per transition (no spam).
-    ref.listen<bool>(guidedSequenceActiveProvider, (prev, next) {
-      if (next && (prev != true)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _maybeStartHomeTour();
-        });
-      }
-    });
+    // Replay-tour re-trigger: Settings "Replay app tour" calls
+    // onboardingTourControllerProvider.replay() directly — the controller
+    // owns the lifecycle, no per-screen hook needed here.
 
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors
@@ -317,7 +244,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       ),
     );
   }
-
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Greeting Row (simple, outside the card)
@@ -479,9 +405,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Streak pill — keyed for the Home tour step 2 coachmark anchor.
-              Container(
-                key: _streakPillKey,
+              // Streak pill — anchored for tour step 6 (post-Muhāsabah
+              // streak teach beat). Registered via TourAnchor so the
+              // OnboardingTourOverlayHost can find it without a per-screen
+              // GlobalKey.
+              TourAnchor(
+                surface: TourSurface.home,
+                anchorId: 'streakPill',
+                child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.streakBackground,
@@ -503,6 +434,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
               const SizedBox(width: 4),
               // Token pill
@@ -737,7 +669,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         .slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
   }
 
-
   // ═══════════════════════════════════════════════════════════════════════════
   // Muhasabah Row (inside dashboard card)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -746,11 +677,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     final sheetContext = context;
     () async {
       final balance = (await getTokens()).balance;
-      final bypassesUsed =
-          await daily_usage.getDiscoverNameBypassesUsedToday();
+      final bypassesUsed = await daily_usage.getDiscoverNameBypassesUsedToday();
       final premium = await PurchaseService().isPremium();
-      final firstBypassEligible =
-          await GatingService().firstBypassEligible();
+      final firstBypassEligible = await GatingService().firstBypassEligible();
       final displayName = await GatingService().displayName();
       if (!sheetContext.mounted) return;
       final notifier = ref.read(dailyLoopProvider.notifier);
@@ -794,11 +723,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         state.checkinDone || state.currentStep != DailyLoopStep.checkin;
     final promptLabel = _buildMuhasabahPromptLabel(state);
 
-    // Tour anchor: single key wraps both conditional branches via KeyedSubtree
-    // so the GlobalKey is never attached to two simultaneously-mounted widgets
-    // (Flutter throws "Multiple widgets used the same GlobalKey" otherwise).
-    return KeyedSubtree(
-      key: _muhasabahCtaKey,
+    // Tour anchor: TourAnchor wraps both conditional branches so the tour
+    // overlay can anchor onto the active CTA (Begin Muḥāsabah today, or
+    // Seek Another Name once checked in). The anchor name doesn't change
+    // even though the underlying widget swaps — that's intentional, the
+    // step name is just "the muhasabah CTA on home".
+    return TourAnchor(
+      surface: TourSurface.home,
+      anchorId: 'beginMuhasabahCta',
       child: _buildMuhasabahRowInner(state, completed, inProgress, promptLabel),
     );
   }
@@ -850,7 +782,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         behavior: HitTestBehavior.opaque,
         child: Row(
           children: [
-            const Icon(Icons.explore_outlined, color: AppColors.secondary, size: 20),
+            const Icon(Icons.explore_outlined,
+                color: AppColors.secondary, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -943,8 +876,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildRewardCalendar() {
     final rewards = ref.watch(dailyRewardsProvider);
-    final isPremium =
-        ref.watch(premiumStateProvider).value?.isPremium ?? false;
+    final isPremium = ref.watch(premiumStateProvider).value?.isPremium ?? false;
     final claimed = rewards.claimedToday;
 
     // When claimed: show a slim collapsed bar, tap to expand full calendar
@@ -1202,12 +1134,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     );
   }
 
-
-
-
-
-
-
   ({int xpIntoCurrentLevel, int xpForNextLevel}) _calculateXpProgress(
       int total) {
     final state = calculateXpState(total);
@@ -1216,5 +1142,4 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       xpForNextLevel: state.xpForNextLevel
     );
   }
-
 }

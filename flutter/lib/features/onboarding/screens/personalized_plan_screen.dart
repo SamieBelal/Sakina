@@ -37,11 +37,10 @@ class PersonalizedPlanScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForCatalogId(state.starterNameId);
-    // Trimmed-flow refactor (2026-05-25, Option α): `commonEmotions` was
-    // removed from OnboardingState. The "You often feel" tile now falls back
-    // to its existing default copy; Phase B copy refresh will rewrite the
-    // tile against the trimmed signals (intention / dua_topics).
-    const struggle = 'Whatever comes up';
+    // Trimmed-flow refactor (2026-05-25, Option α): the "You often feel"
+    // tile was dropped because its source field (`commonEmotions`) was
+    // removed from OnboardingState in the trim. The remaining three tiles
+    // are all populated from real user data captured in the trimmed flow.
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
@@ -55,12 +54,6 @@ class PersonalizedPlanScreen extends ConsumerWidget {
         label: 'First Name in your collection',
         value: translit,
         emphasize: true,
-      ),
-      // ignore: prefer_const_constructors
-      _PlanTile(
-        icon: Icons.favorite_rounded,
-        label: 'You often feel',
-        value: struggle,
       ),
       _PlanTile(
         icon: Icons.schedule_rounded,
