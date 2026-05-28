@@ -72,6 +72,9 @@ class _OnboardingTourOverlayHostState
     _observer.onPop = null;
     _observer.topRouteName.removeListener(_onTopRouteChanged);
     _anchorTimeoutTimer?.cancel();
+    // Ticker.dispose() asserts !isActive in debug builds. Stop first so
+    // a host disposed mid-tour (hot-reload, router rebuild) doesn't crash.
+    if (_trackTicker.isActive) _trackTicker.stop();
     _trackTicker.dispose();
     _entry?.remove();
     _entry = null;

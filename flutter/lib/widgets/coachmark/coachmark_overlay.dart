@@ -142,15 +142,17 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
       final raw = offset & box.size;
       final padTop = widget.step.cutoutPaddingTop;
       if (padTop <= 0) return raw;
-      // Extend the cutout UPWARD by `padTop`. The new rect's top is moved
-      // up, height grows accordingly. Used to include a related widget
-      // (e.g. text field above the Build CTA) inside the same highlight.
-      return Rect.fromLTRB(
-        raw.left,
-        (raw.top - padTop).clamp(0.0, raw.top),
-        raw.right,
-        raw.bottom,
-      );
+      // Extend the cutout UPWARD by `padTop`. Used to include a related
+      // widget (e.g. text field above the Build CTA) inside the same
+      // highlight. The new top is clamped to the safe-area top so the
+      // cutout doesn't extend under the status bar / Dynamic Island. On
+      // small screens this means the expansion may be partial, which is
+      // intentional — the form below stays fully visible inside the
+      // cutout, only the upward extension is truncated.
+      final mq = MediaQuery.maybeOf(ctx);
+      final safeTop = mq?.padding.top ?? 0.0;
+      final newTop = (raw.top - padTop).clamp(safeTop, raw.top);
+      return Rect.fromLTRB(raw.left, newTop, raw.right, raw.bottom);
     } catch (_) {
       return null;
     }
