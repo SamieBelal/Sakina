@@ -138,6 +138,14 @@ class NotificationService {
   bool _cachedOptedIn = false;
   String? _identifiedUserId;
 
+  /// Guards [requestPermissionIfPreviouslyEnabled] to at most one attempt per
+  /// app session. That method is invoked from several lifecycle points
+  /// (economy hydration, onboarding-status check, post-sign-in); without this
+  /// guard a user whose server prefs default to enabled but whose iOS
+  /// permission is denied would be re-evaluated on every trigger and (before
+  /// the fallbackToSettings fix) nagged with the "Open Settings" alert.
+  bool _didAttemptAutoReprompt = false;
+
   Future<void> initialize(String appId) async {
     _cachedOptedIn = await _readCachedPushEnabled();
     if (appId.isEmpty) return;
@@ -173,11 +181,20 @@ class NotificationService {
     }
   }
 
-  Future<bool> requestPermission() async {
+  /// Requests the OS push permission.
+  ///
+  /// [fallbackToSettings] controls OneSignal's behavior once iOS will no
+  /// longer surface its native prompt (i.e. after the user has been asked
+  /// once and declined): when `true`, OneSignal shows an "Open Settings"
+  /// alert; when `false`, the call resolves silently without nagging.
+  /// Defaults to `true` for explicit, user-initiated requests (onboarding
+  /// enable button, Settings toggle via [optIn]). The automatic background
+  /// re-prompt path passes `false` — see [requestPermissionIfPreviouslyEnabled].
+  Future<bool> requestPermission({bool fallbackToSettings = true}) async {
     if (!_initialized) return false;
 
     try {
-      final granted = await _client.requestPermission(true);
+      final granted = await _client.requestPermission(fallbackToSettings);
       if (granted) {
         _cachedOptedIn = true;
         await _writeCachedPushEnabled(true);
@@ -376,13 +393,40 @@ class NotificationService {
   }
 
   /// For returning users after reinstall: if the server shows they previously
-  /// had notifications enabled but the device doesn't have permission, request it.
+  /// had notifications enabled but the device doesn't have permission, request
+  /// it. This is the AUTOMATIC, background path — it runs off app lifecycle
+  /// events, not a user tap.
+  ///
+  /// Two protections keep this from becoming a per-launch annoyance:
+  ///   1. **Never falls back to the iOS "Open Settings" nag.** It requests
+  ///      with `fallbackToSettings: false`. On a genuine reinstall iOS
+  ///      permission is reset, so the native prompt can still show (the
+  ///      intended recovery); a user who merely declined gets a silent no-op
+  ///      instead of being pushed to Settings on every cold launch. The
+  ///      "Open Settings" affordance is reserved for explicit user action
+  ///      (the Settings toggle via [optIn]).
+  ///   2. **At most one attempt per app session.** The method is called from
+  ///      multiple lifecycle points (hydration / onboarding-status check /
+  ///      post-sign-in); the [_didAttemptAutoReprompt] flag is set before the
+  ///      first `await` so concurrent triggers can't race past the guard.
+  ///
+  /// Note: the per-pref "had notifications on" check below is satisfied for
+  /// essentially every account — the server defaults all `notify_*` columns
+  /// to true and the signup trigger seeds a row per user — so it only filters
+  /// out users who have explicitly turned every category off. The real
+  /// protection against nagging is the two points above, not this gate.
   Future<void> requestPermissionIfPreviouslyEnabled() async {
     if (!_initialized) return;
+    if (_didAttemptAutoReprompt) return;
     if (_client.isPermissionGranted) return;
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
+
+    // Commit the session's single attempt now, before any `await`, so the
+    // several lifecycle triggers can't each slip past the guard above and
+    // fire overlapping requests.
+    _didAttemptAutoReprompt = true;
 
     try {
       final row = await supabaseSyncService.fetchRow(
@@ -405,7 +449,8 @@ class NotificationService {
           (row[notifyUpdatesTagKey] as bool? ?? false);
       if (!hadNotificationsOn) return;
 
-      await requestPermission();
+      // Automatic path: no "Open Settings" fallback — see method doc.
+      await requestPermission(fallbackToSettings: false);
     } catch (error) {
       debugPrint(
           'notification requestPermissionIfPreviouslyEnabled failed: $error');

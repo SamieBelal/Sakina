@@ -11,6 +11,11 @@ class FakeOneSignalClient implements OneSignalClient {
   int logoutCalls = 0;
   bool permissionGranted = false;
   bool requestPermissionResult = false;
+
+  /// Records every `requestPermission` call's `fallbackToSettings` arg, in
+  /// order. Length == number of calls; values let tests assert the auto path
+  /// never triggers the iOS "Open Settings" nag (fallbackToSettings == false).
+  final List<bool> requestPermissionFallbackArgs = <bool>[];
   bool optInCalled = false;
   bool optOutCalled = false;
   bool? optedIn = false;
@@ -35,6 +40,7 @@ class FakeOneSignalClient implements OneSignalClient {
 
   @override
   Future<bool> requestPermission(bool fallbackToSettings) async {
+    requestPermissionFallbackArgs.add(fallbackToSettings);
     permissionGranted = requestPermissionResult;
     return requestPermissionResult;
   }
@@ -264,6 +270,119 @@ void main() {
       isNull,
       reason: 'verified_at must NOT be stamped when permission is denied',
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Auto re-prompt (requestPermissionIfPreviouslyEnabled)
+  //
+  // Regression for the "Open Settings" nag loop: server prefs default to ON
+  // for every account (signup trigger seeds the row, columns default true), so
+  // a user who declined iOS permission would be re-prompted with the OneSignal
+  // "Open Settings" alert on every lifecycle trigger. Two protections:
+  //   1. The auto path requests with fallbackToSettings == false (no nag).
+  //   2. At most one attempt per app session.
+  // ---------------------------------------------------------------------------
+
+  Map<String, dynamic> allPrefsOnRow() => <String, dynamic>{
+        notifyDailyTagKey: true,
+        notifyStreakTagKey: true,
+        notifyReengagementTagKey: true,
+        notifyWeeklyTagKey: true,
+        notifyUpdatesTagKey: true,
+      };
+
+  test(
+      'requestPermissionIfPreviouslyEnabled requests WITHOUT the Settings fallback (no nag)',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = false; // iOS permission denied
+    client.requestPermissionResult = false; // and stays denied
+    syncService.rows['user_notification_preferences:user-1'] = allPrefsOnRow();
+
+    await service.requestPermissionIfPreviouslyEnabled();
+
+    expect(client.requestPermissionFallbackArgs, <bool>[false],
+        reason:
+            'auto re-prompt must call requestPermission(false) — never the '
+            '"Open Settings" fallback that nags denied users every launch');
+  });
+
+  test(
+      'requestPermissionIfPreviouslyEnabled fires at most once per session',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = false;
+    client.requestPermissionResult = false;
+    syncService.rows['user_notification_preferences:user-1'] = allPrefsOnRow();
+
+    // Simulate the three lifecycle triggers (hydration / onboarding-check /
+    // post-sign-in) all firing within one app session.
+    await service.requestPermissionIfPreviouslyEnabled();
+    await service.requestPermissionIfPreviouslyEnabled();
+    await service.requestPermissionIfPreviouslyEnabled();
+
+    expect(client.requestPermissionFallbackArgs.length, 1,
+        reason: 'session guard must collapse repeated triggers to one attempt');
+  });
+
+  test(
+      'requestPermissionIfPreviouslyEnabled is a no-op when iOS permission is already granted',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = true; // already granted — nothing to recover
+    syncService.rows['user_notification_preferences:user-1'] = allPrefsOnRow();
+
+    await service.requestPermissionIfPreviouslyEnabled();
+
+    expect(client.requestPermissionFallbackArgs, isEmpty,
+        reason: 'must not request when permission is already granted');
+  });
+
+  test(
+      'requestPermissionIfPreviouslyEnabled does not request when every category is off',
+      () async {
+    await service.initialize('test-app');
+    client.permissionGranted = false;
+    syncService.rows['user_notification_preferences:user-1'] =
+        <String, dynamic>{
+      notifyDailyTagKey: false,
+      notifyStreakTagKey: false,
+      notifyReengagementTagKey: false,
+      notifyWeeklyTagKey: false,
+      notifyUpdatesTagKey: false,
+    };
+
+    await service.requestPermissionIfPreviouslyEnabled();
+
+    expect(client.requestPermissionFallbackArgs, isEmpty,
+        reason: 'a user who turned every category off must not be re-prompted');
+  });
+
+  test(
+      'requestPermissionIfPreviouslyEnabled is a no-op before initialize',
+      () async {
+    // Not initialized — must not touch the SDK.
+    client.permissionGranted = false;
+    syncService.rows['user_notification_preferences:user-1'] = allPrefsOnRow();
+
+    await service.requestPermissionIfPreviouslyEnabled();
+
+    expect(client.requestPermissionFallbackArgs, isEmpty);
+  });
+
+  test(
+      'explicit requestPermission keeps the Settings fallback (user-initiated)',
+      () async {
+    // The onboarding enable button / Settings toggle path must still use the
+    // "Open Settings" fallback so a user who deliberately enables while denied
+    // is taken to Settings.
+    await service.initialize('test-app');
+    client.requestPermissionResult = true;
+
+    await service.requestPermission();
+
+    expect(client.requestPermissionFallbackArgs, <bool>[true],
+        reason: 'explicit user-initiated request defaults fallbackToSettings=true');
   });
 
   test('getNotificationPreferences returns Supabase-backed preferences',
