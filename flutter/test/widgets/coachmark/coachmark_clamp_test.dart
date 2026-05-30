@@ -105,6 +105,28 @@ void main() {
     expect(find.text('Open the reflection.'), findsOneWidget);
   });
 
+  testWidgets('tab-cell expansion (bottom + horizontal padding) renders',
+      (tester) async {
+    // Mirrors the bottom-nav tab steps: a small icon-sized anchor near the
+    // bottom grown via cutoutPaddingBottom + cutoutPaddingX into a full cell.
+    await pumpOverlay(
+      tester,
+      align: Alignment.bottomCenter,
+      targetW: 24,
+      targetH: 24,
+      buildStep: (key) => CoachmarkStep(
+        target: key,
+        message: 'Your earned card lives in your Collection.',
+        interactive: true,
+        cutoutPaddingBottom: 24,
+        cutoutPaddingX: 24,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Your earned card lives in your Collection.'),
+        findsOneWidget);
+  });
+
   testWidgets('bottom-edge anchor on short viewport does not throw',
       (tester) async {
     // Forces the above-placement (tooltip rendered above a bottom-docked

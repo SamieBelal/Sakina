@@ -193,8 +193,7 @@ void main() {
     await service.getNotificationPreferences();
     final after = DateTime.now().toUtc();
 
-    final stamp = syncService
-            .rows['user_notification_preferences:user-1']
+    final stamp = syncService.rows['user_notification_preferences:user-1']
         ?['push_enabled_last_verified_at'] as String?;
     expect(stamp, isNotNull,
         reason: 'verified_at must be written when perm is granted');
@@ -229,8 +228,7 @@ void main() {
     await service.getNotificationPreferences();
 
     expect(
-      syncService
-              .rows['user_notification_preferences:user-1']
+      syncService.rows['user_notification_preferences:user-1']
           ?['push_enabled_last_verified_at'],
       isNull,
       reason:
@@ -246,16 +244,14 @@ void main() {
     final result = await service.optIn();
     expect(result, isTrue);
 
-    final stamp = syncService
-            .rows['user_notification_preferences:user-1']
+    final stamp = syncService.rows['user_notification_preferences:user-1']
         ?['push_enabled_last_verified_at'] as String?;
     expect(stamp, isNotNull,
         reason: 'optIn() must stamp verified_at after granting perm');
     expect(DateTime.parse(stamp!).toUtc().isBefore(before), isFalse);
   });
 
-  test('optIn does NOT stamp verified_at when iOS denies permission',
-      () async {
+  test('optIn does NOT stamp verified_at when iOS denies permission', () async {
     await service.initialize('test-app');
     client.permissionGranted = false;
     client.requestPermissionResult = false;
@@ -263,8 +259,7 @@ void main() {
     final result = await service.optIn();
     expect(result, isFalse);
     expect(
-      syncService
-              .rows['user_notification_preferences:user-1']
+      syncService.rows['user_notification_preferences:user-1']
           ?['push_enabled_last_verified_at'],
       isNull,
       reason: 'verified_at must NOT be stamped when permission is denied',
@@ -450,6 +445,16 @@ void main() {
     expect(navigatedRoutes, <String>['/journal']);
   });
 
+  test('click listener routes tour_replay to the Settings replay action',
+      () async {
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    client.dispatchClick(<String, dynamic>{'type': 'tour_replay'});
+
+    expect(navigatedRoutes, <String>['/settings?action=replay_tour']);
+  });
+
   test('click listener routes reengagement to home', () async {
     await service.initialize('app-id');
     service.addClickListener();
@@ -469,7 +474,8 @@ void main() {
     expect(navigatedRoutes, <String>['/', '/']);
   });
 
-  test('optOut writes push_enabled=false to Supabase without touching OneSignal',
+  test(
+      'optOut writes push_enabled=false to Supabase without touching OneSignal',
       () async {
     await service.initialize('app-id');
 
@@ -478,8 +484,7 @@ void main() {
     expect(client.optOutCalled, isFalse); // no SDK opt-out anymore
     expect(isOptedIn, isFalse);
     expect(
-      syncService.rows['user_notification_preferences:user-1']
-          ?['push_enabled'],
+      syncService.rows['user_notification_preferences:user-1']?['push_enabled'],
       isFalse,
     );
   });
@@ -494,13 +499,13 @@ void main() {
     expect(client.optInCalled, isFalse); // no SDK opt-in anymore
     expect(isOptedIn, isTrue);
     expect(
-      syncService.rows['user_notification_preferences:user-1']
-          ?['push_enabled'],
+      syncService.rows['user_notification_preferences:user-1']?['push_enabled'],
       isTrue,
     );
   });
 
-  test('optIn returns false and writes push_enabled=false when iOS denies permission',
+  test(
+      'optIn returns false and writes push_enabled=false when iOS denies permission',
       () async {
     await service.initialize('app-id');
     client.permissionGranted = false;
@@ -510,8 +515,7 @@ void main() {
 
     expect(isOptedIn, isFalse);
     expect(
-      syncService.rows['user_notification_preferences:user-1']
-          ?['push_enabled'],
+      syncService.rows['user_notification_preferences:user-1']?['push_enabled'],
       isFalse,
     );
   });

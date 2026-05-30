@@ -85,6 +85,12 @@ class _OnboardingTourOverlayHostState
     if (!mounted) return;
     // Rebuild the overlay entry when a blocking modal pops on or off.
     _entry?.markNeedsBuild();
+    // A blocking route cancels the anchor timeout. Reconcile after the
+    // route transition so the timer is re-armed when that modal closes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncOverlay();
+    });
   }
 
   void _onRoutePopped(Route<dynamic> route, Route<dynamic>? prev) {
@@ -193,8 +199,9 @@ class _OnboardingTourOverlayHostState
   /// forever waiting on a rect that will never come.
   bool _anchorResolvable(OnboardingTourStepDef step) {
     if (step.anchorId == 'centered') return true;
-    final key =
-        ref.read(tourAnchorRegistryProvider).lookup(step.surface, step.anchorId);
+    final key = ref
+        .read(tourAnchorRegistryProvider)
+        .lookup(step.surface, step.anchorId);
     final ctx = key?.currentContext;
     if (ctx == null || !ctx.mounted) return false;
     final ro = ctx.findRenderObject();
@@ -222,9 +229,9 @@ class _OnboardingTourOverlayHostState
       if (current.currentStep?.id != pinnedStepId) return;
       try {
         ref.read(analyticsProvider).track(
-              AnalyticsEvents.tourAnchorTimeout,
-              properties: {'step_id': pinnedStepId},
-            );
+          AnalyticsEvents.tourAnchorTimeout,
+          properties: {'step_id': pinnedStepId},
+        );
       } catch (_) {}
       ref
           .read(onboardingTourControllerProvider.notifier)
@@ -255,6 +262,8 @@ class _OnboardingTourOverlayHostState
       interactive: step.interactive,
       hint: step.hint,
       cutoutPaddingTop: step.cutoutPaddingTop,
+      cutoutPaddingBottom: step.cutoutPaddingBottom,
+      cutoutPaddingX: step.cutoutPaddingX,
     );
 
     // No `key` — same CoachmarkOverlay instance persists across step

@@ -200,7 +200,9 @@ class OnboardingState {
     if (version < 7) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
-    currentPage = currentPage.clamp(0, onboardingLastPageIndex);
+    // Preserve rollback-path pages until OnboardingScreen resolves the
+    // server-driven flow flag. Trimmed mode re-clamps after resolution.
+    currentPage = currentPage.clamp(0, onboardingLegacyLastPageIndex);
 
     Set<String> readSet(dynamic raw) =>
         (raw as List<dynamic>?)?.map((e) => e as String).toSet() ?? const {};
@@ -528,7 +530,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         await PurchaseService().refreshGiftPremiumCache();
       }
     } catch (e, stack) {
-      debugPrint('[Onboarding] referral confirm failed (non-fatal): $e\n$stack');
+      debugPrint(
+          '[Onboarding] referral confirm failed (non-fatal): $e\n$stack');
     }
 
     // Mark onboarded in the single source of truth
@@ -545,4 +548,3 @@ final onboardingProvider =
     authService: ref.read(authServiceProvider),
   ),
 );
-

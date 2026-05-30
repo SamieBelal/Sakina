@@ -141,22 +141,32 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
       final offset = box.localToGlobal(Offset.zero);
       final raw = offset & box.size;
       final padTop = widget.step.cutoutPaddingTop;
-      if (padTop <= 0) return raw;
-      // Extend the cutout UPWARD by `padTop`. Used to include a related
-      // widget (e.g. text field above the Build CTA) inside the same
-      // highlight. The new top is clamped to the safe-area top so the
-      // cutout doesn't extend under the status bar / Dynamic Island. On
-      // small screens this means the expansion may be partial, which is
-      // intentional — the form below stays fully visible inside the
-      // cutout, only the upward extension is truncated.
+      final padBottom = widget.step.cutoutPaddingBottom;
+      final padX = widget.step.cutoutPaddingX;
+      if (padTop <= 0 && padBottom <= 0 && padX <= 0) return raw;
+      // Grow the cutout beyond the bare anchor. `padTop` pulls the top edge up
+      // (e.g. Duas Build includes the text field above the CTA); `padBottom` +
+      // `padX` grow a small centered anchor into its container (e.g. a bottom-
+      // nav icon into the full tab cell, so the tab's text label is highlighted
+      // too). Every edge is clamped to the screen / safe area so the rect can
+      // never invert (which would throw) or spill off-screen.
       final mq = MediaQuery.maybeOf(ctx);
       final safeTop = mq?.padding.top ?? 0.0;
-      // Guard against clamp inversion: a top-docked anchor can sit above the
-      // safe-area inset (raw.top < safeTop), which would make clamp(lo > hi)
-      // throw — and the bare catch below would silently drop the cutout.
-      final clampLo = safeTop < raw.top ? safeTop : raw.top;
-      final newTop = (raw.top - padTop).clamp(clampLo, raw.top);
-      return Rect.fromLTRB(raw.left, newTop, raw.right, raw.bottom);
+      final size = mq?.size;
+      final screenW = size?.width ?? raw.right;
+      final screenH = size?.height ?? raw.bottom;
+      // Top: don't extend under the status bar / Dynamic Island. Guard against
+      // inversion when a top-docked anchor sits above the safe-area inset.
+      final topLo = safeTop < raw.top ? safeTop : raw.top;
+      final newTop = (raw.top - padTop).clamp(topLo, raw.top);
+      // Bottom: extend down, never past the screen edge.
+      final bottomHi = screenH > raw.bottom ? screenH : raw.bottom;
+      final newBottom = (raw.bottom + padBottom).clamp(raw.bottom, bottomHi);
+      // Horizontal: expand both sides, clamped within the screen.
+      final newLeft = (raw.left - padX).clamp(0.0, raw.left);
+      final rightHi = screenW > raw.right ? screenW : raw.right;
+      final newRight = (raw.right + padX).clamp(raw.right, rightHi);
+      return Rect.fromLTRB(newLeft, newTop, newRight, newBottom);
     } catch (_) {
       return null;
     }

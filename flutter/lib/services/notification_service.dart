@@ -260,7 +260,8 @@ class NotificationService {
       'user_notification_preferences',
       userId,
       <String, dynamic>{
-        'push_enabled_last_verified_at': DateTime.now().toUtc().toIso8601String(),
+        'push_enabled_last_verified_at':
+            DateTime.now().toUtc().toIso8601String(),
       },
     );
   }
@@ -346,8 +347,7 @@ class NotificationService {
             try {
               await _writePushEnabledVerifiedAtToSupabase();
             } catch (error) {
-              debugPrint(
-                  'notification verified_at stamp failed: $error');
+              debugPrint('notification verified_at stamp failed: $error');
             }
           }
 
@@ -456,6 +456,8 @@ class NotificationService {
     switch (type) {
       case 'weekly_reflection':
         return '/journal';
+      case 'tour_replay':
+        return '/settings?action=replay_tour';
       case 'daily_reminder':
       case 'streak_risk':
       case 'streak_milestone':

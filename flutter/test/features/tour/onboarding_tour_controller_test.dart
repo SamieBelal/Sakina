@@ -3,6 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_service.dart';
+
+class _SpyAnalyticsService extends AnalyticsService {
+  final userPropertiesCalls = <Map<String, dynamic>>[];
+
+  @override
+  void setUserProperties(Map<String, dynamic> props) {
+    userPropertiesCalls.add(Map<String, dynamic>.from(props));
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +82,10 @@ void main() {
     test('skip() at step 5 transitions to skipped + marks seen flag', () async {
       // Pre-populate prefs with no flag so the assertion below is meaningful.
       SharedPreferences.setMockInitialValues({});
-      final container = ProviderContainer();
+      final analytics = _SpyAnalyticsService();
+      final container = ProviderContainer(
+        overrides: [analyticsProvider.overrideWithValue(analytics)],
+      );
       addTearDown(container.dispose);
       final notifier =
           container.read(onboardingTourControllerProvider.notifier);
@@ -83,6 +97,10 @@ void main() {
       await notifier.skip();
       expect(container.read(onboardingTourControllerProvider).status,
           TourStatus.skipped);
+      expect(
+        analytics.userPropertiesCalls.single,
+        containsPair('tour_home_skipped_at', isA<String>()),
+      );
       // Seen flag persistence is tested indirectly: if it were unset, a
       // subsequent start() would re-activate. The flag uses the current
       // authed user's id which is null in tests — we just verify status

@@ -84,5 +84,34 @@ void main() {
           reason: 'CEO review (2026-05-26) cut Reflect from the tour — it '
               'duplicates muhasabah\'s text-input + AI-response pattern');
     });
+
+    test('bottom-nav tab steps grow the cutout into the full tab cell', () {
+      // The tab anchors wrap the ICON only; without horizontal + downward
+      // padding the cutout would spotlight just the glyph and leave the tab
+      // label greyed under the scrim. Pin that all three tab steps request the
+      // full-cell expansion so a future edit can't silently regress it.
+      const tabAnchorIds = {'tabCollection', 'tabDuas', 'tabJournal'};
+      final tabSteps = kOnboardingTourSteps
+          .where((s) => tabAnchorIds.contains(s.anchorId))
+          .toList();
+      expect(tabSteps.length, 3, reason: 'expected 3 bottom-nav tab steps');
+      for (final step in tabSteps) {
+        expect(step.cutoutPaddingX, greaterThan(0),
+            reason: '${step.id} must widen the cutout to cover the tab label');
+        expect(step.cutoutPaddingBottom, greaterThan(0),
+            reason: '${step.id} must extend the cutout down over the label');
+      }
+    });
+
+    test('non-tab steps do not use tab-cell cutout padding', () {
+      const tabAnchorIds = {'tabCollection', 'tabDuas', 'tabJournal'};
+      for (final step in kOnboardingTourSteps) {
+        if (tabAnchorIds.contains(step.anchorId)) continue;
+        expect(step.cutoutPaddingX, 0,
+            reason: '${step.id} unexpectedly expands horizontally');
+        expect(step.cutoutPaddingBottom, 0,
+            reason: '${step.id} unexpectedly expands downward');
+      }
+    });
   });
 }

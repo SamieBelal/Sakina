@@ -30,6 +30,8 @@ class OnboardingTourStepDef {
     this.tooltipBelow = true,
     this.hint,
     this.cutoutPaddingTop = 0,
+    this.cutoutPaddingBottom = 0,
+    this.cutoutPaddingX = 0,
   });
 
   /// Stable identifier for analytics. Format: `<surface>.<short-name>`.
@@ -62,7 +64,29 @@ class OnboardingTourStepDef {
   /// text field, since the user needs to type before tapping Build).
   /// Default 0 = cutout matches target exactly.
   final double cutoutPaddingTop;
+
+  /// Extra pixels to extend the cutout rect downward beyond the target.
+  /// Used to grow a small anchor into its full container — e.g. the bottom-nav
+  /// tab steps anchor on the icon glyph only, so the cutout extends down to
+  /// include the tab's text label. Default 0.
+  final double cutoutPaddingBottom;
+
+  /// Extra pixels to expand the cutout rect on BOTH horizontal sides beyond
+  /// the target. Pairs with [cutoutPaddingBottom] to grow a centered icon
+  /// anchor into a full tab-cell highlight (icon + label). Default 0.
+  final double cutoutPaddingX;
 }
+
+/// Cutout padding that grows a bottom-nav tab's ICON anchor into its full
+/// ~78×56pt cell, so the tab's text label is highlighted alongside the icon
+/// instead of sitting greyed-out under the scrim. `X` (each side) widens the
+/// ~24pt icon to comfortably cover the label without bleeding into neighbouring
+/// tabs; `Bottom` reaches down past the label; `Top` lifts to the cell top.
+/// All edges are clamped to the screen in `_targetRect`, so over-estimating is
+/// safe. Shared by the three interactive tab steps.
+const double kTabCutoutPadX = 24;
+const double kTabCutoutPadBottom = 24;
+const double kTabCutoutPadTop = 8;
 
 /// The 13 steps of the interactive guided onboarding tour.
 ///
@@ -133,6 +157,11 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     interactive: true,
     tooltipBelow: false,
     hint: 'Tap to continue ↗',
+    // Anchor is the tab ICON only; grow the cutout into the full tab cell so
+    // the "Collection" label is highlighted too (not greyed under the scrim).
+    cutoutPaddingTop: kTabCutoutPadTop,
+    cutoutPaddingBottom: kTabCutoutPadBottom,
+    cutoutPaddingX: kTabCutoutPadX,
   ),
   OnboardingTourStepDef(
     id: 'appShell.tabDuasFromCollection',
@@ -142,6 +171,10 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     interactive: true,
     tooltipBelow: false,
     hint: 'Tap to continue ↗',
+    // Grow the icon anchor into the full tab cell (icon + "Duas" label).
+    cutoutPaddingTop: kTabCutoutPadTop,
+    cutoutPaddingBottom: kTabCutoutPadBottom,
+    cutoutPaddingX: kTabCutoutPadX,
   ),
   // Phase C — First dua
   OnboardingTourStepDef(
@@ -176,6 +209,10 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     interactive: true,
     tooltipBelow: false,
     hint: 'Tap to continue ↗',
+    // Grow the icon anchor into the full tab cell (icon + "Journal" label).
+    cutoutPaddingTop: kTabCutoutPadTop,
+    cutoutPaddingBottom: kTabCutoutPadBottom,
+    cutoutPaddingX: kTabCutoutPadX,
   ),
   // Phase D — Save/recall loop closure
   OnboardingTourStepDef(

@@ -11,6 +11,8 @@ class CoachmarkStep {
     this.interactive = true,
     this.hint,
     this.cutoutPaddingTop = 0,
+    this.cutoutPaddingBottom = 0,
+    this.cutoutPaddingX = 0,
   });
 
   /// The widget the coachmark anchors to. Caller is responsible for the
@@ -40,4 +42,13 @@ class CoachmarkStep {
   /// tap target (e.g. Duas Build step extends upward to include the text
   /// field). Default 0 = cutout matches target exactly.
   final double cutoutPaddingTop;
+
+  /// Pixels to extend the cutout rect downward beyond the target — used to
+  /// grow a small anchor (e.g. a bottom-nav icon) into its full cell so the
+  /// label below is included. Default 0.
+  final double cutoutPaddingBottom;
+
+  /// Pixels to expand the cutout on both horizontal sides beyond the target.
+  /// Pairs with [cutoutPaddingBottom] for a full tab-cell highlight. Default 0.
+  final double cutoutPaddingX;
 }

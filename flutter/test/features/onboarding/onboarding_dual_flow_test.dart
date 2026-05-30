@@ -86,6 +86,18 @@ void main() {
     expect(find.byType(PageView), findsOneWidget);
   });
 
+  test(
+      'T11 REGRESSION: persisted v7 state preserves pages beyond the trimmed '
+      'max for legacy rollback', () {
+    final restored = OnboardingState.fromJson({
+      'version': 7,
+      'currentPage': onboardingLegacyLastPageIndex,
+    });
+
+    expect(restored.currentPage, onboardingLegacyLastPageIndex);
+    expect(restored.currentPage, greaterThan(onboardingLastPageIndex));
+  });
+
   group('activeOnboardingLastPageIndex (H1/M2 dual-flow bound)', () {
     test('trimmed flow returns the trimmed last index', () {
       expect(

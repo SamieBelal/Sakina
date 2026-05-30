@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
+import 'package:sakina/features/tour/providers/tour_route_observer.dart';
 import 'package:sakina/features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'package:sakina/widgets/achievement_toast.dart' show rootNavigatorKey;
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
@@ -71,5 +72,49 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.text(step0.message), findsOneWidget);
+  });
+
+  testWidgets('missing-anchor timeout re-arms after a blocking route pops',
+      (tester) async {
+    late BuildContext navigatorContext;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingTourControllerProvider
+              .overrideWith((ref) => _ActiveAtStep(ref, 0)),
+        ],
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          navigatorObservers: [tourRouteObserver],
+          home: OnboardingTourOverlayHost(
+            child: Builder(
+              builder: (context) {
+                navigatorContext = context;
+                return const Scaffold(body: SizedBox.shrink());
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    Navigator.of(navigatorContext).push<void>(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: 'LapsedTrialSheet'),
+        builder: (_) => const SizedBox.shrink(),
+      ),
+    );
+    await tester.pump();
+    expect(tourRouteObserver.isBlockingRouteOnTop, true);
+
+    Navigator.of(navigatorContext).pop();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 61));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(OnboardingTourOverlayHost)),
+    );
+    expect(container.read(onboardingTourControllerProvider).index, 1);
   });
 }

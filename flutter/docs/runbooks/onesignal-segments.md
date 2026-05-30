@@ -13,11 +13,15 @@ Filters (AND):
 2. User property `last_checkin_at` (or equivalent — confirm field name in app
    schema) is `> 3 days ago`
 
+Before activating the segment, verify the dashboard ingestion path exposes the
+Mixpanel people property `tour_home_skipped_at` to OneSignal.
+
 ### Template: `win_back_tour_replay`
 
 - **Title:** Want me to show you around?
 - **Body:** Tap to retake the Sakina tour — 30 seconds.
-- **Deep link:** `sakina://settings?action=replay_tour`
+- **Additional data:** `type=tour_replay`
+- **App route:** `/settings?action=replay_tour`
 - **Locale:** English only at launch (i18n deferred — see TODO.md).
 
 ### Schedule

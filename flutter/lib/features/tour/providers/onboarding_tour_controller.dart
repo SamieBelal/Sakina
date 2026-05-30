@@ -138,6 +138,9 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     await _markSeen();
     state = state.copyWith(status: TourStatus.skipped);
     _track(AnalyticsEvents.tourSkipped, {'at_step_id': atStep});
+    _setUserProperties({
+      'tour_home_skipped_at': DateTime.now().toUtc().toIso8601String(),
+    });
   }
 
   /// Reset + restart at step 1. Called from Settings "Replay app tour".
@@ -176,6 +179,14 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     try {
       final analytics = _ref.read(analyticsProvider);
       analytics.track(event, properties: props.isEmpty ? null : props);
+    } catch (_) {
+      // Analytics is best-effort. A failure here must not break the tour.
+    }
+  }
+
+  void _setUserProperties(Map<String, dynamic> props) {
+    try {
+      _ref.read(analyticsProvider).setUserProperties(props);
     } catch (_) {
       // Analytics is best-effort. A failure here must not break the tour.
     }
