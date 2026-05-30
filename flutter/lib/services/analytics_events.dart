@@ -203,8 +203,8 @@ abstract final class AnalyticsEvents {
   static const String tourAnchorTimeout = 'tour_anchor_timeout';
   static const String tourStartSkipped = 'tour_start_skipped';
 
-  // Keep in sync with the PageView in onboarding_screen.dart (27 pages, 0-26
-  // when Env.ratingGateEnabled is true; 26 pages, 0-25 when false).
+  // LEGACY 27-page flow step names (0-26 when Env.ratingGateEnabled is true;
+  // 0-25 when false). Active only when `onboarding_trim_enabled=false`.
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
   // PersonalizedPlanScreen pair moved from pages 16-17 into the paywall flow
   // at pages 22-23; YourJourneyScreen new at page 24; paywall at page 25.
@@ -240,11 +240,46 @@ abstract final class AnalyticsEvents {
     25: 'rating_gate',
     26: 'paywall',
   };
+
+  // TRIMMED 20-page flow step names (0-19 when Env.ratingGateEnabled is true;
+  // 0-18 when false — index 18 rating_gate is skipped, paywall shifts to 18).
+  // Active by default (`onboarding_trim_enabled=true`). Must stay in sync with
+  // _trimmedChildren() in onboarding_screen.dart and the trimmed page-index
+  // doc in onboarding_provider.dart. See docs/superpowers/plans/
+  // 2026-05-25-onboarding-trim-guided-tour.md.
+  static const trimmedStepNames = <int, String>{
+    0: 'first_checkin',
+    1: 'name_input',
+    2: 'age_range',
+    3: 'intention',
+    4: 'prayer_frequency',
+    5: 'familiarity',
+    6: 'dua_topics',
+    7: 'daily_commitment',
+    8: 'attribution',
+    9: 'reminder_time',
+    10: 'notifications',
+    11: 'commitment_pact',
+    12: 'social_proof',
+    13: 'save_progress',
+    14: 'signup_email',
+    15: 'signup_password',
+    16: 'paywall_flow_loader',
+    17: 'paywall_flow_plan',
+    18: 'rating_gate',
+    19: 'paywall',
+  };
+
+  /// Resolves the step-name map for the active onboarding flow. Centralized so
+  /// callers in onboarding_screen.dart pick the correct labels at runtime.
+  static Map<int, String> stepNamesFor({required bool trimmed}) =>
+      trimmed ? trimmedStepNames : stepNames;
 }
 
 extension AnalyticsHelpers on AnalyticsService {
-  void trackStepViewed(int index) {
-    final name = AnalyticsEvents.stepNames[index] ?? 'unknown';
+  void trackStepViewed(int index, {required bool trimmed}) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: trimmed)[index] ??
+        'unknown';
     timeEvent(AnalyticsEvents.onboardingStepCompleted);
     track(AnalyticsEvents.onboardingStepViewed, properties: {
       'step_index': index,
@@ -252,8 +287,9 @@ extension AnalyticsHelpers on AnalyticsService {
     });
   }
 
-  void trackStepCompleted(int index) {
-    final name = AnalyticsEvents.stepNames[index] ?? 'unknown';
+  void trackStepCompleted(int index, {required bool trimmed}) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: trimmed)[index] ??
+        'unknown';
     track(AnalyticsEvents.onboardingStepCompleted, properties: {
       'step_index': index,
       'step_name': name,

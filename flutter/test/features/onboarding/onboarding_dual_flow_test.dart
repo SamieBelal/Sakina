@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/core/env.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
+import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/services/app_config_service.dart';
 
 import 'screens/_test_utils.dart';
@@ -82,5 +84,59 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(PageView), findsOneWidget);
+  });
+
+  group('activeOnboardingLastPageIndex (H1/M2 dual-flow bound)', () {
+    test('trimmed flow returns the trimmed last index', () {
+      expect(
+        activeOnboardingLastPageIndex(trimmed: true),
+        onboardingLastPageIndex,
+      );
+      // Sanity: trimmed paywall is 19 (rating gate on) / 18 (off).
+      expect(onboardingLastPageIndex, Env.ratingGateEnabled ? 19 : 18);
+    });
+
+    test('legacy flow returns the legacy last index (26 with rating gate)', () {
+      expect(
+        activeOnboardingLastPageIndex(trimmed: false),
+        onboardingLegacyLastPageIndex,
+      );
+      expect(onboardingLegacyLastPageIndex, Env.ratingGateEnabled ? 26 : 25);
+    });
+
+    test(
+        'H1: legacy bound is past the trimmed index so _next can reach the '
+        'legacy paywall (regression — was capped at trimmed 19)', () {
+      // The bug: _next used onboardingLastPageIndex (19) unconditionally,
+      // stranding legacy users. The active bound must exceed 19 for legacy.
+      expect(
+        activeOnboardingLastPageIndex(trimmed: false),
+        greaterThan(activeOnboardingLastPageIndex(trimmed: true)),
+      );
+      expect(activeOnboardingLastPageIndex(trimmed: false), 26);
+    });
+  });
+
+  testWidgets(
+      'H1: legacy PageView last child is the PaywallScreen at the legacy '
+      'last index (reachable end of flow)', (tester) async {
+    useOnboardingViewport(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigServiceProvider
+              .overrideWithValue(_StubAppConfig(trimmed: false)),
+        ],
+        child: const MaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final pageView = tester.widget<PageView>(find.byType(PageView));
+    final children =
+        (pageView.childrenDelegate as SliverChildListDelegate).children;
+    // The legacy flow's terminal page (index 26 with rating gate) is the
+    // paywall — _next's bound must allow reaching it.
+    expect(children.length - 1, onboardingLegacyLastPageIndex);
+    expect(children.last, isA<PaywallScreen>());
   });
 }

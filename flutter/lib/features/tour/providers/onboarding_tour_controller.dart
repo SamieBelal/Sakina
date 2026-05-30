@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../features/daily/providers/daily_loop_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
+import '../../../services/app_config_service.dart';
 import '../models/onboarding_tour_step.dart';
 
 /// Tour state machine status.
@@ -90,6 +91,19 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
       return;
     }
 
+    // Server kill switch. Read AFTER the daily-loop gate so a disabled tour
+    // never short-circuits the cold-offline retry. We do NOT mark the tour
+    // seen here — if the flag is flipped back on, the tour should still fire
+    // for users who never saw it. Falls back to enabled (fail-open) to match
+    // `onboarding_trim_enabled`'s posture in AppConfigService.
+    final tourEnabled = await _ref
+        .read(appConfigServiceProvider)
+        .getBool('guided_tour_enabled', fallback: true);
+    if (!tourEnabled) {
+      _track(AnalyticsEvents.tourStartSkipped, const {'reason': 'disabled'});
+      return;
+    }
+
     state = const OnboardingTourState(index: 0, status: TourStatus.active);
     _track(AnalyticsEvents.tourStarted, const {});
     _trackStepViewed();
@@ -170,5 +184,19 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
 
 final onboardingTourControllerProvider =
     StateNotifierProvider<OnboardingTourController, OnboardingTourState>(
-  (ref) => OnboardingTourController(ref),
+  OnboardingTourController.new,
 );
+
+/// When `true`, the guided-tour overlay is suppressed: the coachmark is hidden
+/// and the anchor-timeout is NOT armed (so the current step cannot auto-skip).
+///
+/// Owned by screens that host a multi-screen *inline* flow the tour must wait
+/// behind before the next anchor becomes reachable. The Duas "Build a Dua"
+/// flow sets this while the loader + the four reader beats are on screen: the
+/// `firstRelatedHeart` anchor (tour step 10) only mounts on the final result
+/// view (`buildCurrentSection == 4`), which a reading user reaches well after
+/// the 60s anchor-timeout would otherwise fire and skip the step. Suppressing
+/// keeps step 10 pending until the result view (and its heart) appears, and
+/// stops step 11 (the Journal tab beat) from firing while the user is still
+/// mid-build. Reset to `false` when the build flow leaves the screen.
+final tourSuppressedProvider = StateProvider<bool>((_) => false);

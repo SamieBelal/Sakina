@@ -46,6 +46,16 @@ bool shouldFireAbandonment({
   return resumedAt.difference(pausedAt) > const Duration(hours: 24);
 }
 
+/// Last valid page index for the active onboarding flow. Trimmed flow ends at
+/// [onboardingLastPageIndex] (19/18); legacy at [onboardingLegacyLastPageIndex]
+/// (26/25). Pure top-level fn so the dual-flow bound (used by `_next`, the
+/// paywall-event triggers, and the abandonment paywall gate) is directly
+/// unit-testable without driving the full PageView. See
+/// test/features/onboarding/onboarding_dual_flow_test.dart.
+@visibleForTesting
+int activeOnboardingLastPageIndex({required bool trimmed}) =>
+    trimmed ? onboardingLastPageIndex : onboardingLegacyLastPageIndex;
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -57,6 +67,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with WidgetsBindingObserver {
   late final PageController _pageController;
   late final Future<bool> _useTrimmedFlowFuture;
+  // Resolved flow: trimmed (default, 20 pages) vs legacy (27 pages). Starts
+  // optimistic-true to match the FutureBuilder default, then corrected once
+  // `_useTrimmedFlowFuture` resolves. Used by `_next`, the abandonment gate,
+  // and the paywall-event triggers so they reference the ACTIVE flow's last
+  // index instead of the hardcoded trimmed index.
+  bool _trimmed = true;
   bool _navigating = false;
   bool _paywallEventsFired = false;
   final Set<int> _viewedEmitted = <int>{};
@@ -71,14 +87,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // post-paywall Supabase round-trip doesn't log abandonment-at-last-page.
   bool _completing = false;
 
+  /// Last valid page index for the ACTIVE flow. The trimmed flow ends at
+  /// [onboardingLastPageIndex] (19/18); legacy ends at
+  /// [onboardingLegacyLastPageIndex] (26/25). Used to drive `_next`'s upper
+  /// bound, the paywall-event triggers, and the abandonment paywall gate so
+  /// they all track the flow the user is actually in.
+  int get _activeLastPageIndex =>
+      activeOnboardingLastPageIndex(trimmed: _trimmed);
+
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
-    ref.read(analyticsProvider).trackStepViewed(index);
+    ref.read(analyticsProvider).trackStepViewed(index, trimmed: _trimmed);
   }
 
   void _emitStepCompletedOnce(int index) {
     if (!_completedEmitted.add(index)) return;
-    ref.read(analyticsProvider).trackStepCompleted(index);
+    ref.read(analyticsProvider).trackStepCompleted(index, trimmed: _trimmed);
   }
 
   void _firePaywallEventsOnce() {
@@ -96,6 +120,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     _useTrimmedFlowFuture = ref
         .read(appConfigServiceProvider)
         .getBool('onboarding_trim_enabled', fallback: true);
+    // Mirror the resolved flow into a field so `_next`, the abandonment gate,
+    // and the paywall triggers (all outside `build`) can read it. The
+    // FutureBuilder in `build` remains the authoritative source for rendering.
+    _useTrimmedFlowFuture.then((value) {
+      if (mounted && value != _trimmed) setState(() => _trimmed = value);
+    });
     WidgetsBinding.instance.addObserver(this);
     final restoredPage = ref.read(onboardingProvider).currentPage;
     // Clamp against the LEGACY max since the dual-flow decision (trimmed vs
@@ -120,7 +150,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             .read(analyticsProvider)
             .timeEvent(AnalyticsEvents.onboardingCompleted);
       }
-      if (initialPage == onboardingLastPageIndex) {
+      if (initialPage == _activeLastPageIndex) {
         _firePaywallEventsOnce();
       }
     });
@@ -147,7 +177,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       // (b) Mid-completion — _completing flips on as soon as the paywall's
       //     onComplete fires; a backgrounded app during the await chain
       //     would otherwise log both "completed" and "abandoned at last page".
-      final isPaywallPage = _pausedAtPage == onboardingLastPageIndex;
+      final isPaywallPage = _pausedAtPage == _activeLastPageIndex;
       if (_pausedAtPage != null &&
           !isPaywallPage &&
           !_completing &&
@@ -180,7 +210,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       _emitStepCompletedOnce(current);
     }
     _emitStepViewedOnce(page);
-    if (page == onboardingLastPageIndex) {
+    if (page == _activeLastPageIndex) {
       _firePaywallEventsOnce();
     }
 
@@ -200,7 +230,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   void _next() {
     final current = ref.read(onboardingProvider).currentPage;
-    if (current < onboardingLastPageIndex) _goToPage(current + 1);
+    if (current < _activeLastPageIndex) _goToPage(current + 1);
   }
 
   /// Trimmed-flow social-auth landing: jump to Generating (16).
@@ -401,6 +431,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         // Optimistic default — trim is the new shipping flow. Cached value
         // resolves synchronously on subsequent launches via AppConfigService.
         final trimmed = snapshot.data ?? true;
+        // Belt-and-braces: keep the field in lockstep with the rendered flow
+        // so `_next`/abandonment/paywall triggers (which read `_trimmed`
+        // outside build) never lag the FutureBuilder. Plain assignment — no
+        // setState; build is already running.
+        _trimmed = trimmed;
         final children = trimmed ? _trimmedChildren() : _legacyChildren();
 
         // Re-clamp once the flow resolves: if the user's restored page is

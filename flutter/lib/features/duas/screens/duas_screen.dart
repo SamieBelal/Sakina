@@ -15,6 +15,7 @@ import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -68,6 +69,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
   @override
   void dispose() {
+    // Lift any tour suppression this screen set (e.g. left the tab mid-build)
+    // so the guided tour never stays hidden after the Dua flow goes away.
+    try {
+      if (ref.read(tourSuppressedProvider)) {
+        ref.read(tourSuppressedProvider.notifier).state = false;
+      }
+    } catch (_) {
+      // Container already torn down (app shutdown) — nothing to reset.
+    }
     for (final c in _rippleControllers) {
       c.dispose();
     }
@@ -84,6 +94,17 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     // Surface freemium-gating sheets (daily-cap + warmup-exhausted) when the
     // gating layer blocks a build or signals the warmup→0 transition.
     ref.listen<DuasState>(duasProvider, (prev, next) {
+      // Pause the guided tour while the multi-screen Build-a-Dua flow is on
+      // screen — the loader plus the four reader beats. The step-10
+      // `firstRelatedHeart` anchor only mounts on the result view
+      // (buildCurrentSection == 4); without this the 60s anchor-timeout skips
+      // step 10 and step 11 (Journal tab) fires while the user is mid-build.
+      // Reset in dispose so leaving the tab mid-build never strands the tour.
+      final tourBlocked = next.buildLoading ||
+          (next.buildResult != null && next.buildCurrentSection < 4);
+      if (ref.read(tourSuppressedProvider) != tourBlocked) {
+        ref.read(tourSuppressedProvider.notifier).state = tourBlocked;
+      }
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from
       // Build Another Dua on the result screen) wipes the provider state but

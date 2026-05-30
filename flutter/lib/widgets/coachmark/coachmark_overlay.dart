@@ -151,7 +151,11 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
       // cutout, only the upward extension is truncated.
       final mq = MediaQuery.maybeOf(ctx);
       final safeTop = mq?.padding.top ?? 0.0;
-      final newTop = (raw.top - padTop).clamp(safeTop, raw.top);
+      // Guard against clamp inversion: a top-docked anchor can sit above the
+      // safe-area inset (raw.top < safeTop), which would make clamp(lo > hi)
+      // throw — and the bare catch below would silently drop the cutout.
+      final clampLo = safeTop < raw.top ? safeTop : raw.top;
+      final newTop = (raw.top - padTop).clamp(clampLo, raw.top);
       return Rect.fromLTRB(raw.left, newTop, raw.right, raw.bottom);
     } catch (_) {
       return null;
@@ -279,6 +283,10 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
     final bottom = padded.bottom.clamp(0.0, screen.height);
     final left = padded.left.clamp(0.0, screen.width);
     final right = padded.right.clamp(0.0, screen.width);
+    // A degenerate or taller-than-screen cutout can make `bottom < top`;
+    // `Positioned(height: <0)` asserts in debug, so floor the side-strip
+    // heights at zero.
+    final sideHeight = (bottom - top) < 0 ? 0.0 : bottom - top;
     return [
       // Top strip
       Positioned(
@@ -301,7 +309,7 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
         left: 0,
         top: top,
         width: left,
-        height: bottom - top,
+        height: sideHeight,
         child: const _AbsorbTap(),
       ),
       // Right strip
@@ -309,7 +317,7 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
         left: right,
         top: top,
         right: 0,
-        height: bottom - top,
+        height: sideHeight,
         child: const _AbsorbTap(),
       ),
     ];
@@ -815,8 +823,11 @@ class _PositionedTooltip extends StatelessWidget {
     }
 
     if (placeBelow) {
-      final top = (targetRect.bottom + _gap)
-          .clamp(usableTop, usableBottom - _estTooltipHeight);
+      // On a very short usable height the upper bound can fall below the
+      // lower bound; collapse to the lower bound so `clamp` never throws.
+      final lo = usableTop;
+      final hi = usableBottom - _estTooltipHeight;
+      final top = (targetRect.bottom + _gap).clamp(lo, hi < lo ? lo : hi);
       return Positioned(
         left: cardLeft,
         width: cardWidth,
@@ -824,8 +835,10 @@ class _PositionedTooltip extends StatelessWidget {
         child: child,
       );
     }
-    final bottom = (screenH - (targetRect.top - _gap))
-        .clamp(screenH - usableBottom, screenH - usableTop - _estTooltipHeight);
+    final blo = screenH - usableBottom;
+    final bhi = screenH - usableTop - _estTooltipHeight;
+    final bottom =
+        (screenH - (targetRect.top - _gap)).clamp(blo, bhi < blo ? blo : bhi);
     return Positioned(
       left: cardLeft,
       width: cardWidth,

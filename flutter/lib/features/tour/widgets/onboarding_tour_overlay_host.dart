@@ -102,10 +102,12 @@ class _OnboardingTourOverlayHostState
 
   @override
   Widget build(BuildContext context) {
-    // Watch controller + registry. When either changes we need to reconcile
-    // the overlay entry (insert / remove / mark needs build).
+    // Watch controller + registry + suppression flag. When any changes we
+    // need to reconcile the overlay entry (insert / remove / mark needs
+    // build) and re-evaluate the anchor-timeout.
     ref.watch(onboardingTourControllerProvider);
     ref.watch(tourAnchorRegistryProvider);
+    ref.watch(tourSuppressedProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -183,15 +185,33 @@ class _OnboardingTourOverlayHostState
     });
   }
 
+  /// True when the current step's anchor can actually be drawn — either it is
+  /// a centered step, or its registered key resolves to an attached, sized
+  /// `RenderBox`. A key that is registered but whose widget is detached or
+  /// zero-size (e.g. lives in an off-screen / not-yet-built subtree) counts as
+  /// NOT resolvable, so the anchor-timeout still arms and the step can't hang
+  /// forever waiting on a rect that will never come.
+  bool _anchorResolvable(OnboardingTourStepDef step) {
+    if (step.anchorId == 'centered') return true;
+    final key =
+        ref.read(tourAnchorRegistryProvider).lookup(step.surface, step.anchorId);
+    final ctx = key?.currentContext;
+    if (ctx == null || !ctx.mounted) return false;
+    final ro = ctx.findRenderObject();
+    return ro is RenderBox && ro.attached && ro.hasSize;
+  }
+
   void _maybeScheduleAnchorTimeout() {
     _anchorTimeoutTimer?.cancel();
     final tour = ref.read(onboardingTourControllerProvider);
     final step = tour.currentStep;
     if (step == null) return;
-    final registry = ref.read(tourAnchorRegistryProvider);
-    final isCentered = step.anchorId == 'centered';
-    final anchorPresent =
-        isCentered || registry.lookup(step.surface, step.anchorId) != null;
+    // While suppressed (e.g. mid Dua-build flow), do not arm the timeout —
+    // the step is intentionally pending until the host screen surfaces the
+    // anchor. Cancelled above; re-armed once suppression lifts via the
+    // `tourSuppressedProvider` watch in `build`.
+    if (ref.read(tourSuppressedProvider)) return;
+    final anchorPresent = _anchorResolvable(step);
     if (anchorPresent) return;
     if (_observer.isBlockingRouteOnTop) return;
     final pinnedStepId = step.id;
@@ -222,7 +242,11 @@ class _OnboardingTourOverlayHostState
     final isCentered = step.anchorId == 'centered';
     final anchorKey =
         isCentered ? null : registry.lookup(step.surface, step.anchorId);
-    final hidden = blockingRouteUp || (!isCentered && anchorKey == null);
+    // Hide while a blocking modal is up, while explicitly suppressed (mid
+    // Dua-build), or until the anchor resolves to a real on-screen rect.
+    final hidden = blockingRouteUp ||
+        ref.read(tourSuppressedProvider) ||
+        !_anchorResolvable(step);
 
     final coachmarkStep = CoachmarkStep(
       target: anchorKey,

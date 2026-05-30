@@ -25,8 +25,8 @@ void main() {
   });
 
   group('trackStepViewed', () {
-    test('fires timeEvent and track with correct properties', () {
-      spy.trackStepViewed(3);
+    test('legacy flow: fires timeEvent and track with correct properties', () {
+      spy.trackStepViewed(3, trimmed: false);
 
       expect(spy.timedEvents, [AnalyticsEvents.onboardingStepCompleted]);
       expect(spy.tracked.length, 1);
@@ -34,17 +34,37 @@ void main() {
       expect(spy.tracked[0].$2, {'step_index': 3, 'step_name': 'intention'});
     });
 
+    test('trimmed flow: index 5 maps to familiarity (legacy=quran_connection)',
+        () {
+      spy.trackStepViewed(5, trimmed: true);
+      expect(spy.tracked[0].$2, {'step_index': 5, 'step_name': 'familiarity'});
+      // Same raw index under legacy would have mislabeled it.
+      expect(AnalyticsEvents.stepNames[5], 'quran_connection');
+    });
+
+    test('trimmed flow: index 16 maps to paywall_flow_loader', () {
+      spy.trackStepViewed(16, trimmed: true);
+      expect(spy.tracked[0].$2,
+          {'step_index': 16, 'step_name': 'paywall_flow_loader'});
+    });
+
     test('uses unknown for unmapped index', () {
-      spy.trackStepViewed(99);
+      spy.trackStepViewed(99, trimmed: true);
       expect(spy.tracked[0].$2?['step_name'], 'unknown');
     });
   });
 
   group('trackStepCompleted', () {
-    test('fires track with correct properties', () {
-      spy.trackStepCompleted(0);
+    test('legacy flow: fires track with correct properties', () {
+      spy.trackStepCompleted(0, trimmed: false);
       expect(spy.tracked[0].$1, AnalyticsEvents.onboardingStepCompleted);
       expect(spy.tracked[0].$2, {'step_index': 0, 'step_name': 'first_checkin'});
+    });
+
+    test('trimmed flow: index 13 maps to save_progress', () {
+      spy.trackStepCompleted(13, trimmed: true);
+      expect(spy.tracked[0].$2,
+          {'step_index': 13, 'step_name': 'save_progress'});
     });
   });
 
@@ -216,6 +236,55 @@ void main() {
         AnalyticsEvents.stepNames.values,
         isNot(contains('resonant_name')),
       );
+    });
+  });
+
+  group('AnalyticsEvents.trimmedStepNames (20-page trimmed flow)', () {
+    test('covers indices 0..19 with no gaps', () {
+      for (int i = 0; i <= 19; i++) {
+        expect(AnalyticsEvents.trimmedStepNames[i], isNotNull,
+            reason: 'Missing trimmed step name for index $i');
+      }
+      expect(AnalyticsEvents.trimmedStepNames[20], isNull,
+          reason: 'No trimmed step beyond paywall at 19');
+    });
+
+    test('matches the canonical trimmed page order', () {
+      expect(AnalyticsEvents.trimmedStepNames[5], 'familiarity');
+      expect(AnalyticsEvents.trimmedStepNames[6], 'dua_topics');
+      expect(AnalyticsEvents.trimmedStepNames[7], 'daily_commitment');
+      expect(AnalyticsEvents.trimmedStepNames[8], 'attribution');
+      expect(AnalyticsEvents.trimmedStepNames[16], 'paywall_flow_loader');
+      expect(AnalyticsEvents.trimmedStepNames[17], 'paywall_flow_plan');
+      expect(AnalyticsEvents.trimmedStepNames[18], 'rating_gate');
+      expect(AnalyticsEvents.trimmedStepNames[19], 'paywall');
+    });
+
+    test('drops legacy-only steps removed by the trim', () {
+      expect(
+        AnalyticsEvents.trimmedStepNames.values,
+        isNot(anyElement(isIn([
+          'quran_connection',
+          'common_emotions',
+          'aspirations',
+          'struggle_support_interstitial',
+          'value_prop',
+          'encouragement',
+          'paywall_flow_journey',
+        ]))),
+      );
+    });
+  });
+
+  group('AnalyticsEvents.stepNamesFor', () {
+    test('trimmed:true returns the trimmed map', () {
+      expect(AnalyticsEvents.stepNamesFor(trimmed: true),
+          same(AnalyticsEvents.trimmedStepNames));
+    });
+
+    test('trimmed:false returns the legacy map', () {
+      expect(AnalyticsEvents.stepNamesFor(trimmed: false),
+          same(AnalyticsEvents.stepNames));
     });
   });
 }
