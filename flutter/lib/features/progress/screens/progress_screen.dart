@@ -835,7 +835,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    inProgress ? 'Continue Muḥāsabah' : 'Begin Muḥāsabah',
+                    inProgress ? 'Continue Muhāsabah' : 'Begin Muhāsabah',
                     style: AppTypography.labelMedium.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -1002,7 +1002,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               )
             else
               Text(
-                'Complete a Muḥāsabah to claim today\'s reward',
+                'Complete a Muhāsabah to claim today\'s reward',
                 style: AppTypography.bodySmall.copyWith(
                   color: AppColors.textSecondaryLight,
                 ),

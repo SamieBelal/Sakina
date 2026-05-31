@@ -69,6 +69,12 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
   /// Breathing pulse around the cutout — interactive steps only.
   late final AnimationController _pulseCtrl;
 
+  /// True while the soft keyboard is up. The overlay fades out (and stops
+  /// absorbing pointers) so text-entry steps don't cram a cutout + tooltip
+  /// into the sliver of screen above the keyboard. Driven from `build` off
+  /// `MediaQuery.viewInsets.bottom`.
+  bool _keyboardOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -114,7 +120,9 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
   /// (`pumpAndSettle` deadlocks on a repeating animation) AND for battery
   /// (no point pulsing offscreen).
   void _syncPulse() {
-    final shouldRun = widget.step.interactive && !widget.hideUntilAnchorReady;
+    final shouldRun = widget.step.interactive &&
+        !widget.hideUntilAnchorReady &&
+        !_keyboardOpen;
     if (shouldRun && !_pulseCtrl.isAnimating) {
       _pulseCtrl.repeat(reverse: true);
     } else if (!shouldRun && _pulseCtrl.isAnimating) {
@@ -177,13 +185,39 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
     if (widget.hideUntilAnchorReady) {
       return const SizedBox.shrink();
     }
-    final reduceMotion = MediaQuery.of(context).disableAnimations ||
-        MediaQuery.of(context).accessibleNavigation;
+    final mq = MediaQuery.of(context);
+    final reduceMotion = mq.disableAnimations || mq.accessibleNavigation;
+    // Hide the coachmark while the soft keyboard is up (text-entry steps such
+    // as the Duas "Build a Dua" step). With ~40% of the screen consumed by the
+    // keyboard there's no room for both the highlight cutout and the tooltip
+    // without covering the field the user is typing in — so we fade the whole
+    // overlay out for an unobstructed view and fade it back when the keyboard
+    // dismisses. The instruction has already been read by the time the field
+    // is focused, and the interactive target tap still advances the tour
+    // (detection lives in `TourAnchor`, independent of this overlay's
+    // visibility), so the flow doesn't break while we're hidden.
+    final keyboardOpen = mq.viewInsets.bottom > 1.0;
+    if (keyboardOpen != _keyboardOpen) {
+      _keyboardOpen = keyboardOpen;
+      _syncPulse();
+    }
     return OrientationBuilder(
       builder: (context, _) {
-        return AnimatedBuilder(
-          animation: _entryCtrl,
-          builder: (context, _) => _build(context, reduceMotion: reduceMotion),
+        return IgnorePointer(
+          // Let taps reach the underlying text field + Build button while
+          // hidden. Flips instantly (ahead of the fade) so the very tap that
+          // raised the keyboard isn't swallowed by the absorber strips.
+          ignoring: keyboardOpen,
+          child: AnimatedOpacity(
+            opacity: keyboardOpen ? 0.0 : 1.0,
+            duration: Duration(milliseconds: reduceMotion ? 0 : 200),
+            curve: Curves.easeOut,
+            child: AnimatedBuilder(
+              animation: _entryCtrl,
+              builder: (context, _) =>
+                  _build(context, reduceMotion: reduceMotion),
+            ),
+          ),
         );
       },
     );
@@ -608,7 +642,7 @@ class _Tooltip extends StatelessWidget {
 }
 
 /// Step dots (gold prayer-bead style) + Skip + (Continue|Done if teach mode).
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends StatefulWidget {
   const _BottomBar({
     required this.stepIndex,
     required this.totalSteps,
@@ -628,6 +662,65 @@ class _BottomBar extends StatelessWidget {
   final VoidCallback onSkip;
 
   @override
+  State<_BottomBar> createState() => _BottomBarState();
+}
+
+class _BottomBarState extends State<_BottomBar> {
+  // The dots row never accepts user scroll gestures, but we drive it
+  // programmatically so the *active* dot is always fully visible. Without
+  // this, an overflowing row (e.g. 13 dots + Skip + Done past the 320pt
+  // tooltip) hard-clips its tail — and on the final step the tail dot IS the
+  // active gold one, so it gets bisected (see screenshot from PR review).
+  final ScrollController _dotsController = ScrollController();
+
+  // Each dot is 7pt wide + 6pt right margin. Keep in sync with `_Dot`.
+  static const double _dotExtent = 13;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleScrollToActive();
+  }
+
+  @override
+  void didUpdateWidget(covariant _BottomBar old) {
+    super.didUpdateWidget(old);
+    if (old.stepIndex != widget.stepIndex ||
+        old.totalSteps != widget.totalSteps) {
+      _scheduleScrollToActive();
+    }
+  }
+
+  /// After layout, jump the dots so the active one sits fully inside the
+  /// viewport. Earlier (completed) dots clip off the left when the row
+  /// overflows — far better than clipping the current step's dot off the right.
+  void _scheduleScrollToActive() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_dotsController.hasClients) return;
+      final pos = _dotsController.position;
+      final viewport = pos.viewportDimension;
+      final activeStart = widget.stepIndex * _dotExtent;
+      final activeEnd = activeStart + _dotExtent; // include trailing margin
+      double target = pos.pixels;
+      if (activeEnd > pos.pixels + viewport) {
+        target = activeEnd - viewport;
+      } else if (activeStart < pos.pixels) {
+        target = activeStart;
+      }
+      target = target.clamp(0.0, pos.maxScrollExtent);
+      if ((target - pos.pixels).abs() > 0.5) {
+        _dotsController.jumpTo(target);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dotsController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       children: [
@@ -636,18 +729,19 @@ class _BottomBar extends StatelessWidget {
         // Skip + Continue buttons in narrow tooltip widths).
         Flexible(
           child: Semantics(
-            label: 'Step ${stepIndex + 1} of $totalSteps',
+            label: 'Step ${widget.stepIndex + 1} of ${widget.totalSteps}',
             container: true,
             child: ExcludeSemantics(
               child: SingleChildScrollView(
+                controller: _dotsController,
                 scrollDirection: Axis.horizontal,
                 physics: const NeverScrollableScrollPhysics(),
                 clipBehavior: Clip.hardEdge,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (var i = 0; i < totalSteps; i++)
-                      _Dot(active: i == stepIndex),
+                    for (var i = 0; i < widget.totalSteps; i++)
+                      _Dot(active: i == widget.stepIndex),
                   ],
                 ),
               ),
@@ -656,16 +750,16 @@ class _BottomBar extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         _SkipButton(
-          smallScreen: smallScreen,
-          onSkip: onSkip,
+          smallScreen: widget.smallScreen,
+          onSkip: widget.onSkip,
         ),
-        if (!interactive) ...[
+        if (!widget.interactive) ...[
           const SizedBox(width: 4),
           _ContinueButton(
-            isLast: isLast,
-            stepIndex: stepIndex,
-            totalSteps: totalSteps,
-            onNext: onNext,
+            isLast: widget.isLast,
+            stepIndex: widget.stepIndex,
+            totalSteps: widget.totalSteps,
+            onNext: widget.onNext,
           ),
         ],
       ],

@@ -702,7 +702,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Muḥāsabah Complete',
+                  'Muhāsabah Complete',
                   style: AppTypography.headlineMedium.copyWith(
                     color: AppColors.textPrimaryLight,
                   ),
