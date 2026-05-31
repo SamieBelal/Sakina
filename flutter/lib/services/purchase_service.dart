@@ -238,6 +238,53 @@ class PurchaseService {
     }
   }
 
+  /// Snapshot of a *voluntary* cancellation read from the client
+  /// `entitlements.all['premium']`. Powers the instant survey shown right after
+  /// the in-app Customer Center sheet closes (Flutter exposes no cancel
+  /// callback, so we await its dismissal then re-read).
+  ///
+  /// Returns null unless the premium entitlement is cancelled (`willRenew ==
+  /// false` with an `unsubscribeDetectedAt`), is NOT a billing failure, and has
+  /// a known `expirationDate` — `expirationDate` is the dedupe key shared with
+  /// the server `user_subscriptions.expires_at`.
+  ///
+  /// Pass [forceRefresh] (the instant path does) to invalidate the up-to-5-min
+  /// customerInfo cache before reading, so a just-completed cancel is seen.
+  Future<
+      ({
+        DateTime expiresAt,
+        DateTime? canceledAt,
+        String? periodType,
+      })?> getVoluntaryCancellation({bool forceRefresh = false}) async {
+    if (!_initialized) return null;
+    try {
+      if (forceRefresh) {
+        await Purchases.invalidateCustomerInfoCache();
+      }
+      final customerInfo = await Purchases.getCustomerInfo();
+      final premium = customerInfo.entitlements.all['premium'];
+      if (premium == null) return null;
+      if (premium.willRenew) return null;
+      if (premium.unsubscribeDetectedAt == null) return null;
+      if (premium.billingIssueDetectedAt != null) return null;
+
+      final expiresAt = DateTime.tryParse(premium.expirationDate ?? '');
+      if (expiresAt == null) return null;
+
+      return (
+        expiresAt: expiresAt,
+        canceledAt: DateTime.tryParse(premium.unsubscribeDetectedAt ?? ''),
+        periodType: premium.periodType == PeriodType.trial
+            ? 'trial'
+            : premium.periodType == PeriodType.intro
+                ? 'intro'
+                : 'normal',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns true if the user has ever had a premium trial period — active or
   /// expired. One-way latch: once true, it stays true forever for this user
   /// (so the gating layer can apply lapsed-trialer rules without depending on
