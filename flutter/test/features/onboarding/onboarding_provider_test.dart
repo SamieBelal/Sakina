@@ -9,7 +9,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('OnboardingState v6', () {
+  // Trimmed-flow refactor (2026-05-25, Option α): version bumped 6→7;
+  // quranConnection / commonEmotions / aspirations removed.
+  group('OnboardingState v7', () {
     test('defaults all new fields to null/empty', () {
       const s = OnboardingState();
       expect(s.ageRange, isNull);
@@ -17,8 +19,6 @@ void main() {
       expect(s.starterNameId, isNull);
       expect(s.duaTopics, isEmpty);
       expect(s.duaTopicsOther, isNull);
-      expect(s.commonEmotions, isEmpty);
-      expect(s.aspirations, isEmpty);
       expect(s.dailyCommitmentMinutes, isNull);
       expect(s.reminderTime, isNull);
       expect(s.commitmentAccepted, isFalse);
@@ -31,31 +31,29 @@ void main() {
         starterNameId: 6,
         duaTopics: {'health', 'family'},
         duaTopicsOther: 'success in school',
-        commonEmotions: {'anxiety', 'gratitude'},
-        aspirations: {'morePatient'},
         dailyCommitmentMinutes: 3,
         reminderTime: '08:30',
         commitmentAccepted: true,
       );
       final json = original.toJson();
-      expect(json['version'], 6);
+      expect(json['version'], 7);
       final decoded = OnboardingState.fromJson(json);
       expect(decoded.ageRange, '25_34');
       expect(decoded.prayerFrequency, 'someDaily');
       expect(decoded.starterNameId, 6);
       expect(decoded.duaTopics, {'health', 'family'});
       expect(decoded.duaTopicsOther, 'success in school');
-      expect(decoded.commonEmotions, {'anxiety', 'gratitude'});
-      expect(decoded.aspirations, {'morePatient'});
       expect(decoded.dailyCommitmentMinutes, 3);
       expect(decoded.reminderTime, '08:30');
       expect(decoded.commitmentAccepted, isTrue);
     });
 
-    test('fromJson with version < 6 discards stored state and starts fresh', () {
-      // Pre-refactor (v5 or older) blob. Per spec: no users, no migration logic; drop it.
+    test('fromJson with version < 7 discards stored state and starts fresh',
+        () {
+      // Pre-trim (v6 or older) blob — discarded so the user starts on the
+      // trimmed flow with no stale references to removed fields.
       final legacy = {
-        'version': 5,
+        'version': 6,
         'currentPage': 5,
         'intention': 'legacy',
         'commonEmotions': ['anxious'],
@@ -64,23 +62,20 @@ void main() {
       final decoded = OnboardingState.fromJson(legacy);
       expect(decoded.currentPage, 0);
       expect(decoded.intention, isNull);
-      expect(decoded.commonEmotions, isEmpty);
       expect(decoded.starterNameId, isNull);
     });
 
-    test('fromJson accepts v6 blob as authoritative', () {
-      final v6 = {
-        'version': 6,
+    test('fromJson accepts v7 blob as authoritative', () {
+      final v7 = {
+        'version': 7,
         'currentPage': 5,
         'intention': 'spiritualGrowth',
-        'commonEmotions': ['anxious'],
         'ageRange': '25_34',
         'starterNameId': 28,
       };
-      final decoded = OnboardingState.fromJson(v6);
+      final decoded = OnboardingState.fromJson(v7);
       expect(decoded.currentPage, 5);
       expect(decoded.intention, 'spiritualGrowth');
-      expect(decoded.commonEmotions, {'anxious'});
       expect(decoded.ageRange, '25_34');
       expect(decoded.starterNameId, 28);
     });
@@ -96,8 +91,6 @@ void main() {
       notifier.toggleDuaTopic('family');
       notifier.toggleDuaTopic('health'); // toggle off
       notifier.setDuaTopicsOther('school');
-      notifier.toggleCommonEmotion('anxiety');
-      notifier.toggleAspiration('morePatient');
       notifier.setDailyCommitmentMinutes(5);
       notifier.setReminderTime('08:30');
       notifier.setCommitmentAccepted(true);
@@ -108,8 +101,6 @@ void main() {
       expect(s.starterNameId, 2);
       expect(s.duaTopics, {'family'});
       expect(s.duaTopicsOther, 'school');
-      expect(s.commonEmotions, {'anxiety'});
-      expect(s.aspirations, {'morePatient'});
       expect(s.dailyCommitmentMinutes, 5);
       expect(s.reminderTime, '08:30');
       expect(s.commitmentAccepted, isTrue);

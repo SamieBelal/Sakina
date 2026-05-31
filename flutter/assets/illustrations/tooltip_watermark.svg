@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" fill="none">
+  <!-- Sakina tour tooltip watermark: 8-point khatam star (octagram).
+       Monochrome emerald (#1B6B4A). Designed to render at 6% opacity in
+       the top-right corner of the coachmark tooltip card. -->
+  <g transform="translate(30 30)" stroke="#1B6B4A" stroke-width="1.5" fill="none" stroke-linejoin="round">
+    <!-- Outer square -->
+    <path d="M -22 -22 L 22 -22 L 22 22 L -22 22 Z" />
+    <!-- Inner square rotated 45° (forms the 8-point star together) -->
+    <path d="M 0 -28 L 28 0 L 0 28 L -28 0 Z" />
+  </g>
+</svg>

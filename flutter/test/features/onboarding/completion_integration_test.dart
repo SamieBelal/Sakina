@@ -3,13 +3,13 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// End-to-end persistence integration test for the new 28-page onboarding
-/// flow: fills every quiz field via the notifier's public setters (the same
-/// setters the screens invoke), then invokes the debug-only persist hook and
-/// asserts that each field lands in the single [AuthService.saveOnboardingData]
-/// call with exactly the value the "user" picked.
+/// End-to-end persistence integration test for the trimmed (v7) onboarding
+/// flow: fills every still-captured quiz field via the notifier's public
+/// setters, then invokes the debug-only persist hook and asserts that each
+/// field lands in the single [AuthService.saveOnboardingData] call.
 ///
-/// Reuses the `_FakeAuthService extends AuthService` pattern from Task 3.
+/// Trimmed-flow refactor (2026-05-25, Option α): the
+/// quranConnection / commonEmotions / aspirations fields were removed.
 class _FakeAuthService extends AuthService {
   Map<String, dynamic>? captured;
   int callCount = 0;
@@ -19,15 +19,12 @@ class _FakeAuthService extends AuthService {
     String? displayName,
     String? intention,
     String? familiarity,
-    String? quranConnection,
     List<String> attribution = const [],
     String? ageRange,
     String? prayerFrequency,
     int? starterNameId,
     List<String> duaTopics = const [],
     String? duaTopicsOther,
-    List<String> commonEmotions = const [],
-    List<String> aspirations = const [],
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
@@ -37,15 +34,12 @@ class _FakeAuthService extends AuthService {
       'displayName': displayName,
       'intention': intention,
       'familiarity': familiarity,
-      'quranConnection': quranConnection,
       'attribution': attribution,
       'ageRange': ageRange,
       'prayerFrequency': prayerFrequency,
       'starterNameId': starterNameId,
       'duaTopics': duaTopics,
       'duaTopicsOther': duaTopicsOther,
-      'commonEmotions': commonEmotions,
-      'aspirations': aspirations,
       'dailyCommitmentMinutes': dailyCommitmentMinutes,
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
@@ -74,12 +68,9 @@ void main() {
     final fake = _FakeAuthService();
     final notifier = OnboardingNotifier(authService: fake);
 
-    // Walk through every quiz screen's setter — mirrors what a real user
-    // does pressing Continue on each of the new-flow pages.
     notifier
       ..setIntention('spiritualGrowth')
       ..setFamiliarity('some')
-      ..setQuranConnection('weak')
       ..toggleAttribution('tiktok')
       ..toggleAttribution('friend')
       ..setAgeRange('25_34')
@@ -88,34 +79,25 @@ void main() {
       ..toggleDuaTopic('health')
       ..toggleDuaTopic('family')
       ..setDuaTopicsOther('exam success')
-      ..toggleCommonEmotion('anxious')
-      ..toggleCommonEmotion('grateful')
-      ..toggleAspiration('morePatient')
-      ..toggleAspiration('consistentPrayer')
       ..setDailyCommitmentMinutes(5)
       ..setReminderTime('08:00')
       ..setCommitmentAccepted(true);
 
     await notifier.debugPersistOnboardingForTest();
 
-    // Exactly one persist call, not multiple.
     expect(fake.callCount, 1,
         reason: 'saveOnboardingData should fire exactly once per completion');
     expect(fake.captured, isNotNull);
 
-    // Every expected key is present.
     for (final key in const [
       'intention',
       'familiarity',
-      'quranConnection',
       'attribution',
       'ageRange',
       'prayerFrequency',
       'starterNameId',
       'duaTopics',
       'duaTopicsOther',
-      'commonEmotions',
-      'aspirations',
       'dailyCommitmentMinutes',
       'reminderTime',
       'commitmentAccepted',
@@ -123,18 +105,14 @@ void main() {
       expect(fake.captured!.containsKey(key), isTrue, reason: 'missing $key');
     }
 
-    // Every value is carried through unchanged.
     expect(fake.captured!['intention'], 'spiritualGrowth');
     expect(fake.captured!['familiarity'], 'some');
-    expect(fake.captured!['quranConnection'], 'weak');
     expect(fake.captured!['attribution'], ['tiktok', 'friend']);
     expect(fake.captured!['ageRange'], '25_34');
     expect(fake.captured!['prayerFrequency'], 'someDaily');
     expect(fake.captured!['starterNameId'], 2);
     expect(fake.captured!['duaTopics'], ['health', 'family']);
     expect(fake.captured!['duaTopicsOther'], 'exam success');
-    expect(fake.captured!['commonEmotions'], ['anxious', 'grateful']);
-    expect(fake.captured!['aspirations'], ['morePatient', 'consistentPrayer']);
     expect(fake.captured!['dailyCommitmentMinutes'], 5);
     expect(fake.captured!['reminderTime'], '08:00');
     expect(fake.captured!['commitmentAccepted'], isTrue);
@@ -146,11 +124,9 @@ void main() {
     final fake = _FakeAuthService();
     final notifier = OnboardingNotifier(authService: fake);
 
-    // Only the always-required fields from the new flow.
     notifier
       ..setIntention('justCurious')
       ..setFamiliarity('none')
-      ..setQuranConnection('strong')
       ..setAgeRange('18_24')
       ..setPrayerFrequency('rarely')
       ..setStarterName(3)
@@ -165,8 +141,6 @@ void main() {
     expect(fake.captured!['attribution'], isEmpty);
     expect(fake.captured!['duaTopics'], isEmpty);
     expect(fake.captured!['duaTopicsOther'], isNull);
-    expect(fake.captured!['commonEmotions'], isEmpty);
-    expect(fake.captured!['aspirations'], isEmpty);
     expect(fake.captured!['commitmentAccepted'], isFalse);
   });
 }

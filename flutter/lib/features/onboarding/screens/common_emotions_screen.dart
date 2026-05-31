@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
-import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 import '../widgets/struggle_chip.dart';
 
@@ -35,19 +34,19 @@ class CommonEmotionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(onboardingProvider);
-    // Note: spec copy says "Pick up to three" on sibling screens but the plan's
-    // code for this screen does not enforce a 3-item cap. Per plan, no cap.
+    // Trimmed-flow refactor (2026-05-25, Option α): `commonEmotions` was
+    // removed from OnboardingState. Legacy screen is preserved for the
+    // `onboarding_trim_enabled=false` rollback path but is now stateless.
     return OnboardingQuestionScaffold(
       progressSegment: 8,
       headline: 'Which emotions come up most for you?',
       subtitle: "We'll tailor your first reflections around these.",
       onBack: onBack,
-      continueEnabled: state.commonEmotions.isNotEmpty,
+      continueEnabled: true,
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswerWithRef(ref, 'common_emotions', state.commonEmotions);
+            .trackOnboardingAnswerWithRef(ref, 'common_emotions', null);
         onNext();
       },
       body: Wrap(
@@ -57,10 +56,8 @@ class CommonEmotionsScreen extends ConsumerWidget {
             .map(
               (e) => StruggleChip(
                 label: _label(e),
-                isSelected: state.commonEmotions.contains(e),
-                onTap: () => ref
-                    .read(onboardingProvider.notifier)
-                    .toggleCommonEmotion(e),
+                isSelected: false,
+                onTap: () {},
               ),
             )
             .toList(),

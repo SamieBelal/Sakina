@@ -25,36 +25,21 @@ void main() {
     );
   }
 
-  testWidgets('paywall headline references top aspiration and commitment',
-      (tester) async {
+  // Trimmed-flow refactor (2026-05-25, Option α): the aspirations field was
+  // removed from OnboardingState. The paywall headline now always uses the
+  // "your best self" fallback. The dynamic-aspiration variants of this test
+  // are obsolete — only the fallback path remains.
+
+  testWidgets('paywall headline uses commitment minutes', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container
-        .read(onboardingProvider.notifier)
-        .toggleAspiration('closerToAllah');
     container.read(onboardingProvider.notifier).setDailyCommitmentMinutes(5);
 
     await tester.pumpWidget(harness(container));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('closer to Allah'), findsOneWidget);
+    expect(find.textContaining('your best self'), findsOneWidget);
     expect(find.textContaining('5 min'), findsOneWidget);
-  });
-
-  testWidgets('different intention -> different headline (morePatient)',
-      (tester) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    container
-        .read(onboardingProvider.notifier)
-        .toggleAspiration('morePatient');
-    container.read(onboardingProvider.notifier).setDailyCommitmentMinutes(3);
-
-    await tester.pumpWidget(harness(container));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('more patient'), findsOneWidget);
-    expect(find.textContaining('3 min'), findsOneWidget);
   });
 
   testWidgets('fallback headline when no aspiration selected', (tester) async {

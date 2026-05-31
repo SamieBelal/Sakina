@@ -25,11 +25,13 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// F1 fix (2026-04-26): pure resolver for the Settings profile-card display
@@ -71,7 +73,14 @@ Future<void> performCardCollectionDangerReset({
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.autoAction});
+
+  /// Optional deep-link action consumed on first build. Today the only
+  /// supported value is `replay_tour` — see [_handleAutoAction]. Propagated
+  /// from the GoRouter `/settings?action=` query param so the E5 win-back
+  /// push (`sakina://settings?action=replay_tour`) can trigger Replay
+  /// without the user tapping the row.
+  final String? autoAction;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -101,6 +110,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _loadData();
+    // Handle deep-link auto-actions (E5 win-back). Schedules a post-frame
+    // callback so context.go() during the autoAction handler runs after
+    // build, not during it.
+    if (widget.autoAction != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _handleAutoAction(widget.autoAction!);
+      });
+    }
+  }
+
+  /// Programmatic Replay-tour invocation (E5 win-back push deep link).
+  /// Mirrors the user-tap path in [_replayTour] exactly so both ingress
+  /// surfaces behave identically.
+  Future<void> _handleAutoAction(String action) async {
+    if (action == 'replay_tour') {
+      await _replayTour();
+    }
+  }
+
+  Future<void> _replayTour() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    // Clear the unified tour-seen flag so the controller can re-arm.
+    await prefs.remove(onboardingTourSeenFlag(userId));
+    if (!mounted) return;
+    // Jump to Home so step 1's anchor (Begin Muhasabah) is mounted.
+    context.go('/');
+    // Restart the tour controller.
+    ref.read(onboardingTourControllerProvider.notifier).replay();
+    // Existing analytics track
+    ref.read(analyticsProvider).track(AnalyticsEvents.tourReplayTapped);
   }
 
   Future<void> _loadData() async {
@@ -1099,6 +1141,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.info_outline_rounded,
             label: 'Version 1.0.0',
             showChevron: false,
+          ),
+          _buildDivider(),
+          // Replay the unified interactive guided tour from step 1. Clears
+          // the onboarding_tour_v1_seen flag and calls
+          // OnboardingTourController.replay() — see _replayTour.
+          _buildSettingsRow(
+            icon: Icons.info_outline,
+            label: 'Replay app tour',
+            onTap: _replayTour,
           ),
           _buildDivider(),
           _buildSettingsRow(

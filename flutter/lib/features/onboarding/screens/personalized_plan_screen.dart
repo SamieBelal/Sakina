@@ -33,18 +33,14 @@ class PersonalizedPlanScreen extends ConsumerWidget {
     return 'Ar-Rahman';
   }
 
-  static String _titleCase(String id) =>
-      '${id.substring(0, 1).toUpperCase()}${id.substring(1)}';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
     final translit = translitForCatalogId(state.starterNameId);
-    final emotions = (state.commonEmotions.toList()..sort())
-        .take(3)
-        .map(_titleCase)
-        .join(', ');
-    final struggle = emotions.isNotEmpty ? emotions : 'Whatever comes up';
+    // Trimmed-flow refactor (2026-05-25, Option α): the "You often feel"
+    // tile was dropped because its source field (`commonEmotions`) was
+    // removed from OnboardingState in the trim. The remaining three tiles
+    // are all populated from real user data captured in the trimmed flow.
     final reminder = state.reminderTime ?? '08:00';
     final minutes = state.dailyCommitmentMinutes ?? 3;
     final name = (state.signUpName != null && state.signUpName!.isNotEmpty)
@@ -58,11 +54,6 @@ class PersonalizedPlanScreen extends ConsumerWidget {
         label: 'First Name in your collection',
         value: translit,
         emphasize: true,
-      ),
-      _PlanTile(
-        icon: Icons.favorite_rounded,
-        label: 'You often feel',
-        value: struggle,
       ),
       _PlanTile(
         icon: Icons.schedule_rounded,

@@ -6,33 +6,47 @@ import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/save_progress_screen.dart';
 import 'package:sakina/features/onboarding/screens/sign_up_password_screen.dart';
 import 'package:sakina/features/onboarding/widgets/onboarding_autofocus_text_field.dart';
+import 'package:sakina/services/app_config_service.dart';
 
 import 'screens/_test_utils.dart';
 
+class _StubAppConfig extends AppConfigService {
+  _StubAppConfig({this.trimmed = true}) : super.forTest();
+  final bool trimmed;
+  @override
+  Future<bool> getBool(String key, {required bool fallback}) async => trimmed;
+  @override
+  Future<void> primeCache(List<String> keys) async {}
+}
+
 void main() {
   testWidgets(
-    'social auth on Save Progress jumps to Encouragement (page 21), '
-    'skipping Email (19) and Password (20)',
+    'social auth on Save Progress jumps to post-signup, '
+    'skipping email and password',
     (tester) async {
       useOnboardingViewport(tester);
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appConfigServiceProvider
+                .overrideWithValue(_StubAppConfig(trimmed: true)),
             cachedOnboardingStateProvider.overrideWithValue(
-              const OnboardingState(currentPage: 18),
+              const OnboardingState(currentPage: 13),
             ),
           ],
           child: const MaterialApp(home: OnboardingScreen()),
         ),
       );
+      // Pump enough for the FutureBuilder to resolve trim=true.
+      await tester.pump();
       await tester.pump();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(OnboardingScreen)),
       );
-      expect(container.read(onboardingProvider).currentPage, 18,
-          reason: 'precondition: starts on Save Progress page');
+      expect(container.read(onboardingProvider).currentPage, 13,
+          reason: 'precondition: starts on Save Progress page (trimmed index)');
 
       // Invoke the wiring under test directly. Exercising the actual Apple/
       // Google buttons would invoke native sign-in plugins which can't run
@@ -49,13 +63,13 @@ void main() {
 
       expect(
         container.read(onboardingProvider).currentPage,
-        onboardingEncouragementPageIndex,
+        onboardingPostSignupPageIndex,
         reason:
-            'Social-auth users are already authenticated; the email + password '
-            'screens are redundant and must be skipped.',
+            'Social-auth users are already authenticated; the email + '
+            'password screens are redundant and must be skipped.',
       );
-      // Pinned 2026-05-05 by paywall flow redesign.
-      expect(onboardingEncouragementPageIndex, 21);
+      // Pinned 2026-05-25 by trimmed-flow refactor.
+      expect(onboardingPostSignupPageIndex, 16);
 
       // Drain pending flutter_animate timers before teardown.
       await tester.pump(const Duration(seconds: 2));
@@ -70,6 +84,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            appConfigServiceProvider
+                .overrideWithValue(_StubAppConfig(trimmed: true)),
             cachedOnboardingStateProvider.overrideWithValue(
               const OnboardingState(currentPage: onboardingPasswordPageIndex),
             ),
@@ -77,6 +93,7 @@ void main() {
           child: const MaterialApp(home: OnboardingScreen()),
         ),
       );
+      await tester.pump();
       await tester.pump();
 
       final field = tester.widget<OnboardingAutofocusTextField>(

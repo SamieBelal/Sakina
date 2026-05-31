@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 
 /// Task 18 / Screen #23 — Value prop with dynamic copy.
@@ -46,10 +45,9 @@ class ValuePropScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(onboardingProvider);
-    final aspiration = state.aspirations.isNotEmpty
-        ? aspirationPhrase(state.aspirations.first)
-        : aspirationPhrase(null);
+    // Trimmed-flow refactor (2026-05-25, Option α): `aspirations` was removed
+    // from OnboardingState. Legacy screen falls back to the default copy.
+    final aspiration = aspirationPhrase(null);
 
     return OnboardingQuestionScaffold(
       progressSegment: 18,

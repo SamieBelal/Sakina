@@ -1,10 +1,10 @@
 # Subscription Cancellation Feedback — Design
 
 **Date:** 2026-05-31
-**Status:** Implemented on branch `cancellation-feedback` (2026-05-31). All three
-paths wired; 27 Flutter tests + 28 Deno webhook tests pass; `flutter analyze`
-clean. DB migrations not yet applied to a live project (no local Supabase in the
-worktree) — apply via the normal migration flow before release.
+**Status:** Implemented on branch `cancellation-feedback` (2026-05-31), merged up
+to date with master. All three paths wired; 29 Flutter tests + 28 Deno webhook
+tests pass; `flutter analyze` clean. DB migrations not yet applied to a live
+project — apply via the normal migration flow before release.
 **Author:** Ibrahim Ahmed (with Claude)
 
 ## Goal

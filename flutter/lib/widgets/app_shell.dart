@@ -8,8 +8,10 @@ import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
+import '../features/tour/models/onboarding_tour_step.dart';
 import '../services/economy_events.dart';
 import '../services/xp_service.dart';
+import '../widgets/coachmark/tour_anchor.dart';
 import '../widgets/quest_completion_toast.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -63,6 +65,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final nav = Navigator.of(context, rootNavigator: true);
     nav.push(
       PageRouteBuilder(
+        settings: const RouteSettings(name: 'LevelUpOverlay'),
         opaque: true,
         barrierDismissible: false,
         pageBuilder: (_, __, ___) => LevelUpOverlay(
@@ -90,6 +93,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           navigator
               .push(
                 MaterialPageRoute(
+                  settings: const RouteSettings(name: 'FirstStepsOverlay'),
                   fullscreenDialog: true,
                   builder: (_) => FirstStepsOverlay(
                     tokensAwarded: celebration.tokens,
@@ -170,31 +174,51 @@ class _AppShellState extends ConsumerState<AppShell> {
         // about where they are.
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.home_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabHome',
+              child: Icon(Icons.home_outlined),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.home_outlined : Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.style_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabCollection',
+              child: Icon(Icons.style_outlined),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.style_outlined : Icons.style),
             label: 'Collection',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.favorite_outline),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabReflect',
+              child: Icon(Icons.favorite_outline),
+            ),
             activeIcon:
                 Icon(isOffTab ? Icons.favorite_outline : Icons.favorite),
             label: 'Reflect',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.auto_awesome_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabDuas',
+              child: Icon(Icons.auto_awesome_outlined),
+            ),
             activeIcon: Icon(
                 isOffTab ? Icons.auto_awesome_outlined : Icons.auto_awesome),
             label: 'Duas',
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.book_outlined),
+            icon: const TourAnchor(
+              surface: TourSurface.appShell,
+              anchorId: 'tabJournal',
+              child: Icon(Icons.book_outlined),
+            ),
             activeIcon: Icon(isOffTab ? Icons.book_outlined : Icons.book),
             label: 'Journal',
           ),

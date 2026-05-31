@@ -157,10 +157,10 @@ Walk each page in order. For every page:
 **DB checks after completing onboarding:**
 ```sql
 select onboarding_completed, display_name, onboarding_intention,
-       onboarding_quran_connection, onboarding_familiarity,
+       onboarding_familiarity,
        onboarding_struggles, onboarding_attribution,
        age_range, prayer_frequency, resonant_name_id,
-       dua_topics, common_emotions, aspirations,
+       dua_topics,
        daily_commitment_minutes, reminder_time, commitment_accepted
 from public.user_profiles where id = auth.uid();
 

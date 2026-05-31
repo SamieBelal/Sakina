@@ -17,6 +17,7 @@ import '../features/onboarding/screens/paywall_screen.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
+import '../features/tour/providers/tour_route_observer.dart';
 import '../widgets/app_shell.dart';
 import '../features/collection/widgets/silver_card_preview.dart';
 import '../features/collection/widgets/gold_card_preview.dart';
@@ -31,6 +32,11 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>()
 GoRouter buildRouter({required AppSessionNotifier appSession}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
+    // Singleton tour route observer (lib/features/tour/providers/tour_route_observer.dart).
+    // Tracks the topmost route's settings.name so OnboardingTourOverlayHost
+    // can hide while a blocking modal (NameRevealOverlay, etc.) is up, and
+    // detect the DuaDetailPage back-gesture for step 13 completion.
+    observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
     redirect: (context, state) {
@@ -189,9 +195,15 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
           ),
           GoRoute(
             path: '/settings',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsScreen(),
-            ),
+            pageBuilder: (context, state) {
+              // E5 win-back deep link: `sakina://settings?action=replay_tour`.
+              // SettingsScreen consumes the param on first build via a
+              // post-frame callback that mirrors the user-tap Replay path.
+              final action = state.uri.queryParameters['action'];
+              return NoTransitionPage(
+                child: SettingsScreen(autoAction: action),
+              );
+            },
           ),
           GoRoute(
             path: '/store',

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
-import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_question_scaffold.dart';
 import '../widgets/struggle_chip.dart';
 
@@ -28,19 +27,19 @@ class AspirationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(onboardingProvider);
-    // Note: copy says "Pick up to three" but the plan does not enforce a
-    // 3-item cap in code. Following the plan: no cap.
+    // Trimmed-flow refactor (2026-05-25, Option α): `aspirations` was removed
+    // from OnboardingState. Legacy screen is preserved for the
+    // `onboarding_trim_enabled=false` rollback path but is now stateless.
     return OnboardingQuestionScaffold(
       progressSegment: 9,
       headline: 'Who do you want to become?',
       subtitle: 'Pick up to three.',
       onBack: onBack,
-      continueEnabled: state.aspirations.isNotEmpty,
+      continueEnabled: true,
       onContinue: () {
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswerWithRef(ref, 'aspirations', state.aspirations);
+            .trackOnboardingAnswerWithRef(ref, 'aspirations', null);
         onNext();
       },
       body: Wrap(
@@ -50,10 +49,8 @@ class AspirationsScreen extends ConsumerWidget {
             .map(
               (a) => StruggleChip(
                 label: a.$2,
-                isSelected: state.aspirations.contains(a.$1),
-                onTap: () => ref
-                    .read(onboardingProvider.notifier)
-                    .toggleAspiration(a.$1),
+                isSelected: false,
+                onTap: () {},
               ),
             )
             .toList(),

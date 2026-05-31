@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/value_prop_screen.dart';
 
+// Trimmed-flow refactor (2026-05-25, Option α): the aspirations field was
+// removed from OnboardingState. The legacy screen now always renders the
+// generic fallback headline. PR-2b will delete this screen + test.
 void main() {
   Widget harness(ProviderContainer container) {
     return UncontrolledProviderScope(
@@ -14,41 +16,7 @@ void main() {
     );
   }
 
-  testWidgets('uses top aspiration (morePatient) in headline',
-      (tester) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    container
-        .read(onboardingProvider.notifier)
-        .toggleAspiration('morePatient');
-
-    await tester.pumpWidget(harness(container));
-
-    expect(
-      find.text('Sakina helps you become more patient.'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('uses different aspiration (closerToAllah) in headline',
-      (tester) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    container
-        .read(onboardingProvider.notifier)
-        .toggleAspiration('closerToAllah');
-
-    await tester.pumpWidget(harness(container));
-
-    expect(
-      find.text('Sakina helps you become closer to Allah.'),
-      findsOneWidget,
-    );
-    // Confirm the other variant is NOT present.
-    expect(find.textContaining('more patient'), findsNothing);
-  });
-
-  testWidgets('falls back to generic phrase when no aspiration selected',
+  testWidgets('legacy value prop screen renders generic fallback headline',
       (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
