@@ -72,7 +72,7 @@ Deno.test("Anonymous user id returns 200 skipped", async () => {
       clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
-        return true;
+        return { written: true, cancellationStarted: false };
       },
     },
   );
@@ -91,7 +91,7 @@ Deno.test("INITIAL_PURCHASE with premium entitlement upserts a future expiry row
       clawbackConsumable: async () => {},
       upsertSubscription: async (nextPayload) => {
         payloads.push(nextPayload);
-        return true;
+        return { written: true, cancellationStarted: false };
       },
     },
   );
@@ -121,7 +121,7 @@ Deno.test("Stale event (RPC returns false) yields skipped: stale_event", async (
       clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
-        return false;
+        return { written: false, cancellationStarted: false };
       },
     },
   );
@@ -256,7 +256,7 @@ Deno.test("Non-premium entitlement returns 200 skipped (no DB write)", async () 
       clawbackConsumable: async () => {},
       upsertSubscription: async () => {
         callCount += 1;
-        return true;
+        return { written: true, cancellationStarted: false };
       },
     },
   );
@@ -416,7 +416,7 @@ Deno.test("Consumable refund triggers clawbackConsumable, not upsertSubscription
       },
       upsertSubscription: async () => {
         upsertCalls += 1;
-        return true;
+        return { written: true, cancellationStarted: false };
       },
     },
   );
@@ -451,7 +451,7 @@ Deno.test("Subscription CANCELLATION still routes through upsertSubscription, no
       },
       upsertSubscription: async () => {
         upsertCalls += 1;
-        return true;
+        return { written: true, cancellationStarted: false };
       },
     },
   );
@@ -469,9 +469,106 @@ Deno.test("Clawback RPC failure returns 500 so RevenueCat retries", async () => 
       clawbackConsumable: async () => {
         throw new Error("simulated DB outage");
       },
-      upsertSubscription: async () => true,
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: false,
+      }),
     },
   );
 
   assertEquals(response.status, 500);
+});
+
+// ── Cancellation survey push (added 2026-05-31) ───────────────────────────
+//
+// On the canceled_at null -> set transition the webhook fires a best-effort
+// OneSignal push that deep-links to the in-app survey. It must fire exactly
+// once (only when the RPC reports cancellation_started) and must NEVER turn a
+// push failure into a 500 — that would make RevenueCat retry the billing event
+// and re-run the consumable clawback.
+
+Deno.test("New cancellation (transition) fires the survey push once", async () => {
+  const pushPayloads: UserSubscriptionUpsert[] = [];
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "CANCELLATION",
+      product_id: "sakina_sub_annual",
+      entitlement_ids: ["premium"],
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: true,
+      }),
+      sendCancellationSurveyPush: async (payload) => {
+        pushPayloads.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(pushPayloads.length, 1);
+  assertEquals(pushPayloads[0].user_id, userId);
+});
+
+Deno.test("No push when the cancellation is not a fresh transition", async () => {
+  let pushCalls = 0;
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "CANCELLATION",
+      product_id: "sakina_sub_annual",
+      entitlement_ids: ["premium"],
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: false, // redelivery / already cancelled
+      }),
+      sendCancellationSurveyPush: async () => {
+        pushCalls += 1;
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(pushCalls, 0);
+});
+
+Deno.test("Push failure does NOT fail the webhook (isolation)", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "CANCELLATION",
+      product_id: "sakina_sub_annual",
+      entitlement_ids: ["premium"],
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: true,
+      }),
+      sendCancellationSurveyPush: async () => {
+        throw new Error("OneSignal down");
+      },
+    },
+  );
+
+  // Billing sync succeeded; the push hiccup must not become a 500.
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+});
+
+Deno.test("period_type is carried onto the upsert payload", () => {
+  const payload = buildUserSubscriptionUpsert(baseEvent({
+    type: "CANCELLATION",
+    period_type: "TRIAL",
+  }));
+  assert(payload);
+  assertEquals(payload.period_type, "TRIAL");
 });

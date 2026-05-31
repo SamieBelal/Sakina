@@ -48,6 +48,7 @@ export interface RevenueCatEvent {
   new_product_id?: string | null;
   store?: string | null;
   environment?: string | null;
+  period_type?: string | null;
   expiration_at_ms?: number | null;
   event_timestamp_ms?: number | null;
   transaction_id?: string | null;
@@ -74,21 +75,37 @@ export interface UserSubscriptionUpsert {
   expires_at: string | null;
   canceled_at?: string | null;
   billing_issue_detected_at?: string | null;
+  period_type?: string | null;
   last_event_type: string;
   last_event_at: string | null;
   updated_at: string;
 }
 
+export interface UpsertSubscriptionResult {
+  // True if the upsert wrote/updated a row, false if the incoming event was
+  // older than the stored last_event_at and therefore ignored.
+  written: boolean;
+  // True only on the canceled_at null -> set transition (a genuinely new
+  // cancellation), so the survey push fires exactly once.
+  cancellationStarted: boolean;
+}
+
 interface HandleWebhookOptions {
   webhookSecret: string;
-  // Returns true if the upsert wrote/updated a row, false if the incoming
-  // event was older than the stored last_event_at and therefore ignored.
-  upsertSubscription: (payload: UserSubscriptionUpsert) => Promise<boolean>;
+  upsertSubscription: (
+    payload: UserSubscriptionUpsert,
+  ) => Promise<UpsertSubscriptionResult>;
   // Reverses a consumable IAP grant on refund. The handler calls this for
   // CANCELLATION events whose product_id is in CONSUMABLE_SKU_TO_AMOUNT.
   // Implementation should call the `clawback_consumable_grant` RPC.
   // Idempotent on transaction_id (the RPC handles dedup).
   clawbackConsumable: (payload: ConsumableClawbackPayload) => Promise<void>;
+  // Best-effort "why did you leave?" push, fired only when a cancellation
+  // newly starts. MUST be isolated: a failure here never changes the webhook
+  // response (a OneSignal hiccup must not trigger a billing-event retry).
+  sendCancellationSurveyPush?: (
+    payload: UserSubscriptionUpsert,
+  ) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -188,6 +205,7 @@ export function buildUserSubscriptionUpsert(
     revenuecat_original_app_user_id: nonEmptyString(event.original_app_user_id),
     aliases,
     expires_at: expiresAt,
+    period_type: nonEmptyString(event.period_type),
     last_event_type: eventType,
     last_event_at: lastEventAt,
     updated_at: new Date().toISOString(),
@@ -319,9 +337,9 @@ export async function handleRevenueCatWebhook(
   }
 
   if (subscriptionPayload != null) {
-    let written: boolean;
+    let result: UpsertSubscriptionResult;
     try {
-      written = await options.upsertSubscription(subscriptionPayload);
+      result = await options.upsertSubscription(subscriptionPayload);
     } catch (error) {
       console.error("revenuecat-webhook upsert failed", error);
       return jsonResponse(
@@ -330,8 +348,20 @@ export async function handleRevenueCatWebhook(
       );
     }
 
-    if (!written) {
+    if (!result.written) {
       return jsonResponse(200, { status: "skipped", reason: "stale_event" });
+    }
+
+    // Fire the cancellation survey push only on a genuinely new cancellation.
+    // ISOLATED: any failure is swallowed and logged — it must never turn this
+    // into a 500, which would make RevenueCat retry the whole billing event
+    // (and re-run the consumable clawback).
+    if (result.cancellationStarted && options.sendCancellationSurveyPush) {
+      try {
+        await options.sendCancellationSurveyPush(subscriptionPayload);
+      } catch (error) {
+        console.error("revenuecat-webhook cancellation push failed", error);
+      }
     }
   }
 

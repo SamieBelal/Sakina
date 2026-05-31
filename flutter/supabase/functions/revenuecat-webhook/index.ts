@@ -7,6 +7,11 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+// Reuses the OneSignal env + request shape established by notify-referral-confirmed
+// (modern v2: include_aliases.external_id + target_channel, `Authorization: Key`).
+const oneSignalAppId = Deno.env.get("ONESIGNAL_APP_ID") ?? "";
+const oneSignalRestApiKey = Deno.env.get("ONESIGNAL_API_KEY") ?? "";
+
 serve((request) =>
   handleRevenueCatWebhook(request, {
     webhookSecret: Deno.env.get("REVENUECAT_WEBHOOK_SECRET") ?? "",
@@ -20,7 +25,42 @@ serve((request) =>
         throw error;
       }
 
-      return data === true;
+      // The RPC returns { written, cancellation_started }.
+      return {
+        written: data?.written === true,
+        cancellationStarted: data?.cancellation_started === true,
+      };
+    },
+    sendCancellationSurveyPush: async (payload) => {
+      // Best-effort. The handler isolates failures, but bail early if OneSignal
+      // is unconfigured so we don't make a doomed request.
+      if (!oneSignalAppId || !oneSignalRestApiKey) return;
+
+      const response = await fetch("https://api.onesignal.com/notifications", {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${oneSignalRestApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          app_id: oneSignalAppId,
+          include_aliases: { external_id: [payload.user_id] },
+          target_channel: "push",
+          headings: { en: "Before you go" },
+          contents: {
+            en: "We'd love to know why — it takes 10 seconds. 🌙",
+          },
+          data: { type: "cancellation_feedback" },
+        }),
+      });
+
+      if (!response.ok) {
+        // Surface for logs; the handler swallows the throw so billing sync is
+        // unaffected.
+        throw new Error(
+          `OneSignal cancellation push non-2xx: ${response.status}`,
+        );
+      }
     },
     clawbackConsumable: async (payload) => {
       // The RPC is idempotent on transaction_id, so retries from RC are
