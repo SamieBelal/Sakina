@@ -71,9 +71,23 @@ begin
     revenuecat_original_app_user_id = excluded.revenuecat_original_app_user_id,
     aliases = excluded.aliases,
     expires_at = excluded.expires_at,
-    canceled_at = excluded.canceled_at,
-    billing_issue_detected_at = excluded.billing_issue_detected_at,
-    period_type = excluded.period_type,
+    -- Preserve-on-absent-key (migration 20260426163204
+    -- preserve_canceled_at_on_absent_key on prod): EXPIRATION/BILLING_ISSUE
+    -- events omit these keys so the stored value survives. Recreating the RPC
+    -- MUST keep this CASE or expiry wipes canceled_at (lost cancellation state
+    -- + the reactive survey would stop firing for lapsed-but-cancelled users).
+    canceled_at = case
+      when payload ? 'canceled_at' then excluded.canceled_at
+      else public.user_subscriptions.canceled_at
+    end,
+    billing_issue_detected_at = case
+      when payload ? 'billing_issue_detected_at' then excluded.billing_issue_detected_at
+      else public.user_subscriptions.billing_issue_detected_at
+    end,
+    period_type = case
+      when payload ? 'period_type' then excluded.period_type
+      else public.user_subscriptions.period_type
+    end,
     last_event_type = excluded.last_event_type,
     last_event_at = excluded.last_event_at,
     updated_at = excluded.updated_at
