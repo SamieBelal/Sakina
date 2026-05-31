@@ -149,7 +149,7 @@ class _SettingsPremiumCardState extends ConsumerState<SettingsPremiumCard>
       analytics: ref.read(analyticsProvider),
     );
     // Returning from Customer Center may have changed entitlement state.
-    ref.invalidate(premiumStateProvider);
+    if (context.mounted) ref.invalidate(premiumStateProvider);
   }
 }
 

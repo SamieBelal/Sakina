@@ -192,7 +192,7 @@ class CancellationFeedbackService {
         table,
         userId,
         <String, dynamic>{
-          'expires_at': context.expiresAt.toUtc().toIso8601String(),
+          'expires_at': _episodeKey(context.expiresAt).toIso8601String(),
           'canceled_at': context.canceledAt?.toUtc().toIso8601String(),
           'reason_code': reason?.code,
           'reason_text': (trimmed != null && trimmed.isNotEmpty) ? trimmed : null,
@@ -218,14 +218,28 @@ class CancellationFeedbackService {
       // On a read failure, assume surveyed → fail closed, never double-prompt.
       return true;
     }
-    final target = expiresAt.toUtc();
+    final target = _episodeKey(expiresAt);
     for (final row in rows) {
       final rowExpires = _parseTime(row['expires_at']);
-      if (rowExpires != null && rowExpires.toUtc().isAtSameMomentAs(target)) {
+      if (rowExpires != null && _episodeKey(rowExpires).isAtSameMomentAs(target)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// Normalizes an expiration timestamp to a whole-second UTC instant — the
+  /// dedupe key. The instant path reads `expirationDate` (client) and the
+  /// reactive path reads `expires_at` (server); they describe the same period
+  /// end but could differ by sub-second jitter. Truncating to the second makes
+  /// the "survey exactly once" invariant robust to that jitter, both for the
+  /// stored value (so the DB unique constraint collides) and the local check.
+  static DateTime _episodeKey(DateTime dt) {
+    final utc = dt.toUtc();
+    return DateTime.fromMillisecondsSinceEpoch(
+      (utc.millisecondsSinceEpoch ~/ 1000) * 1000,
+      isUtc: true,
+    );
   }
 
   static DateTime? _parseTime(dynamic value) {

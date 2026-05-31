@@ -237,4 +237,26 @@ void main() {
       expect(await service.resolveReactiveCancellation(), isNull);
     });
   });
+
+  group('cross-path dedupe robustness', () {
+    test('sub-second jitter between instant and reactive still dedupes',
+        () async {
+      // Instant path submits with a client expiration carrying milliseconds.
+      final instant = CancellationContext(
+        expiresAt: DateTime.utc(2026, 6, 15, 10, 0, 0, 742),
+        source: CancellationSource.inAppInstant,
+      );
+      await service.submit(instant, reason: CancellationReason.tooExpensive);
+
+      // Reactive path later sees the same period end at whole-second precision
+      // (server expires_at). It must recognize the episode as already surveyed.
+      _seedSubscription(fake,
+          userId: userId,
+          canceledAt: canceled.toIso8601String(),
+          expiresAt: DateTime.utc(2026, 6, 15, 10).toIso8601String());
+
+      expect(await service.resolveReactiveCancellation(), isNull);
+      expect(fake.rowLists['cancellation_feedback'], hasLength(1));
+    });
+  });
 }
