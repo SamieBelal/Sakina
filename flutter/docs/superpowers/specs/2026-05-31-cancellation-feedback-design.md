@@ -117,7 +117,6 @@ push is a handler unit test.
 | `product_id` | text null | context |
 | `store` | text null | `app_store` / `play_store` |
 | `platform` | text null | `ios` / `android` |
-| `app_version` | text null | context |
 | `source` | text not null | `in_app_instant` / `in_app_reactive` / `push` |
 | `status` | text not null | `submitted` / `dismissed` |
 

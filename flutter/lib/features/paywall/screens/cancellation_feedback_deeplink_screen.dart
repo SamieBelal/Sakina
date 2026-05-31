@@ -36,18 +36,11 @@ class _CancellationFeedbackDeepLinkScreenState
 
     if (mounted && reactive != null) {
       // Re-tag the source as push (resolveReactiveCancellation defaults to
-      // in_app_reactive); the episode/dedupe key is unchanged.
-      final pushContext = CancellationContext(
-        expiresAt: reactive.expiresAt,
-        canceledAt: reactive.canceledAt,
-        periodType: reactive.periodType,
-        productId: reactive.productId,
-        store: reactive.store,
-        source: CancellationSource.push,
-      );
+      // in_app_reactive); the episode/dedupe key and all other fields are
+      // preserved by copyWith.
       await presentCancellationFeedback(
         context,
-        cancellation: pushContext,
+        cancellation: reactive.copyWith(source: CancellationSource.push),
         service: service,
         analytics: ref.read(analyticsProvider),
       );

@@ -212,6 +212,14 @@ void main() {
       await service.submit(ctx());
       expect(fake.upsertCalls, isEmpty);
     });
+
+    test('does NOT fire analytics when the write fails', () async {
+      fake.nextUpsertShouldFail = true; // upsertRow returns false, stores nothing
+      await service.submit(ctx(), reason: CancellationReason.tooExpensive);
+      expect(fake.rowLists['cancellation_feedback'] ?? const [], isEmpty);
+      expect(analytics.tracked, isEmpty,
+          reason: 'a lost write must not report a captured submission');
+    });
   });
 
   group('dismiss', () {

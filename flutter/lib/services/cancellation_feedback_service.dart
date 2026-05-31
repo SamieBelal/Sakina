@@ -62,6 +62,19 @@ class CancellationContext {
   final String? store;
 
   bool get isTrial => periodType == 'trial';
+
+  /// Re-tag the source without dropping any other field (used by the push
+  /// deep-link, which re-labels a reactively-resolved context as `push`).
+  CancellationContext copyWith({CancellationSource? source}) {
+    return CancellationContext(
+      expiresAt: expiresAt,
+      source: source ?? this.source,
+      canceledAt: canceledAt,
+      periodType: periodType,
+      productId: productId,
+      store: store,
+    );
+  }
 }
 
 /// Writes cancellation-feedback records and decides whether to prompt.
@@ -89,12 +102,10 @@ class CancellationFeedbackService {
     final userId = _sync.currentUserId;
     if (userId == null) return null;
 
-    final List<Map<String, dynamic>> rows;
-    try {
-      rows = await _sync.fetchRows('user_subscriptions', userId);
-    } catch (_) {
-      return null; // Fail closed: a query error must never block app open.
-    }
+    // fetchRows swallows its own errors and returns [] on failure, so a query
+    // error surfaces here as "no subscription rows" → no prompt. That is the
+    // safe direction (a transient error never forces a survey).
+    final rows = await _sync.fetchRows('user_subscriptions', userId);
 
     for (final row in rows) {
       if (row['entitlement'] != 'premium') continue;
@@ -141,12 +152,18 @@ class CancellationFeedbackService {
     CancellationReason? reason,
     String? reasonText,
   }) async {
-    await _write(
+    final wrote = await _write(
       context,
       status: 'submitted',
       reason: reason,
       reasonText: reasonText,
     );
+
+    // Only report a submission that actually persisted — otherwise a failed
+    // write (RLS, offline, constraint) would inflate the captured-feedback rate
+    // while the row is lost. A failed write leaves no row, so the user is
+    // correctly re-prompted on the next open.
+    if (!wrote) return;
 
     _analytics.track(
       AnalyticsEvents.cancellationFeedbackSubmitted,
@@ -163,7 +180,8 @@ class CancellationFeedbackService {
   /// Records that the user skipped the survey, so we never re-ask for this
   /// episode.
   Future<void> dismiss(CancellationContext context) async {
-    await _write(context, status: 'dismissed');
+    final wrote = await _write(context, status: 'dismissed');
+    if (!wrote) return;
     _analytics.track(
       AnalyticsEvents.cancellationFeedbackDismissed,
       properties: <String, dynamic>{
@@ -173,51 +191,46 @@ class CancellationFeedbackService {
     );
   }
 
-  Future<void> _write(
+  /// Writes the feedback/dismissal row. Returns whether the write persisted.
+  Future<bool> _write(
     CancellationContext context, {
     required String status,
     CancellationReason? reason,
     String? reasonText,
   }) async {
     final userId = _sync.currentUserId;
-    if (userId == null) return;
+    if (userId == null) return false;
 
     final trimmed = reasonText?.trim();
-    try {
-      // upsert on the composite episode key. Naming the conflict columns
-      // explicitly is mandatory — the SDK otherwise defaults to PK-conflict
-      // resolution, inserts a fresh uuid, hits the unique violation, and
-      // silently fails.
-      await _sync.upsertRow(
-        table,
-        userId,
-        <String, dynamic>{
-          'expires_at': _episodeKey(context.expiresAt).toIso8601String(),
-          'canceled_at': context.canceledAt?.toUtc().toIso8601String(),
-          'reason_code': reason?.code,
-          'reason_text': (trimmed != null && trimmed.isNotEmpty) ? trimmed : null,
-          'period_type': context.periodType,
-          'product_id': context.productId,
-          'store': context.store,
-          'platform': _platform,
-          'source': context.source.value,
-          'status': status,
-        },
-        onConflict: 'user_id,expires_at',
-      );
-    } catch (_) {
-      // Feedback must never interrupt or error in the user's face.
-    }
+    // upsert on the composite episode key. Naming the conflict columns
+    // explicitly is mandatory — the SDK otherwise defaults to PK-conflict
+    // resolution, inserts a fresh uuid, hits the unique violation, and silently
+    // fails. upsertRow already swallows its own errors and returns false on
+    // failure, so feedback never errors in the user's face.
+    return _sync.upsertRow(
+      table,
+      userId,
+      <String, dynamic>{
+        'expires_at': _episodeKey(context.expiresAt).toIso8601String(),
+        'canceled_at': context.canceledAt?.toUtc().toIso8601String(),
+        'reason_code': reason?.code,
+        'reason_text': (trimmed != null && trimmed.isNotEmpty) ? trimmed : null,
+        'period_type': context.periodType,
+        'product_id': context.productId,
+        'store': context.store,
+        'platform': _platform,
+        'source': context.source.value,
+        'status': status,
+      },
+      onConflict: 'user_id,expires_at',
+    );
   }
 
   Future<bool> _alreadySurveyed(String userId, DateTime expiresAt) async {
-    final List<Map<String, dynamic>> rows;
-    try {
-      rows = await _sync.fetchRows(table, userId);
-    } catch (_) {
-      // On a read failure, assume surveyed → fail closed, never double-prompt.
-      return true;
-    }
+    // fetchRows returns [] on a read error (it swallows internally), so a
+    // transient failure reads as "not surveyed" and the worst case is one
+    // extra prompt — acceptable for a best-effort survey.
+    final rows = await _sync.fetchRows(table, userId);
     final target = _episodeKey(expiresAt);
     for (final row in rows) {
       final rowExpires = _parseTime(row['expires_at']);

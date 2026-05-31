@@ -205,7 +205,10 @@ export function buildUserSubscriptionUpsert(
     revenuecat_original_app_user_id: nonEmptyString(event.original_app_user_id),
     aliases,
     expires_at: expiresAt,
-    period_type: nonEmptyString(event.period_type),
+    // RevenueCat sends period_type uppercase (TRIAL/NORMAL/INTRO). Lowercase it
+    // so the reactive/push survey paths match the client (instant) path, whose
+    // CancellationContext.isTrial compares against lowercase 'trial'.
+    period_type: nonEmptyString(event.period_type)?.toLowerCase() ?? null,
     last_event_type: eventType,
     last_event_at: lastEventAt,
     updated_at: new Date().toISOString(),

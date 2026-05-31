@@ -564,11 +564,12 @@ Deno.test("Push failure does NOT fail the webhook (isolation)", async () => {
   assertEquals(await response.json(), { status: "ok" });
 });
 
-Deno.test("period_type is carried onto the upsert payload", () => {
+Deno.test("period_type is carried onto the upsert payload, lowercased", () => {
+  // RevenueCat sends uppercase; the survey copy + analytics compare lowercase.
   const payload = buildUserSubscriptionUpsert(baseEvent({
     type: "CANCELLATION",
     period_type: "TRIAL",
   }));
   assert(payload);
-  assertEquals(payload.period_type, "TRIAL");
+  assertEquals(payload.period_type, "trial");
 });

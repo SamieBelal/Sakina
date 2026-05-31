@@ -31,16 +31,19 @@ create table if not exists public.cancellation_feedback (
   product_id text,
   store text,
   platform text,
-  app_version text,
   -- in_app_instant | in_app_reactive | push
   source text not null,
   -- submitted | dismissed
   status text not null,
-  constraint uq_cancellation_feedback_user_episode unique (user_id, expires_at)
+  constraint uq_cancellation_feedback_user_episode unique (user_id, expires_at),
+  -- Server-side bound on the free-text PII (client caps at 1000); a crafted
+  -- client could otherwise store unbounded text.
+  constraint cancellation_feedback_reason_text_len
+    check (reason_text is null or char_length(reason_text) <= 2000)
 );
 
-create index if not exists idx_cancellation_feedback_user
-  on public.cancellation_feedback (user_id);
+-- No standalone (user_id) index: the unique constraint's composite index
+-- (user_id, expires_at) already serves user_id-prefix lookups.
 
 alter table public.cancellation_feedback enable row level security;
 
