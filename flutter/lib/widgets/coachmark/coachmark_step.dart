@@ -7,9 +7,9 @@ class CoachmarkStep {
   const CoachmarkStep({
     required this.target,
     required this.message,
-    this.tooltipBelow = true,
     this.interactive = true,
     this.hint,
+    this.autoAdvance,
     this.cutoutPaddingTop = 0,
     this.cutoutPaddingBottom = 0,
     this.cutoutPaddingX = 0,
@@ -24,9 +24,6 @@ class CoachmarkStep {
   /// Body copy. Keep to ≤ 14 words.
   final String message;
 
-  /// If true, tooltip card sits below the cutout. If false, above.
-  final bool tooltipBelow;
-
   /// When true, the cutout is tap-through and the tour advances on the next
   /// pointer-up inside the cutout rect (no "Next" button is shown). When
   /// false, the tooltip renders a "Continue" button and taps inside the
@@ -36,6 +33,11 @@ class CoachmarkStep {
   /// Optional secondary line under the message, e.g. "Tap to continue ↗".
   /// Renders in primary color (emerald) at smaller size.
   final String? hint;
+
+  /// When non-null, this is a read-only step with nothing to tap — the overlay
+  /// advances itself after this delay (e.g. the streak beat, the final wrap-up).
+  /// Suppressed under a screen reader, where the banner shows a Continue instead.
+  final Duration? autoAdvance;
 
   /// Pixels to extend the cutout rect upward beyond the target. Used when
   /// the cutout should highlight a related widget that lives above the

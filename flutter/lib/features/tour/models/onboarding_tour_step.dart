@@ -27,8 +27,8 @@ class OnboardingTourStepDef {
     required this.anchorId,
     required this.message,
     required this.interactive,
-    this.tooltipBelow = true,
     this.hint,
+    this.autoAdvance,
     this.cutoutPaddingTop = 0,
     this.cutoutPaddingBottom = 0,
     this.cutoutPaddingX = 0,
@@ -50,13 +50,14 @@ class OnboardingTourStepDef {
   /// is tap-through). False = tooltip shows a Continue button (teach moment).
   final bool interactive;
 
-  /// Preferred tooltip placement. Overlay flips automatically if the
-  /// preferred side doesn't fit.
-  final bool tooltipBelow;
-
   /// Optional secondary line under the message. Defaults to "Tap to continue ↗"
   /// for interactive steps if unset.
   final String? hint;
+
+  /// Non-null for read-only steps with nothing to tap (the streak beat, the
+  /// final wrap-up). The overlay auto-advances after this delay; under a screen
+  /// reader it shows a Continue instead. Tap steps leave this null.
+  final Duration? autoAdvance;
 
   /// Extra pixels to extend the cutout rect upward beyond the target.
   /// Used to highlight a related widget that lives above the actual tap
@@ -101,7 +102,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
     anchorId: 'beginMuhasabahCta',
-    message: 'Tap to start your daily check-in.',
+    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -109,7 +110,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'muhasabah.goDeeper',
     surface: TourSurface.muhasabah,
     anchorId: 'goDeeperCta',
-    message: 'Open the reflection, story, and dua for this Name.',
+    message: 'Open Go Deeper, {name} — reflection, story and dua await.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -117,7 +118,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'muhasabah.readStory',
     surface: TourSurface.muhasabah,
     anchorId: 'readStoryCta',
-    message: 'Continue to a story from the Prophets ﷺ.',
+    message: 'Now read a story from the Prophets ﷺ.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -128,7 +129,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'muhasabah.ameen',
     surface: TourSurface.muhasabah,
     anchorId: 'ameenCta',
-    message: 'Tap Ameen to seal this prayer.',
+    message: 'Seal your prayer — tap Ameen.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -136,7 +137,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'muhasabah.returnHome',
     surface: TourSurface.muhasabah,
     anchorId: 'returnHomeCta',
-    message: "You're done. Tap to return home.",
+    message: 'Beautifully done, {name}. Head back home.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -145,17 +146,16 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'home.streakPill',
     surface: TourSurface.home,
     anchorId: 'streakPill',
-    message: 'Your streak just started. Come back tomorrow to keep it.',
+    message: 'Your streak begins today, {name}. Return tomorrow to keep it.',
     interactive: false,
-    tooltipBelow: true,
+    autoAdvance: Duration(milliseconds: 2000),
   ),
   OnboardingTourStepDef(
     id: 'appShell.tabCollection',
     surface: TourSurface.appShell,
     anchorId: 'tabCollection',
-    message: 'Your earned card lives in your Collection.',
+    message: 'Your first card is waiting — tap Collection.',
     interactive: true,
-    tooltipBelow: false,
     hint: 'Tap to continue ↗',
     // Anchor is the tab ICON only; grow the cutout into the full tab cell so
     // the "Collection" label is highlighted too (not greyed under the scrim).
@@ -167,9 +167,8 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'appShell.tabDuasFromCollection',
     surface: TourSurface.appShell,
     anchorId: 'tabDuas',
-    message: 'Tap Duas to build your first dua.',
+    message: "Let's build your first dua, {name}. Tap Duas.",
     interactive: true,
-    tooltipBelow: false,
     hint: 'Tap to continue ↗',
     // Grow the icon anchor into the full tab cell (icon + "Duas" label).
     cutoutPaddingTop: kTabCutoutPadTop,
@@ -181,9 +180,8 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'duas.buildCta',
     surface: TourSurface.duas,
     anchorId: 'buildCta',
-    message: "Type a need (e.g. 'patience'), then tap Build.",
+    message: "Type what's on your heart, then tap Build.",
     interactive: true,
-    tooltipBelow: false,
     hint: 'Tap Build to continue ↗',
     // Extends the cutout UPWARD by 280pt so the text field above the
     // Build CTA is ALSO highlighted (and not obscured by the tooltip).
@@ -197,7 +195,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'duas.firstRelatedHeart',
     surface: TourSurface.duas,
     anchorId: 'firstRelatedHeart',
-    message: 'Tap ♡ to save duas you love.',
+    message: 'Tap ♡ to keep a dua you love.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -205,9 +203,8 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'appShell.tabJournalFromDuas',
     surface: TourSurface.appShell,
     anchorId: 'tabJournal',
-    message: 'Find your saved duas in Journal.',
+    message: 'Your saved duas live in Journal, {name}.',
     interactive: true,
-    tooltipBelow: false,
     hint: 'Tap to continue ↗',
     // Grow the icon anchor into the full tab cell (icon + "Journal" label).
     cutoutPaddingTop: kTabCutoutPadTop,
@@ -219,7 +216,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'journal.firstEntry',
     surface: TourSurface.journal,
     anchorId: 'firstEntry',
-    message: 'Tap to revisit a saved entry anytime.',
+    message: 'Tap any entry to revisit it anytime.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -227,8 +224,9 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     id: 'duaDetail.done',
     surface: TourSurface.duaDetail,
     anchorId: 'centered',
-    message: "Private to you. You're all set.",
+    message: "That's the whole loop, {name}. Sakina is yours now. 🌙",
     interactive: false,
+    autoAdvance: Duration(milliseconds: 3500),
   ),
 ];
 

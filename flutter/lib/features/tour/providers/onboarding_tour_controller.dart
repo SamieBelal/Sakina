@@ -6,6 +6,7 @@ import '../../../features/daily/providers/daily_loop_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/app_config_service.dart';
+import '../../../services/gating_service.dart';
 import '../models/onboarding_tour_step.dart';
 
 /// Tour state machine status.
@@ -15,12 +16,17 @@ class OnboardingTourState {
   const OnboardingTourState({
     required this.index,
     required this.status,
+    this.userName,
   });
 
   /// Step index into [kOnboardingTourSteps]. `-1` when idle.
   final int index;
 
   final TourStatus status;
+
+  /// Resolved display name, used to personalize step copy (`{name}`). Resolved
+  /// once at tour start/replay; null until then (copy falls back to no name).
+  final String? userName;
 
   bool get isActive => status == TourStatus.active;
 
@@ -31,10 +37,11 @@ class OnboardingTourState {
     return kOnboardingTourSteps[index];
   }
 
-  OnboardingTourState copyWith({int? index, TourStatus? status}) =>
+  OnboardingTourState copyWith({int? index, TourStatus? status, String? userName}) =>
       OnboardingTourState(
         index: index ?? this.index,
         status: status ?? this.status,
+        userName: userName ?? this.userName,
       );
 }
 
@@ -83,10 +90,6 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     }
 
     if (daily.checkinDone) {
-      // Already checked in today. Step 1's target ("Begin Muḥāsabah") is
-      // swapped for the gated "Seek Another Name" CTA — firing the tour
-      // would push the user into a 25-token paywall as the first step.
-      // Mark seen so we don't keep checking on every launch.
       await prefs.setBool(flag, true);
       return;
     }
@@ -104,9 +107,25 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
       return;
     }
 
-    state = const OnboardingTourState(index: 0, status: TourStatus.active);
+    state = OnboardingTourState(
+      index: 0,
+      status: TourStatus.active,
+      userName: await _resolveUserName(),
+    );
     _track(AnalyticsEvents.tourStarted, const {});
     _trackStepViewed();
+  }
+
+  /// Resolves the display name for personalized copy. `GatingService` already
+  /// falls back to "Friend" when no name is saved, so this is non-empty in
+  /// practice; null only on an unexpected failure.
+  Future<String?> _resolveUserName() async {
+    try {
+      final name = (await GatingService().displayName()).trim();
+      return name.isEmpty ? null : name;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Advances to the next step, or marks the tour completed if at the last.
@@ -123,11 +142,11 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     final next = state.index + 1;
     if (next >= kOnboardingTourSteps.length) {
       await _markSeen();
-      state = OnboardingTourState(index: next, status: TourStatus.completed);
+      state = state.copyWith(index: next, status: TourStatus.completed);
       _track(AnalyticsEvents.tourCompleted, const {});
       return;
     }
-    state = OnboardingTourState(index: next, status: TourStatus.active);
+    state = state.copyWith(index: next, status: TourStatus.active);
     _trackStepViewed();
   }
 
@@ -147,9 +166,21 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
   /// Caller MUST clear the seen flag before calling this so a subsequent
   /// natural launch doesn't re-fire on top of the replay.
   void replay() {
-    state = const OnboardingTourState(index: 0, status: TourStatus.active);
+    // Set active synchronously (callers don't await; tests assert immediately)
+    // reusing any name already resolved, then refresh the name in the
+    // background so the first banner can interpolate it.
+    state = OnboardingTourState(
+      index: 0,
+      status: TourStatus.active,
+      userName: state.userName,
+    );
     _track(AnalyticsEvents.tourStarted, const {'via': 'replay'});
     _trackStepViewed();
+    _resolveUserName().then((name) {
+      if (name != null && state.isActive && state.index == 0) {
+        state = state.copyWith(userName: name);
+      }
+    });
   }
 
   Future<void> _markSeen() async {

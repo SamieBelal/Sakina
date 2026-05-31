@@ -35,6 +35,22 @@ const Duration _kRevealMinSettle = Duration(milliseconds: 400);
 /// "the same" — absorbs sub-pixel jitter so we don't read it as motion.
 const double _kAnchorRectEpsilon = 1.0;
 
+/// Substitutes the resolved display name into a step's `{name}` placeholder.
+/// When the name is missing (resolution failed / not yet loaded) the
+/// placeholder + its leading separator are stripped so the copy still reads
+/// naturally (e.g. "Assalamu alaikum, {name} 👋" → "Assalamu alaikum 👋").
+String _personalizeTourCopy(String template, String? name) {
+  final n = name?.trim();
+  if (n == null || n.isEmpty) {
+    return template
+        .replaceAll(', {name}', '')
+        .replaceAll(' {name}', '')
+        .replaceAll('{name}', '')
+        .trim();
+  }
+  return template.replaceAll('{name}', n);
+}
+
 /// Mounts the tour `CoachmarkOverlay` into the root navigator's `Overlay`
 /// using `rootNavigatorKey.currentState?.overlay`. This is the same place
 /// SnackBars, Dialogs, and Tooltips mount — it's the canonical "above all
@@ -419,10 +435,10 @@ class _OnboardingTourOverlayHostState
 
     final coachmarkStep = CoachmarkStep(
       target: anchorKey,
-      message: step.message,
-      tooltipBelow: step.tooltipBelow,
+      message: _personalizeTourCopy(step.message, tour.userName),
       interactive: step.interactive,
       hint: step.hint,
+      autoAdvance: step.autoAdvance,
       cutoutPaddingTop: step.cutoutPaddingTop,
       cutoutPaddingBottom: step.cutoutPaddingBottom,
       cutoutPaddingX: step.cutoutPaddingX,

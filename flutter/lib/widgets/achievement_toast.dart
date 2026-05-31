@@ -49,10 +49,13 @@ void enqueueQuestToast(Quest quest) {
 void _processQueue() {
   if (_isShowingToast || _toastQueue.isEmpty) return;
 
-  final context = rootNavigatorKey.currentContext;
-  if (context == null) return;
+  // Use the root Navigator's OWN overlay. `Overlay.of(navigatorContext)`
+  // searches ancestors of the Navigator element — but the navigator's overlay
+  // is its descendant, so that throws "No Overlay found". `currentState.overlay`
+  // is the correct handle (same pattern the tour overlay host uses).
+  final overlay = rootNavigatorKey.currentState?.overlay;
+  if (overlay == null) return;
 
-  final overlay = Overlay.of(context);
   final entry = _toastQueue.removeAt(0);
 
   _isShowingToast = true;
