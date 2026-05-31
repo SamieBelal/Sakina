@@ -262,3 +262,25 @@ using LOCAL date in production, so test and production agree.
 Bundle into a single follow-up migration `<timestamp>_sql_hygiene_grab_bag.sql` that applies all 4 changes. Comment header should reference this TODO entry.
 
 **Surfaced by:** Subagent migration review during the 2026-05-24 master review.
+
+## Win-back offer on subscription cancellation
+
+**What:** When a cancellation is detected, present a retention / win-back offer
+(discount, free period, or pause) to recover the churned subscriber.
+
+**Why:** The cancellation-feedback feature (spec:
+`docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md`) captures *why*
+users leave. A win-back offer acts on it. Deferred out of feedback-only v1 so the
+offer can be designed against real cancellation-reason data.
+
+**Decisions to make first (own brainstorm + spec):** Apple Win-back offers vs
+RevenueCat promotional offers vs discounted product (all need App Store Connect +
+RevenueCat config + offer signing + physical-device testing); post-cancel timing
+(can't intercept the cancel tap on Flutter); eligibility/abuse vs
+`referral_premium_until`/`gift_premium_until`; placement (in the feedback sheet vs
+separate); analytics funnel.
+
+**Depends on / blocked by:** Ship cancellation-feedback first; reuse its detection
+(`expires_at` episode) and `CancellationFeedbackSheet`.
+
+**Surfaced by:** `/plan-eng-review` of the cancellation-feedback spec, 2026-05-31.

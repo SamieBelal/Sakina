@@ -41,32 +41,40 @@ fired from the existing CANCELLATION webhook.
 | Decision | Choice |
 |---|---|
 | Survey mechanism | Custom in-app survey writing to a Supabase table we own (not RevenueCat's built-in survey — it is multiple-choice only, no free-text) |
-| Trigger | Reactive: detect voluntary cancel on next app open/resume; also reachable via push deep-link |
+| Trigger | Two paths, **one survey**: (a) **instant** — when the in-app Customer Center sheet closes, refresh status and present our survey immediately if they just cancelled; (b) **reactive** — for cancels done in the OS Settings app, present on next app open + push. Both show the same custom survey and write the same table. |
 | Coverage booster | OneSignal push fired from the existing `CANCELLATION` webhook, deep-linking into the survey |
 | Results destination | Supabase table = source of truth; mirror each submission to a Mixpanel event for charts |
 
 ## Architecture
 
 ```
-RevenueCat cancel (Customer Center OR OS Settings app)
-        │
-        ├──────────────► CANCELLATION webhook (supabase/functions/revenuecat-webhook)
-        │                   ├─ upsert user_subscriptions.canceled_at        (already exists)
-        │                   └─ NEW: OneSignal push → deep-link sakina://cancellation-feedback
-        │                          (idempotent on RC event id)
-        │
-   next app open / resume                          push tapped
-        │                                               │
-        └──────────► CancellationFeedbackController ◄────┘
-                         │ voluntary cancel? not yet surveyed? authed?
+ PATH A — cancel via in-app Customer Center            PATH B — cancel via OS Settings app
+        │                                                       │
+  await presentCustomerCenter() returns                  CANCELLATION webhook
+        │                                                  ├─ upsert user_subscriptions
+   invalidate + getCustomerInfo()                         │    (canceled_at, expires_at,
+        │  just cancelled?                                │     period_type)  [transition?]
+        ▼  YES → INSTANT                                  └─ NEW: OneSignal push (on null→cancel
+        │                                                        transition only) → deep-link
+        │                                          next app open / resume      push tapped
+        │                                                  │                        │
+        │                                                  └─ query user_subscriptions
+        │                                                     (server = source of truth)
+        ▼                                                              ▼
+        └────────────► CancellationFeedbackController ◄────────────────┘
+                         shared predicate: cancelled? not billing-issue?
+                         no feedback row for (user_id, expires_at)? authed?
                          ▼
                  CancellationFeedbackSheet  (reasons + optional free-text)
                          │ Submit / Skip
                          ▼
-            CancellationFeedbackService
+            CancellationFeedbackService   (dedupe key: user_id + expires_at)
               ├─ INSERT cancellation_feedback  (Supabase — source of truth)
               └─ Mixpanel track('Cancellation Feedback Submitted', {...})
 ```
+Path A reads the client `EntitlementInfo` (fresh, right after Customer Center
+closes). Path B reads the server row. Both write the same table, deduped on the
+`(user_id, expires_at)` episode key, so a cancellation is surveyed exactly once.
 
 ### Components / units
 
@@ -98,7 +106,8 @@ push is a handler unit test.
 | `id` | uuid pk | `gen_random_uuid()` |
 | `user_id` | uuid not null | FK `auth.users` |
 | `created_at` | timestamptz | default `now()` |
-| `canceled_at` | timestamptz not null | the cancellation this record belongs to — **dedupe key** |
+| `expires_at` | timestamptz not null | current entitlement period end — **dedupe key** ("cancellation episode") |
+| `canceled_at` | timestamptz null | when the cancel was detected (data, not the key) |
 | `reason_code` | text null | null when skipped/dismissed |
 | `reason_text` | text null | optional free-text |
 | `period_type` | text null | `trial` / `normal` |
@@ -106,14 +115,30 @@ push is a handler unit test.
 | `store` | text null | `app_store` / `play_store` |
 | `platform` | text null | `ios` / `android` |
 | `app_version` | text null | context |
-| `expires_at` | timestamptz null | when access ends |
-| `source` | text not null | `in_app` / `push` |
+| `source` | text not null | `in_app_instant` / `in_app_reactive` / `push` |
 | `status` | text not null | `submitted` / `dismissed` |
 
-- **Unique `(user_id, canceled_at)`**; all writes use `INSERT … ON CONFLICT DO
-  NOTHING`. One record per cancellation event → handles the push/in-app race and
-  multiple devices. A user who cancels, resubscribes, then cancels again gets a
-  new `canceled_at` and is surveyed again.
+- **Dedupe key is `(user_id, expires_at)`, NOT `canceled_at`** (eng-review
+  decision). Reason: the two trigger paths read the cancellation at different
+  moments from different sources — the **instant** path reads the client
+  `EntitlementInfo` right after Customer Center closes (before the webhook may have
+  written the server row), the **reactive** path reads `user_subscriptions`. A
+  timestamp-based key would differ between them and double-survey. `expires_at`
+  (the entitlement's current period end) is **identical** in the client
+  `EntitlementInfo.expirationDate` and the server `user_subscriptions.expires_at`,
+  and is stable for the whole "this period won't renew" episode. A
+  resubscribe/renewal advances `expires_at` → new episode → surveyable again.
+- All writes use `INSERT … ON CONFLICT DO NOTHING` and **MUST name the composite
+  conflict columns explicitly** (`onConflict: 'user_id,expires_at'`). The Supabase
+  SDK defaults to PK-conflict resolution, which would insert a fresh uuid row, hit
+  the composite unique violation, and *silently fail* (prior learning, confidence
+  9/10). The test fake MUST model the `(user_id, expires_at)` uniqueness or the
+  dedupe tests give false confidence (prior learning, confidence 9/10).
+- **Defensive:** if `expires_at` is ever null (non-expiring entitlement — not
+  expected for the weekly/annual products, but guard anyway), fall back to skipping
+  the prompt rather than writing a null-keyed row.
+- **`reason_code` is a Dart enum with stable string values**, one definition
+  feeding both this column and the Mixpanel property so the taxonomy can't drift.
 - **RLS:** authenticated user may `INSERT` and `SELECT` only rows where
   `user_id = auth.uid()`. No service-role writes from the client. Follows the
   existing per-user table conventions in the codebase.
@@ -123,23 +148,52 @@ push is a handler unit test.
 
 ## Detection logic (`CancellationFeedbackController`)
 
-Runs on app launch and on `AppLifecycleState.resumed`:
+There are **two trigger paths that show the same survey** and dedupe against the
+same `(user_id, expires_at)` episode key, so a cancellation is only ever surveyed
+once regardless of how it was detected.
 
-1. Require an authenticated Supabase user; otherwise bail (cannot attribute).
-2. Refresh / invalidate the RevenueCat `customerInfo` cache so a same-session
-   Customer Center cancel is observed.
-3. Read the `premium` entitlement (check `entitlements.all`, not only `.active`,
-   so a recently-expired-but-cancelled sub is still seen).
-4. Treat as a **voluntary cancellation** iff `unsubscribeDetectedAt != null` **and**
-   `billingIssueDetectedAt == null`. Billing failures (involuntary churn) are
-   never surveyed. Cross-check with the authoritative server
-   `user_subscriptions.canceled_at` (instant + reliable, sidesteps the 5-min
-   client cache).
-5. Skip if `willRenew == true` (un-cancelled / resubscribed).
-6. Query `cancellation_feedback` for a row matching `(user_id, canceled_at)`. If
-   one exists (submitted *or* dismissed), do not prompt.
-7. Otherwise surface the sheet at a calm moment (home screen settle), once.
-   **Skip** writes a `dismissed` row → never re-asks for that cancellation.
+The shared predicate, "is this a voluntary, not-yet-surveyed cancellation?", is one
+function over `(expires_at, isCancelled, hasBillingIssue)`: prompt iff cancelled,
+**not** a billing issue (involuntary churn is never surveyed), and no
+`cancellation_feedback` row exists for `(user_id, expires_at)`. Only the *input
+source* differs between the two paths.
+
+### Path A — instant (Customer Center)
+
+`settings_premium_card.dart:_openManageSubscription` already `await`s
+`RevenueCatUI.presentCustomerCenter()`. When it returns (sheet dismissed):
+
+1. `Purchases.invalidateCustomerInfoCache()` then `getCustomerInfo()` to force a
+   fresh read.
+2. Inspect the `premium` entitlement (in `entitlements.all`): cancelled iff
+   `!willRenew && unsubscribeDetectedAt != null && billingIssueDetectedAt == null`.
+3. If cancelled and the shared predicate passes, present our survey **immediately**
+   (`source = in_app_instant`). `expires_at` comes from
+   `entitlement.expirationDate`; `period_type` from `entitlement.periodType`.
+
+This gives the near-instant moment for users who cancel inside the app, in our own
+sheet, with free-text — without RevenueCat's built-in survey and without splitting
+data.
+
+### Path B — reactive (Settings-app cancels, or instant path missed)
+
+**Server `user_subscriptions` is the source of truth here** (it can't rely on the
+client, which may be stale; prior learning: *"model from lifecycle timestamps."*).
+On app launch and `AppLifecycleState.resumed`:
+
+1. Require an authenticated Supabase user; otherwise bail.
+2. **Single query** against `user_subscriptions`: a row where `canceled_at IS NOT
+   NULL` **and** `billing_issue_detected_at IS NULL`, with **no**
+   `cancellation_feedback` row for `(user_id, expires_at)`. (`expires_at` and
+   `period_type` come from that row — see the webhook change below.)
+3. If yes → surface the sheet **at a calm moment**: from the home screen via a
+   post-frame one-shot, gated on `route == home` and no daily overlay / onboarding
+   / paywall / gacha active. One present-call, one place. (`source =
+   in_app_reactive`, or `push` when arrived via the deep link.)
+
+**Skip** (either path) writes a `dismissed` row keyed on `(user_id, expires_at)` →
+never re-asks for that episode. Because both paths share the episode key, a user
+who gets the instant survey is never re-asked on next open, and vice-versa.
 
 ## Survey UI (`CancellationFeedbackSheet`)
 
@@ -158,17 +212,25 @@ Runs on app launch and on `AppLifecycleState.resumed`:
 
 ## Webhook push
 
-Extend `supabase/functions/revenuecat-webhook/handler.ts`:
+Extend `supabase/functions/revenuecat-webhook/handler.ts`. Reuses the established
+OneSignal pattern from `notify-referral-confirmed/index.ts` (modern v2:
+`include_aliases.external_id`, `data.type`, `Authorization: Key <REST_KEY>`).
+The app already calls `OneSignal.login(userId)`, so `external_id` targets our
+Supabase user; the tap is routed by
+`notification_service.dart:routeForNotificationType()` (add one `case`).
 
-- On a **subscription** `CANCELLATION` event (entitlement `premium`; voluntary by
-  definition — billing issues arrive as `BILLING_ISSUE`, expirations as
-  `EXPIRATION`), call OneSignal to send a gentle notification ("We'd love to know
-  why — 10 seconds?") with launch URL `sakina://cancellation-feedback`.
-- **Idempotent** on the RevenueCat event id so webhook retries do not double-push
-  (reuse the existing idempotency-table pattern, or a
-  `cancellation_survey_pushed` guard).
-- OneSignal REST key is stored as an **Edge Function secret**, never in `env.json`
-  (consistent with the project's secret-handling rule).
+- Also add `period_type` to the `user_subscriptions` upsert (the RC event carries
+  it) so detection can render trial vs paid copy from the server row.
+- **Push fires only on the `canceled_at` null → set transition** (eng-review
+  decision): the upsert reports whether this event is a *new* cancellation, and
+  the push is sent only then. Redeliveries/retries see no transition → no push.
+  No new storage, idempotency falls out of the state change. A resubscribe resets
+  `canceled_at` to null, so a later cancel transitions again and can push again.
+- **Isolation (non-negotiable):** the OneSignal call is fully wrapped,
+  best-effort, fire-and-forget. A push failure must **never** change the
+  webhook's 200/500 for the subscription upsert — otherwise a OneSignal hiccup →
+  500 → RevenueCat retries the whole event → re-runs the consumable clawback.
+- OneSignal REST key is an **Edge Function secret**, never in `env.json`.
 - New GoRouter route handles `sakina://cancellation-feedback`; tapping the push
   opens the same sheet, which still performs the dedupe check before showing.
 
@@ -194,16 +256,18 @@ Extend `supabase/functions/revenuecat-webhook/handler.ts`:
 
 | Case | Behavior |
 |---|---|
-| Cancels via Customer Center, reopens | Surveyed (happy path) |
-| Cancels in OS Settings app, reopens | Surveyed (webhook `canceled_at` + client signals) |
+| Cancels via Customer Center | **Instant** survey when the sheet closes (Path A) |
+| Cancels in OS Settings app, reopens | Surveyed on next open (Path B, server row) |
 | Never reopens the app | Reached via webhook push |
-| Reopens only after full expiry | Surveyed via `entitlements.all` / server `canceled_at` |
-| Billing failure (involuntary) | **Not** surveyed |
+| Reopens only after full expiry | Surveyed via `entitlements.all` / server row |
+| Billing failure (involuntary) | **Not** surveyed (billing-issue gate) |
 | Cancels then un-cancels | **Not** surveyed (`willRenew` true) |
-| Same-session cancel in Customer Center | Cache invalidated on resume → seen |
-| Multiple devices / push+in-app race | Unique `(user_id, canceled_at)` dedupes |
+| Instant path missed (force-quit before sheet) | Caught by Path B on next open |
+| Instant survey done, then reopens | **Not** re-asked — same `(user_id, expires_at)` row |
+| Multiple devices / push+in-app race | Unique `(user_id, expires_at)` dedupes |
 | Anonymous / unauthed | Skipped (cannot attribute) |
-| Cancel → resubscribe → cancel again | New `canceled_at` → surveyed again |
+| Cancel → resubscribe → cancel again | New `expires_at` → surveyed again |
+| Non-expiring entitlement (`expires_at` null) | Skipped (defensive — no null-keyed row) |
 
 ## Testing
 
@@ -221,3 +285,22 @@ Extend `supabase/functions/revenuecat-webhook/handler.ts`:
 - RevenueCat's built-in multiple-choice Customer Center survey (no free-text).
 - Native platform-channel Customer Center listeners.
 - Localizing into the priority languages beyond keeping strings extractable.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | skipped | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 3 arch issues (all resolved), 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | n/a | — |
+
+**Eng-review decisions folded into the spec:** (1) server `user_subscriptions` row is
+the single source of truth for reactive detection; (2) survey presents from the home
+screen, gated, never over another overlay; (3) webhook push fires only on the
+`canceled_at` null→set transition, fully isolated from billing sync; (4) instant +
+reactive paths share one survey, deduped on the `(user_id, expires_at)` episode key.
+
+**UNRESOLVED:** none.
+**VERDICT:** ENG CLEARED — ready to implement (feedback-only v1; win-back deferred to `TODO.md`).
