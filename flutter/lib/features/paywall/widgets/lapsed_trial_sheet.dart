@@ -43,6 +43,7 @@ class LapsedTrialSheet extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
+      routeSettings: const RouteSettings(name: 'LapsedTrialSheet'),
       builder: (sheetContext) {
         return LapsedTrialSheet(
           momentsDuringTrial: momentsDuringTrial,

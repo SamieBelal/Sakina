@@ -10,11 +10,13 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
+import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/journal/screens/reflection_detail_page.dart';
 import 'package:sakina/features/journal/screens/dua_detail_page.dart';
+import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/provider_error_listener.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -491,17 +493,33 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
 
   Widget _buildAllFeed(List<_JournalEntry> entries) {
     if (entries.isEmpty) {
-      return _buildEmptyState();
+      // Register the tour anchor on the empty hero as a fallback — the
+      // tour step targeting `journal.firstEntry` (step 12) expects an
+      // anchor here. By step 12 the user has just saved a dua, so the
+      // list is normally non-empty; this is defense-in-depth.
+      return TourAnchor(
+        surface: TourSurface.journal,
+        anchorId: 'firstEntry',
+        child: _buildEmptyState(),
+      );
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding, 16, AppSpacing.pagePadding, 32),
-      children: entries
-          .asMap()
-          .entries
-          .map((e) => _animatedCard(e.key, _buildEntryCard(e.value)))
-          .toList(),
+      children: entries.asMap().entries.map((e) {
+        final card = _animatedCard(e.key, _buildEntryCard(e.value));
+        // Wrap only the first entry with the tour anchor so step 12 can
+        // target it.
+        if (e.key == 0) {
+          return TourAnchor(
+            surface: TourSurface.journal,
+            anchorId: 'firstEntry',
+            child: card,
+          );
+        }
+        return card;
+      }).toList(),
     );
   }
 
@@ -819,6 +837,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
+              settings: const RouteSettings(name: 'DuaDetailPage'),
               builder: (_) => DuaDetailPage.fromBuiltDua(
                     d,
                     onRemove: () => ref
@@ -879,6 +898,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
         HapticFeedback.lightImpact();
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
+              settings: const RouteSettings(name: 'DuaDetailPage'),
               builder: (_) => DuaDetailPage.fromRelatedDua(
                     d,
                     onRemove: () => ref

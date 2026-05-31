@@ -262,3 +262,39 @@ using LOCAL date in production, so test and production agree.
 Bundle into a single follow-up migration `<timestamp>_sql_hygiene_grab_bag.sql` that applies all 4 changes. Comment header should reference this TODO entry.
 
 **Surfaced by:** Subagent migration review during the 2026-05-24 master review.
+
+## Localize win-back push
+
+Push template `win_back_tour_replay` (see `docs/runbooks/onesignal-segments.md`) is EN only — localize when project i18n infrastructure exists.
+
+## Win-back offer on subscription cancellation
+
+**What:** When a cancellation is detected, present a retention / win-back offer
+(discount, free period, or pause) to recover the churned subscriber.
+
+**Why:** The cancellation-feedback feature (spec:
+`docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md`) captures *why*
+users leave. A win-back offer acts on it. Deliberately deferred out of the
+feedback-only v1 so the offer can be designed against real cancellation-reason
+data rather than guessed.
+
+**Constraints / decisions to make first (needs its own brainstorm + spec):**
+- Offer mechanism: Apple **Win-back offers** vs RevenueCat **promotional offers**
+  vs a discounted product. All require App Store Connect + RevenueCat dashboard
+  config and offer signing; a **physical device** is required to test (simulator
+  can't complete StoreKit).
+- Same interception limit as the survey: we can't catch the cancel tap inside
+  Customer Center on Flutter, so this is a post-cancellation "come back with a
+  discount" offer (which is exactly what Apple Win-back offers target), not a
+  pre-cancel deflection.
+- Eligibility / abuse: once per user per cancellation episode; must respect the
+  `referral_premium_until` / `gift_premium_until` premium sources and the
+  freemium-guard triggers — never grant overlapping/duplicate premium.
+- Placement: inside the cancellation-feedback sheet (after submit) vs a separate
+  screen; distinct copy for trial vs paid.
+- Analytics: offer shown / accepted / declined funnel (Mixpanel).
+
+**Depends on / blocked by:** Ship the cancellation-feedback feature first; reuse
+its detection (`expires_at` episode) and the `CancellationFeedbackSheet` surface.
+
+**Surfaced by:** `/plan-eng-review` of the cancellation-feedback spec, 2026-05-31.

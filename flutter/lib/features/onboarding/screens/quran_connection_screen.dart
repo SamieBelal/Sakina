@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
-import '../providers/onboarding_provider.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../widgets/intention_option_card.dart';
@@ -48,22 +47,22 @@ class QuranConnectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(onboardingProvider);
-
+    // Trimmed-flow refactor (2026-05-25, Option α): `quranConnection` was
+    // removed from OnboardingState. Legacy screen is preserved for the
+    // `onboarding_trim_enabled=false` rollback path but is now stateless.
     return OnboardingQuestionScaffold(
       progressSegment: 5,
       headline: AppStrings.quranConnectionTitle,
       subtitle: AppStrings.quranConnectionSubtitle,
-      continueEnabled: state.quranConnection != null,
+      continueEnabled: true,
       onBack: onBack,
       onContinue: () {
-        final value = ref.read(onboardingProvider).quranConnection;
         ref
             .read(analyticsProvider)
-            .trackSurveyAnswered('quran_connection', value);
+            .trackSurveyAnswered('quran_connection', null);
         ref
             .read(analyticsProvider)
-            .trackOnboardingAnswerWithRef(ref, 'quran_connection', value);
+            .trackOnboardingAnswerWithRef(ref, 'quran_connection', null);
         onNext();
       },
       body: Column(
@@ -76,10 +75,12 @@ class QuranConnectionScreen extends ConsumerWidget {
               icon: option.icon,
               title: option.title,
               subtitle: option.subtitle,
-              isSelected: state.quranConnection == option.key,
-              onTap: () => ref
-                  .read(onboardingProvider.notifier)
-                  .setQuranConnection(option.key),
+              // Trimmed-flow refactor (2026-05-25, Option α): `quranConnection`
+              // was removed from OnboardingState. This legacy screen is still
+              // rendered when `onboarding_trim_enabled=false`; the selection
+              // state is now local and not persisted.
+              isSelected: false,
+              onTap: () {},
             ),
           )
               .animate()

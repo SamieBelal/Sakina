@@ -68,7 +68,7 @@ Flow-level:
 - Backtracking edits prior answers.
 - Social auth stays in-flow (calls `_next`, not `_goToPaywall`).
 - Paywall (last index) sits outside the progress bar.
-- After paywall dismiss/complete, verify `user_profiles` row has ALL fields populated: `display_name`, `onboarding_intention`, `age_range`, `prayer_frequency`, `onboarding_quran_connection`, `onboarding_familiarity`, `resonant_name_id`, `dua_topics`, `common_emotions`, `aspirations`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`, `onboarding_attribution`. Regression guard against the 2026-04 silent-write-failure bug where a bad column name caused the whole UPDATE to fail.
+- After paywall dismiss/complete, verify `user_profiles` row has ALL active fields populated: `display_name`, `onboarding_intention`, `age_range`, `prayer_frequency`, `onboarding_familiarity`, `resonant_name_id`, `dua_topics`, `daily_commitment_minutes`, `reminder_time`, `commitment_accepted`, `onboarding_attribution`. Regression guard against the 2026-04 silent-write-failure bug where a bad column name caused the whole UPDATE to fail.
 
 ### 4. Daily core loop
 

@@ -14,11 +14,14 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
+import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -66,6 +69,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
 
   @override
   void dispose() {
+    // Lift any tour suppression this screen set (e.g. left the tab mid-build)
+    // so the guided tour never stays hidden after the Dua flow goes away.
+    try {
+      if (ref.read(tourSuppressedProvider)) {
+        ref.read(tourSuppressedProvider.notifier).state = false;
+      }
+    } catch (_) {
+      // Container already torn down (app shutdown) — nothing to reset.
+    }
     for (final c in _rippleControllers) {
       c.dispose();
     }
@@ -82,6 +94,17 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     // Surface freemium-gating sheets (daily-cap + warmup-exhausted) when the
     // gating layer blocks a build or signals the warmup→0 transition.
     ref.listen<DuasState>(duasProvider, (prev, next) {
+      // Pause the guided tour while the multi-screen Build-a-Dua flow is on
+      // screen — the loader plus the four reader beats. The step-10
+      // `firstRelatedHeart` anchor only mounts on the result view
+      // (buildCurrentSection == 4); without this the 60s anchor-timeout skips
+      // step 10 and step 11 (Journal tab) fires while the user is mid-build.
+      // Reset in dispose so leaving the tab mid-build never strands the tour.
+      final tourBlocked = next.buildLoading ||
+          (next.buildResult != null && next.buildCurrentSection < 4);
+      if (ref.read(tourSuppressedProvider) != tourBlocked) {
+        ref.read(tourSuppressedProvider.notifier).state = tourBlocked;
+      }
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from
       // Build Another Dua on the result screen) wipes the provider state but
@@ -328,36 +351,41 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: enabled ? 1.0 : 0.5,
-              child: GestureDetector(
-                onTap: enabled
-                    ? () {
-                        HapticFeedback.mediumImpact();
-                        notifier.submitBuild();
-                      }
-                    : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: double.infinity,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: enabled
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.32),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'Build My Dua',
-                    style: AppTypography.labelLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+              child: TourAnchor(
+                surface: TourSurface.duas,
+                anchorId: 'buildCta',
+                child: GestureDetector(
+                  onTap: enabled
+                      ? () {
+                          HapticFeedback.mediumImpact();
+                          notifier.submitBuild();
+                        }
+                      : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: double.infinity,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: enabled
+                          ? [
+                              BoxShadow(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.32),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Text(
+                      'Build My Dua',
+                      style: AppTypography.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -1085,7 +1113,10 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ...result.relatedDuas.map((d) => Container(
+                    ...result.relatedDuas.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final d = entry.value;
+                      return Container(
                           margin: const EdgeInsets.only(top: 12),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceAltLight,
@@ -1107,32 +1138,42 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        HapticFeedback.mediumImpact();
-                                        final wasSaved =
-                                            notifier.isRelatedDuaSaved(d);
-                                        notifier.toggleSaveRelatedDua(d);
-                                        if (!wasSaved) {
-                                          ref
-                                              .read(questsProvider.notifier)
-                                              .onDuaSaved();
-                                        }
-                                      },
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                            right: 12, top: 4),
-                                        child: Icon(
-                                          notifier.isRelatedDuaSaved(d)
-                                              ? Icons.favorite
-                                              : Icons.favorite_outline,
-                                          color: notifier.isRelatedDuaSaved(d)
-                                              ? AppColors.primary
-                                              : AppColors.textTertiaryLight,
-                                          size: 20,
+                                    Builder(builder: (_) {
+                                      final heart = GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.mediumImpact();
+                                          final wasSaved =
+                                              notifier.isRelatedDuaSaved(d);
+                                          notifier.toggleSaveRelatedDua(d);
+                                          if (!wasSaved) {
+                                            ref
+                                                .read(questsProvider.notifier)
+                                                .onDuaSaved();
+                                          }
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                              right: 12, top: 4),
+                                          child: Icon(
+                                            notifier.isRelatedDuaSaved(d)
+                                                ? Icons.favorite
+                                                : Icons.favorite_outline,
+                                            color: notifier.isRelatedDuaSaved(d)
+                                                ? AppColors.primary
+                                                : AppColors.textTertiaryLight,
+                                            size: 20,
+                                          ),
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                      if (i == 0) {
+                                        return TourAnchor(
+                                          surface: TourSurface.duas,
+                                          anchorId: 'firstRelatedHeart',
+                                          child: heart,
+                                        );
+                                      }
+                                      return heart;
+                                    }),
                                     Expanded(
                                       child: Text(
                                         d.arabic,
@@ -1179,7 +1220,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                               ],
                             ),
                           ),
-                        )),
+                        );
+                    }),
                   ],
                 ),
               ).animate().fadeIn(duration: 500.ms, delay: 700.ms),

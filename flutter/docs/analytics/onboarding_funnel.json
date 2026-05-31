@@ -1,0 +1,13 @@
+{
+  "_README": "Replace this with a real Mixpanel funnel JSON export. Build the funnel in Mixpanel UI with the steps below, then click Export → JSON and paste over this file.",
+  "name": "Onboarding → Paywall Conversion",
+  "funnel_steps": [
+    { "event": "step_viewed", "filter": "page=0", "name": "Onboarding start" },
+    { "event": "step_completed", "filter": "page=0", "name": "First check-in done" },
+    { "event": "step_viewed", "filter": "page=19", "name": "Reached paywall" },
+    { "event": "onboarding_completed", "name": "Onboarding done" },
+    { "event": "paywall_viewed", "name": "Paywall viewed" },
+    { "event": "paywall_purchase_completed", "name": "Purchase complete" }
+  ],
+  "abandonment_events": ["onboarding_abandoned_at_page"]
+}

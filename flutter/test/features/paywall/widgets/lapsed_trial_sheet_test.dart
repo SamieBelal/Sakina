@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
+import 'package:sakina/features/tour/providers/tour_route_observer.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
@@ -22,8 +23,7 @@ void main() {
       expect(find.byType(LapsedTrialSheet), findsOneWidget);
     });
 
-    testWidgets('headline is always Welcome back to one a day',
-        (tester) async {
+    testWidgets('headline is always Welcome back to one a day', (tester) async {
       await tester.pumpWidget(
         _wrap(
           LapsedTrialSheet(
@@ -186,6 +186,33 @@ void main() {
       await tester.tap(find.text('Maybe later'));
       await tester.pump();
       expect(dismissed, 1);
+    });
+
+    testWidgets('show names its route so the guided tour is suppressed',
+        (tester) async {
+      final observer = TourRouteObserver();
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [observer],
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => LapsedTrialSheet.show(
+                context,
+                momentsDuringTrial: 4,
+                daysActiveDuringTrial: 2,
+                onUpgrade: () {},
+              ),
+              child: const Text('Show sheet'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+
+      expect(observer.topRouteName.value, 'LapsedTrialSheet');
+      expect(observer.isBlockingRouteOnTop, true);
     });
   });
 }

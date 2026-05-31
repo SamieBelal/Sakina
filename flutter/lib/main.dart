@@ -13,9 +13,11 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
+import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'services/analytics_events.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
+import 'services/app_config_service.dart';
 import 'services/auth_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/gating_service.dart';
@@ -119,6 +121,16 @@ Future<void> main() async {
   await bootstrapPublicCatalogs();
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     unawaited(refreshPublicCatalogsFromSupabase());
+    // Parallel prefetch (1.2C) — prime the AppConfigService cache so the
+    // first router decision sees fresh values for the onboarding-trim +
+    // guided-tour kill switches. Fire-and-forget with a hard timeout so a
+    // slow network never delays cold launch beyond 1.5s. On miss the next
+    // launch reads fresh values from the populated cache.
+    unawaited(
+      AppConfigService(Supabase.instance.client)
+          .primeCache(['onboarding_trim_enabled', 'guided_tour_enabled'])
+          .timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
+    );
   }
 
   if (!kIsWeb) {
@@ -220,7 +232,11 @@ class SakinaApp extends StatelessWidget {
         children: [
           const BillingIssueBanner(),
           const IapToSubUpsellBanner(),
-          Expanded(child: child ?? const SizedBox.shrink()),
+          Expanded(
+            child: OnboardingTourOverlayHost(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         ],
       ),
     );
