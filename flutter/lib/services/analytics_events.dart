@@ -51,6 +51,14 @@ abstract final class AnalyticsEvents {
   static const settingsPremiumBillingIssueTapped =
       'settings_premium_billing_issue_tapped';
 
+  // Subscription cancellation feedback survey. Shown instantly after an in-app
+  // Customer Center cancel, or reactively (next open / push) for OS-Settings
+  // cancels. See docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md.
+  //   cancellation_feedback_shown → submitted | dismissed
+  static const cancellationFeedbackShown = 'cancellation_feedback_shown';
+  static const cancellationFeedbackSubmitted = 'cancellation_feedback_submitted';
+  static const cancellationFeedbackDismissed = 'cancellation_feedback_dismissed';
+
   // AI bypass funnel (plan 2026-05-23, PR 3 of 5). Funnel:
   //   daily_cap_hit → ai_bypass_offered → ai_bypass_purchased
   // ai_bypass_rejected branches off the path between offered and purchased
