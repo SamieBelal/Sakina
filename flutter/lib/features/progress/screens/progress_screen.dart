@@ -22,8 +22,11 @@ import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
@@ -107,6 +110,27 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     _checkDiscoveryQuiz();
     _maybeShowDailyLaunch();
     _maybeShowLapsedTrialSheet();
+    _maybeShowCancellationFeedback();
+  }
+
+  /// Reactive cancellation survey (Path B): catches cancels done in the OS
+  /// Settings app, or instant-path misses. Gated on the daily-launch overlay
+  /// NOT showing this open, so the survey never stacks over the check-in —
+  /// it can wait for a calmer open (the push is the other backstop).
+  Future<void> _maybeShowCancellationFeedback() async {
+    if (await shouldShowDailyLaunch()) return;
+    final service = ref.read(cancellationFeedbackServiceProvider);
+    final cancellation = await service.resolveReactiveCancellation();
+    if (!mounted || cancellation == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      presentCancellationFeedback(
+        context,
+        cancellation: cancellation,
+        service: service,
+        analytics: ref.read(analyticsProvider),
+      );
+    });
   }
 
   /// Fires the LapsedTrialSheet on the first home view after a trial lapses.

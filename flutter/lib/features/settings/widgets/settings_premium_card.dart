@@ -7,8 +7,12 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/cancellation_feedback_provider.dart';
+import 'package:sakina/services/cancellation_feedback_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 
 /// Persistent Settings → Premium entry point. Added 2026-05-13 to satisfy
 /// App Review's "subscriptions must be reachable outside onboarding"
@@ -111,7 +115,41 @@ class _SettingsPremiumCardState extends ConsumerState<SettingsPremiumCard>
               'Open the App Store directly to manage your subscription.'),
         ),
       );
+      return;
     }
+    // Flutter's Customer Center exposes no cancel callback, so the moment the
+    // sheet closes we re-read (forceRefresh bypasses the 5-min cache) and, if
+    // the user just cancelled, present the survey instantly. Path B (home
+    // screen) is the backstop for OS-Settings cancels and instant misses.
+    if (!context.mounted) return;
+    await _maybeShowInstantCancellationFeedback(context);
+  }
+
+  Future<void> _maybeShowInstantCancellationFeedback(
+      BuildContext context) async {
+    final cancellation =
+        await PurchaseService().getVoluntaryCancellation(forceRefresh: true);
+    if (cancellation == null || !context.mounted) return;
+
+    final service = ref.read(cancellationFeedbackServiceProvider);
+    final unsurveyed = await service.resolveUnsurveyed(
+      CancellationContext(
+        expiresAt: cancellation.expiresAt,
+        canceledAt: cancellation.canceledAt,
+        periodType: cancellation.periodType,
+        source: CancellationSource.inAppInstant,
+      ),
+    );
+    if (unsurveyed == null || !context.mounted) return;
+
+    await presentCancellationFeedback(
+      context,
+      cancellation: unsurveyed,
+      service: service,
+      analytics: ref.read(analyticsProvider),
+    );
+    // Returning from Customer Center may have changed entitlement state.
+    ref.invalidate(premiumStateProvider);
   }
 }
 

@@ -14,6 +14,7 @@ import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
+import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
 import '../widgets/app_shell.dart';
@@ -104,6 +105,15 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         path: '/my-referrals',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const MyReferralsScreen(),
+      ),
+
+      // Cancellation feedback push deep-link target
+      // (sakina://cancellation-feedback). Presents the survey directly then
+      // returns home. See docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md.
+      GoRoute(
+        path: '/cancellation-feedback',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CancellationFeedbackDeepLinkScreen(),
       ),
 
       // DEBUG: Card design previews (temporary)
