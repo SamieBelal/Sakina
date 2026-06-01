@@ -16,19 +16,19 @@
 -- See: https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select
 
 -- user_subscriptions: SELECT policy
-drop policy "Users can view own subscriptions" on public.user_subscriptions;
+drop policy if exists "Users can view own subscriptions" on public.user_subscriptions;
 create policy "Users can view own subscriptions" on public.user_subscriptions
   for select to authenticated
   using ((select auth.uid()) = user_id);
 
 -- reflect_classifier_log: INSERT policy
-drop policy "users insert own classifier rows" on public.reflect_classifier_log;
+drop policy if exists "users insert own classifier rows" on public.reflect_classifier_log;
 create policy "users insert own classifier rows" on public.reflect_classifier_log
   for insert to authenticated
   with check ((select auth.uid()) = user_id);
 
 -- reflect_classifier_log: SELECT policy
-drop policy "users read own classifier rows" on public.reflect_classifier_log;
+drop policy if exists "users read own classifier rows" on public.reflect_classifier_log;
 create policy "users read own classifier rows" on public.reflect_classifier_log
   for select to authenticated
   using ((select auth.uid()) = user_id);

@@ -120,6 +120,18 @@ class CancellationFeedbackService {
         continue;
       }
 
+      // Recency guard: only survey while the cancelled entitlement is still
+      // active (period end in the future). The preserve-on-absent-key behavior
+      // keeps `canceled_at` set forever after EXPIRATION, so without this a
+      // user who churned long ago would get a stale "sorry to see you go" for a
+      // sub that lapsed months back, and the survey could stack over the
+      // post-lapse LapsedTrialSheet on the home screen. The push deep-link
+      // shares this resolver, so it is gated too — fine, since a push is only
+      // sent at cancellation time when the period is still active. The instant
+      // (Customer Center) path uses resolveUnsurveyed, not this method, so it
+      // surveys regardless of expiry.
+      if (!expiresAt.isAfter(DateTime.now().toUtc())) continue;
+
       if (await _alreadySurveyed(userId, expiresAt)) continue;
 
       return CancellationContext(

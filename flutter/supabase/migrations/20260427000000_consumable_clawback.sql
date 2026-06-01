@@ -45,6 +45,8 @@ create index if not exists consumable_clawback_events_user_id_idx
 -- this table — it's an audit trail for refund processing.
 alter table public.consumable_clawback_events enable row level security;
 
+drop policy if exists "service_role_full_access"
+  on public.consumable_clawback_events;
 create policy "service_role_full_access"
   on public.consumable_clawback_events
   for all

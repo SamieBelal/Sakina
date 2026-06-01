@@ -111,6 +111,19 @@ void main() {
       expect(ctx.productId, 'sakina_annual');
     });
 
+    test('null when the cancelled period already expired (recency guard)',
+        () async {
+      // canceled_at survives EXPIRATION forever (preserve-on-absent-key), so a
+      // long-ago churner still has a row. With expires_at in the past, the
+      // reactive survey must NOT fire — no stale "sorry to see you go", and no
+      // stacking over the post-lapse LapsedTrialSheet.
+      _seedSubscription(fake,
+          userId: userId,
+          canceledAt: DateTime.utc(2026, 1, 2).toIso8601String(),
+          expiresAt: DateTime.utc(2026, 1, 15).toIso8601String());
+      expect(await service.resolveReactiveCancellation(), isNull);
+    });
+
     test('null when this episode was already surveyed', () async {
       _seedSubscription(fake,
           userId: userId,
