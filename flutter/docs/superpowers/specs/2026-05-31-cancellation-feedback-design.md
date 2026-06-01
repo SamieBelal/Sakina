@@ -1,7 +1,10 @@
 # Subscription Cancellation Feedback — Design
 
 **Date:** 2026-05-31
-**Status:** Approved (design); pending implementation plan
+**Status:** Implemented on branch `cancellation-feedback` (2026-05-31), merged up
+to date with master. All three paths wired; 29 Flutter tests + 28 Deno webhook
+tests pass; `flutter analyze` clean. DB migrations not yet applied to a live
+project — apply via the normal migration flow before release.
 **Author:** Ibrahim Ahmed (with Claude)
 
 ## Goal
@@ -114,7 +117,6 @@ push is a handler unit test.
 | `product_id` | text null | context |
 | `store` | text null | `app_store` / `play_store` |
 | `platform` | text null | `ios` / `android` |
-| `app_version` | text null | context |
 | `source` | text not null | `in_app_instant` / `in_app_reactive` / `push` |
 | `status` | text not null | `submitted` / `dismissed` |
 
@@ -283,6 +285,10 @@ Supabase user; the tap is routed by
 
 - Win-back / retention offers or any attempt to change the user's mind.
 - RevenueCat's built-in multiple-choice Customer Center survey (no free-text).
+  **Disabled in the RC dashboard** (verified 2026-06-01: Customer Center
+  `CANCEL` path `feedback_survey: null`) so it never double-shows alongside our
+  in-app sheet. Must stay off — re-enabling it would surface two surveys on a
+  single cancellation.
 - Native platform-channel Customer Center listeners.
 - Localizing into the priority languages beyond keeping strings extractable.
 

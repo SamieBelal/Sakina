@@ -298,3 +298,22 @@ data rather than guessed.
 its detection (`expires_at` episode) and the `CancellationFeedbackSheet` surface.
 
 **Surfaced by:** `/plan-eng-review` of the cancellation-feedback spec, 2026-05-31.
+
+## Remove sandbox gate on cancellation survey push (at launch)
+
+**What:** `supabase/functions/revenuecat-webhook/index.ts` `sendCancellationSurveyPush`
+has a temporary gate `if (payload.environment !== "SANDBOX") return;`.
+
+**Why:** Pre-launch, production users don't have the survey UI / the
+`sakina://cancellation-feedback` deep link, so a push would dead-end at home.
+The gate restricts the push to SANDBOX (test devices) so no real user gets a
+useless notification.
+
+**Trigger:** The App Store release containing the cancellation-feedback survey is
+LIVE.
+
+**How:** Delete the `payload.environment !== "SANDBOX"` early-return and redeploy
+the edge function (server-only; NO App Store update needed). Then production
+cancellations fire the push → deep link → survey.
+
+**Surfaced by:** Physical-device Test 3 setup, 2026-05-31.

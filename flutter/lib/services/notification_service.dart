@@ -501,6 +501,8 @@ class NotificationService {
     switch (type) {
       case 'weekly_reflection':
         return '/journal';
+      case 'cancellation_feedback':
+        return '/cancellation-feedback';
       case 'tour_replay':
         return '/settings?action=replay_tour';
       case 'daily_reminder':

@@ -15,11 +15,14 @@ const MethodChannel _channel = MethodChannel('purchases_flutter');
 Map<String, dynamic> _premiumEntitlement({
   String? billingIssueDetectedAt,
   String periodType = 'NORMAL',
+  bool willRenew = true,
+  String? unsubscribeDetectedAt,
+  bool includeExpiration = true,
 }) {
   return <String, dynamic>{
     'identifier': 'premium',
     'isActive': true,
-    'willRenew': true,
+    'willRenew': willRenew,
     'periodType': periodType,
     'latestPurchaseDate': '2026-04-13T12:00:00.000Z',
     'latestPurchaseDateMillis': 1776384000000,
@@ -28,12 +31,14 @@ Map<String, dynamic> _premiumEntitlement({
     'productIdentifier': 'sakina_sub_annual',
     'isSandbox': true,
     'store': 'APP_STORE',
-    'expirationDate': '2026-05-13T12:00:00.000Z',
-    'expirationDateMillis': 1778976000000,
+    if (includeExpiration) 'expirationDate': '2026-05-13T12:00:00.000Z',
+    if (includeExpiration) 'expirationDateMillis': 1778976000000,
     'ownershipType': 'PURCHASED',
     'verification': 'NOT_REQUESTED',
     if (billingIssueDetectedAt != null)
       'billingIssueDetectedAt': billingIssueDetectedAt,
+    if (unsubscribeDetectedAt != null)
+      'unsubscribeDetectedAt': unsubscribeDetectedAt,
   };
 }
 
@@ -604,6 +609,115 @@ void main() {
       mockError = PlatformException(code: 'UNKNOWN');
 
       expect(await service.getBillingIssueDetectedAt(), isNull);
+    });
+  });
+
+  group('getVoluntaryCancellation()', () {
+    // A cancelled-but-still-active entitlement: willRenew false with an
+    // unsubscribeDetectedAt, no billing issue. This is the instant-path signal
+    // read right after the Customer Center sheet closes.
+    Map<String, dynamic> cancelledInfo({
+      String periodType = 'NORMAL',
+      String? billingIssueDetectedAt,
+      bool includeExpiration = true,
+    }) {
+      final ent = _premiumEntitlement(
+        periodType: periodType,
+        willRenew: false,
+        unsubscribeDetectedAt: '2026-05-01T09:00:00.000Z',
+        billingIssueDetectedAt: billingIssueDetectedAt,
+        includeExpiration: includeExpiration,
+      );
+      return _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsAllOverride: {'premium': ent},
+        entitlementsActiveOverride: {'premium': ent},
+      );
+    }
+
+    test('returns null when not initialized', () async {
+      final service = PurchaseService.test();
+      expect(await service.getVoluntaryCancellation(), isNull);
+      expect(methodLog, isEmpty);
+    });
+
+    test('returns null when the sub will still renew (not cancelled)', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = _buildCustomerInfo(premiumActive: true); // willRenew true
+      expect(await service.getVoluntaryCancellation(), isNull);
+    });
+
+    test('returns null when there is no unsubscribeDetectedAt', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      final ent = _premiumEntitlement(willRenew: false); // no unsubscribe ts
+      mockResponse = _buildCustomerInfo(
+        premiumActive: true,
+        entitlementsAllOverride: {'premium': ent},
+        entitlementsActiveOverride: {'premium': ent},
+      );
+      expect(await service.getVoluntaryCancellation(), isNull);
+    });
+
+    test('returns null for involuntary churn (billing issue set)', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = cancelledInfo(
+        billingIssueDetectedAt: '2026-04-30T09:00:00.000Z',
+      );
+      expect(await service.getVoluntaryCancellation(), isNull);
+    });
+
+    test('returns null when expirationDate is missing (no dedupe key)',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = cancelledInfo(includeExpiration: false);
+      expect(await service.getVoluntaryCancellation(), isNull);
+    });
+
+    test('returns a context for a voluntary cancellation', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockResponse = cancelledInfo();
+      final result = await service.getVoluntaryCancellation();
+      expect(result, isNotNull);
+      expect(result!.expiresAt,
+          DateTime.parse('2026-05-13T12:00:00.000Z'));
+      expect(result.canceledAt,
+          DateTime.parse('2026-05-01T09:00:00.000Z'));
+      expect(result.periodType, 'normal');
+    });
+
+    test('maps periodType TRIAL -> trial and INTRO -> intro', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+
+      mockResponse = cancelledInfo(periodType: 'TRIAL');
+      expect((await service.getVoluntaryCancellation())!.periodType, 'trial');
+
+      mockResponse = cancelledInfo(periodType: 'INTRO');
+      expect((await service.getVoluntaryCancellation())!.periodType, 'intro');
+    });
+
+    test('forceRefresh invalidates the customerInfo cache before reading',
+        () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      methodResponses['getCustomerInfo'] = cancelledInfo();
+
+      await service.getVoluntaryCancellation(forceRefresh: true);
+
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(methods, ['invalidateCustomerInfoCache', 'getCustomerInfo']);
+    });
+
+    test('returns null (never throws) when the SDK errors', () async {
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      mockError = PlatformException(code: 'UNKNOWN');
+      expect(await service.getVoluntaryCancellation(), isNull);
     });
   });
 
