@@ -21,14 +21,24 @@ create policy "Users can view own subscriptions" on public.user_subscriptions
   for select to authenticated
   using ((select auth.uid()) = user_id);
 
--- reflect_classifier_log: INSERT policy
-drop policy if exists "users insert own classifier rows" on public.reflect_classifier_log;
-create policy "users insert own classifier rows" on public.reflect_classifier_log
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
+-- reflect_classifier_log lives out-of-band on prod (no committed creating
+-- migration), so guard on table existence: `drop policy if exists` only guards
+-- the policy, not a missing table, which would otherwise error with
+-- "relation does not exist" on a fresh db reset / CI. Runs on prod where the
+-- table exists; skips cleanly where it doesn't.
+do $$
+begin
+  if to_regclass('public.reflect_classifier_log') is not null then
+    -- INSERT policy
+    drop policy if exists "users insert own classifier rows" on public.reflect_classifier_log;
+    create policy "users insert own classifier rows" on public.reflect_classifier_log
+      for insert to authenticated
+      with check ((select auth.uid()) = user_id);
 
--- reflect_classifier_log: SELECT policy
-drop policy if exists "users read own classifier rows" on public.reflect_classifier_log;
-create policy "users read own classifier rows" on public.reflect_classifier_log
-  for select to authenticated
-  using ((select auth.uid()) = user_id);
+    -- SELECT policy
+    drop policy if exists "users read own classifier rows" on public.reflect_classifier_log;
+    create policy "users read own classifier rows" on public.reflect_classifier_log
+      for select to authenticated
+      using ((select auth.uid()) = user_id);
+  end if;
+end $$;
