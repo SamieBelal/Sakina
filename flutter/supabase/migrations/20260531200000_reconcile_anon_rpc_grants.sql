@@ -27,7 +27,17 @@ revoke execute on function public.cancel_ai_bypass(p_reservation_id uuid) from p
 revoke execute on function public.claim_daily_reward() from public, anon, authenticated;
 revoke execute on function public.claim_first_bypass(p_feature text) from public, anon, authenticated;
 revoke execute on function public.clawback_consumable_grant(p_user_id uuid, p_sku text, p_kind text, p_amount integer, p_transaction_id text, p_event_timestamp timestamp with time zone) from public, anon, authenticated;
-revoke execute on function public.cleanup_orphaned_users() from public, anon, authenticated;
+-- cleanup_orphaned_users exists out-of-band on prod with no creating migration;
+-- guard so a fresh db reset / CI (where it doesn't exist) skips it.
+do $$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'cleanup_orphaned_users'
+  ) then
+    revoke execute on function public.cleanup_orphaned_users() from public, anon, authenticated;
+  end if;
+end $$;
 revoke execute on function public.commit_ai_bypass(p_reservation_id uuid) from public, anon, authenticated;
 revoke execute on function public.confirm_referral_if_pending(p_referee uuid) from public, anon, authenticated;
 revoke execute on function public.consume_streak_freeze() from public, anon, authenticated;

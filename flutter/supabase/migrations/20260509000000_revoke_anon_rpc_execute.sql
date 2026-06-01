@@ -63,8 +63,18 @@ GRANT  EXECUTE ON FUNCTION public.sync_all_user_data() TO authenticated;
 -- Trigger function (auth.users trigger; never invoked via REST)
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
 
--- Admin-only
-REVOKE EXECUTE ON FUNCTION public.cleanup_orphaned_users() FROM PUBLIC, anon, authenticated;
+-- Admin-only. Created out-of-band on prod (no committed creating migration),
+-- so guard the REVOKE: it runs on prod where the function exists and no-ops on
+-- a fresh `db reset` / CI where it was never created.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'cleanup_orphaned_users'
+  ) THEN
+    REVOKE EXECUTE ON FUNCTION public.cleanup_orphaned_users() FROM PUBLIC, anon, authenticated;
+  END IF;
+END $$;
 
 -- Cron caller (send-scheduled-notifications edge function, service_role)
 REVOKE EXECUTE ON FUNCTION public.get_eligible_notification_users(

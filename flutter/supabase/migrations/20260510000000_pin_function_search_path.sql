@@ -24,5 +24,15 @@
 -- Only one `earn_scrolls` overload exists, so no ambiguity.
 
 alter function public.handle_new_user()         set search_path = public, pg_temp;
-alter function public.cleanup_orphaned_users()  set search_path = public, pg_temp;
+-- cleanup_orphaned_users is an out-of-band prod function with no creating
+-- migration; guard so a fresh db reset / CI (where it doesn't exist) skips it.
+do $$
+begin
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'cleanup_orphaned_users'
+  ) then
+    alter function public.cleanup_orphaned_users() set search_path = public, pg_temp;
+  end if;
+end $$;
 alter function public.earn_scrolls(integer)     set search_path = public, pg_temp;
