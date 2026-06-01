@@ -285,6 +285,10 @@ Supabase user; the tap is routed by
 
 - Win-back / retention offers or any attempt to change the user's mind.
 - RevenueCat's built-in multiple-choice Customer Center survey (no free-text).
+  **Disabled in the RC dashboard** (verified 2026-06-01: Customer Center
+  `CANCEL` path `feedback_survey: null`) so it never double-shows alongside our
+  in-app sheet. Must stay off — re-enabling it would surface two surveys on a
+  single cancellation.
 - Native platform-channel Customer Center listeners.
 - Localizing into the priority languages beyond keeping strings extractable.
 
