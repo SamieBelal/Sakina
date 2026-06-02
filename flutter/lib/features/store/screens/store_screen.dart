@@ -10,6 +10,9 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -38,12 +41,39 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  // Captured once in initState (while mounted). The purchase flow emits
+  // analytics AFTER awaits that can outlive the widget (the user can leave the
+  // Store mid-purchase). Reading `ref` post-dispose throws StateError — which
+  // the catch block would then mislabel a SUCCEEDED, money-collected purchase
+  // as store_purchase_failed and drop the revenue event. The AnalyticsService
+  // outlives this widget, so the captured instance is safe to call post-dispose.
+  late final AnalyticsService _analytics;
   bool _purchasing = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _analytics = ref.read(analyticsProvider);
+    _analytics.track(AnalyticsEvents.storeViewed);
+  }
+
+  /// Emits a store purchase-funnel event with consistent pack identity.
+  /// `kind` ∈ {tokens, scrolls}; `extra` carries price/currency or a reason.
+  /// Uses the captured [_analytics] (never `ref` post-await — see the field).
+  void _trackPurchase(
+    String event,
+    String productId,
+    int amount,
+    String kind, {
+    Map<String, dynamic>? extra,
+  }) {
+    _analytics.track(event, properties: {
+      'pack_id': productId,
+      'amount': amount,
+      'kind': kind,
+      ...?extra,
+    });
   }
 
   @override
@@ -56,9 +86,26 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
 
   /// Shared typed-error handler for all Store purchase flows.
   /// Silences user-initiated cancellation; surfaces everything else.
-  void _handlePurchaseException(PlatformException error) {
+  /// Carries pack identity so cancel/fail events stay attributable.
+  void _handlePurchaseException(
+    PlatformException error,
+    String productId,
+    int amount,
+    String kind,
+  ) {
     final code = PurchasesErrorHelper.getErrorCode(error);
-    if (code == PurchasesErrorCode.purchaseCancelledError) return;
+    if (code == PurchasesErrorCode.purchaseCancelledError) {
+      _trackPurchase(
+          AnalyticsEvents.storePurchaseCancelled, productId, amount, kind);
+      return;
+    }
+    _trackPurchase(
+      AnalyticsEvents.storePurchaseFailed,
+      productId,
+      amount,
+      kind,
+      extra: {'reason': AnalyticsEvents.storePurchaseFailedReasonPlatform},
+    );
     if (!mounted) return;
     _showError('Purchase failed. Please try again.');
   }
@@ -66,6 +113,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   Future<void> _buyTokensIAP(int amount, String productId) async {
     setState(() => _purchasing = true);
     HapticFeedback.mediumImpact();
+    _trackPurchase(AnalyticsEvents.packSelected, productId, amount, 'tokens');
 
     try {
       final purchaseService = PurchaseService();
@@ -75,6 +123,15 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
           .firstOrNull;
 
       if (package == null) {
+        _trackPurchase(
+          AnalyticsEvents.storePurchaseFailed,
+          productId,
+          amount,
+          'tokens',
+          extra: {
+            'reason': AnalyticsEvents.storePurchaseFailedReasonUnavailable
+          },
+        );
         if (mounted) _showError('Pack not available yet. Try again later.');
         if (mounted) setState(() => _purchasing = false);
         return;
@@ -100,13 +157,30 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         productId,
         customerInfo: customerInfo,
       );
+      _trackPurchase(
+        AnalyticsEvents.storePurchaseSucceeded,
+        productId,
+        amount,
+        'tokens',
+        extra: {
+          'price': package.storeProduct.price,
+          'currency': package.storeProduct.currencyCode,
+        },
+      );
       if (mounted) {
         _showPurchaseToast(
             context, 'Tokens', amount, AppColors.secondary, Icons.toll);
       }
     } on PlatformException catch (error) {
-      _handlePurchaseException(error);
+      _handlePurchaseException(error, productId, amount, 'tokens');
     } catch (_) {
+      _trackPurchase(
+        AnalyticsEvents.storePurchaseFailed,
+        productId,
+        amount,
+        'tokens',
+        extra: {'reason': AnalyticsEvents.storePurchaseFailedReasonUnknown},
+      );
       if (mounted) _showError('Purchase failed. Please try again.');
     }
 
@@ -116,6 +190,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   Future<void> _buyScrollsIAP(int amount, String productId) async {
     setState(() => _purchasing = true);
     HapticFeedback.mediumImpact();
+    _trackPurchase(AnalyticsEvents.packSelected, productId, amount, 'scrolls');
 
     try {
       final purchaseService = PurchaseService();
@@ -125,6 +200,15 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
           .firstOrNull;
 
       if (package == null) {
+        _trackPurchase(
+          AnalyticsEvents.storePurchaseFailed,
+          productId,
+          amount,
+          'scrolls',
+          extra: {
+            'reason': AnalyticsEvents.storePurchaseFailedReasonUnavailable
+          },
+        );
         if (mounted) _showError('Pack not available yet. Try again later.');
         if (mounted) setState(() => _purchasing = false);
         return;
@@ -139,13 +223,30 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
         productId,
         customerInfo: customerInfo,
       );
+      _trackPurchase(
+        AnalyticsEvents.storePurchaseSucceeded,
+        productId,
+        amount,
+        'scrolls',
+        extra: {
+          'price': package.storeProduct.price,
+          'currency': package.storeProduct.currencyCode,
+        },
+      );
       if (mounted) {
         _showPurchaseToast(context, 'Scrolls', amount,
             const Color(0xFF3B82F6), Icons.receipt_long);
       }
     } on PlatformException catch (error) {
-      _handlePurchaseException(error);
+      _handlePurchaseException(error, productId, amount, 'scrolls');
     } catch (_) {
+      _trackPurchase(
+        AnalyticsEvents.storePurchaseFailed,
+        productId,
+        amount,
+        'scrolls',
+        extra: {'reason': AnalyticsEvents.storePurchaseFailedReasonUnknown},
+      );
       if (mounted) _showError('Purchase failed. Please try again.');
     }
 

@@ -207,6 +207,52 @@ abstract final class AnalyticsEvents {
   static const ramadanGiftClaimed = 'ramadan_gift_claimed';
   static const ramadanGiftWindowExpired = 'ramadan_gift_window_expired';
 
+  // Engagement & economy analytics (retention audit 2026-06-01, backlog
+  // #6/#7/#10/#11). Closes the three dark core-loop surfaces: the monetized
+  // Store, the collection/gacha progression loop, and the streak/quest/XP
+  // economy. See docs/superpowers/plans/2026-06-01-engagement-economy-analytics.md.
+  // These exact strings are the Mixpanel dashboard contract — renames must be
+  // a deliberate analytics-team coordination (pinned by analytics_events_test).
+
+  // Store — real-money consumable packs (tokens / scrolls). Emitted directly
+  // from StoreScreen (a ConsumerStatefulWidget). `kind` ∈ {tokens, scrolls};
+  // `pack_id` is the StoreKit product identifier; `amount` is the pack size.
+  static const String storeViewed = 'store_viewed';
+  static const String packSelected = 'pack_selected';
+  static const String storePurchaseSucceeded = 'store_purchase_succeeded';
+  static const String storePurchaseFailed = 'store_purchase_failed';
+  static const String storePurchaseCancelled = 'store_purchase_cancelled';
+
+  // Reason values for `store_purchase_failed.reason`.
+  static const String storePurchaseFailedReasonUnavailable = 'unavailable';
+  static const String storePurchaseFailedReasonPlatform = 'platform';
+  static const String storePurchaseFailedReasonUnknown = 'unknown';
+
+  // Collection / cards / gacha. Emitted from the `engageCard` chokepoint via
+  // CardCollectionAnalytics.onAnalyticsEvent (no Riverpod in that service).
+  // card_revealed = first discovery; tier_up = an owned card upgrading;
+  // mutually exclusive per engage so Mixpanel counts stay clean. tier values
+  // are tierToEnum strings (bronze/silver/gold/emerald — gold is the current
+  // ceiling, engageCard never produces emerald).
+  static const String cardRevealed = 'card_revealed';
+  static const String tierUp = 'tier_up';
+  static const String collectionCompleted = 'collection_completed';
+
+  // Economy: streaks, quests, XP, levels. Streak events come from the
+  // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
+  // quest events are emitted directly from AppShell (has Riverpod ref).
+  static const String streakExtended = 'streak_extended';
+  static const String streakMilestone = 'streak_milestone';
+  static const String streakFreezeConsumed = 'streak_freeze_consumed';
+  static const String questCompleted = 'quest_completed';
+  static const String xpAwarded = 'xp_awarded';
+  static const String levelUp = 'level_up';
+
+  // `quest_type` values on quest_completed — distinguishes the standard
+  // daily/weekly quest pool from the one-time First Steps beginner quests.
+  static const String questTypeStandard = 'standard';
+  static const String questTypeBeginner = 'beginner';
+
   // Guided tour (post-onboarding teach moments). See
   // docs/superpowers/plans/2026-05-25-onboarding-trim-guided-tour.md.
   static const String tourStarted = 'tour_started';

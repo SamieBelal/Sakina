@@ -2,8 +2,20 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+
+/// Analytics seam for card grants. `engageCard` is a top-level service function
+/// with no Riverpod access, so it emits through this static hook (same pattern
+/// as `GatingService.onAnalyticsEvent`). Wired once in `main.dart`; left null
+/// in tests and until wired, so emitting is always a safe no-op.
+class CardCollectionAnalytics {
+  CardCollectionAnalytics._();
+
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+}
 
 // ---------------------------------------------------------------------------
 // Card Tiers — evolving system (Bronze → Silver → Gold)
@@ -1848,6 +1860,9 @@ String _datePrefix(dynamic value) {
 
 const String _collectionKey = 'sakina_card_collection';
 const String _seenKey = 'sakina_card_seen';
+// Per-user latch so `collection_completed` analytics fires once-ever (not on
+// every engage once the set is full).
+const String _collectionCompletedKey = 'sakina_collection_completed_fired';
 
 class CardCollectionState {
   final Set<int> discoveredIds;
@@ -2062,6 +2077,42 @@ Future<CardEngageResult> engageCard(int cardId) async {
       'discovered_at': dates[cardId] ?? todayStr,
       'last_engaged_at': todayStr,
     }, onConflict: 'user_id,name_id');
+  }
+
+  // Analytics — fire at most one engagement event per call so Mixpanel counts
+  // stay clean. New discovery → card_revealed; existing card upgrade → tier_up;
+  // duplicate (already Gold) → nothing. Wrapped so a throwing hook can NEVER
+  // propagate into the grant: the grant is already persisted above, and
+  // engageCard runs inside discoverName's try — an escape here would set
+  // state.error and trip discoverNameWithBypass's bypass-refund path (free card).
+  try {
+    if (isNew) {
+      CardCollectionAnalytics.onAnalyticsEvent
+          ?.call(AnalyticsEvents.cardRevealed, {
+        'name_id': cardId,
+        'tier': tierToEnum(newTier),
+        'is_new': true,
+      });
+      // The discovery that completes the full set (every Name unlocked).
+      // `>=` so a later server-side catalog shrink can't strand a legitimately
+      // complete collection; a persisted latch keeps it once-ever per user.
+      if (ids.length >= currentCollectibleNames().length) {
+        final firedKey = supabaseSyncService.scopedKey(_collectionCompletedKey);
+        if (!(prefs.getBool(firedKey) ?? false)) {
+          await prefs.setBool(firedKey, true);
+          CardCollectionAnalytics.onAnalyticsEvent
+              ?.call(AnalyticsEvents.collectionCompleted, {'total': ids.length});
+        }
+      }
+    } else if (tierChanged) {
+      CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.tierUp, {
+        'name_id': cardId,
+        'from_tier': tierToEnum(currentTier),
+        'to_tier': tierToEnum(newTier),
+      });
+    }
+  } catch (_) {
+    // Best-effort telemetry — never let it propagate into the grant.
   }
 
   return CardEngageResult(
