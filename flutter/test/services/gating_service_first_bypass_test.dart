@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -149,7 +150,7 @@ void main() {
           reason: 'Consumed latch must flip synchronously on success');
       expect(await daily.getReflectBypassesUsedToday(), 1);
       expect(events, hasLength(1));
-      expect(events.first.$1, 'first_bypass_claimed');
+      expect(events.first.$1, AnalyticsEvents.firstBypassClaimed);
       expect(events.first.$2, {
         'feature': 'reflect',
         'bypasses_used_today': 1,

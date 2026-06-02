@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/services/gating_service.dart';
 
@@ -100,11 +101,11 @@ class DailyCapSheet extends StatelessWidget {
         tokenBalance != null &&
         bypassesUsedToday != null;
     if (willRenderStateD) {
-      onAnalyticsEvent?.call('first_bypass_offered', {
+      onAnalyticsEvent?.call(AnalyticsEvents.firstBypassOffered, {
         'feature': _featureKey(feature),
       });
     } else if (willRenderBypassSlot) {
-      onAnalyticsEvent?.call('ai_bypass_offered', {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiBypassOffered, {
         'feature': _featureKey(feature),
         'token_balance': tokenBalance,
         'bypasses_used_today': bypassesUsedToday,

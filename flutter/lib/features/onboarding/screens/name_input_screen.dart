@@ -91,7 +91,13 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                         color: AppColors.textSecondaryLight,
                       ),
                     ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-                    const Spacer(),
+                    // F-07: the input sits directly beneath the prompt instead
+                    // of being shoved to the bottom by a leading Spacer (which
+                    // left a large blank upper area). The flexible space now
+                    // lives below the field so the Continue button still
+                    // anchors to the bottom. See
+                    // docs/qa/runs/2026-06-01-full-regression/CONSOLIDATED-FINDINGS.md F-07.
+                    const SizedBox(height: AppSpacing.xl),
                     OnboardingAutofocusTextField(
                       controller: _controller,
                       shouldRequestFocus: isActive,
@@ -122,7 +128,7 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                         color: AppColors.textPrimaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
+                    const Spacer(),
                     OnboardingContinueButton(
                       label: AppStrings.continueButton,
                       onPressed: _submit,
