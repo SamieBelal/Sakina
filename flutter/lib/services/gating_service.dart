@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';

@@ -8,7 +8,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/achievement_toast.dart';
-import 'analytics_events.dart';
+import 'analytics_event_names.dart';
 import 'supabase_sync_service.dart';
 
 const String notifyDailyTagKey = 'notify_daily';

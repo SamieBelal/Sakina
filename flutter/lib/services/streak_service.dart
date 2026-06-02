@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 

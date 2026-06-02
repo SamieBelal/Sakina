@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
