@@ -98,11 +98,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
     ref.read(analyticsProvider).trackStepViewed(index, trimmed: _trimmed);
+    _emitPaywallFlowShown(index);
   }
 
   void _emitStepCompletedOnce(int index) {
     if (!_completedEmitted.add(index)) return;
     ref.read(analyticsProvider).trackStepCompleted(index, trimmed: _trimmed);
+    _emitPaywallFlowContinued(index);
   }
 
   void _firePaywallEventsOnce() {
@@ -112,6 +114,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     analytics.track(AnalyticsEvents.paywallViewed);
     analytics.track(AnalyticsEvents.paywallPlanSelected,
         properties: {'plan': 'annual'});
+  }
+
+  // Granular paywall-flow funnel (F-08): the loader→plan→journey pages (22-24
+  // legacy / 16-17 trimmed) had no dedicated instrumentation. Keyed on
+  // `step_name` so both dual-flow index sets resolve correctly (trimmed has no
+  // journey page). Fired from the deduped step hooks below, so once per page.
+  void _emitPaywallFlowShown(int index) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final analytics = ref.read(analyticsProvider);
+    if (name == 'paywall_flow_loader') {
+      analytics.track(AnalyticsEvents.paywallFlowLoaderShown);
+    } else if (name == 'paywall_flow_plan') {
+      analytics.track(AnalyticsEvents.paywallFlowPlanShown);
+    } else if (name == 'paywall_flow_journey') {
+      analytics.track(AnalyticsEvents.paywallFlowJourneyShown);
+    }
+  }
+
+  void _emitPaywallFlowContinued(int index) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final analytics = ref.read(analyticsProvider);
+    if (name == 'paywall_flow_loader') {
+      analytics.track(AnalyticsEvents.paywallFlowLoaderAdvanced);
+    } else if (name == 'paywall_flow_plan') {
+      analytics.track(AnalyticsEvents.paywallFlowPlanContinued);
+    } else if (name == 'paywall_flow_journey') {
+      analytics.track(AnalyticsEvents.paywallFlowJourneyContinued);
+    }
+  }
+
+  // Backward navigation OUT of a paywall-flow page = the user didn't continue
+  // forward through the funnel. Complements the derivable funnel drop (a
+  // *_shown without the next step) with an explicit signal.
+  void _emitPaywallFlowDropoffIfLeaving(int fromIndex) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[fromIndex];
+    if (name != null && name.startsWith('paywall_flow_')) {
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.paywallFlowDropoff,
+        properties: {'from': name},
+      );
+    }
   }
 
   @override
@@ -208,6 +251,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     // Only fire step_completed on forward navigation — back navigation is abandonment, not completion
     if (page > current) {
       _emitStepCompletedOnce(current);
+    } else if (page < current) {
+      _emitPaywallFlowDropoffIfLeaving(current);
     }
     _emitStepViewedOnce(page);
     if (page == _activeLastPageIndex) {

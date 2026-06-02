@@ -197,6 +197,10 @@ Future<void> main() async {
   // Riverpod access, so bridge its check_in_completed event the same way.
   DailyLoopNotifier.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
+  // Re-engagement attribution (2026-06-01): notification taps emit
+  // `notification_opened` so we can measure push CTR / notification→session.
+  NotificationService.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),

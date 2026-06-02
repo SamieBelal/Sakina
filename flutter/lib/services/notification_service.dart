@@ -8,6 +8,7 @@ import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/achievement_toast.dart';
+import 'analytics_events.dart';
 import 'supabase_sync_service.dart';
 
 const String notifyDailyTagKey = 'notify_daily';
@@ -137,6 +138,13 @@ class NotificationService {
   bool _clickListenerAdded = false;
   bool _cachedOptedIn = false;
   String? _identifiedUserId;
+
+  /// Static analytics hook (mirrors [GatingService.onAnalyticsEvent]). This
+  /// service has no Riverpod access; main.dart wires it so a notification tap
+  /// can emit `notification_opened` — the re-engagement attribution signal that
+  /// lets us measure push CTR and notification→session lift. Tests leave it null.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
 
   /// Guards [requestPermissionIfPreviouslyEnabled] to at most one attempt per
   /// app session. That method is invoked from several lifecycle points
@@ -490,9 +498,15 @@ class NotificationService {
     _clickListenerAdded = true;
 
     _client.addClickListener((event) {
-      _routeNavigator(routeForNotificationType(_notificationTypeFromData(
-        event.additionalData,
-      )));
+      final type = _notificationTypeFromData(event.additionalData);
+      final route = routeForNotificationType(type);
+      // Re-engagement attribution: which push types actually drive opens →
+      // sessions. Pairs with server-side `notification_sent` to compute CTR.
+      onAnalyticsEvent?.call(AnalyticsEvents.notificationOpened, {
+        'type': type ?? 'unknown',
+        'route': route,
+      });
+      _routeNavigator(route);
     });
   }
 
