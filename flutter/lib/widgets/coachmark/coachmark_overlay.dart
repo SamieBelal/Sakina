@@ -466,9 +466,17 @@ class _CoachBanner extends StatelessWidget {
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: onSkip,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-                                child: Text(
+                              // F-05: guarantee a >=44pt touch target (was a
+                              // ~24pt-tall text with 2pt h-padding). minHeight
+                              // keeps the visible text compact while the tap
+                              // area meets the accessibility minimum.
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                    minHeight: 44, minWidth: 44),
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 8),
+                                child: const Text(
                                   'Skip tour',
                                   style: TextStyle(
                                     color: AppColors.textTertiaryLight,
