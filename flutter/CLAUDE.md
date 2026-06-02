@@ -84,12 +84,13 @@ UI must feel premium, warm, spiritually grounded — like opening a beautifully 
 - **Generous whitespace (20-30% more padding than feels necessary). Soft 12-16px rounded cards. Islamic geometric patterns ONLY as 5-8% opacity decorative accents.**
 - The result card (Name + verse + dua) must be share-worthy unprompted — that's a growth mechanic, not just aesthetics.
 
-## Daily flow — two muhasabah paths (intentionally different)
+## Daily flow — the muḥāsabah path
 
-There are two entry points with intentionally different behavior:
+The single live muḥāsabah path is **`discoverName()`** (`daily_loop_provider.dart`), reached from the Home **`Begin Muḥāsabah`** CTA → `/muhasabah` (`muhasabah_screen.dart`, auto-triggers it). It **skips questions entirely**, picks an undiscovered/lowest-tier card, and jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty — **intentional, not a bug**.
 
-1. **`DailyLaunchOverlay`** (`lib/features/daily/screens/daily_launch_overlay.dart`) → calls `answerCheckin()` in `daily_loop_provider.dart`. Walks the user through 4 check-in questions, then AI-generates a Name match. Used on the "fresh launch of the day" path.
-2. **Home `Begin Muḥāsabah` CTA** → routes to `/muhasabah` (`muhasabah_screen.dart`) which auto-triggers `discoverName()`. **Skips questions entirely**, picks an undiscovered/lowest-tier card, jumps to the gacha animation. Writes `user_checkin_history` with `q1='discover'` and q2/q3/q4 empty — **intentional, not a bug**.
+`DailyLaunchOverlay` (`lib/features/daily/screens/daily_launch_overlay.dart`) is the **fresh-launch-of-the-day gate** — it shows the streak + today's Name and routes into the daily-reward → home flow. It does **NOT** render a check-in questionnaire.
+
+> **DEPRECATED — do not assume it runs:** the old 4-question `answerCheckin()` flow in `daily_loop_provider.dart` is **dormant**. The launch overlay's `_CheckInStep` question UI was removed 2026-04-26 (see `docs/qa/findings/2026-04-26-launch-overlay-dead-checkinstep.md`), so `answerCheckin` has **no live callers** today — it's preserved only as a reference for the AI-context shape (and so the `check_in_completed{path:'questionnaire'}` instrument fires if a multi-question UI ever returns). In practice `check_in_completed` only emits `path:'discover'`. Delete with the next muhasabah refactor unless the questionnaire returns.
 
 ## Onboarding flow
 
