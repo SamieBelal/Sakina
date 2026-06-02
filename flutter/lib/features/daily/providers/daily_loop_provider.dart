@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
@@ -265,6 +266,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// callers leave it null and get the real implementation.
   final Future<void> Function(DailyLoopNotifier self)? _discoverNameOverride;
 
+  /// Static analytics hook (mirrors [GatingService.onAnalyticsEvent]). This
+  /// notifier is a service-layer StateNotifier with no Riverpod access; main.dart
+  /// wires this to the analytics service so the daily loop can emit
+  /// `check_in_completed` without taking on an analytics dependency. Tests leave
+  /// it null.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   /// The gated feature this notifier owns. Consumed by [BypassFlowMixin] as
   /// the cancel-RPC argument.
   @override
@@ -497,6 +506,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       try {
         await _markStreakAndHandleMilestones();
       } catch (_) {}
+
+      // Retention: the recurring core-loop DAU event (Home "Begin Muḥāsabah"
+      // discover path). Powers D1/D7/D30 retention + habit-formation analysis.
+      onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
+        'path': 'discover',
+        'name': card.transliteration,
+        'tier_changed': engageResult.tierChanged,
+        'is_duplicate': engageResult.isDuplicate,
+      });
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
       state = state.copyWith(
@@ -745,6 +763,17 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       } catch (_) {
         // Non-critical — don't fail the check-in
       }
+
+      // Retention: same core-loop DAU event as the discover path, tagged with
+      // `path` so the two intentionally-different muhasabah flows are comparable.
+      onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
+        'path': 'questionnaire',
+        // Use the cleaned name (same value shown in the UI) so this property is
+        // comparable to the discover path's `card.transliteration`.
+        'name': cleanName.isNotEmpty ? cleanName : result.name,
+        'tier_changed': cardEngageResult?.tierChanged ?? false,
+        'is_duplicate': cardEngageResult?.isDuplicate ?? false,
+      });
 
       // Claim daily reward (idempotent — safe even if the launch overlay
       // already claimed today's reward.)
