@@ -106,11 +106,16 @@ interface HandleWebhookOptions {
   sendCancellationSurveyPush?: (
     payload: UserSubscriptionUpsert,
   ) => Promise<void>;
-  // Best-effort server-side subscription-lifecycle analytics, fired only on a
-  // genuinely new event (result.written). MUST be isolated like the survey push
-  // — analytics never turns billing sync into a 500. index.ts wires this to
+  // Best-effort server-side subscription-lifecycle analytics. MUST be isolated
+  // like the survey push — analytics never turns billing sync into a 500.
+  // `meta` carries the RC event id (stable across redeliveries → Mixpanel
+  // `$insert_id` dedup, since `written` is true on same-timestamp retries) and
+  // the event timestamp (for correct cohort time). index.ts wires this to
   // Mixpanel; tests can assert or omit it.
-  trackSubscriptionEvent?: (payload: UserSubscriptionUpsert) => Promise<void>;
+  trackSubscriptionEvent?: (
+    payload: UserSubscriptionUpsert,
+    meta: { eventId: string | null; eventTimestampMs: number | null },
+  ) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -364,7 +369,12 @@ export async function handleRevenueCatWebhook(
     // any failure is swallowed so it can never turn billing sync into a 500.
     if (options.trackSubscriptionEvent) {
       try {
-        await options.trackSubscriptionEvent(subscriptionPayload);
+        await options.trackSubscriptionEvent(subscriptionPayload, {
+          eventId: typeof event.id === "string" ? event.id : null,
+          eventTimestampMs: typeof event.event_timestamp_ms === "number"
+            ? event.event_timestamp_ms
+            : null,
+        });
       } catch (error) {
         console.error(
           "revenuecat-webhook analytics failed (non-fatal)",

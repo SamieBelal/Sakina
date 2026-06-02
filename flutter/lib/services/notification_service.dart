@@ -500,13 +500,17 @@ class NotificationService {
     _client.addClickListener((event) {
       final type = _notificationTypeFromData(event.additionalData);
       final route = routeForNotificationType(type);
-      // Re-engagement attribution: which push types actually drive opens →
-      // sessions. Pairs with server-side `notification_sent` to compute CTR.
-      onAnalyticsEvent?.call(AnalyticsEvents.notificationOpened, {
-        'type': type ?? 'unknown',
-        'route': route,
-      });
+      // Route FIRST — telemetry is best-effort and must never gate or break the
+      // user-facing tap. Then emit re-engagement attribution (which push types
+      // drive opens→sessions; pairs with server `notification_sent` for CTR),
+      // wrapped so a throwing hook can't swallow the navigation.
       _routeNavigator(route);
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.notificationOpened, {
+          'type': type ?? 'unknown',
+          'route': route,
+        });
+      } catch (_) {}
     });
   }
 

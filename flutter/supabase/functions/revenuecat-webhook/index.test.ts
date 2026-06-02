@@ -573,3 +573,91 @@ Deno.test("period_type is carried onto the upsert payload, lowercased", () => {
   assert(payload);
   assertEquals(payload.period_type, "trial");
 });
+
+// ── Subscription-lifecycle analytics (added 2026-06-01) ───────────────────
+//
+// On every WRITTEN subscription event the webhook fires a best-effort
+// trackSubscriptionEvent hook (wired to Mixpanel in index.ts). It must fire
+// exactly once per written event, carrying the RC event id (→ $insert_id dedup)
+// and the event timestamp (→ correct cohort time). It must NOT fire on stale
+// events, and like the survey push it MUST be isolated — an analytics failure
+// can never turn billing sync into a 500.
+
+Deno.test("trackSubscriptionEvent fires once on a written event with the correct meta", async () => {
+  const trackPayloads: UserSubscriptionUpsert[] = [];
+  const trackMetas: Array<
+    { eventId: string | null; eventTimestampMs: number | null }
+  > = [];
+  const eventId = "rc-event-track-abc";
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({ id: eventId })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: false,
+      }),
+      trackSubscriptionEvent: async (payload, meta) => {
+        trackPayloads.push(payload);
+        trackMetas.push(meta);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(trackPayloads.length, 1);
+  assertEquals(trackPayloads[0].user_id, userId);
+  assertEquals(trackMetas.length, 1);
+  assertEquals(trackMetas[0].eventId, eventId);
+  assertEquals(trackMetas[0].eventTimestampMs, nowMs);
+});
+
+Deno.test("trackSubscriptionEvent does NOT fire on a stale event", async () => {
+  let trackCalls = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({ id: "rc-event-track-stale" })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: false, // stale: older than stored last_event_at
+        cancellationStarted: false,
+      }),
+      trackSubscriptionEvent: async () => {
+        trackCalls += 1;
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), {
+    status: "skipped",
+    reason: "stale_event",
+  });
+  assertEquals(trackCalls, 0);
+});
+
+Deno.test("trackSubscriptionEvent failure does NOT fail the webhook (isolation)", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({ id: "rc-event-track-throws" })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: false,
+      }),
+      trackSubscriptionEvent: async () => {
+        throw new Error("Mixpanel down");
+      },
+    },
+  );
+
+  // Billing sync succeeded; the analytics hiccup must not become a 500.
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+});

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -591,6 +592,80 @@ void main() {
     client.dispatchClick(null);
 
     expect(navigatedRoutes, <String>['/', '/']);
+  });
+
+  // ---------------------------------------------------------------------------
+  // notification_opened analytics hook
+  //
+  // The click listener emits the re-engagement attribution signal via the
+  // static NotificationService.onAnalyticsEvent hook AFTER routing. Routing
+  // must never be gated or replaced by telemetry. The hook is reset in
+  // addTearDown so it can't leak into other tests (it's a static field).
+  // ---------------------------------------------------------------------------
+
+  test(
+      'click listener emits notification_opened with type + resolved route',
+      () async {
+    final captured = <(String, Map<String, dynamic>)>[];
+    NotificationService.onAnalyticsEvent =
+        (event, props) => captured.add((event, props));
+    addTearDown(() => NotificationService.onAnalyticsEvent = null);
+
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    client.dispatchClick(<String, dynamic>{'type': 'daily_reminder'});
+
+    expect(captured, hasLength(1),
+        reason: 'exactly one notification_opened event per tap');
+    expect(captured.single.$1, AnalyticsEvents.notificationOpened);
+    expect(captured.single.$2, <String, dynamic>{
+      'type': 'daily_reminder',
+      'route': '/',
+    });
+  });
+
+  test(
+      'click listener emits notification_opened with type=unknown when type is absent/null',
+      () async {
+    final captured = <(String, Map<String, dynamic>)>[];
+    NotificationService.onAnalyticsEvent =
+        (event, props) => captured.add((event, props));
+    addTearDown(() => NotificationService.onAnalyticsEvent = null);
+
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    // No additionalData at all, and additionalData with no `type` key — both
+    // resolve the type to null, which the hook stamps as the "unknown" sentinel.
+    client.dispatchClick(null);
+    client.dispatchClick(<String, dynamic>{'other': 'value'});
+
+    expect(captured, hasLength(2));
+    for (final event in captured) {
+      expect(event.$1, AnalyticsEvents.notificationOpened);
+      expect(event.$2['type'], 'unknown',
+          reason: 'null type resolves to the "unknown" sentinel');
+      expect(event.$2['route'], '/',
+          reason: 'unknown type still routes home');
+    }
+  });
+
+  test(
+      'click listener routes even when the analytics hook throws (telemetry never gates the tap)',
+      () async {
+    NotificationService.onAnalyticsEvent = (event, props) {
+      throw Exception('analytics backend down');
+    };
+    addTearDown(() => NotificationService.onAnalyticsEvent = null);
+
+    await service.initialize('app-id');
+    service.addClickListener();
+
+    client.dispatchClick(<String, dynamic>{'type': 'weekly_reflection'});
+
+    expect(navigatedRoutes, <String>['/journal'],
+        reason: 'routing must still occur even if the hook throws');
   });
 
   test(

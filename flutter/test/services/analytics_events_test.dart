@@ -208,6 +208,33 @@ void main() {
     });
   });
 
+  group('Retention monetization/notification analytics constants (PR #34)', () {
+    // Pins the EXACT wire-protocol strings the Mixpanel dashboards key off.
+    // Renaming any of these constants in Dart MUST be a deliberate
+    // analytics-team coordination, not a silent refactor — these assertions
+    // are the tripwire.
+    test('notification_opened re-engagement event', () {
+      expect(AnalyticsEvents.notificationOpened, 'notification_opened');
+    });
+
+    test('paywall_flow_* funnel event names', () {
+      // The paywall-flow funnel (loader → plan → journey) and the dropoff
+      // event power the multi-step onboarding-paywall conversion dashboards.
+      expect(
+          AnalyticsEvents.paywallFlowLoaderShown, 'paywall_flow_loader_shown');
+      expect(AnalyticsEvents.paywallFlowLoaderAdvanced,
+          'paywall_flow_loader_advanced');
+      expect(AnalyticsEvents.paywallFlowPlanShown, 'paywall_flow_plan_shown');
+      expect(AnalyticsEvents.paywallFlowPlanContinued,
+          'paywall_flow_plan_continued');
+      expect(AnalyticsEvents.paywallFlowJourneyShown,
+          'paywall_flow_journey_shown');
+      expect(AnalyticsEvents.paywallFlowJourneyContinued,
+          'paywall_flow_journey_continued');
+      expect(AnalyticsEvents.paywallFlowDropoff, 'paywall_flow_dropoff');
+    });
+  });
+
   group('AnalyticsEvents.stepNames', () {
     test('covers all 27 onboarding pages (rating gate at 25, paywall at 26)', () {
       // Updated 2026-05-14 by rating-gate insertion. The map carries entries

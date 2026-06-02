@@ -236,9 +236,14 @@ Deno.serve(async (request) => {
           await markSent(supabase, [user.user_id], notificationType.sentColumn);
           marked += 1;
           // notification_sent: server half of push attribution (pairs with the
-          // client's notification_opened to compute CTR). Best-effort.
+          // client's notification_opened to compute CTR). Best-effort. The
+          // per-user+type+day $insert_id dedups a cron re-run/retry in Mixpanel.
           await mixpanelTrack("notification_sent", user.user_id, {
             type: notificationType.dataType,
+          }, {
+            insertId: `${user.user_id}:${notificationType.dataType}:${
+              new Date().toISOString().slice(0, 10)
+            }`,
           });
         }
       } else {
@@ -263,6 +268,10 @@ Deno.serve(async (request) => {
             sent += 1;
             await mixpanelTrack("notification_sent", user.user_id, {
               type: notificationType.dataType,
+            }, {
+              insertId: `${user.user_id}:${notificationType.dataType}:${
+                new Date().toISOString().slice(0, 10)
+              }`,
             });
           }
         }

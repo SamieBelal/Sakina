@@ -32,7 +32,7 @@ serve((request) =>
         cancellationStarted: data?.cancellation_started === true,
       };
     },
-    trackSubscriptionEvent: async (payload) => {
+    trackSubscriptionEvent: async (payload, meta) => {
       // Subscription-lifecycle churn analytics. Best-effort; mixpanelTrack
       // no-ops without MIXPANEL_TOKEN and never throws.
       const event = subscriptionEventName(payload.last_event_type);
@@ -43,6 +43,12 @@ serve((request) =>
         period_type: payload.period_type,
         is_trial: payload.period_type === "trial",
         environment: payload.environment,
+      }, {
+        // RC event.id is stable across redeliveries, so an at-least-once retry
+        // (which passes the `>=` freshness guard → written=true) reuses the same
+        // $insert_id and Mixpanel collapses it instead of double-counting.
+        insertId: meta.eventId,
+        time: meta.eventTimestampMs,
       });
     },
     sendCancellationSurveyPush: async (payload) => {

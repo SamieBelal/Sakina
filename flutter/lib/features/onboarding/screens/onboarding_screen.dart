@@ -77,6 +77,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   bool _paywallEventsFired = false;
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
+  final Set<int> _dropoffEmitted = <int>{};
 
   // Abandonment telemetry (Task A10): when the app is backgrounded mid-
   // onboarding for 24h+, fire `onboarding_abandoned_at_page` on resume so
@@ -147,14 +148,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // Backward navigation OUT of a paywall-flow page = the user didn't continue
   // forward through the funnel. Complements the derivable funnel drop (a
   // *_shown without the next step) with an explicit signal.
-  void _emitPaywallFlowDropoffIfLeaving(int fromIndex) {
-    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[fromIndex];
-    if (name != null && name.startsWith('paywall_flow_')) {
-      ref.read(analyticsProvider).track(
-        AnalyticsEvents.paywallFlowDropoff,
-        properties: {'from': name},
-      );
-    }
+  void _emitPaywallFlowDropoffIfLeaving(int fromIndex, int toIndex) {
+    final names = AnalyticsEvents.stepNamesFor(trimmed: _trimmed);
+    final name = names[fromIndex];
+    if (name == null || !name.startsWith('paywall_flow_')) return;
+    // The loader (GeneratingScreen) auto-advances forward, so backing INTO it
+    // isn't a real exit — the user is bounced straight back into the funnel.
+    // Counting that as a dropoff is a phantom.
+    if (names[toIndex] == 'paywall_flow_loader') return;
+    // Once per page per session — crossing the boundary back-and-forth must not
+    // inflate the dropoff count (it complements the once-per-session *_shown).
+    if (!_dropoffEmitted.add(fromIndex)) return;
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.paywallFlowDropoff,
+      properties: {'from': name},
+    );
   }
 
   @override
@@ -252,7 +260,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     if (page > current) {
       _emitStepCompletedOnce(current);
     } else if (page < current) {
-      _emitPaywallFlowDropoffIfLeaving(current);
+      _emitPaywallFlowDropoffIfLeaving(current, page);
     }
     _emitStepViewedOnce(page);
     if (page == _activeLastPageIndex) {
