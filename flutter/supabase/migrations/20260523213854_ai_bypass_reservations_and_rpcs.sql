@@ -333,6 +333,12 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 7. cancel_ai_bypass — rollback: refund tokens, decrement counter
 -- ---------------------------------------------------------------------------
+--
+-- SECURITY NOTE (forward reference): this original body lacks an owner auth
+-- check (P1-1). It is SUPERSEDED in production by the v2 defined in
+-- 20260524154019_ai_bypass_p1_security_bundle.sql, which adds the
+-- auth.uid()-vs-owner guard. Do NOT revert to this version. Read the P1
+-- bundle for the canonical, hardened definition.
 
 create or replace function public.cancel_ai_bypass(p_reservation_id uuid)
 returns jsonb

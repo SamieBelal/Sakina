@@ -28,4 +28,42 @@ if grep -rnE 'FAKE_DO_NOT_SHIP_["\x27]' "${LIB_DIR}" ; then
   exit 1
 fi
 
-echo "OK: no FAKE_DO_NOT_SHIP_ placeholders in lib/."
+# Fabricated monetary claims. The IAP->sub upsell banner once shipped a
+# hard-coded "$X spent" figure not backed by any real accounting — the exact
+# shape of bug Apple 3.1.1 + FTC endorsement rules care about (copy asserting
+# a specific dollar value the app cannot substantiate). Catch a literal dollar
+# amount sitting next to spend/save wording, in either order.
+#
+# SCOPED to lib/widgets/ (where the upsell banners live), NOT all of lib/. The
+# paywall (lib/features/onboarding/screens/paywall_screen.dart) shows LEGITIMATE
+# "Save $50" copy computed from real RevenueCat offering prices — broadening the
+# scan to all of lib/ false-positives on it and would block every release, the
+# classic cry-wolf failure that gets a tripwire disabled.
+#
+# DOLLAR-ANCHORED on purpose. An earlier version also flagged bare "you've
+# spent" / "you have spent" with no amount, which false-positived on ordinary
+# prose ("you have spent time reflecting" — natural in a spiritual app). A
+# fabricated *monetary* claim by definition carries an amount, so we require a
+# `$` figure. Token-count claims ("spent 500 tokens") are NOT flagged — those
+# are real values from sync_all_user_data, not fabricated dollars.
+#
+# Note: Dart interpolation is `$identifier` / `${expr}` — never `$<digit>` — so
+# `\$[0-9]` only matches a HARD-CODED dollar figure, not a computed value.
+# Forces devs to use non-monetary copy ("you've used N bypasses") or wire real
+# accounting.
+# NOTE: the `\$` segments stay single-quoted so the backslash-escape survives —
+# in double quotes bash would strip `\$` to a bare `$`, turning it into an ERE
+# end-anchor and silently disabling the whole guard.
+_MONEY_VERB='(spent|saved|save|saves|spend|spends)'
+MONEY_RE='(\$[0-9]+([.,][0-9]+)?[[:space:]]*'"${_MONEY_VERB}"')|('"${_MONEY_VERB}"'[[:space:]]+\$[0-9])'
+# -i: marketing copy capitalizes verbs ("Save $5", "Spent $50"). The `$`-amount
+# anchor keeps case-insensitivity from widening false positives.
+if [ -d "${LIB_DIR}/widgets" ] && grep -rniE "${MONEY_RE}" "${LIB_DIR}/widgets" ; then
+  echo ""
+  echo "ERROR: fabricated monetary claim (a \$ amount next to spend/save wording)"
+  echo "found in lib/. Apple 3.1.1 / FTC: do not assert a dollar value the app"
+  echo "cannot substantiate. Use non-monetary copy or wire real accounting."
+  exit 1
+fi
+
+echo "OK: no FAKE_DO_NOT_SHIP_ placeholders or fabricated monetary claims in lib/."

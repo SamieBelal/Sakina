@@ -21,15 +21,30 @@ class SignUpEmailScreen extends ConsumerStatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onBack;
 
-  // Pragmatic RFC-5322 subset: local-part of one or more allowed chars, `@`,
-  // domain label(s) separated by dots, TLD ≥ 2 letters. Rejects the garbage
-  // the previous `contains('@') && contains('.')` check waved through
-  // (e.g. `a@.`, `me@@x.com`, `test@.com`) which then failed at the
-  // Supabase auth layer with no analytics trail — see PR notes on the
-  // sign-up password session-race fix shipped alongside this regex.
+  // Pragmatic RFC-5322 subset: local-part, `@`, dot-separated domain labels,
+  // TLD ≥ 2 letters. Rejects the garbage the old `contains('@') && contains('.')`
+  // check waved through (`a@.`, `me@@x.com`, `test@.com`) that then failed at
+  // the Supabase auth layer with no analytics trail.
+  //
+  // Unicode-aware (`\p{L}` letters + `\p{N}` digits + `\p{M}` combining marks,
+  // with `unicode: true`): Supabase auth accepts internationalized addresses, so
+  // we do too — `josé@example.com` (precomposed U+00E9 OR NFD `e`+U+0301),
+  // `用户@例え.jp`, `çağrı@example.com.tr`. The ASCII-only predecessor
+  // (`[a-zA-Z0-9]`) bounced Turkish/French/CJK users out of signup with a
+  // misleading "valid email" error. `\p{M}` is what makes the NFD
+  // (decomposed-diacritic) forms many keyboards / paste sources emit pass —
+  // without it `josé` typed as `e`+combining-acute is rejected.
+  //
+  // Strictness scope: DOMAIN labels forbid leading/trailing/double dots and a
+  // <2-letter or digit-bearing TLD. The LOCAL-part is intentionally lenient on
+  // dots (Supabase accepts it; tightening risks false-rejects). Homograph /
+  // confusable letters (e.g. Cyrillic `а`) are accepted — that's the cost of
+  // i18n email, and it's the user's OWN address received at signup, not a
+  // trust anchor shown to others.
   static final RegExp emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?'
-    r'(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$',
+    r'^[\p{L}\p{N}\p{M}._%+\-]+@[\p{L}\p{N}](?:[\p{L}\p{N}\p{M}\-]*[\p{L}\p{N}\p{M}])?'
+    r'(?:\.[\p{L}\p{N}](?:[\p{L}\p{N}\p{M}\-]*[\p{L}\p{N}\p{M}])?)*\.[\p{L}\p{M}]{2,}$',
+    unicode: true,
   );
 
   static bool isValidEmail(String text) => emailRegex.hasMatch(text.trim());

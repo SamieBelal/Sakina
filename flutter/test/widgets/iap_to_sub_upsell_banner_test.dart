@@ -683,19 +683,44 @@ void main() {
     });
 
     // Structural test — catches the next event-without-producer.
-    test('iapToSubBannerShown has at least one producer in lib/', () async {
-      final dir = Directory('lib/');
-      final hits = <String>[];
-      await for (final f in dir.list(recursive: true)) {
+    //
+    // Pins ALL FOUR banner events, not just `shown`. Originally only `shown`
+    // was covered, leaving `tapped` / `dismissed` / `dismissFailed` exposed:
+    // a refactor that dropped any of their emits would slip through silently,
+    // recreating the P0-5 class of bug (event declared but never emitted).
+    // (TODO: tripwire + producer-pin coverage gaps.)
+    test('every banner event has at least one producer in lib/', () async {
+      // Matched by constant-identifier usage in source, so the underlying
+      // event string can change without touching this test.
+      const bannerEventIdentifiers = <String>[
+        'AnalyticsEvents.iapToSubBannerShown',
+        'AnalyticsEvents.iapToSubBannerTapped',
+        'AnalyticsEvents.iapToSubBannerDismissed',
+        'AnalyticsEvents.iapToSubBannerDismissFailed',
+      ];
+
+      // Read every lib/ dart file once, stripping single-line `//` comments so
+      // a commented-out emit (`// analytics.track(AnalyticsEvents.iapToSub...)`)
+      // cannot satisfy the pin — it must be LIVE code, which is the whole point
+      // (a substring match alone would recreate the declared-but-never-emitted
+      // bug it guards against).
+      final sources = <String>[];
+      await for (final f in Directory('lib/').list(recursive: true)) {
         if (f is File && f.path.endsWith('.dart')) {
-          final content = await f.readAsString();
-          if (content.contains('AnalyticsEvents.iapToSubBannerShown')) {
-            hits.add(f.path);
-          }
+          final stripped = (await f.readAsString())
+              .split('\n')
+              .where((line) => !line.trimLeft().startsWith('//'))
+              .join('\n');
+          sources.add(stripped);
         }
       }
-      expect(hits, isNotEmpty,
-          reason: 'event must have a producer (P0-5 regression pin)');
+
+      for (final identifier in bannerEventIdentifiers) {
+        final hasProducer = sources.any((s) => s.contains(identifier));
+        expect(hasProducer, isTrue,
+            reason: '$identifier must have a producer in lib/ '
+                '(P0-5 regression pin — event declared but never emitted)');
+      }
     });
   });
 }

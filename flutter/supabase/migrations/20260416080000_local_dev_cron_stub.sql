@@ -55,6 +55,24 @@ begin
         on conflict (jobname) do update set schedule=excluded.schedule, command=excluded.command
         returning jobid;
     $f$;
+    -- 2-arg overload: real pg_cron also supports cron.schedule(schedule,
+    -- command). Without it, the next migration to use the 2-arg form would fail
+    -- ONLY locally / in CI (passing on prod, where real pg_cron is loaded) — a
+    -- confusing parity gap. This stub is intentionally minimal: it derives a
+    -- deterministic md5 jobname and upserts, so a repeated (schedule, command)
+    -- updates in place. NOTE: real pg_cron instead auto-generates a SEQUENTIAL
+    -- jobname and creates a NEW job per call — so this stub only guarantees
+    -- "the call resolves", not identical row-count semantics. Fine for local/CI
+    -- smoke; don't rely on it to model prod job rows.
+    create or replace function cron.schedule(schedule text, command text)
+    returns bigint
+    language sql
+    as $f$
+      insert into cron.job (jobname, schedule, command)
+        values (md5($1 || $2), $1, $2)
+        on conflict (jobname) do update set schedule=excluded.schedule, command=excluded.command
+        returning jobid;
+    $f$;
     create or replace function cron.unschedule(jobname text)
     returns boolean
     language sql
