@@ -38,6 +38,23 @@ jobs:
           TZ: America/New_York
         run: flutter test
 
+  deno-tests:
+    runs-on: ubuntu-latest
+    # Edge functions (Supabase, Deno) are TypeScript and were previously never
+    # run in CI — the revenuecat-webhook suite + the new analytics tests
+    # (mixpanel helper, subscription-event mapping, webhook isolation) only
+    # gate merges via this job.
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run Deno edge-function tests
+        run: deno test --allow-env --allow-net --allow-read supabase/functions/
+
   sql-tests:
     runs-on: ubuntu-latest
     # Free alternative to Supabase Preview Branches: spin up a local

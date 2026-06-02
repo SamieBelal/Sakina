@@ -14,6 +14,10 @@ abstract final class AnalyticsEvents {
   // trustworthy warm-start signal (app_opened only fires on cold start).
   static const checkInCompleted = 'check_in_completed';
   static const sessionStarted = 'session_started';
+  // Re-engagement: fired when a user taps a push notification (client). Pairs
+  // with a future server-side `notification_sent` to compute push CTR and
+  // notification→session lift.
+  static const notificationOpened = 'notification_opened';
   static const signupMethodSelected = 'signup_method_selected';
   static const signupCompleted = 'signup_completed';
   static const signupFailed = 'signup_failed';

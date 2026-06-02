@@ -77,6 +77,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   bool _paywallEventsFired = false;
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
+  final Set<int> _dropoffEmitted = <int>{};
 
   // Abandonment telemetry (Task A10): when the app is backgrounded mid-
   // onboarding for 24h+, fire `onboarding_abandoned_at_page` on resume so
@@ -98,11 +99,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
     ref.read(analyticsProvider).trackStepViewed(index, trimmed: _trimmed);
+    _emitPaywallFlowShown(index);
   }
 
   void _emitStepCompletedOnce(int index) {
     if (!_completedEmitted.add(index)) return;
     ref.read(analyticsProvider).trackStepCompleted(index, trimmed: _trimmed);
+    _emitPaywallFlowContinued(index);
   }
 
   void _firePaywallEventsOnce() {
@@ -112,6 +115,54 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     analytics.track(AnalyticsEvents.paywallViewed);
     analytics.track(AnalyticsEvents.paywallPlanSelected,
         properties: {'plan': 'annual'});
+  }
+
+  // Granular paywall-flow funnel (F-08): the loader→plan→journey pages (22-24
+  // legacy / 16-17 trimmed) had no dedicated instrumentation. Keyed on
+  // `step_name` so both dual-flow index sets resolve correctly (trimmed has no
+  // journey page). Fired from the deduped step hooks below, so once per page.
+  void _emitPaywallFlowShown(int index) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final analytics = ref.read(analyticsProvider);
+    if (name == 'paywall_flow_loader') {
+      analytics.track(AnalyticsEvents.paywallFlowLoaderShown);
+    } else if (name == 'paywall_flow_plan') {
+      analytics.track(AnalyticsEvents.paywallFlowPlanShown);
+    } else if (name == 'paywall_flow_journey') {
+      analytics.track(AnalyticsEvents.paywallFlowJourneyShown);
+    }
+  }
+
+  void _emitPaywallFlowContinued(int index) {
+    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final analytics = ref.read(analyticsProvider);
+    if (name == 'paywall_flow_loader') {
+      analytics.track(AnalyticsEvents.paywallFlowLoaderAdvanced);
+    } else if (name == 'paywall_flow_plan') {
+      analytics.track(AnalyticsEvents.paywallFlowPlanContinued);
+    } else if (name == 'paywall_flow_journey') {
+      analytics.track(AnalyticsEvents.paywallFlowJourneyContinued);
+    }
+  }
+
+  // Backward navigation OUT of a paywall-flow page = the user didn't continue
+  // forward through the funnel. Complements the derivable funnel drop (a
+  // *_shown without the next step) with an explicit signal.
+  void _emitPaywallFlowDropoffIfLeaving(int fromIndex, int toIndex) {
+    final names = AnalyticsEvents.stepNamesFor(trimmed: _trimmed);
+    final name = names[fromIndex];
+    if (name == null || !name.startsWith('paywall_flow_')) return;
+    // The loader (GeneratingScreen) auto-advances forward, so backing INTO it
+    // isn't a real exit — the user is bounced straight back into the funnel.
+    // Counting that as a dropoff is a phantom.
+    if (names[toIndex] == 'paywall_flow_loader') return;
+    // Once per page per session — crossing the boundary back-and-forth must not
+    // inflate the dropoff count (it complements the once-per-session *_shown).
+    if (!_dropoffEmitted.add(fromIndex)) return;
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.paywallFlowDropoff,
+      properties: {'from': name},
+    );
   }
 
   @override
@@ -208,6 +259,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     // Only fire step_completed on forward navigation — back navigation is abandonment, not completion
     if (page > current) {
       _emitStepCompletedOnce(current);
+    } else if (page < current) {
+      _emitPaywallFlowDropoffIfLeaving(current, page);
     }
     _emitStepViewedOnce(page);
     if (page == _activeLastPageIndex) {
