@@ -69,6 +69,28 @@ void main() {
     expect(of(AnalyticsEvents.streakExtended).length, 1);
   });
 
+  test(
+      'streak_extended is suppressed (but streak_freeze_consumed still fires) '
+      'when the user_streaks upsert fails on a freeze day', () async {
+    fakeSync.rows['user_streaks:user-1'] = {
+      'current_streak': 5,
+      'longest_streak': 10,
+      'last_active': '2026-04-01', // multi-day gap → needs a freeze
+    };
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => true;
+    // Force the user_streaks upsert to fail. The freeze already committed
+    // server-side, so the code falls through (caches locally) but must NOT
+    // report a server-unpersisted streak_extended day.
+    fakeSync.nextUpsertShouldFail = true;
+
+    await markActiveToday();
+
+    expect(of(AnalyticsEvents.streakExtended), isEmpty,
+        reason: 'unpersisted streak increment must not emit streak_extended');
+    expect(of(AnalyticsEvents.streakFreezeConsumed).length, 1,
+        reason: 'the freeze committed server-side, so it still fires');
+  });
+
   test('checkStreakMilestones emits streak_milestone for a newly crossed day',
       () async {
     final reached = await checkStreakMilestones(7);

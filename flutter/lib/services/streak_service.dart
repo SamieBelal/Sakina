@@ -94,9 +94,6 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
       claimed.add(milestone.days);
       newlyReached
           .add(StreakMilestoneResult(milestone: milestone, isNew: true));
-      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakMilestone, {
-        'streak_day': milestone.days,
-      });
     }
   }
 
@@ -105,6 +102,17 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
       supabaseSyncService.scopedKey(_claimedMilestonesKey),
       jsonEncode(claimed.toList()),
     );
+    // Emit AFTER the claimed-set persists (best-effort, wrapped). Emitting
+    // inside the loop would report a milestone that a failing persist never
+    // marked claimed → it would re-fire next call. Matches markActiveToday's
+    // emit-after-commit discipline.
+    try {
+      for (final reached in newlyReached) {
+        StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakMilestone, {
+          'streak_day': reached.milestone.days,
+        });
+      }
+    } catch (_) {}
   }
 
   return newlyReached;
@@ -299,6 +307,9 @@ Future<StreakState> markActiveToday() async {
     longestStreak = currentStreak;
   }
 
+  // True when the increment is durable: local-only mode (no userId) is
+  // authoritative; otherwise it requires a successful server upsert.
+  bool streakPersisted = true;
   if (userId != null) {
     final ok = await supabaseSyncService.upsertRow('user_streaks', userId, {
       'current_streak': currentStreak,
@@ -313,6 +324,7 @@ Future<StreakState> markActiveToday() async {
     // If the freeze was consumed (server-side commit already happened) but
     // the streak upsert failed, we must still cache the computed values
     // locally. Otherwise the user loses their freeze for nothing.
+    streakPersisted = ok;
   }
 
   await _setCachedStreakState(
@@ -322,19 +334,25 @@ Future<StreakState> markActiveToday() async {
     lastActive: today,
   );
 
-  // Analytics — emit only from the committed path (after persist, past the
-  // failed-upsert early-return above) so a streak that didn't stick never
-  // emits a phantom event. The already-active-today branch returned earlier,
-  // so this fires exactly once per real increment (no double-fire).
-  StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExtended, {
-    'streak_day': currentStreak,
-  });
-  if (freezeConsumed) {
-    StreakAnalytics.onAnalyticsEvent
-        ?.call(AnalyticsEvents.streakFreezeConsumed, {
-      'streak_day': currentStreak,
-    });
-  }
+  // Analytics (best-effort, wrapped — never let a telemetry throw break the
+  // streak write). The already-active-today branch returned earlier, so this
+  // runs exactly once per real increment. `streak_extended` is gated on durable
+  // persistence so the rare "freeze consumed but streak upsert failed" case
+  // doesn't report a server-unpersisted day; `streak_freeze_consumed` always
+  // fires (the freeze itself committed server-side).
+  try {
+    if (streakPersisted) {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExtended, {
+        'streak_day': currentStreak,
+      });
+    }
+    if (freezeConsumed) {
+      StreakAnalytics.onAnalyticsEvent
+          ?.call(AnalyticsEvents.streakFreezeConsumed, {
+        'streak_day': currentStreak,
+      });
+    }
+  } catch (_) {}
 
   return StreakState(
     currentStreak: currentStreak,

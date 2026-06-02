@@ -41,12 +41,22 @@ class _ControllableQuests extends StateNotifier<QuestsState>
     state = state.copyWith(pendingCompletions: [...state.pendingCompletions, q]);
   }
 
+  void emitBeginnerCompletion(BeginnerQuest q) {
+    state = state.copyWith(pendingBeginnerCompletion: q);
+  }
+
   @override
   List<Quest> consumePendingCompletions() {
     if (state.pendingCompletions.isEmpty) return const [];
     final pending = state.pendingCompletions;
     state = state.copyWith(pendingCompletions: const []);
     return pending;
+  }
+
+  @override
+  void clearPendingBeginnerCompletion() {
+    if (state.pendingBeginnerCompletion == null) return;
+    state = state.copyWith(clearPendingBeginnerCompletion: true);
   }
 
   @override
@@ -226,6 +236,38 @@ void main() {
     expect(qc.first.$2?['quest_type'], 'standard');
     expect(qc.first.$2?['xp_reward'], 20);
     expect(qc.first.$2?['token_reward'], 5);
+
+    // Drain the toast's auto-dismiss timers (3500ms + 400ms) for teardown.
+    await tester.pump(const Duration(milliseconds: 3500));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets(
+      'a pending beginner (First Steps) completion fires quest_completed '
+      'with quest_type beginner', (tester) async {
+    await pumpShell(tester);
+
+    quests.emitBeginnerCompletion(const BeginnerQuest(
+      id: BeginnerQuestId.firstMuhasabah,
+      title: 'Your First Check-In',
+      description: 'Complete a Muhasabah and meet a Name of Allah.',
+      icon: Icons.favorite_rounded,
+      xpReward: 75,
+      tokenReward: 50,
+      scrollReward: 5,
+      route: '/muhasabah',
+    ));
+    await tester.pump(); // ref.listen fires → schedules post-frame
+    await tester.pump(); // post-frame runs → track + toast
+
+    final qc = tracked(AnalyticsEvents.questCompleted).toList();
+    expect(qc.length, 1);
+    expect(qc.first.$2?['quest_type'], AnalyticsEvents.questTypeBeginner);
+    expect(qc.first.$2?['quest_id'], isNotNull);
+    expect(qc.first.$2?['quest_id'], BeginnerQuestId.firstMuhasabah.key);
+    expect(qc.first.$2?['xp_reward'], 75);
+    expect(qc.first.$2?['token_reward'], 50);
 
     // Drain the toast's auto-dismiss timers (3500ms + 400ms) for teardown.
     await tester.pump(const Duration(milliseconds: 3500));

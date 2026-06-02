@@ -35,24 +35,29 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (event is XpGranted) {
         // Analytics — fire for EVERY XP grant (the recurring engagement
         // signal), plus a discrete level_up when the grant crossed a
-        // threshold. Best-effort: a track() failure must never break the
-        // overlay logic below. `ref` is the persistent ConsumerState ref.
-        final analytics = ref.read(analyticsProvider);
-        analytics.track(AnalyticsEvents.xpAwarded, properties: {
-          'amount': event.amount,
-          'source': event.source.name,
-          'new_total': event.newTotal,
-        });
-        if (event.leveledUp) {
-          final toLevel = event.newState.level;
-          final fromLevel = event.rewards != null
-              ? toLevel - event.rewards!.levelsGained
-              : toLevel - 1;
-          analytics.track(AnalyticsEvents.levelUp, properties: {
-            'from_level': fromLevel,
-            'to_level': toLevel,
+        // threshold. Wrapped so a track() failure can't break the overlay
+        // logic below. `ref` is the persistent ConsumerState ref.
+        try {
+          final analytics = ref.read(analyticsProvider);
+          analytics.track(AnalyticsEvents.xpAwarded, properties: {
+            'amount': event.amount,
+            'source': event.source.name,
+            'new_total': event.newTotal,
           });
-        }
+          if (event.leveledUp) {
+            final toLevel = event.newState.level;
+            // rewards is non-null whenever leveledUp is true (xp_service couples
+            // them), so the first branch always wins for real level-ups; the
+            // fallback is defensive only.
+            final fromLevel = event.rewards != null
+                ? toLevel - event.rewards!.levelsGained
+                : toLevel - 1;
+            analytics.track(AnalyticsEvents.levelUp, properties: {
+              'from_level': fromLevel,
+              'to_level': toLevel,
+            });
+          }
+        } catch (_) {}
       }
       if (event is XpGranted && event.leveledUp && event.rewards != null) {
         // Use addPostFrameCallback (NOT microtask) to match muhasabah_screen's
@@ -143,12 +148,15 @@ class _AppShellState extends ConsumerState<AppShell> {
               ref.read(questsProvider.notifier).consumePendingCompletions();
           final analytics = ref.read(analyticsProvider);
           for (final quest in quests) {
-            analytics.track(AnalyticsEvents.questCompleted, properties: {
-              'quest_id': quest.id,
-              'quest_type': AnalyticsEvents.questTypeStandard,
-              'xp_reward': quest.xpReward,
-              'token_reward': quest.tokenReward,
-            });
+            // Wrapped so a telemetry throw can't skip the toast / break the loop.
+            try {
+              analytics.track(AnalyticsEvents.questCompleted, properties: {
+                'quest_id': quest.id,
+                'quest_type': AnalyticsEvents.questTypeStandard,
+                'xp_reward': quest.xpReward,
+                'token_reward': quest.tokenReward,
+              });
+            } catch (_) {}
             showQuestCompletionToast(quest);
           }
         });
@@ -160,15 +168,18 @@ class _AppShellState extends ConsumerState<AppShell> {
       final beginner = next.pendingBeginnerCompletion;
       if (beginner != null && prev?.pendingBeginnerCompletion == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(analyticsProvider).track(
-            AnalyticsEvents.questCompleted,
-            properties: {
-              'quest_id': beginner.id.key,
-              'quest_type': AnalyticsEvents.questTypeBeginner,
-              'xp_reward': beginner.xpReward,
-              'token_reward': beginner.tokenReward,
-            },
-          );
+          // Wrapped so a telemetry throw can't skip the toast below.
+          try {
+            ref.read(analyticsProvider).track(
+              AnalyticsEvents.questCompleted,
+              properties: {
+                'quest_id': beginner.id.key,
+                'quest_type': AnalyticsEvents.questTypeBeginner,
+                'xp_reward': beginner.xpReward,
+                'token_reward': beginner.tokenReward,
+              },
+            );
+          } catch (_) {}
           showQuestCompletionToast(Quest(
             id: beginner.id.key,
             cadence: QuestCadence.daily,

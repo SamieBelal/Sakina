@@ -1860,6 +1860,9 @@ String _datePrefix(dynamic value) {
 
 const String _collectionKey = 'sakina_card_collection';
 const String _seenKey = 'sakina_card_seen';
+// Per-user latch so `collection_completed` analytics fires once-ever (not on
+// every engage once the set is full).
+const String _collectionCompletedKey = 'sakina_collection_completed_fired';
 
 class CardCollectionState {
   final Set<int> discoveredIds;
@@ -2078,24 +2081,38 @@ Future<CardEngageResult> engageCard(int cardId) async {
 
   // Analytics — fire at most one engagement event per call so Mixpanel counts
   // stay clean. New discovery → card_revealed; existing card upgrade → tier_up;
-  // duplicate (already Gold) → nothing. Best-effort, never throws into the grant.
-  if (isNew) {
-    CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.cardRevealed, {
-      'name_id': cardId,
-      'tier': tierToEnum(newTier),
-      'is_new': true,
-    });
-    // The discovery that completes the full set (every Name unlocked).
-    if (ids.length == currentCollectibleNames().length) {
+  // duplicate (already Gold) → nothing. Wrapped so a throwing hook can NEVER
+  // propagate into the grant: the grant is already persisted above, and
+  // engageCard runs inside discoverName's try — an escape here would set
+  // state.error and trip discoverNameWithBypass's bypass-refund path (free card).
+  try {
+    if (isNew) {
       CardCollectionAnalytics.onAnalyticsEvent
-          ?.call(AnalyticsEvents.collectionCompleted, {'total': ids.length});
+          ?.call(AnalyticsEvents.cardRevealed, {
+        'name_id': cardId,
+        'tier': tierToEnum(newTier),
+        'is_new': true,
+      });
+      // The discovery that completes the full set (every Name unlocked).
+      // `>=` so a later server-side catalog shrink can't strand a legitimately
+      // complete collection; a persisted latch keeps it once-ever per user.
+      if (ids.length >= currentCollectibleNames().length) {
+        final firedKey = supabaseSyncService.scopedKey(_collectionCompletedKey);
+        if (!(prefs.getBool(firedKey) ?? false)) {
+          await prefs.setBool(firedKey, true);
+          CardCollectionAnalytics.onAnalyticsEvent
+              ?.call(AnalyticsEvents.collectionCompleted, {'total': ids.length});
+        }
+      }
+    } else if (tierChanged) {
+      CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.tierUp, {
+        'name_id': cardId,
+        'from_tier': tierToEnum(currentTier),
+        'to_tier': tierToEnum(newTier),
+      });
     }
-  } else if (tierChanged) {
-    CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.tierUp, {
-      'name_id': cardId,
-      'from_tier': tierToEnum(currentTier),
-      'to_tier': tierToEnum(newTier),
-    });
+  } catch (_) {
+    // Best-effort telemetry — never let it propagate into the grant.
   }
 
   return CardEngageResult(

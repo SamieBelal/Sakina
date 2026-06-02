@@ -12,6 +12,7 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -40,17 +41,26 @@ class StoreScreen extends ConsumerStatefulWidget {
 class _StoreScreenState extends ConsumerState<StoreScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  // Captured once in initState (while mounted). The purchase flow emits
+  // analytics AFTER awaits that can outlive the widget (the user can leave the
+  // Store mid-purchase). Reading `ref` post-dispose throws StateError — which
+  // the catch block would then mislabel a SUCCEEDED, money-collected purchase
+  // as store_purchase_failed and drop the revenue event. The AnalyticsService
+  // outlives this widget, so the captured instance is safe to call post-dispose.
+  late final AnalyticsService _analytics;
   bool _purchasing = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    ref.read(analyticsProvider).track(AnalyticsEvents.storeViewed);
+    _analytics = ref.read(analyticsProvider);
+    _analytics.track(AnalyticsEvents.storeViewed);
   }
 
   /// Emits a store purchase-funnel event with consistent pack identity.
   /// `kind` ∈ {tokens, scrolls}; `extra` carries price/currency or a reason.
+  /// Uses the captured [_analytics] (never `ref` post-await — see the field).
   void _trackPurchase(
     String event,
     String productId,
@@ -58,7 +68,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     String kind, {
     Map<String, dynamic>? extra,
   }) {
-    ref.read(analyticsProvider).track(event, properties: {
+    _analytics.track(event, properties: {
       'pack_id': productId,
       'amount': amount,
       'kind': kind,
