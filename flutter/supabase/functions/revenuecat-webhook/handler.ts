@@ -106,6 +106,11 @@ interface HandleWebhookOptions {
   sendCancellationSurveyPush?: (
     payload: UserSubscriptionUpsert,
   ) => Promise<void>;
+  // Best-effort server-side subscription-lifecycle analytics, fired only on a
+  // genuinely new event (result.written). MUST be isolated like the survey push
+  // — analytics never turns billing sync into a 500. index.ts wires this to
+  // Mixpanel; tests can assert or omit it.
+  trackSubscriptionEvent?: (payload: UserSubscriptionUpsert) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -353,6 +358,19 @@ export async function handleRevenueCatWebhook(
 
     if (!result.written) {
       return jsonResponse(200, { status: "skipped", reason: "stale_event" });
+    }
+
+    // Server-side subscription-lifecycle analytics (retention P0). Isolated —
+    // any failure is swallowed so it can never turn billing sync into a 500.
+    if (options.trackSubscriptionEvent) {
+      try {
+        await options.trackSubscriptionEvent(subscriptionPayload);
+      } catch (error) {
+        console.error(
+          "revenuecat-webhook analytics failed (non-fatal)",
+          error,
+        );
+      }
     }
 
     // Fire the cancellation survey push only on a genuinely new cancellation.

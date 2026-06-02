@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { handleRevenueCatWebhook } from "./handler.ts";
+import { mixpanelTrack, subscriptionEventName } from "../_shared/mixpanel.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -30,6 +31,19 @@ serve((request) =>
         written: data?.written === true,
         cancellationStarted: data?.cancellation_started === true,
       };
+    },
+    trackSubscriptionEvent: async (payload) => {
+      // Subscription-lifecycle churn analytics. Best-effort; mixpanelTrack
+      // no-ops without MIXPANEL_TOKEN and never throws.
+      const event = subscriptionEventName(payload.last_event_type);
+      if (event == null) return;
+      await mixpanelTrack(event, payload.user_id, {
+        product_id: payload.product_id,
+        store: payload.store,
+        period_type: payload.period_type,
+        is_trial: payload.period_type === "trial",
+        environment: payload.environment,
+      });
     },
     sendCancellationSurveyPush: async (payload) => {
       // TODO(launch): REMOVE this sandbox gate once the app build containing the
