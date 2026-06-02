@@ -1,7 +1,20 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+
+/// Analytics seam for the streak economy. `markActiveToday` /
+/// `checkStreakMilestones` are top-level service functions with no Riverpod
+/// access, so they emit through this static hook (same pattern as
+/// `GatingService.onAnalyticsEvent`). Wired once in `main.dart`; null in tests
+/// and until wired, so emitting is a safe no-op.
+class StreakAnalytics {
+  StreakAnalytics._();
+
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+}
 
 // ---------------------------------------------------------------------------
 // Streak Milestones — one-time rewards for reaching streak thresholds
@@ -81,6 +94,9 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
       claimed.add(milestone.days);
       newlyReached
           .add(StreakMilestoneResult(milestone: milestone, isNew: true));
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakMilestone, {
+        'streak_day': milestone.days,
+      });
     }
   }
 
@@ -305,6 +321,20 @@ Future<StreakState> markActiveToday() async {
     longestStreak: longestStreak,
     lastActive: today,
   );
+
+  // Analytics — emit only from the committed path (after persist, past the
+  // failed-upsert early-return above) so a streak that didn't stick never
+  // emits a phantom event. The already-active-today branch returned earlier,
+  // so this fires exactly once per real increment (no double-fire).
+  StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExtended, {
+    'streak_day': currentStreak,
+  });
+  if (freezeConsumed) {
+    StreakAnalytics.onAnalyticsEvent
+        ?.call(AnalyticsEvents.streakFreezeConsumed, {
+      'streak_day': currentStreak,
+    });
+  }
 
   return StreakState(
     currentStreak: currentStreak,

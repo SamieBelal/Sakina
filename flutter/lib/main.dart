@@ -19,8 +19,10 @@ import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/app_config_service.dart';
 import 'services/auth_service.dart';
+import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/gating_service.dart';
+import 'services/streak_service.dart';
 import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
@@ -191,6 +193,15 @@ Future<void> main() async {
   GatingService.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
   DailyCapSheet.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
+
+  // Engagement & economy analytics (retention audit 2026-06-01). The card
+  // grant + streak service functions are top-level (no Riverpod), so they emit
+  // through these static hooks. See
+  // docs/superpowers/plans/2026-06-01-engagement-economy-analytics.md.
+  CardCollectionAnalytics.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
+  StreakAnalytics.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(

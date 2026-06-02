@@ -2,8 +2,20 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+
+/// Analytics seam for card grants. `engageCard` is a top-level service function
+/// with no Riverpod access, so it emits through this static hook (same pattern
+/// as `GatingService.onAnalyticsEvent`). Wired once in `main.dart`; left null
+/// in tests and until wired, so emitting is always a safe no-op.
+class CardCollectionAnalytics {
+  CardCollectionAnalytics._();
+
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+}
 
 // ---------------------------------------------------------------------------
 // Card Tiers — evolving system (Bronze → Silver → Gold)
@@ -2062,6 +2074,28 @@ Future<CardEngageResult> engageCard(int cardId) async {
       'discovered_at': dates[cardId] ?? todayStr,
       'last_engaged_at': todayStr,
     }, onConflict: 'user_id,name_id');
+  }
+
+  // Analytics — fire at most one engagement event per call so Mixpanel counts
+  // stay clean. New discovery → card_revealed; existing card upgrade → tier_up;
+  // duplicate (already Gold) → nothing. Best-effort, never throws into the grant.
+  if (isNew) {
+    CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.cardRevealed, {
+      'name_id': cardId,
+      'tier': tierToEnum(newTier),
+      'is_new': true,
+    });
+    // The discovery that completes the full set (every Name unlocked).
+    if (ids.length == currentCollectibleNames().length) {
+      CardCollectionAnalytics.onAnalyticsEvent
+          ?.call(AnalyticsEvents.collectionCompleted, {'total': ids.length});
+    }
+  } else if (tierChanged) {
+    CardCollectionAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.tierUp, {
+      'name_id': cardId,
+      'from_tier': tierToEnum(currentTier),
+      'to_tier': tierToEnum(newTier),
+    });
   }
 
   return CardEngageResult(
