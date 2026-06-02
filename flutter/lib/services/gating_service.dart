@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -366,14 +367,14 @@ class GatingService {
       },
     );
     if (result == null) {
-      onAnalyticsEvent?.call('ai_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiBypassRejected, {
         'feature': featureKey,
-        'reason': 'network',
+        'reason': AnalyticsEvents.aiBypassRejectedReasonNetwork,
       });
       return null;
     }
     if (result['ok'] != true) {
-      onAnalyticsEvent?.call('ai_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiBypassRejected, {
         'feature': featureKey,
         'reason': result['reason'] ?? 'unknown',
       });
@@ -385,7 +386,7 @@ class GatingService {
     final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
     final replayed = result['replayed'] == true;
     if (reservationId == null || balance == null || bypassesUsed == null) {
-      onAnalyticsEvent?.call('ai_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiBypassRejected, {
         'feature': featureKey,
         'reason': 'malformed_response',
       });
@@ -409,7 +410,7 @@ class GatingService {
       await _incrementBypassCache(feature);
     }
 
-    onAnalyticsEvent?.call('ai_bypass_purchased', {
+    onAnalyticsEvent?.call(AnalyticsEvents.aiBypassPurchased, {
       'feature': featureKey,
       'token_balance_after': balance,
       'bypasses_used_today': bypassesUsed,
@@ -562,14 +563,14 @@ class GatingService {
       {'p_feature': featureKey},
     );
     if (result == null) {
-      onAnalyticsEvent?.call('first_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.firstBypassRejected, {
         'feature': featureKey,
-        'reason': 'network',
+        'reason': AnalyticsEvents.firstBypassRejectedReasonNetwork,
       });
       return false;
     }
     if (result['ok'] != true) {
-      onAnalyticsEvent?.call('first_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.firstBypassRejected, {
         'feature': featureKey,
         'reason': result['reason'] ?? 'unknown',
       });
@@ -578,7 +579,7 @@ class GatingService {
 
     final bypassesUsed = (result['bypasses_used'] as num?)?.toInt();
     if (bypassesUsed == null) {
-      onAnalyticsEvent?.call('first_bypass_rejected', {
+      onAnalyticsEvent?.call(AnalyticsEvents.firstBypassRejected, {
         'feature': featureKey,
         'reason': 'malformed_response',
       });
@@ -596,7 +597,7 @@ class GatingService {
     );
     await _incrementBypassCache(feature);
 
-    onAnalyticsEvent?.call('first_bypass_claimed', {
+    onAnalyticsEvent?.call(AnalyticsEvents.firstBypassClaimed, {
       'feature': featureKey,
       'bypasses_used_today': bypassesUsed,
     });

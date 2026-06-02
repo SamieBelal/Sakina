@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -360,7 +361,7 @@ void main() {
       await gating.reserveBypass(GatedFeature.reflect);
 
       expect(events, hasLength(1));
-      expect(events.first.$1, 'ai_bypass_purchased');
+      expect(events.first.$1, AnalyticsEvents.aiBypassPurchased);
       expect(events.first.$2, {
         'feature': 'reflect',
         'token_balance_after': 75,
