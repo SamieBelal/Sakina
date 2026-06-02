@@ -509,12 +509,18 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
 
       // Retention: the recurring core-loop DAU event (Home "Begin Muḥāsabah"
       // discover path). Powers D1/D7/D30 retention + habit-formation analysis.
-      onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
-        'path': 'discover',
-        'name': card.transliteration,
-        'tier_changed': engageResult.tierChanged,
-        'is_duplicate': engageResult.isDuplicate,
-      });
+      // Best-effort: a telemetry throw must never flip a completed check-in
+      // into the error state below — the bypass wrapper reads `state.error` to
+      // decide commit-vs-cancel, so an analytics failure here could otherwise
+      // refund a bypass that actually succeeded.
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
+          'path': 'discover',
+          'name': card.transliteration,
+          'tier_changed': engageResult.tierChanged,
+          'is_duplicate': engageResult.isDuplicate,
+        });
+      } catch (_) {}
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
       state = state.copyWith(
@@ -765,15 +771,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       }
 
       // Retention: same core-loop DAU event as the discover path, tagged with
-      // `path` so the two intentionally-different muhasabah flows are comparable.
-      onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
-        'path': 'questionnaire',
-        // Use the cleaned name (same value shown in the UI) so this property is
-        // comparable to the discover path's `card.transliteration`.
-        'name': cleanName.isNotEmpty ? cleanName : result.name,
-        'tier_changed': cardEngageResult?.tierChanged ?? false,
-        'is_duplicate': cardEngageResult?.isDuplicate ?? false,
-      });
+      // `path: 'questionnaire'`.
+      //
+      // NOTE: `answerCheckin` is currently DORMANT — the launch overlay stopped
+      // rendering the multi-question UI on 2026-04-26 (see this method's header
+      // + 2026-04-26-launch-overlay-dead-checkinstep.md), so `discoverName` is
+      // the only live muhasabah path today. In practice `check_in_completed`
+      // therefore only emits `path: 'discover'`. This emit is retained so the
+      // questionnaire path is instrumented the moment a multi-question UI ever
+      // returns — do NOT build a dashboard assuming a non-empty `questionnaire`
+      // bucket until then. Best-effort (see discover-path rationale above).
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
+          'path': 'questionnaire',
+          // Cleaned name (same value shown in the UI), comparable to the
+          // discover path's `card.transliteration`.
+          'name': cleanName.isNotEmpty ? cleanName : result.name,
+          'tier_changed': cardEngageResult?.tierChanged ?? false,
+          'is_duplicate': cardEngageResult?.isDuplicate ?? false,
+        });
+      } catch (_) {}
 
       // Claim daily reward (idempotent — safe even if the launch overlay
       // already claimed today's reward.)
