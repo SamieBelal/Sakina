@@ -32,6 +32,24 @@ void main() {
   Iterable<(String, Map<String, dynamic>)> of(String name) =>
       events.where((e) => e.$1 == name);
 
+  test(
+      'REGRESSION: a throwing analytics hook does NOT propagate out of engageCard',
+      () async {
+    // The grant is persisted BEFORE the emit. If a throwing hook escaped
+    // engageCard, discoverName's catch would set state.error and
+    // discoverNameWithBypass would REFUND the bypass while the card is already
+    // granted (free card). The emits are wrapped to prevent exactly this.
+    CardCollectionAnalytics.onAnalyticsEvent = (_, __) => throw StateError('boom');
+
+    // Must complete normally (no throw).
+    final result = await engageCard(7);
+    expect(result.isNew, isTrue);
+
+    // And the card is durably granted despite the throwing hook.
+    final collection = await getCardCollection();
+    expect(collection.discoveredIds, contains(7));
+  });
+
   test('first discovery fires card_revealed{tier:bronze, is_new:true} only',
       () async {
     await engageCard(5);

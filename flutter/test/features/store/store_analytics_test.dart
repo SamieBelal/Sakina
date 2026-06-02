@@ -25,6 +25,8 @@
 // teardown, otherwise the binding reports "Timer is still pending after
 // disposed".
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -79,6 +81,11 @@ class FakeStorePurchaseService extends PurchaseService {
   Object? consumableError;
   int consumableCalls = 0;
 
+  /// When set, `purchaseConsumable` blocks on this until the test completes it.
+  /// Lets a test dispose the StoreScreen WHILE the purchase await is in flight
+  /// (the dispose-during-purchase race).
+  Completer<void>? consumableGate;
+
   @override
   Future<List<Package>> getConsumablePackages() async {
     if (consumablePackagesError != null) throw consumablePackagesError!;
@@ -88,6 +95,7 @@ class FakeStorePurchaseService extends PurchaseService {
   @override
   Future<CustomerInfo> purchaseConsumable(Package package) async {
     consumableCalls += 1;
+    if (consumableGate != null) await consumableGate!.future;
     if (consumableError != null) throw consumableError!;
     final builder = consumableCustomerInfoBuilder;
     if (builder == null) {
@@ -315,6 +323,51 @@ void main() {
       expect(purchaseService.consumableCalls, 1);
 
       await drainPurchaseToast(tester);
+    });
+  });
+
+  group('REGRESSION P1 — purchase that finishes after the user leaves the Store',
+      () {
+    testWidgets(
+        'a SUCCEEDED purchase still logs store_purchase_succeeded (not failed) '
+        'when the StoreScreen is disposed mid-purchase', (tester) async {
+      // The bug: _trackPurchase used ref.read(analyticsProvider) AFTER the
+      // purchase awaits. If the user navigated away mid-purchase, the
+      // ConsumerState was disposed → ref.read throws StateError → the catch
+      // mislabeled a charged+granted purchase as store_purchase_failed{unknown}
+      // and DROPPED the store_purchase_succeeded revenue event. The fix captures
+      // the AnalyticsService in initState (it outlives the widget).
+      mockedTransactions.add(<String, dynamic>{
+        'transactionIdentifier': 'sim-txn-tokens-100',
+        'revenueCatIdentifier': 'sim-txn-tokens-100',
+        'productIdentifier': 'sakina_tokens_100',
+        'purchaseDate': '2026-04-26T12:00:00.000Z',
+      });
+      final gate = Completer<void>();
+      purchaseService.consumableGate = gate;
+
+      await pumpStore(tester);
+      await tapVisible(tester, find.text('100 Tokens'));
+      await tester.pump(); // purchase now pending on the gate
+
+      // User leaves the Store → StoreScreen (ConsumerState) is disposed while
+      // the purchase await is still in flight.
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+
+      // The purchase now completes (RC charged the user; grant applies).
+      gate.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+
+      expect(spy.events, contains(AnalyticsEvents.storePurchaseSucceeded),
+          reason: 'P1: a completed, money-collected purchase must log '
+              'succeeded even if the widget disposed mid-purchase');
+      expect(spy.events, isNot(contains(AnalyticsEvents.storePurchaseFailed)),
+          reason: 'P1: a successful purchase must NOT be mislabeled as failed');
+      final props = spy.propsFor(AnalyticsEvents.storePurchaseSucceeded);
+      expect(props!['price'], 1.99);
+      expect(props['currency'], 'USD');
     });
   });
 
