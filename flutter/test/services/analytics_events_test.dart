@@ -287,4 +287,47 @@ void main() {
           same(AnalyticsEvents.stepNames));
     });
   });
+
+  group('Engagement & economy analytics constants (retention audit 2026-06-01)',
+      () {
+    // Pin the Mixpanel dashboard contract for the three dark core-loop
+    // surfaces (Store, collection/gacha, streak/quest/XP economy). Renaming
+    // any of these in Dart MUST be a deliberate analytics-team coordination —
+    // these tests are the tripwire. See
+    // docs/superpowers/plans/2026-06-01-engagement-economy-analytics.md.
+    test('store event names', () {
+      expect(AnalyticsEvents.storeViewed, 'store_viewed');
+      expect(AnalyticsEvents.packSelected, 'pack_selected');
+      expect(AnalyticsEvents.storePurchaseSucceeded, 'store_purchase_succeeded');
+      expect(AnalyticsEvents.storePurchaseFailed, 'store_purchase_failed');
+      expect(AnalyticsEvents.storePurchaseCancelled, 'store_purchase_cancelled');
+    });
+
+    test('store_purchase_failed reason values', () {
+      expect(AnalyticsEvents.storePurchaseFailedReasonUnavailable,
+          'unavailable');
+      expect(AnalyticsEvents.storePurchaseFailedReasonPlatform, 'platform');
+      expect(AnalyticsEvents.storePurchaseFailedReasonUnknown, 'unknown');
+    });
+
+    test('collection / gacha event names', () {
+      expect(AnalyticsEvents.cardRevealed, 'card_revealed');
+      expect(AnalyticsEvents.tierUp, 'tier_up');
+      expect(AnalyticsEvents.collectionCompleted, 'collection_completed');
+    });
+
+    test('streak / quest / XP / level event names', () {
+      expect(AnalyticsEvents.streakExtended, 'streak_extended');
+      expect(AnalyticsEvents.streakMilestone, 'streak_milestone');
+      expect(AnalyticsEvents.streakFreezeConsumed, 'streak_freeze_consumed');
+      expect(AnalyticsEvents.questCompleted, 'quest_completed');
+      expect(AnalyticsEvents.xpAwarded, 'xp_awarded');
+      expect(AnalyticsEvents.levelUp, 'level_up');
+    });
+
+    test('quest_type values', () {
+      expect(AnalyticsEvents.questTypeStandard, 'standard');
+      expect(AnalyticsEvents.questTypeBeginner, 'beginner');
+    });
+  });
 }
