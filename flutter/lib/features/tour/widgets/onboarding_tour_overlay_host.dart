@@ -149,8 +149,26 @@ class _OnboardingTourOverlayHostState
     }
 
     _revealReady = false;
-    // The min-settle timer is armed lazily in `_updateRevealReadiness`, when
-    // the anchor first appears — see `_anchorAppeared`.
+
+    // Centered steps (the final `duaDetail.done` celebration) have NO anchor to
+    // track and NO anchor-timeout. The ticker's per-frame anchor-stability
+    // settle was designed for real anchors and — combined with the build-flow
+    // `tourSuppressed` gate — could leave `_revealReady` stuck false on the
+    // DuaDetailPage, so the banner never showed (F-06). Arm a dedicated fixed
+    // settle timer here instead (covers the route-push transition); blocking
+    // modals are still re-checked in `build`.
+    final step = tour.currentStep;
+    if (step != null && step.anchorId == 'centered') {
+      _settleTimer = Timer(_kRevealMinSettle, () {
+        if (!mounted) return;
+        _revealReady = true;
+        _entry?.markNeedsBuild();
+      });
+      return;
+    }
+    // For anchored steps the min-settle timer is armed lazily in
+    // `_updateRevealReadiness`, when the anchor first appears — see
+    // `_anchorAppeared`.
   }
 
   /// Per-frame readiness check (called from the tracking ticker). Flips
@@ -166,6 +184,10 @@ class _OnboardingTourOverlayHostState
     }
     final step = ref.read(onboardingTourControllerProvider).currentStep;
     if (step == null) return;
+    // Centered steps are revealed by the dedicated fixed timer armed in
+    // `_resetSettleIfStepChanged` — they have no anchor to settle on, so the
+    // per-frame stability machinery below doesn't apply.
+    if (step.anchorId == 'centered') return;
     // While a blocking modal is up or the step is suppressed, the destination
     // isn't on screen yet — don't accrue stability and drop any stale rect.
     if (_observer.isBlockingRouteOnTop || ref.read(tourSuppressedProvider)) {
@@ -429,7 +451,9 @@ class _OnboardingTourOverlayHostState
     // the reveal-settle gates pass (so the coachmark doesn't pop in over a
     // still-animating screen transition — see `_kRevealMinSettle`).
     final hidden = blockingRouteUp ||
-        ref.read(tourSuppressedProvider) ||
+        // A centered final step is never part of the Build-a-Dua flow that
+        // `tourSuppressed` guards; don't let a stale suppression flag hide it.
+        (!isCentered && ref.read(tourSuppressedProvider)) ||
         !_anchorResolvable(step) ||
         !_revealReady;
 

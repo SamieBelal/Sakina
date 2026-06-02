@@ -272,4 +272,52 @@ void main() {
     expect(find.textContaining('Begin Muh'), findsOneWidget,
         reason: 'reduce-motion must bypass the reveal-settle gates');
   });
+
+  // ---------------------------------------------------------------------------
+  // F-06 regression: the final CENTERED step (duaDetail.done) has no anchor, so
+  // the anchor-stability settle + the Build-a-Dua `tourSuppressed` gate must not
+  // keep its celebration banner hidden. Before the fix, a stale suppression flag
+  // (left over from the Duas flow) kept `_revealReady` false forever on the
+  // DuaDetailPage → the banner never showed. See
+  // docs/qa/findings/2026-06-01-tour-step13-saved-dua-no-banner.md
+  // ---------------------------------------------------------------------------
+  testWidgets(
+      'F-06: centered final step reveals via its own settle even when '
+      'tourSuppressed is stuck true', (tester) async {
+    // Index 12 = the centered `duaDetail.done` step.
+    expect(kOnboardingTourSteps[12].anchorId, 'centered');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingTourControllerProvider
+              .overrideWith((ref) => _ActiveAtStep(ref, 12)),
+        ],
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          home: const OnboardingTourOverlayHost(
+            child: Scaffold(body: SizedBox.shrink()),
+          ),
+        ),
+      ),
+    );
+    // First frame inserts the overlay + arms the centered settle timer.
+    await tester.pump();
+
+    // Simulate the stale suppression the Duas build flow can leave behind.
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(OnboardingTourOverlayHost)));
+    container.read(tourSuppressedProvider.notifier).state = true;
+    await tester.pump();
+
+    // Within the settle floor: still hidden.
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.textContaining('the whole loop'), findsNothing,
+        reason: 'must stay hidden until the centered settle delay elapses');
+
+    // After the floor: the banner reveals DESPITE the stuck suppression flag.
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.textContaining('the whole loop'), findsOneWidget,
+        reason: 'centered final step must reveal even with stale tourSuppressed');
+  });
 }
