@@ -12,6 +12,7 @@ import 'core/app_session.dart';
 import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/daily/providers/daily_loop_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'services/analytics_events.dart';
@@ -191,6 +192,10 @@ Future<void> main() async {
   GatingService.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
   DailyCapSheet.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
+  // Retention core-loop telemetry (2026-06-01): the daily-loop notifier has no
+  // Riverpod access, so bridge its check_in_completed event the same way.
+  DailyLoopNotifier.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(

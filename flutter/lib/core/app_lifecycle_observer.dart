@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/daily/providers/daily_rewards_provider.dart';
+import '../services/analytics_events.dart';
+import '../services/analytics_provider.dart';
 import '../services/gating_service.dart';
 import '../widgets/iap_to_sub_upsell_banner.dart';
 import 'app_session.dart';
@@ -23,6 +25,13 @@ class AppLifecycleObserver extends ConsumerStatefulWidget {
 
   final Widget child;
 
+  /// Minimum time backgrounded before a resume counts as a new warm-start
+  /// session. `@visibleForTesting` so the `>= threshold` branch is exercisable
+  /// without a real multi-second sleep (mirrors `debugDailyLoopClock` /
+  /// `GiftService.debugGiftClock`). Production always uses the 3s default.
+  @visibleForTesting
+  static Duration warmStartThreshold = const Duration(seconds: 3);
+
   @override
   ConsumerState<AppLifecycleObserver> createState() =>
       _AppLifecycleObserverState();
@@ -32,6 +41,13 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     with WidgetsBindingObserver {
   AppSessionNotifier? _session;
   bool? _lastAuth;
+  // Started only when the app truly backgrounds (paused/detached). Used to fire
+  // `session_started` on a genuine return from background, and to suppress
+  // transient `inactive` resumes and the cold-start resume. A monotonic
+  // Stopwatch (NOT DateTime.now()) so a wall-clock change while backgrounded —
+  // timezone travel, NTP correction, DST — can't drop or spuriously fire the
+  // signal the retention metric depends on.
+  final Stopwatch _backgroundElapsed = Stopwatch();
 
   @override
   void initState() {
@@ -83,7 +99,38 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _backgroundElapsed
+        ..reset()
+        ..start();
+    }
     if (state == AppLifecycleState.resumed) {
+      // Retention: warm-start session signal — but ONLY for a genuine return
+      // from background. We gate on `_backgroundElapsed`, which runs ONLY when
+      // the app actually backgrounds (paused/detached). This is deliberate:
+      //   - The callback right before `resumed` on iOS is `inactive`/`hidden`,
+      //     NOT `paused`, so checking the previous state would never match.
+      //   - Transient `inactive` blips (Control Center, app-switcher peek, a
+      //     permission/StoreKit dialog dismissing) never start the stopwatch,
+      //     so they're correctly suppressed.
+      //   - Cold start never started it either, so it doesn't double-count with
+      //     `app_opened`.
+      // The threshold filters quick app-switches. `mounted` guard matches the
+      // rest of this class (lifecycle callbacks can arrive during teardown).
+      if (mounted &&
+          _backgroundElapsed.isRunning &&
+          _backgroundElapsed.elapsed >= AppLifecycleObserver.warmStartThreshold) {
+        ref.read(analyticsProvider).track(
+              AnalyticsEvents.sessionStarted,
+              properties: const {'warm_start': true},
+            );
+      }
+      // Stop + reset so a later transient resume (without a real background in
+      // between) can't re-fire.
+      _backgroundElapsed
+        ..stop()
+        ..reset();
       // Entitlement state can change while backgrounded (subscription
       // cancelled in App Store settings, billing issue resolved, etc).
       // Invalidate the premium state so the card + banner re-read on

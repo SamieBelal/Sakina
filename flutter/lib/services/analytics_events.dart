@@ -7,6 +7,13 @@ abstract final class AnalyticsEvents {
   static const onboardingStepViewed = 'onboarding_step_viewed';
   static const onboardingStepCompleted = 'onboarding_step_completed';
   static const firstCheckinSubmitted = 'first_checkin_submitted';
+
+  // Retention core-loop events (2026-06-01 instrumentation — see
+  // docs/qa/runs/2026-06-01-full-regression/retention-audit/). check_in_completed
+  // is THE recurring DAU event for the daily habit loop; session_started gives a
+  // trustworthy warm-start signal (app_opened only fires on cold start).
+  static const checkInCompleted = 'check_in_completed';
+  static const sessionStarted = 'session_started';
   static const signupMethodSelected = 'signup_method_selected';
   static const signupCompleted = 'signup_completed';
   static const signupFailed = 'signup_failed';
