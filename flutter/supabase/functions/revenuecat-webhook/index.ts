@@ -89,6 +89,17 @@ serve((request) =>
           `OneSignal cancellation push non-2xx: ${response.status}`,
         );
       }
+
+      // notification_sent: server half of push attribution. Pairs with the
+      // client's notification_opened{type:'cancellation_feedback'} for CTR.
+      // Best-effort — mixpanelTrack no-ops without MIXPANEL_TOKEN and never
+      // throws. The cancellation event's timestamp dedups webhook retries.
+      await mixpanelTrack("notification_sent", payload.user_id, {
+        type: "cancellation_feedback",
+      }, {
+        insertId:
+          `${payload.user_id}:cancellation_feedback:${payload.last_event_at ?? ""}`,
+      });
     },
     clawbackConsumable: async (payload) => {
       // The RPC is idempotent on transaction_id, so retries from RC are

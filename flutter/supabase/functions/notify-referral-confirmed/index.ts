@@ -39,6 +39,7 @@
 // build because CORS allows it").
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { mixpanelTrack } from "../_shared/mixpanel.ts";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,7 +81,13 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-Deno.serve(async (request) => {
+// Exported so the Deno test runner can drive the handler directly (the bottom
+// `Deno.serve` is guarded by `import.meta.main`, so importing this module in a
+// test does NOT start a server). Deps (env, Supabase client, OneSignal +
+// Mixpanel HTTP) are read inside and stubbed via Deno.env + global fetch.
+export async function handleReferralConfirmed(
+  request: Request,
+): Promise<Response> {
   // Method gate — POST only.
   if (request.method !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
@@ -209,6 +216,17 @@ Deno.serve(async (request) => {
       // OneSignal responded 2xx with non-JSON — unusual but not fatal.
     }
 
+    // notification_sent: server half of push attribution. Pairs with the
+    // client's notification_opened{type:'referral_confirmed'} so referral-push
+    // CTR is computable. Best-effort — mixpanelTrack no-ops without
+    // MIXPANEL_TOKEN and never throws. The per-(referrer,referee) $insert_id
+    // dedups DB-trigger retries in Mixpanel.
+    await mixpanelTrack("notification_sent", referrerId, {
+      type: "referral_confirmed",
+    }, {
+      insertId: `${referrerId}:referral_confirmed:${refereeId}`,
+    });
+
     return jsonResponse(200, {
       ok: true,
       delivered: (recipients ?? 1) > 0,
@@ -223,7 +241,13 @@ Deno.serve(async (request) => {
     // Best-effort: never bubble a 5xx back to the trigger.
     return jsonResponse(200, { ok: true, delivered: false, error: "fetch_failed" });
   }
-});
+}
+
+// Only start the server when run as the entrypoint (the deployed function);
+// importing this module in a test must NOT bind a port.
+if (import.meta.main) {
+  Deno.serve(handleReferralConfirmed);
+}
 
 // Exported for unit tests in Deno test runner (not used at runtime).
 export { sanitizeDisplayName };
