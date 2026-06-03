@@ -25,10 +25,44 @@ abstract final class AnalyticsEvents {
   static const signupFailed = 'signup_failed';
 
   // Reason values for `signup_failed.error` — typed here so the password
-  // screen's session-race branch (previously a silent SnackBar+return) and
-  // the analytics test stay in lockstep.
+  // screen's failure branches and the analytics test stay in lockstep. These
+  // MUST stay a small bounded set: `signup_failed.error` feeds a Mixpanel
+  // segmentation, so pushing raw gotrue messages (free-form, localized,
+  // version-dependent) through it would explode the property cardinality and
+  // break the funnel.
   static const signupFailedReasonSessionRace = 'session_race';
+  static const signupFailedReasonEmailTaken = 'email_taken';
+  static const signupFailedReasonInvalidCredentials = 'invalid_credentials';
+  static const signupFailedReasonWeakPassword = 'weak_password';
+  static const signupFailedReasonRateLimited = 'rate_limited';
+  static const signupFailedReasonAuthError = 'auth_error';
   static const signupFailedReasonUnknown = 'unknown';
+
+  /// Maps a gotrue [AuthException.code] to one of the bounded
+  /// `signup_failed.error` reason constants above. Keeps Mixpanel cardinality
+  /// low while preserving enough signal to tell apart the failure modes that
+  /// matter (taken email vs weak password vs rate limit vs everything else).
+  /// A null code (error thrown before any HTTP response) maps to
+  /// [signupFailedReasonUnknown]; callers handle the no-error session-race
+  /// miss separately with [signupFailedReasonSessionRace].
+  static String signupFailedReasonForCode(String? code) {
+    switch (code) {
+      case 'user_already_exists':
+      case 'email_exists':
+        return signupFailedReasonEmailTaken;
+      case 'invalid_credentials':
+        return signupFailedReasonInvalidCredentials;
+      case 'weak_password':
+        return signupFailedReasonWeakPassword;
+      case 'over_request_rate_limit':
+      case 'over_email_send_rate_limit':
+        return signupFailedReasonRateLimited;
+      case null:
+        return signupFailedReasonUnknown;
+      default:
+        return signupFailedReasonAuthError;
+    }
+  }
   static const notificationPermissionResult = 'notification_permission_result';
   static const surveyAnswered = 'survey_answered';
 

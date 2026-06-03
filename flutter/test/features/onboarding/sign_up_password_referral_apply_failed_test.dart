@@ -100,7 +100,7 @@ void main() {
         expect(
           normalized,
           contains(
-            "result.reason == 'invalid' || result.reason == 'self_referral'",
+            "applyResult.reason == 'invalid' || applyResult.reason == 'self_referral'",
           ),
           reason:
               'Production condition for setReferralApplyFailedReason must '
@@ -111,7 +111,7 @@ void main() {
         // Belt and braces: the call site exists too.
         expect(
           normalized,
-          contains('setReferralApplyFailedReason(result.reason!)'),
+          contains('setReferralApplyFailedReason(applyResult.reason!)'),
           reason:
               'Production code must call setReferralApplyFailedReason with '
               'the unwrapped reason string',

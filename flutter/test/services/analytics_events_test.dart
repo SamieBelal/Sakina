@@ -206,6 +206,38 @@ void main() {
       expect(AnalyticsEvents.signupFailedReasonSessionRace, 'session_race');
       expect(AnalyticsEvents.signupFailedReasonUnknown, 'unknown');
     });
+
+    test('exposes the bounded recovery/auth reason constants', () {
+      expect(AnalyticsEvents.signupFailedReasonEmailTaken, 'email_taken');
+      expect(AnalyticsEvents.signupFailedReasonInvalidCredentials,
+          'invalid_credentials');
+      expect(AnalyticsEvents.signupFailedReasonWeakPassword, 'weak_password');
+      expect(AnalyticsEvents.signupFailedReasonRateLimited, 'rate_limited');
+      expect(AnalyticsEvents.signupFailedReasonAuthError, 'auth_error');
+    });
+
+    test('signupFailedReasonForCode maps gotrue codes to the bounded set', () {
+      // Keeps signup_failed.error low-cardinality: raw gotrue messages must
+      // never reach Mixpanel. Every code collapses to one of the constants.
+      expect(AnalyticsEvents.signupFailedReasonForCode('user_already_exists'),
+          'email_taken');
+      expect(AnalyticsEvents.signupFailedReasonForCode('email_exists'),
+          'email_taken');
+      expect(AnalyticsEvents.signupFailedReasonForCode('invalid_credentials'),
+          'invalid_credentials');
+      expect(AnalyticsEvents.signupFailedReasonForCode('weak_password'),
+          'weak_password');
+      expect(AnalyticsEvents.signupFailedReasonForCode('over_request_rate_limit'),
+          'rate_limited');
+      expect(
+          AnalyticsEvents.signupFailedReasonForCode('over_email_send_rate_limit'),
+          'rate_limited');
+      // Null code (error before any HTTP response) → unknown.
+      expect(AnalyticsEvents.signupFailedReasonForCode(null), 'unknown');
+      // Any unmapped code collapses to the auth_error bucket, never raw.
+      expect(AnalyticsEvents.signupFailedReasonForCode('some_new_code'),
+          'auth_error');
+    });
   });
 
   group('Retention monetization/notification analytics constants (PR #34)', () {

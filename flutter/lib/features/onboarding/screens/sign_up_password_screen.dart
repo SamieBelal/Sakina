@@ -60,35 +60,73 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authServiceProvider).signUpWithEmail(
-            email,
-            _controller.text,
-          );
+      // signUpWithRecovery owns the post-signup session race: it reads the user
+      // id straight off the signUp response (no `currentUser` propagation lag),
+      // and if that response carried no session it does an in-flow password
+      // sign-in for the just-created account. The user never hits the old dead
+      // end where tapping Continue re-ran signUp.
+      final result = await ref
+          .read(authServiceProvider)
+          .signUpWithRecovery(email, _controller.text);
       if (!mounted) return;
-      ref.read(onboardingProvider.notifier).setSignedUp(true);
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) {
-        // Post-signup session race: auth.signUp resolved but currentUser
-        // hasn't propagated yet (intermittent on iOS). Previously returned
-        // silently — no analytics — so this churn was invisible. Now we
-        // fire signup_failed so the funnel reflects reality, and the
-        // outer `finally` resets the loading state so the user can tap
-        // Continue again without restarting onboarding.
-        debugPrint('[SignUpPassword] currentUser null after signUpWithEmail');
+
+      if (result.outcome == SignUpOutcome.emailAlreadyRegistered) {
+        // The email already has an account. We deliberately do NOT sign in or
+        // continue — doing so would overwrite that existing user's profile with
+        // this onboarding run. Point them at logging in instead.
         ref.read(analyticsProvider).track(
           AnalyticsEvents.signupFailed,
           properties: {
             'method': 'email',
-            'error': AnalyticsEvents.signupFailedReasonSessionRace,
+            'error': AnalyticsEvents.signupFailedReasonEmailTaken,
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created — tap Continue to finish signing in.')),
+          const SnackBar(
+            content:
+                Text('That email already has an account. Try logging in instead.'),
+          ),
         );
         return;
       }
+
+      if (result.outcome == SignUpOutcome.failed || result.userId == null) {
+        // signUp AND the in-flow recovery both failed. Map to a bounded
+        // analytics reason (errorMessage == null is the pure session-race miss);
+        // show the raw auth message to the user since it's actionable (weak
+        // password, rate limit, etc.).
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.signupFailed,
+          properties: {
+            'method': 'email',
+            'error': result.errorMessage == null
+                ? AnalyticsEvents.signupFailedReasonSessionRace
+                : AnalyticsEvents.signupFailedReasonForCode(result.errorCode),
+          },
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.errorMessage ?? 'Something went wrong. Please try again.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final userId = result.userId!;
+      ref.read(onboardingProvider.notifier).setSignedUp(true);
       ref.read(analyticsProvider).identify(userId);
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupCompleted, properties: {'method': 'email'});
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.signupCompleted,
+        properties: {
+          'method': 'email',
+          // Marks signups that completed only because the session-race recovery
+          // kicked in, so the funnel shows the fix doing real work.
+          if (result.outcome == SignUpOutcome.recoveredViaSignIn)
+            'recovery': 'signin',
+        },
+      );
 
       // Refer-to-Unlock signup hook (mirrors save_progress_screen's social
       // paths). Runs BEFORE persistOnboardingToSupabase so referral rows
@@ -97,26 +135,28 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       // Safe to run before persistOnboardingToSupabase because the
       // `user_profiles` row that apply_referral targets is created by the
       // `handle_new_user` trigger on auth.users insert (initial_schema.sql
-      // L631-633). signUpWithEmail completes only after the trigger fires,
-      // so the row is guaranteed to exist here.
+      // L631-633). signUpWithRecovery resolves only after a session exists
+      // (whether via signUp directly or its sign-in fallback), and that account
+      // was created by our signUp, so the trigger has fired and the row exists.
       try {
         await ref.read(referralServiceProvider).ensureReferralCode(userId);
       } catch (e) {
         debugPrint('[SignUpPassword] ensureReferralCode failed (non-fatal): $e');
       }
       try {
-        final result = await ref
+        final applyResult = await ref
             .read(referralServiceProvider)
             .applyPendingReferralIfAny(userId);
         // Same recovery-snackbar contract as the social paths in
         // save_progress_screen.dart — only invalid / self_referral surface to
         // the user via the OnboardingState flag drained on EncouragementScreen.
-        if (!result.ok &&
-            (result.reason == 'invalid' || result.reason == 'self_referral')) {
+        if (!applyResult.ok &&
+            (applyResult.reason == 'invalid' ||
+                applyResult.reason == 'self_referral')) {
           if (!mounted) return;
           ref
               .read(onboardingProvider.notifier)
-              .setReferralApplyFailedReason(result.reason!);
+              .setReferralApplyFailedReason(applyResult.reason!);
         }
       } catch (e) {
         debugPrint(
@@ -127,8 +167,14 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       if (!mounted) return;
       widget.onNext();
     } on AuthException catch (e) {
+      // Defensive: AuthException thrown by the post-recovery referral/persist
+      // flow (signUpWithRecovery itself never throws AuthException). Map to a
+      // bounded reason so signup_failed.error stays low-cardinality.
       if (!mounted) return;
-      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {'method': 'email', 'error': e.message});
+      ref.read(analyticsProvider).track(AnalyticsEvents.signupFailed, properties: {
+        'method': 'email',
+        'error': AnalyticsEvents.signupFailedReasonForCode(e.code),
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );

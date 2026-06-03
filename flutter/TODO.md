@@ -111,23 +111,6 @@ Deferred work — not blocking the current iOS submission, but needed before spe
 
 ---
 
-## Session-race recovery on signup loops users back to the same error
-
-**Trigger:** if support tickets show a pattern of "I'm stuck on the password screen, retried but it keeps failing" specifically on slow networks. Has not been observed in production yet but is structurally present in the code.
-
-**Status:** `lib/features/onboarding/screens/sign_up_password_screen.dart:84` handles the rare race where `supabase.auth.signUp()` returns success but `Supabase.instance.client.auth.currentUser` is still null on the next read (network reordering). The current behavior is: show snackbar "tap Continue to finish signing in" and return. But tapping Continue re-runs `signUpWithEmail()` against the same email/password, which on Supabase returns "User already registered" — looping the user with no recovery path other than backing out and changing email.
-
-**Steps when ready (~20 min):**
-
-1. On session-race, instead of just returning, retry `Supabase.instance.client.auth.currentUser` once after a 500ms delay before showing the snackbar. If it's now populated, proceed to persist + advance.
-2. If still null after the retry, call `Supabase.instance.client.auth.signInWithPassword(email, password)` to recover the session rather than re-invoking `signUp`.
-3. Only show the snackbar if both fallbacks fail — at that point the user genuinely needs to manually retry, and the snackbar copy can be honest about it.
-4. Add a regression test that mocks the race (signUp returns success, currentUser returns null, then on retry returns the user) and asserts the password screen completes.
-
-**Surfaced by:** Subagent paywall review during the 2026-05-24 master review.
-
----
-
 ## Localize win-back push
 
 Push template `win_back_tour_replay` (see `docs/runbooks/onesignal-segments.md`) is EN only — localize when project i18n infrastructure exists.

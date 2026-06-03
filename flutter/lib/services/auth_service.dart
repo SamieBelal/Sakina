@@ -27,6 +27,112 @@ Future<int> clearScopedPreferencesForUser(
   return scopedKeys.length;
 }
 
+/// Outcome of [performSignUpWithRecovery].
+enum SignUpOutcome {
+  /// signUp succeeded and the response carried a live session.
+  created,
+
+  /// signUp resolved without a session, and a password sign-in for the
+  /// just-created account established one.
+  recoveredViaSignIn,
+
+  /// The email already has an account. We do NOT sign in or touch it — signing
+  /// in would let a returning user's onboarding run overwrite their existing
+  /// profile (violating the "don't affect current users" rule). The screen
+  /// shows an honest "log in instead" message.
+  emailAlreadyRegistered,
+
+  /// Could not establish a session — surfaced to the user with [errorMessage].
+  failed,
+}
+
+class SignUpResult {
+  const SignUpResult(this.outcome, {this.userId, this.errorMessage, this.errorCode});
+  final SignUpOutcome outcome;
+  final String? userId;
+
+  /// Human-readable auth error to show the user when [outcome] is [failed].
+  /// Null for a session-race failure with no underlying auth error.
+  final String? errorMessage;
+
+  /// The gotrue [AuthException.code], when [outcome] is [failed] from an auth
+  /// error. Used to map to a bounded analytics reason; null otherwise.
+  final String? errorCode;
+}
+
+/// Substring used as a last-resort match when an older gotrue backend reports
+/// "email already registered" without setting the typed [AuthException.code].
+/// Best-effort only — the typed `user_already_exists` code is the primary path.
+const String _alreadyRegisteredMessageFragment = 'already registered';
+
+/// True when an [AuthException] means "this email already has an account".
+/// Matches the typed gotrue code first, with a message fallback for older
+/// backends that only set the human string.
+bool isAlreadyRegisteredAuthError(AuthException e) {
+  if (e.code == 'user_already_exists') return true;
+  return e.message.toLowerCase().contains(_alreadyRegisteredMessageFragment);
+}
+
+/// Orchestrates email signup with session recovery, closing the post-signup
+/// dead end in sign_up_password_screen.dart.
+///
+/// The bug: the screen read the GLOBAL `currentUser`, which lags `auth.signUp`
+/// on a slow network — so signUp succeeded but `currentUser` was null for a
+/// beat. The old screen told the user to "tap Continue", which re-ran signUp →
+/// "User already registered" → trapped in onboarding.
+///
+/// The fix reads the user id straight off the signUp [AuthResponse] (the
+/// authoritative result, no propagation lag), so [signUp]/[signIn] are closures
+/// that return the response's user id (or null when the response carried no
+/// session). Recovery order:
+///   1. signUp returns an id (live session)      → [SignUpOutcome.created].
+///   2. signUp returns null (no session — rare;   → [signIn] for the just-created
+///      autoconfirm is on so this shouldn't        account establishes one →
+///      normally happen)                            [recoveredViaSignIn], else [failed].
+///   3. signUp throws "User already registered"  → [emailAlreadyRegistered].
+///      We deliberately do NOT sign in: the email belongs to an existing
+///      account and continuing would overwrite that user's profile.
+///   4. any other [AuthException]                → [failed] (message + code preserved).
+///
+/// All I/O is injected so this is fully unit-testable without Supabase. Only
+/// [AuthException] is caught here; other throwables (a network blip with no
+/// AuthException) propagate to the caller's try/catch, preserving the prior
+/// generic-error behavior.
+Future<SignUpResult> performSignUpWithRecovery({
+  required Future<String?> Function() signUp,
+  required Future<String?> Function() signIn,
+}) async {
+  String? userId;
+  try {
+    userId = await signUp();
+  } on AuthException catch (e) {
+    if (isAlreadyRegisteredAuthError(e)) {
+      return const SignUpResult(SignUpOutcome.emailAlreadyRegistered);
+    }
+    return SignUpResult(SignUpOutcome.failed,
+        errorMessage: e.message, errorCode: e.code);
+  }
+
+  if (userId != null) return SignUpResult(SignUpOutcome.created, userId: userId);
+
+  // signUp resolved without a session. Recover OUR just-created account via a
+  // password sign-in (safe — this account was created moments ago by us).
+  String? recoveredId;
+  try {
+    recoveredId = await signIn();
+  } on AuthException catch (e) {
+    return SignUpResult(SignUpOutcome.failed,
+        errorMessage: e.message, errorCode: e.code);
+  }
+
+  if (recoveredId != null) {
+    return SignUpResult(SignUpOutcome.recoveredViaSignIn, userId: recoveredId);
+  }
+  // signIn resolved without throwing yet left no session — treat as failure
+  // rather than reporting a phantom success.
+  return const SignUpResult(SignUpOutcome.failed);
+}
+
 class AuthService {
   late final _supabase = Supabase.instance.client;
 
@@ -58,6 +164,27 @@ class AuthService {
 
   Future<AuthResponse> signInWithEmail(String email, String password) async {
     return _supabase.auth.signInWithPassword(email: email, password: password);
+  }
+
+  /// Email signup that survives the post-signup session race. Wires the real
+  /// Supabase calls into [performSignUpWithRecovery]; see that function for the
+  /// recovery contract. Reads the user id straight off each [AuthResponse]
+  /// (`session?.user.id`) rather than the lagging global `currentUser`, which
+  /// is what removes the race. Returns the resolved user id via [SignUpResult].
+  Future<SignUpResult> signUpWithRecovery(
+    String email,
+    String password, {
+    String? fullName,
+  }) {
+    return performSignUpWithRecovery(
+      signUp: () async =>
+          (await signUpWithEmail(email, password, fullName: fullName))
+              .session
+              ?.user
+              .id,
+      signIn: () async =>
+          (await signInWithEmail(email, password)).session?.user.id,
+    );
   }
 
   Future<AuthResponse> signInWithApple() async {
