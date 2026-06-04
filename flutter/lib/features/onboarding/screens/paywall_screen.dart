@@ -478,6 +478,22 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _completePurchaseFlow() async {
     ref.invalidate(premiumStateProvider);
+
+    // HARD GATE: persist the durable entry latch NOW, BEFORE the (blocking,
+    // dismissable) celebration overlay. Premium is already confirmed by the
+    // time this runs. If the widget unmounts during the overlay (app
+    // backgrounded / killed), `_handleComplete` below never runs — setting the
+    // latch only there would leave a just-paid user re-walled on next launch.
+    // Idempotent with the `_handleComplete` latch-set.
+    if (widget.hardGate) {
+      try {
+        await OnboardingGateService().setPaywallCleared(true);
+      } catch (_) {}
+      try {
+        ref.read(appSessionProvider).markPaywallCleared();
+      } catch (_) {}
+    }
+
     if (!mounted) return;
 
     // Show the "Welcome to Premium" reveal (blocks until tapped).

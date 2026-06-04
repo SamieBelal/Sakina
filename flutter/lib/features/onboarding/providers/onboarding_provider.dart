@@ -536,6 +536,18 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
     // Mark onboarded in the single source of truth
     await appSession.markOnboarded();
+
+    // Put the new user INTO the hard-paywall gate by writing the local
+    // paywall-cleared latch = false NOW, so the router enforces tour → wall
+    // immediately and deterministically — without depending on the async
+    // batch-sync hydrate winning the race against the first redirect / the
+    // one-shot tour-start in progress_screen (the cold-launch race two
+    // reviewers flagged). Flag-gated: a user who onboards while the kill
+    // switch is OFF must stay grandfathered if it later flips ON, so we only
+    // set the latch when the gate is actually active.
+    if (appSession.hardPaywallFlowEnabled) {
+      await appSession.enterOnboardingGate();
+    }
   }
 }
 

@@ -88,7 +88,12 @@ class OnboardingGateService {
       await prefs.setBool(_paywallClearedKey, clearedRaw);
     }
 
-    final stepRaw = profile['onboarding_tour_step_index'];
+    // Server JSON key is `tour_step_index` (see the sync_all_user_data RPC in
+    // 20260603000000_onboarding_gate_columns.sql) — NOT the local prefs base
+    // key. Resume is prefs-only today (the cursor is not written server-side),
+    // so this read is forward-compat: it stays correct if a server write is
+    // ever added, instead of silently reading the wrong key.
+    final stepRaw = profile['tour_step_index'];
     if (stepRaw is num) {
       final v = stepRaw.toInt();
       await prefs.setInt(_tourStepIndexKey, v < 0 ? 0 : v);

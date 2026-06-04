@@ -200,6 +200,16 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> _handleAuthenticatedChange(AuthState data) async {
     final sessionUserId = data.session?.user.id;
 
+    // Eager gate hydration: read the local gate flags (latch, tour-seen) + the
+    // kill switch ASAP, in parallel with the slower economy batch sync below.
+    // Without this, the synchronous GoRouter redirect and the one-shot
+    // tour-start in progress_screen both run with ungated defaults on cold
+    // launch, briefly dropping a mid-gate user into the app / the legacy
+    // skippable tour until batch sync finally hydrates the flags. Idempotent —
+    // _hydrateAndNotify runs it again after batch sync to pick up any
+    // server-mirrored values. notifyListeners inside re-runs the redirect.
+    unawaited(hydrateOnboardingGate());
+
     if (sessionUserId != null && sessionUserId.isNotEmpty) {
       try {
         await _notificationService.identifyUser(sessionUserId);

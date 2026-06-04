@@ -78,9 +78,12 @@ void main() {
 
   group('hydrateFromProfile', () {
     test('writes both values from a server payload', () async {
+      // NOTE: server JSON key is `tour_step_index` (matches the RPC/column),
+      // NOT the local prefs base key. Pinning the real server key here guards
+      // the mismatch bug that previously let the resume cursor never hydrate.
       await gate.hydrateFromProfile({
         'onboarding_paywall_cleared': false,
-        'onboarding_tour_step_index': 4,
+        'tour_step_index': 4,
       });
       expect(await gate.isPaywallCleared(), false);
       expect(await gate.tourStepIndex(), 4);
@@ -96,7 +99,7 @@ void main() {
     });
 
     test('clamps a negative server step index', () async {
-      await gate.hydrateFromProfile({'onboarding_tour_step_index': -2});
+      await gate.hydrateFromProfile({'tour_step_index': -2});
       expect(await gate.tourStepIndex(), 0);
     });
   });

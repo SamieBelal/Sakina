@@ -118,6 +118,26 @@ void main() {
     expect(session.isPremiumCached, true);
     session.dispose();
   });
+
+  test(
+      'latch written during onboarding survives to the NEXT session hydrate '
+      '(cold-relaunch determinism — no batch-sync race)', () async {
+    // Session 1: new user finishes onboarding → enterOnboardingGate persists
+    // the latch=false locally (this is what completeOnboarding now does).
+    final s1 = buildSession();
+    await s1.enterOnboardingGate();
+    s1.dispose();
+
+    // Session 2: cold relaunch. hydrateOnboardingGate reads the persisted
+    // latch BEFORE any economy batch sync. It must come back gated (false), so
+    // the synchronous redirect + one-shot tour-start see the real value — not
+    // the ungated default that caused the legacy-skippable-tour race.
+    final s2 = buildSession();
+    await s2.hydrateOnboardingGate();
+    expect(s2.paywallCleared, false,
+        reason: 'persisted latch must gate the user on the next launch');
+    s2.dispose();
+  });
 }
 
 class _FakeNotificationService extends NotificationService {
