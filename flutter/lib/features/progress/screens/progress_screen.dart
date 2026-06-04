@@ -9,6 +9,8 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/core/app_session.dart';
+import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
@@ -122,7 +124,23 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     // OnboardingTourOverlayHost as belt-and-braces.
     _maybeShowDailyLaunch().then((_) {
       if (!mounted) return;
-      ref.read(onboardingTourControllerProvider.notifier).start();
+      final session = ref.read(appSessionProvider);
+      final stage = resolveOnboardingStage(
+        isAuthenticated: session.isAuthenticated,
+        hasOnboarded: session.hasOnboarded,
+        tourCompleted: session.tourCompleted,
+        paywallCleared: session.paywallCleared || session.gateValveBypass,
+        isPremium: session.isPremiumCached,
+        hardPaywallFlowEnabled: session.hardPaywallFlowEnabled,
+      );
+      final notifier = ref.read(onboardingTourControllerProvider.notifier);
+      if (stage == OnboardingStage.tour) {
+        // New mandatory gate: resume the forced tour at the persisted step.
+        notifier.resumeForGate();
+      } else if (!session.hardPaywallFlowEnabled) {
+        // Legacy opportunistic tour (kill switch off) — unchanged behaviour.
+        notifier.start();
+      }
     });
   }
 

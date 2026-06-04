@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/onboarding_gate_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/supabase_sync_service.dart';
 import '../../paywall/screens/refer_unlock_screen.dart';
@@ -29,10 +30,21 @@ class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     required this.onComplete,
     this.inOnboardingFlow = true,
+    this.hardGate = false,
     super.key,
-  });
+  }) : assert(!(hardGate && inOnboardingFlow),
+            'hardGate is post-onboarding; it must not also run the '
+            'completeOnboarding side-effect chain (set inOnboardingFlow: false)');
 
   final VoidCallback onComplete;
+
+  /// When `true`, this is the post-tour HARD ENTRY WALL (decision C4): no close
+  /// X, back is blocked, and a successful trial start sets the durable
+  /// `onboarding_paywall_cleared` latch so the router lets the user through.
+  /// When offerings fail to load, a "Continue" safety valve grants a
+  /// session-only bypass (no latch) so a StoreKit outage can't brick a new
+  /// user. Soft modes (onboarding pages 22-26, journal upsell) keep the X.
+  final bool hardGate;
 
   /// When `true` (the default, onboarding use case), completing a purchase or
   /// restore fires `completeOnboarding` which removes the onboarding prefs,
@@ -80,6 +92,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _restoring = false;
   String? _errorMessage;
   List<Package>? _offerings;
+
+  /// True once the offerings fetch has failed (empty or threw). Drives the
+  /// hard-gate "Continue" safety valve so a load failure can't brick the user.
+  bool _offeringsLoadFailed = false;
 
   // Delayed close-button enable. The X fades in (and becomes tappable) after
   // 3s so the user takes a real look at the offer before dismissing — a
@@ -276,6 +292,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           // strings) only to see an error afterwards.
           if (offerings.isEmpty) {
             _errorMessage = _offeringsErrorMessage;
+            _markOfferingsFailed();
           }
         });
       }
@@ -283,9 +300,33 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (mounted) {
         setState(() {
           _errorMessage = _offeringsErrorMessage;
+          _markOfferingsFailed();
         });
       }
     }
+  }
+
+  /// Records that the offerings fetch failed so the hard-gate safety valve can
+  /// render. Fires [AnalyticsEvents.paywallOfferingsLoadFailed] exactly once so
+  /// we can monitor brick-prevention frequency in production. Call inside a
+  /// `setState`.
+  void _markOfferingsFailed() {
+    if (_offeringsLoadFailed) return;
+    _offeringsLoadFailed = true;
+    if (widget.hardGate) {
+      ref
+          .read(analyticsProvider)
+          .track(AnalyticsEvents.paywallOfferingsLoadFailed);
+    }
+  }
+
+  /// Hard-gate offerings-fail safety valve: grant a SESSION-ONLY bypass (no
+  /// durable latch) and let the user into the app so a StoreKit/Apple outage
+  /// can't brick a brand-new user at a no-X wall. Next cold launch re-walls
+  /// them once offerings can load (decision E3).
+  void _continueViaValve() {
+    ref.read(appSessionProvider).bypassGateForSession();
+    widget.onComplete();
   }
 
   Future<void> _handleComplete() async {
@@ -293,6 +334,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final notifier = ref.read(onboardingProvider.notifier);
       try {
         await notifier.completeOnboarding(ref.read(appSessionProvider));
+      } catch (_) {}
+    }
+    if (widget.hardGate) {
+      // Set the durable entry latch + flip the in-memory flag so the router's
+      // next redirect resolves the stage to `app` and lets the user in.
+      try {
+        await OnboardingGateService().setPaywallCleared(true);
+      } catch (_) {}
+      try {
+        ref.read(appSessionProvider).markPaywallCleared();
       } catch (_) {}
     }
     widget.onComplete();
@@ -491,6 +542,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         return;
       }
 
+      // First true conversion signal — fires only on entitlement-active, not on
+      // CTA tap. `hard_gate` distinguishes the post-tour entry wall from the
+      // soft upsell surfaces.
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.trialStarted,
+        properties: {'plan': _planName, 'hard_gate': widget.hardGate},
+      );
+
       if (!mounted) return;
       await _completePurchaseFlow();
     } on PlatformException catch (error) {
@@ -565,7 +624,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget build(BuildContext context) {
     final hasTrial = _planHasTrial(_selectedPlan);
     final mediaQueryPadding = MediaQuery.of(context).padding;
-    return Scaffold(
+    return PopScope(
+      // HARD GATE: block the system back gesture / Android back button so the
+      // user can't escape the entry wall without converting or using the valve.
+      canPop: !widget.hardGate,
+      child: Scaffold(
       // Match the image's warm-cream top so any 1px banding between the
       // status-bar area and the hero is invisible. The page background
       // is the same cream — both blend.
@@ -791,6 +854,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ],
+                        // HARD-GATE SAFETY VALVE: offerings failed to load and
+                        // there is no X — give the user a way into the app so a
+                        // StoreKit/Apple outage can't strand a brand-new user.
+                        // Session-only (no latch) → re-walled next launch.
+                        if (widget.hardGate && _offeringsLoadFailed) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          TextButton(
+                            onPressed: (_purchasing || _restoring)
+                                ? null
+                                : _continueViaValve,
+                            child: Text(
+                              'Continue',
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.textSecondaryLight,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -939,7 +1021,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             // as floating on the hero, not as a chip pushed inward. No
             // surface background — the icon blends directly into the
             // illustration via its dark stroke.
-            Positioned(
+            //
+            // HARD GATE: omitted entirely — the post-tour entry wall has no
+            // dismiss path (decision C4). The only ways out are starting the
+            // trial or the offerings-fail "Continue" valve below.
+            if (!widget.hardGate)
+              Positioned(
               top: mediaQueryPadding.top,
               right: AppSpacing.sm,
               child: AnimatedOpacity(
@@ -965,6 +1052,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ],
         ),
+      ),
     );
   }
 

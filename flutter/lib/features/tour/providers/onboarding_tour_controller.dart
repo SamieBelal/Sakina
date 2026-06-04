@@ -7,6 +7,7 @@ import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/app_config_service.dart';
 import '../../../services/gating_service.dart';
+import '../../../services/onboarding_gate_service.dart';
 import '../models/onboarding_tour_step.dart';
 
 /// Tour state machine status.
@@ -141,13 +142,59 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
 
     final next = state.index + 1;
     if (next >= kOnboardingTourSteps.length) {
-      await _markSeen();
+      // Update state FIRST (synchronously) so listeners/tests observe the new
+      // status without waiting on the persistence I/O below.
       state = state.copyWith(index: next, status: TourStatus.completed);
       _track(AnalyticsEvents.tourCompleted, const {});
+      await _markSeen();
+      // Reset the resume cursor so a "Replay tour" or any future re-entry
+      // starts at the beginning, not at the (out-of-range) completed index.
+      await _persistResumeCursor(0);
       return;
     }
+    // State update is synchronous; persistence is fire-and-forget AFTER it so
+    // the resume cursor write can't delay the visible step advance.
     state = state.copyWith(index: next, status: TourStatus.active);
     _trackStepViewed();
+    // Persist the resume cursor on every advance so a force-kill mid-tour
+    // reopens at the abandoned step (gate flow) instead of restarting at 0.
+    await _persistResumeCursor(next);
+  }
+
+  /// Starts (or resumes) the tour for the MANDATORY onboarding gate. Unlike
+  /// [start], this skips the daily-checkin opportunistic gate — the router has
+  /// already decided the user must take the tour. Resumes at the persisted step
+  /// so a force-kill mid-tour reopens where they left off (decision C3).
+  Future<void> resumeForGate() async {
+    if (state.status == TourStatus.active) return;
+    final saved = await _safeResumeIndex();
+    final clamped = saved.clamp(0, kOnboardingTourSteps.length - 1);
+    state = OnboardingTourState(
+      index: clamped,
+      status: TourStatus.active,
+      userName: await _resolveUserName(),
+    );
+    _track(
+      AnalyticsEvents.tourStarted,
+      clamped > 0 ? const {'via': 'resume'} : const {},
+    );
+    _trackStepViewed();
+  }
+
+  Future<int> _safeResumeIndex() async {
+    try {
+      return await OnboardingGateService().tourStepIndex();
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> _persistResumeCursor(int index) async {
+    try {
+      await OnboardingGateService().setTourStepIndex(index);
+    } catch (_) {
+      // Best-effort; resume just falls back to 0 on next launch.
+    }
   }
 
   /// Ends the tour mid-flight. Marks seen so it doesn't re-fire.

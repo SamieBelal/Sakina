@@ -77,6 +77,18 @@ abstract final class AnalyticsEvents {
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
+
+  /// Fired the moment a subscription purchase / trial actually succeeds
+  /// (entitlement active), NOT on CTA tap. This is the first true conversion
+  /// signal in Mixpanel — nothing downstream of `paywall_cta_tapped` was
+  /// measurable before. `plan` property = 'annual' | 'weekly'; `hard_gate` =
+  /// whether it was the post-tour entry wall.
+  static const trialStarted = 'trial_started';
+
+  /// Fired when the offerings fetch fails at the hard entry wall and the
+  /// safety valve is shown (so we can monitor how often the brick-prevention
+  /// path triggers in production).
+  static const paywallOfferingsLoadFailed = 'paywall_offerings_load_failed';
   static const paywallExitOfferShown = 'paywall_exit_offer_shown';
   static const paywallExitOfferAccepted = 'paywall_exit_offer_accepted';
   static const paywallFlowLoaderShown = 'paywall_flow_loader_shown';
