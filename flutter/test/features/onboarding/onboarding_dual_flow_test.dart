@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/core/env.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
-import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/services/app_config_service.dart';
 
 import 'screens/_test_utils.dart';
@@ -130,7 +129,7 @@ void main() {
   });
 
   testWidgets(
-      'H1: legacy PageView last child is the PaywallScreen at the legacy '
+      'H1: legacy PageView last child is the final gate at the legacy '
       'last index (reachable end of flow)', (tester) async {
     useOnboardingViewport(tester);
     await tester.pumpWidget(
@@ -147,8 +146,11 @@ void main() {
     final children =
         (pageView.childrenDelegate as SliverChildListDelegate).children;
     // The legacy flow's terminal page (index 26 with rating gate) is the
-    // paywall — _next's bound must allow reaching it.
+    // OnboardingFinalGate wrapper — _next's bound must allow reaching it. The
+    // wrapper renders the soft PaywallScreen when the hard-paywall-after-tour
+    // flag is OFF (rollback) and skips it (completes onboarding) when ON. Either
+    // way it is the reachable end of the flow at the legacy last index.
     expect(children.length - 1, onboardingLegacyLastPageIndex);
-    expect(children.last, isA<PaywallScreen>());
+    expect(children.last, isA<OnboardingFinalGate>());
   });
 }

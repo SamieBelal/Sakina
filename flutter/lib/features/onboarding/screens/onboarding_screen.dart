@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/app_session.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/env.dart';
+import '../../../widgets/sakina_loader.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/app_config_service.dart';
@@ -110,6 +112,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   void _firePaywallEventsOnce() {
     if (_paywallEventsFired) return;
+    // New flow (hard-paywall-after-tour gate ON): onboarding shows NO soft
+    // paywall on the final page, so emitting paywall_viewed here would be a
+    // phantom. The post-tour hard wall emits its own. Checked before the latch
+    // so it stays re-evaluable if the flag hydrates late.
+    if (ref.read(appSessionProvider).hardPaywallFlowEnabled) return;
     _paywallEventsFired = true;
     final analytics = ref.read(analyticsProvider);
     analytics.track(AnalyticsEvents.paywallViewed);
@@ -305,6 +312,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   Future<void> _completeOnboarding() async {
+    // Re-entry guard: the new-flow final gate fires this from a post-frame
+    // callback that can run on multiple rebuilds, and a double-tap on the soft
+    // paywall could also re-enter. Either way, complete exactly once.
+    if (_completing) return;
     _completing = true;
     final analytics = ref.read(analyticsProvider);
     analytics.track(AnalyticsEvents.onboardingCompleted);
@@ -399,7 +410,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       if (Env.ratingGateEnabled)
         RatingGateScreen(onNext: _next, onBack: _back),
       // 19 — Paywall
-      PaywallScreen(onComplete: _completeOnboarding),
+      OnboardingFinalGate(onComplete: _completeOnboarding),
     ];
   }
 
@@ -468,7 +479,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       if (Env.ratingGateEnabled)
         RatingGateScreen(onNext: _next, onBack: _back),
       // 26 — Paywall
-      PaywallScreen(onComplete: _completeOnboarding),
+      OnboardingFinalGate(onComplete: _completeOnboarding),
     ];
   }
 
@@ -520,6 +531,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             physics: const NeverScrollableScrollPhysics(),
             children: children,
           ),
+        );
+      },
+    );
+  }
+}
+
+/// The final onboarding page. Its content depends on the hard-paywall-after-tour
+/// kill switch, read live from [AppSessionNotifier] (hydrated at sign-up, which
+/// happens several pages earlier, so it is resolved by the time the user gets
+/// here — and the [ListenableBuilder] re-evaluates if it hydrates late):
+///
+///   * Flag OFF (rollback / legacy): render the soft [PaywallScreen] exactly as
+///     before — this IS the onboarding paywall.
+///   * Flag ON (new flow): show NO paywall. Complete onboarding immediately so
+///     the router gate takes over (forced tour → hard wall). This is what keeps
+///     the new flow from showing TWO paywalls.
+///
+/// Keeping the decision at the leaf (rather than restructuring the page list)
+/// leaves every test-pinned page index untouched.
+@visibleForTesting
+class OnboardingFinalGate extends ConsumerWidget {
+  const OnboardingFinalGate({required this.onComplete, super.key});
+
+  /// `_OnboardingScreenState._completeOnboarding` — idempotent (re-entry
+  /// guarded), so the post-frame callback firing on rebuilds is safe.
+  final Future<void> Function() onComplete;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(appSessionProvider);
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) {
+        if (!session.hardPaywallFlowEnabled) {
+          return PaywallScreen(onComplete: onComplete);
+        }
+        // New flow: skip the soft paywall, hand off to the router gate.
+        WidgetsBinding.instance.addPostFrameCallback((_) => onComplete());
+        return const ColoredBox(
+          color: AppColors.backgroundLight,
+          child: Center(child: SakinaLoader()),
         );
       },
     );
