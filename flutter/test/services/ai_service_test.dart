@@ -74,4 +74,80 @@ void main() {
     expect(parsed!.verses, hasLength(1));
     expect(parsed.verses.single.reference, 'Ar-Rahman 55:13');
   });
+
+  test(
+      'parseReflectResponse substitutes verified Arabic when the model leaks transliteration into the dua Arabic slot',
+      () {
+    // Reproduces the reported bug: the model returned the transliteration of
+    // the Ar-Rabb (Moses) dua in BOTH ##DUA_AR## and ##DUA_TR##.
+    final parsed = parseReflectResponse('''
+##NAME## Ar-Rabb
+##NAME_AR## الرب
+##REFRAME## He is nurturing you through this transition.
+##STORY## A story.
+##VERSE_1_AR## أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ
+##VERSE_1_EN## placeholder
+##VERSE_1_REF## Ar-Ra'd 13:28
+##DUA_AR## Rabbi ishrah li sadri wa yassir li amri
+##DUA_TR## Rabbi ishrah li sadri wa yassir li amri
+##DUA_EN## My Lord, expand my chest for me and ease my affairs.
+##DUA_SOURCE## Quran 20:25-26
+##RELATED## Ar-Rahman (الرحمن)
+''');
+
+    expect(parsed, isNotNull);
+    expect(parsed!.duaArabic, 'رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي');
+    expect(
+      RegExp(r'[؀-ۿ]').hasMatch(parsed.duaArabic),
+      isTrue,
+      reason: 'dua Arabic slot must contain Arabic script, not transliteration',
+    );
+    expect(parsed.duaTransliteration, 'Rabbi ishrah li sadri wa yassir li amri');
+  });
+
+  test(
+      'parseReflectResponse blanks a non-Arabic dua with no canonical match (guard)',
+      () {
+    final parsed = parseReflectResponse('''
+##NAME## As-Salam
+##NAME_AR## السلام
+##REFRAME## Calm can return.
+##STORY## A story.
+##VERSE_1_AR## أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ
+##VERSE_1_EN## placeholder
+##VERSE_1_REF## Ar-Ra'd 13:28
+##DUA_AR## Some made-up transliteration not in our data
+##DUA_TR## Some made-up transliteration not in our data
+##DUA_EN## A translation
+##DUA_SOURCE## A source
+##RELATED## Al-Lateef (اللطيف)
+''');
+
+    expect(parsed, isNotNull);
+    expect(parsed!.duaArabic, isEmpty);
+    expect(parsed.duaTranslation, 'A translation');
+  });
+
+  test(
+      'parseReflectResponse preserves a genuine Arabic dua already in the Arabic slot',
+      () {
+    final parsed = parseReflectResponse('''
+##NAME## As-Salam
+##NAME_AR## السلام
+##REFRAME## Calm can return.
+##STORY## A story.
+##VERSE_1_AR## أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ
+##VERSE_1_EN## placeholder
+##VERSE_1_REF## Ar-Ra'd 13:28
+##DUA_AR## دعاء صحيح
+##DUA_TR## duaun saheeh
+##DUA_EN## a valid supplication
+##DUA_SOURCE## source
+##RELATED## Al-Lateef (اللطيف)
+''');
+
+    expect(parsed, isNotNull);
+    expect(parsed!.duaArabic, 'دعاء صحيح');
+    expect(parsed.duaTransliteration, 'duaun saheeh');
+  });
 }

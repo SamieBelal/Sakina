@@ -1837,7 +1837,7 @@ const List<NameTeaching> nameTeachings = [
         'When Hagar (عليه السلام) was left in the valley of Mecca with baby Ismail and no water, she ran between Safa and Marwa seven times, calling out into an empty desert. No one saw her. No one heard her. Yet Al-Aleem knew the exact moment, the exact depth of her thirst, the exact point of her desperation — and sent Jibril to strike the earth and open Zamzam. Quran 31:34 affirms: “Indeed, Allah alone has the knowledge of the Hour. He sends down the rain, and knows what is in the wombs. No soul knows what it will earn for tomorrow, and no soul knows in what land it will die. Surely Allah is All-Knowing, All-Aware.” Al-Aleem knew Hagar’s need before she voiced it. He knows yours.',
     dua: NameTeachingDua(
       arabic:
-          'رَّبِّ زِدْنِي عِلْمًا',
+          'رَبِّ زِدْنِي عِلْمًا',
       transliteration: "Rabbi zidni 'ilma",
       translation: 'My Lord! Increase me in knowledge.',
       source: 'Quran 20:114 (verbatim) — the only dua the Quran records Allah commanding the Prophet ﷺ to say for himself; an appeal to Al-Aleem to share of what only He perfectly possesses',
@@ -2243,7 +2243,7 @@ const List<NameTeaching> nameTeachings = [
     propheticStory:
         'The Quran describes the scene when Allāh commands the guardians of orphans to hand over their property when they come of age: "Test the competence of the orphans until they reach a marriageable age. Then if you feel they are capable of sound judgment, return their wealth to them... And sufficient is Allah as a vigilant Reckoner" (Quran 4:6). In the early Muslim community, the care of orphans was a live social responsibility — and it was one where private misconduct was easy and detection was hard. Allah placed Al-Haseeb at the end of this command to remind both guardian and orphan: the account is not kept by the orphan, not by the community, not by any human judge. Al-Haseeb holds every transaction in a record that cannot be falsified, lost, or overlooked. Your private integrity — the kindness no one witnessed, the shortcut you did not take — is seen.',
     dua: NameTeachingDua(
-      arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
+      arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ',
       transliteration: "Hasbunallahu wa ni'mal wakeel",
       translation: 'Allah is sufficient for us, and He is the best Disposer of affairs.',
       source: 'Quran 3:173 — the words of believers when threatened; narrated as a saying of Ibrahim and Muhammad \ufdfa (Sahih al-Bukhari 4563)',
@@ -2867,7 +2867,7 @@ const List<NameTeaching> nameTeachings = [
         'The Prophet ﷺ taught that a Muslim does not abandon another Muslim to oppression, and then said: "Whoever fulfilled the needs of his brother, Allah will fulfill his needs" (Sahih al-Bukhari 2442). This is An-Nafi reflected in human conduct: the benefit you bring to another believer becomes a path by which Allah benefits you. You do not merely receive from An-Nafi — you are invited to embody the attribute by relieving distress, meeting needs, and becoming a door of mercy for someone else.',
     dua: NameTeachingDua(
       arabic:
-          'رَبَّنَآ ءَاتِنَا فِى ٱلدُّنْيَا حَسَنَةً وَفِى ٱلْـَٔاخِرَةِ حَسَنَةً وَقِنَا عَذَابَ ٱلنَّارِ',
+          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ',
       transliteration:
           "Rabbana atina fid-dunya hasanatan wa fil-akhirati hasanatan wa qina 'adhaban-nar",
       translation:
@@ -3039,4 +3039,88 @@ List<NameTeaching> getRelevantTeachings(String userText) {
       .toList();
 
   return top.isNotEmpty ? top : [nameTeachings[0]]; // default to Ar-Rahman
+}
+
+// ---------------------------------------------------------------------------
+// Dua normalization — keep the AI from rendering transliteration as scripture
+// ---------------------------------------------------------------------------
+//
+// The reflect prompt asks the model to emit the dua's Arabic text directly.
+// When the model uses one of the teaching duas above, it has only seen the
+// transliteration (the teaching context historically omitted the Arabic), so —
+// correctly refusing to fabricate scripture — it copies the transliteration
+// into the Arabic slot. The reflect UI then renders transliteration where
+// Arabic should be (reported bug: "Rabbi ishrah li sadri wa yassir li amri"
+// shown as the Arabic dua).
+//
+// `normalizeReflectDua` is the deterministic safety net: it recovers the
+// verified Arabic from this knowledge base whenever it can identify which dua
+// the model used, and otherwise guards the Arabic slot against non-Arabic text.
+
+/// Arabic script Unicode block (U+0600–U+06FF). Covers the letters and harakat
+/// used by every dua/verse in this app.
+final RegExp _arabicScript = RegExp(r'[؀-ۿ]');
+
+/// True when [text] contains at least one Arabic-script character.
+bool containsArabicScript(String text) => _arabicScript.hasMatch(text);
+
+/// Collapse a transliteration to a comparison key: lowercase, strip everything
+/// that isn't a latin letter or digit. Makes matching tolerant of apostrophes,
+/// hyphens, commas, diacritics, and spacing the model may add or drop.
+String _transliterationKey(String text) =>
+    text.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+/// Lazily-built lookup from a normalized transliteration key to its verified
+/// `NameTeachingDua`. Built once on first access.
+Map<String, NameTeachingDua>? _duaByTransliterationKey;
+
+Map<String, NameTeachingDua> get _duaLookup {
+  final cached = _duaByTransliterationKey;
+  if (cached != null) return cached;
+  final map = <String, NameTeachingDua>{};
+  for (final teaching in nameTeachings) {
+    final key = _transliterationKey(teaching.dua.transliteration);
+    // First teaching wins on collisions; teaching duas are distinct in practice.
+    map.putIfAbsent(key, () => teaching.dua);
+  }
+  return _duaByTransliterationKey = map;
+}
+
+/// Find a verified teaching dua whose transliteration matches [transliteration]
+/// (case/punctuation/spacing-insensitive). Returns null for null/empty/unknown.
+NameTeachingDua? teachingDuaByTransliteration(String? transliteration) {
+  if (transliteration == null) return null;
+  final key = _transliterationKey(transliteration);
+  if (key.isEmpty) return null;
+  return _duaLookup[key];
+}
+
+/// Normalize an AI-produced dua against the verified knowledge base.
+///
+/// 1. Robust substitution: if the model's transliteration (or the Arabic slot,
+///    in case the transliteration leaked into it) matches a verified teaching
+///    dua, return that verified record verbatim — we never trust the model to
+///    reproduce scripture.
+/// 2. Guard: with no canonical match, the Arabic slot must actually contain
+///    Arabic script. If it doesn't (transliteration/English leaked in), blank
+///    it so the UI never renders transliteration as Arabic; the transliteration,
+///    translation, and source fields are preserved so the card still conveys
+///    the dua textually.
+NameTeachingDua normalizeReflectDua({
+  required String arabic,
+  required String transliteration,
+  required String translation,
+  required String source,
+}) {
+  final matched = teachingDuaByTransliteration(transliteration) ??
+      teachingDuaByTransliteration(arabic);
+  if (matched != null) return matched;
+
+  final safeArabic = containsArabicScript(arabic) ? arabic : '';
+  return NameTeachingDua(
+    arabic: safeArabic,
+    transliteration: transliteration,
+    translation: translation,
+    source: source,
+  );
 }
