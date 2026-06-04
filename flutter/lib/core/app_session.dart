@@ -117,11 +117,16 @@ class AppSessionNotifier extends ChangeNotifier {
         _paywallCleared = await OnboardingGateService().isPaywallCleared();
       } catch (_) {/* keep default */}
     }
-    try {
-      _isPremiumCached = await _isPremiumReader();
-    } catch (_) {/* keep default */}
+    // Read the gate-critical flag (cached app_config, fast) BEFORE the premium
+    // check (a potentially-slow RevenueCat round-trip). progress_screen's
+    // tour-start and the router both read `hardPaywallFlowEnabled` directly, so
+    // it must be set ASAP; the premium short-circuit can hydrate a beat later
+    // (a non-premium new user's `false` default is correct until then).
     try {
       _hardPaywallFlowEnabled = await _hardPaywallFlowReader();
+    } catch (_) {/* keep default */}
+    try {
+      _isPremiumCached = await _isPremiumReader();
     } catch (_) {/* keep default */}
     notifyListeners();
   }
