@@ -33,11 +33,17 @@ class CoachmarkOverlay extends StatefulWidget {
     required this.onNext,
     required this.onSkip,
     this.hideUntilAnchorReady = false,
+    this.allowSkip = true,
   });
 
   final CoachmarkStep step;
   final int stepIndex;
   final int totalSteps;
+
+  /// When false, the "Skip tour" affordance is hidden — used by the mandatory
+  /// onboarding gate (the forced tour must run to completion before the hard
+  /// paywall; decision C2). Defaults true so the legacy/replay tour keeps skip.
+  final bool allowSkip;
 
   /// Called when the user taps the outlined target (tap steps) or when a
   /// read-only step's auto-advance timer fires.
@@ -245,6 +251,7 @@ class _CoachmarkOverlayState extends State<CoachmarkOverlay>
       message: step.message,
       onSkip: widget.onSkip,
       onContinue: showContinue ? widget.onNext : null,
+      allowSkip: widget.allowSkip,
     );
 
     return Material(
@@ -394,11 +401,13 @@ class _CoachBanner extends StatelessWidget {
     required this.message,
     required this.onSkip,
     this.onContinue,
+    this.allowSkip = true,
   });
 
   final String message;
   final VoidCallback onSkip;
   final VoidCallback? onContinue;
+  final bool allowSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -457,9 +466,12 @@ class _CoachBanner extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      if (allowSkip || onContinue != null)
+                        const SizedBox(height: 6),
+                      if (allowSkip || onContinue != null)
                       Row(
                         children: [
+                          if (allowSkip)
                           Semantics(
                             button: true,
                             label: 'Skip tour',
