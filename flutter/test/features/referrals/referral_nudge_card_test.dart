@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,12 +22,16 @@ class _FakeReferralService extends ReferralService {
   _FakeReferralService() : super(_StubSupabase());
 
   MyReferralsState? nextState;
+  Object? throwOnGetState; // when set, getMyReferralsState throws it
+  String? codeToReturn = 'ABCD2345'; // null/'' models a code-less subscriber
+  Completer<void>? shareGate; // when set, shareMyCode blocks on it (in-flight)
   bool getStateCalled = false;
   final List<String> shareCalls = [];
 
   @override
   Future<MyReferralsState> getMyReferralsState(String userId) async {
     getStateCalled = true;
+    if (throwOnGetState != null) throw throwOnGetState!;
     return nextState!;
   }
 
@@ -33,7 +39,7 @@ class _FakeReferralService extends ReferralService {
   Future<void> ensureReferralCode(String userId) async {}
 
   @override
-  Future<String?> getMyReferralCode(String userId) async => 'ABCD2345';
+  Future<String?> getMyReferralCode(String userId) async => codeToReturn;
 
   @override
   Future<void> shareMyCode(
@@ -42,6 +48,7 @@ class _FakeReferralService extends ReferralService {
     Future<void> Function(String)? override,
   }) async {
     shareCalls.add(code);
+    if (shareGate != null) await shareGate!.future;
     if (override != null) await override(code);
   }
 }
@@ -101,7 +108,7 @@ void main() {
     PurchaseService.debugClearOverride();
   });
 
-  Widget harness() {
+  Widget harness({Future<void> Function(String)? shareOverride}) {
     return ProviderScope(
       overrides: [
         analyticsProvider.overrideWithValue(analytics),
@@ -109,7 +116,10 @@ void main() {
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: ReferralNudgeCard(clock: () => now),
+          body: ReferralNudgeCard(
+            clock: () => now,
+            shareOverride: shareOverride,
+          ),
         ),
       ),
     );
@@ -233,5 +243,104 @@ void main() {
       prefs.getInt(fakeSync.scopedKey(ReferralNudgeCard.lastProgressBaseKey)),
       1,
     );
+  });
+
+  testWidgets('hidden + no RC call when there is no signed-in user',
+      (tester) async {
+    fakeSync.userId = null;
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.nextState = _state(confirmedCount: 1);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Send to friends'), findsNothing);
+    expect(tester.getSize(find.byType(ReferralNudgeCard)), Size.zero);
+    expect(fakeRef.getStateCalled, isFalse);
+  });
+
+  testWidgets('resolve failure (Supabase throws) collapses to hidden, no throw',
+      (tester) async {
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.throwOnGetState = Exception('boom');
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Send to friends'), findsNothing);
+    expect(tester.getSize(find.byType(ReferralNudgeCard)), Size.zero);
+    expect(shownCount(), 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('no setState-after-dispose when resolve completes post-unmount',
+      (tester) async {
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.nextState = _state(confirmedCount: 1);
+
+    await tester.pumpWidget(harness());
+    // Tear the card down mid-resolve (before the async chain settles).
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('share CTA no-ops (no throw, card stays) when user has no code',
+      (tester) async {
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.nextState = _state(confirmedCount: 1);
+    fakeRef.codeToReturn = null; // ensureReferralCode hasn't produced one yet
+
+    await tester.pumpWidget(harness());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.text('Send to friends · 1/3 joined'));
+    await tester.pumpAndSettle();
+
+    expect(fakeRef.shareCalls, isEmpty); // shareMyCode never reached
+    expect(tester.takeException(), isNull);
+    expect(
+        find.textContaining('Send to friends'), findsOneWidget); // still there
+  });
+
+  testWidgets('share routes through the shareOverride seam', (tester) async {
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.nextState = _state(confirmedCount: 1);
+    final captured = <String>[];
+
+    await tester.pumpWidget(harness(
+      shareOverride: (code) async => captured.add(code),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.text('Send to friends · 1/3 joined'));
+    await tester.pumpAndSettle();
+
+    expect(captured, ['ABCD2345']);
+  });
+
+  testWidgets('share is locked out while one is already in flight',
+      (tester) async {
+    PurchaseService.debugSetOverride(_FakePurchaseService(pastGrace));
+    fakeRef.nextState = _state(confirmedCount: 1);
+    final gate = Completer<void>();
+    fakeRef.shareGate = gate; // hold the first share open
+
+    await tester.pumpWidget(harness());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.text('Send to friends · 1/3 joined'));
+    await tester.pump(); // first share now in flight → CTA shows spinner
+    // CTA text is gone (spinner), so a second user tap can't even reach onShare.
+    expect(find.text('Send to friends · 1/3 joined'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(fakeRef.shareCalls, ['ABCD2345']); // exactly one share fired
   });
 }

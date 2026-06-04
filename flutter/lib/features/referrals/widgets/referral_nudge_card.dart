@@ -85,9 +85,17 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
   _NudgeState _state = const _NudgeLoading();
   bool _shownEventFired = false;
   bool _sharing = false;
-  int _progress = 0;
 
   DateTime _now() => (widget._clock ?? DateTime.now)();
+
+  /// Current shown progress, read straight off the sealed state so there's a
+  /// single source of truth (no separate mutable field to drift out of sync).
+  /// 0 in any non-show state — the share/dismiss handlers are only reachable
+  /// from the rendered card, so in practice this is always the shown value.
+  int get _shownProgress {
+    final state = _state;
+    return state is _NudgeShow ? state.progress : 0;
+  }
 
   @override
   void initState() {
@@ -141,7 +149,6 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
 
       if (!mounted) return;
       if (decision == ReferralNudgeDecision.show) {
-        _progress = referrals.progressTowardNext;
         setState(() => _state = _NudgeShow(referrals.progressTowardNext));
         await _onShown(referrals.progressTowardNext);
       } else {
@@ -185,7 +192,7 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
     HapticFeedback.lightImpact();
     ref.read(analyticsProvider).track(
       AnalyticsEvents.homeReferralNudgeShareTapped,
-      properties: {'progress': _progress},
+      properties: {'progress': _shownProgress},
     );
     try {
       final uid = supabaseSyncService.currentUserId;
@@ -204,11 +211,12 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
   }
 
   Future<void> _onDismiss() async {
+    final progress = _shownProgress;
     ref.read(analyticsProvider).track(
       AnalyticsEvents.homeReferralNudgeDismissed,
-      properties: {'progress': _progress},
+      properties: {'progress': progress},
     );
-    await _persistShown(_progress);
+    await _persistShown(progress);
     if (mounted) setState(() => _state = const _NudgeHidden());
   }
 
@@ -295,7 +303,7 @@ class _NudgeCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints:
-                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                      const BoxConstraints(minWidth: 40, minHeight: 40),
                   icon: const Icon(Icons.close_rounded,
                       color: AppColors.textSecondaryLight),
                 ),

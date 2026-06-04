@@ -115,4 +115,38 @@ void main() {
   test('happy path: premium, past grace, 1/3, never shown → show', () {
     expect(decide(lastShownAt: null), ReferralNudgeDecision.show);
   });
+
+  // Boundary tests — pin the exact comparison operators so a `<` ↔ `<=`
+  // refactor can't silently flip a day's behavior.
+  test('exactly at the grace boundary (now == start + grace) → show', () {
+    // graceDelay default is 2 days; premium began exactly 2 days ago.
+    expect(
+      decide(premiumStartedAt: now.subtract(const Duration(days: 2))),
+      ReferralNudgeDecision.show,
+    );
+  });
+
+  test('exactly at the cooldown boundary (now == lastShownAt + 7d) → show', () {
+    expect(
+      decide(
+        lastShownAt: now.subtract(const Duration(days: 7)),
+        progressTowardNext: 1,
+        lastShownProgress: 1,
+      ),
+      ReferralNudgeDecision.show,
+    );
+  });
+
+  test('progress regressed below last-shown (in cooldown) stays hidden', () {
+    // e.g. a grant consumed confirmations and progress reset 2 → 0, or stale
+    // prefs. progressClimbed must be FALSE, so the cooldown still suppresses.
+    expect(
+      decide(
+        lastShownAt: now.subtract(const Duration(days: 1)),
+        progressTowardNext: 0,
+        lastShownProgress: 2,
+      ),
+      ReferralNudgeDecision.hidden,
+    );
+  });
 }
