@@ -131,7 +131,15 @@ Future<void> main() async {
     // launch reads fresh values from the populated cache.
     unawaited(
       AppConfigService(Supabase.instance.client)
-          .primeCache(['onboarding_trim_enabled', 'guided_tour_enabled'])
+          .primeCache(const [
+            'onboarding_trim_enabled',
+            'guided_tour_enabled',
+            // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
+            // miss reads the `false` fallback, which drops the user into the
+            // legacy opportunistic (skippable) tour instead of the forced gated
+            // flow. Caught in the simulator on a fresh launch.
+            'hard_paywall_after_tour_enabled',
+          ])
           .timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
   }
