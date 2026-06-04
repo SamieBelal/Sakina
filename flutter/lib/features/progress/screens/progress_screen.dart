@@ -17,6 +17,7 @@ import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
+import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -271,6 +272,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //    and the GiftService loading-gate per CLAUDE.md PR #8.
               const RamadanGiftCard(),
               const SizedBox(height: AppSpacing.md),
+
+              // 2b. Post-conversion referral nudge (active RC subscribers only,
+              //     until they earn their first referral grant). Self-collapses
+              //     to SizedBox.shrink() for everyone else (no spacer here — the
+              //     card owns its own bottom margin only when shown, so a hidden
+              //     card leaves zero dead space). Re-adds the referral loop the
+              //     hard paywall removed, on the welcome side of the wall.
+              const ReferralNudgeCard(),
 
               // 3. Unified dashboard card
               _buildDashboardCard(state, hero),
