@@ -9,6 +9,7 @@ import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/onboarding_gate_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/streak_service.dart';
@@ -131,6 +132,11 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     // lapsed trialer's gating to "fresh free user with full warmup," which
     // would let users grind warmups by uninstalling.
     await GatingService().hydrateFromProfile(profile);
+    // Mirror the onboarding-gate columns (paywall-cleared latch + tour resume
+    // cursor) into the local cache so the router's first redirect on a reinstall
+    // / second device boots from server truth. Existing users are backfilled
+    // `onboarding_paywall_cleared = true`, so the gate never re-walls them.
+    await OnboardingGateService().hydrateFromProfile(profile);
   }
 
   await _hydrateOrSeedListSection(
