@@ -33,10 +33,32 @@ class _QuestEntry extends _ToastEntry {
 final _toastQueue = <_ToastEntry>[];
 bool _isShowingToast = false;
 
+/// Achievement IDs already toasted this session. Guards against the re-toast
+/// race: `checkAndUnlockAchievements` reads the local prefs cache then writes,
+/// non-atomically, so two near-simultaneous `checkAchievements()` calls can
+/// both report the same achievement as "newly unlocked" before either write
+/// lands. The DB `UNIQUE(user_id, achievement_id)` constraint dedupes the row,
+/// but without this guard the user still sees the popup twice. Reset on
+/// sign-out via [resetAchievementToastSession] so a different account can still
+/// see its own first-time toasts (IDs like `first_name` are shared).
+final _shownAchievementIds = <String>{};
+
 /// Show an achievement toast. If one is already showing, queues it.
-void showAchievementToast(Achievement achievement) {
+/// De-duplicates within a session: a repeated achievement ID is suppressed.
+/// Returns true if the toast was enqueued, false if suppressed as a duplicate.
+bool showAchievementToast(Achievement achievement) {
+  if (!_shownAchievementIds.add(achievement.id)) return false;
   _toastQueue.add(_AchievementEntry(achievement));
   _processQueue();
+  return true;
+}
+
+/// Clear per-session achievement toast de-duplication and drop any queued
+/// toasts. Call on sign-out / account switch so the next user sees their own
+/// first-time achievement toasts and never inherits the previous user's queue.
+void resetAchievementToastSession() {
+  _shownAchievementIds.clear();
+  _toastQueue.clear();
 }
 
 /// Enqueue a completed quest onto the unified queue. Called by

@@ -12,6 +12,7 @@ import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
+import '../widgets/achievement_toast.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_gate_service.dart';
 import '../services/purchase_service.dart';
@@ -362,6 +363,7 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> clearSession({String? userId}) async {
     _hasOnboarded = false;
     resetLaunchGateSessionState();
+    resetAchievementToastSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('onboarding_completed');
     await prefs.remove('onboarding_state');
