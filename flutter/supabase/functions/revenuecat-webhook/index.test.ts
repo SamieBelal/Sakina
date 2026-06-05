@@ -494,6 +494,7 @@ Deno.test("New cancellation (transition) fires the survey push once", async () =
       type: "CANCELLATION",
       product_id: "sakina_sub_annual",
       entitlement_ids: ["premium"],
+      cancel_reason: "UNSUBSCRIBE", // deliberate user opt-out
     })),
     {
       webhookSecret,
@@ -545,6 +546,7 @@ Deno.test("Push failure does NOT fail the webhook (isolation)", async () => {
       type: "CANCELLATION",
       product_id: "sakina_sub_annual",
       entitlement_ids: ["premium"],
+      cancel_reason: "UNSUBSCRIBE",
     })),
     {
       webhookSecret,
@@ -562,6 +564,66 @@ Deno.test("Push failure does NOT fail the webhook (isolation)", async () => {
   // Billing sync succeeded; the push hiccup must not become a 500.
   assertEquals(response.status, 200);
   assertEquals(await response.json(), { status: "ok" });
+});
+
+// ── Survey push only for deliberate opt-outs (cancel_reason gate) ─────────
+//
+// RevenueCat sends CANCELLATION for several reasons; only UNSUBSCRIBE is the
+// user choosing to turn off auto-renew. Refunds (CUSTOMER_SUPPORT), billing
+// failures, price-increase non-consent, etc. must NOT trigger the "why did you
+// leave?" survey — those users didn't choose to leave. Field name + values
+// verified against RevenueCat docs (cancel_reason on CANCELLATION events).
+
+async function runCancellation(
+  cancelReason: string | undefined,
+): Promise<number> {
+  let pushCalls = 0;
+  await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "CANCELLATION",
+      product_id: "sakina_sub_annual",
+      entitlement_ids: ["premium"],
+      ...(cancelReason === undefined ? {} : { cancel_reason: cancelReason }),
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      // Fresh cancellation transition — the ONLY remaining gate under test is
+      // the cancel_reason.
+      upsertSubscription: async () => ({
+        written: true,
+        cancellationStarted: true,
+      }),
+      sendCancellationSurveyPush: async () => {
+        pushCalls += 1;
+      },
+    },
+  );
+  return pushCalls;
+}
+
+Deno.test("Survey fires for cancel_reason UNSUBSCRIBE", async () => {
+  assertEquals(await runCancellation("UNSUBSCRIBE"), 1);
+});
+
+Deno.test("Survey is case-insensitive on cancel_reason", async () => {
+  assertEquals(await runCancellation("unsubscribe"), 1);
+});
+
+Deno.test("Survey does NOT fire for a refund (CUSTOMER_SUPPORT)", async () => {
+  assertEquals(await runCancellation("CUSTOMER_SUPPORT"), 0);
+});
+
+Deno.test("Survey does NOT fire for PRICE_INCREASE non-consent", async () => {
+  assertEquals(await runCancellation("PRICE_INCREASE"), 0);
+});
+
+Deno.test("Survey does NOT fire for BILLING_ERROR", async () => {
+  assertEquals(await runCancellation("BILLING_ERROR"), 0);
+});
+
+Deno.test("Survey does NOT fire when cancel_reason is missing", async () => {
+  assertEquals(await runCancellation(undefined), 0);
 });
 
 Deno.test("period_type is carried onto the upsert payload, lowercased", () => {

@@ -52,6 +52,11 @@ export interface RevenueCatEvent {
   expiration_at_ms?: number | null;
   event_timestamp_ms?: number | null;
   transaction_id?: string | null;
+  // Only present on CANCELLATION events. RevenueCat values (verified against
+  // docs/integrations/webhooks/event-types-and-fields): UNSUBSCRIBE,
+  // BILLING_ERROR, DEVELOPER_INITIATED, PRICE_INCREASE, CUSTOMER_SUPPORT,
+  // UNKNOWN. Only UNSUBSCRIBE is a deliberate user opt-out.
+  cancel_reason?: string | null;
 }
 
 export interface ConsumableClawbackPayload {
@@ -383,11 +388,25 @@ export async function handleRevenueCatWebhook(
       }
     }
 
-    // Fire the cancellation survey push only on a genuinely new cancellation.
+    // Fire the cancellation survey push only on a genuinely new cancellation
+    // that is a DELIBERATE user opt-out. RevenueCat sends CANCELLATION for
+    // several reasons (see `cancel_reason` on RevenueCatEvent); only
+    // UNSUBSCRIBE means the user chose to turn off auto-renew. The others —
+    // CUSTOMER_SUPPORT (refunds, often with auto-renew still on), BILLING_ERROR,
+    // PRICE_INCREASE (didn't accept), DEVELOPER_INITIATED, UNKNOWN — are not the
+    // user "leaving", so surveying "why did you leave?" would be wrong.
+    // `cancellationStarted` already guarantees this is a CANCELLATION whose
+    // canceled_at transitioned null -> set (so the push fires at most once).
     // ISOLATED: any failure is swallowed and logged — it must never turn this
     // into a 500, which would make RevenueCat retry the whole billing event
     // (and re-run the consumable clawback).
-    if (result.cancellationStarted && options.sendCancellationSurveyPush) {
+    const cancelReason = nonEmptyString(event.cancel_reason)?.toUpperCase() ??
+      null;
+    if (
+      result.cancellationStarted &&
+      cancelReason === "UNSUBSCRIBE" &&
+      options.sendCancellationSurveyPush
+    ) {
       try {
         await options.sendCancellationSurveyPush(subscriptionPayload);
       } catch (error) {
