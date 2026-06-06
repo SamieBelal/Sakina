@@ -63,7 +63,8 @@ class PurchaseService {
   /// read/write so a shared device doesn't bleed referral premium across
   /// accounts.
   @visibleForTesting
-  static const String referralPremiumUntilPrefsBaseKey = 'referral_premium_until';
+  static const String referralPremiumUntilPrefsBaseKey =
+      'referral_premium_until';
 
   /// True iff any premium source is active: Sakina Gift window, RevenueCat
   /// `premium` entitlement, or the local referral-premium cache.
@@ -342,6 +343,34 @@ class PurchaseService {
     }
   }
 
+  /// When the user's RevenueCat `premium` entitlement FIRST began
+  /// (`originalPurchaseDate`), or null when there is no active RC premium.
+  ///
+  /// Audience helper for the home referral nudge. Reads `entitlements.active`
+  /// so it covers trial AND paid subscribers, and deliberately EXCLUDES
+  /// gift/referral premium — those are never RC entitlements (they're separate
+  /// `user_profiles` columns OR'd in by [isPremium]), so a user whose premium
+  /// came *from* referrals reads null here and never gets nudged to refer.
+  ///
+  /// Uses `originalPurchaseDate` (first time premium began) rather than
+  /// `latestPurchaseDate` (resets on every renewal) so a monthly subscriber
+  /// isn't repeatedly re-gated after each renewal and a long-time subscriber
+  /// reads as well past any grace window.
+  ///
+  /// Returns null when RC isn't initialized, no active premium exists, or the
+  /// timestamp is missing/unparseable — all of which the caller treats as
+  /// "not eligible, render nothing".
+  Future<DateTime?> getActivePremiumStartedAt() async {
+    if (!_initialized) return null;
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final premium = customerInfo.entitlements.active['premium'];
+      if (premium == null) return null;
+      return DateTime.tryParse(premium.originalPurchaseDate);
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<List<Package>> getOfferings() async {
     if (!_initialized) return [];

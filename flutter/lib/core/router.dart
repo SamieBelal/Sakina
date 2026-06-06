@@ -11,6 +11,7 @@ import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
 import '../features/daily/screens/muhasabah_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
+import '../features/onboarding/onboarding_stage.dart';
 import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
@@ -29,6 +30,61 @@ import 'app_session.dart';
 
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Full-screen route for the post-tour hard entry wall (no bottom nav, no X).
+/// Distinct from the soft `/paywall` upsell so the gate can force it and block
+/// navigation away from it.
+const String kOnboardingPaywallPath = '/onboarding-paywall';
+
+/// Pure routing decision for the post-onboarding gate. Returns the path to
+/// redirect to, or `null` to stay put. Extracted so it is unit-testable without
+/// a live GoRouter. [currentPath] is the path the user is navigating to.
+String? onboardingGateRedirect({
+  required String currentPath,
+  required AppSessionNotifier appSession,
+}) {
+  // Always allow the pre-auth funnel through (incl. sub-paths). NOTE: match
+  // '/onboarding' exactly or its '/onboarding/...' subpaths — NOT a bare
+  // prefix, which would also swallow '/onboarding-paywall' (the hard wall) and
+  // make the gate un-enforceable.
+  final isOnboardingFunnel =
+      currentPath == '/onboarding' || currentPath.startsWith('/onboarding/');
+  if (isOnboardingFunnel ||
+      currentPath.startsWith('/signin') ||
+      currentPath.startsWith('/welcome')) {
+    return null;
+  }
+
+  if (!appSession.isAuthenticated || !appSession.hasOnboarded) {
+    return '/welcome';
+  }
+
+  final stage = resolveOnboardingStage(
+    isAuthenticated: appSession.isAuthenticated,
+    hasOnboarded: appSession.hasOnboarded,
+    tourCompleted: appSession.tourCompleted,
+    // Session-only valve bypass counts as "cleared" for THIS session only.
+    paywallCleared: appSession.paywallCleared || appSession.gateValveBypass,
+    isPremium: appSession.isPremiumCached,
+    hardPaywallFlowEnabled: appSession.hardPaywallFlowEnabled,
+  );
+
+  switch (stage) {
+    case OnboardingStage.welcome:
+      return '/welcome';
+    case OnboardingStage.hardPaywall:
+      // Force the no-X wall; block navigating anywhere else.
+      return currentPath == kOnboardingPaywallPath
+          ? null
+          : kOnboardingPaywallPath;
+    case OnboardingStage.tour:
+    case OnboardingStage.app:
+      // The tour runs as an overlay over the home shell, so a tour-stage user
+      // just stays in the app (the overlay drives them). If a tour/cleared
+      // user is somehow sitting on the hard wall, send them home.
+      return currentPath == kOnboardingPaywallPath ? '/' : null;
+  }
+}
+
 GoRouter buildRouter({required AppSessionNotifier appSession}) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -39,22 +95,10 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
     observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
-    redirect: (context, state) {
-      final path = state.uri.path;
-
-      // Always allow onboarding, signin, and welcome (including sub-paths)
-      if (path.startsWith('/onboarding') ||
-          path.startsWith('/signin') ||
-          path.startsWith('/welcome')) {
-        return null;
-      }
-
-      if (!appSession.hasOnboarded || !appSession.isAuthenticated) {
-        return '/welcome';
-      }
-
-      return null;
-    },
+    redirect: (context, state) => onboardingGateRedirect(
+      currentPath: state.uri.path,
+      appSession: appSession,
+    ),
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(
@@ -71,6 +115,20 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           onComplete: () => GoRouter.of(context).pop(),
+        ),
+      ),
+
+      // Post-tour hard entry wall (full screen, no bottom nav, NO X). The
+      // gate redirect forces this and blocks navigation away from it. On a
+      // successful trial start the paywall sets the cleared latch, which flips
+      // the stage to `app` and lets the user through.
+      GoRoute(
+        path: kOnboardingPaywallPath,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => PaywallScreen(
+          inOnboardingFlow: false,
+          hardGate: true,
+          onComplete: () => GoRouter.of(context).go('/'),
         ),
       ),
 

@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/app_session.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../widgets/achievement_toast.dart' show rootNavigatorKey;
@@ -298,6 +299,27 @@ class _OnboardingTourOverlayHostState
     ref.watch(tourAnchorRegistryProvider);
     ref.watch(tourSuppressedProvider);
 
+    // Bridge tour COMPLETION to the session gate: flipping tourCompleted makes
+    // the GoRouter redirect re-resolve the stage and advance the user to the
+    // hard paywall (or straight to the app when the flow flag is off). Done
+    // here (not in the controller) to keep the controller free of an
+    // app_session import (would be a layering cycle).
+    ref.listen<OnboardingTourState>(onboardingTourControllerProvider,
+        (prev, next) {
+      // Completed (normal) OR skipped (defensive — skip is hidden in gate mode,
+      // but if it ever fires we still advance the user to the wall instead of
+      // stranding them on home). Harmless in legacy mode (stage stays `app`).
+      final wasResolved = prev?.status == TourStatus.completed ||
+          prev?.status == TourStatus.skipped;
+      final nowResolved = next.status == TourStatus.completed ||
+          next.status == TourStatus.skipped;
+      if (nowResolved && !wasResolved) {
+        try {
+          ref.read(appSessionProvider).markTourCompleted();
+        } catch (_) {/* gate just advances on next hydrate */}
+      }
+    });
+
     // Reduce-motion disables route transitions + entry animations, so there is
     // nothing to settle — skip the gates in that case.
     _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -471,6 +493,14 @@ class _OnboardingTourOverlayHostState
     // No `key` — same CoachmarkOverlay instance persists across step
     // changes so AnimationController + TweenAnimationBuilder state survives,
     // enabling the hero-morph polish.
+    // Hide "Skip tour" when the hard-paywall gate is forcing the tour — it must
+    // run to completion before the wall (decision C2). The legacy/replay tour
+    // (kill switch off) keeps skip. Read defensively: any failure → allow skip.
+    bool forced = false;
+    try {
+      forced = ref.read(appSessionProvider).hardPaywallFlowEnabled;
+    } catch (_) {}
+
     return CoachmarkOverlay(
       step: coachmarkStep,
       stepIndex: tour.index,
@@ -478,6 +508,7 @@ class _OnboardingTourOverlayHostState
       hideUntilAnchorReady: hidden,
       onNext: _onNext,
       onSkip: _onSkip,
+      allowSkip: !forced,
     );
   }
 

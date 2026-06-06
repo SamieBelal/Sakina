@@ -50,6 +50,33 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         duration: const Duration(milliseconds: 1600),
       );
     });
+    // Reconcile the guided-tour suppression flag on mount. The `ref.listen`
+    // in build() only fires on duasProvider *changes*, so a stale `true` left
+    // over from a previous Duas visit (e.g. a replayed tour) would otherwise
+    // persist across this mount with nothing to clear it — permanently hiding
+    // the tour's `duas.buildCta` coachmark until the user leaves and re-enters
+    // the tab (whose dispose resets the flag). Forcing it to match the current
+    // build state here closes that gap. Same stale-suppression class as F-06
+    // (which fixed centered steps only). See
+    // docs/qa/findings/2026-06-04-tour-buildcta-stale-suppression.md
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncTourSuppression(_tourBlockedFor(ref.read(duasProvider)));
+    });
+  }
+
+  /// True while this screen's multi-screen Build-a-Dua flow (loader + the four
+  /// reader beats) is on screen — the window during which the guided tour must
+  /// stay hidden because the next step's anchor isn't reachable yet.
+  static bool _tourBlockedFor(DuasState s) =>
+      s.buildLoading || (s.buildResult != null && s.buildCurrentSection < 4);
+
+  /// Writes [tourSuppressedProvider] only when it differs, so we don't churn
+  /// the overlay host with no-op state updates.
+  void _syncTourSuppression(bool blocked) {
+    if (ref.read(tourSuppressedProvider) != blocked) {
+      ref.read(tourSuppressedProvider.notifier).state = blocked;
+    }
   }
 
   void _startRipple() {
@@ -100,11 +127,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       // (buildCurrentSection == 4); without this the 60s anchor-timeout skips
       // step 10 and step 11 (Journal tab) fires while the user is mid-build.
       // Reset in dispose so leaving the tab mid-build never strands the tour.
-      final tourBlocked = next.buildLoading ||
-          (next.buildResult != null && next.buildCurrentSection < 4);
-      if (ref.read(tourSuppressedProvider) != tourBlocked) {
-        ref.read(tourSuppressedProvider.notifier).state = tourBlocked;
-      }
+      _syncTourSuppression(_tourBlockedFor(next));
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from
       // Build Another Dua on the result screen) wipes the provider state but

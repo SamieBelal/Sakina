@@ -274,6 +274,17 @@ ReflectResponse? parseReflectResponse(String text) {
   final canonical = findCanonicalName(name);
   final canonicalName = canonical?.name ?? name;
 
+  // Recover the verified dua from the knowledge base when the model leaked a
+  // transliteration into the Arabic slot, and guard the Arabic slot against
+  // any remaining non-Arabic text. The model must never have its
+  // transliteration rendered as scripture in the reflect UI.
+  final normalizedDua = normalizeReflectDua(
+    arabic: duaArabic ?? '',
+    transliteration: duaTransliteration ?? '',
+    translation: duaTranslation ?? '',
+    source: duaSource ?? '',
+  );
+
   return ReflectResponse(
     name: canonicalName,
     nameArabic: canonical?.nameArabic ?? nameArabic ?? '',
@@ -286,10 +297,10 @@ ReflectResponse? parseReflectResponse(String text) {
         unawaited(_logUnknownNameFallback(aiReturnedName));
       },
     ),
-    duaArabic: duaArabic ?? '',
-    duaTransliteration: duaTransliteration ?? '',
-    duaTranslation: duaTranslation ?? '',
-    duaSource: duaSource ?? '',
+    duaArabic: normalizedDua.arabic,
+    duaTransliteration: normalizedDua.transliteration,
+    duaTranslation: normalizedDua.translation,
+    duaSource: normalizedDua.source,
     relatedNames: _parseRelatedNames(relatedRaw),
     offTopic: false,
   );
@@ -540,7 +551,8 @@ String _buildTeachingContext(String userText) {
 Emotional context: ${t.emotionalContext.join(', ')}
 Core teaching: ${t.coreTeaching}
 Prophetic story: ${t.propheticStory}
-Dua: ${t.dua.transliteration} — "${t.dua.translation}" (${t.dua.source})''';
+Dua (Arabic — copy verbatim into ##DUA_AR##): ${t.dua.arabic}
+Dua (transliteration): ${t.dua.transliteration} — "${t.dua.translation}" (${t.dua.source})''';
   }).join('\n\n');
 }
 

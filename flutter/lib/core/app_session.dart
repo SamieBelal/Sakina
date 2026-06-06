@@ -6,14 +6,24 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/tour/providers/onboarding_tour_controller.dart'
+    show onboardingTourSeenFlag;
+import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
+import '../widgets/achievement_toast.dart';
 import '../services/notification_service.dart';
+import '../services/onboarding_gate_service.dart';
 import '../services/purchase_service.dart';
 import '../services/referral_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/user_data_batch_sync_service.dart';
+
+/// Server kill switch key for the new onboarding → tour → hard-paywall gate.
+/// Read via [AppConfigService]; defaults OFF so the gate is dark until the flag
+/// is flipped on server-side (phased rollout / instant rollback).
+const String kHardPaywallAfterTourFlag = 'hard_paywall_after_tour_enabled';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
@@ -27,6 +37,8 @@ class AppSessionNotifier extends ChangeNotifier {
     String? Function()? currentUserIdProvider,
     Future<void> Function()? hydrateEconomyCache,
     Future<bool> Function()? hasCompletedOnboarding,
+    Future<bool> Function()? isPremiumReader,
+    Future<bool> Function()? hardPaywallFlowReader,
     Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
         _notificationService = notificationService ?? NotificationService(),
@@ -37,6 +49,9 @@ class AppSessionNotifier extends ChangeNotifier {
         _hasCompletedOnboarding = hasCompletedOnboarding ??
             authService?.hasCompletedOnboarding ??
             (() async => false),
+        _isPremiumReader = isPremiumReader ?? _defaultIsPremium,
+        _hardPaywallFlowReader =
+            hardPaywallFlowReader ?? _defaultHardPaywallFlow,
         _hydrationTimeout = hydrationTimeout ?? const Duration(seconds: 30) {
     _subscription =
         (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
@@ -49,11 +64,101 @@ class AppSessionNotifier extends ChangeNotifier {
   final String? Function() _currentUserIdProvider;
   final Future<void> Function() _hydrateEconomyCache;
   final Future<bool> Function() _hasCompletedOnboarding;
+  final Future<bool> Function() _isPremiumReader;
+  final Future<bool> Function() _hardPaywallFlowReader;
   final Duration _hydrationTimeout;
   bool _hasOnboarded;
 
   bool get isAuthenticated => _isAuthenticatedProvider();
   bool get hasOnboarded => _hasOnboarded;
+
+  // ---------------------------------------------------------------------------
+  // Onboarding gate flags — synchronously readable by the GoRouter redirect.
+  //
+  // All default to the "ungated" value (tour done, wall cleared, flow off) so a
+  // returning/existing user is NEVER flashed into the tour or the wall before
+  // [hydrateOnboardingGate] resolves real values. A brand-new user is put INTO
+  // the gate explicitly by [enterOnboardingGate] from completeOnboarding.
+  // ---------------------------------------------------------------------------
+  bool _tourCompleted = true;
+  bool _paywallCleared = true;
+  bool _isPremiumCached = false;
+  bool _hardPaywallFlowEnabled = false;
+
+  bool get tourCompleted => _tourCompleted;
+  bool get paywallCleared => _paywallCleared;
+  bool get isPremiumCached => _isPremiumCached;
+  bool get hardPaywallFlowEnabled => _hardPaywallFlowEnabled;
+
+  /// Session-only escape used by the offerings-load-failure safety valve. When
+  /// the hard wall can't load plans (StoreKit/Apple outage) and the user taps
+  /// "Continue", we let them into the app for THIS session WITHOUT persisting
+  /// the durable [paywallCleared] latch — so the next cold launch re-walls them
+  /// once offerings can load. In-memory only; reset on sign-out and never saved.
+  bool _gateValveBypass = false;
+  bool get gateValveBypass => _gateValveBypass;
+  void bypassGateForSession() {
+    if (_gateValveBypass) return;
+    _gateValveBypass = true;
+    notifyListeners();
+  }
+
+  /// Loads the gate flags from local caches + the kill switch. Safe to call
+  /// repeatedly; each external read is independently guarded so one failure
+  /// can't strand the others. Fires [notifyListeners] so the router re-runs
+  /// its redirect against fresh values.
+  Future<void> hydrateOnboardingGate() async {
+    final uid = _currentUserIdProvider();
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _tourCompleted = prefs.getBool(onboardingTourSeenFlag(uid)) ?? false;
+      } catch (_) {/* keep default */}
+      try {
+        _paywallCleared = await OnboardingGateService().isPaywallCleared();
+      } catch (_) {/* keep default */}
+    }
+    // Read the gate-critical flag (cached app_config, fast) BEFORE the premium
+    // check (a potentially-slow RevenueCat round-trip). progress_screen's
+    // tour-start and the router both read `hardPaywallFlowEnabled` directly, so
+    // it must be set ASAP; the premium short-circuit can hydrate a beat later
+    // (a non-premium new user's `false` default is correct until then).
+    try {
+      _hardPaywallFlowEnabled = await _hardPaywallFlowReader();
+    } catch (_) {/* keep default */}
+    try {
+      _isPremiumCached = await _isPremiumReader();
+    } catch (_) {/* keep default */}
+    notifyListeners();
+  }
+
+  /// New user just finished onboarding → put them INTO the gate so the router
+  /// routes them to the forced tour. Persists the latch=false so a force-kill
+  /// before clearing the wall re-gates them on relaunch.
+  Future<void> enterOnboardingGate() async {
+    _tourCompleted = false;
+    _paywallCleared = false;
+    try {
+      await OnboardingGateService().setPaywallCleared(false);
+    } catch (_) {/* best-effort; in-memory still gates this session */}
+    notifyListeners();
+  }
+
+  /// The forced tour finished → router advances the user to the hard paywall.
+  void markTourCompleted() {
+    if (_tourCompleted) return;
+    _tourCompleted = true;
+    notifyListeners();
+  }
+
+  /// The user cleared the entry wall (started a trial / restored premium).
+  /// Persistence is the caller's responsibility; this updates the in-memory
+  /// flag and kicks the router.
+  void markPaywallCleared() {
+    if (_paywallCleared) return;
+    _paywallCleared = true;
+    notifyListeners();
+  }
 
   /// `true` while an economy hydration is in flight.
   bool _hydrating = false;
@@ -84,6 +189,12 @@ class AppSessionNotifier extends ChangeNotifier {
         _hasOnboarded = false;
         _economyHydrated = false;
         _hydrationFailed = false;
+        // Reset gate flags to the ungated defaults so the next user to sign in
+        // on this device isn't gated by the previous user's in-memory state.
+        _tourCompleted = true;
+        _paywallCleared = true;
+        _isPremiumCached = false;
+        _gateValveBypass = false;
         notifyListeners();
         break;
       default:
@@ -94,6 +205,16 @@ class AppSessionNotifier extends ChangeNotifier {
 
   Future<void> _handleAuthenticatedChange(AuthState data) async {
     final sessionUserId = data.session?.user.id;
+
+    // Eager gate hydration: read the local gate flags (latch, tour-seen) + the
+    // kill switch ASAP, in parallel with the slower economy batch sync below.
+    // Without this, the synchronous GoRouter redirect and the one-shot
+    // tour-start in progress_screen both run with ungated defaults on cold
+    // launch, briefly dropping a mid-gate user into the app / the legacy
+    // skippable tour until batch sync finally hydrates the flags. Idempotent —
+    // _hydrateAndNotify runs it again after batch sync to pick up any
+    // server-mirrored values. notifyListeners inside re-runs the redirect.
+    unawaited(hydrateOnboardingGate());
 
     if (sessionUserId != null && sessionUserId.isNotEmpty) {
       try {
@@ -172,6 +293,11 @@ class AppSessionNotifier extends ChangeNotifier {
         ),
       );
       _economyHydrated = true;
+      // Refresh the onboarding-gate flags now that the batch sync has run
+      // (it mirrors server `user_profiles` columns into the local caches via
+      // OnboardingGateService.hydrateFromProfile). Fire-and-forget — it calls
+      // notifyListeners itself when done.
+      unawaited(hydrateOnboardingGate());
       unawaited(_notificationService.syncTimezone());
       if (_hasOnboarded) {
         unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
@@ -237,6 +363,7 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> clearSession({String? userId}) async {
     _hasOnboarded = false;
     resetLaunchGateSessionState();
+    resetAchievementToastSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('onboarding_completed');
     await prefs.remove('onboarding_state');
@@ -281,5 +408,23 @@ String? _defaultCurrentUserId() {
     return Supabase.instance.client.auth.currentUser?.id;
   } catch (_) {
     return null;
+  }
+}
+
+Future<bool> _defaultIsPremium() async {
+  try {
+    return await PurchaseService().isPremium();
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<bool> _defaultHardPaywallFlow() async {
+  try {
+    // fallback:false → gate stays dark until the server flag is flipped on.
+    return await AppConfigService(Supabase.instance.client)
+        .getBool(kHardPaywallAfterTourFlag, fallback: false);
+  } catch (_) {
+    return false;
   }
 }

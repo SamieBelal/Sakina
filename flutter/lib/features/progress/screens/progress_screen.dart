@@ -9,12 +9,15 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/core/app_session.dart';
+import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
+import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -122,7 +125,23 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     // OnboardingTourOverlayHost as belt-and-braces.
     _maybeShowDailyLaunch().then((_) {
       if (!mounted) return;
-      ref.read(onboardingTourControllerProvider.notifier).start();
+      final session = ref.read(appSessionProvider);
+      final stage = resolveOnboardingStage(
+        isAuthenticated: session.isAuthenticated,
+        hasOnboarded: session.hasOnboarded,
+        tourCompleted: session.tourCompleted,
+        paywallCleared: session.paywallCleared || session.gateValveBypass,
+        isPremium: session.isPremiumCached,
+        hardPaywallFlowEnabled: session.hardPaywallFlowEnabled,
+      );
+      final notifier = ref.read(onboardingTourControllerProvider.notifier);
+      if (stage == OnboardingStage.tour) {
+        // New mandatory gate: resume the forced tour at the persisted step.
+        notifier.resumeForGate();
+      } else if (!session.hardPaywallFlowEnabled) {
+        // Legacy opportunistic tour (kill switch off) — unchanged behaviour.
+        notifier.start();
+      }
     });
   }
 
@@ -253,6 +272,14 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //    and the GiftService loading-gate per CLAUDE.md PR #8.
               const RamadanGiftCard(),
               const SizedBox(height: AppSpacing.md),
+
+              // 2b. Post-conversion referral nudge (active RC subscribers only,
+              //     until they earn their first referral grant). Self-collapses
+              //     to SizedBox.shrink() for everyone else (no spacer here — the
+              //     card owns its own bottom margin only when shown, so a hidden
+              //     card leaves zero dead space). Re-adds the referral loop the
+              //     hard paywall removed, on the welcome side of the wall.
+              const ReferralNudgeCard(),
 
               // 3. Unified dashboard card
               _buildDashboardCard(state, hero),

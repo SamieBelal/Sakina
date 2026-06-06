@@ -63,6 +63,7 @@ abstract final class AnalyticsEvents {
         return signupFailedReasonAuthError;
     }
   }
+
   static const notificationPermissionResult = 'notification_permission_result';
   static const surveyAnswered = 'survey_answered';
 
@@ -77,6 +78,18 @@ abstract final class AnalyticsEvents {
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
+
+  /// Fired the moment a subscription purchase / trial actually succeeds
+  /// (entitlement active), NOT on CTA tap. This is the first true conversion
+  /// signal in Mixpanel — nothing downstream of `paywall_cta_tapped` was
+  /// measurable before. `plan` property = 'annual' | 'weekly'; `hard_gate` =
+  /// whether it was the post-tour entry wall.
+  static const trialStarted = 'trial_started';
+
+  /// Fired when the offerings fetch fails at the hard entry wall and the
+  /// safety valve is shown (so we can monitor how often the brick-prevention
+  /// path triggers in production).
+  static const paywallOfferingsLoadFailed = 'paywall_offerings_load_failed';
   static const paywallExitOfferShown = 'paywall_exit_offer_shown';
   static const paywallExitOfferAccepted = 'paywall_exit_offer_accepted';
   static const paywallFlowLoaderShown = 'paywall_flow_loader_shown';
@@ -108,8 +121,10 @@ abstract final class AnalyticsEvents {
   // cancels. See docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md.
   //   cancellation_feedback_shown → submitted | dismissed
   static const cancellationFeedbackShown = 'cancellation_feedback_shown';
-  static const cancellationFeedbackSubmitted = 'cancellation_feedback_submitted';
-  static const cancellationFeedbackDismissed = 'cancellation_feedback_dismissed';
+  static const cancellationFeedbackSubmitted =
+      'cancellation_feedback_submitted';
+  static const cancellationFeedbackDismissed =
+      'cancellation_feedback_dismissed';
 
   // AI bypass funnel (plan 2026-05-23, PR 3 of 5). Funnel:
   //   daily_cap_hit → ai_bypass_offered → ai_bypass_purchased
@@ -174,17 +189,21 @@ abstract final class AnalyticsEvents {
   // docs/superpowers/plans/2026-05-14-refer-unlock.md Task 5 Step 3).
   static const referUnlockShown = 'refer_unlock_shown';
   static const referUnlockShareTapped = 'refer_unlock_share_tapped';
+
   /// Fired on every share in v1. Lets Phase 2 dashboards compare the install
   /// funnel before/after universal-link rollout.
   static const referUnlockShareNoUniversalLinks =
       'refer_unlock_share_no_universal_links';
   static const referUnlockStartTrialTapped = 'refer_unlock_start_trial_tapped';
   static const referUnlockBackToPaywall = 'refer_unlock_back_to_paywall';
+
   /// Fired client-side when apply_referral RPC succeeds (referee side).
   static const refereeSignedUpWithReferral = 'referee_signed_up_with_referral';
+
   /// Fired client-side when confirm_referral_if_pending returns granted=true
   /// (the referrer just crossed the 3-confirmed threshold).
   static const referrerGranted30dWindow = 'referrer_granted_30d_window';
+
   /// Fired client-side when apply_referral returns granted_referee_7d=true
   /// (mutual reward fired for the referee).
   static const refereeGranted7dWindow = 'referee_granted_7d_window';
@@ -215,7 +234,8 @@ abstract final class AnalyticsEvents {
   /// Fired when Redeem is tapped in the Settings sheet (whether successful
   /// or not — paired with refereeSignedUpWithReferral for the success case
   /// and refereeGranted7dWindow when a window was actually granted).
-  static const referralSettingsRedeemSubmitted = 'referral_settings_redeem_submitted';
+  static const referralSettingsRedeemSubmitted =
+      'referral_settings_redeem_submitted';
 
   // My Referrals screen (Settings → Refer a friend). Forward-instrumented
   // per docs/superpowers/plans/2026-05-23-my-referrals-screen.md so the
@@ -232,6 +252,22 @@ abstract final class AnalyticsEvents {
   /// Fired when the user taps the code card to copy their referral code
   /// to the clipboard on the My Referrals screen.
   static const myReferralsCodeCopied = 'my_referrals_code_copied';
+
+  // Home-screen post-conversion referral nudge card (shown to active RC
+  // subscribers — trial or paid — until they earn their first referral grant).
+  // Replaces the referral entry point lost when the onboarding paywall went
+  // hard-gate (no X → the ReferUnlockScreen exit reframe is unreachable).
+  // Forward-instrumented so the shown → share funnel and dismiss rate are
+  // measurable from launch.
+  /// Fired once per session when the nudge card resolves to its visible state.
+  static const homeReferralNudgeShown = 'home_referral_nudge_shown';
+
+  /// Fired when the card's "Send to friends" CTA is tapped (opens share sheet).
+  static const homeReferralNudgeShareTapped =
+      'home_referral_nudge_share_tapped';
+
+  /// Fired when the user dismisses the card via its "×" (starts the cooldown).
+  static const homeReferralNudgeDismissed = 'home_referral_nudge_dismissed';
 
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
