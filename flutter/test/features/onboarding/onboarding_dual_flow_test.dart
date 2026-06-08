@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/core/env.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/services/app_config_service.dart';
@@ -103,8 +102,8 @@ void main() {
         activeOnboardingLastPageIndex(trimmed: true),
         onboardingLastPageIndex,
       );
-      // Sanity: trimmed paywall is 19 (rating gate on) / 18 (off).
-      expect(onboardingLastPageIndex, Env.ratingGateEnabled ? 19 : 18);
+      // Sanity: trimmed paywall is at index 19 (rating gate always on).
+      expect(onboardingLastPageIndex, 19);
     });
 
     test('legacy flow returns the legacy last index (26 with rating gate)', () {
@@ -112,7 +111,7 @@ void main() {
         activeOnboardingLastPageIndex(trimmed: false),
         onboardingLegacyLastPageIndex,
       );
-      expect(onboardingLegacyLastPageIndex, Env.ratingGateEnabled ? 26 : 25);
+      expect(onboardingLegacyLastPageIndex, 26);
     });
 
     test(

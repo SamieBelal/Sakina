@@ -340,8 +340,8 @@ abstract final class AnalyticsEvents {
   static const String tourAnchorTimeout = 'tour_anchor_timeout';
   static const String tourStartSkipped = 'tour_start_skipped';
 
-  // LEGACY 27-page flow step names (0-26 when Env.ratingGateEnabled is true;
-  // 0-25 when false). Active only when `onboarding_trim_enabled=false`.
+  // LEGACY 27-page flow step names (0-26, rating gate at 25).
+  // Active only when `onboarding_trim_enabled=false`.
   // Updated 2026-05-05 by paywall flow redesign — the GeneratingScreen +
   // PersonalizedPlanScreen pair moved from pages 16-17 into the paywall flow
   // at pages 22-23; YourJourneyScreen new at page 24; paywall at page 25.
@@ -378,8 +378,7 @@ abstract final class AnalyticsEvents {
     26: 'paywall',
   };
 
-  // TRIMMED 20-page flow step names (0-19 when Env.ratingGateEnabled is true;
-  // 0-18 when false — index 18 rating_gate is skipped, paywall shifts to 18).
+  // TRIMMED 20-page flow step names (0-19, rating gate at 18, paywall at 19).
   // Active by default (`onboarding_trim_enabled=true`). Must stay in sync with
   // _trimmedChildren() in onboarding_screen.dart and the trimmed page-index
   // doc in onboarding_provider.dart. See docs/superpowers/plans/
