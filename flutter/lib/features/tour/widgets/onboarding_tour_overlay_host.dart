@@ -15,26 +15,25 @@ import '../providers/onboarding_tour_controller.dart';
 import '../providers/tour_anchor_registry.dart';
 import '../providers/tour_route_observer.dart';
 
-/// Reveal-settle tuning — keeps the coachmark (cutout + tooltip) hidden until
-/// the destination screen's transition has visibly come to rest, instead of
-/// popping in over a still-animating screen. Covers: root route push slides
-/// (`/muhasabah`, `DuaDetailPage`), the muhasabah `AnimatedSwitcher`
-/// cross-fade, `flutter_animate` fadeIn/slideY screen entries, and the
-/// auto-scroll-into-view.
+/// Reveal-settle delay — keeps the coachmark (cutout + tooltip) hidden for a
+/// short beat after the current step's anchor first becomes drawable, so it
+/// doesn't pop in over a still-animating screen transition / entry animation /
+/// auto-scroll. Measured from when the anchor APPEARS (not the logical step
+/// change) because some steps activate while their anchor is still several
+/// silent taps away (e.g. muhasabah "Ameen"); timing from step-change would
+/// elapse before the anchor's entry transition even begins.
 ///
-/// Two gates, BOTH must pass before reveal:
-///   1. a minimum settle delay since the step became active — covers fade-only
-///      transitions where the anchor never changes position; and
-///   2. the anchor rect is no longer moving frame-to-frame — covers slides and
-///      scrolls whose motion outlasts the floor (reveals one frame after the
-///      motion stops).
+/// This is the whole reveal gate now — a single fixed delay, no frame-to-frame
+/// motion detection, no max-settle ceiling, no sticky-reveal special-case. Once
+/// it elapses the coachmark shows; the per-frame ticker keeps the cutout glued
+/// to the anchor as it scrolls/animates, and `CoachmarkOverlay` degrades
+/// gracefully (banner without ring) if the anchor rect is briefly null during a
+/// host rebuild — so a transient `TourAnchor` re-register is invisible instead
+/// of re-hiding the coachmark (the old flicker / re-hide bug, Bug 2).
+///
 /// Bypassed under reduce-motion (entries/route transitions are themselves
-/// disabled, so there is nothing to wait for).
-const Duration _kRevealMinSettle = Duration(milliseconds: 400);
-
-/// Per-edge tolerance (logical px) for treating two successive anchor rects as
-/// "the same" — absorbs sub-pixel jitter so we don't read it as motion.
-const double _kAnchorRectEpsilon = 1.0;
+/// disabled, so there is nothing to wait for — reveal immediately).
+const Duration _kRevealSettle = Duration(milliseconds: 400);
 
 /// Substitutes the resolved display name into a step's `{name}` placeholder.
 /// When the name is missing (resolution failed / not yet loaded) the
@@ -95,153 +94,84 @@ class _OnboardingTourOverlayHostState
   late final Ticker _trackTicker = createTicker(_onTick);
 
   void _onTick(Duration _) {
-    _updateRevealReadiness();
+    _maybeArmSettleOnAnchorAppearance();
     _entry?.markNeedsBuild();
   }
 
-  // --- Reveal-settle state (see _kRevealMinSettle docs above) -----------------
+  // --- Reveal-settle state (see _kRevealSettle docs above) --------------------
   /// The step id the settle state is currently tracking. When the active step
-  /// changes we reset the gates and re-arm the timer.
+  /// changes we reset the gate and re-arm the timer.
   String? _settleStepId;
 
-  /// True once the min-settle timer has fired for the current step.
-  bool _minSettleElapsed = false;
-
-  /// True once BOTH gates have passed — the coachmark may show.
+  /// True once the settle delay has elapsed for the current step — the
+  /// coachmark may show. Sticky: once true it stays true for the step (the
+  /// `hidden` gates in `_buildOverlay` still hide for a blocking modal / stale
+  /// suppression, but we never re-run the settle).
   bool _revealReady = false;
 
-  /// Fires `_kRevealMinSettle` after the step activates.
+  /// Fires `_kRevealSettle` after the anchor first appears.
   Timer? _settleTimer;
 
-  /// Last observed global anchor rect, for frame-to-frame motion detection.
-  Rect? _lastAnchorRect;
-
-  /// True once the current step's anchor has first become drawable. The
-  /// min-settle floor is armed from THIS moment (not the logical step change)
-  /// because some steps activate while their anchor is still several silent
-  /// taps away (e.g. muhasabah "Ameen" — the tour advances on "Read the Story"
-  /// but `ameenCta` only mounts after the later "See the Dua" tap). Timing the
-  /// floor from step-change would let it elapse before the anchor's entry
-  /// transition even begins, popping the coachmark in mid-animation.
-  bool _anchorAppeared = false;
-
   /// Snapshot of MediaQuery.disableAnimations, refreshed each build. When true
-  /// the settle gates are skipped so reduce-motion users reveal immediately.
+  /// the settle is skipped so reduce-motion users reveal immediately.
   bool _reduceMotion = false;
 
-  /// Resets the settle gates + re-arms the min-settle timer when the active
-  /// step changes. Idempotent per step (the `_settleStepId` guard), so the
-  /// per-frame / post-frame churn that calls `_syncOverlay` doesn't restart it.
+  /// Resets the reveal gate when the active step changes. Idempotent per step
+  /// (the `_settleStepId` guard), so the per-frame / post-frame churn that
+  /// calls `_syncOverlay` doesn't restart it.
   void _resetSettleIfStepChanged(OnboardingTourState tour) {
     final id = tour.currentStep?.id;
     if (id == _settleStepId) return;
+    final step = tour.currentStep;
     _settleStepId = id;
     _settleTimer?.cancel();
     _settleTimer = null;
-    _lastAnchorRect = null;
-    _anchorAppeared = false;
-    _minSettleElapsed = false;
 
-    if (id == null || _reduceMotion) {
-      // Nothing to settle — reveal as soon as the anchor resolves.
-      _revealReady = _reduceMotion;
-      _minSettleElapsed = true;
+    if (id == null) {
+      _revealReady = false;
       return;
     }
-
+    if (_reduceMotion) {
+      // Nothing to settle — reveal immediately.
+      _revealReady = true;
+      return;
+    }
     _revealReady = false;
 
     // Centered steps (the final `duaDetail.done` celebration) have NO anchor to
-    // track and NO anchor-timeout. The ticker's per-frame anchor-stability
-    // settle was designed for real anchors and — combined with the build-flow
-    // `tourSuppressed` gate — could leave `_revealReady` stuck false on the
-    // DuaDetailPage, so the banner never showed (F-06). Arm a dedicated fixed
-    // settle timer here instead (covers the route-push transition); blocking
-    // modals are still re-checked in `build`.
-    final step = tour.currentStep;
+    // wait on. Arm the settle directly here from the step change (covers the
+    // `DuaDetailPage` push transition); blocking modals are re-checked in
+    // `build`.
     if (step != null && step.anchorId == 'centered') {
-      _settleTimer = Timer(_kRevealMinSettle, () {
+      _settleTimer = Timer(_kRevealSettle, () {
         if (!mounted) return;
         _revealReady = true;
         _entry?.markNeedsBuild();
       });
-      return;
     }
-    // For anchored steps the min-settle timer is armed lazily in
-    // `_updateRevealReadiness`, when the anchor first appears — see
-    // `_anchorAppeared`.
+    // For anchored steps the settle timer is armed lazily, the first frame the
+    // anchor becomes drawable — see `_maybeArmSettleOnAnchorAppearance`.
   }
 
-  /// Per-frame readiness check (called from the tracking ticker). Flips
-  /// `_revealReady` true once the min-settle floor has elapsed AND the anchor
-  /// rect has stopped moving frame-to-frame. Reveal is sticky: once true it
-  /// stays true for the step (a later modal/suppression still hides via the
-  /// other `hidden` gates, but we don't re-run the settle).
-  void _updateRevealReadiness() {
-    if (_revealReady) return;
-    if (_reduceMotion) {
-      _revealReady = true;
-      return;
-    }
+  /// Arms the fixed settle timer the first frame the current anchored step's
+  /// anchor becomes drawable, so the delay measures the anchor's entry
+  /// transition rather than the (possibly much earlier) logical step change.
+  /// Called every frame from the ticker; a no-op once the timer is armed or the
+  /// step is centered / reduce-motion / already revealed.
+  void _maybeArmSettleOnAnchorAppearance() {
+    if (_reduceMotion || _revealReady) return;
+    if (_settleTimer != null) return; // already armed
     final step = ref.read(onboardingTourControllerProvider).currentStep;
-    if (step == null) return;
-    // Centered steps are revealed by the dedicated fixed timer armed in
-    // `_resetSettleIfStepChanged` — they have no anchor to settle on, so the
-    // per-frame stability machinery below doesn't apply.
-    if (step.anchorId == 'centered') return;
-    // While a blocking modal is up or the step is suppressed, the destination
-    // isn't on screen yet — don't accrue stability and drop any stale rect.
-    if (_observer.isBlockingRouteOnTop || ref.read(tourSuppressedProvider)) {
-      _lastAnchorRect = null;
-      return;
-    }
-    final rect = _anchorRect(step);
-    if (rect == null) {
-      _lastAnchorRect = null;
-      return;
-    }
-    // Arm the min-settle floor the first frame the anchor is drawable, so it
-    // measures the anchor's entry transition rather than the (possibly much
-    // earlier) logical step change.
-    if (!_anchorAppeared) {
-      _anchorAppeared = true;
-      _settleTimer?.cancel();
-      _settleTimer = Timer(_kRevealMinSettle, () {
-        _minSettleElapsed = true;
-        // Nudge a rebuild so `_revealReady` can flip on the next tick once the
-        // anchor has also stopped moving.
-        _entry?.markNeedsBuild();
-      });
-    }
-    final last = _lastAnchorRect;
-    _lastAnchorRect = rect;
-    final moving = last != null && !_rectsClose(last, rect);
-    if (!moving && _minSettleElapsed) {
+    if (step == null || step.anchorId == 'centered') return;
+    // Don't start the clock while the destination isn't on screen.
+    if (_observer.isBlockingRouteOnTop || _suppressionHides(step)) return;
+    if (!_anchorResolvable(step)) return;
+    _settleTimer = Timer(_kRevealSettle, () {
+      if (!mounted) return;
       _revealReady = true;
-    }
+      _entry?.markNeedsBuild();
+    });
   }
-
-  /// Global rect of the current step's anchor, or null if it can't be drawn
-  /// yet. Centered steps have no anchor to track, so they return a constant
-  /// (always "not moving") and are gated by the min-settle timer alone — which
-  /// covers the `DuaDetailPage` push transition for the final step.
-  Rect? _anchorRect(OnboardingTourStepDef step) {
-    if (step.anchorId == 'centered') return Rect.zero;
-    final key = ref
-        .read(tourAnchorRegistryProvider)
-        .lookup(step.surface, step.anchorId);
-    final ctx = key?.currentContext;
-    if (ctx == null || !ctx.mounted) return null;
-    final ro = ctx.findRenderObject();
-    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return null;
-    return ro.localToGlobal(Offset.zero) & ro.size;
-  }
-
-  bool _rectsClose(Rect a, Rect b) =>
-      (a.left - b.left).abs() <= _kAnchorRectEpsilon &&
-      (a.top - b.top).abs() <= _kAnchorRectEpsilon &&
-      (a.width - b.width).abs() <= _kAnchorRectEpsilon &&
-      (a.height - b.height).abs() <= _kAnchorRectEpsilon;
 
   @override
   void initState() {
@@ -290,6 +220,25 @@ class _OnboardingTourOverlayHostState
     }
   }
 
+  /// Advances a `navigate`-trigger step (a bottom-nav tab step) once the app's
+  /// active route — published by `AppShell` into `tourActiveRouteProvider` —
+  /// matches the step's `navigateRoute`. This is the advance mechanism for tab
+  /// steps; the `TourAnchor`'s key only positions the spotlight (its pointer
+  /// Listener can't reliably fire because tapping the tab disposes the icon
+  /// anchor mid-gesture — Bug 1).
+  void _maybeAdvanceOnNavigation(OnboardingTourState tour) {
+    final step = tour.currentStep;
+    if (step == null) return;
+    final dest = step.navigateRoute;
+    if (dest == null) return;
+    final current = ref.read(tourActiveRouteProvider);
+    if (current == dest) {
+      ref
+          .read(onboardingTourControllerProvider.notifier)
+          .advance(via: 'navigate');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Watch controller + registry + suppression flag. When any changes we
@@ -298,6 +247,9 @@ class _OnboardingTourOverlayHostState
     ref.watch(onboardingTourControllerProvider);
     ref.watch(tourAnchorRegistryProvider);
     ref.watch(tourSuppressedProvider);
+    // Watch the active route so a tab navigation advances `navigate` steps
+    // even if no other input changed this frame.
+    ref.watch(tourActiveRouteProvider);
 
     // Bridge tour COMPLETION to the session gate: flipping tourCompleted makes
     // the GoRouter redirect re-resolve the stage and advance the user to the
@@ -345,15 +297,19 @@ class _OnboardingTourOverlayHostState
       _settleTimer = null;
       _settleStepId = null;
       _revealReady = false;
-      _minSettleElapsed = false;
-      _anchorAppeared = false;
-      _lastAnchorRect = null;
       if (_trackTicker.isActive) _trackTicker.stop();
       return;
     }
 
-    // Re-arm the reveal-settle gates whenever the active step changes.
+    // Re-arm the reveal-settle gate whenever the active step changes.
     _resetSettleIfStepChanged(tour);
+
+    // Advance `navigate`-trigger steps (the bottom-nav tab steps) when the user
+    // has actually reached the destination route. Robust to the tab
+    // icon→activeIcon swap that disposes the anchor's pointer Listener
+    // mid-gesture (Bug 1). Checked here (called every frame + on route change)
+    // so it fires regardless of where on the tab cell the user tapped.
+    _maybeAdvanceOnNavigation(tour);
 
     final overlayState = rootNavigatorKey.currentState?.overlay;
     if (overlayState == null) {
@@ -427,16 +383,26 @@ class _OnboardingTourOverlayHostState
     return ro is RenderBox && ro.attached && ro.hasSize;
   }
 
+  /// Whether `tourSuppressed` should hide [step]. Suppression is the Build-a-Dua
+  /// flow's "wait — the next anchor isn't reachable yet" latch (written only by
+  /// `DuasScreen`). It is honored ONLY while the step's anchor is absent — the
+  /// real wait. Once the anchor is on screen, a lingering flag is stale and
+  /// ignored, so the coachmark reveals instead of hanging (centered steps are
+  /// always "resolvable", so they're never suppression-hidden — the F-06 case).
+  /// See docs/qa/findings/2026-06-08-tour-suppression-stale-anchored-hang.md
+  bool _suppressionHides(OnboardingTourStepDef step) =>
+      ref.read(tourSuppressedProvider) && !_anchorResolvable(step);
+
   void _maybeScheduleAnchorTimeout() {
     _anchorTimeoutTimer?.cancel();
     final tour = ref.read(onboardingTourControllerProvider);
     final step = tour.currentStep;
     if (step == null) return;
-    // While suppressed (e.g. mid Dua-build flow), do not arm the timeout —
-    // the step is intentionally pending until the host screen surfaces the
-    // anchor. Cancelled above; re-armed once suppression lifts via the
-    // `tourSuppressedProvider` watch in `build`.
-    if (ref.read(tourSuppressedProvider)) return;
+    // While legitimately suppressed (mid Dua-build flow, anchor still absent),
+    // do not arm the timeout — the step is intentionally pending until the host
+    // screen surfaces the anchor. Cancelled above; re-armed once suppression
+    // lifts (or goes stale) via the `tourSuppressedProvider` watch in `build`.
+    if (_suppressionHides(step)) return;
     final anchorPresent = _anchorResolvable(step);
     if (anchorPresent) return;
     if (_observer.isBlockingRouteOnTop) return;
@@ -468,16 +434,26 @@ class _OnboardingTourOverlayHostState
     final isCentered = step.anchorId == 'centered';
     final anchorKey =
         isCentered ? null : registry.lookup(step.surface, step.anchorId);
-    // Hide while a blocking modal is up, while explicitly suppressed (mid
-    // Dua-build), until the anchor resolves to a real on-screen rect, or until
-    // the reveal-settle gates pass (so the coachmark doesn't pop in over a
-    // still-animating screen transition — see `_kRevealMinSettle`).
-    final hidden = blockingRouteUp ||
-        // A centered final step is never part of the Build-a-Dua flow that
-        // `tourSuppressed` guards; don't let a stale suppression flag hide it.
-        (!isCentered && ref.read(tourSuppressedProvider)) ||
-        !_anchorResolvable(step) ||
-        !_revealReady;
+    // Three gates, any of which hides the coachmark:
+    //   1. a blocking modal route is on top (its content owns the screen);
+    //   2. suppression is legitimately in effect (mid Dua-build, anchor still
+    //      absent — `_suppressionHides` ignores a STALE flag once the anchor is
+    //      on screen, so it can't hang an anchored step);
+    //   3. the reveal-settle hasn't elapsed yet (don't pop in over a still-
+    //      animating screen transition — see `_kRevealSettle`).
+    //
+    // Note we deliberately do NOT gate on `_anchorResolvable` here: once
+    // `_revealReady` is set the reveal is sticky. The per-frame ticker rebuilds
+    // this overlay constantly, and during a host rebuild the target's
+    // `TourAnchor` can momentarily unregister (dispose a frame before the
+    // remount's post-frame re-register). Re-gating on a live registry lookup
+    // would re-hide an already-revealed coachmark for that window (Bug 2).
+    // `CoachmarkOverlay` degrades gracefully on a briefly-null target rect
+    // (banner without ring) and the ticker redraws the ring the instant the key
+    // re-resolves, so the drop is invisible. Navigation away is handled by gate
+    // 1 / the step changing / the tour going inactive.
+    final suppressed = _suppressionHides(step);
+    final hidden = blockingRouteUp || suppressed || !_revealReady;
 
     final coachmarkStep = CoachmarkStep(
       target: anchorKey,

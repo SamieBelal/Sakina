@@ -3,16 +3,24 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../core/app_session.dart';
 import '../core/constants/app_colors.dart';
 import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
 import '../features/tour/models/onboarding_tour_step.dart';
+import '../features/tour/providers/deferred_celebrations_provider.dart';
+import '../features/tour/providers/onboarding_tour_controller.dart'
+    show
+        onboardingTourControllerProvider,
+        tourActiveRouteProvider;
+import '../features/tour/providers/tour_route_observer.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
 import '../services/economy_events.dart';
 import '../services/xp_service.dart';
+import '../widgets/achievement_toast.dart';
 import '../widgets/coachmark/tour_anchor.dart';
 import '../widgets/quest_completion_toast.dart';
 
@@ -71,15 +79,24 @@ class _AppShellState extends ConsumerState<AppShell> {
         // post-frame callback is safe but capturing the fields is cleaner.
         final rewards = event.rewards!;
         final newState = event.newState;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _pushLevelUpOverlay(newState, rewards);
-        });
-        // Ensure a frame is scheduled so the post-frame callback fires even
-        // when the stream event arrives outside of an active build cycle
-        // (e.g. from a background async operation between pumps in tests,
-        // or from a service callback that doesn't trigger a Riverpod rebuild).
-        WidgetsBinding.instance.scheduleFrame();
+        // Defer the rank-up modal while the guided tour is running — it's a
+        // blocking route that would interrupt the coachmark flow. Replayed on
+        // first home arrival after the tour. See deferred_celebrations_provider.
+        if (shouldDeferCelebrations(ref)) {
+          ref
+              .read(deferredCelebrationsProvider.notifier)
+              .enqueue(LevelUpCelebration(newState, rewards));
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _pushLevelUpOverlay(newState, rewards);
+          });
+          // Ensure a frame is scheduled so the post-frame callback fires even
+          // when the stream event arrives outside of an active build cycle
+          // (e.g. from a background async operation between pumps in tests,
+          // or from a service callback that doesn't trigger a Riverpod rebuild).
+          WidgetsBinding.instance.scheduleFrame();
+        }
       }
     });
   }
@@ -90,9 +107,11 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.dispose();
   }
 
-  void _pushLevelUpOverlay(XpState xpState, LevelUpRewards rewards) {
+  /// Returns the push future so the deferred-celebration drain can await
+  /// dismissal before showing the next celebration.
+  Future<void> _pushLevelUpOverlay(XpState xpState, LevelUpRewards rewards) {
     final nav = Navigator.of(context, rootNavigator: true);
-    nav.push(
+    return nav.push(
       PageRouteBuilder(
         settings: const RouteSettings(name: 'LevelUpOverlay'),
         opaque: true,
@@ -111,30 +130,106 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
+  /// Pushes the First Steps bundle celebration. Returns the push future (for
+  /// the deferred drain) and clears the pending flag when dismissed.
+  Future<void> _pushFirstStepsOverlay(int tokens, int scrolls) {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    return navigator
+        .push(
+          MaterialPageRoute(
+            settings: const RouteSettings(name: 'FirstStepsOverlay'),
+            fullscreenDialog: true,
+            builder: (_) => FirstStepsOverlay(
+              tokensAwarded: tokens,
+              scrollsAwarded: scrolls,
+            ),
+          ),
+        )
+        .whenComplete(() {
+          ref.read(questsProvider.notifier).clearPendingBundleCelebration();
+        });
+  }
+
+  /// Drains celebrations withheld during the tour, once, on the first home
+  /// arrival after the tour (and its trailing paywall) clears. Modals show
+  /// one-at-a-time (awaited) so the headline rewards lead; ambient toasts then
+  /// flush through the existing sequential toast queue.
+  bool _draining = false;
+  void _maybeDrainDeferredCelebrations() {
+    if (_draining || !mounted) return;
+    // Only once the tour is fully resolved and no blocking modal is on top.
+    if (ref.read(onboardingTourControllerProvider).isActive) return;
+    if (tourRouteObserver.isBlockingRouteOnTop) return;
+    // BUG B FIX: do not drain while the onboarding gate still owes a hard
+    // paywall. After the tour completes the stage is `hardPaywall` (tour done,
+    // wall not cleared); the router is about to push the paywall route. If we
+    // drain in that brief home-mount gap, the level-up modal pushes, then the
+    // paywall covers it — its `await _pushLevelUpOverlay` never completes, so
+    // the toast-flush loop after it never runs and the achievement/quest toasts
+    // are lost (the reported bug: level-up shows pre-paywall, no toasts after).
+    // Mirror resolveOnboardingStage's app-vs-gate test: only drain once the gate
+    // is fully resolved to `app` (paywall cleared / premium / bypass / flow off).
+    // Defensive: a failure reading the session must not strand the queued
+    // celebrations (and the test harness doesn't always override the provider).
+    bool gatePending = false;
+    try {
+      final session = ref.read(appSessionProvider);
+      gatePending = session.hardPaywallFlowEnabled &&
+          !session.paywallCleared &&
+          !session.gateValveBypass &&
+          !session.isPremiumCached;
+    } catch (_) {
+      gatePending = false;
+    }
+    if (gatePending) return;
+    final items = ref.read(deferredCelebrationsProvider.notifier).takeAll();
+    if (items.isEmpty) return;
+    _draining = true;
+    () async {
+      try {
+        for (final c in items) {
+          if (!mounted) return;
+          if (c is LevelUpCelebration) {
+            await _pushLevelUpOverlay(c.xpState, c.rewards);
+          } else if (c is FirstStepsCelebration) {
+            await _pushFirstStepsOverlay(c.tokens, c.scrolls);
+          }
+        }
+        if (!mounted) return;
+        for (final c in items) {
+          if (c is AchievementToastCelebration) {
+            showAchievementToast(c.achievement);
+          } else if (c is QuestToastCelebration) {
+            showQuestCompletionToast(c.quest);
+          }
+        }
+      } finally {
+        _draining = false;
+      }
+    }();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Bundle celebration: show overlay no matter which tab the user is on.
     ref.listen<QuestsState>(questsProvider, (prev, next) {
       final celebration = next.pendingBundleCelebration;
       if (celebration != null && prev?.pendingBundleCelebration == null) {
+        final tokens = celebration.tokens;
+        final scrolls = celebration.scrolls;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final navigator = Navigator.of(context, rootNavigator: true);
-          navigator
-              .push(
-                MaterialPageRoute(
-                  settings: const RouteSettings(name: 'FirstStepsOverlay'),
-                  fullscreenDialog: true,
-                  builder: (_) => FirstStepsOverlay(
-                    tokensAwarded: celebration.tokens,
-                    scrollsAwarded: celebration.scrolls,
-                  ),
-                ),
-              )
-              .whenComplete(() {
-                ref
-                    .read(questsProvider.notifier)
-                    .clearPendingBundleCelebration();
-              });
+          if (!mounted) return;
+          // Defer during the tour; otherwise show now (clears pending on
+          // dismiss). When deferring, clear pending immediately so it can't
+          // re-fire, and replay from the queue after the tour.
+          if (shouldDeferCelebrations(ref)) {
+            ref.read(deferredCelebrationsProvider.notifier).enqueue(
+                  FirstStepsCelebration(tokens: tokens, scrolls: scrolls),
+                );
+            ref.read(questsProvider.notifier).clearPendingBundleCelebration();
+          } else {
+            _pushFirstStepsOverlay(tokens, scrolls);
+          }
         });
       }
     });
@@ -147,6 +242,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           final quests =
               ref.read(questsProvider.notifier).consumePendingCompletions();
           final analytics = ref.read(analyticsProvider);
+          // Analytics always fires (the quest really completed); only the toast
+          // is withheld during the tour and replayed afterward.
+          final defer = shouldDeferCelebrations(ref);
           for (final quest in quests) {
             // Wrapped so a telemetry throw can't skip the toast / break the loop.
             try {
@@ -157,7 +255,13 @@ class _AppShellState extends ConsumerState<AppShell> {
                 'token_reward': quest.tokenReward,
               });
             } catch (_) {}
-            showQuestCompletionToast(quest);
+            if (defer) {
+              ref
+                  .read(deferredCelebrationsProvider.notifier)
+                  .enqueue(QuestToastCelebration(quest));
+            } else {
+              showQuestCompletionToast(quest);
+            }
           }
         });
       }
@@ -180,7 +284,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               },
             );
           } catch (_) {}
-          showQuestCompletionToast(Quest(
+          final quest = Quest(
             id: beginner.id.key,
             cadence: QuestCadence.daily,
             title: beginner.title,
@@ -191,11 +295,38 @@ class _AppShellState extends ConsumerState<AppShell> {
             scrollReward: beginner.scrollReward,
             poolIndex: -1,
             target: 0,
-          ));
+          );
+          if (shouldDeferCelebrations(ref)) {
+            ref
+                .read(deferredCelebrationsProvider.notifier)
+                .enqueue(QuestToastCelebration(quest));
+          } else {
+            showQuestCompletionToast(quest);
+          }
           ref
               .read(questsProvider.notifier)
               .clearPendingBeginnerCompletion();
         });
+      }
+    });
+
+    // Replay any celebrations withheld during the tour, once we're back on a
+    // normal tab screen (AppShell only builds for tab routes, so reaching here
+    // after the tour means its trailing paywall has cleared). Post-frame so the
+    // navigator is settled before we push the replay modals.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeDrainDeferredCelebrations();
+    });
+
+    // Publish the current route path so the guided-tour overlay host can
+    // advance `navigate`-trigger steps (the bottom-nav tab steps) on the
+    // actual route change rather than a racy icon pointer-Listener (Bug 1).
+    // Written post-frame so we don't mutate a provider during this build.
+    final currentPath = GoRouterState.of(context).uri.path;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(tourActiveRouteProvider) != currentPath) {
+        ref.read(tourActiveRouteProvider.notifier).state = currentPath;
       }
     });
 

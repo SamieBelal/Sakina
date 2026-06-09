@@ -19,6 +19,20 @@ enum TourSurface {
   appShell,
 }
 
+/// How a tour step advances to the next one.
+///
+/// - [tapTarget]: the user taps the highlighted in-screen widget (detected by
+///   the co-located `TourAnchor` `Listener`). This is the default and works for
+///   buttons whose widget survives the tap (muhasabah CTAs, the dua heart).
+/// - [navigate]: the user navigates to [navigateRoute]. The overlay host
+///   advances when the app's active route becomes that path — used for the
+///   bottom-nav tab steps, where tapping the tab swaps the icon for the
+///   active-icon and disposes the anchor mid-gesture (so a pointer `Listener`
+///   on the icon is fundamentally racy). Observing the route change instead is
+///   robust regardless of where on the tab cell the user taps.
+/// - [auto]: a read-only teach step that advances on a timer ([autoAdvance]).
+enum TourAdvanceTrigger { tapTarget, navigate, auto }
+
 @immutable
 class OnboardingTourStepDef {
   const OnboardingTourStepDef({
@@ -29,10 +43,15 @@ class OnboardingTourStepDef {
     required this.interactive,
     this.hint,
     this.autoAdvance,
+    this.navigateRoute,
     this.cutoutPaddingTop = 0,
     this.cutoutPaddingBottom = 0,
     this.cutoutPaddingX = 0,
-  });
+  }) : assert(
+          navigateRoute == null || interactive,
+          'navigate steps are advanced by the user navigating — they are '
+          'interactive (the user acts), never auto-advance teach steps',
+        );
 
   /// Stable identifier for analytics. Format: `<surface>.<short-name>`.
   final String id;
@@ -58,6 +77,23 @@ class OnboardingTourStepDef {
   /// final wrap-up). The overlay auto-advances after this delay; under a screen
   /// reader it shows a Continue instead. Tap steps leave this null.
   final Duration? autoAdvance;
+
+  /// Non-null for steps the user advances by NAVIGATING to a destination
+  /// (the bottom-nav tab steps). When set, the overlay host advances the tour
+  /// the moment the app's active route equals this path — independent of which
+  /// pixel the user tapped. This replaces the racy icon-`Listener` advance for
+  /// tabs (tapping a tab disposes the anchor's `Listener` mid-gesture). The
+  /// `TourAnchor`'s `GlobalKey` is still used to POSITION the spotlight; only
+  /// the ADVANCE trigger moves to route observation. Path form: `/collection`.
+  final String? navigateRoute;
+
+  /// Derived advance trigger. `auto` if a teach step ([autoAdvance] set),
+  /// `navigate` if it advances on reaching [navigateRoute], else `tapTarget`.
+  TourAdvanceTrigger get trigger {
+    if (autoAdvance != null) return TourAdvanceTrigger.auto;
+    if (navigateRoute != null) return TourAdvanceTrigger.navigate;
+    return TourAdvanceTrigger.tapTarget;
+  }
 
   /// Extra pixels to extend the cutout rect upward beyond the target.
   /// Used to highlight a related widget that lives above the actual tap
@@ -157,6 +193,10 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     message: 'Your first card is waiting — tap Collection.',
     interactive: true,
     hint: 'Tap to continue ↗',
+    // Advance when the user actually lands on /collection — robust to the
+    // tab icon→activeIcon swap that disposes the anchor's pointer Listener
+    // mid-tap (the old icon-Listener advance never fired; see Bug 1).
+    navigateRoute: '/collection',
     // Anchor is the tab ICON only; grow the cutout into the full tab cell so
     // the "Collection" label is highlighted too (not greyed under the scrim).
     cutoutPaddingTop: kTabCutoutPadTop,
@@ -170,6 +210,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     message: "Let's build your first dua, {name}. Tap Duas.",
     interactive: true,
     hint: 'Tap to continue ↗',
+    navigateRoute: '/duas',
     // Grow the icon anchor into the full tab cell (icon + "Duas" label).
     cutoutPaddingTop: kTabCutoutPadTop,
     cutoutPaddingBottom: kTabCutoutPadBottom,
@@ -206,6 +247,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     message: 'Your saved duas live in Journal, {name}.',
     interactive: true,
     hint: 'Tap to continue ↗',
+    navigateRoute: '/journal',
     // Grow the icon anchor into the full tab cell (icon + "Journal" label).
     cutoutPaddingTop: kTabCutoutPadTop,
     cutoutPaddingBottom: kTabCutoutPadBottom,

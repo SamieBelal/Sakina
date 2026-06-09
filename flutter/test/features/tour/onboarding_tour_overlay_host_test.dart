@@ -56,22 +56,24 @@ void main() {
     expect(find.textContaining('Begin Muh'), findsOneWidget);
   });
 
-  testWidgets('tourSuppressedProvider hides the coachmark while true',
-      (tester) async {
+  testWidgets(
+      'stale tourSuppressed does NOT hide the coachmark when the anchor is '
+      'already resolvable', (tester) async {
+    // Host-level stale-suppression defense
+    // (docs/qa/findings/2026-06-08-tour-suppression-stale-anchored-hang.md):
+    // suppression is the Build-a-Dua "wait, the next anchor isn't reachable"
+    // latch. It is honored ONLY while the step's anchor is ABSENT. If a stale
+    // flag lingers while the anchor is on screen, it must be ignored — else the
+    // step hangs (no timeout arms while suppressed). Here the beginMuhasabah
+    // anchor is present, so a suppression flag is stale and the coachmark stays.
     final container = await pumpHost(tester);
     expect(find.textContaining('Begin Muh'), findsOneWidget);
 
-    // Suppress (as the Duas build flow does) → coachmark must hide.
     container.read(tourSuppressedProvider.notifier).state = true;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.textContaining('Begin Muh'), findsNothing);
-
-    // Lift suppression → coachmark returns.
-    container.read(tourSuppressedProvider.notifier).state = false;
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    expect(find.textContaining('Begin Muh'), findsOneWidget);
+    expect(find.textContaining('Begin Muh'), findsOneWidget,
+        reason: 'stale suppression (anchor present) must not hide the coachmark');
   });
 
   testWidgets('missing-anchor timeout re-arms after a blocking route pops',
@@ -215,9 +217,67 @@ void main() {
         reason: 'reveals once the post-appearance floor elapses');
   });
 
-  testWidgets(
-      'coachmark stays hidden while the anchor is still moving, reveals once it settles',
+  testWidgets('tourSuppressed hides the coachmark while the anchor is ABSENT',
       (tester) async {
+    // Legitimate suppression: the next step's anchor genuinely isn't on screen
+    // yet (the real Build-a-Dua wait). Suppression must hide AND must not arm
+    // the anchor-timeout. When the anchor later mounts the now-stale flag is
+    // ignored and the coachmark reveals.
+    final showAnchor = ValueNotifier<bool>(false);
+    addTearDown(showAnchor.dispose);
+
+    await tester.pumpWidget(
+      withController(
+        hostWith(
+          ValueListenableBuilder<bool>(
+            valueListenable: showAnchor,
+            builder: (_, show, __) => Center(
+              child: show
+                  ? TourAnchor(
+                      surface: step0.surface,
+                      anchorId: step0.anchorId,
+                      child: Container(
+                          width: 200, height: 56, color: Colors.green),
+                    )
+                  : const SizedBox(width: 200, height: 56),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(OnboardingTourOverlayHost)));
+    container.read(tourSuppressedProvider.notifier).state = true;
+    // Pump so the suppression watch re-syncs the overlay (cancels the timeout
+    // that the initial frame armed while the flag was still false).
+    await tester.pump();
+
+    // Anchor absent + suppressed → hidden, and (crucially) no auto-advance.
+    await tester.pump(const Duration(seconds: 61));
+    expect(find.textContaining('Begin Muh'), findsNothing);
+    expect(container.read(onboardingTourControllerProvider).index, 0,
+        reason: 'suppressed step must not arm the anchor-timeout');
+
+    // Anchor appears → the now-stale flag is ignored; coachmark reveals once
+    // the fixed settle (measured from the anchor appearing) elapses.
+    showAnchor.value = true;
+    await tester.pump(); // mount the anchor + register its key
+    await tester.pump(); // ticker arms the settle timer now the anchor is drawable
+    await tester.pump(const Duration(milliseconds: 450)); // settle elapses
+    await tester.pump(); // markNeedsBuild → reveal
+    expect(find.textContaining('Begin Muh'), findsOneWidget,
+        reason: 'once the anchor is on screen the stale flag is ignored');
+  });
+
+  testWidgets(
+      'an anchor that keeps moving still reveals after the fixed settle delay '
+      '(no infinite motion wait)', (tester) async {
+    // The revamped reveal is a single fixed delay measured from anchor
+    // appearance — NOT a frame-to-frame motion wait. A perpetually-jittering
+    // anchor (async-driven rebuild storm) used to be able to hang the reveal
+    // forever; now it reveals on schedule. The ticker keeps the cutout glued to
+    // the moving anchor, and CoachmarkOverlay degrades gracefully on a null rect.
     final top = ValueNotifier<double>(0);
     addTearDown(top.dispose);
 
@@ -241,24 +301,21 @@ void main() {
         ),
       ),
     );
-    await tester.pump(); // arm timer + start ticker
+    await tester.pump(); // arm settle timer + start ticker
 
-    // Keep the anchor moving across frames that extend well past the settle
-    // floor — motion alone must keep the coachmark hidden.
-    for (var i = 0; i < 6; i++) {
-      top.value += 20;
-      await tester.pump(const Duration(milliseconds: 120));
-    }
+    // Before the settle delay elapses: hidden, even though the anchor exists.
+    top.value += 20;
+    await tester.pump(const Duration(milliseconds: 150));
     expect(find.textContaining('Begin Muh'), findsNothing,
-        reason: 'coachmark must not reveal while the anchor is still moving');
+        reason: 'must stay hidden until the fixed settle delay elapses');
 
-    // Stop moving. The tracking ticker samples at frame-start (one frame behind
-    // layout), so the first settled frame still compares against the last
-    // moving position; two frames at rest confirm the motion has stopped.
-    await tester.pump(const Duration(milliseconds: 16));
-    await tester.pump(const Duration(milliseconds: 16));
+    // Keep jittering across the settle window — motion must NOT block reveal.
+    for (var i = 0; i < 4; i++) {
+      top.value += 20;
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.textContaining('Begin Muh'), findsOneWidget,
-        reason: 'reveals once the anchor motion has stopped');
+        reason: 'reveals after the fixed delay regardless of ongoing motion');
   });
 
   testWidgets('reduce-motion bypasses the settle delay (reveals immediately)',
@@ -319,5 +376,51 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.textContaining('the whole loop'), findsOneWidget,
         reason: 'centered final step must reveal even with stale tourSuppressed');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug 1: bottom-nav tab steps must advance on the actual ROUTE change, not on
+  // a pointer Listener over the tab icon (which is disposed mid-tap when the
+  // icon swaps to its active variant). The host watches `tourActiveRouteProvider`
+  // (published by AppShell) and advances when it equals the step's navigateRoute.
+  // ---------------------------------------------------------------------------
+  testWidgets(
+      'navigate-trigger tab step advances when the active route reaches its '
+      'navigateRoute', (tester) async {
+    // Index 6 = appShell.tabCollection, navigateRoute '/collection'.
+    final navStep = kOnboardingTourSteps[6];
+    expect(navStep.id, 'appShell.tabCollection');
+    expect(navStep.navigateRoute, '/collection');
+    expect(navStep.trigger, TourAdvanceTrigger.navigate);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingTourControllerProvider
+              .overrideWith((ref) => _ActiveAtStep(ref, 6)),
+        ],
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          home: const OnboardingTourOverlayHost(
+            child: Scaffold(body: SizedBox.shrink()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(OnboardingTourOverlayHost)));
+
+    // User is still on home (the source screen) — must NOT advance.
+    container.read(tourActiveRouteProvider.notifier).state = '/';
+    await tester.pump();
+    expect(container.read(onboardingTourControllerProvider).index, 6,
+        reason: 'on the source route the nav step must not advance');
+
+    // User taps the Collection tab → AppShell publishes '/collection'.
+    container.read(tourActiveRouteProvider.notifier).state = '/collection';
+    await tester.pump();
+    expect(container.read(onboardingTourControllerProvider).index, 7,
+        reason: 'reaching the navigateRoute advances the nav step (Bug 1 fix)');
   });
 }

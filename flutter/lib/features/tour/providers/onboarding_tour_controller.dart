@@ -279,6 +279,17 @@ final onboardingTourControllerProvider =
 /// When `true`, the guided-tour overlay is suppressed: the coachmark is hidden
 /// and the anchor-timeout is NOT armed (so the current step cannot auto-skip).
 ///
+/// The app's current top-level route path (`/`, `/collection`, `/duas`, …),
+/// published by `AppShell` from `GoRouterState.of(context).uri.path` on every
+/// build. The overlay host watches this to advance `navigate`-trigger steps
+/// (the bottom-nav tab steps) the instant the user reaches the destination,
+/// instead of relying on a pointer `Listener` over the tapped tab icon — which
+/// is disposed mid-gesture when the icon swaps to its active variant (Bug 1).
+///
+/// Null until `AppShell` first builds. Only tab routes (which live under the
+/// shell) need to be tracked, because those are the only `navigate` steps.
+final tourActiveRouteProvider = StateProvider<String?>((_) => null);
+
 /// Owned by screens that host a multi-screen *inline* flow the tour must wait
 /// behind before the next anchor becomes reachable. The Duas "Build a Dua"
 /// flow sets this while the loader + the four reader beats are on screen: the
