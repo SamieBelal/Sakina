@@ -5,7 +5,14 @@ import '../../../core/constants/app_spacing.dart';
 class OnboardingProgressBar extends StatelessWidget {
   const OnboardingProgressBar({
     required this.currentSegment,
-    this.totalSegments = 25,
+    // 23 segments (indices 0–22) so the bar COMPLETES on the last bar-visible
+    // screen. The trimmed flow (active default) tops out at the password screen
+    // (`progressSegment: 22`); after it the paywall-flow pages render no bar by
+    // design. With the old 25, segments 23–24 were unreachable in the trimmed
+    // flow, so the bar showed "2 left" on the last step then vanished. 23 also
+    // completes the legacy flow (its max is encouragement at segment 23, which
+    // fills all indices). See onboarding screen page lists.
+    this.totalSegments = 23,
     super.key,
   });
 
