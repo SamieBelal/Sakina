@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/app_session.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/env.dart';
 import '../../../widgets/sakina_loader.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
@@ -406,9 +405,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       GeneratingScreen(onNext: _next),
       // 17 — Personalized plan
       PersonalizedPlanScreen(onNext: _next, onBack: _back),
-      // 18 — Rating gate (gated by Env.ratingGateEnabled)
-      if (Env.ratingGateEnabled)
-        RatingGateScreen(onNext: _next, onBack: _back),
+      // 18 — Rating gate
+      RatingGateScreen(onNext: _next, onBack: _back),
       // 19 — Paywall
       OnboardingFinalGate(onComplete: _completeOnboarding),
     ];
@@ -475,9 +473,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       PersonalizedPlanScreen(onNext: _next, onBack: _back),
       // 24 — Your Journey
       YourJourneyScreen(onNext: _next, onBack: _back),
-      // 25 — Rating gate (gated by Env.ratingGateEnabled)
-      if (Env.ratingGateEnabled)
-        RatingGateScreen(onNext: _next, onBack: _back),
+      // 25 — Rating gate
+      RatingGateScreen(onNext: _next, onBack: _back),
       // 26 — Paywall
       OnboardingFinalGate(onComplete: _completeOnboarding),
     ];

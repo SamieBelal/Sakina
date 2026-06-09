@@ -7,7 +7,7 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 void main() {
   group('onboarding page-index constants (pinned by 2026-05-25 trim)', () {
     test('onboardingLastPageIndex is 19 (paywall at 19 in trimmed flow)', () {
-      // Assumes Env.ratingGateEnabled defaults to true.
+      // Rating gate is always present, so paywall sits at index 19.
       expect(onboardingLastPageIndex, 19);
     });
 

@@ -113,6 +113,12 @@ class _TourAnchorState extends ConsumerState<TourAnchor> {
     if (step.surface != widget.surface) return;
     if (step.anchorId != widget.anchorId) return;
     if (!step.interactive) return;
+    // `navigate` steps (the bottom-nav tab steps) advance when the user reaches
+    // the destination route, observed in the overlay host — NOT via this
+    // pointer Listener. Tapping a tab swaps the icon for its active variant,
+    // disposing this anchor mid-gesture, so the pointer-up may never arrive
+    // (Bug 1). Skip the tap-advance for them; the host owns their advancement.
+    if (step.trigger == TourAdvanceTrigger.navigate) return;
     ref
         .read(onboardingTourControllerProvider.notifier)
         .advance(via: 'target_tap');

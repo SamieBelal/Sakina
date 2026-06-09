@@ -12,6 +12,7 @@ import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
+import 'package:sakina/features/tour/providers/deferred_celebrations_provider.dart';
 import 'package:sakina/widgets/achievement_toast.dart';
 
 /// Gather all app state and check for newly unlocked achievements.
@@ -129,10 +130,20 @@ Future<void> checkAchievements(WidgetRef ref) async {
     final newlyUnlocked = await checkAndUnlockAchievements(data);
     debugPrint('[AchievementChecker] newlyUnlocked=$newlyUnlocked');
 
-    // Show toast for each new achievement
+    // Show toast for each new achievement — or, while the guided tour is
+    // running, withhold it to the deferred-celebration queue so it doesn't
+    // clutter the coachmark flow (replayed on first home arrival after the
+    // tour). See deferred_celebrations_provider.
+    final defer = shouldDeferCelebrations(ref);
     for (final id in newlyUnlocked) {
       final achievement = allAchievements.firstWhere((a) => a.id == id);
-      showAchievementToast(achievement);
+      if (defer) {
+        ref
+            .read(deferredCelebrationsProvider.notifier)
+            .enqueue(AchievementToastCelebration(achievement));
+      } else {
+        showAchievementToast(achievement);
+      }
     }
   } catch (e, st) {
     debugPrint('[AchievementChecker] FAILED: $e\n$st');

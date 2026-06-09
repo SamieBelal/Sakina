@@ -129,6 +129,12 @@ class SavedRelatedDua {
     required this.source,
   });
 
+  /// Stable id for a related dua, derived from its title + source. Single
+  /// source of truth shared by the save toggle, the saved-state check, and
+  /// the heart UI — so they never key the same dua differently.
+  static String idFor(String title, String source) =>
+      '${title}_$source'.hashCode.toString();
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
@@ -621,10 +627,9 @@ class DuasNotifier extends StateNotifier<DuasState>
       state = state.copyWith(
         buildResult: () => result,
         buildLoading: false,
-        buildWarmupJustExhausted:
-            outcome == UsageOutcome.warmupJustExhausted
-                ? GatedFeature.builtDua
-                : null,
+        buildWarmupJustExhausted: outcome == UsageOutcome.warmupJustExhausted
+            ? GatedFeature.builtDua
+            : null,
       );
       // Track names invoked in this dua
       if (result.namesUsed.isNotEmpty) {
@@ -750,7 +755,7 @@ class DuasNotifier extends StateNotifier<DuasState>
   // ── Save Related Dua ───────────────────────────────────────
 
   void toggleSaveRelatedDua(FindDuasDuaEntry dua) async {
-    final id = '${dua.title}_${dua.source}'.hashCode.toString();
+    final id = SavedRelatedDua.idFor(dua.title, dua.source);
     final existing = state.savedRelatedDuas.any((d) => d.id == id);
 
     List<SavedRelatedDua> updated;
@@ -780,7 +785,7 @@ class DuasNotifier extends StateNotifier<DuasState>
   }
 
   bool isRelatedDuaSaved(FindDuasDuaEntry dua) {
-    final id = '${dua.title}_${dua.source}'.hashCode.toString();
+    final id = SavedRelatedDua.idFor(dua.title, dua.source);
     return state.savedRelatedDuas.any((d) => d.id == id);
   }
 

@@ -11,7 +11,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/env.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/app_session.dart';
 import '../../../features/daily/providers/daily_rewards_provider.dart';
@@ -62,7 +61,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
 enum _PlanType { annual, weekly }
 
 /// Test-only seam: when `true`, both `_maybeBreathe` and `_maybeShimmerBadge`
-/// short-circuit to a no-op wrapper regardless of `Env.paywallAnimationsEnabled`.
+/// short-circuit to a no-op wrapper. Paywall animations are otherwise always on.
 /// Tests use `tester.pumpAndSettle()` which never settles against the
 /// repeating breathing / shimmer animations introduced by the 2026-05-14
 /// paywall rebuild — flipping this in `setUp` keeps existing widget tests
@@ -241,7 +240,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   /// Wraps the CTA's inner `Text` (NOT the button container) with a subtle
-  /// breathing scale animation when `Env.paywallAnimationsEnabled` is true.
+  /// breathing scale animation (always on; the test seam disables it).
   /// Wrapping the inner Text means the animation simply doesn't exist
   /// while the `_purchasing` spinner takes over the child slot — no
   /// jitter, no conflict.
@@ -251,7 +250,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// elements lift conversion 12-18% vs. static; anything bigger reads
   /// as gimmicky on a premium spiritual app.
   Widget _maybeBreathe(Widget child) {
-    if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+    if (debugDisablePaywallAnimations) {
       return child;
     }
     return child
@@ -964,12 +963,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         // explicit line beneath the CTA + "No payment
                         // today" microcopy. Gated on `_planHasTrial` so
                         // storefronts without an intro offer don't get a
-                        // false trial promise. The flag is for rollback
-                        // only — default is true (see Env doc-comment).
+                        // false trial promise.
                         // Per Blinkist's public case study, this single-
                         // line explicit billing copy lifts conversion
                         // ~23% and reduces refund complaints ~55%.
-                        if (hasTrial && Env.paywallHonestBillingEnabled) ...[
+                        if (hasTrial) ...[
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             (_selectedPlan == _PlanType.annual
@@ -1318,7 +1316,7 @@ class _PricingCard extends StatelessWidget {
           // against either white or emerald-tinted card; harmonizes with
           // the warm cream page background.
           //
-          // Optional gold shimmer pass (gated on Env.paywallAnimationsEnabled).
+          // Gold shimmer pass (always on; the test seam disables it).
           // Slow, ~2.4s shimmer with a 1.2s delay between passes — subtle
           // enough to read as polish, not as a Vegas slot-machine effect.
           // Per Adapty's 2026 report, animated paywall elements lift
@@ -1371,14 +1369,14 @@ class _PricingCard extends StatelessWidget {
   }
 }
 
-/// Wraps the SAVE badge with a slow gold shimmer pass when
-/// `Env.paywallAnimationsEnabled` is true. When the flag is off, returns
-/// the unwrapped widget — no animation wrapper, no perf cost. Top-level
+/// Wraps the SAVE badge with a slow gold shimmer pass. When the test seam
+/// `debugDisablePaywallAnimations` is on, returns the unwrapped widget —
+/// no animation wrapper, no perf cost. Top-level
 /// helper so the stateless `_PricingCard` can use it without a state
 /// object. White shimmer overlay at 55% alpha gives a clean "polished gold"
 /// pass against the emerald badge surface.
 Widget _maybeShimmerBadge(Widget child) {
-  if (!Env.paywallAnimationsEnabled || debugDisablePaywallAnimations) {
+  if (debugDisablePaywallAnimations) {
     return child;
   }
   return child

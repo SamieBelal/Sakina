@@ -15,7 +15,6 @@ import '../../../services/purchase_service.dart';
 import '../../../services/referral_service.dart';
 import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
-import '../../../core/env.dart';
 
 const _prefsKey = 'onboarding_state';
 
@@ -30,11 +29,11 @@ const _prefsKey = 'onboarding_state';
 ///   5 Familiarity, 6 Dua topics, 7 Daily commitment, 8 Attribution,
 ///   9 Reminder time, 10 Notifications, 11 Commitment pact, 12 Social proof,
 ///   13 Save progress, 14 Email, 15 Password, 16 Generating,
-///   17 Personalized plan, 18 Rating gate (if env on), 19 Paywall.
-const int onboardingLastPageIndex = Env.ratingGateEnabled ? 19 : 18;
+///   17 Personalized plan, 18 Rating gate, 19 Paywall.
+const int onboardingLastPageIndex = 19;
 
 /// Legacy 27-screen flow last index. Used when `onboarding_trim_enabled=false`.
-const int onboardingLegacyLastPageIndex = Env.ratingGateEnabled ? 26 : 25;
+const int onboardingLegacyLastPageIndex = 26;
 
 /// Trimmed-flow sign-up email page index.
 const int onboardingEmailPageIndex = 14;

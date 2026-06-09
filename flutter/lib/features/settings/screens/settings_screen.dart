@@ -425,12 +425,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final authService = ref.read(authServiceProvider);
       final uid = supabaseSyncService.currentUserId;
       await authService.deleteAccount();
+      // The account is gone server-side — sign out NEXT, before the best-effort
+      // local cleanup below. If sign-out ran last (after reset/clearSession/
+      // invalidate) a throw in any of those steps would strand a still-valid
+      // session pointing at a deleted account. That session survives an app
+      // reinstall (iOS persists it), so the next launch silently boots back into
+      // the ghost account and skips onboarding. Clearing the session first makes
+      // a successful delete always end signed out, regardless of cleanup errors.
+      await authService.signOut();
       ref.read(onboardingProvider.notifier).reset();
       await ref.read(appSessionProvider).clearSession(userId: uid);
       // JUSTIFIED: hard reset of all Riverpod provider state on full account
       // deletion. No EconomyEvents equivalent — the user session is gone.
       _invalidateAllUserProviders(ref);
-      await authService.signOut();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
