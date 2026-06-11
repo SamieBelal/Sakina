@@ -459,10 +459,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     state = state.copyWith(checkinLoading: true, error: null);
 
     try {
-      // No token charge here — the entry-point CTAs ("Seek Another Name" /
-      // "Discover a New Name") are responsible for charging the 50-token
-      // unlock fee on additional muhasabahs. Once we're inside the flow,
-      // every step is free for the user.
+      // No token charge here — discover is gated by daily caps, not tokens
+      // (free: 1/day + warmup, premium: 30/day fair-use). Additional
+      // muhasabahs go through the DailyCapSheet's 25-token AI bypass
+      // (GatingService.bypassTokenCost) at the entry CTAs. Once we're
+      // inside the flow, every step is free for the user.
       final collection = await getCardCollection();
       final card = pickNextCard(collection);
       final engageResult = await engageCard(card.id);
@@ -1037,11 +1038,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       return;
     }
 
-    // Always free. The 50-token unlock for additional muhasabahs is charged
-    // up front at the "Seek Another Name" / "Discover a New Name" entry
-    // CTAs, so once the user is inside a muhasabah cycle every step — the
-    // discover, the deeper reflection, the dua — runs without any token
-    // gating.
+    // Always free. Additional muhasabahs are gated by daily caps (with a
+    // 25-token bypass via DailyCapSheet) at the "Seek Another Name" /
+    // "Discover a New Name" entry CTAs, so once the user is inside a
+    // muhasabah cycle every step — the discover, the deeper reflection,
+    // the dua — runs without any token gating.
     state = state.copyWith(
       currentStep: DailyLoopStep.deeper,
       reflectLoading: true,

@@ -315,10 +315,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           const SizedBox(height: AppSpacing.lg),
           _sparkleRow(),
           const SizedBox(height: AppSpacing.lg),
-          // Go Deeper button — always free. The 50-token unlock for an
-          // additional muhasabah is collected at the "Seek Another Name" /
-          // "Discover a New Name" entry CTAs, so once the user is in the
-          // flow there's no further token gating.
+          // Go Deeper button — always free. Additional muhasabahs are gated
+          // by daily caps (25-token bypass via DailyCapSheet) at the "Seek
+          // Another Name" / "Discover a New Name" entry CTAs, so once the
+          // user is in the flow there's no further token gating.
           TourAnchor(
             surface: TourSurface.muhasabah,
             anchorId: 'goDeeperCta',

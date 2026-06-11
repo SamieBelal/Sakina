@@ -13,6 +13,7 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   final List<Map<String, dynamic>> rawUpsertCalls = [];
   final List<Map<String, dynamic>> insertCalls = [];
   final List<Map<String, dynamic>> batchInsertCalls = [];
+  final List<Map<String, dynamic>> batchUpsertCalls = [];
   final List<Map<String, dynamic>> deleteCalls = [];
   final List<Map<String, dynamic>> rpcCalls = [];
   final Map<String, FutureOr<dynamic> Function(Map<String, dynamic>? params)>
@@ -155,6 +156,33 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     });
     final list = rowLists.putIfAbsent(table, () => []);
     for (final row in rowsToInsert) {
+      final normalized = Map<String, dynamic>.from(row);
+      normalized.putIfAbsent('id', () => 'fake-${_nextSyntheticId++}');
+      list.add(normalized);
+    }
+    return true;
+  }
+
+  @override
+  Future<bool> batchUpsertRows(
+    String table,
+    List<Map<String, dynamic>> rowsToUpsert, {
+    required String onConflict,
+  }) async {
+    batchUpsertCalls.add({
+      'table': table,
+      'rows': rowsToUpsert,
+      'onConflict': onConflict,
+    });
+    // Simulate Postgres upsert with ignoreDuplicates: rows colliding on the
+    // onConflict columns are skipped, leaving the existing row untouched.
+    final keyCols = onConflict.split(',').map((c) => c.trim()).toList();
+    final list = rowLists.putIfAbsent(table, () => []);
+    for (final row in rowsToUpsert) {
+      final exists = list.any(
+        (existing) => keyCols.every((c) => existing[c] == row[c]),
+      );
+      if (exists) continue;
       final normalized = Map<String, dynamic>.from(row);
       normalized.putIfAbsent('id', () => 'fake-${_nextSyntheticId++}');
       list.add(normalized);

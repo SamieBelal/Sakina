@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -11,6 +13,7 @@ import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
+import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
@@ -468,8 +471,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useRootNavigator: true,
-      builder: (_) =>
-          _CardDetailSheet(card: card, tier: tier, isMaxTier: isMaxTier),
+      builder: (_) => _CardDetailSheet(
+        card: card,
+        tier: tier,
+        isMaxTier: isMaxTier,
+        // Use this State's ref, which outlives the sheet, so the achievement
+        // check + toast complete after the sheet pops.
+        onTieredUp: () => unawaited(checkAchievements(ref)),
+      ),
     ).whenComplete(() => _sheetNavigator = null);
   }
 }
@@ -973,11 +982,21 @@ class _SilverOrnateBorderPainter extends CustomPainter {
 
 class _CardDetailSheet extends ConsumerWidget {
   const _CardDetailSheet(
-      {required this.card, required this.tier, required this.isMaxTier});
+      {required this.card,
+      required this.tier,
+      required this.isMaxTier,
+      this.onTieredUp});
 
   final CollectibleName card;
   final CardTier tier;
   final bool isMaxTier;
+
+  /// Fired when a scroll upgrade tiers the card up. Invoked with the parent
+  /// screen's long-lived ref (not this sheet's) so the downstream
+  /// `checkAchievements` survives the sheet being popped on the same frame —
+  /// otherwise its post-await `ref.read` throws on the disposed sheet element
+  /// and the achievement toast is silently swallowed.
+  final VoidCallback? onTieredUp;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1224,6 +1243,14 @@ class _CardDetailSheet extends ConsumerWidget {
                         }
                         if (engageResult.tierChanged) {
                           ref.read(questsProvider.notifier).onCardTieredUp();
+                          // Unlock tier-driven achievements (Golden Light,
+                          // Silver Collector, First Upgrade…) at the moment
+                          // the scroll upgrade lands. Without this they only
+                          // unlock at the next muhasabah/reflect/dua check.
+                          // Routed through the parent screen's ref (see
+                          // [onTieredUp]) because this sheet is popped on the
+                          // same frame below.
+                          onTieredUp?.call();
                         }
                         if (context.mounted) {
                           final rootNav =

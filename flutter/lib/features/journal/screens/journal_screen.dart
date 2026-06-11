@@ -36,6 +36,11 @@ final _journalStatsProvider =
 // Achievements provider
 // ---------------------------------------------------------------------------
 
+// Invalidated every time the Badges tab is opened (see the TabController
+// listener in _JournalScreenState) — without that, this caches the unlocked
+// set from its first read and badges earned later in the session render as
+// locked until app restart. `when` keeps the previous data while the refresh
+// runs (skipLoadingOnRefresh), so re-entering the tab doesn't flicker.
 final _achievementsProvider = FutureProvider<Set<String>>((ref) async {
   return getUnlockedAchievements();
 });
@@ -74,12 +79,26 @@ class _JournalScreenState extends ConsumerState<JournalScreen>
   late final TabController _tab;
   bool _questFired = false;
   int _duaFilter = 0; // 0=All, 1=Built, 2=Saved
+  int _lastTabIndex = 0;
+
+  /// Index of the Badges tab in [_buildScaffold]'s IndexedStack / TabBar.
+  static const _achievementsTabIndex = 3;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 4, vsync: this);
-    _tab.addListener(() => setState(() {}));
+    _tab.addListener(() {
+      // Re-read the unlocked set on every arrival at the Badges tab so
+      // achievements earned since the last visit render as unlocked.
+      if (_tab.index != _lastTabIndex) {
+        _lastTabIndex = _tab.index;
+        if (_tab.index == _achievementsTabIndex) {
+          ref.invalidate(_achievementsProvider);
+        }
+      }
+      setState(() {});
+    });
   }
 
   @override

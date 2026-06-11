@@ -32,6 +32,68 @@ void main() {
     expect(unlocked, {'first_name', 'reflect_first'});
   });
 
+  test(
+      'syncAchievementsCacheFromSupabase merges local-only unlocks and '
+      're-pushes them to the server', () async {
+    // A locally-unlocked achievement whose user_achievements insert failed
+    // silently must survive hydration (no server-wins overwrite) and get
+    // pushed back up so the server converges.
+    SharedPreferences.setMockInitialValues({
+      'sakina_achievements_unlocked:user-1':
+          jsonEncode(['gold_first', 'first_name']),
+    });
+    fakeSync.rowLists['user_achievements'] = [
+      {'user_id': 'user-1', 'achievement_id': 'first_name'},
+    ];
+
+    await syncAchievementsCacheFromSupabase();
+
+    expect(await getUnlockedAchievements(), {'first_name', 'gold_first'});
+    expect(fakeSync.batchUpsertCalls, hasLength(1));
+    expect(fakeSync.batchUpsertCalls.single['table'], 'user_achievements');
+    expect(
+      fakeSync.batchUpsertCalls.single['onConflict'],
+      'user_id,achievement_id',
+    );
+    final pushed = fakeSync.batchUpsertCalls.single['rows'] as List<dynamic>;
+    expect(pushed, hasLength(1));
+    expect(pushed.first['achievement_id'], 'gold_first');
+  });
+
+  test(
+      'hydrateAchievementsCacheFromRows re-push tolerates a row that raced '
+      'onto the server (idempotent upsert, no batch-wide failure)', () async {
+    // Local has A,B,C. The hydration rows report only A. Meanwhile B has
+    // already landed server-side (a concurrent insert that the fetch missed).
+    // The re-push of {B,C} must skip the colliding B and still converge C —
+    // a plain insert would fail the whole batch and drop C.
+    SharedPreferences.setMockInitialValues({
+      'sakina_achievements_unlocked:user-1':
+          jsonEncode(['first_name', 'gold_first', 'streak_7']),
+    });
+    fakeSync.rowLists['user_achievements'] = [
+      {'user_id': 'user-1', 'achievement_id': 'first_name'},
+      {'user_id': 'user-1', 'achievement_id': 'gold_first'},
+    ];
+
+    await hydrateAchievementsCacheFromRows([
+      {'user_id': 'user-1', 'achievement_id': 'first_name'},
+    ]);
+
+    // Local cache keeps the full union.
+    expect(
+      await getUnlockedAchievements(),
+      {'first_name', 'gold_first', 'streak_7'},
+    );
+    // Re-push attempted {gold_first, streak_7}; gold_first collides and is
+    // skipped, streak_7 converges. Server ends with all three, none lost.
+    expect(fakeSync.batchUpsertCalls, hasLength(1));
+    final serverIds = fakeSync.rowLists['user_achievements']!
+        .map((r) => r['achievement_id'])
+        .toSet();
+    expect(serverIds, {'first_name', 'gold_first', 'streak_7'});
+  });
+
   test('syncAchievementsCacheFromSupabase seeds server when empty', () async {
     SharedPreferences.setMockInitialValues({
       'sakina_achievements_unlocked:user-1': jsonEncode(['bronze_10']),

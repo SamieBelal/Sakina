@@ -491,15 +491,38 @@ Future<void> hydrateAchievementsCacheFromRows(
   List<Map<String, dynamic>> rows,
 ) async {
   final prefs = await SharedPreferences.getInstance();
-  final ids = rows
+  final serverIds = rows
       .map((row) => row['achievement_id'] as String?)
       .whereType<String>()
-      .toSet()
-      .toList();
+      .toSet();
+  // Merge with the local cache instead of overwriting it. Achievements are
+  // never revoked, so union is always correct — and an unlock whose
+  // `user_achievements` insert failed silently (insertRow swallows errors)
+  // would otherwise vanish on the next hydration AND have its scroll reward
+  // re-granted when checkAndUnlockAchievements re-unlocks it.
+  final localIds = await getUnlockedAchievements();
+  final merged = {...serverIds, ...localIds};
   await prefs.setString(
     supabaseSyncService.scopedKey(_achievementsKey),
-    jsonEncode(ids),
+    jsonEncode(merged.toList()),
   );
+
+  // Push local-only unlocks back up so the server converges. Upsert with
+  // ignoreDuplicates so a row that raced onto the server between the fetch
+  // and this push doesn't fail the whole batch (and existing unlocked_at
+  // timestamps are preserved). Best-effort: on failure they stay in the
+  // local cache and retry on the next hydration.
+  final localOnly = localIds.difference(serverIds);
+  final userId = supabaseSyncService.currentUserId;
+  if (localOnly.isNotEmpty && userId != null) {
+    await supabaseSyncService.batchUpsertRows(
+      'user_achievements',
+      localOnly
+          .map((id) => {'user_id': userId, 'achievement_id': id})
+          .toList(),
+      onConflict: 'user_id,achievement_id',
+    );
+  }
 }
 
 Future<void> seedAchievementsToSupabaseFromLocalCache() async {
@@ -527,6 +550,9 @@ Future<Set<String>> unlockAchievement(String id) async {
 
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
+    // Best-effort: insertRow swallows errors and returns false. The unlock
+    // is durable regardless — hydrateAchievementsCacheFromRows merges (never
+    // overwrites) and re-pushes local-only ids on the next sync.
     await supabaseSyncService.insertRow('user_achievements', {
       'user_id': userId,
       'achievement_id': id,
@@ -537,8 +563,9 @@ Future<Set<String>> unlockAchievement(String id) async {
 }
 
 /// Hydrate local achievement cache from Supabase.
-/// If server has data, it becomes the source of truth. If server is empty
-/// and local has data, seed the server from local.
+/// If server has data, it's merged with the local cache (union — locally
+/// unlocked ids that failed to sync are kept and re-pushed). If server is
+/// empty and local has data, seed the server from local.
 Future<void> syncAchievementsCacheFromSupabase() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;

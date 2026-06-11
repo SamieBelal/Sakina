@@ -740,7 +740,12 @@ void main() {
     await hydrateUserDataFromBatchRpc();
 
     expect((await getXp()).totalXp, 7);
-    expect(await getUnlockedAchievements(), {'first_name'});
+    // Hydration merges server + local (achievements are never revoked) and
+    // re-pushes the local-only id so the server converges.
+    expect(
+      await getUnlockedAchievements(),
+      {'first_name', 'existing_local'},
+    );
     expect((await loadSavedDiscoveryQuizResults()).first.name, 'Ar-Rahman');
     expect(await getReflectUsageToday(), 2);
     expect(await getBuiltDuaUsageToday(), 1);
@@ -755,7 +760,17 @@ void main() {
           .cast<String>(),
       contains('daily_0_2026-04-09'),
     );
+    // The only write expected is the achievements merge pushing the
+    // local-only unlock back up to user_achievements (via idempotent upsert).
     expect(fakeSync.batchInsertCalls, isEmpty);
+    expect(fakeSync.batchUpsertCalls, hasLength(1));
+    expect(fakeSync.batchUpsertCalls.single['table'], 'user_achievements');
+    expect(
+      (fakeSync.batchUpsertCalls.single['rows'] as List)
+          .map((r) => (r as Map)['achievement_id'])
+          .toList(),
+      ['existing_local'],
+    );
     expect(fakeSync.upsertCalls, isEmpty);
     expect(fakeSync.insertCalls, isEmpty);
   });

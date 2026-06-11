@@ -150,6 +150,30 @@ class SupabaseSyncService {
     }
   }
 
+  /// Upsert multiple rows in a single request, ignoring rows that already
+  /// exist on [onConflict]. Unlike [batchInsertRows], a row that collides
+  /// with an existing one (e.g. a concurrent insert landed between a fetch
+  /// and this push) is skipped rather than failing the whole batch, and
+  /// existing rows are left untouched (their timestamps are preserved).
+  Future<bool> batchUpsertRows(
+    String table,
+    List<Map<String, dynamic>> rows, {
+    required String onConflict,
+  }) async {
+    if (rows.isEmpty) return true;
+    try {
+      await Supabase.instance.client.from(table).upsert(
+            rows,
+            onConflict: onConflict,
+            ignoreDuplicates: true,
+          );
+      return true;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] batchUpsertRows($table) failed: $e');
+      return false;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchPublicRows(
     String table, {
     String columns = '*',
