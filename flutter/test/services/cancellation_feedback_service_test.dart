@@ -44,8 +44,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const userId = 'user-1';
-  final expires = DateTime.utc(2026, 6, 15, 10);
-  final canceled = DateTime.utc(2026, 6, 1, 9);
+  // Relative to "now" so the reactive-cancellation recency guard
+  // (resolveReactiveCancellation only surveys while expires_at is in the
+  // future) doesn't turn these into a time-bomb. Hardcoded calendar dates here
+  // silently started failing once real time passed the literal expiry
+  // (2026-06-15). The dedicated past-expiry case below keeps its own hardcoded
+  // past dates on purpose.
+  final expires = DateTime.now().toUtc().add(const Duration(days: 30));
+  final canceled = DateTime.now().toUtc().subtract(const Duration(days: 14));
 
   late FakeSupabaseSyncService fake;
   late _SpyAnalytics analytics;
