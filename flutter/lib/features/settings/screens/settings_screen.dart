@@ -435,6 +435,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await authService.signOut();
       ref.read(onboardingProvider.notifier).reset();
       await ref.read(appSessionProvider).clearSession(userId: uid);
+      // Reset Mixpanel identity so the deleted account's distinct_id doesn't
+      // leak into a fresh account created on this device. Best-effort — never
+      // let an analytics error mask a successful deletion. Note: signedOut above
+      // already fires AppSessionNotifier.onAnalyticsReset; this is a belt-and-
+      // suspenders reset on the explicit-deletion path and is idempotent.
+      try {
+        ref.read(analyticsProvider).resetForSignOut();
+      } catch (_) {/* analytics best-effort */}
       // JUSTIFIED: hard reset of all Riverpod provider state on full account
       // deletion. No EconomyEvents equivalent — the user session is gone.
       _invalidateAllUserProviders(ref);

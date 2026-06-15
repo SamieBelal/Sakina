@@ -28,6 +28,14 @@ const String kHardPaywallAfterTourFlag = 'hard_paywall_after_tour_enabled';
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
 class AppSessionNotifier extends ChangeNotifier {
+  /// Static hook to reset analytics identity on sign-out. This notifier has no
+  /// Riverpod access, so main.dart wires this to `AnalyticsService.reset` the
+  /// same way the other service-layer telemetry hooks are bridged. Left null in
+  /// tests (best-effort — a null hook is a no-op). Resets Mixpanel's distinct_id
+  /// so the next user to sign in on a shared/QA device doesn't inherit the
+  /// previous user's identity (cross-user contamination).
+  static void Function()? onAnalyticsReset;
+
   AppSessionNotifier({
     AuthService? authService,
     NotificationService? notificationService,
@@ -186,6 +194,13 @@ class AppSessionNotifier extends ChangeNotifier {
         break;
       case AuthChangeEvent.signedOut:
         unawaited(_notificationService.logout());
+        // Reset analytics identity LAST among the telemetry side effects so any
+        // final events queued before sign-out keep the outgoing user's
+        // distinct_id; reset() then severs the identity so the next sign-in on
+        // this device starts clean. Best-effort — a null hook (tests) is a no-op.
+        try {
+          onAnalyticsReset?.call();
+        } catch (_) {/* analytics best-effort; never block sign-out */}
         _hasOnboarded = false;
         _economyHydrated = false;
         _hydrationFailed = false;

@@ -42,7 +42,7 @@ class AttributionScreen extends ConsumerWidget {
       onBack: onBack,
       onContinue: () {
         final value = ref.read(onboardingProvider).attribution;
-        ref.read(analyticsProvider).trackSurveyAnswered('attribution', value);
+        // De-duped 2026-06-15 (A3): keep only the canonical key-based event.
         ref.read(analyticsProvider).trackOnboardingAnswerWithRef(ref, 'attribution', value);
         onNext();
       },

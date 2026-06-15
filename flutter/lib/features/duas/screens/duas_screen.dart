@@ -121,12 +121,13 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     // Surface freemium-gating sheets (daily-cap + warmup-exhausted) when the
     // gating layer blocks a build or signals the warmup→0 transition.
     ref.listen<DuasState>(duasProvider, (prev, next) {
-      // Pause the guided tour while the multi-screen Build-a-Dua flow is on
-      // screen — the loader plus the four reader beats. The step-10
-      // `firstRelatedHeart` anchor only mounts on the result view
-      // (buildCurrentSection == 4); without this the 60s anchor-timeout skips
-      // step 10 and step 11 (Journal tab) fires while the user is mid-build.
-      // Reset in dispose so leaving the tab mid-build never strands the tour.
+      // Keep the `tourSuppressedProvider` latch in sync with the Build-a-Dua
+      // flow. In the slim tour `duas.buildCta` is the FINAL step — the tour
+      // completes the instant the user taps Build — so there is no later step
+      // to wait for; the latch's remaining job is the stale-flag reconcile (see
+      // initState) that clears a leftover `true` from a prior visit so the
+      // buildCta coachmark isn't hidden over the build INPUT. Reset in dispose
+      // so leaving the tab mid-build never strands a future tour step.
       _syncTourSuppression(_tourBlockedFor(next));
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from

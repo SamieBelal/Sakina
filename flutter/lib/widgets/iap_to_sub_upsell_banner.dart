@@ -317,10 +317,11 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
   void _onBannerTap() {
     final analytics = ref.read(analyticsProvider);
     analytics.track(AnalyticsEvents.iapToSubBannerTapped);
-    analytics.track(
-      AnalyticsEvents.paywallViewed,
-      properties: {'trigger': AnalyticsEvents.paywallTriggerIapToSubUpsell},
-    );
+    // paywall_viewed is now emitted by PaywallScreen.initState with
+    // placement:'soft_inapp' (single source of truth). Removed the banner's own
+    // paywall_viewed{trigger:'iap_to_sub_upsell'} emit here (2026-06-15 audit)
+    // to stop double-counting soft-in-app views. iapToSubBannerTapped above
+    // still attributes the upsell-path entry.
     // The banner is mounted in MaterialApp.router's `builder`, which sits
     // ABOVE the GoRouter's Navigator. `context.push` from this context can't
     // see GoRouter's scope. Prefer the global rootNavigatorKey's context

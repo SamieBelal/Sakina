@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/daily/providers/daily_rewards_provider.dart';
+import '../features/tour/providers/onboarding_tour_controller.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
 import '../services/gating_service.dart';
@@ -104,6 +105,33 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
       _backgroundElapsed
         ..reset()
         ..start();
+      // Flush queued analytics on every background. Mixpanel batches events;
+      // without this they only flushed at `onboarding_completed`, so a user who
+      // abandons mid-onboarding and force-quits could lose every queued event —
+      // exactly the drop-off cohort the funnel needs. (2026-06-15 audit, D1.)
+      if (mounted) {
+        try {
+          // Silent-abandonment signal: if the guided tour is active when the
+          // app backgrounds, the user left mid-tour without an explicit skip or
+          // an anchor timeout. Emit BEFORE the flush so the event ships with the
+          // batch this background triggers. Separate from `tour_skipped` /
+          // `tour_anchor_timeout` so the three exit modes are distinguishable.
+          final tour = ref.read(onboardingTourControllerProvider);
+          if (tour.isActive) {
+            ref.read(analyticsProvider).track(
+              AnalyticsEvents.tourBackgrounded,
+              properties: {
+                'step_id': tour.currentStep?.id ?? 'unknown',
+                'step_index': tour.index,
+                AnalyticsEvents.propVariant: tour.variant.name,
+              },
+            );
+          }
+        } catch (_) {/* analytics best-effort; never block lifecycle */}
+        try {
+          ref.read(analyticsProvider).flush();
+        } catch (_) {/* analytics best-effort; never block lifecycle */}
+      }
     }
     if (state == AppLifecycleState.resumed) {
       // Retention: warm-start session signal — but ONLY for a genuine return
@@ -140,5 +168,22 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    // Keep the `is_premium` super property in lockstep with the live entitlement
+    // so funnels can always exclude converted users. premiumStateProvider is
+    // invalidated on resume (above), sign-out, and purchase/restore — listening
+    // here means every resolution refreshes the super prop without a dedicated
+    // poll. Best-effort: a thrown analytics call must never break the resume
+    // path. (2026-06-15 audit, is_premium refresh.)
+    ref.listen<AsyncValue<PremiumState>>(premiumStateProvider, (prev, next) {
+      next.whenData((state) {
+        try {
+          ref.read(analyticsProvider).setSuperProperties(
+                {AnalyticsEvents.isPremium: state.isPremium},
+              );
+        } catch (_) {/* analytics best-effort; never block */}
+      });
+    });
+    return widget.child;
+  }
 }

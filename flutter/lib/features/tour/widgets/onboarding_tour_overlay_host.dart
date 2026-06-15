@@ -415,7 +415,11 @@ class _OnboardingTourOverlayHostState
       try {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.tourAnchorTimeout,
-          properties: {'step_id': pinnedStepId},
+          properties: {
+            'step_id': pinnedStepId,
+            'step_index': current.index,
+            AnalyticsEvents.propVariant: current.variant.name,
+          },
         );
       } catch (_) {}
       ref
@@ -480,7 +484,7 @@ class _OnboardingTourOverlayHostState
     return CoachmarkOverlay(
       step: coachmarkStep,
       stepIndex: tour.index,
-      totalSteps: kOnboardingTourLength,
+      totalSteps: tour.steps.length,
       hideUntilAnchorReady: hidden,
       onNext: _onNext,
       onSkip: _onSkip,

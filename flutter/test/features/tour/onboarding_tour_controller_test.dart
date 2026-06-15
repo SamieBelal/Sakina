@@ -60,7 +60,7 @@ void main() {
       expect(state.currentStep?.id, 'home.beginMuhasabah');
     });
 
-    test('advance() walks through all 13 steps then completes', () async {
+    test('advance() walks through every step then completes', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final notifier =

@@ -60,7 +60,12 @@ docs/
   superpowers/    # Plans for major features
   qa/             # Manual QA plans, findings, ui-map
   decisions/      # ADRs
+  analytics/      # Funnel/flag dimensions + how to query Mixpanel
 ```
+
+## Analytics & funnel querying
+
+The onboarding→tour→paywall funnel is ONE funnel segmented by feature-flag **super properties** (`flag_onboarding_trim`, `flag_hard_paywall`, `flag_tour_ab`, `tour_variant`, `app_version`) — never separate event streams per flag. Before querying Mixpanel (project `4013350`) or adding funnel instrumentation, read [`docs/analytics/funnel-flags-and-querying.md`](./docs/analytics/funnel-flags-and-querying.md): it documents what each flag differentiates, the canonical event/property schema (incl. `placement` on paywall events, `step_id` vs `step_index` for cross-variant tour funnels), and the gotchas (test-ID exclusion, new events only populate post-release, identity is Simplified-ID-Merge). Add new event-name constants to `lib/services/analytics_event_names.dart`; emit from providers via the static `onAnalyticsEvent` hook pattern (no Riverpod in services).
 
 ## Code conventions
 

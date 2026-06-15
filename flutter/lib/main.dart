@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,7 +14,9 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
+import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
+import 'features/reflect/providers/reflect_provider.dart';
 import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'services/analytics_events.dart';
 import 'services/analytics_provider.dart';
@@ -139,6 +142,9 @@ Future<void> main() async {
             // legacy opportunistic (skippable) tour instead of the forced gated
             // flow. Caught in the simulator on a fresh launch.
             'hard_paywall_after_tour_enabled',
+            // Slim-vs-full guided-tour A/B. Off → everyone gets the slim tour;
+            // on → 50/50 stable per-user split (see OnboardingTourController).
+            'tour_ab_enabled',
           ])
           .timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
@@ -187,10 +193,53 @@ Future<void> main() async {
   analytics.setSuperPropertiesOnce({
     'first_open_date': DateTime.now().toIso8601String(),
   });
-  analytics.setSuperProperties({
-    'platform': defaultTargetPlatform.name,
-    'app_version': '1.0.0',
-  });
+  // Experiment-context super properties: attach the active feature-flag state +
+  // real app version to EVERY event, so the entire onboarding→tour→paywall
+  // funnel is segmentable by flag combination (and by release) in Mixpanel with
+  // no per-question instrumentation. Flag reads are cache-fast (AppConfigService
+  // returns cached-or-fallback instantly, refreshing in the background); the
+  // fallbacks mirror each flag's own default. See
+  // docs/analytics/funnel-flags-and-querying.md.
+  // Guarded: PackageInfo.fromPlatform() can throw (MissingPluginException
+  // during a plugin-registration race, platform-channel failure). This whole
+  // block is best-effort telemetry — a bare throw here would crash cold launch
+  // before runApp. Fall back to an explicit sentinel version.
+  String appVersion;
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+  } catch (_) {
+    appVersion = 'unknown';
+  }
+  final appConfigForAnalytics = AppConfigService(Supabase.instance.client);
+  // Resolve `is_premium` for the boot super property. Best-effort — a
+  // failed/slow premium read defaults to false and is refreshed on the next
+  // resume by AppLifecycleObserver. Never block launch on it.
+  bool isPremiumAtBoot;
+  try {
+    isPremiumAtBoot = await PurchaseService().isPremium();
+  } catch (_) {
+    isPremiumAtBoot = false;
+  }
+  // Register the experiment-context super properties (platform, app_version,
+  // the four flag_* flags, is_premium) and fire the once-ever app_install
+  // event. Extracted to registerBootstrapAnalytics so the guard + super-prop
+  // shape is unit-testable; behavior is identical to the previous inline code.
+  await registerBootstrapAnalytics(
+    analytics: analytics,
+    prefs: prefs,
+    platform: defaultTargetPlatform.name,
+    appVersion: appVersion,
+    flagOnboardingTrim: await appConfigForAnalytics
+        .getBool('onboarding_trim_enabled', fallback: true),
+    flagHardPaywall: await appConfigForAnalytics
+        .getBool('hard_paywall_after_tour_enabled', fallback: false),
+    flagTourAb:
+        await appConfigForAnalytics.getBool('tour_ab_enabled', fallback: false),
+    flagGuidedTour: await appConfigForAnalytics
+        .getBool('guided_tour_enabled', fallback: true),
+    isPremium: isPremiumAtBoot,
+  );
   analytics.track(AnalyticsEvents.appOpened, properties: {
     'is_first_open': !onboardingCompleted,
   });
@@ -207,6 +256,13 @@ Future<void> main() async {
   // Riverpod access, so bridge its check_in_completed event the same way.
   DailyLoopNotifier.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
+  // Duas + Journal telemetry (2026-06-15): the Duas/Reflect notifiers have no
+  // Riverpod access, so bridge `dua_built` / `journal_entry_created` the same
+  // way (so the 6/19 reassessment can measure both guided-tour features).
+  DuasNotifier.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
+  ReflectNotifier.onAnalyticsEvent = (event, props) =>
+      analytics.track(event, properties: props);
   // Re-engagement attribution (2026-06-01): notification taps emit
   // `notification_opened` so we can measure push CTR / notification→session.
   NotificationService.onAnalyticsEvent = (event, props) =>
@@ -220,6 +276,11 @@ Future<void> main() async {
       analytics.track(event, properties: props);
   StreakAnalytics.onAnalyticsEvent = (event, props) =>
       analytics.track(event, properties: props);
+  // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
+  // sign-out so a shared/QA device doesn't bleed one user's identity into the
+  // next. AppSessionNotifier has no Riverpod access, so it calls this static
+  // hook from its signedOut branch (after final events are queued).
+  AppSessionNotifier.onAnalyticsReset = analytics.resetForSignOut;
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),

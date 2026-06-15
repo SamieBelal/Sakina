@@ -15,6 +15,7 @@ import '../features/onboarding/onboarding_stage.dart';
 import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
+import '../services/analytics_events.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
@@ -114,6 +115,7 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
+          placement: AnalyticsEvents.placementSoftInApp,
           onComplete: () => GoRouter.of(context).pop(),
         ),
       ),
@@ -128,6 +130,7 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           hardGate: true,
+          placement: AnalyticsEvents.placementHardWall,
           onComplete: () => GoRouter.of(context).go('/'),
         ),
       ),

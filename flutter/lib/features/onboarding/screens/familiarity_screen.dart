@@ -52,7 +52,7 @@ class FamiliarityScreen extends ConsumerWidget {
       onBack: onBack,
       onContinue: () {
         final value = ref.read(onboardingProvider).familiarity;
-        ref.read(analyticsProvider).trackSurveyAnswered('familiarity', value);
+        // De-duped 2026-06-15 (A3): keep only the canonical key-based event.
         ref.read(analyticsProvider).trackOnboardingAnswerWithRef(ref, 'familiarity', value);
         onNext();
       },

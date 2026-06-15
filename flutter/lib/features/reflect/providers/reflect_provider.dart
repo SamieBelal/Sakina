@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -363,6 +364,12 @@ class ReflectNotifier extends StateNotifier<ReflectState>
 
   @override
   GatedFeature get bypassFeature => GatedFeature.reflect;
+
+  /// Static analytics hook (mirrors [DailyLoopNotifier.onAnalyticsEvent]). No
+  /// Riverpod access here; main.dart wires this so a saved reflection can emit
+  /// `journal_entry_created`. Tests leave it null.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
 
   final ReflectDependencies _dependencies;
   bool _consumeFreeUsageOnSuccess = false;
@@ -785,6 +792,11 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     final updated = [reflection, ...state.savedReflections];
     state = state.copyWith(savedReflections: updated);
     await _persistReflections(updated);
+
+    onAnalyticsEvent?.call(AnalyticsEvents.journalEntryCreated, {
+      AnalyticsEvents.propEntryType: AnalyticsEvents.entryTypeReflection,
+      AnalyticsEvents.propAuto: false,
+    });
   }
 
   Future<void> _loadSavedReflections() async {

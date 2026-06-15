@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -523,5 +524,133 @@ void main() {
     notifier.setBuildNeed('another intention');
     await notifier.submitBuild();
     expect(notifier.state.buildResultSaveHandled, isFalse);
+  });
+
+  group('analytics: dua_built + journal_entry_created', () {
+    late List<({String name, Map<String, dynamic> props})> events;
+
+    setUp(() {
+      events = [];
+      DuasNotifier.onAnalyticsEvent =
+          (e, p) => events.add((name: e, props: p));
+    });
+
+    tearDown(() => DuasNotifier.onAnalyticsEvent = null);
+
+    test('successful build emits dua_built once; save + heart emit '
+        'journal_entry_created (typed)', () async {
+      final notifier = DuasNotifier(
+        loadOnInit: false,
+        dependencies: DuasDependencies(
+          findDuas: (_) async => findResponse(),
+          buildDua: (_) async => buildResponse(),
+          now: () => fixedNow,
+          createId: () => 'dua-analytics',
+        ),
+        resultRevealDelay: Duration.zero,
+      );
+      addTearDown(notifier.dispose);
+
+      notifier.setBuildNeed('Guide me gently');
+      await notifier.submitBuild();
+
+      final built = events.where((e) => e.name == AnalyticsEvents.duaBuilt);
+      expect(built, hasLength(1), reason: 'one real build → one dua_built');
+      expect(built.single.props['names_count'], 1);
+      expect(
+        events.any((e) => e.name == AnalyticsEvents.journalEntryCreated),
+        isFalse,
+        reason: 'building alone is not a journal save',
+      );
+
+      // Auto-save of the built dua → journal_entry_created{built_dua, auto:true}.
+      await notifier.saveCurrentBuiltDua();
+      final builtSave = events
+          .where((e) => e.name == AnalyticsEvents.journalEntryCreated)
+          .toList();
+      expect(builtSave, hasLength(1));
+      expect(builtSave.single.props[AnalyticsEvents.propEntryType],
+          AnalyticsEvents.entryTypeBuiltDua);
+      expect(builtSave.single.props[AnalyticsEvents.propAuto], true);
+
+      // Hearting a related dua → journal_entry_created{saved_dua, auto:false}.
+      const related = FindDuasDuaEntry(
+        title: 'For relief',
+        arabic: 'دعاء',
+        transliteration: 'dua',
+        translation: 'supplication',
+        source: 'Tirmidhi',
+      );
+      notifier.toggleSaveRelatedDua(related);
+      await Future<void>.delayed(Duration.zero);
+      final savedDuaEvents = events
+          .where((e) =>
+              e.name == AnalyticsEvents.journalEntryCreated &&
+              e.props[AnalyticsEvents.propEntryType] ==
+                  AnalyticsEvents.entryTypeSavedDua)
+          .toList();
+      expect(savedDuaEvents, hasLength(1));
+      expect(savedDuaEvents.single.props[AnalyticsEvents.propAuto], false);
+
+      // Un-hearting (toggle off) must NOT emit another journal entry.
+      notifier.toggleSaveRelatedDua(related);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        events
+            .where((e) =>
+                e.name == AnalyticsEvents.journalEntryCreated &&
+                e.props[AnalyticsEvents.propEntryType] ==
+                    AnalyticsEvents.entryTypeSavedDua)
+            .length,
+        1,
+        reason: 'removing a saved dua is not a new journal entry',
+      );
+    });
+
+    test('off-topic / empty-breakdown builds do NOT emit dua_built', () async {
+      // Regex pre-filter rejection ("hi") — buildDua is never called.
+      final offTopic = DuasNotifier(
+        loadOnInit: false,
+        dependencies: DuasDependencies(
+          findDuas: (_) async => findResponse(),
+          buildDua: (_) async => buildResponse(),
+          now: () => fixedNow,
+          createId: () => 'dua-offtopic-analytics',
+        ),
+        resultRevealDelay: Duration.zero,
+      );
+      addTearDown(offTopic.dispose);
+      offTopic.setBuildNeed('hi');
+      await offTopic.submitBuild();
+
+      // Server-side off-topic: regex passes, AI returns an empty breakdown.
+      const emptyBreakdownResponse = BuiltDuaResponse(
+        arabic: '',
+        transliteration: '',
+        translation: '',
+        breakdown: [],
+        namesUsed: [],
+        relatedDuas: [],
+      );
+      final emptyBuild = DuasNotifier(
+        loadOnInit: false,
+        dependencies: DuasDependencies(
+          findDuas: (_) async => findResponse(),
+          buildDua: (_) async => emptyBreakdownResponse,
+          now: () => fixedNow,
+          createId: () => 'dua-empty-analytics',
+        ),
+        resultRevealDelay: Duration.zero,
+      );
+      addTearDown(emptyBuild.dispose);
+      emptyBuild.setBuildNeed('pizza recipe with pepperoni and extra cheese');
+      await emptyBuild.submitBuild();
+
+      expect(
+        events.any((e) => e.name == AnalyticsEvents.duaBuilt),
+        isFalse,
+        reason: 'no real dua was produced → dua_built must not fire',
+      );
+    });
   });
 }
