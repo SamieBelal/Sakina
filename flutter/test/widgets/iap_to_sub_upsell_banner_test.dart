@@ -164,8 +164,8 @@ void main() {
       );
     });
 
-    testWidgets('banner tap fires iap_to_sub_banner_tapped + paywall_viewed '
-        'with trigger, then routes to /paywall', (tester) async {
+    testWidgets('banner tap fires iap_to_sub_banner_tapped (only), then routes '
+        'to /paywall', (tester) async {
       final container = ProviderContainer(overrides: [
         analyticsProvider.overrideWithValue(analytics),
         iapToSubBannerStateProvider.overrideWith(
@@ -187,16 +187,21 @@ void main() {
       await tester.pumpAndSettle();
 
       // Filter out the P0-5 shown event (fires once on first visible render)
-      // so the tap-flow assertion remains focused on tap + paywall_viewed.
+      // so the tap-flow assertion stays focused on the tap event.
       final tapFlow = analytics.tracked
           .where((e) => e.$1 != AnalyticsEvents.iapToSubBannerShown)
           .toList();
-      expect(tapFlow.length, 2);
+      // The banner no longer fires its own paywall_viewed (2026-06-15 audit):
+      // PaywallScreen.initState is now the single source of truth for that event
+      // (placement:'soft_inapp'), so the banner emitting it too double-counted
+      // soft-in-app views. Only iap_to_sub_banner_tapped fires here.
+      expect(tapFlow.length, 1);
       expect(tapFlow[0].$1, AnalyticsEvents.iapToSubBannerTapped);
-      expect(tapFlow[1].$1, AnalyticsEvents.paywallViewed);
-      expect(tapFlow[1].$2, {
-        'trigger': AnalyticsEvents.paywallTriggerIapToSubUpsell,
-      });
+      expect(
+        analytics.tracked.any((e) => e.$1 == AnalyticsEvents.paywallViewed),
+        isFalse,
+        reason: 'Banner must NOT emit paywall_viewed — PaywallScreen owns it.',
+      );
 
       expect(find.text('PAYWALL'), findsOneWidget,
           reason: 'Banner tap must route to /paywall');
