@@ -6,9 +6,21 @@
 
 abstract final class AnalyticsEvents {
   static const appOpened = 'app_opened';
+  // Funnel-entry events (2026-06-15 audit, Phase 4). `app_install` fires exactly
+  // once ever (guarded by its own SharedPreferences flag, NOT the
+  // onboarding_completed proxy) so install→onboarding_start is computable;
+  // `onboarding_started` is the clean funnel entry (denominator).
+  static const appInstall = 'app_install';
+  static const onboardingStarted = 'onboarding_started';
   static const onboardingStepViewed = 'onboarding_step_viewed';
   static const onboardingStepCompleted = 'onboarding_step_completed';
   static const firstCheckinSubmitted = 'first_checkin_submitted';
+  // Auth sub-flow (Phase 4): fired when the email screen is submitted, so an
+  // email-screen drop is distinguishable from a password-screen drop.
+  static const signupEmailSubmitted = 'signup_email_submitted';
+  // Super-property key (Phase 4): registered when premium state resolves so any
+  // funnel can exclude already-converted users.
+  static const String isPremium = 'is_premium';
 
   // Retention core-loop events (2026-06-01 instrumentation — see
   // docs/qa/runs/2026-06-01-full-regression/retention-audit/). check_in_completed
@@ -78,6 +90,20 @@ abstract final class AnalyticsEvents {
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
+
+  // Paywall funnel instrumentation (2026-06-15 audit, Phase 2). The native
+  // StoreKit sheet was a dark step between paywall_cta_tapped and trial_started;
+  // these make the CTA→trial drop measurable. `placement` distinguishes the
+  // three surfaces so they don't collapse into one funnel.
+  static const String purchaseSheetPresented = 'purchase_sheet_presented';
+  static const String purchaseSheetCancelled = 'purchase_sheet_cancelled';
+  static const String purchaseSheetFailed = 'purchase_sheet_failed';
+  static const String paywallSafetyValveUsed = 'paywall_safety_valve_used';
+  // `placement` property — which paywall surface the event came from.
+  static const String propPlacement = 'placement';
+  static const String placementOnboarding = 'onboarding';
+  static const String placementHardWall = 'hard_wall';
+  static const String placementSoftInApp = 'soft_inapp';
 
   /// Fired the moment a subscription purchase / trial actually succeeds
   /// (entitlement active), NOT on CTA tap. This is the first true conversion
@@ -314,6 +340,25 @@ abstract final class AnalyticsEvents {
   static const String tierUp = 'tier_up';
   static const String collectionCompleted = 'collection_completed';
 
+  // Duas + Journal (2026-06-15 — instrument the two guided-tour features the
+  // 6/19 reassessment can't otherwise evaluate; see the onboarding-paywall ADR).
+  // dua_built = a Build-a-Dua call that returned a real dua (non-empty
+  // breakdown; off-topic/rejected builds do NOT fire). journal_entry_created =
+  // anything saved into the Journal, with `entry_type` in {built_dua, saved_dua,
+  // reflection} and `auto` true only for the always-auto-saved built dua, so
+  // deliberate saves (hearted related duas, reflections) are separable.
+  // Emitted via DuasNotifier/ReflectNotifier.onAnalyticsEvent (no Riverpod in
+  // those notifiers — wired in main.dart like DailyLoopNotifier).
+  static const String duaBuilt = 'dua_built';
+  static const String journalEntryCreated = 'journal_entry_created';
+
+  // Property keys + values for journal_entry_created.
+  static const String propEntryType = 'entry_type';
+  static const String propAuto = 'auto';
+  static const String entryTypeBuiltDua = 'built_dua';
+  static const String entryTypeSavedDua = 'saved_dua';
+  static const String entryTypeReflection = 'reflection';
+
   // Economy: streaks, quests, XP, levels. Streak events come from the
   // streak_service chokepoint via StreakAnalytics.onAnalyticsEvent; XP/level/
   // quest events are emitted directly from AppShell (has Riverpod ref).
@@ -339,6 +384,22 @@ abstract final class AnalyticsEvents {
   static const String tourReplayTapped = 'tour_replay_tapped';
   static const String tourAnchorTimeout = 'tour_anchor_timeout';
   static const String tourStartSkipped = 'tour_start_skipped';
+  // Slim-vs-full A/B (2026-06-15). Set as a USER property at tour start so EVERY
+  // event (retention, conversion) is breakable down by the variant a user saw,
+  // and added to `tour_started` props. Values: 'slim' | 'full'.
+  static const String tourVariant = 'tour_variant';
+  static const String propVariant = 'variant';
+  // Tour funnel completeness (2026-06-15 audit, Phase 3). `tour_offered` closes
+  // the onboarding_completed→tour_started gap; `tour_backgrounded` separates
+  // silent mid-tour abandonment from explicit skip/timeout. `tour_start_skipped`
+  // gains a reason for EVERY non-start path (only 'disabled' fired before).
+  static const String tourOffered = 'tour_offered';
+  static const String tourBackgrounded = 'tour_backgrounded';
+  static const String tourSkipReasonDisabled = 'disabled';
+  static const String tourSkipReasonAlreadyCheckedIn = 'already_checked_in';
+  static const String tourSkipReasonColdOffline = 'cold_offline';
+  static const String tourSkipReasonNoAuth = 'no_auth';
+  static const String tourSkipReasonAlreadySeen = 'already_seen';
 
   // LEGACY 27-page flow step names (0-26, rating gate at 25).
   // Active only when `onboarding_trim_enabled=false`.

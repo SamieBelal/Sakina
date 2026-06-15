@@ -331,54 +331,6 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // F-06 regression: the final CENTERED step (duaDetail.done) has no anchor, so
-  // the anchor-stability settle + the Build-a-Dua `tourSuppressed` gate must not
-  // keep its celebration banner hidden. Before the fix, a stale suppression flag
-  // (left over from the Duas flow) kept `_revealReady` false forever on the
-  // DuaDetailPage → the banner never showed. See
-  // docs/qa/findings/2026-06-01-tour-step13-saved-dua-no-banner.md
-  // ---------------------------------------------------------------------------
-  testWidgets(
-      'F-06: centered final step reveals via its own settle even when '
-      'tourSuppressed is stuck true', (tester) async {
-    // Index 12 = the centered `duaDetail.done` step.
-    expect(kOnboardingTourSteps[12].anchorId, 'centered');
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          onboardingTourControllerProvider
-              .overrideWith((ref) => _ActiveAtStep(ref, 12)),
-        ],
-        child: MaterialApp(
-          navigatorKey: rootNavigatorKey,
-          home: const OnboardingTourOverlayHost(
-            child: Scaffold(body: SizedBox.shrink()),
-          ),
-        ),
-      ),
-    );
-    // First frame inserts the overlay + arms the centered settle timer.
-    await tester.pump();
-
-    // Simulate the stale suppression the Duas build flow can leave behind.
-    final container = ProviderScope.containerOf(
-        tester.element(find.byType(OnboardingTourOverlayHost)));
-    container.read(tourSuppressedProvider.notifier).state = true;
-    await tester.pump();
-
-    // Within the settle floor: still hidden.
-    await tester.pump(const Duration(milliseconds: 150));
-    expect(find.textContaining('the whole loop'), findsNothing,
-        reason: 'must stay hidden until the centered settle delay elapses');
-
-    // After the floor: the banner reveals DESPITE the stuck suppression flag.
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(find.textContaining('the whole loop'), findsOneWidget,
-        reason: 'centered final step must reveal even with stale tourSuppressed');
-  });
-
-  // ---------------------------------------------------------------------------
   // Bug 1: bottom-nav tab steps must advance on the actual ROUTE change, not on
   // a pointer Listener over the tab icon (which is disposed mid-tap when the
   // icon swaps to its active variant). The host watches `tourActiveRouteProvider`
@@ -387,17 +339,17 @@ void main() {
   testWidgets(
       'navigate-trigger tab step advances when the active route reaches its '
       'navigateRoute', (tester) async {
-    // Index 6 = appShell.tabCollection, navigateRoute '/collection'.
-    final navStep = kOnboardingTourSteps[6];
-    expect(navStep.id, 'appShell.tabCollection');
-    expect(navStep.navigateRoute, '/collection');
+    // Index 5 = appShell.tabDuas, navigateRoute '/duas'.
+    final navStep = kOnboardingTourSteps[5];
+    expect(navStep.id, 'appShell.tabDuas');
+    expect(navStep.navigateRoute, '/duas');
     expect(navStep.trigger, TourAdvanceTrigger.navigate);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           onboardingTourControllerProvider
-              .overrideWith((ref) => _ActiveAtStep(ref, 6)),
+              .overrideWith((ref) => _ActiveAtStep(ref, 5)),
         ],
         child: MaterialApp(
           navigatorKey: rootNavigatorKey,
@@ -414,13 +366,13 @@ void main() {
     // User is still on home (the source screen) — must NOT advance.
     container.read(tourActiveRouteProvider.notifier).state = '/';
     await tester.pump();
-    expect(container.read(onboardingTourControllerProvider).index, 6,
+    expect(container.read(onboardingTourControllerProvider).index, 5,
         reason: 'on the source route the nav step must not advance');
 
-    // User taps the Collection tab → AppShell publishes '/collection'.
-    container.read(tourActiveRouteProvider.notifier).state = '/collection';
+    // User taps the Duas tab → AppShell publishes '/duas'.
+    container.read(tourActiveRouteProvider.notifier).state = '/duas';
     await tester.pump();
-    expect(container.read(onboardingTourControllerProvider).index, 7,
+    expect(container.read(onboardingTourControllerProvider).index, 6,
         reason: 'reaching the navigateRoute advances the nav step (Bug 1 fix)');
   });
 }

@@ -18,9 +18,10 @@ class OnboardingTourState {
     required this.index,
     required this.status,
     this.userName,
+    this.variant = TourVariant.slim,
   });
 
-  /// Step index into [kOnboardingTourSteps]. `-1` when idle.
+  /// Step index into [steps]. `-1` when idle.
   final int index;
 
   final TourStatus status;
@@ -29,20 +30,35 @@ class OnboardingTourState {
   /// once at tour start/replay; null until then (copy falls back to no name).
   final String? userName;
 
+  /// Which A/B arm this run is showing. Resolved once at tour start/resume from
+  /// the `tour_ab_enabled` flag + a stable per-user bucket; defaults to slim
+  /// (the go-forward variant) for idle/synthetic states.
+  final TourVariant variant;
+
   bool get isActive => status == TourStatus.active;
+
+  /// The active variant's step list.
+  List<OnboardingTourStepDef> get steps => tourStepsForVariant(variant);
 
   /// Returns the current step def, or null if idle/finished.
   OnboardingTourStepDef? get currentStep {
     if (!isActive) return null;
-    if (index < 0 || index >= kOnboardingTourSteps.length) return null;
-    return kOnboardingTourSteps[index];
+    final variantSteps = steps;
+    if (index < 0 || index >= variantSteps.length) return null;
+    return variantSteps[index];
   }
 
-  OnboardingTourState copyWith({int? index, TourStatus? status, String? userName}) =>
+  OnboardingTourState copyWith({
+    int? index,
+    TourStatus? status,
+    String? userName,
+    TourVariant? variant,
+  }) =>
       OnboardingTourState(
         index: index ?? this.index,
         status: status ?? this.status,
         userName: userName ?? this.userName,
+        variant: variant ?? this.variant,
       );
 }
 
@@ -70,12 +86,24 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
   ///     Marks seen so we don't retry every launch.
   Future<void> start() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
+    if (userId == null) {
+      _track(AnalyticsEvents.tourStartSkipped,
+          {'reason': AnalyticsEvents.tourSkipReasonNoAuth});
+      return;
+    }
     if (state.status != TourStatus.idle) return;
 
     final prefs = await SharedPreferences.getInstance();
     final flag = onboardingTourSeenFlag(userId);
-    if (prefs.getBool(flag) ?? false) return;
+    if (prefs.getBool(flag) ?? false) {
+      // Already-seen path: instrumented for completeness so the never-started
+      // gap is fully attributable. Fires at most once per launch (the next
+      // launch short-circuits on the same flag), so repeat-launch noise is
+      // bounded.
+      _track(AnalyticsEvents.tourStartSkipped,
+          {'reason': AnalyticsEvents.tourSkipReasonAlreadySeen});
+      return;
+    }
 
     // Wait briefly for dailyLoopProvider to load. Avoids reading the initial
     // empty state at cold launch (where checkinDone is falsely false and
@@ -87,11 +115,15 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     final daily = _ref.read(dailyLoopProvider);
     if (!daily.loaded) {
       // Never loaded — cold-offline. Skip this launch, do NOT mark seen.
+      _track(AnalyticsEvents.tourStartSkipped,
+          {'reason': AnalyticsEvents.tourSkipReasonColdOffline});
       return;
     }
 
     if (daily.checkinDone) {
       await prefs.setBool(flag, true);
+      _track(AnalyticsEvents.tourStartSkipped,
+          {'reason': AnalyticsEvents.tourSkipReasonAlreadyCheckedIn});
       return;
     }
 
@@ -104,17 +136,53 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
         .read(appConfigServiceProvider)
         .getBool('guided_tour_enabled', fallback: true);
     if (!tourEnabled) {
-      _track(AnalyticsEvents.tourStartSkipped, const {'reason': 'disabled'});
+      _track(AnalyticsEvents.tourStartSkipped,
+          {'reason': AnalyticsEvents.tourSkipReasonDisabled});
       return;
     }
 
+    final variant = await _resolveVariant();
     state = OnboardingTourState(
       index: 0,
       status: TourStatus.active,
       userName: await _resolveUserName(),
+      variant: variant,
     );
-    _track(AnalyticsEvents.tourStarted, const {});
+    _recordVariant(variant);
+    _track(AnalyticsEvents.tourStarted, {AnalyticsEvents.propVariant: variant.name});
     _trackStepViewed();
+  }
+
+  /// Resolves the A/B arm for this run. When `tour_ab_enabled` is off everyone
+  /// gets the slim tour (the go-forward default); when on, a stable per-user
+  /// 50/50 bucket decides. Fail-safe (no config / no auth) → slim. The result
+  /// is recorded as a `tour_variant` USER property so every downstream event
+  /// (retention, conversion) segments by the variant the user actually saw.
+  Future<TourVariant> _resolveVariant() async {
+    try {
+      final abEnabled = await _ref
+          .read(appConfigServiceProvider)
+          .getBool('tour_ab_enabled', fallback: false);
+      if (!abEnabled) return TourVariant.slim;
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+      return assignTourVariant(userId);
+    } catch (_) {
+      return TourVariant.slim;
+    }
+  }
+
+  void _recordVariant(TourVariant variant) {
+    // Set on BOTH the people profile (for user-level analysis) AND as a super
+    // property (so EVERY subsequent event — retention, paywall, conversion —
+    // is segmentable by the tour arm the user saw, not just tour events).
+    _setUserProperties({AnalyticsEvents.tourVariant: variant.name});
+    try {
+      _ref
+          .read(analyticsProvider)
+          .setSuperProperties({AnalyticsEvents.tourVariant: variant.name});
+    } catch (_) {
+      // Analytics is best-effort; a failure here must not break the tour.
+    }
   }
 
   /// Resolves the display name for personalized copy. `GatingService` already
@@ -138,14 +206,25 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     _track(AnalyticsEvents.tourStepAdvanced, {
       'step_id': currentId,
       'via': via,
+      AnalyticsEvents.propVariant: state.variant.name,
     });
 
     final next = state.index + 1;
-    if (next >= kOnboardingTourSteps.length) {
+    if (next >= state.steps.length) {
+      // Capture the final-step id BEFORE mutating state: once `index` advances
+      // to `next` (out of range) `currentStep` is null, so `currentId` (the
+      // step the user just completed from) is the true final step.
+      final finalStepId = currentId;
+      final stepCount = state.steps.length;
+      final variantName = state.variant.name;
       // Update state FIRST (synchronously) so listeners/tests observe the new
       // status without waiting on the persistence I/O below.
       state = state.copyWith(index: next, status: TourStatus.completed);
-      _track(AnalyticsEvents.tourCompleted, const {});
+      _track(AnalyticsEvents.tourCompleted, {
+        AnalyticsEvents.propVariant: variantName,
+        'step_count': stepCount,
+        'final_step_id': finalStepId,
+      });
       await _markSeen();
       // Reset the resume cursor so a "Replay tour" or any future re-entry
       // starts at the beginning, not at the (out-of-range) completed index.
@@ -167,17 +246,27 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
   /// so a force-kill mid-tour reopens where they left off (decision C3).
   Future<void> resumeForGate() async {
     if (state.status == TourStatus.active) return;
+    final variant = await _resolveVariant();
+    // The mandatory gate has decided the user is being offered the tour. Fire
+    // `tour_offered` exactly once here — before the start happens — so the
+    // never-started / offered→started funnel is measurable. (resumeForGate
+    // always proceeds to start, so this is one offer per gate entry.)
+    _track(AnalyticsEvents.tourOffered,
+        {AnalyticsEvents.propVariant: variant.name});
+    final variantSteps = tourStepsForVariant(variant);
     final saved = await _safeResumeIndex();
-    final clamped = saved.clamp(0, kOnboardingTourSteps.length - 1);
+    final clamped = saved.clamp(0, variantSteps.length - 1);
     state = OnboardingTourState(
       index: clamped,
       status: TourStatus.active,
       userName: await _resolveUserName(),
+      variant: variant,
     );
-    _track(
-      AnalyticsEvents.tourStarted,
-      clamped > 0 ? const {'via': 'resume'} : const {},
-    );
+    _recordVariant(variant);
+    _track(AnalyticsEvents.tourStarted, {
+      AnalyticsEvents.propVariant: variant.name,
+      if (clamped > 0) 'via': 'resume',
+    });
     _trackStepViewed();
   }
 
@@ -201,9 +290,15 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
   Future<void> skip() async {
     if (state.status != TourStatus.active) return;
     final atStep = state.currentStep?.id ?? 'unknown';
+    final atIndex = state.index;
+    final variantName = state.variant.name;
     await _markSeen();
     state = state.copyWith(status: TourStatus.skipped);
-    _track(AnalyticsEvents.tourSkipped, {'at_step_id': atStep});
+    _track(AnalyticsEvents.tourSkipped, {
+      'at_step_id': atStep,
+      'step_index': atIndex,
+      AnalyticsEvents.propVariant: variantName,
+    });
     _setUserProperties({
       'tour_home_skipped_at': DateTime.now().toUtc().toIso8601String(),
     });
@@ -250,6 +345,7 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     _track(AnalyticsEvents.tourStepViewed, {
       'step_id': step.id,
       'step_index': state.index,
+      AnalyticsEvents.propVariant: state.variant.name,
     });
   }
 

@@ -6,6 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_autofocus_text_field.dart';
 import '../widgets/onboarding_continue_button.dart';
@@ -78,6 +80,10 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
     ref
         .read(onboardingProvider.notifier)
         .setSignUpEmail(_controller.text.trim());
+    // Auth sub-flow (2026-06-15 audit, A2): the email screen advanced with a
+    // valid address. Lets the funnel distinguish an email-screen drop from a
+    // password-screen drop. NO PII — we emit the event only, never the address.
+    ref.read(analyticsProvider).track(AnalyticsEvents.signupEmailSubmitted);
     widget.onNext();
   }
 

@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart' as ai;
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -103,5 +104,41 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('saved_reflections:user-p2-5'), isNull,
         reason: 'no row should have been persisted locally either');
+  });
+
+  test('a saved reflection emits journal_entry_created{reflection}', () async {
+    SupabaseSyncService.debugSetInstance(
+      FakeSupabaseSyncService(userId: 'user-journal'),
+    );
+    await GatingService().debugSetHadTrial(true);
+
+    final events = <({String name, Map<String, dynamic> props})>[];
+    ReflectNotifier.onAnalyticsEvent =
+        (e, p) => events.add((name: e, props: p));
+    addTearDown(() => ReflectNotifier.onAnalyticsEvent = null);
+
+    final notifier = ReflectNotifier(
+      loadOnInit: false,
+      dependencies: ReflectDependencies(
+        getFollowUpQuestions: (_) async => const [],
+        reflect: (_) async => successResponse(),
+        now: () => fixedNow,
+        createId: () => 'r-journal',
+      ),
+    );
+    addTearDown(notifier.dispose);
+
+    notifier.setUserText('I feel anxious');
+    await notifier.submit();
+
+    expect(notifier.state.savedReflections, hasLength(1),
+        reason: 'precondition: the reflection actually saved');
+    final journal = events
+        .where((e) => e.name == AnalyticsEvents.journalEntryCreated)
+        .toList();
+    expect(journal, hasLength(1));
+    expect(journal.single.props[AnalyticsEvents.propEntryType],
+        AnalyticsEvents.entryTypeReflection);
+    expect(journal.single.props[AnalyticsEvents.propAuto], false);
   });
 }

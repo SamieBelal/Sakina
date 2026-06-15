@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -336,6 +337,14 @@ class DuasNotifier extends StateNotifier<DuasState>
   final DuasDependencies _dependencies;
   final Duration _resultRevealDelay;
 
+  /// Static analytics hook (mirrors [DailyLoopNotifier.onAnalyticsEvent]). This
+  /// notifier has no Riverpod access; main.dart wires this to the analytics
+  /// service so the Build-a-Dua + Journal-save chokepoints can emit
+  /// `dua_built` / `journal_entry_created` without taking on an analytics
+  /// dependency. Tests leave it null.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   static const String _namesInvokedKey = 'sakina_names_invoked';
 
   Future<void> _trackNamesInvoked(List<String> names) async {
@@ -635,6 +644,14 @@ class DuasNotifier extends StateNotifier<DuasState>
       if (result.namesUsed.isNotEmpty) {
         await _trackNamesInvoked(result.namesUsed.map((n) => n.name).toList());
       }
+      // Emit `dua_built` only for a real, on-topic dua — an empty breakdown is
+      // an off-topic/rejected response the user got no value from (and isn't
+      // charged for above), so it must not count as a build.
+      if (result.breakdown.isNotEmpty) {
+        onAnalyticsEvent?.call(AnalyticsEvents.duaBuilt, {
+          'names_count': result.namesUsed.length,
+        });
+      }
       // No XP — only Muhasabah, quests, and streak milestones grant XP.
     } catch (e) {
       _progressTimer?.cancel();
@@ -724,6 +741,14 @@ class DuasNotifier extends StateNotifier<DuasState>
         dua.toSupabaseRow(userId),
       );
     }
+
+    // Built duas auto-save into the Journal (see DuasScreen._buildAmeenScreen),
+    // so this is an automatic entry — `auto: true` lets the funnel separate it
+    // from the deliberate saves (hearted related duas, reflections).
+    onAnalyticsEvent?.call(AnalyticsEvents.journalEntryCreated, {
+      AnalyticsEvents.propEntryType: AnalyticsEvents.entryTypeBuiltDua,
+      AnalyticsEvents.propAuto: true,
+    });
   }
 
   Future<void> removeSavedBuiltDua(String id) async {
@@ -776,6 +801,14 @@ class DuasNotifier extends StateNotifier<DuasState>
     }
     state = state.copyWith(savedRelatedDuas: updated);
     await _persistRelatedDuas(updated);
+
+    // Only a NEW save is a journal entry; the un-save (toggle off) is not.
+    if (!existing) {
+      onAnalyticsEvent?.call(AnalyticsEvents.journalEntryCreated, {
+        AnalyticsEvents.propEntryType: AnalyticsEvents.entryTypeSavedDua,
+        AnalyticsEvents.propAuto: false,
+      });
+    }
   }
 
   Future<void> removeSavedRelatedDua(String id) async {

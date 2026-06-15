@@ -33,6 +33,12 @@ enum TourSurface {
 /// - [auto]: a read-only teach step that advances on a timer ([autoAdvance]).
 enum TourAdvanceTrigger { tapTarget, navigate, auto }
 
+/// Which guided-tour variant a user sees. The slim-vs-full A/B (2026-06-15)
+/// runs `slim` (the 7-step Muḥāsabah → Duas tour) against `full` (the original
+/// 13-step tour) to measure whether the shorter tour actually lifts retention.
+/// See `assignTourVariant` + the `tour_ab_enabled` `app_config` flag.
+enum TourVariant { full, slim }
+
 @immutable
 class OnboardingTourStepDef {
   const OnboardingTourStepDef({
@@ -120,20 +126,33 @@ class OnboardingTourStepDef {
 /// ~24pt icon to comfortably cover the label without bleeding into neighbouring
 /// tabs; `Bottom` reaches down past the label; `Top` lifts to the cell top.
 /// All edges are clamped to the screen in `_targetRect`, so over-estimating is
-/// safe. Shared by the three interactive tab steps.
+/// safe. Shared by the two interactive tab steps (Duas, Home).
 const double kTabCutoutPadX = 24;
 const double kTabCutoutPadBottom = 24;
 const double kTabCutoutPadTop = 8;
 
-/// The 13 steps of the interactive guided onboarding tour.
+/// The 7 steps of the interactive guided onboarding tour.
 ///
 /// Order is canonical — index in this list IS the step index used by
 /// `OnboardingTourController`. Adding/removing/reordering changes the tour.
 ///
-/// See `docs/superpowers/plans/2026-05-26-interactive-guided-tour.md` for
-/// the full design and rationale behind each step.
-const List<OnboardingTourStepDef> kOnboardingTourSteps = [
-  // Phase A — First Muḥāsabah (steps 1-5, all interactive)
+/// Slimmed 2026-06-15 to the **Muḥāsabah → Duas (build)** path. The original
+/// 13-step tour bled ~56% of users across a Collection→Duas→Journal "tourism"
+/// back half (worst at the tab-navigation steps); post-release cohort data
+/// showed the tour length — not the paywall — was the first-session retention
+/// bottleneck. This keeps the muḥāsabah aha (steps 0-4) and a single dua build
+/// (steps 5-6, ONE tab hop, no Collection/Journal detour), then ends on the
+/// user's own built dua. The "come back tomorrow" return hook is carried by the
+/// evening streak push (`send-scheduled-notifications`: "Keep your N-day streak
+/// alive"), so an in-tour streak beat (and the return-home hop it required) was
+/// dropped to cut a second, less-reliable tab step. Collection and Journal are
+/// surfaced contextually in-app instead of force-toured. See
+/// `docs/decisions/2026-06-14-onboarding-paywall-reverse-trial.md`.
+///
+/// This is the `slim` arm of the slim-vs-full A/B; [kFullOnboardingTourSteps]
+/// is the control. [kOnboardingTourSteps] aliases this as the default.
+const List<OnboardingTourStepDef> kSlimOnboardingTourSteps = [
+  // Phase A — First Muḥāsabah (all interactive taps)
   OnboardingTourStepDef(
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
@@ -160,7 +179,89 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
   ),
   // "See the Dua" step is intentionally omitted — three identical-shape
   // taps in a row would feel patronizing. User navigates through the Story
-  // screen silently, then the Ameen coachmark fires on deeper step 3.
+  // screen silently, then the Ameen coachmark fires next.
+  OnboardingTourStepDef(
+    id: 'muhasabah.ameen',
+    surface: TourSurface.muhasabah,
+    anchorId: 'ameenCta',
+    message: 'Seal your prayer — tap Ameen.',
+    interactive: true,
+    hint: 'Tap to continue ↗',
+  ),
+  OnboardingTourStepDef(
+    id: 'muhasabah.returnHome',
+    surface: TourSurface.muhasabah,
+    anchorId: 'returnHomeCta',
+    message: 'Beautifully done, {name}. Head back home.',
+    interactive: true,
+    hint: 'Tap to continue ↗',
+  ),
+  // Phase B — One dua build, the tour's finale. A single tab hop to Duas (no
+  // Collection detour); the tour completes when the user taps Build, ending on
+  // their own dua. No return-home/streak step — the streak return hook is
+  // carried by the evening streak push instead.
+  OnboardingTourStepDef(
+    id: 'appShell.tabDuas',
+    surface: TourSurface.appShell,
+    anchorId: 'tabDuas',
+    message: "Let's build your first dua, {name}. Tap Duas.",
+    interactive: true,
+    hint: 'Tap to continue ↗',
+    // Advance when the user actually lands on /duas — robust to the tab
+    // icon→activeIcon swap that disposes the anchor's pointer Listener
+    // mid-tap (see Bug 1).
+    navigateRoute: '/duas',
+    // Anchor is the tab ICON only; grow the cutout into the full tab cell so
+    // the "Duas" label is highlighted too (not greyed under the scrim).
+    cutoutPaddingTop: kTabCutoutPadTop,
+    cutoutPaddingBottom: kTabCutoutPadBottom,
+    cutoutPaddingX: kTabCutoutPadX,
+  ),
+  OnboardingTourStepDef(
+    id: 'duas.buildCta',
+    surface: TourSurface.duas,
+    anchorId: 'buildCta',
+    message: "Type what's on your heart, then tap Build.",
+    interactive: true,
+    hint: 'Tap Build to continue ↗',
+    // Extends the cutout UPWARD by 280pt so the text field above the Build CTA
+    // is ALSO highlighted (and not obscured by the tooltip). The tooltip
+    // auto-flips ABOVE the expanded cutout. Live tested 2026-05-26.
+    cutoutPaddingTop: 280,
+  ),
+];
+
+/// The original 13-step guided tour (pre-2026-06-15). Retained as the **control
+/// arm** of the slim-vs-full A/B — DO NOT delete while the experiment runs. If
+/// the experiment confirms the slim tour, this can be removed and the variant
+/// machinery collapsed back to a single list. See
+/// `docs/decisions/2026-06-14-onboarding-paywall-reverse-trial.md`.
+const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
+  // Phase A — First Muḥāsabah (steps 0-5, all interactive)
+  OnboardingTourStepDef(
+    id: 'home.beginMuhasabah',
+    surface: TourSurface.home,
+    anchorId: 'beginMuhasabahCta',
+    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
+    interactive: true,
+    hint: 'Tap to continue ↗',
+  ),
+  OnboardingTourStepDef(
+    id: 'muhasabah.goDeeper',
+    surface: TourSurface.muhasabah,
+    anchorId: 'goDeeperCta',
+    message: 'Open Go Deeper, {name} — reflection, story and dua await.',
+    interactive: true,
+    hint: 'Tap to continue ↗',
+  ),
+  OnboardingTourStepDef(
+    id: 'muhasabah.readStory',
+    surface: TourSurface.muhasabah,
+    anchorId: 'readStoryCta',
+    message: 'Now read a story from the Prophets ﷺ.',
+    interactive: true,
+    hint: 'Tap to continue ↗',
+  ),
   OnboardingTourStepDef(
     id: 'muhasabah.ameen',
     surface: TourSurface.muhasabah,
@@ -193,12 +294,7 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     message: 'Your first card is waiting — tap Collection.',
     interactive: true,
     hint: 'Tap to continue ↗',
-    // Advance when the user actually lands on /collection — robust to the
-    // tab icon→activeIcon swap that disposes the anchor's pointer Listener
-    // mid-tap (the old icon-Listener advance never fired; see Bug 1).
     navigateRoute: '/collection',
-    // Anchor is the tab ICON only; grow the cutout into the full tab cell so
-    // the "Collection" label is highlighted too (not greyed under the scrim).
     cutoutPaddingTop: kTabCutoutPadTop,
     cutoutPaddingBottom: kTabCutoutPadBottom,
     cutoutPaddingX: kTabCutoutPadX,
@@ -211,7 +307,6 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     interactive: true,
     hint: 'Tap to continue ↗',
     navigateRoute: '/duas',
-    // Grow the icon anchor into the full tab cell (icon + "Duas" label).
     cutoutPaddingTop: kTabCutoutPadTop,
     cutoutPaddingBottom: kTabCutoutPadBottom,
     cutoutPaddingX: kTabCutoutPadX,
@@ -224,12 +319,6 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     message: "Type what's on your heart, then tap Build.",
     interactive: true,
     hint: 'Tap Build to continue ↗',
-    // Extends the cutout UPWARD by 280pt so the text field above the
-    // Build CTA is ALSO highlighted (and not obscured by the tooltip).
-    // Single anchor, single message, larger visual region. The cutout
-    // covers the form (text field + section pills + Build CTA). The
-    // tooltip auto-flips ABOVE the expanded cutout where it sits over
-    // the page header, not the input. Live tested 2026-05-26.
     cutoutPaddingTop: 280,
   ),
   OnboardingTourStepDef(
@@ -248,7 +337,6 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
     interactive: true,
     hint: 'Tap to continue ↗',
     navigateRoute: '/journal',
-    // Grow the icon anchor into the full tab cell (icon + "Journal" label).
     cutoutPaddingTop: kTabCutoutPadTop,
     cutoutPaddingBottom: kTabCutoutPadBottom,
     cutoutPaddingX: kTabCutoutPadX,
@@ -272,6 +360,34 @@ const List<OnboardingTourStepDef> kOnboardingTourSteps = [
   ),
 ];
 
-/// Number of steps in the tour. Used by the controller for bounds checks
-/// and by analytics for "Step X of N" labels.
+/// Default tour = slim (the go-forward variant). The A/B picks the live variant
+/// at runtime via [assignTourVariant]; this alias is the idle/fallback default
+/// and is what the unit tests pin.
+const List<OnboardingTourStepDef> kOnboardingTourSteps = kSlimOnboardingTourSteps;
+
+/// The step list for [variant].
+List<OnboardingTourStepDef> tourStepsForVariant(TourVariant variant) =>
+    variant == TourVariant.full
+        ? kFullOnboardingTourSteps
+        : kSlimOnboardingTourSteps;
+
+/// Stable 0–99 bucket for [userId] (FNV-1a/32 over UTF-16 code units). Pure and
+/// deterministic across sessions/devices with no persistence, so a user keeps
+/// the same variant every launch. Empty id (anon) hashes to a fixed bucket.
+int tourBucket(String userId) {
+  var hash = 0x811c9dc5;
+  for (final unit in userId.codeUnits) {
+    hash = (hash ^ unit) & 0xffffffff;
+    hash = (hash * 0x01000193) & 0xffffffff;
+  }
+  return hash % 100;
+}
+
+/// 50/50 split: lower half of the bucket space → slim, upper half → full.
+/// Stable per [userId]. Caller only invokes this when `tour_ab_enabled` is on.
+TourVariant assignTourVariant(String userId) =>
+    tourBucket(userId) < 50 ? TourVariant.slim : TourVariant.full;
+
+/// Number of steps in the DEFAULT (slim) tour. Used by tests + as a fallback;
+/// live bounds checks use the active variant's `OnboardingTourState.steps`.
 int get kOnboardingTourLength => kOnboardingTourSteps.length;

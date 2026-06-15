@@ -75,7 +75,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // index instead of the hardcoded trimmed index.
   bool _trimmed = true;
   bool _navigating = false;
-  bool _paywallEventsFired = false;
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
   final Set<int> _dropoffEmitted = <int>{};
@@ -109,19 +108,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     _emitPaywallFlowContinued(index);
   }
 
-  void _firePaywallEventsOnce() {
-    if (_paywallEventsFired) return;
-    // New flow (hard-paywall-after-tour gate ON): onboarding shows NO soft
-    // paywall on the final page, so emitting paywall_viewed here would be a
-    // phantom. The post-tour hard wall emits its own. Checked before the latch
-    // so it stays re-evaluable if the flag hydrates late.
-    if (ref.read(appSessionProvider).hardPaywallFlowEnabled) return;
-    _paywallEventsFired = true;
-    final analytics = ref.read(analyticsProvider);
-    analytics.track(AnalyticsEvents.paywallViewed);
-    analytics.track(AnalyticsEvents.paywallPlanSelected,
-        properties: {'plan': 'annual'});
-  }
+  // NOTE: `paywall_viewed` (and the legacy hardcoded `paywall_plan_selected`
+  // {plan:'annual'}) are NO LONGER emitted from this screen. `PaywallScreen`
+  // now fires `paywall_viewed` from its own `initState` for ALL three surfaces
+  // (onboarding, post-tour hard wall, soft in-app) with a `placement` property,
+  // making it the single source of truth. The legacy-flow special-case
+  // suppression that lived here is therefore obsolete: when the soft onboarding
+  // PaywallScreen renders (flag OFF), its initState emits the view event with
+  // `placement: onboarding`; when the new flow is on (flag ON), no soft paywall
+  // renders here at all, so there is nothing to suppress.
 
   // Granular paywall-flow funnel (F-08): the loader→plan→journey pages (22-24
   // legacy / 16-17 trimmed) had no dedicated instrumentation. Keyed on
@@ -201,15 +196,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       Future(() => ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Funnel entry (2026-06-15 audit, D3): fire `onboarding_started` once per
+      // onboarding start — this OnboardingScreen instance is created when the
+      // router enters onboarding, so a single initState fire == one start. It's
+      // the denominator the rest of the onboarding funnel divides into. Carries
+      // `entry_page` so a resumed mid-flow start (restored currentPage != 0) is
+      // separable from a true first-page start.
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.onboardingStarted,
+        properties: {'entry_page': initialPage},
+      );
       _emitStepViewedOnce(initialPage);
       if (initialPage == 0) {
         ref
             .read(analyticsProvider)
             .timeEvent(AnalyticsEvents.onboardingCompleted);
       }
-      if (initialPage == _activeLastPageIndex) {
-        _firePaywallEventsOnce();
-      }
+      // paywall_viewed for the final page is now emitted by PaywallScreen's
+      // own initState (single source of truth) — no per-page fire here.
     });
   }
 
@@ -269,9 +273,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       _emitPaywallFlowDropoffIfLeaving(current, page);
     }
     _emitStepViewedOnce(page);
-    if (page == _activeLastPageIndex) {
-      _firePaywallEventsOnce();
-    }
+    // paywall_viewed for the final paywall page is emitted by PaywallScreen's
+    // own initState (single source of truth) — no per-page fire here.
 
     if ((page - current).abs() > 1) {
       _pageController.jumpToPage(page);
@@ -562,7 +565,10 @@ class OnboardingFinalGate extends ConsumerWidget {
       listenable: session,
       builder: (context, _) {
         if (!session.hardPaywallFlowEnabled) {
-          return PaywallScreen(onComplete: onComplete);
+          return PaywallScreen(
+            placement: AnalyticsEvents.placementOnboarding,
+            onComplete: onComplete,
+          );
         }
         // New flow: skip the soft paywall, hand off to the router gate.
         WidgetsBinding.instance.addPostFrameCallback((_) => onComplete());

@@ -30,12 +30,21 @@ class PaywallScreen extends ConsumerStatefulWidget {
     required this.onComplete,
     this.inOnboardingFlow = true,
     this.hardGate = false,
+    this.placement = AnalyticsEvents.placementSoftInApp,
     super.key,
   }) : assert(!(hardGate && inOnboardingFlow),
             'hardGate is post-onboarding; it must not also run the '
             'completeOnboarding side-effect chain (set inOnboardingFlow: false)');
 
   final VoidCallback onComplete;
+
+  /// Which of the three paywall surfaces this instance represents, used as the
+  /// `placement` property on every analytics event the screen emits so the
+  /// paywall→purchase funnel is segmentable per surface. One of
+  /// [AnalyticsEvents.placementOnboarding] (onboarding PageView),
+  /// [AnalyticsEvents.placementHardWall] (post-tour entry wall), or
+  /// [AnalyticsEvents.placementSoftInApp] (in-app upsell, the default).
+  final String placement;
 
   /// When `true`, this is the post-tour HARD ENTRY WALL (decision C4): no close
   /// X, back is blocked, and a successful trial start sets the durable
@@ -267,6 +276,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   void initState() {
     super.initState();
     _shownAt = DateTime.now();
+    // Single source of truth for paywall_viewed across ALL three surfaces
+    // (onboarding, post-tour hard wall, soft in-app). Previously the hard wall
+    // and most soft entries fired no view event at all; the onboarding page
+    // emitted its own duplicate, which has now been removed.
+    try {
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.paywallViewed,
+        properties: {
+          AnalyticsEvents.propPlacement: widget.placement,
+          'hard_gate': widget.hardGate,
+        },
+      );
+    } catch (_) {}
     _closeButtonTimer = Timer(_closeButtonRevealDelay, () {
       if (mounted) setState(() => _canClose = true);
     });
@@ -324,6 +346,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// can't brick a brand-new user at a no-X wall. Next cold launch re-walls
   /// them once offerings can load (decision E3).
   void _continueViaValve() {
+    try {
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.paywallSafetyValveUsed,
+        properties: {AnalyticsEvents.propPlacement: widget.placement},
+      );
+    } catch (_) {}
     ref.read(appSessionProvider).bypassGateForSession();
     widget.onComplete();
   }
@@ -518,7 +546,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _handlePurchase() async {
     if (_purchasing) return;
-    ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped, properties: {'plan': _planName});
+    ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped,
+        properties: {
+          'plan': _planName,
+          AnalyticsEvents.propPlacement: widget.placement,
+        });
     HapticFeedback.mediumImpact();
     setState(() {
       _purchasing = true;
@@ -546,9 +578,35 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         return;
       }
 
+      // Native StoreKit/RevenueCat purchase sheet is about to be presented.
+      // This was the dark gap between CTA tap and trial start — instrumenting
+      // it here closes the CTA→trial funnel hole.
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.purchaseSheetPresented,
+          properties: {
+            AnalyticsEvents.propPlacement: widget.placement,
+            'plan': _planName,
+          },
+        );
+      } catch (_) {}
+
       final premiumActive =
           await PurchaseService().purchaseSubscription(selectedPackage);
       if (!premiumActive) {
+        // Sheet completed but entitlement is not active — treat as a failure so
+        // the CTA→trial funnel reconciles (presented == cancelled + failed +
+        // trial_started).
+        try {
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.purchaseSheetFailed,
+            properties: {
+              AnalyticsEvents.propPlacement: widget.placement,
+              'plan': _planName,
+              'reason': 'entitlement_inactive',
+            },
+          );
+        } catch (_) {}
         if (mounted) {
           setState(() {
             _errorMessage = _missingPremiumMessage;
@@ -562,19 +620,56 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       // soft upsell surfaces.
       ref.read(analyticsProvider).track(
         AnalyticsEvents.trialStarted,
-        properties: {'plan': _planName, 'hard_gate': widget.hardGate},
+        properties: {
+          'plan': _planName,
+          'hard_gate': widget.hardGate,
+          AnalyticsEvents.propPlacement: widget.placement,
+        },
       );
 
       if (!mounted) return;
       await _completePurchaseFlow();
     } on PlatformException catch (error) {
       final errorCode = PurchasesErrorHelper.getErrorCode(error);
-      if (errorCode != PurchasesErrorCode.purchaseCancelledError && mounted) {
-        setState(() {
-          _errorMessage = _purchaseFailedMessage;
-        });
+      if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
+        // User dismissed the StoreKit sheet without buying.
+        try {
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.purchaseSheetCancelled,
+            properties: {
+              AnalyticsEvents.propPlacement: widget.placement,
+              'plan': _planName,
+            },
+          );
+        } catch (_) {}
+      } else {
+        try {
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.purchaseSheetFailed,
+            properties: {
+              AnalyticsEvents.propPlacement: widget.placement,
+              'plan': _planName,
+              'reason': errorCode.toString(),
+            },
+          );
+        } catch (_) {}
+        if (mounted) {
+          setState(() {
+            _errorMessage = _purchaseFailedMessage;
+          });
+        }
       }
-    } catch (_) {
+    } catch (e) {
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.purchaseSheetFailed,
+          properties: {
+            AnalyticsEvents.propPlacement: widget.placement,
+            'plan': _planName,
+            'reason': e.runtimeType.toString(),
+          },
+        );
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _errorMessage = _purchaseFailedMessage;

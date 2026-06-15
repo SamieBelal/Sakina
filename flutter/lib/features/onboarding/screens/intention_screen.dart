@@ -69,7 +69,9 @@ class IntentionScreen extends ConsumerWidget {
       onBack: onBack,
       onContinue: () {
         final value = ref.read(onboardingProvider).intention;
-        ref.read(analyticsProvider).trackSurveyAnswered('intention', value);
+        // De-duped 2026-06-15 (A3): trackOnboardingAnswerWithRef is the
+        // canonical key-based answer event; the legacy survey_answered emit was
+        // double-counting the same action.
         ref.read(analyticsProvider).trackOnboardingAnswerWithRef(ref, 'intention', value);
         onNext();
       },

@@ -279,6 +279,58 @@ void main() {
     session.dispose();
   });
 
+  test('signedOut fires the analytics-reset hook (D2 identity hygiene)',
+      () async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final controller = StreamController<AuthState>.broadcast();
+    const isAuthenticated = true;
+    var resetCalls = 0;
+    AppSessionNotifier.onAnalyticsReset = () => resetCalls += 1;
+    addTearDown(() => AppSessionNotifier.onAnalyticsReset = null);
+
+    final session = AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(resetCalls, 1,
+        reason: 'sign-out must reset Mixpanel identity exactly once');
+
+    await controller.close();
+    session.dispose();
+  });
+
+  test('a null analytics-reset hook is a safe no-op on signedOut', () async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final controller = StreamController<AuthState>.broadcast();
+    const isAuthenticated = true;
+    AppSessionNotifier.onAnalyticsReset = null;
+
+    final session = AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+    // No throw, and normal sign-out side effects still apply.
+    expect(session.hasOnboarded, isFalse);
+
+    await controller.close();
+    session.dispose();
+  });
+
   test('signedOut does not attempt a RevenueCat logout path', () async {
     SharedPreferences.setMockInitialValues({});
     final controller = StreamController<AuthState>.broadcast();

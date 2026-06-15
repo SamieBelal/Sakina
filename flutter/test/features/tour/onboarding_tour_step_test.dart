@@ -13,27 +13,55 @@ void main() {
       expect(kOnboardingTourSteps.first.id, 'home.beginMuhasabah');
     });
 
-    test('last step is duaDetail.done', () {
-      expect(kOnboardingTourSteps.last.id, 'duaDetail.done');
-      expect(kOnboardingTourSteps.last.interactive, false,
-          reason: 'Final step is a teach moment with Done button, not '
-              'an interactive target tap');
+    test('last step is the dua build (tour ends on the user\'s own dua)', () {
+      expect(kOnboardingTourSteps.last.id, 'duas.buildCta');
+      expect(kOnboardingTourSteps.last.interactive, true,
+          reason: 'Final step is the Build tap; tour completes when the user '
+              'taps Build');
     });
 
-    test('exactly 13 steps (post-CEO-review final count)', () {
-      expect(kOnboardingTourLength, 13);
-      expect(kOnboardingTourSteps.length, 13);
+    test('exactly 7 steps (slim Muhasabah → Duas tour, 2026-06-15)', () {
+      expect(kOnboardingTourLength, 7);
+      expect(kOnboardingTourSteps.length, 7);
     });
 
-    test('streak teach step (index 5) is post-Muhasabah habit beat', () {
-      expect(kOnboardingTourSteps[5].id, 'home.streakPill');
-      expect(kOnboardingTourSteps[5].interactive, false,
-          reason: 'Streak pill is non-tappable; teach beat with Continue');
+    test('canonical slim-tour order', () {
+      expect(kOnboardingTourSteps.map((s) => s.id).toList(), [
+        'home.beginMuhasabah',
+        'muhasabah.goDeeper',
+        'muhasabah.readStory',
+        'muhasabah.ameen',
+        'muhasabah.returnHome',
+        'appShell.tabDuas',
+        'duas.buildCta',
+      ]);
     });
 
-    test('journal entry tap (index 11) is interactive', () {
-      expect(kOnboardingTourSteps[11].id, 'journal.firstEntry');
-      expect(kOnboardingTourSteps[11].interactive, true);
+    test('tourism + streak/return-home steps were cut', () {
+      final ids = kOnboardingTourSteps.map((s) => s.id).toSet();
+      for (final cut in const [
+        'appShell.tabCollection',
+        'appShell.tabDuasFromCollection',
+        'duas.firstRelatedHeart',
+        'appShell.tabJournalFromDuas',
+        'journal.firstEntry',
+        'duaDetail.done',
+        // Streak beat + the return-home hop it required: dropped because the
+        // evening streak push carries the "come back tomorrow" hook.
+        'appShell.tabHome',
+        'home.streakPill',
+      ]) {
+        expect(ids.contains(cut), false, reason: '$cut should be cut');
+      }
+      // No journal-, duaDetail- or collection-surface steps remain.
+      expect(
+        kOnboardingTourSteps.any((s) =>
+            s.surface == TourSurface.journal ||
+            s.surface == TourSurface.duaDetail ||
+            s.surface == TourSurface.collection),
+        false,
+        reason: 'slim tour visits home → muhasabah → duas only',
+      );
     });
 
     test('See the Dua step intentionally omitted from muhasabah deeper steps',
@@ -53,17 +81,23 @@ void main() {
       expect(muhasabahStepIds.any((id) => id.contains('seeDua')), false);
     });
 
-    test('appShell-surface steps target bottom-nav tabs', () {
+    test('appShell-surface steps are the single nav-tab hop to Duas', () {
       final appShellSteps = kOnboardingTourSteps
           .where((s) => s.surface == TourSurface.appShell)
           .toList();
-      expect(appShellSteps.length, 3,
-          reason: '3 nav-tab steps: Collection, Duas-from-Collection, '
-              'Journal-from-Duas');
+      expect(appShellSteps.map((s) => s.id).toList(), ['appShell.tabDuas'],
+          reason: 'slim tour: one hop out to Duas, no return-home hop');
       for (final step in appShellSteps) {
         expect(step.interactive, true,
             reason: 'Tab-target steps must be interactive (user taps the tab)');
+        expect(step.trigger, TourAdvanceTrigger.navigate,
+            reason: 'Tab steps advance on the route change, not a pointer tap');
       }
+    });
+
+    test('the nav-tab step advances on /duas', () {
+      final byId = {for (final s in kOnboardingTourSteps) s.id: s};
+      expect(byId['appShell.tabDuas']!.navigateRoute, '/duas');
     });
 
     test('all interactive steps have a hint', () {
@@ -85,16 +119,16 @@ void main() {
               'duplicates muhasabah\'s text-input + AI-response pattern');
     });
 
-    test('bottom-nav tab steps grow the cutout into the full tab cell', () {
-      // The tab anchors wrap the ICON only; without horizontal + downward
+    test('bottom-nav tab step grows the cutout into the full tab cell', () {
+      // The tab anchor wraps the ICON only; without horizontal + downward
       // padding the cutout would spotlight just the glyph and leave the tab
-      // label greyed under the scrim. Pin that all three tab steps request the
+      // label greyed under the scrim. Pin that the tab step requests the
       // full-cell expansion so a future edit can't silently regress it.
-      const tabAnchorIds = {'tabCollection', 'tabDuas', 'tabJournal'};
+      const tabAnchorIds = {'tabDuas'};
       final tabSteps = kOnboardingTourSteps
           .where((s) => tabAnchorIds.contains(s.anchorId))
           .toList();
-      expect(tabSteps.length, 3, reason: 'expected 3 bottom-nav tab steps');
+      expect(tabSteps.length, 1, reason: 'expected 1 bottom-nav tab step');
       for (final step in tabSteps) {
         expect(step.cutoutPaddingX, greaterThan(0),
             reason: '${step.id} must widen the cutout to cover the tab label');
@@ -104,7 +138,7 @@ void main() {
     });
 
     test('non-tab steps do not use tab-cell cutout padding', () {
-      const tabAnchorIds = {'tabCollection', 'tabDuas', 'tabJournal'};
+      const tabAnchorIds = {'tabDuas'};
       for (final step in kOnboardingTourSteps) {
         if (tabAnchorIds.contains(step.anchorId)) continue;
         expect(step.cutoutPaddingX, 0,
