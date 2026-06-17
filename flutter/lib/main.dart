@@ -133,20 +133,24 @@ Future<void> main() async {
     // slow network never delays cold launch beyond 1.5s. On miss the next
     // launch reads fresh values from the populated cache.
     unawaited(
-      AppConfigService(Supabase.instance.client)
-          .primeCache(const [
-            'onboarding_trim_enabled',
-            'guided_tour_enabled',
-            // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
-            // miss reads the `false` fallback, which drops the user into the
-            // legacy opportunistic (skippable) tour instead of the forced gated
-            // flow. Caught in the simulator on a fresh launch.
-            'hard_paywall_after_tour_enabled',
-            // Slim-vs-full guided-tour A/B. Off → everyone gets the slim tour;
-            // on → 50/50 stable per-user split (see OnboardingTourController).
-            'tour_ab_enabled',
-          ])
-          .timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
+      AppConfigService(Supabase.instance.client).primeCache(const [
+        'onboarding_trim_enabled',
+        'guided_tour_enabled',
+        // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
+        // miss reads the `false` fallback, which drops the user into the
+        // legacy opportunistic (skippable) tour instead of the forced gated
+        // flow. Caught in the simulator on a fresh launch.
+        'hard_paywall_after_tour_enabled',
+        // Reverse-trial Phase A post-tour gate mode (soft|off|hard). MUST be
+        // primed: on the first launch after the flag flips to `soft`, a
+        // cold-cache miss falls back to the legacy hard bool (still true) →
+        // the user gets the HARD wall that launch, and `soft` only takes
+        // effect a launch later once the background refresh lands.
+        'post_tour_paywall_mode',
+        // Slim-vs-full guided-tour A/B. Off → everyone gets the slim tour;
+        // on → 50/50 stable per-user split (see OnboardingTourController).
+        'tour_ab_enabled',
+      ]).timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
   }
 
@@ -236,8 +240,8 @@ Future<void> main() async {
         .getBool('hard_paywall_after_tour_enabled', fallback: false),
     flagTourAb:
         await appConfigForAnalytics.getBool('tour_ab_enabled', fallback: false),
-    flagGuidedTour: await appConfigForAnalytics
-        .getBool('guided_tour_enabled', fallback: true),
+    flagGuidedTour: await appConfigForAnalytics.getBool('guided_tour_enabled',
+        fallback: true),
     isPremium: isPremiumAtBoot,
   );
   analytics.track(AnalyticsEvents.appOpened, properties: {
@@ -248,34 +252,34 @@ Future<void> main() async {
   // and widget-layer code in those files has no Riverpod access; the static
   // hook indirection lets them emit telemetry without taking on an
   // analytics dependency. Tests leave both null.
-  GatingService.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
-  DailyCapSheet.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
+  GatingService.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  DailyCapSheet.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Retention core-loop telemetry (2026-06-01): the daily-loop notifier has no
   // Riverpod access, so bridge its check_in_completed event the same way.
-  DailyLoopNotifier.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
+  DailyLoopNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Duas + Journal telemetry (2026-06-15): the Duas/Reflect notifiers have no
   // Riverpod access, so bridge `dua_built` / `journal_entry_created` the same
   // way (so the 6/19 reassessment can measure both guided-tour features).
-  DuasNotifier.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
-  ReflectNotifier.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
+  DuasNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  ReflectNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Re-engagement attribution (2026-06-01): notification taps emit
   // `notification_opened` so we can measure push CTR / notification→session.
-  NotificationService.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
+  NotificationService.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
 
   // Engagement & economy analytics (retention audit 2026-06-01). The card
   // grant + streak service functions are top-level (no Riverpod), so they emit
   // through these static hooks. See
   // docs/superpowers/plans/2026-06-01-engagement-economy-analytics.md.
-  CardCollectionAnalytics.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
-  StreakAnalytics.onAnalyticsEvent = (event, props) =>
-      analytics.track(event, properties: props);
+  CardCollectionAnalytics.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  StreakAnalytics.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
   // sign-out so a shared/QA device doesn't bleed one user's identity into the
   // next. AppSessionNotifier has no Riverpod access, so it calls this static

@@ -54,4 +54,82 @@ void main() {
     expect(await svc.getBool('never_seen', fallback: false), isFalse);
     expect(await svc.getBool('never_seen', fallback: true), isTrue);
   });
+
+  group('getString', () {
+    test('cache hit (fresh) returns cached string value', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('app_config_cache_v1_post_tour_paywall_mode', 'soft');
+      await prefs.setInt(
+        'app_config_cache_v1_post_tour_paywall_mode_at',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      final svc = AppConfigService.forTest();
+      final result =
+          await svc.getString('post_tour_paywall_mode', fallback: 'off');
+      expect(result, 'soft',
+          reason: 'Cache hit must return cached value, not fallback');
+    });
+
+    test('cache miss returns fallback', () async {
+      final svc = AppConfigService.forTest();
+      final result =
+          await svc.getString('post_tour_paywall_mode', fallback: 'off');
+      expect(result, 'off');
+    });
+
+    test('cache miss returns null fallback when none provided', () async {
+      final svc = AppConfigService.forTest();
+      final result = await svc.getString('post_tour_paywall_mode');
+      expect(result, isNull);
+    });
+
+    test('cache hit (JSON-encoded string, the real refresh format) decodes',
+        () async {
+      final prefs = await SharedPreferences.getInstance();
+      // _refresh stores jsonEncode('soft') == '"soft"'.
+      await prefs.setString(
+          'app_config_cache_v1_post_tour_paywall_mode', '"soft"');
+      await prefs.setInt(
+        'app_config_cache_v1_post_tour_paywall_mode_at',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      final svc = AppConfigService.forTest();
+      final result =
+          await svc.getString('post_tour_paywall_mode', fallback: 'off');
+      expect(result, 'soft', reason: 'JSON-encoded string must decode back');
+    });
+
+    test('non-string jsonb (bool) returns fallback', () async {
+      final prefs = await SharedPreferences.getInstance();
+      // A bool-valued flag cached by getBool/_refresh: jsonEncode(true)=='true'.
+      await prefs.setString('app_config_cache_v1_post_tour_paywall_mode', 'true');
+      await prefs.setInt(
+        'app_config_cache_v1_post_tour_paywall_mode_at',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      final svc = AppConfigService.forTest();
+      final result =
+          await svc.getString('post_tour_paywall_mode', fallback: 'off');
+      expect(result, 'off',
+          reason: 'A non-string jsonb value must fall back, not return "true"');
+    });
+
+    test('cache hit (stale) returns cached + would fire refresh', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'app_config_cache_v1_post_tour_paywall_mode', '"hard"');
+      // 7 hours ago — past the 6h TTL.
+      await prefs.setInt(
+        'app_config_cache_v1_post_tour_paywall_mode_at',
+        DateTime.now().millisecondsSinceEpoch -
+            const Duration(hours: 7).inMilliseconds,
+      );
+      final svc = AppConfigService.forTest();
+      final result =
+          await svc.getString('post_tour_paywall_mode', fallback: 'off');
+      // Returns stale value, not fallback — an offline launch sees last-known
+      // config, not the hardcoded default.
+      expect(result, 'hard');
+    });
+  });
 }

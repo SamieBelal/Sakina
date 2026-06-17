@@ -31,28 +31,68 @@ enum OnboardingStage {
   /// started, not premium) — show the no-X hard paywall.
   hardPaywall,
 
+  /// Tour complete, wall not cleared, and the post-tour mode is `soft`
+  /// (reverse-trial direction). Show a DISMISSIBLE paywall; on dismiss the user
+  /// drops to the free tier and enters the app — the router does NOT block
+  /// navigation away from it.
+  softPaywall,
+
   /// Cleared to use the app (grandfathered, started a trial, premium, or the
-  /// kill switch is off).
+  /// post-tour mode is `off`).
   app,
+}
+
+/// The post-tour paywall behaviour, sourced from the server `app_config`
+/// `post_tour_paywall_mode` string. Replaces the overloaded boolean kill switch:
+/// `off` = straight to app (legacy rollback), `soft` = dismissible paywall
+/// (reverse-trial Phase A), `hard` = the no-X entry wall (legacy hard gate).
+enum PostTourPaywallMode {
+  /// No post-tour gate — tour-done users go straight to the app.
+  off,
+
+  /// Dismissible post-tour paywall; dismiss → free tier + app.
+  soft,
+
+  /// No-X post-tour entry wall; exits only via trial / purchase / premium.
+  hard,
 }
 
 /// Resolves the [OnboardingStage] from explicit state. Pure — no I/O.
 ///
-/// [hardPaywallFlowEnabled] is the `hard_paywall_after_tour_enabled` server
-/// kill switch. When `false`, the whole tour+wall gate is bypassed and the user
-/// goes straight to the app (legacy behaviour, instant rollback).
+/// Routing precedence (unchanged for pre-auth / pre-onboard / tour stages):
+///   1. `!auth || !onboarded` → [OnboardingStage.welcome]
+///   2. `premium || paywallCleared` → [OnboardingStage.app]
+///   3. `!tourCompleted` → [OnboardingStage.tour]
+///   4. by post-tour mode: `hard` → [OnboardingStage.hardPaywall],
+///      `soft` → [OnboardingStage.softPaywall], `off` → [OnboardingStage.app].
+///
+/// [paywallMode] is the new `post_tour_paywall_mode` driver. When supplied it
+/// fully determines the post-tour branch. When omitted (`null`), the function
+/// falls back to the legacy [hardPaywallFlowEnabled] boolean
+/// (`hard_paywall_after_tour_enabled`): `true` → `hard`, `false` → `off`. This
+/// preserves today's behaviour for the live 1.1.x binary and the existing
+/// progress_screen caller that still passes the boolean.
 OnboardingStage resolveOnboardingStage({
   required bool isAuthenticated,
   required bool hasOnboarded,
   required bool tourCompleted,
   required bool paywallCleared,
   required bool isPremium,
-  required bool hardPaywallFlowEnabled,
+  bool? hardPaywallFlowEnabled,
+  PostTourPaywallMode? paywallMode,
 }) {
   if (!isAuthenticated || !hasOnboarded) return OnboardingStage.welcome;
 
-  // Kill switch off → legacy behaviour, no gate.
-  if (!hardPaywallFlowEnabled) return OnboardingStage.app;
+  // Derive the effective post-tour mode: explicit mode wins; otherwise fall
+  // back to the legacy boolean (true→hard, false→off). Default `off` keeps the
+  // gate dark if neither is provided.
+  final mode = paywallMode ??
+      ((hardPaywallFlowEnabled ?? false)
+          ? PostTourPaywallMode.hard
+          : PostTourPaywallMode.off);
+
+  // `off` → legacy behaviour, no gate at all.
+  if (mode == PostTourPaywallMode.off) return OnboardingStage.app;
 
   // Grandfathered (migration backfill), already entered (latch), or paying
   // (gift/referral/RC). Checked BEFORE the tour so existing users never flash
@@ -62,6 +102,13 @@ OnboardingStage resolveOnboardingStage({
   // New user who has not finished the forced tour.
   if (!tourCompleted) return OnboardingStage.tour;
 
-  // Tour done, wall not cleared → the hard paywall.
-  return OnboardingStage.hardPaywall;
+  // Tour done, wall not cleared → the configured post-tour gate.
+  switch (mode) {
+    case PostTourPaywallMode.hard:
+      return OnboardingStage.hardPaywall;
+    case PostTourPaywallMode.soft:
+      return OnboardingStage.softPaywall;
+    case PostTourPaywallMode.off:
+      return OnboardingStage.app;
+  }
 }
