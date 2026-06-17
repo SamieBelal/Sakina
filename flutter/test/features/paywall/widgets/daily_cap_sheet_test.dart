@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart'
     show GatedFeature;
+import 'package:sakina/features/tour/providers/tour_route_observer.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
@@ -106,6 +107,38 @@ void main() {
       await tester.tap(find.text('Maybe later'));
       await tester.pump();
       expect(dismissed, 1);
+    });
+
+    testWidgets('show names its route so the guided tour is suppressed',
+        (tester) async {
+      // Regression for the latent navigator bug: the sheet must push on the
+      // ROOT navigator with a named route so the singleton tourRouteObserver
+      // (wired to the root GoRouter) registers it and the tour overlay
+      // suppresses itself. Without useRootNavigator + routeSettings name the
+      // sheet pushes on the nested shell navigator, the root observer never
+      // sees it, and an in-flight guided tour overlaps it AND steals its taps.
+      final observer = TourRouteObserver();
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [observer],
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => DailyCapSheet.show(
+                context,
+                feature: GatedFeature.reflect,
+                onUpgrade: () {},
+              ),
+              child: const Text('Show sheet'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+
+      expect(observer.topRouteName.value, 'DailyCapSheet');
+      expect(observer.isBlockingRouteOnTop, true);
     });
   });
 }

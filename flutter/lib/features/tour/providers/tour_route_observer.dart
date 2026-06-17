@@ -4,7 +4,8 @@ import 'package:flutter/widgets.dart';
 /// tour overlay host can decide whether to render or hide.
 ///
 /// When a "blocking" route is on top (NameRevealOverlay, LevelUpOverlay,
-/// LapsedTrialSheet, FirstStepsOverlay, DailyLaunchOverlay), the host
+/// LapsedTrialSheet, FirstStepsOverlay, DailyLaunchOverlay, DailyCapSheet,
+/// WarmupExhaustedSheet, UpgradeRequiredSheet), the host
 /// renders `SizedBox.shrink()` so the tour doesn't punch through and
 /// highlight widgets behind that modal. When the blocking route pops, the
 /// host's listener rebuilds and the overlay re-appears for the current
@@ -24,6 +25,9 @@ class TourRouteObserver extends NavigatorObserver {
     'LapsedTrialSheet',
     'FirstStepsOverlay',
     'DailyLaunchOverlay',
+    'DailyCapSheet',
+    'WarmupExhaustedSheet',
+    'UpgradeRequiredSheet',
   };
 
   /// Notifies listeners with the current top route's name (or null if no

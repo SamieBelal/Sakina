@@ -113,6 +113,15 @@ class DailyCapSheet extends StatelessWidget {
     }
     return showModalBottomSheet<void>(
       context: context,
+      // Push on the ROOT navigator with a named route so the singleton
+      // `tourRouteObserver` (wired into the root GoRouter) registers this
+      // route's `DailyCapSheet` name and the tour overlay suppresses itself
+      // while the sheet is up. Without this the sheet pushes on the nested
+      // shell navigator, the root observer never sees it, and an in-flight
+      // guided tour overlaps the sheet AND intercepts its buttons. Mirrors
+      // the LapsedTrialSheet fix.
+      useRootNavigator: true,
+      routeSettings: const RouteSettings(name: 'DailyCapSheet'),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
