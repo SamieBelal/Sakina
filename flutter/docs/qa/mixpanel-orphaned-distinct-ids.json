@@ -1,7 +1,7 @@
 {
-  "_comment": "Mixpanel distinct_ids (= Supabase auth UID) that have analytics in Mixpanel but no longer exist in auth.users — i.e. deleted accounts. Generated 2026-06-02 by reconciling Mixpanel user_id breakdown (signup_completed/onboarding_completed/app_opened/session_started/check_in_completed, 365d) against auth.users. Feed these to Mixpanel's GDPR Data Deletion API to purge their event data. Project: Sakina (project_id 4013350). NOTE 2026-06-17: appended 3 reverse-trial QA sim test accounts — bd5fe274-a2df-49ba-ad22-1388153f40e3 (rt.qa.j17.01, treatment, full lifecycle), 0a8ba8db-3e8b-4098-8ac8-7d7515b82883 (rt.qa.control1, pre-created control bucket), 026cebe3-afbe-4516-92a0-40d3c5cb2546 (rt.qa.ctl2, treatment); exclude from the reverse-trial readout.",
+  "_comment": "Mixpanel distinct_ids (= Supabase auth UID) that have analytics in Mixpanel but no longer exist in auth.users — i.e. deleted accounts. Generated 2026-06-02 by reconciling Mixpanel user_id breakdown (signup_completed/onboarding_completed/app_opened/session_started/check_in_completed, 365d) against auth.users. Feed these to Mixpanel's GDPR Data Deletion API to purge their event data. Project: Sakina (project_id 4013350). NOTE 2026-06-17: appended 3 reverse-trial QA sim test accounts — bd5fe274-a2df-49ba-ad22-1388153f40e3 (rt.qa.j17.01, treatment, full lifecycle), 0a8ba8db-3e8b-4098-8ac8-7d7515b82883 (rt.qa.control1, pre-created control bucket), 026cebe3-afbe-4516-92a0-40d3c5cb2546 (rt.qa.ctl2, treatment), ee2ddf5a-b46e-49c3-8632-f7868b8e2e02 (rt.qa.cap1, daily_cap_hit test); exclude from the reverse-trial readout.",
   "project_id": 4013350,
-  "count": 57,
+  "count": 58,
   "distinct_ids": [
     "04b9ea39-9360-4638-90e7-675afef00e12",
     "058a68bf-7d84-46ff-b7c4-fc587c1c7d4a",
@@ -61,6 +61,7 @@
     "ceb61a4f-2b6d-4ff9-8fb4-649a991bac38",
     "bd5fe274-a2df-49ba-ad22-1388153f40e3",
     "0a8ba8db-3e8b-4098-8ac8-7d7515b82883",
-    "026cebe3-afbe-4516-92a0-40d3c5cb2546"
+    "026cebe3-afbe-4516-92a0-40d3c5cb2546",
+    "ee2ddf5a-b46e-49c3-8632-f7868b8e2e02"
   ]
 }
