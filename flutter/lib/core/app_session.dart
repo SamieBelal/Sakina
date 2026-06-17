@@ -510,4 +510,3 @@ Future<bool> _defaultHardPaywallFlow() async {
     return false;
   }
 }
-

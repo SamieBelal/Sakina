@@ -29,7 +29,8 @@ import '../features/settings/screens/dev_tools_screen.dart';
 import '../features/store/screens/store_screen.dart';
 import 'app_session.dart';
 
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey<NavigatorState>();
 
 /// Full-screen route for the post-tour hard entry wall (no bottom nav, no X).
 /// Distinct from the soft `/paywall` upsell so the gate can force it and block
@@ -88,13 +89,16 @@ String? onboardingGateRedirect({
           ? null
           : kOnboardingPaywallPath;
     case OnboardingStage.softPaywall:
-      // Present the DISMISSIBLE soft paywall, but do NOT trap the user: only
-      // pull them onto the soft-paywall path from a normal app route; once
-      // there, allow navigation anywhere (the X / a nav tap dismisses it and
-      // drops them into the free tier). Stand the user up on the soft paywall
-      // on the initial gate entry (home), then leave them free to move.
-      if (currentPath == kOnboardingSoftPaywallPath) return null;
-      return currentPath == '/' ? kOnboardingSoftPaywallPath : null;
+      // Present the DISMISSIBLE soft paywall at the post-tour gate. Pull onto it
+      // from ANY in-app route (pre-auth/onboarding/signin already returned
+      // above) — NOT just '/', because the slim tour completes on '/duas' (the
+      // duaBuildComplete step), so a '/'-only pull silently skipped the wall at
+      // the real tour exit. "Soft" is enforced by the screen, not the redirect:
+      // its X / purchase calls markPaywallCleared() → stage flips to `app`, so
+      // the user is stood up here once and is then free (no re-pull).
+      return currentPath == kOnboardingSoftPaywallPath
+          ? null
+          : kOnboardingSoftPaywallPath;
     case OnboardingStage.tour:
     case OnboardingStage.app:
       // The tour runs as an overlay over the home shell, so a tour-stage user
@@ -167,7 +171,7 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           hardGate: false,
-          placement: 'post_tour_soft',
+          placement: AnalyticsEvents.placementPostTourSoft,
           onComplete: () {
             appSession.markPaywallCleared();
             GoRouter.of(context).go('/');

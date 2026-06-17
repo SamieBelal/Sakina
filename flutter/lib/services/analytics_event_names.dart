@@ -104,6 +104,8 @@ abstract final class AnalyticsEvents {
   static const String placementOnboarding = 'onboarding';
   static const String placementHardWall = 'hard_wall';
   static const String placementSoftInApp = 'soft_inapp';
+  // Reverse-trial Phase A: the dismissible post-tour soft paywall surface.
+  static const String placementPostTourSoft = 'post_tour_soft';
 
   /// Fired the moment a subscription purchase / trial actually succeeds
   /// (entitlement active), NOT on CTA tap. This is the first true conversion

@@ -59,17 +59,26 @@ void main() {
     expect(s.postTourPaywallMode, PostTourPaywallMode.soft);
   });
 
-  test('soft mode, tour done, uncleared → routed to the soft paywall path',
-      () async {
+  test(
+      'soft mode, tour done, uncleared → presented from ANY in-app route '
+      '(incl. /duas, the real tour-exit route)', () async {
     final s = await softSession(tourDone: true, cleared: false);
+    // Regression for the '/'-only pull that silently skipped the wall: the slim
+    // tour completes on /duas (duaBuildComplete), so the gate MUST present the
+    // soft paywall from there, not just from home.
     expect(redirect('/', s), kOnboardingSoftPaywallPath);
+    expect(redirect('/duas', s), kOnboardingSoftPaywallPath,
+        reason: 'slim tour ends on /duas — wall must fire there');
+    expect(redirect('/collection', s), kOnboardingSoftPaywallPath);
   });
 
-  test('soft paywall path is dismissible — NOT a navigation trap', () async {
+  test('soft paywall is dismissible — clearing is the exit, not lenient '
+      'routing', () async {
     final s = await softSession(tourDone: true, cleared: false);
-    // Unlike the hard wall (which traps the user on its own path), navigating
-    // away from the soft paywall is allowed.
-    expect(redirect('/collection', s), isNull);
+    // While on the soft paywall itself the redirect leaves you put (no bounce);
+    // "soft" is enforced by the X → markPaywallCleared (see the cleared test
+    // below), NOT by the redirect declining to present it.
+    expect(redirect(kOnboardingSoftPaywallPath, s), isNull);
   });
 
   test('cleared (dismissed) → app, bounced off the soft paywall path',
