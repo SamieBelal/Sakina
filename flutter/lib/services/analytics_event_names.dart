@@ -107,6 +107,73 @@ abstract final class AnalyticsEvents {
   // Reverse-trial Phase A: the dismissible post-tour soft paywall surface.
   static const String placementPostTourSoft = 'post_tour_soft';
 
+  // ---- Reverse-trial 2-arm experiment (Lane C) -------------------------------
+  // ONE funnel segmented by the `paywall_exp_arm` super-property (NOT separate
+  // event streams). See the addendum in
+  // docs/decisions/2026-06-14-onboarding-paywall-reverse-trial.md. These exact
+  // strings are the Mixpanel dashboard contract — pinned by
+  // analytics_reverse_trial_test.
+
+  /// Fired once at arm assignment (onboarding complete, experiment on) — the
+  /// shared denominator for both arms. Props: `{experiment, arm}`.
+  static const String experimentAssigned = 'experiment_assigned';
+
+  /// Treatment entry — fired on a successful `activate_trial(3)` RPC.
+  /// Props: `{days, source:'reverse_trial', arm}`.
+  static const String trialActivated = 'trial_activated';
+
+  /// First client detection that the reverse trial has lapsed
+  /// (`trial_premium_until < now()`). Fires once per expiry. Props: `{arm}`.
+  static const String trialExpired = 'trial_expired';
+
+  /// Treatment's Day-3 soft gate view (distinct from onboarding / in-app
+  /// placements). Props: `{placement:'post_tour_soft', arm, hard_gate:false}`.
+  static const String trialPaywallSurfaced = 'trial_paywall_surfaced';
+
+  /// Fired when a free / lapsed user is blocked at the daily cap — numerator
+  /// for "cap-hit → upgrade". Promoted from a documented-but-never-emitted
+  /// comment to a real constant + emission in `GatingService`. Props:
+  /// `{feature, arm}`.
+  static const String dailyCapHit = 'daily_cap_hit';
+
+  /// Fired on X / dismiss of any soft paywall. Props: `{placement, arm}`.
+  static const String softGateDismissed = 'soft_gate_dismissed';
+
+  /// `experiment` property value identifying the reverse-trial test.
+  static const String experimentReverseTrial = 'reverse_trial';
+
+  /// `source` property value on `trial_activated`.
+  static const String trialSourceReverseTrial = 'reverse_trial';
+
+  /// `arm` event property — the per-event copy of the experiment arm (the
+  /// super-property [paywallExpArm] carries it on EVERY event; this is the
+  /// explicit prop on the experiment's own events).
+  static const String propArm = 'arm';
+
+  /// `days` property on `trial_activated`.
+  static const String propDays = 'days';
+
+  /// `hard_gate` property on paywall-surface events (always false for the
+  /// reverse-trial soft gate).
+  static const String propHardGate = 'hard_gate';
+
+  /// `feature` property on `daily_cap_hit`.
+  static const String propFeature = 'feature';
+
+  /// Super-property AND people-property key for the experiment arm. Values:
+  /// `control_no_trial` | `treatment_reverse_trial` | [armUnassigned]. The
+  /// primary breakdown dimension that makes the two arms separable on every
+  /// funnel step.
+  static const String paywallExpArm = 'paywall_exp_arm';
+
+  /// `paywall_exp_arm` value for users assigned before the experiment was
+  /// active (no enum case — no code path assigns it; only the boot default).
+  static const String armUnassigned = 'unassigned';
+
+  /// Boot super-property: was the reverse-trial experiment active for this
+  /// user (separates the pre-experiment cohort from the in-experiment one).
+  static const String flagReverseTrialExp = 'flag_reverse_trial_exp';
+
   /// Fired the moment a subscription purchase / trial actually succeeds
   /// (entitlement active), NOT on CTA tap. This is the first true conversion
   /// signal in Mixpanel — nothing downstream of `paywall_cta_tapped` was

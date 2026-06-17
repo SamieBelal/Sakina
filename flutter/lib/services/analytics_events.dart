@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/onboarding/providers/onboarding_provider.dart';
+import '../features/paywall/paywall_experiment.dart';
 import 'analytics_service.dart';
 import 'analytics_event_names.dart';
 
@@ -38,6 +39,7 @@ Future<void> registerBootstrapAnalytics({
   required bool flagTourAb,
   required bool flagGuidedTour,
   required bool isPremium,
+  bool flagReverseTrialExp = false,
 }) async {
   // Device/build/experiment super properties — durable across a sign-out reset
   // (re-applied by AnalyticsService.resetForSignOut). is_premium is registered
@@ -50,6 +52,7 @@ Future<void> registerBootstrapAnalytics({
     'flag_hard_paywall': flagHardPaywall,
     'flag_tour_ab': flagTourAb,
     'flag_guided_tour': flagGuidedTour,
+    AnalyticsEvents.flagReverseTrialExp: flagReverseTrialExp,
   });
   analytics.setSuperProperties({AnalyticsEvents.isPremium: isPremium});
   // app_install: fire EXACTLY ONCE in the app's lifetime, guarded by its own
@@ -63,6 +66,17 @@ Future<void> registerBootstrapAnalytics({
 }
 
 extension AnalyticsHelpers on AnalyticsService {
+  /// Records the reverse-trial experiment [arm] as BOTH a super property (so
+  /// EVERY subsequent event — retention, paywall, conversion — segments by the
+  /// arm) AND a people property (for user-level analysis). Mirrors the
+  /// `_recordVariant` super+people pattern used for `tour_variant`. Call once at
+  /// arm assignment (onboarding complete, experiment on).
+  void recordPaywallArm(PaywallArm arm) {
+    final value = arm.analyticsValue;
+    setSuperProperties({AnalyticsEvents.paywallExpArm: value});
+    setUserProperties({AnalyticsEvents.paywallExpArm: value});
+  }
+
   void trackStepViewed(int index, {required bool trimmed}) {
     final name = AnalyticsEvents.stepNamesFor(trimmed: trimmed)[index] ??
         'unknown';

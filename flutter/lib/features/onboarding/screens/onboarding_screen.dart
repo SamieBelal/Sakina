@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/sakina_loader.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/app_config_service.dart';
+import '../../paywall/reverse_trial_onboarding.dart';
 import '../providers/onboarding_provider.dart';
 import 'age_range_screen.dart';
 import 'aspirations_screen.dart';
@@ -361,6 +363,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           .read(onboardingProvider.notifier)
           .completeOnboarding(ref.read(appSessionProvider));
     } catch (_) {}
+
+    // Reverse-trial 2-arm experiment hook (Lane C): flag-gated + idempotent.
+    // When `reverse_trial_experiment_enabled` is on, bucket the user, record
+    // the arm, and — for treatment — activate the 3-day trial. Pre-flag users
+    // stay `unassigned`. Best-effort; never blocks the route to home.
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid != null && uid.isNotEmpty) {
+        final experimentEnabled = await ref
+            .read(appConfigServiceProvider)
+            .getBool('reverse_trial_experiment_enabled', fallback: false);
+        await resolveAndApplyPaywallExperiment(
+          experimentEnabled: experimentEnabled,
+          userId: uid,
+          analytics: ref.read(analyticsProvider),
+        );
+      }
+    } catch (_) {/* experiment hook is best-effort */}
+
     if (mounted) context.go('/');
   }
 
