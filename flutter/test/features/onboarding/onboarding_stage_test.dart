@@ -147,5 +147,109 @@ void main() {
         });
       });
     });
+
+    // ---------------------------------------------------------------------
+    // Post-tour paywall MODE (reverse-trial Phase A). When `paywallMode` is
+    // supplied it drives the post-tour branch directly; the legacy
+    // `hardPaywallFlowEnabled` bool is only consulted when no mode is given.
+    // ---------------------------------------------------------------------
+    group('post-tour paywall mode', () {
+      OnboardingStage modeStage({
+        required PostTourPaywallMode paywallMode,
+        bool tourCompleted = true,
+        bool paywallCleared = false,
+        bool isPremium = false,
+      }) =>
+          resolveOnboardingStage(
+            isAuthenticated: true,
+            hasOnboarded: true,
+            tourCompleted: tourCompleted,
+            paywallCleared: paywallCleared,
+            isPremium: isPremium,
+            paywallMode: paywallMode,
+          );
+
+      test('premium short-circuits to app regardless of mode', () {
+        for (final m in PostTourPaywallMode.values) {
+          expect(
+            modeStage(paywallMode: m, isPremium: true, tourCompleted: true),
+            OnboardingStage.app,
+            reason: 'mode=$m',
+          );
+        }
+      });
+
+      test('paywallCleared short-circuits to app regardless of mode', () {
+        for (final m in PostTourPaywallMode.values) {
+          expect(
+            modeStage(paywallMode: m, paywallCleared: true, tourCompleted: true),
+            OnboardingStage.app,
+            reason: 'mode=$m',
+          );
+        }
+      });
+
+      test('tour incomplete → tour for gated modes (soft, hard)', () {
+        for (final m in [PostTourPaywallMode.soft, PostTourPaywallMode.hard]) {
+          expect(
+            modeStage(paywallMode: m, tourCompleted: false),
+            OnboardingStage.tour,
+            reason: 'mode=$m',
+          );
+        }
+      });
+
+      test('mode off bypasses the whole gate (incl. tour) → app', () {
+        // `off` is the full kill switch — like the legacy `!flowEnabled` it
+        // short-circuits to app BEFORE the tour check.
+        expect(
+          modeStage(paywallMode: PostTourPaywallMode.off, tourCompleted: false),
+          OnboardingStage.app,
+        );
+      });
+
+      test('mode soft, tour done, not cleared → softPaywall', () {
+        expect(
+          modeStage(paywallMode: PostTourPaywallMode.soft),
+          OnboardingStage.softPaywall,
+        );
+      });
+
+      test('mode hard, tour done, not cleared → hardPaywall', () {
+        expect(
+          modeStage(paywallMode: PostTourPaywallMode.hard),
+          OnboardingStage.hardPaywall,
+        );
+      });
+
+      test('mode off, tour done, not cleared → app', () {
+        expect(
+          modeStage(paywallMode: PostTourPaywallMode.off),
+          OnboardingStage.app,
+        );
+      });
+    });
+
+    // ---------------------------------------------------------------------
+    // Legacy fallback: when NO `paywallMode` is supplied the function derives
+    // the post-tour branch from `hardPaywallFlowEnabled` (preserves today's
+    // behaviour for the live binary and the existing progress_screen caller).
+    // ---------------------------------------------------------------------
+    group('legacy bool fallback (no mode supplied)', () {
+      test('hardPaywallFlowEnabled true, tour done, uncleared → hardPaywall',
+          () {
+        expect(
+          stage(hardPaywallFlowEnabled: true, tourCompleted: true),
+          OnboardingStage.hardPaywall,
+        );
+      });
+
+      test('hardPaywallFlowEnabled false, tour done, uncleared → app', () {
+        expect(
+          stage(hardPaywallFlowEnabled: false, tourCompleted: true),
+          OnboardingStage.app,
+        );
+      });
+    });
   });
 }

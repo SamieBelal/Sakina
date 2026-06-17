@@ -36,6 +36,13 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>()
 /// navigation away from it.
 const String kOnboardingPaywallPath = '/onboarding-paywall';
 
+/// Full-screen route for the post-tour SOFT paywall (reverse-trial Phase A).
+/// Distinct from the hard wall: the paywall is DISMISSIBLE (has an X) and the
+/// gate does NOT block navigation away from it — dismissing drops the user to
+/// the free tier and into the app. Distinct from the in-app `/paywall` upsell
+/// so the post-tour placement can be segmented in analytics.
+const String kOnboardingSoftPaywallPath = '/onboarding-soft-paywall';
+
 /// Pure routing decision for the post-onboarding gate. Returns the path to
 /// redirect to, or `null` to stay put. Extracted so it is unit-testable without
 /// a live GoRouter. [currentPath] is the path the user is navigating to.
@@ -66,7 +73,10 @@ String? onboardingGateRedirect({
     // Session-only valve bypass counts as "cleared" for THIS session only.
     paywallCleared: appSession.paywallCleared || appSession.gateValveBypass,
     isPremium: appSession.isPremiumCached,
-    hardPaywallFlowEnabled: appSession.hardPaywallFlowEnabled,
+    // New build routes on the post-tour MODE (soft|off|hard). The legacy
+    // boolean is no longer passed here — `postTourPaywallMode` already folds it
+    // in via its back-compat derivation (app_session._defaultPostTourPaywallMode).
+    paywallMode: appSession.postTourPaywallMode,
   );
 
   switch (stage) {
@@ -77,12 +87,23 @@ String? onboardingGateRedirect({
       return currentPath == kOnboardingPaywallPath
           ? null
           : kOnboardingPaywallPath;
+    case OnboardingStage.softPaywall:
+      // Present the DISMISSIBLE soft paywall, but do NOT trap the user: only
+      // pull them onto the soft-paywall path from a normal app route; once
+      // there, allow navigation anywhere (the X / a nav tap dismisses it and
+      // drops them into the free tier). Stand the user up on the soft paywall
+      // on the initial gate entry (home), then leave them free to move.
+      if (currentPath == kOnboardingSoftPaywallPath) return null;
+      return currentPath == '/' ? kOnboardingSoftPaywallPath : null;
     case OnboardingStage.tour:
     case OnboardingStage.app:
       // The tour runs as an overlay over the home shell, so a tour-stage user
       // just stays in the app (the overlay drives them). If a tour/cleared
-      // user is somehow sitting on the hard wall, send them home.
-      return currentPath == kOnboardingPaywallPath ? '/' : null;
+      // user is somehow sitting on either entry wall, send them home.
+      return (currentPath == kOnboardingPaywallPath ||
+              currentPath == kOnboardingSoftPaywallPath)
+          ? '/'
+          : null;
   }
 }
 
@@ -132,6 +153,25 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
           hardGate: true,
           placement: AnalyticsEvents.placementHardWall,
           onComplete: () => GoRouter.of(context).go('/'),
+        ),
+      ),
+
+      // Post-tour SOFT paywall (full screen, no bottom nav, DISMISSIBLE — has
+      // an X). Reverse-trial Phase A: when `post_tour_paywall_mode = soft` the
+      // gate presents this once after the tour, but the redirect does not trap
+      // the user. On dismiss (X, purchase, or restore) we mark the paywall
+      // cleared so the stage flips to `app`, then route home into the free tier.
+      GoRoute(
+        path: kOnboardingSoftPaywallPath,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => PaywallScreen(
+          inOnboardingFlow: false,
+          hardGate: false,
+          placement: 'post_tour_soft',
+          onComplete: () {
+            appSession.markPaywallCleared();
+            GoRouter.of(context).go('/');
+          },
         ),
       ),
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,6 +50,43 @@ class AppConfigService {
     return raw == null ? fallback : raw == 'true';
   }
 
+  /// Returns the string value of [key] from `app_config`.
+  /// Returns [fallback] if no cached value exists AND the network fetch fails,
+  /// or if the stored jsonb value is not a string. Mirrors [getBool] exactly:
+  /// same cache-key scheme, same 6h stale-while-revalidate TTL, same
+  /// [primeCache] participation — reads cache first, refreshes in background if
+  /// stale.
+  Future<String?> getString(String key, {String? fallback}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_valueKey(key));
+    final cachedAtMs = prefs.getInt(_timestampKey(key)) ?? 0;
+    final stale =
+        DateTime.now().millisecondsSinceEpoch - cachedAtMs > _cacheTtl.inMilliseconds;
+
+    if (raw != null && !stale) return _asString(raw) ?? fallback;
+
+    // Stale or missing: fire refresh in background, return what we have.
+    unawaited(_refresh(key));
+    if (raw == null) return fallback;
+    return _asString(raw) ?? fallback;
+  }
+
+  /// Interprets a cached raw value as a string. `_refresh` stores values
+  /// JSON-encoded so type survives the cache (`"soft"` for a string, `true` for
+  /// a bool). Returns the decoded string for a JSON string; `null` when the
+  /// stored jsonb value is NOT a string (bool / number / object) so the caller
+  /// falls back. Legacy plain (non-JSON) cache entries are treated as the string
+  /// itself for forward-compat.
+  String? _asString(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is String ? decoded : null;
+    } catch (_) {
+      // Not valid JSON → a legacy plain string entry; use it verbatim.
+      return raw;
+    }
+  }
+
   /// Pre-loads [keys] into the SharedPreferences cache. Call from main.dart
   /// in parallel with auth init so the first router decision sees fresh values.
   /// Errors are swallowed — fallback remains effective.
@@ -68,9 +106,12 @@ class AppConfigService {
           .timeout(const Duration(seconds: 3));
       if (row == null) return;
       final v = row['value'];
-      final asBool = v is bool ? v : (v?.toString() == 'true');
+      // Persist JSON-encoded so the jsonb type survives the cache: a bool stores
+      // as `true`/`false` (back-compat with getBool's `raw == 'true'` read), a
+      // string stores quoted as `"soft"`. getString decodes and only returns a
+      // value for genuine JSON strings, falling back for non-string jsonb.
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_valueKey(key), asBool ? 'true' : 'false');
+      await prefs.setString(_valueKey(key), jsonEncode(v));
       await prefs.setInt(
         _timestampKey(key),
         DateTime.now().millisecondsSinceEpoch,

@@ -6,6 +6,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/onboarding/onboarding_stage.dart';
 import '../features/tour/providers/onboarding_tour_controller.dart'
     show onboardingTourSeenFlag;
 import '../services/app_config_service.dart';
@@ -24,6 +25,13 @@ import '../services/user_data_batch_sync_service.dart';
 /// Read via [AppConfigService]; defaults OFF so the gate is dark until the flag
 /// is flipped on server-side (phased rollout / instant rollback).
 const String kHardPaywallAfterTourFlag = 'hard_paywall_after_tour_enabled';
+
+/// Server `app_config` key for the new post-tour paywall MODE (reverse-trial
+/// Phase A): one of `off` | `soft` | `hard`. Replaces the overloaded
+/// [kHardPaywallAfterTourFlag] boolean. When absent, the mode is derived from
+/// the legacy boolean for back-compat (true → hard, false → off) so today's
+/// live behaviour is preserved until the new key is set server-side.
+const String kPostTourPaywallModeFlag = 'post_tour_paywall_mode';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
@@ -47,6 +55,7 @@ class AppSessionNotifier extends ChangeNotifier {
     Future<bool> Function()? hasCompletedOnboarding,
     Future<bool> Function()? isPremiumReader,
     Future<bool> Function()? hardPaywallFlowReader,
+    Future<PostTourPaywallMode> Function()? postTourPaywallModeReader,
     Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
         _notificationService = notificationService ?? NotificationService(),
@@ -61,6 +70,12 @@ class AppSessionNotifier extends ChangeNotifier {
         _hardPaywallFlowReader =
             hardPaywallFlowReader ?? _defaultHardPaywallFlow,
         _hydrationTimeout = hydrationTimeout ?? const Duration(seconds: 30) {
+    // The mode reader defaults to a derivation over THIS session's hard-flow
+    // reader, so legacy `hardPaywallFlowReader`-only callers (incl. tests) keep
+    // their hard/off behaviour: `post_tour_paywall_mode` string wins, else the
+    // injected legacy boolean (`true → hard`, `false → off`).
+    _postTourPaywallModeReader =
+        postTourPaywallModeReader ?? _derivePostTourPaywallMode;
     _subscription =
         (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
             .listen(_onAuthChange);
@@ -74,6 +89,7 @@ class AppSessionNotifier extends ChangeNotifier {
   final Future<bool> Function() _hasCompletedOnboarding;
   final Future<bool> Function() _isPremiumReader;
   final Future<bool> Function() _hardPaywallFlowReader;
+  late final Future<PostTourPaywallMode> Function() _postTourPaywallModeReader;
   final Duration _hydrationTimeout;
   bool _hasOnboarded;
 
@@ -92,11 +108,22 @@ class AppSessionNotifier extends ChangeNotifier {
   bool _paywallCleared = true;
   bool _isPremiumCached = false;
   bool _hardPaywallFlowEnabled = false;
+  // Defaults to `off` — the ungated value, mirroring `_hardPaywallFlowEnabled`'s
+  // `false`. A returning/existing user is never flashed into a post-tour gate
+  // before [hydrateOnboardingGate] resolves the real mode.
+  PostTourPaywallMode _postTourPaywallMode = PostTourPaywallMode.off;
 
   bool get tourCompleted => _tourCompleted;
   bool get paywallCleared => _paywallCleared;
   bool get isPremiumCached => _isPremiumCached;
   bool get hardPaywallFlowEnabled => _hardPaywallFlowEnabled;
+
+  /// The effective post-tour paywall mode (reverse-trial Phase A). Derived from
+  /// the `post_tour_paywall_mode` app_config string, falling back to the legacy
+  /// `hard_paywall_after_tour_enabled` boolean. Read synchronously by the
+  /// GoRouter redirect to decide between the hard wall, the soft paywall, or
+  /// straight-through.
+  PostTourPaywallMode get postTourPaywallMode => _postTourPaywallMode;
 
   /// Session-only escape used by the offerings-load-failure safety valve. When
   /// the hard wall can't load plans (StoreKit/Apple outage) and the user taps
@@ -134,10 +161,49 @@ class AppSessionNotifier extends ChangeNotifier {
     try {
       _hardPaywallFlowEnabled = await _hardPaywallFlowReader();
     } catch (_) {/* keep default */}
+    // Resolve the new post-tour mode (string flag → legacy-bool fallback). Read
+    // alongside the legacy bool, before the slower premium check, so the router
+    // sees the right gate ASAP.
+    try {
+      _postTourPaywallMode = await _postTourPaywallModeReader();
+    } catch (_) {/* keep default (off) */}
     try {
       _isPremiumCached = await _isPremiumReader();
     } catch (_) {/* keep default */}
     notifyListeners();
+  }
+
+  /// Back-compat derivation of the post-tour paywall MODE:
+  ///   mode = post_tour_paywall_mode (string)
+  ///        ?? (hard_paywall_after_tour_enabled ? 'hard' : 'off')
+  ///
+  /// Reads the new string flag first; an unrecognised / absent value falls back
+  /// to THIS session's legacy boolean reader ([_hardPaywallFlowReader]). This
+  /// preserves today's behaviour — the DB boolean is currently `true`, so until
+  /// the new `post_tour_paywall_mode` key is set server-side the mode resolves
+  /// to `hard`, exactly as the live binary behaves — and keeps legacy
+  /// `hardPaywallFlowReader`-only callers (incl. tests) consistent.
+  Future<PostTourPaywallMode> _derivePostTourPaywallMode() async {
+    try {
+      final raw = await AppConfigService(Supabase.instance.client)
+          .getString(kPostTourPaywallModeFlag);
+      switch (raw) {
+        case 'off':
+          return PostTourPaywallMode.off;
+        case 'soft':
+          return PostTourPaywallMode.soft;
+        case 'hard':
+          return PostTourPaywallMode.hard;
+      }
+    } catch (_) {/* fall through to the legacy boolean */}
+    // Key absent / unrecognised / fetch failed → legacy boolean (true → hard).
+    bool legacyHard;
+    try {
+      legacyHard = await _hardPaywallFlowReader();
+    } catch (_) {
+      legacyHard = false;
+    }
+    return legacyHard ? PostTourPaywallMode.hard : PostTourPaywallMode.off;
   }
 
   /// New user just finished onboarding → put them INTO the gate so the router
@@ -209,6 +275,7 @@ class AppSessionNotifier extends ChangeNotifier {
         _tourCompleted = true;
         _paywallCleared = true;
         _isPremiumCached = false;
+        _postTourPaywallMode = PostTourPaywallMode.off;
         _gateValveBypass = false;
         notifyListeners();
         break;
@@ -443,3 +510,4 @@ Future<bool> _defaultHardPaywallFlow() async {
     return false;
   }
 }
+
