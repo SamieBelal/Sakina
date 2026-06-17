@@ -131,7 +131,7 @@ const double kTabCutoutPadX = 24;
 const double kTabCutoutPadBottom = 24;
 const double kTabCutoutPadTop = 8;
 
-/// The 7 steps of the interactive guided onboarding tour.
+/// The 8 steps of the interactive guided onboarding tour.
 ///
 /// Order is canonical — index in this list IS the step index used by
 /// `OnboardingTourController`. Adding/removing/reordering changes the tour.
@@ -141,8 +141,11 @@ const double kTabCutoutPadTop = 8;
 /// back half (worst at the tab-navigation steps); post-release cohort data
 /// showed the tour length — not the paywall — was the first-session retention
 /// bottleneck. This keeps the muḥāsabah aha (steps 0-4) and a single dua build
-/// (steps 5-6, ONE tab hop, no Collection/Journal detour), then ends on the
-/// user's own built dua. The "come back tomorrow" return hook is carried by the
+/// (steps 5-7, ONE tab hop, no Collection/Journal detour). The tour ends at the
+/// END of the dua flow (step 7, the Ameen/result screen) — NOT on the Build tap
+/// — so the user builds and SEES their full dua before the tour completes (and,
+/// when `hard_paywall_after_tour_enabled` is on, the post-tour wall fires). The
+/// "come back tomorrow" return hook is carried by the
 /// evening streak push (`send-scheduled-notifications`: "Keep your N-day streak
 /// alive"), so an in-tour streak beat (and the return-home hop it required) was
 /// dropped to cut a second, less-reliable tab step. Collection and Journal are
@@ -228,6 +231,23 @@ const List<OnboardingTourStepDef> kSlimOnboardingTourSteps = [
     // is ALSO highlighted (and not obscured by the tooltip). The tooltip
     // auto-flips ABOVE the expanded cutout. Live tested 2026-05-26.
     cutoutPaddingTop: 280,
+  ),
+  // FINAL step — anchored at the END of the Build-a-Dua flow (the Ameen/result
+  // screen). Suppression-gated: its `duaBuildComplete` anchor only exists on the
+  // result view, so while the dua is building (loader + reader beats) the tour
+  // stays hidden and pending. It reveals once the user has built and SEEN their
+  // full dua, then auto-advances → the tour COMPLETES here, which is what
+  // triggers the post-tour hard paywall (when that flag is on). This is why the
+  // tour no longer ends on the Build TAP — the wall now waits until the dua flow
+  // is fully done. Teach step (non-interactive) so the cutout isn't tap-through
+  // over the real "Build Another Dua" button underneath it.
+  OnboardingTourStepDef(
+    id: 'duas.buildComplete',
+    surface: TourSurface.duas,
+    anchorId: 'duaBuildComplete',
+    message: "Masha'Allah, {name} — your first dua is ready. 🌙",
+    interactive: false,
+    autoAdvance: Duration(milliseconds: 4500),
   ),
 ];
 
@@ -363,7 +383,8 @@ const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
 /// Default tour = slim (the go-forward variant). The A/B picks the live variant
 /// at runtime via [assignTourVariant]; this alias is the idle/fallback default
 /// and is what the unit tests pin.
-const List<OnboardingTourStepDef> kOnboardingTourSteps = kSlimOnboardingTourSteps;
+const List<OnboardingTourStepDef> kOnboardingTourSteps =
+    kSlimOnboardingTourSteps;
 
 /// The step list for [variant].
 List<OnboardingTourStepDef> tourStepsForVariant(TourVariant variant) =>

@@ -142,8 +142,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
         final sheetContext = context;
         () async {
           final balance = (await getTokens()).balance;
-          final bypassesUsed =
-              await daily_usage.getBuiltDuaBypassesUsedToday();
+          final bypassesUsed = await daily_usage.getBuiltDuaBypassesUsedToday();
           final premium = await PurchaseService().isPremium();
           final firstBypassEligible =
               await GatingService().firstBypassEligible();
@@ -251,10 +250,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                       'assets/illustrations/main_screens/duas_header.svg',
                       height: 140,
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 300.ms)
-                      .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
+                  ).animate().fadeIn(duration: 600.ms, delay: 300.ms).slideY(
+                      begin: 0.05, end: 0, duration: 600.ms, delay: 300.ms),
                   const SizedBox(height: 24),
                   // Elegant stepped indicator
                   Row(
@@ -316,8 +313,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                           filled: true,
                           fillColor: Colors.transparent,
                           hintText: 'What do you need a dua for...',
-                          hintStyle: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.textTertiaryLight),
+                          hintStyle: AppTypography.bodyMedium
+                              .copyWith(color: AppColors.textTertiaryLight),
                           border: OutlineInputBorder(
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.inputRadius),
@@ -336,14 +333,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                         ),
                       ),
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 400.ms, delay: 600.ms)
-                      .slideY(
-                          begin: 0.02,
-                          end: 0,
-                          duration: 400.ms,
-                          delay: 600.ms),
+                  ).animate().fadeIn(duration: 400.ms, delay: 600.ms).slideY(
+                      begin: 0.02, end: 0, duration: 400.ms, delay: 600.ms),
                   if (state.error != null) ...[
                     const SizedBox(height: 16),
                     _errorBox(state.error!),
@@ -549,7 +540,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                     ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight - AppSpacing.lg -
+                        minHeight: constraints.maxHeight -
+                            AppSpacing.lg -
                             AppSpacing.pagePadding,
                       ),
                       child: IntrinsicHeight(
@@ -558,129 +550,140 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                           children: [
                             const Spacer(),
                             // Tiny gold ornament — single restraint dot in place of
-                    // the old sparkle row. Anchors the page without confetti.
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.secondary,
-                      ),
-                    ).animate().fadeIn(duration: 400.ms),
-                    const SizedBox(height: AppSpacing.md),
-                    // Editorial eyebrow — small gold uppercase label that
-                    // reads like a chapter heading in a printed devotional.
-                    Text(
-                      section.label.toUpperCase(),
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.secondary,
-                        letterSpacing: 1.6,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
-                    const SizedBox(height: AppSpacing.sm),
-                    // Hairline gold rule under the eyebrow — quiet ornament
-                    // that tells the eye where the section header ends.
-                    Container(
-                      width: 28,
-                      height: 1,
-                      color: AppColors.secondary.withValues(alpha: 0.45),
-                    ).animate().scaleX(
-                        begin: 0,
-                        end: 1,
-                        duration: 400.ms,
-                        delay: 120.ms,
-                        curve: Curves.easeOut),
-                    const SizedBox(height: AppSpacing.lg),
-                    // Cream Arabic card — replaces saturated emerald block.
-                    // Soft warm border + low-alpha gold shadow matches the
-                    // _ameenSectionCard family used on the next screen so
-                    // the two pages read as one design.
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 28, horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.cardRadius),
-                        border: Border.all(color: AppColors.borderLight),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.secondary.withValues(alpha: 0.06),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        section.arabic,
-                        style: AppTypography.quranArabic.copyWith(
-                          color: AppColors.primary,
-                          height: 1.9,
-                        ),
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.center,
-                      ),
-                    ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
-                        begin: 0.97,
-                        end: 1.0,
-                        duration: 800.ms,
-                        delay: 200.ms,
-                        curve: Curves.easeOutBack),
-                    const SizedBox(height: AppSpacing.lg),
-                    // Transliteration — italic, muted.
-                    Text(
-                      section.transliteration,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.textSecondaryLight,
-                      ),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(duration: 500.ms, delay: 380.ms),
-                    const SizedBox(height: AppSpacing.md),
-                    // Verse-stop ornament — tiny gold dot replaces the harsh
-                    // grey divider, like the rosette between Quran ayat.
-                    Container(
-                      width: 3,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.secondary.withValues(alpha: 0.85),
-                      ),
-                    ).animate().fadeIn(duration: 400.ms, delay: 460.ms),
-                    const SizedBox(height: AppSpacing.md),
-                    // Translation — dark serif-leaning sans, generous height.
-                    Text(
-                      section.translation,
-                      style: AppTypography.bodyLarge.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        height: 1.6,
-                      ),
-                      textAlign: TextAlign.center,
-                    ).animate().fadeIn(duration: 500.ms, delay: 540.ms),
-                    const SizedBox(height: AppSpacing.xl),
-                    // Editorial breadcrumb — single-line "Praise · Salawat ·
-                    // Ask · Close" with the current section bolded in deep
-                    // emerald, others muted. Replaces the dot row.
-                    _buildBreadcrumb(breadcrumbLabels, currentStep)
-                        .animate()
-                        .fadeIn(duration: 400.ms, delay: 620.ms),
-                    const SizedBox(height: AppSpacing.lg),
-                    // Next / Ameen CTA.
-                    if (isLast)
-                      _buildAmeenCta(notifier).animate().fadeIn(
-                          duration: 500.ms, delay: 700.ms).slideY(
-                          begin: 0.1,
-                          end: 0,
-                          duration: 500.ms,
-                          delay: 700.ms)
-                    else
-                      _buildActionButtonDua('Next', () {
-                        HapticFeedback.mediumImpact();
-                        notifier.nextBuildSection();
-                      }).animate().fadeIn(duration: 400.ms, delay: 700.ms),
+                            // the old sparkle row. Anchors the page without confetti.
+                            Container(
+                              width: 4,
+                              height: 4,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.secondary,
+                              ),
+                            ).animate().fadeIn(duration: 400.ms),
+                            const SizedBox(height: AppSpacing.md),
+                            // Editorial eyebrow — small gold uppercase label that
+                            // reads like a chapter heading in a printed devotional.
+                            Text(
+                              section.label.toUpperCase(),
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.secondary,
+                                letterSpacing: 1.6,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
+                            const SizedBox(height: AppSpacing.sm),
+                            // Hairline gold rule under the eyebrow — quiet ornament
+                            // that tells the eye where the section header ends.
+                            Container(
+                              width: 28,
+                              height: 1,
+                              color:
+                                  AppColors.secondary.withValues(alpha: 0.45),
+                            ).animate().scaleX(
+                                begin: 0,
+                                end: 1,
+                                duration: 400.ms,
+                                delay: 120.ms,
+                                curve: Curves.easeOut),
+                            const SizedBox(height: AppSpacing.lg),
+                            // Cream Arabic card — replaces saturated emerald block.
+                            // Soft warm border + low-alpha gold shadow matches the
+                            // _ameenSectionCard family used on the next screen so
+                            // the two pages read as one design.
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 28, horizontal: 24),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.cardRadius),
+                                border:
+                                    Border.all(color: AppColors.borderLight),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.06),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                section.arabic,
+                                style: AppTypography.quranArabic.copyWith(
+                                  color: AppColors.primary,
+                                  height: 1.9,
+                                ),
+                                textDirection: TextDirection.rtl,
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                                .animate()
+                                .fadeIn(duration: 800.ms, delay: 200.ms)
+                                .scaleXY(
+                                    begin: 0.97,
+                                    end: 1.0,
+                                    duration: 800.ms,
+                                    delay: 200.ms,
+                                    curve: Curves.easeOutBack),
+                            const SizedBox(height: AppSpacing.lg),
+                            // Transliteration — italic, muted.
+                            Text(
+                              section.transliteration,
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                              textAlign: TextAlign.center,
+                            ).animate().fadeIn(duration: 500.ms, delay: 380.ms),
+                            const SizedBox(height: AppSpacing.md),
+                            // Verse-stop ornament — tiny gold dot replaces the harsh
+                            // grey divider, like the rosette between Quran ayat.
+                            Container(
+                              width: 3,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.85),
+                              ),
+                            ).animate().fadeIn(duration: 400.ms, delay: 460.ms),
+                            const SizedBox(height: AppSpacing.md),
+                            // Translation — dark serif-leaning sans, generous height.
+                            Text(
+                              section.translation,
+                              style: AppTypography.bodyLarge.copyWith(
+                                color: AppColors.textPrimaryLight,
+                                height: 1.6,
+                              ),
+                              textAlign: TextAlign.center,
+                            ).animate().fadeIn(duration: 500.ms, delay: 540.ms),
+                            const SizedBox(height: AppSpacing.xl),
+                            // Editorial breadcrumb — single-line "Praise · Salawat ·
+                            // Ask · Close" with the current section bolded in deep
+                            // emerald, others muted. Replaces the dot row.
+                            _buildBreadcrumb(breadcrumbLabels, currentStep)
+                                .animate()
+                                .fadeIn(duration: 400.ms, delay: 620.ms),
+                            const SizedBox(height: AppSpacing.lg),
+                            // Next / Ameen CTA.
+                            if (isLast)
+                              _buildAmeenCta(notifier)
+                                  .animate()
+                                  .fadeIn(duration: 500.ms, delay: 700.ms)
+                                  .slideY(
+                                      begin: 0.1,
+                                      end: 0,
+                                      duration: 500.ms,
+                                      delay: 700.ms)
+                            else
+                              _buildActionButtonDua('Next', () {
+                                HapticFeedback.mediumImpact();
+                                notifier.nextBuildSection();
+                              })
+                                  .animate()
+                                  .fadeIn(duration: 400.ms, delay: 700.ms),
                             const Spacer(),
                           ],
                         ),
@@ -770,9 +773,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       spans.add(TextSpan(
         text: labels[i],
         style: AppTypography.labelSmall.copyWith(
-          color: isCurrent
-              ? AppColors.primary
-              : AppColors.textTertiaryLight,
+          color: isCurrent ? AppColors.primary : AppColors.textTertiaryLight,
           fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
           letterSpacing: 0.4,
         ),
@@ -904,8 +905,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                             height: 40,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppColors.secondary
-                                  .withValues(alpha: 0.10),
+                              color:
+                                  AppColors.secondary.withValues(alpha: 0.10),
                             ),
                             alignment: Alignment.center,
                             child: const Icon(Icons.share_outlined,
@@ -998,8 +999,8 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                             // wash is thinnest at the edges.
                             shadows: [
                               Shadow(
-                                color: AppColors.secondary
-                                    .withValues(alpha: 0.18),
+                                color:
+                                    AppColors.secondary.withValues(alpha: 0.18),
                                 blurRadius: 24,
                                 offset: const Offset(0, 4),
                               ),
@@ -1041,44 +1042,55 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               // Emerald-filled pill, white text — matches every other primary
               // CTA in the app. White-on-green pill from the saturated layout
               // is no longer needed now that the bg is cream.
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.mediumImpact();
-                  _buildController.clear();
-                  notifier.resetBuild();
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.25),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.auto_awesome,
-                          color: Colors.white, size: 18),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Build Another Dua',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+              // TourAnchor ('duaBuildComplete') for the slim guided tour's final
+              // step. It anchors here — the Ameen/result screen, i.e. the END of
+              // the Build-a-Dua flow — so the tour stays suppressed through the
+              // loader + reader beats and only its final coachmark reveals once
+              // the user has built and seen their full dua. Completing that step
+              // ends the tour, which (when hard_paywall_after_tour_enabled is on)
+              // triggers the post-tour hard paywall.
+              TourAnchor(
+                surface: TourSurface.duas,
+                anchorId: 'duaBuildComplete',
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    _buildController.clear();
+                    notifier.resetBuild();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'Build Another Dua',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+                ).animate().fadeIn(duration: 400.ms, delay: 500.ms),
+              ),
               const SizedBox(height: AppSpacing.xl),
 
               // ─── Names Called Upon ───────────────────────────────────────
@@ -1141,105 +1153,104 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                       final i = entry.key;
                       final d = entry.value;
                       return Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceAltLight,
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.cardRadius),
-                            border: const Border(
-                              left: BorderSide(
-                                color: AppColors.secondary,
-                                width: 3,
-                              ),
+                        margin: const EdgeInsets.only(top: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAltLight,
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.cardRadius),
+                          border: const Border(
+                            left: BorderSide(
+                              color: AppColors.secondary,
+                              width: 3,
                             ),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Builder(builder: (_) {
-                                      // Reactive: read saved state off the
-                                      // watched `state` (rebuilds on toggle).
-                                      final isSaved =
-                                          state.savedRelatedDuas.any((s) =>
-                                              s.id ==
-                                              SavedRelatedDua.idFor(
-                                                  d.title, d.source));
-                                      final heart = RelatedDuaHeart(
-                                        isSaved: isSaved,
-                                        onTap: () {
-                                          HapticFeedback.mediumImpact();
-                                          notifier.toggleSaveRelatedDua(d);
-                                          if (!isSaved) {
-                                            ref
-                                                .read(questsProvider.notifier)
-                                                .onDuaSaved();
-                                          }
-                                          showRelatedDuaSnack(context,
-                                              saved: !isSaved);
-                                        },
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Builder(builder: (_) {
+                                    // Reactive: read saved state off the
+                                    // watched `state` (rebuilds on toggle).
+                                    final isSaved = state.savedRelatedDuas.any(
+                                        (s) =>
+                                            s.id ==
+                                            SavedRelatedDua.idFor(
+                                                d.title, d.source));
+                                    final heart = RelatedDuaHeart(
+                                      isSaved: isSaved,
+                                      onTap: () {
+                                        HapticFeedback.mediumImpact();
+                                        notifier.toggleSaveRelatedDua(d);
+                                        if (!isSaved) {
+                                          ref
+                                              .read(questsProvider.notifier)
+                                              .onDuaSaved();
+                                        }
+                                        showRelatedDuaSnack(context,
+                                            saved: !isSaved);
+                                      },
+                                    );
+                                    if (i == 0) {
+                                      return TourAnchor(
+                                        surface: TourSurface.duas,
+                                        anchorId: 'firstRelatedHeart',
+                                        child: heart,
                                       );
-                                      if (i == 0) {
-                                        return TourAnchor(
-                                          surface: TourSurface.duas,
-                                          anchorId: 'firstRelatedHeart',
-                                          child: heart,
-                                        );
-                                      }
-                                      return heart;
-                                    }),
-                                    Expanded(
-                                      child: Text(
-                                        d.arabic,
-                                        style: AppTypography.quranArabic
-                                            .copyWith(fontSize: 20),
-                                        textDirection: TextDirection.rtl,
-                                        textAlign: TextAlign.right,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: Text(
-                                    d.transliteration,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      fontStyle: FontStyle.italic,
-                                      color: AppColors.textSecondaryLight,
+                                    }
+                                    return heart;
+                                  }),
+                                  Expanded(
+                                    child: Text(
+                                      d.arabic,
+                                      style: AppTypography.quranArabic
+                                          .copyWith(fontSize: 20),
+                                      textDirection: TextDirection.rtl,
+                                      textAlign: TextAlign.right,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: Text(
-                                    d.translation,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      color: AppColors.textPrimaryLight,
-                                      height: 1.5,
-                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  d.transliteration,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color: AppColors.textSecondaryLight,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: Text(
-                                    d.source,
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.textTertiaryLight,
-                                    ),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  d.translation,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: AppColors.textPrimaryLight,
+                                    height: 1.5,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 6),
+                              SizedBox(
+                                width: double.infinity,
+                                child: Text(
+                                  d.source,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.textTertiaryLight,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        );
+                        ),
+                      );
                     }),
                   ],
                 ),

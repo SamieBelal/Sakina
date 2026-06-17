@@ -83,7 +83,7 @@ void main() {
         variant: TourVariant.slim,
       );
       expect(state.steps, same(kSlimOnboardingTourSteps));
-      expect(state.currentStep?.id, 'duas.buildCta'); // slim step 6 (last)
+      expect(state.currentStep?.id, 'duas.buildCta'); // slim step 6 (Build CTA)
     });
 
     test('full state indexes the full list', () {
@@ -102,15 +102,15 @@ void main() {
     });
 
     test('an index past the active variant length yields null', () {
-      // Index 7 is valid in the full arm but out of range for slim (7 steps).
+      // Index 8 is out of range for slim (8 steps, 0-7) but the full arm has 13.
       const slim = OnboardingTourState(
-        index: 7,
+        index: 8,
         status: TourStatus.active,
         variant: TourVariant.slim,
       );
       expect(slim.currentStep, isNull);
       const full = OnboardingTourState(
-        index: 7,
+        index: 8,
         status: TourStatus.active,
         variant: TourVariant.full,
       );

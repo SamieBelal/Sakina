@@ -13,16 +13,19 @@ void main() {
       expect(kOnboardingTourSteps.first.id, 'home.beginMuhasabah');
     });
 
-    test('last step is the dua build (tour ends on the user\'s own dua)', () {
-      expect(kOnboardingTourSteps.last.id, 'duas.buildCta');
-      expect(kOnboardingTourSteps.last.interactive, true,
-          reason: 'Final step is the Build tap; tour completes when the user '
-              'taps Build');
+    test('last step is the dua-flow completion (gates the post-tour wall)', () {
+      // The tour now ends at the END of the Build-a-Dua flow (Ameen/result),
+      // NOT on the Build tap, so the user sees their full dua before the tour
+      // completes (and the hard paywall fires). Teach step, auto-advance.
+      expect(kOnboardingTourSteps.last.id, 'duas.buildComplete');
+      expect(kOnboardingTourSteps.last.interactive, false);
+      expect(kOnboardingTourSteps.last.autoAdvance, isNotNull,
+          reason: 'final step auto-advances once the dua is built + seen');
     });
 
-    test('exactly 7 steps (slim Muhasabah → Duas tour, 2026-06-15)', () {
-      expect(kOnboardingTourLength, 7);
-      expect(kOnboardingTourSteps.length, 7);
+    test('exactly 8 steps (slim Muhasabah → Duas tour)', () {
+      expect(kOnboardingTourLength, 8);
+      expect(kOnboardingTourSteps.length, 8);
     });
 
     test('canonical slim-tour order', () {
@@ -34,6 +37,7 @@ void main() {
         'muhasabah.returnHome',
         'appShell.tabDuas',
         'duas.buildCta',
+        'duas.buildComplete',
       ]);
     });
 
