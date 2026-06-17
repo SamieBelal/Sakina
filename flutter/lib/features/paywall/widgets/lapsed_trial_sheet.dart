@@ -37,9 +37,18 @@ class LapsedTrialSheet extends StatelessWidget {
     required int momentsDuringTrial,
     required int daysActiveDuringTrial,
     required VoidCallback onUpgrade,
+    VoidCallback? onDismiss,
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      // Push on the ROOT navigator so the singleton `tourRouteObserver`
+      // (wired into the root GoRouter, router.dart) registers this route's
+      // `LapsedTrialSheet` name and the tour overlay suppresses itself while
+      // the sheet is up. Without this the sheet pushes on the nested shell
+      // navigator, the root observer never sees it, and an in-flight guided
+      // tour overlaps the sheet AND intercepts its buttons (its gesture layer
+      // sits over the modal). See docs/qa/findings/2026-06-17-reverse-trial-e2e-sim.md.
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -52,7 +61,10 @@ class LapsedTrialSheet extends StatelessWidget {
             Navigator.of(sheetContext).pop();
             onUpgrade();
           },
-          onDismiss: () => Navigator.of(sheetContext).pop(),
+          onDismiss: () {
+            Navigator.of(sheetContext).pop();
+            onDismiss?.call();
+          },
         );
       },
     );

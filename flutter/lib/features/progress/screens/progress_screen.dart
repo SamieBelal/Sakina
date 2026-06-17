@@ -31,6 +31,7 @@ import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -174,11 +175,30 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     if (!mounted || decision == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final analytics = ref.read(analyticsProvider);
+      // Reverse-trial Day-3 soft-gate impression. This in-app sheet — not the
+      // routing PaywallScreen — is the surface a lapsed reverse-trialer
+      // actually sees, so the `trial_paywall_surfaced` instrument must fire
+      // here too. The arm rides on the durable `paywall_exp_arm` super
+      // property; non-experiment lapsers carry `unassigned` and are filtered
+      // out of the reverse-trial readout. See
+      // docs/qa/findings/2026-06-17-reverse-trial-e2e-sim.md (F1).
+      analytics.track(AnalyticsEvents.trialPaywallSurfaced, properties: {
+        AnalyticsEvents.propPlacement: AnalyticsEvents.placementPostTrialSoft,
+        AnalyticsEvents.propHardGate: false,
+      });
       LapsedTrialSheet.show(
         context,
         momentsDuringTrial: decision.activity.momentsDuringTrial,
         daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
         onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        onDismiss: () => analytics.track(
+          AnalyticsEvents.softGateDismissed,
+          properties: {
+            AnalyticsEvents.propPlacement:
+                AnalyticsEvents.placementPostTrialSoft,
+          },
+        ),
       );
       decision.markShown();
     });
