@@ -234,8 +234,9 @@ class PurchaseService {
   /// the cache is best-effort for cold-launch entitlement checks without a
   /// network round-trip.
   ///
-  /// Sibling to the [_isReferralPremium] path. Kept structurally separate so
-  /// refer-unlock and gift unlock can be reasoned about independently and so
+  /// Shares the [_isTimedPremium] predicate with the referral / trial paths
+  /// (just bound to the gift pref key + the gift clock). Kept as its own method
+  /// so refer-unlock and gift unlock can be reasoned about independently and so
   /// analytics can attribute "what kept premium on" when both paths overlap.
   Future<bool> _isGiftPremium() => _isTimedPremium(
         giftPremiumUntilPrefsBaseKey,

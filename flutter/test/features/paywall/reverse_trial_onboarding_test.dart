@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/paywall/paywall_experiment.dart';
@@ -136,6 +138,48 @@ void main() {
       expect(activated.single.props?[AnalyticsEvents.propArm],
           'treatment_reverse_trial');
       expect(activated.single.props?['source'], 'reverse_trial');
+    });
+
+    test(
+        'TREATMENT arm: a hung activate_trial RPC times out, degrades to '
+        'routing home (no trial_activated), and does not block (P2)', () async {
+      final id = treatmentId();
+      fakeSync.userId = id;
+      // Simulate a hung network: the RPC future NEVER completes, so the only way
+      // the hook returns is the 4s `.timeout` degrade path. A never-completing
+      // Completer (vs. a long Future.delayed) leaves no leftover timer to leak.
+      final hung = Completer<Map<String, dynamic>>();
+      addTearDown(() {
+        if (!hung.isCompleted) hung.complete({'ok': true});
+      });
+      fakeSync.rpcHandlers['activate_trial'] = (params) => hung.future;
+
+      // The hook must return on its own (routed home) despite the hung RPC.
+      // Bound the wait so a regression that re-blocks fails loudly instead of
+      // hanging the suite. The internal timeout is 4s; allow generous slack.
+      await resolveAndApplyPaywallExperiment(
+        experimentEnabled: true,
+        userId: id,
+        analytics: analytics,
+      ).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => fail(
+            'a hung activate_trial must not stall onboarding routing (P2)'),
+      );
+
+      // The RPC was still issued (background activation continues server-side)…
+      expect(fakeSync.rpcCalls.where((c) => c['fn'] == 'activate_trial'),
+          hasLength(1));
+      // …but trial_activated did NOT fire on the degrade path (premium is
+      // picked up by refreshTrialPremiumCache on the next read instead).
+      expect(
+          analytics.events.where((e) => e.event == AnalyticsEvents.trialActivated),
+          isEmpty);
+      // The experiment was still assigned (denominator intact).
+      expect(
+          analytics.events
+              .where((e) => e.event == AnalyticsEvents.experimentAssigned),
+          hasLength(1));
     });
 
     test('idempotent: a second call does NOT re-fire experiment_assigned (G1)',

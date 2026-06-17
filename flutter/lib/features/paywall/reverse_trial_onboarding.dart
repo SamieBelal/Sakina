@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/analytics_events.dart';
@@ -56,11 +58,39 @@ Future<void> resolveAndApplyPaywallExperiment({
   // Treatment: activate the 3-day reverse trial server-side. SECURITY DEFINER +
   // idempotent (greatest()), so even if this races a retry the user can't
   // extend the window. Hardcoded 3 days.
+  //
+  // P2: bound the await so a hung network can't stall the onboarding loader.
+  // The HAPPY path still AWAITS the RPC + cache refresh BEFORE returning, so the
+  // trial is active before the user routes home (no paywall-flash race — do NOT
+  // unawait the whole call). On TIMEOUT we degrade: let the in-flight RPC finish
+  // in the background and refresh the trial cache when it returns, so
+  // isPremium() picks the trial up on the next read; route home now.
   try {
-    await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    final rpcFuture = supabaseSyncService.callRpc<Map<String, dynamic>>(
       'activate_trial',
       const {'p_days': 3},
     );
+    var timedOut = false;
+    await rpcFuture.timeout(
+      const Duration(seconds: 4),
+      onTimeout: () {
+        timedOut = true;
+        return null; // degrade — don't block the loader on a hung RPC
+      },
+    );
+    if (timedOut) {
+      // Background activation: when the hung RPC eventually returns, refresh the
+      // trial cache so the next isPremium() read reflects the trial. Attach a
+      // catchError so the orphaned future never surfaces as an unhandled async
+      // error. `trial_activated` is intentionally NOT fired here — we can't
+      // confirm activation; the premium pickup happens on the next read.
+      unawaited(
+        rpcFuture
+            .then((_) => PurchaseService().refreshTrialPremiumCache())
+            .catchError((_) {}),
+      );
+      return;
+    }
     // Surface the new trial window to PurchaseService.isPremium() immediately.
     await PurchaseService().refreshTrialPremiumCache();
     analytics.track(AnalyticsEvents.trialActivated, properties: {

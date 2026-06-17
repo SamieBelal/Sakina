@@ -104,8 +104,15 @@ abstract final class AnalyticsEvents {
   static const String placementOnboarding = 'onboarding';
   static const String placementHardWall = 'hard_wall';
   static const String placementSoftInApp = 'soft_inapp';
-  // Reverse-trial Phase A: the dismissible post-tour soft paywall surface.
+  // Reverse-trial Phase A: the dismissible post-tour soft paywall surface
+  // shown to the CONTROL arm (immediately after the tour) and as the generic
+  // post-tour soft gate.
   static const String placementPostTourSoft = 'post_tour_soft';
+  // Reverse-trial Phase A: the TREATMENT arm's Day-3 soft gate — the same
+  // dismissible post-tour soft `PaywallScreen`, but surfaced after the 3-day
+  // reverse trial has lapsed. Distinct placement so the two arms' soft-gate
+  // views segment cleanly (paired with `trial_paywall_surfaced`).
+  static const String placementPostTrialSoft = 'post_trial_soft';
 
   // ---- Reverse-trial 2-arm experiment (Lane C) -------------------------------
   // ONE funnel segmented by the `paywall_exp_arm` super-property (NOT separate
@@ -123,7 +130,16 @@ abstract final class AnalyticsEvents {
   static const String trialActivated = 'trial_activated';
 
   /// First client detection that the reverse trial has lapsed
-  /// (`trial_premium_until < now()`). Fires once per expiry. Props: `{arm}`.
+  /// (`trial_premium_until < now()`). Fires once per expiry, from the app-resume
+  /// re-check in `app_lifecycle_observer.dart`.
+  ///
+  /// Carries NO explicit `arm` property: by the time the trial expires (Day 3+,
+  /// a later session than onboarding-complete) the assigned arm is not in scope
+  /// on the resume path. Segmentation relies entirely on the durable
+  /// [paywallExpArm] super-property (`paywall_exp_arm`), which is re-applied at
+  /// boot and survives sign-out — every event, this one included, carries it.
+  /// Only a treatment-arm user can ever have a `trial_premium_until`, so the
+  /// super-property already cleanly attributes this event to the treatment arm.
   static const String trialExpired = 'trial_expired';
 
   /// Treatment's Day-3 soft gate view (distinct from onboarding / in-app

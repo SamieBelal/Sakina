@@ -8,6 +8,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_experiment.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
@@ -363,6 +364,114 @@ void main() {
         AnalyticsEvents.placementSoftInApp);
     expect(failed.props['reason'], isNotNull);
     expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNull);
+  });
+
+  // --- Arm-aware soft gate (reverse-trial review fix #2) --------------------
+
+  AppSessionNotifier softGateSession({
+    required bool trialExpired,
+    required PaywallArm arm,
+  }) {
+    return AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: const Stream<AuthState>.empty(),
+      isAuthenticatedProvider: () => true,
+      currentUserIdProvider: () => 'user-1',
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      isPremiumReader: () async => false,
+      trialExpiredReader: () async => trialExpired,
+      paywallArmReader: () async => arm,
+    );
+  }
+
+  Widget buildSoftSubject(AppSessionNotifier session) {
+    return ProviderScope(
+      overrides: [
+        appSessionProvider.overrideWithValue(session),
+        onboardingProvider.overrideWith((ref) => onboardingNotifier),
+        analyticsProvider.overrideWithValue(analytics),
+      ],
+      child: MaterialApp(
+        // The router resolves the placement off the session — mirror that here.
+        home: PaywallScreen(
+          placement: session.softPaywallPlacement,
+          hardGate: false,
+          inOnboardingFlow: false,
+          onComplete: () {},
+        ),
+      ),
+    );
+  }
+
+  testWidgets(
+      'treatment + expired trial → trial_paywall_surfaced{post_trial_soft, arm}',
+      (tester) async {
+    final session = softGateSession(
+      trialExpired: true,
+      arm: PaywallArm.treatmentReverseTrial,
+    );
+    await session.hydrateOnboardingGate();
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(buildSoftSubject(session));
+    await tester.pumpAndSettle();
+
+    final surfaced = analytics.firstOrNull(AnalyticsEvents.trialPaywallSurfaced);
+    expect(surfaced, isNotNull,
+        reason: 'the treatment Day-3 soft gate fires trial_paywall_surfaced');
+    expect(surfaced!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementPostTrialSoft);
+    expect(surfaced.props[AnalyticsEvents.propArm], 'treatment_reverse_trial');
+    expect(surfaced.props[AnalyticsEvents.propHardGate], false);
+  });
+
+  testWidgets('control arm → generic paywall_viewed{post_tour_soft}, no surfaced',
+      (tester) async {
+    final session = softGateSession(
+      trialExpired: false,
+      arm: PaywallArm.controlNoTrial,
+    );
+    await session.hydrateOnboardingGate();
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(buildSoftSubject(session));
+    await tester.pumpAndSettle();
+
+    expect(analytics.firstOrNull(AnalyticsEvents.trialPaywallSurfaced), isNull,
+        reason: 'control never surfaces a post-trial gate');
+    final viewed = analytics.firstOrNull(AnalyticsEvents.paywallViewed);
+    expect(viewed, isNotNull);
+    expect(viewed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementPostTourSoft);
+  });
+
+  testWidgets('dismiss (X) of the soft gate → soft_gate_dismissed{placement,arm}',
+      (tester) async {
+    final session = softGateSession(
+      trialExpired: true,
+      arm: PaywallArm.treatmentReverseTrial,
+    );
+    await session.hydrateOnboardingGate();
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(buildSoftSubject(session));
+    await tester.pumpAndSettle();
+    // Select Weekly so the annual→weekly exit-offer sheet is NOT eligible and
+    // the X goes straight to _doClose (the dismiss path under test).
+    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
+    // The close X fades in (and becomes tappable) after 3s.
+    await tester.pump(const Duration(seconds: 4));
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+
+    final dismissed = analytics.firstOrNull(AnalyticsEvents.softGateDismissed);
+    expect(dismissed, isNotNull,
+        reason: 'dismissing the soft gate emits soft_gate_dismissed');
+    expect(dismissed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementPostTrialSoft);
+    expect(dismissed.props[AnalyticsEvents.propArm], 'treatment_reverse_trial');
   });
 
   testWidgets('safety valve emits paywall_safety_valve_used with placement',

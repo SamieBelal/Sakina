@@ -289,6 +289,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         },
       );
     } catch (_) {}
+    // Reverse-trial review fix #2: the TREATMENT arm's Day-3 soft gate
+    // (placement `post_trial_soft`) additionally fires `trial_paywall_surfaced`
+    // so the post-trial view is distinguishable from the control's immediate
+    // soft view. The `arm` comes from the session (no experiment access in the
+    // Riverpod-free services). Control keeps the generic `paywall_viewed` above.
+    if (widget.placement == AnalyticsEvents.placementPostTrialSoft) {
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.trialPaywallSurfaced,
+          properties: {
+            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propArm: ref.read(appSessionProvider).paywallArm,
+            AnalyticsEvents.propHardGate: false,
+          },
+        );
+      } catch (_) {}
+    }
     _closeButtonTimer = Timer(_closeButtonRevealDelay, () {
       if (mounted) setState(() => _canClose = true);
     });
@@ -401,8 +418,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   ///   separate plan; landing it together is not blocking).
   static const String paywallDismissCountPrefsBaseKey = 'paywall_dismiss_count';
 
+  /// Whether this paywall instance is the post-tour soft gate (either arm's
+  /// surface). Drives the `soft_gate_dismissed` emission on X / dismiss.
+  bool get _isPostTourSoftGate =>
+      widget.placement == AnalyticsEvents.placementPostTourSoft ||
+      widget.placement == AnalyticsEvents.placementPostTrialSoft;
+
   Future<void> _doClose() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+
+    // Reverse-trial review fix #2: dismissing the post-tour soft gate (either
+    // arm) emits `soft_gate_dismissed{placement, arm}` so the loss path
+    // segments by arm. `paywall_closed` (above) stays placement-agnostic for
+    // back-compat; this is the arm-segmentable companion.
+    if (_isPostTourSoftGate) {
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.softGateDismissed,
+          properties: {
+            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propArm: ref.read(appSessionProvider).paywallArm,
+          },
+        );
+      } catch (_) {}
+    }
 
     // Read + increment the user-scoped dismiss counter. If the user is
     // somehow not authenticated at this point (shouldn't happen — paywall

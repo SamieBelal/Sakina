@@ -36,6 +36,13 @@ void main() {
       expect(AnalyticsEvents.softGateDismissed, 'soft_gate_dismissed');
     });
 
+    test('post-trial-soft placement constant matches the ADR wire string', () {
+      // The treatment-arm Day-3 soft gate placement. Distinct from
+      // `post_tour_soft` (the control's immediate post-tour soft paywall) so the
+      // two arms' soft-gate views segment cleanly in Mixpanel.
+      expect(AnalyticsEvents.placementPostTrialSoft, 'post_trial_soft');
+    });
+
     test('property-name + super-property constants', () {
       expect(AnalyticsEvents.propArm, 'arm');
       expect(AnalyticsEvents.paywallExpArm, 'paywall_exp_arm');
