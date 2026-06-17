@@ -7,7 +7,11 @@
 --   1. activate_trial(3) sets trial_premium_until ~ now()+3d and had_trial=true.
 --   2. IDEMPOTENCY: a second call at the SAME clock does NOT extend the window
 --      (GREATEST(coalesce(existing, now()), now()+3d) is stable within a clock).
---   3. anon CANNOT execute activate_trial (EXECUTE revoked).
+--   3. SHRINK-GUARD: activate_trial(1) over a longer existing window does NOT
+--      shrink it (GREATEST keeps the longer existing operand — the other half).
+--   4. no_profile: an authed user with NO user_profiles row gets the documented
+--      {activated:false, reason:'no_profile'} no-op (does not crash).
+--   5. anon CANNOT execute activate_trial (EXECUTE revoked).
 --
 -- Mirrors freemium_guard_gift_premium_until_test.sql structure
 -- (BEGIN/ROLLBACK, pg_temp.expect, self-seeded auth.users, role impersonation).
@@ -101,7 +105,76 @@ begin
     'IDEMPOTENT: second activate_trial(3) at same clock does NOT extend the window');
 end $$;
 
--- TEST 3: anon cannot execute activate_trial (EXECUTE revoked from anon).
+-- TEST 3: SHRINK-GUARD — the OTHER half of GREATEST(). With a 3-day window
+-- already running, a shorter activate_trial(1) must NOT shrink it: GREATEST keeps
+-- the longer existing window. (TEST 2 covered the equal-clock no-extend case;
+-- this covers existing > now()+p_days, so GREATEST returns the *existing* operand
+-- unchanged — the more interesting branch the suite didn't exercise.)
+do $$
+declare
+  r        jsonb;
+  v_until  timestamptz;
+  v_first  timestamptz := current_setting('test.first_until')::timestamptz;
+begin
+  r := public.activate_trial(1);
+
+  select trial_premium_until into v_until
+    from public.user_profiles where id = current_setting('test.uid')::uuid;
+
+  perform pg_temp.expect((r->>'activated')::boolean = true,
+    'activate_trial(1) over a longer window still returns activated=true');
+  perform pg_temp.expect(v_until = v_first,
+    'SHRINK-GUARD: activate_trial(1) does NOT shrink the existing 3-day window '
+    '(GREATEST keeps the longer existing operand)');
+  perform pg_temp.expect(v_until > now() + interval '2 days 12 hours',
+    'window remains ~3 days after the shorter call (not collapsed to ~1 day)');
+end $$;
+
+-- TEST 4: no_profile path — an authed user with NO user_profiles row. The RPC's
+-- UPDATE ... RETURNING finds no row → `not found` → documented no-op result
+-- {activated:false, reason:'no_profile'} (RPC body lines 73-75 of
+-- 20260616204630_reverse_trial_backend.sql). Must NOT crash.
+reset role;
+do $$
+declare v_uid uuid := gen_random_uuid();
+begin
+  -- Seed ONLY auth.users; suppress the handle_new_user trigger so NO
+  -- user_profiles row is created (the whole point of this path).
+  set local session_replication_role = replica;
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
+                          email_confirmed_at, created_at, updated_at)
+  values (v_uid, '00000000-0000-0000-0000-000000000000', 'authenticated',
+          'authenticated', 'activate-trial-noprofile-' || v_uid::text || '@example.com',
+          '', now(), now(), now());
+  set local session_replication_role = origin;
+  perform set_config('test.uid_noprofile', v_uid::text, false);
+end $$;
+
+select set_config('request.jwt.claims',
+  json_build_object('sub', current_setting('test.uid_noprofile'),
+                    'role','authenticated')::text, true);
+set local role authenticated;
+
+do $$
+declare
+  r        jsonb;
+  v_caught boolean := false;
+begin
+  begin
+    r := public.activate_trial(3);
+  exception when others then
+    v_caught := true;
+  end;
+
+  perform pg_temp.expect(not v_caught,
+    'no_profile: activate_trial(3) does NOT crash for a profile-less authed user');
+  perform pg_temp.expect((r->>'activated')::boolean = false,
+    'no_profile: returns activated=false');
+  perform pg_temp.expect(r->>'reason' = 'no_profile',
+    'no_profile: reason is the documented "no_profile"');
+end $$;
+
+-- TEST 5: anon cannot execute activate_trial (EXECUTE revoked from anon).
 reset role;
 select set_config('request.jwt.claims',
   json_build_object('role','anon')::text, true);
