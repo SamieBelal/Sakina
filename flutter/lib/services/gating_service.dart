@@ -239,6 +239,16 @@ class GatingService {
     final used = await _getUsageToday(feature);
     final cap = _dailyCap(feature);
     if (used >= cap) {
+      // The free/lapsed user just hit the daily cap — the numerator for the
+      // "cap-hit → upgrade" loop in the reverse-trial experiment funnel. Emit
+      // `daily_cap_hit{feature}` (the `arm` rides as the `paywall_exp_arm`
+      // Mixpanel super-property set at assignment, so the event segments by arm
+      // without this Riverpod-free service needing the experiment flag). Premium
+      // fair-use blocks NEVER reach here — they short-circuit in `canUse` with
+      // `GateReason.premiumFairUse` (a silent "take a breath", not a paywall).
+      onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
+        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+      });
       return GateResult(
         allowed: false,
         reason: hadTrial ? GateReason.hadTrialNoBudget : GateReason.dailyCap,

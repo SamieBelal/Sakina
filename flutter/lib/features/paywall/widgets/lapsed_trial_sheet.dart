@@ -37,9 +37,35 @@ class LapsedTrialSheet extends StatelessWidget {
     required int momentsDuringTrial,
     required int daysActiveDuringTrial,
     required VoidCallback onUpgrade,
+    VoidCallback? onDismiss,
   }) {
+    // Track how the sheet was closed so `onDismiss` fires EXACTLY ONCE on any
+    // dismissal that isn't an explicit upgrade. A showModalBottomSheet can be
+    // closed three ways the buttons don't cover — barrier tap, swipe-down, and
+    // Android back — all of which pop the route without invoking the secondary
+    // button. Firing `onDismiss` only from the button left soft_gate_dismissed
+    // undercounting against the already-fired impression. We resolve the
+    // outcome from the closure and reconcile it when the route future
+    // completes. `dismissFired` guards against the button path and the future
+    // both firing.
+    var upgraded = false;
+    var dismissFired = false;
+    void fireDismissOnce() {
+      if (upgraded || dismissFired) return;
+      dismissFired = true;
+      onDismiss?.call();
+    }
+
     return showModalBottomSheet<void>(
       context: context,
+      // Push on the ROOT navigator so the singleton `tourRouteObserver`
+      // (wired into the root GoRouter, router.dart) registers this route's
+      // `LapsedTrialSheet` name and the tour overlay suppresses itself while
+      // the sheet is up. Without this the sheet pushes on the nested shell
+      // navigator, the root observer never sees it, and an in-flight guided
+      // tour overlaps the sheet AND intercepts its buttons (its gesture layer
+      // sits over the modal). See docs/qa/findings/2026-06-17-reverse-trial-e2e-sim.md.
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -49,13 +75,23 @@ class LapsedTrialSheet extends StatelessWidget {
           momentsDuringTrial: momentsDuringTrial,
           daysActiveDuringTrial: daysActiveDuringTrial,
           onUpgrade: () {
+            upgraded = true;
             Navigator.of(sheetContext).pop();
             onUpgrade();
           },
+          // The secondary button just pops — `onDismiss` is fired by the
+          // route-completion reconciliation below so the button, the barrier,
+          // the swipe, and Android back all funnel through one code path
+          // (which is also where the once-only guard lives).
           onDismiss: () => Navigator.of(sheetContext).pop(),
         );
       },
-    );
+    ).then((_) {
+      // Route popped — whether by the secondary button, the barrier, a
+      // swipe-down, or Android back. If the user didn't take the upgrade path,
+      // this is a dismissal. Fires at most once.
+      fireDismissOnce();
+    });
   }
 
   String get _body {

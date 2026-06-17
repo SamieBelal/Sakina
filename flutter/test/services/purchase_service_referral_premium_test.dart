@@ -40,37 +40,31 @@ void main() {
         'returns true when RC has no entitlement AND cache holds a future ISO',
         () async {
       final service = PurchaseService.test();
-      // Not initialized — isPremium falls straight through to the cache.
+      // Not initialized — isPremium falls straight through to the cache. The
+      // DRY `_isTimedPremium` helper reads the user-scoped key via the sync
+      // service's scopedKey (which carries the fake uid 'user-abc'), so a
+      // future ISO flips premium on — matching the gift source's posture.
       final future = DateTime.now().toUtc().add(const Duration(days: 5));
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        '${PurchaseService.referralPremiumUntilPrefsBaseKey}:user-abc',
+        fakeSync.scopedKey(PurchaseService.referralPremiumUntilPrefsBaseKey),
         future.toIso8601String(),
       );
 
-      // Override the user-id lookup via FakeSupabaseSyncService.
-      // But isPremium reads Supabase.instance.client.auth.currentUser?.id
-      // directly — which isn't initialized in tests, so we expect false here.
-      // To exercise this path we override SupabaseSyncService.instance's
-      // currentUserId. Done in setUp.
-      //
-      // The fact that Supabase isn't initialized in unit-test land means
-      // _safeCurrentUserId returns null and we get false. This is the
-      // documented behavior for test environments without Supabase.
-      expect(await service.isPremium(), isFalse,
+      expect(await service.isPremium(), isTrue,
           reason:
-              'Without Supabase.instance.auth.currentUser, the uid lookup returns null and we short-circuit before reading prefs');
+              'a future referral_premium_until in the scoped cache flips '
+              'isPremium() on even when RC has not initialized');
     });
 
-    test('returns false when uid is null (Supabase not initialized in tests)',
+    test('returns false when the cached referral ISO is in the past',
         () async {
       final service = PurchaseService.test();
-      // Even with a future ISO in prefs, no auth user = no result.
-      final future = DateTime.now().toUtc().add(const Duration(days: 5));
+      final past = DateTime.now().toUtc().subtract(const Duration(days: 1));
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        '${PurchaseService.referralPremiumUntilPrefsBaseKey}:user-abc',
-        future.toIso8601String(),
+        fakeSync.scopedKey(PurchaseService.referralPremiumUntilPrefsBaseKey),
+        past.toIso8601String(),
       );
 
       expect(await service.isPremium(), isFalse);

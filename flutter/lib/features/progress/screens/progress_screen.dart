@@ -28,9 +28,11 @@ import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
+import 'package:sakina/features/paywall/lapsed_soft_gate_analytics.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -174,11 +176,34 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     if (!mounted || decision == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final analytics = ref.read(analyticsProvider);
+      // The experiment arm rides as an EXPLICIT per-event property (not just
+      // the durable super property) so the emission matches the sibling
+      // emitter in paywall_screen.dart and the soft-gate ADR contract. The arm
+      // comes from the session; non-experiment lapsers carry `unassigned` and
+      // are filtered out of the reverse-trial readout. See
+      // docs/qa/findings/2026-06-17-reverse-trial-e2e-sim.md (F1) and the
+      // `paywallArm` getter in lib/core/app_session.dart.
+      final arm = ref.read(appSessionProvider).paywallArm;
+      // Reverse-trial Day-3 soft-gate impression. This in-app sheet — not the
+      // routing PaywallScreen — is the surface a lapsed reverse-trialer
+      // actually sees, so the `trial_paywall_surfaced` instrument must fire
+      // here too.
+      recordLapsedSoftGateSurfaced(
+        analytics,
+        placement: AnalyticsEvents.placementPostTrialSoft,
+        arm: arm,
+      );
       LapsedTrialSheet.show(
         context,
         momentsDuringTrial: decision.activity.momentsDuringTrial,
         daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
         onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        onDismiss: () => recordLapsedSoftGateDismissed(
+          analytics,
+          placement: AnalyticsEvents.placementPostTrialSoft,
+          arm: arm,
+        ),
       );
       decision.markShown();
     });

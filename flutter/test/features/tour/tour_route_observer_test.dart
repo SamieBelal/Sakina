@@ -41,6 +41,11 @@ void main() {
         'LapsedTrialSheet',
         'FirstStepsOverlay',
         'DailyLaunchOverlay',
+        // Added 2026-06-17 (review fix #3): these paywall sheets now root-push
+        // named routes so the guided tour suppresses itself over them.
+        'DailyCapSheet',
+        'WarmupExhaustedSheet',
+        'UpgradeRequiredSheet',
       });
     });
 

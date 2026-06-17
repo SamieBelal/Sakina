@@ -228,6 +228,71 @@ void main() {
           OnboardingStage.app,
         );
       });
+
+      // -------------------------------------------------------------------
+      // G5 — routing-matrix-WITH-TRIAL. The reverse-trial window manifests in
+      // routing ONLY as `isPremium` (PurchaseService.isPremium() OR's the trial
+      // window in). resolveOnboardingStage has no trial concept of its own —
+      // these pin that an ACTIVE trial (isPremium:true) clears the soft gate to
+      // `app`, while an EXPIRED trial (isPremium:false) falls to `softPaywall`.
+      // -------------------------------------------------------------------
+      group('G5 reverse-trial manifests as isPremium', () {
+        test('ACTIVE trial (isPremium:true), soft mode, tour done → app '
+            '(no wall while the trial window is live)', () {
+          expect(
+            modeStage(
+              paywallMode: PostTourPaywallMode.soft,
+              isPremium: true,
+              tourCompleted: true,
+              paywallCleared: false,
+            ),
+            OnboardingStage.app,
+          );
+        });
+
+        test('EXPIRED trial (isPremium:false), soft mode, tour done, uncleared '
+            '→ softPaywall (the dismissible reverse-trial-expiry gate)', () {
+          expect(
+            modeStage(
+              paywallMode: PostTourPaywallMode.soft,
+              isPremium: false,
+              tourCompleted: true,
+              paywallCleared: false,
+            ),
+            OnboardingStage.softPaywall,
+          );
+        });
+
+        test('ACTIVE trial clears the HARD gate too (premium short-circuit '
+            'predates mode) → app', () {
+          expect(
+            modeStage(
+              paywallMode: PostTourPaywallMode.hard,
+              isPremium: true,
+              tourCompleted: true,
+            ),
+            OnboardingStage.app,
+          );
+        });
+
+        test('an active trial mid-tour short-circuits to app (premium is '
+            'checked BEFORE the tour gate, so a treatment user never sees the '
+            'forced tour while the trial window is live)', () {
+          // Precedence step 2 (premium||cleared → app) runs before step 3
+          // (!tourCompleted → tour). So a live trial window routes to app even
+          // with tourCompleted:false.
+          expect(
+            modeStage(
+              paywallMode: PostTourPaywallMode.soft,
+              isPremium: true,
+              tourCompleted: false,
+            ),
+            OnboardingStage.app,
+            reason: 'premium short-circuits BEFORE the tour check '
+                '(see resolveOnboardingStage precedence step 2)',
+          );
+        });
+      });
     });
 
     // ---------------------------------------------------------------------

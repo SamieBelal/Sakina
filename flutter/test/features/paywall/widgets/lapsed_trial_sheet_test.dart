@@ -188,6 +188,144 @@ void main() {
       expect(dismissed, 1);
     });
 
+    testWidgets('show() forwards onDismiss to the caller AND pops the sheet',
+        (tester) async {
+      // Pins the reverse-trial fix: the static show() now accepts an onDismiss
+      // hook (so the caller can fire soft_gate_dismissed) and still closes the
+      // modal. Regression for F2 — the sheet must dismiss on "Maybe later".
+      var dismissed = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => LapsedTrialSheet.show(
+                context,
+                momentsDuringTrial: 4,
+                daysActiveDuringTrial: 2,
+                onUpgrade: () {},
+                onDismiss: () => dismissed++,
+              ),
+              child: const Text('Show sheet'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LapsedTrialSheet), findsOneWidget);
+
+      await tester.tap(find.text('Maybe later'));
+      await tester.pumpAndSettle();
+      expect(dismissed, 1, reason: 'caller onDismiss must fire');
+      expect(find.byType(LapsedTrialSheet), findsNothing,
+          reason: 'sheet must be popped after dismiss');
+    });
+
+    testWidgets(
+        'show() fires onDismiss exactly once when dismissed via a NON-button '
+        'path (barrier tap / swipe-down / Android back)', (tester) async {
+      // F2 regression: a showModalBottomSheet can be dismissed by tapping the
+      // scrim, swiping down, or pressing Android back — none of which run the
+      // widget's "Maybe later" secondary button. The impression already fired
+      // (trial_paywall_surfaced), so soft_gate_dismissed MUST still fire on
+      // these paths or the loss metric undercounts.
+      var dismissed = 0;
+      late BuildContext rootContext;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              rootContext = context;
+              return TextButton(
+                onPressed: () => LapsedTrialSheet.show(
+                  context,
+                  momentsDuringTrial: 4,
+                  daysActiveDuringTrial: 2,
+                  onUpgrade: () {},
+                  onDismiss: () => dismissed++,
+                ),
+                child: const Text('Show sheet'),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LapsedTrialSheet), findsOneWidget);
+
+      // Simulate a barrier/swipe/back dismissal: pop the route WITHOUT
+      // touching either of the sheet's buttons.
+      Navigator.of(rootContext, rootNavigator: true).maybePop();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LapsedTrialSheet), findsNothing,
+          reason: 'sheet must be gone after a non-button dismissal');
+      expect(dismissed, 1,
+          reason: 'onDismiss must fire on barrier/swipe/back dismissal too');
+    });
+
+    testWidgets('show() does NOT fire onDismiss when onUpgrade is taken',
+        (tester) async {
+      var dismissed = 0;
+      var upgraded = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => LapsedTrialSheet.show(
+                context,
+                momentsDuringTrial: 4,
+                daysActiveDuringTrial: 2,
+                onUpgrade: () => upgraded++,
+                onDismiss: () => dismissed++,
+              ),
+              child: const Text('Show sheet'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Unlock unlimited'));
+      await tester.pumpAndSettle();
+
+      expect(upgraded, 1, reason: 'caller onUpgrade must fire');
+      expect(dismissed, 0,
+          reason: 'taking the upgrade path must never fire onDismiss');
+    });
+
+    testWidgets(
+        'show() fires onDismiss exactly once on the button path '
+        '(no double-fire with the route-completion future)', (tester) async {
+      var dismissed = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => LapsedTrialSheet.show(
+                context,
+                momentsDuringTrial: 4,
+                daysActiveDuringTrial: 2,
+                onUpgrade: () {},
+                onDismiss: () => dismissed++,
+              ),
+              child: const Text('Show sheet'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Show sheet'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Maybe later'));
+      await tester.pumpAndSettle();
+
+      expect(dismissed, 1,
+          reason: 'button + future completion must not double-fire onDismiss');
+    });
+
     testWidgets('show names its route so the guided tour is suppressed',
         (tester) async {
       final observer = TourRouteObserver();

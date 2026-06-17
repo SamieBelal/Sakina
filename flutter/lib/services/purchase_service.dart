@@ -66,21 +66,35 @@ class PurchaseService {
   static const String referralPremiumUntilPrefsBaseKey =
       'referral_premium_until';
 
+  /// Base SharedPreferences key for the cached `trial_premium_until` ISO
+  /// string (the reverse-trial source). Scoped to the user via
+  /// [SupabaseSyncService.scopedKey] before read/write so a shared device
+  /// doesn't bleed trial premium across accounts. Sibling to
+  /// [referralPremiumUntilPrefsBaseKey] / [giftPremiumUntilPrefsBaseKey];
+  /// populated by [refreshTrialPremiumCache] and OR'd into [isPremium].
+  ///
+  /// NOT `@visibleForTesting` (unlike the referral key): the reverse-trial
+  /// resume re-check in `trial_expiry_service.dart` reads this scoped key from
+  /// production code, mirroring [giftPremiumUntilPrefsBaseKey]'s cross-service
+  /// visibility.
+  static const String trialPremiumUntilPrefsBaseKey = 'trial_premium_until';
+
   /// True iff any premium source is active: Sakina Gift window, RevenueCat
-  /// `premium` entitlement, or the local referral-premium cache.
+  /// `premium` entitlement, the local referral-premium cache, or the local
+  /// reverse-trial cache.
   ///
   /// Order matters:
   /// 1. Gift check first — reads SharedPrefs only, doesn't require RC init,
   ///    so a kill-switched / not-yet-initialized RC build still honors an
   ///    active gift.
   /// 2. RC entitlement next — authoritative billing source when initialized.
-  /// 3. Referral cache last — SharedPrefs only, populated at deterministic
-  ///    refresh moments (auth foreground, post-signup, post-RPC) via
-  ///    [refreshReferralPremiumCache].
+  /// 3. Referral cache, then trial cache last — SharedPrefs only, populated at
+  ///    deterministic refresh moments (auth foreground, post-signup, post-RPC,
+  ///    app-resume) via [refreshReferralPremiumCache] / [refreshTrialPremiumCache].
   ///
   /// Hot-path constraint: called from 8+ providers / services on every render
-  /// pass. Neither the gift nor referral path hits Supabase from the hot
-  /// path — both read user-scoped SharedPreferences.
+  /// pass. None of the gift / referral / trial paths hit Supabase from the hot
+  /// path — all read user-scoped SharedPreferences.
   Future<bool> isPremium() async {
     if (await _isGiftPremium()) return true;
     if (_initialized) {
@@ -90,54 +104,58 @@ class PurchaseService {
           return true;
         }
       } catch (_) {
-        // Fall through to referral check.
+        // Fall through to referral / trial check.
       }
     }
-    return _isReferralPremium();
+    if (await _isTimedPremium(referralPremiumUntilPrefsBaseKey)) return true;
+    return _isTimedPremium(trialPremiumUntilPrefsBaseKey);
   }
 
-  /// Reads from the local cache only. The cache is populated by
-  /// [refreshReferralPremiumCache] at auth foreground, after signup, and
-  /// after referral RPCs return. Never hits Supabase from the hot path.
-  Future<bool> _isReferralPremium() async {
-    final uid = _safeCurrentUserId();
-    if (uid == null || uid.isEmpty) return false;
-    final prefs = await SharedPreferences.getInstance();
-    final scopedKey =
-        supabaseSyncService.scopedKey(referralPremiumUntilPrefsBaseKey);
-    final iso = prefs.getString(scopedKey);
-    if (iso == null || iso.isEmpty) return false;
+  /// Shared timed-premium predicate for the SharedPreferences-cached server
+  /// columns (referral / trial). Reads the user-scoped [prefKey] ONLY — never
+  /// Supabase from the hot path — and returns true when the cached ISO is in
+  /// the future relative to [now]. The gift source has its own
+  /// [GiftService.currentClock]-driven variant ([_isGiftPremium]); referral and
+  /// trial both share this helper (no third copy).
+  ///
+  /// [now] defaults to `DateTime.now().toUtc()`; the comparison is timezone-
+  /// stable because Supabase timestamptz ISO strings carry an explicit offset
+  /// that `DateTime.parse` resolves.
+  Future<bool> _isTimedPremium(
+    String prefKey, {
+    DateTime Function()? now,
+  }) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final iso = prefs.getString(supabaseSyncService.scopedKey(prefKey));
+      if (iso == null || iso.isEmpty) return false;
       // DateTime.parse handles all the timestamptz ISO shapes Supabase emits:
       //   "2026-06-13T12:34:56.789+00:00", "2026-06-13T12:34:56Z", etc.
-      // Compare against now().toUtc() so we're timezone-stable across
-      // devices and clocks.
-      return DateTime.parse(iso).isAfter(DateTime.now().toUtc());
+      final clock = (now ?? () => DateTime.now().toUtc())();
+      return DateTime.parse(iso).isAfter(clock);
     } catch (_) {
+      // SharedPreferences unavailable or unparseable ISO — treat as not
+      // premium (fall through to the next source in isPremium()).
       return false;
     }
   }
 
-  /// Fetches `referral_premium_until` from Supabase and updates the local
-  /// cache. Call at: app foreground (authenticated), after
-  /// [OnboardingNotifier.completeOnboarding], after `apply_referral` /
-  /// `confirm_referral_if_pending` RPC returns.
-  ///
-  /// Best-effort — silently swallows network errors; stale cache is
-  /// acceptable until the next refresh moment.
-  Future<void> refreshReferralPremiumCache() async {
+  /// Fetches [column] from `user_profiles` and writes it into the user-scoped
+  /// [prefKey] cache. Shared writer for the referral / trial timed-premium
+  /// columns (no third copy). Best-effort — silently swallows network errors;
+  /// a stale cache is acceptable until the next refresh moment.
+  Future<void> refreshTimedPremiumCache(String prefKey, String column) async {
     final uid = _safeCurrentUserId();
     if (uid == null || uid.isEmpty) return;
     try {
       final row = await Supabase.instance.client
           .from('user_profiles')
-          .select('referral_premium_until')
+          .select(column)
           .eq('id', uid)
           .maybeSingle();
-      final iso = row?['referral_premium_until'] as String?;
+      final iso = row?[column] as String?;
       final prefs = await SharedPreferences.getInstance();
-      final scopedKey =
-          supabaseSyncService.scopedKey(referralPremiumUntilPrefsBaseKey);
+      final scopedKey = supabaseSyncService.scopedKey(prefKey);
       if (iso == null) {
         await prefs.remove(scopedKey);
       } else {
@@ -147,6 +165,26 @@ class PurchaseService {
       // Best-effort; next refresh moment will retry.
     }
   }
+
+  /// Fetches `referral_premium_until` from Supabase and updates the local
+  /// cache. Call at: app foreground (authenticated), after
+  /// [OnboardingNotifier.completeOnboarding], after `apply_referral` /
+  /// `confirm_referral_if_pending` RPC returns.
+  Future<void> refreshReferralPremiumCache() => refreshTimedPremiumCache(
+        referralPremiumUntilPrefsBaseKey,
+        'referral_premium_until',
+      );
+
+  /// Fetches `trial_premium_until` from Supabase and updates the local cache
+  /// (the reverse-trial source). Call at: app foreground (authenticated),
+  /// app-resume + home-load (so a just-expired Day-3 trial is detected
+  /// promptly — see the reverse-trial ADR resume re-check), and immediately
+  /// after `activate_trial` returns. Best-effort — sibling to
+  /// [refreshReferralPremiumCache].
+  Future<void> refreshTrialPremiumCache() => refreshTimedPremiumCache(
+        trialPremiumUntilPrefsBaseKey,
+        'trial_premium_until',
+      );
 
   String? _safeCurrentUserId() {
     try {
@@ -196,26 +234,18 @@ class PurchaseService {
   /// the cache is best-effort for cold-launch entitlement checks without a
   /// network round-trip.
   ///
-  /// Sibling to the [_isReferralPremium] path. Kept structurally separate so
-  /// refer-unlock and gift unlock can be reasoned about independently and so
+  /// Shares the [_isTimedPremium] predicate with the referral / trial paths
+  /// (just bound to the gift pref key + the gift clock). Kept as its own method
+  /// so refer-unlock and gift unlock can be reasoned about independently and so
   /// analytics can attribute "what kept premium on" when both paths overlap.
-  Future<bool> _isGiftPremium() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(
-        supabaseSyncService.scopedKey(giftPremiumUntilPrefsBaseKey),
+  Future<bool> _isGiftPremium() => _isTimedPremium(
+        giftPremiumUntilPrefsBaseKey,
+        // Gift honors the [GiftService.debugGiftClock] seam so QA can fast-
+        // forward into / out of a seeded occasion window. `now` is compared
+        // with `cachedIso.isAfter(now)`, equivalent to the prior
+        // `currentClock().isBefore(until)`.
+        now: GiftService.currentClock,
       );
-      if (raw == null) return false;
-      final until = DateTime.tryParse(raw)?.toUtc();
-      if (until == null) return false;
-      return GiftService.currentClock().isBefore(until);
-    } catch (_) {
-      // SharedPreferences unavailable (e.g. unit test without the mock
-      // installed) — fall through to the RC entitlement check rather than
-      // throwing out of isPremium().
-      return false;
-    }
-  }
 
   /// Returns the ISO-8601 timestamp when RevenueCat last detected a billing
   /// issue on the user's `premium` entitlement, or `null` if payment is

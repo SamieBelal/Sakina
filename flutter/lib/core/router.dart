@@ -171,7 +171,11 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           hardGate: false,
-          placement: AnalyticsEvents.placementPostTourSoft,
+          // Arm-aware placement (reverse-trial review fix #2): the session
+          // resolves `post_trial_soft` for a treatment-arm user whose trial
+          // lapsed (the Day-3 gate), else `post_tour_soft` (control/generic).
+          // PaywallScreen reads the same session for the `arm` event prop.
+          placement: appSession.softPaywallPlacement,
           onComplete: () {
             appSession.markPaywallCleared();
             GoRouter.of(context).go('/');
