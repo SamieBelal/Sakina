@@ -119,6 +119,19 @@ void main() {
       hasCompletedOnboarding: () async => true,
       isPremiumReader: () async => premium(),
       postTourPaywallModeReader: () async => PostTourPaywallMode.soft,
+      // Mirror production's `_defaultPaywallArm` but bound to the test's known
+      // uid (the default reader resolves the uid from a live Supabase client,
+      // which isn't initialised here). Resolves to the real arm ONLY once the
+      // experiment driver has set the one-shot assigned flag — exactly the
+      // re-hydration the fix relies on.
+      paywallArmReader: () async {
+        final prefs = await SharedPreferences.getInstance();
+        final assigned = prefs.getBool(supabaseSyncService
+                .scopedKey(paywallExperimentAssignedBaseKey)) ??
+            false;
+        if (!assigned) return null;
+        return assignPaywallArm(userId);
+      },
       notificationService: _FakeNotif(),
     );
   }
@@ -187,6 +200,67 @@ void main() {
     // While sitting on the soft paywall itself the redirect leaves you put
     // (dismiss is the exit, not lenient routing).
     expect(redirect(kOnboardingSoftPaywallPath, session), isNull);
+
+    session.dispose();
+  });
+
+  test(
+      'REGRESSION (device 2026-06-17): a treatment trial-holder is routed into '
+      'the app — NOT the post-tour soft paywall — because onboarding-complete '
+      're-hydrates the gate once the trial activates', () async {
+    // Premium reflects the real trial window: false until activate_trial runs,
+    // true once it has (exactly how PurchaseService.isPremium() OR's the trial
+    // window in). This is the ONLY channel through which the trial reaches the
+    // router gate.
+    var trialActiveServerSide = false;
+    fakeSync.rpcHandlers['activate_trial'] = (_) async {
+      trialActiveServerSide = true;
+      return {
+        'activated': true,
+        'trial_premium_until': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 3))
+            .toIso8601String(),
+      };
+    };
+
+    // The forced tour is done (server-of-truth prefs flag, as the tour
+    // controller persists at completion).
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(onboardingTourSeenFlag(userId), true);
+
+    // A brand-new treatment user sitting in the gate, PRE-trial: premium reads
+    // false, so the soft gate would wall them. This is the exact on-device
+    // state at the moment onboarding completes.
+    final session = softSession(premium: () => trialActiveServerSide);
+    await session.enterOnboardingGate(); // latch=false, new user in the gate
+    await session.hydrateOnboardingGate(); // premium=false (trial not yet run)
+    expect(session.isPremiumCached, isFalse);
+    expect(redirect('/', session), kOnboardingSoftPaywallPath,
+        reason: 'pre-trial the gate walls — the BUG is staying walled AFTER the '
+            'trial activates');
+
+    // ---- onboarding-complete: the REAL experiment driver -------------------
+    // It activates the 3-day trial AND must refresh the gate (onArmApplied) so
+    // the now-active trial is reflected BEFORE the router evaluates the gate.
+    await resolveAndApplyPaywallExperiment(
+      experimentEnabled: true,
+      userId: userId,
+      analytics: analytics,
+      onArmApplied: session.hydrateOnboardingGate,
+    );
+
+    expect(trialActiveServerSide, isTrue, reason: 'activate_trial(3) ran');
+    expect(session.isPremiumCached, isTrue,
+        reason: 'the gate must see the freshly-activated trial as premium');
+    expect(redirect('/', session), isNull,
+        reason: 'BUG REPRO: a treatment trial-holder lands in the app, never '
+            'the post-tour soft paywall');
+    expect(redirect('/duas', session), isNull,
+        reason: 'no wall at the slim-tour-exit route either');
+    // The arm-aware soft-gate tagging now reflects the real arm (was the stale
+    // "unassigned" on-device because the gate was never re-hydrated).
+    expect(session.paywallArm, 'treatment_reverse_trial');
 
     session.dispose();
   });

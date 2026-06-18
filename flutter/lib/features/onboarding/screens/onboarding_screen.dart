@@ -378,6 +378,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           experimentEnabled: experimentEnabled,
           userId: uid,
           analytics: ref.read(analyticsProvider),
+          // Re-hydrate the onboarding gate AFTER the arm is assigned and (for
+          // treatment) the trial is activated, so the router's synchronous
+          // redirect — which runs as soon as we context.go('/') below — reads
+          // the fresh premium/arm state. Without this a treatment trial-holder
+          // is routed onto the post-tour soft paywall on a stale snapshot.
+          onArmApplied: () =>
+              ref.read(appSessionProvider).hydrateOnboardingGate(),
         );
       }
     } catch (_) {/* experiment hook is best-effort */}
