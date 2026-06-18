@@ -94,15 +94,27 @@ OnboardingStage resolveOnboardingStage({
   // `off` → legacy behaviour, no gate at all.
   if (mode == PostTourPaywallMode.off) return OnboardingStage.app;
 
-  // Grandfathered (migration backfill), already entered (latch), or paying
-  // (gift/referral/RC). Checked BEFORE the tour so existing users never flash
-  // the gate. Premium also implies the wall is moot.
-  if (paywallCleared || isPremium) return OnboardingStage.app;
+  // CLEARED latch → straight to app. Grandfathered (migration backfill / key
+  // absent → defaults cleared), already-entered-then-cleared, or the
+  // offerings-fail valve bypass. Checked BEFORE the tour so existing users
+  // never flash the gate. This is the cleared latch ONLY — `paywallCleared` is
+  // set false exclusively for a brand-new user by `enterOnboardingGate` and
+  // defaults true otherwise, so it cleanly identifies "already past the gate".
+  if (paywallCleared) return OnboardingStage.app;
 
-  // New user who has not finished the forced tour.
+  // New (uncleared) user who hasn't finished the forced tour completes it
+  // FIRST — even when premium. A reverse-trial TREATMENT user is granted the
+  // 3-day trial (→ isPremium) at onboarding-complete; checking premium before
+  // this would skip the tour for treatment but not control, confounding the
+  // experiment (device repro 2026-06-18). Existing/returning users are already
+  // grandfathered by the cleared latch above, so they never reach this.
   if (!tourCompleted) return OnboardingStage.tour;
 
-  // Tour done, wall not cleared → the configured post-tour gate.
+  // Tour done. Premium (paid OR an active reverse-trial window) makes the wall
+  // moot → app.
+  if (isPremium) return OnboardingStage.app;
+
+  // Tour done, not cleared, not premium → the configured post-tour gate.
   switch (mode) {
     case PostTourPaywallMode.hard:
       return OnboardingStage.hardPaywall;
