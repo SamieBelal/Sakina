@@ -313,5 +313,20 @@ void main() {
         reason: 'cleared → app; the user is never re-walled');
     expect(find.byType(PaywallScreen), findsNothing,
         reason: 'after dismiss the user is routed off the paywall into the app');
+
+    // ---- RELAUNCH: a fresh session hydrating from persisted state must NOT
+    // re-wall. The soft-paywall X-dismiss has to DURABLY clear the gate (via
+    // OnboardingGateService), not just flip the in-memory latch — otherwise a
+    // control user hits the soft paywall on EVERY cold launch instead of
+    // landing home (device repro 2026-06-18, a@c.com / control). ----
+    final relaunch = softSession(premium: () => false);
+    addTearDown(relaunch.dispose);
+    await relaunch.hydrateOnboardingGate();
+    expect(relaunch.paywallCleared, isTrue,
+        reason: 'soft-paywall dismiss must persist the cleared latch across '
+            'launches');
+    expect(redirect('/', relaunch), isNull,
+        reason: 'BUG REPRO: control user re-walled every launch — the dismiss '
+            'did not durably persist the cleared latch');
   });
 }

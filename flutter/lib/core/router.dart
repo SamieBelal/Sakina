@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -177,7 +179,12 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
           // PaywallScreen reads the same session for the `arm` event prop.
           placement: appSession.softPaywallPlacement,
           onComplete: () {
-            appSession.markPaywallCleared();
+            // Durably clear so the user lands home permanently and isn't
+            // re-walled on the next cold launch (parity with the hard wall,
+            // which persists via PaywallScreen). The in-memory flip inside
+            // happens synchronously, so the redirect below routes home with no
+            // flash; the persist completes in the background.
+            unawaited(appSession.markPaywallClearedDurable());
             GoRouter.of(context).go('/');
           },
         ),
