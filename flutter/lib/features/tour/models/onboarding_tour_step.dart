@@ -232,6 +232,23 @@ const List<OnboardingTourStepDef> kSlimOnboardingTourSteps = [
     // auto-flips ABOVE the expanded cutout. Live tested 2026-05-26.
     cutoutPaddingTop: 280,
   ),
+  // Reader coachmark — fires the instant the dua is built and the first section
+  // ("Opening Praise") appears. Highlights the green "Next" button so the user
+  // is guided to read through their dua section by section. Before this step
+  // existed the tour advanced straight to `duas.buildComplete`, whose anchor
+  // (Build Another Dua) only exists on the final result screen — so the first
+  // section showed an EMPTY cutout (device repro 2026-06-18). Interactive
+  // (tap-through): tapping Next advances both the section and the tour. Shows
+  // despite the Build-a-Dua suppression latch because its anchor IS present
+  // (the host only suppression-hides steps whose anchor is absent).
+  OnboardingTourStepDef(
+    id: 'duas.sectionNext',
+    surface: TourSurface.duas,
+    anchorId: 'duaSectionNext',
+    message: 'Read through your dua, {name} — tap Next.',
+    interactive: true,
+    hint: 'Tap Next to continue ↗',
+  ),
   // FINAL step — anchored at the END of the Build-a-Dua flow (the Ameen/result
   // screen). Suppression-gated: its `duaBuildComplete` anchor only exists on the
   // result view, so while the dua is building (loader + reader beats) the tour
@@ -340,6 +357,17 @@ const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
     interactive: true,
     hint: 'Tap Build to continue ↗',
     cutoutPaddingTop: 280,
+  ),
+  // Reader coachmark (shared with the slim arm) — highlights the "Next" button
+  // on the first built-dua section so the first screen isn't an empty cutout.
+  // See the slim-arm copy of this step for the full rationale.
+  OnboardingTourStepDef(
+    id: 'duas.sectionNext',
+    surface: TourSurface.duas,
+    anchorId: 'duaSectionNext',
+    message: 'Read through your dua, {name} — tap Next.',
+    interactive: true,
+    hint: 'Tap Next to continue ↗',
   ),
   OnboardingTourStepDef(
     id: 'duas.firstRelatedHeart',

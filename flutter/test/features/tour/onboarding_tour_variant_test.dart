@@ -4,12 +4,25 @@ import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 
 void main() {
   group('full (control) tour arm', () {
-    test('is the original 13-step tour ending on the centered finale', () {
-      expect(kFullOnboardingTourSteps, hasLength(13));
+    test('is the 14-step tour ending on the centered finale', () {
+      // 13 original + the shared `duas.sectionNext` reader coachmark (added so
+      // the first built-dua screen highlights the Next button in BOTH arms).
+      expect(kFullOnboardingTourSteps, hasLength(14));
       expect(kFullOnboardingTourSteps.first.id, 'home.beginMuhasabah');
       expect(kFullOnboardingTourSteps.last.id, 'duaDetail.done');
       expect(kFullOnboardingTourSteps.last.anchorId, 'centered');
       expect(kFullOnboardingTourSteps.last.interactive, false);
+    });
+
+    test('duas.sectionNext sits right after the Build CTA in the full arm too',
+        () {
+      final ids = kFullOnboardingTourSteps.map((s) => s.id).toList();
+      expect(ids.contains('duas.sectionNext'), true);
+      expect(ids.indexOf('duas.sectionNext'), ids.indexOf('duas.buildCta') + 1);
+      final step = kFullOnboardingTourSteps
+          .firstWhere((s) => s.id == 'duas.sectionNext');
+      expect(step.anchorId, 'duaSectionNext');
+      expect(step.interactive, true);
     });
 
     test('restores the tourism steps the slim arm cut', () {
@@ -88,12 +101,12 @@ void main() {
 
     test('full state indexes the full list', () {
       const state = OnboardingTourState(
-        index: 12,
+        index: 13,
         status: TourStatus.active,
         variant: TourVariant.full,
       );
       expect(state.steps, same(kFullOnboardingTourSteps));
-      expect(state.currentStep?.id, 'duaDetail.done'); // full step 12 (last)
+      expect(state.currentStep?.id, 'duaDetail.done'); // full step 13 (last)
     });
 
     test('defaults to the slim variant', () {
@@ -102,15 +115,15 @@ void main() {
     });
 
     test('an index past the active variant length yields null', () {
-      // Index 8 is out of range for slim (8 steps, 0-7) but the full arm has 13.
+      // Index 9 is out of range for slim (9 steps, 0-8) but the full arm has 14.
       const slim = OnboardingTourState(
-        index: 8,
+        index: 9,
         status: TourStatus.active,
         variant: TourVariant.slim,
       );
       expect(slim.currentStep, isNull);
       const full = OnboardingTourState(
-        index: 8,
+        index: 9,
         status: TourStatus.active,
         variant: TourVariant.full,
       );

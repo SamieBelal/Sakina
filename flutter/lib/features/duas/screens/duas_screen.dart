@@ -678,10 +678,20 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                       duration: 500.ms,
                                       delay: 700.ms)
                             else
-                              _buildActionButtonDua('Next', () {
-                                HapticFeedback.mediumImpact();
-                                notifier.nextBuildSection();
-                              })
+                              // TourAnchor ('duaSectionNext') for the guided
+                              // tour's `duas.sectionNext` step — highlights the
+                              // Next button on the first built-dua section so
+                              // the user is guided through their dua (the step
+                              // is tap-through, so tapping Next advances both
+                              // the section and the tour).
+                              TourAnchor(
+                                surface: TourSurface.duas,
+                                anchorId: 'duaSectionNext',
+                                child: _buildActionButtonDua('Next', () {
+                                  HapticFeedback.mediumImpact();
+                                  notifier.nextBuildSection();
+                                }),
+                              )
                                   .animate()
                                   .fadeIn(duration: 400.ms, delay: 700.ms),
                             const Spacer(),
