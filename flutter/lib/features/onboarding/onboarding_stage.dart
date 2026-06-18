@@ -10,16 +10,19 @@
 ///   !auth || !onboarded ─▶│ OnboardingStage.welcome       │
 ///                         └──────────────────────────────┘
 ///   flow flag OFF ───────▶ app            (kill switch: legacy behaviour)
-///   paywallCleared|premium▶ app            (grandfathered / entered / paying)
+///   paywallCleared ──────▶ app            (grandfathered / already entered)
 ///   !tourCompleted ──────▶ tour           (force the guided tour, resume mid-way)
+///   premium ─────────────▶ app            (tour done + paying / active trial)
 ///   else ────────────────▶ hardPaywall    (tour done, must start trial to enter)
 /// ```
 ///
-/// IMPORTANT — grandfathering: `paywallCleared` short-circuits BEFORE the tour
-/// check. Existing users (onboarded before this feature shipped) are backfilled
+/// IMPORTANT — grandfathering: only `paywallCleared` short-circuits BEFORE the
+/// tour. Existing users (onboarded before this feature shipped) are backfilled
 /// `onboarding_paywall_cleared = true` by the migration, so they route straight
 /// to `app` and never get flashed into the tour or the wall. Brand-new users
-/// start with the latch `false` and flow through tour → wall.
+/// start with the latch `false` and flow through tour → wall. `premium` is
+/// checked AFTER the tour (a reverse-trial TREATMENT user is premium via the
+/// granted trial but must still see the same forced tour as control).
 enum OnboardingStage {
   /// Not authenticated or not finished onboarding — hand off to /welcome.
   welcome,
@@ -59,11 +62,13 @@ enum PostTourPaywallMode {
 
 /// Resolves the [OnboardingStage] from explicit state. Pure — no I/O.
 ///
-/// Routing precedence (unchanged for pre-auth / pre-onboard / tour stages):
+/// Routing precedence:
 ///   1. `!auth || !onboarded` → [OnboardingStage.welcome]
-///   2. `premium || paywallCleared` → [OnboardingStage.app]
+///   2. `paywallCleared` → [OnboardingStage.app]  (grandfather latch only)
 ///   3. `!tourCompleted` → [OnboardingStage.tour]
-///   4. by post-tour mode: `hard` → [OnboardingStage.hardPaywall],
+///   4. `isPremium` → [OnboardingStage.app]  (checked AFTER the tour, so a
+///      reverse-trial treatment user still completes the forced tour)
+///   5. by post-tour mode: `hard` → [OnboardingStage.hardPaywall],
 ///      `soft` → [OnboardingStage.softPaywall], `off` → [OnboardingStage.app].
 ///
 /// [paywallMode] is the new `post_tour_paywall_mode` driver. When supplied it

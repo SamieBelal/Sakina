@@ -35,6 +35,10 @@ Future<void> resolveAndApplyPaywallExperiment({
   required AnalyticsService analytics,
   Future<void> Function()? onArmApplied,
 }) async {
+  // Experiment OFF → no-op. The gate is NOT re-hydrated here: a flag-off /
+  // pre-experiment user has no app-granted trial, so the cold-launch
+  // `hydrateOnboardingGate` path already covers their routing. `onArmApplied`
+  // is therefore an IN-EXPERIMENT hook only.
   if (!experimentEnabled) return;
 
   final arm = assignPaywallArm(userId);
@@ -46,7 +50,14 @@ Future<void> resolveAndApplyPaywallExperiment({
   final assignedKey =
       supabaseSyncService.scopedKey(paywallExperimentAssignedBaseKey);
   final alreadyAssigned = prefs.getBool(assignedKey) ?? false;
-  if (alreadyAssigned) return;
+  if (alreadyAssigned) {
+    // Re-onboard / second pass in the same process: the arm is already
+    // persisted (and, for treatment, the trial was activated on the first
+    // pass). Still re-hydrate the gate — the hook is idempotent — so a caller
+    // relying on it isn't left with a stale premium/arm snapshot.
+    await onArmApplied?.call();
+    return;
+  }
   await prefs.setBool(assignedKey, true);
 
   analytics.track(AnalyticsEvents.experimentAssigned, properties: {
