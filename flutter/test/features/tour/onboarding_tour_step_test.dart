@@ -23,9 +23,9 @@ void main() {
           reason: 'final step auto-advances once the dua is built + seen');
     });
 
-    test('exactly 8 steps (slim Muhasabah → Duas tour)', () {
-      expect(kOnboardingTourLength, 8);
-      expect(kOnboardingTourSteps.length, 8);
+    test('exactly 9 steps (slim Muhasabah → Duas tour)', () {
+      expect(kOnboardingTourLength, 9);
+      expect(kOnboardingTourSteps.length, 9);
     });
 
     test('canonical slim-tour order', () {
@@ -37,8 +37,29 @@ void main() {
         'muhasabah.returnHome',
         'appShell.tabDuas',
         'duas.buildCta',
+        // Reader coachmark: highlights the "Next" button on the first built-dua
+        // section so the user is guided through their dua (was an empty cutout —
+        // the next anchor, Build Another Dua, only exists on the final screen).
+        'duas.sectionNext',
         'duas.buildComplete',
       ]);
+    });
+
+    test('duas.sectionNext highlights the Next button right after the build', () {
+      final byId = {for (final s in kOnboardingTourSteps) s.id: s};
+      final step = byId['duas.sectionNext'];
+      expect(step, isNotNull,
+          reason: 'a coachmark must guide the user through the dua sections');
+      expect(step!.surface, TourSurface.duas);
+      expect(step.anchorId, 'duaSectionNext');
+      expect(step.interactive, true,
+          reason: 'the user taps Next to advance through their dua');
+      expect(step.hint, isNotNull);
+      // Sits immediately after the Build CTA (the section reader appears the
+      // moment the dua is built).
+      final ids = kOnboardingTourSteps.map((s) => s.id).toList();
+      expect(ids.indexOf('duas.sectionNext'),
+          ids.indexOf('duas.buildCta') + 1);
     });
 
     test('tourism + streak/return-home steps were cut', () {

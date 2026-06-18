@@ -122,12 +122,15 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     // gating layer blocks a build or signals the warmup→0 transition.
     ref.listen<DuasState>(duasProvider, (prev, next) {
       // Keep the `tourSuppressedProvider` latch in sync with the Build-a-Dua
-      // flow. In the slim tour `duas.buildCta` is the FINAL step — the tour
-      // completes the instant the user taps Build — so there is no later step
-      // to wait for; the latch's remaining job is the stale-flag reconcile (see
-      // initState) that clears a leftover `true` from a prior visit so the
-      // buildCta coachmark isn't hidden over the build INPUT. Reset in dispose
-      // so leaving the tab mid-build never strands a future tour step.
+      // flow. After `duas.buildCta` the tour advances to `duas.sectionNext`
+      // (the Next-button coachmark on the section reader) and then
+      // `duas.buildComplete` on the result screen — so the latch suppresses the
+      // section-reader/loader beats whose later anchors aren't on screen yet
+      // (a step whose anchor IS present, like sectionNext, isn't suppression-
+      // hidden). It also does the stale-flag reconcile (see initState) that
+      // clears a leftover `true` from a prior visit so the buildCta coachmark
+      // isn't hidden over the build INPUT. Reset in dispose so leaving the tab
+      // mid-build never strands a future tour step.
       _syncTourSuppression(_tourBlockedFor(next));
       // Sync the text controller when the provider clears `buildNeed` —
       // resetBuild() (called from Try Again on the off-topic UI and from
@@ -678,10 +681,20 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
                                       duration: 500.ms,
                                       delay: 700.ms)
                             else
-                              _buildActionButtonDua('Next', () {
-                                HapticFeedback.mediumImpact();
-                                notifier.nextBuildSection();
-                              })
+                              // TourAnchor ('duaSectionNext') for the guided
+                              // tour's `duas.sectionNext` step — highlights the
+                              // Next button on the first built-dua section so
+                              // the user is guided through their dua (the step
+                              // is tap-through, so tapping Next advances both
+                              // the section and the tour).
+                              TourAnchor(
+                                surface: TourSurface.duas,
+                                anchorId: 'duaSectionNext',
+                                child: _buildActionButtonDua('Next', () {
+                                  HapticFeedback.mediumImpact();
+                                  notifier.nextBuildSection();
+                                }),
+                              )
                                   .animate()
                                   .fadeIn(duration: 400.ms, delay: 700.ms),
                             const Spacer(),
