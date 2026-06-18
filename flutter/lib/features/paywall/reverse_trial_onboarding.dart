@@ -33,7 +33,12 @@ Future<void> resolveAndApplyPaywallExperiment({
   required bool experimentEnabled,
   required String userId,
   required AnalyticsService analytics,
+  Future<void> Function()? onArmApplied,
 }) async {
+  // Experiment OFF → no-op. The gate is NOT re-hydrated here: a flag-off /
+  // pre-experiment user has no app-granted trial, so the cold-launch
+  // `hydrateOnboardingGate` path already covers their routing. `onArmApplied`
+  // is therefore an IN-EXPERIMENT hook only.
   if (!experimentEnabled) return;
 
   final arm = assignPaywallArm(userId);
@@ -45,7 +50,14 @@ Future<void> resolveAndApplyPaywallExperiment({
   final assignedKey =
       supabaseSyncService.scopedKey(paywallExperimentAssignedBaseKey);
   final alreadyAssigned = prefs.getBool(assignedKey) ?? false;
-  if (alreadyAssigned) return;
+  if (alreadyAssigned) {
+    // Re-onboard / second pass in the same process: the arm is already
+    // persisted (and, for treatment, the trial was activated on the first
+    // pass). Still re-hydrate the gate — the hook is idempotent — so a caller
+    // relying on it isn't left with a stale premium/arm snapshot.
+    await onArmApplied?.call();
+    return;
+  }
   await prefs.setBool(assignedKey, true);
 
   analytics.track(AnalyticsEvents.experimentAssigned, properties: {
@@ -53,53 +65,64 @@ Future<void> resolveAndApplyPaywallExperiment({
     AnalyticsEvents.propArm: arm.analyticsValue,
   });
 
-  if (arm != PaywallArm.treatmentReverseTrial) return;
-
-  // Treatment: activate the 3-day reverse trial server-side. SECURITY DEFINER +
-  // idempotent (greatest()), so even if this races a retry the user can't
-  // extend the window. Hardcoded 3 days.
-  //
-  // P2: bound the await so a hung network can't stall the onboarding loader.
-  // The HAPPY path still AWAITS the RPC + cache refresh BEFORE returning, so the
-  // trial is active before the user routes home (no paywall-flash race — do NOT
-  // unawait the whole call). On TIMEOUT we degrade: let the in-flight RPC finish
-  // in the background and refresh the trial cache when it returns, so
-  // isPremium() picks the trial up on the next read; route home now.
-  try {
-    final rpcFuture = supabaseSyncService.callRpc<Map<String, dynamic>>(
-      'activate_trial',
-      const {'p_days': 3},
-    );
-    var timedOut = false;
-    await rpcFuture.timeout(
-      const Duration(seconds: 4),
-      onTimeout: () {
-        timedOut = true;
-        return null; // degrade — don't block the loader on a hung RPC
-      },
-    );
-    if (timedOut) {
-      // Background activation: when the hung RPC eventually returns, refresh the
-      // trial cache so the next isPremium() read reflects the trial. Attach a
-      // catchError so the orphaned future never surfaces as an unhandled async
-      // error. `trial_activated` is intentionally NOT fired here — we can't
-      // confirm activation; the premium pickup happens on the next read.
-      unawaited(
-        rpcFuture
-            .then((_) => PurchaseService().refreshTrialPremiumCache())
-            .catchError((_) {}),
+  if (arm == PaywallArm.treatmentReverseTrial) {
+    // Treatment: activate the 3-day reverse trial server-side. SECURITY DEFINER
+    // + idempotent (greatest()), so even if this races a retry the user can't
+    // extend the window. Hardcoded 3 days.
+    //
+    // P2: bound the await so a hung network can't stall the onboarding loader.
+    // The HAPPY path AWAITS the RPC + cache refresh BEFORE falling through to
+    // the gate refresh, so the trial is active before the router re-evaluates
+    // (no paywall-flash race — do NOT unawait the whole call). On TIMEOUT we
+    // degrade: let the in-flight RPC finish in the background and refresh the
+    // trial cache when it returns, so isPremium() picks the trial up on the
+    // next read.
+    try {
+      final rpcFuture = supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'activate_trial',
+        const {'p_days': 3},
       );
-      return;
+      var timedOut = false;
+      await rpcFuture.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          timedOut = true;
+          return null; // degrade — don't block the loader on a hung RPC
+        },
+      );
+      if (timedOut) {
+        // Background activation: when the hung RPC eventually returns, refresh
+        // the trial cache so the next isPremium() read reflects the trial.
+        // Attach a catchError so the orphaned future never surfaces as an
+        // unhandled async error. `trial_activated` is intentionally NOT fired
+        // here — we can't confirm activation; premium pickup happens on the
+        // next read.
+        unawaited(
+          rpcFuture
+              .then((_) => PurchaseService().refreshTrialPremiumCache())
+              .catchError((_) {}),
+        );
+      } else {
+        // Surface the new trial window to PurchaseService.isPremium() now.
+        await PurchaseService().refreshTrialPremiumCache();
+        analytics.track(AnalyticsEvents.trialActivated, properties: {
+          AnalyticsEvents.propDays: 3,
+          'source': AnalyticsEvents.trialSourceReverseTrial,
+          AnalyticsEvents.propArm: arm.analyticsValue,
+        });
+      }
+    } catch (_) {
+      // Trial activation is best-effort — a failed RPC leaves the user on the
+      // free tier (degrades to control-like behavior), never blocks onboarding.
     }
-    // Surface the new trial window to PurchaseService.isPremium() immediately.
-    await PurchaseService().refreshTrialPremiumCache();
-    analytics.track(AnalyticsEvents.trialActivated, properties: {
-      AnalyticsEvents.propDays: 3,
-      'source': AnalyticsEvents.trialSourceReverseTrial,
-      AnalyticsEvents.propArm: arm.analyticsValue,
-    });
-  } catch (_) {
-    // Trial activation is best-effort — a failed RPC leaves the user on the
-    // free tier (degrades to control-like behavior), never blocks onboarding.
   }
+
+  // Both arms: now that the arm is persisted and (treatment) the trial window is
+  // active, refresh the onboarding gate so the GoRouter's synchronous redirect
+  // reads the fresh premium / arm / trial-expiry state. Without this the gate
+  // evaluates a STALE snapshot captured before assignment — a treatment
+  // trial-holder gets routed onto the post-tour soft paywall instead of straight
+  // into the app, and the soft-gate events carry the pre-assignment `unassigned`
+  // arm. (Device repro 2026-06-17; pinned by reverse_trial_treatment_journey_test.)
+  await onArmApplied?.call();
 }

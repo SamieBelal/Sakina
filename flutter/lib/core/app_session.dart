@@ -296,6 +296,23 @@ class AppSessionNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears the post-tour SOFT paywall durably: flips the in-memory latch
+  /// (synchronous → the router redirect routes home immediately, no flash) AND
+  /// persists it via [OnboardingGateService] so the next cold launch's
+  /// [hydrateOnboardingGate] reads `cleared` and doesn't re-wall.
+  ///
+  /// The HARD wall already persists this on purchase/trial inside
+  /// `PaywallScreen`; the soft wall's X-dismiss only flipped the in-memory flag,
+  /// so a control-arm user was re-walled on EVERY cold launch instead of landing
+  /// home (device repro 2026-06-18, a@c.com / control). Persistence is
+  /// best-effort — the synchronous in-memory flip already unblocks this session.
+  Future<void> markPaywallClearedDurable() async {
+    markPaywallCleared();
+    try {
+      await OnboardingGateService().setPaywallCleared(true);
+    } catch (_) {/* best-effort; the in-memory flip already routes home */}
+  }
+
   /// `true` while an economy hydration is in flight.
   bool _hydrating = false;
 

@@ -119,6 +119,19 @@ void main() {
       hasCompletedOnboarding: () async => true,
       isPremiumReader: () async => premium(),
       postTourPaywallModeReader: () async => PostTourPaywallMode.soft,
+      // Mirror production's `_defaultPaywallArm` but bound to the test's known
+      // uid (the default reader resolves the uid from a live Supabase client,
+      // which isn't initialised here). Resolves to the real arm ONLY once the
+      // experiment driver has set the one-shot assigned flag — exactly the
+      // re-hydration the fix relies on.
+      paywallArmReader: () async {
+        final prefs = await SharedPreferences.getInstance();
+        final assigned = prefs.getBool(supabaseSyncService
+                .scopedKey(paywallExperimentAssignedBaseKey)) ??
+            false;
+        if (!assigned) return null;
+        return assignPaywallArm(userId);
+      },
       notificationService: _FakeNotif(),
     );
   }
@@ -191,6 +204,67 @@ void main() {
     session.dispose();
   });
 
+  test(
+      'REGRESSION (device 2026-06-17): a treatment trial-holder is routed into '
+      'the app — NOT the post-tour soft paywall — because onboarding-complete '
+      're-hydrates the gate once the trial activates', () async {
+    // Premium reflects the real trial window: false until activate_trial runs,
+    // true once it has (exactly how PurchaseService.isPremium() OR's the trial
+    // window in). This is the ONLY channel through which the trial reaches the
+    // router gate.
+    var trialActiveServerSide = false;
+    fakeSync.rpcHandlers['activate_trial'] = (_) async {
+      trialActiveServerSide = true;
+      return {
+        'activated': true,
+        'trial_premium_until': DateTime.now()
+            .toUtc()
+            .add(const Duration(days: 3))
+            .toIso8601String(),
+      };
+    };
+
+    // The forced tour is done (server-of-truth prefs flag, as the tour
+    // controller persists at completion).
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(onboardingTourSeenFlag(userId), true);
+
+    // A brand-new treatment user sitting in the gate, PRE-trial: premium reads
+    // false, so the soft gate would wall them. This is the exact on-device
+    // state at the moment onboarding completes.
+    final session = softSession(premium: () => trialActiveServerSide);
+    await session.enterOnboardingGate(); // latch=false, new user in the gate
+    await session.hydrateOnboardingGate(); // premium=false (trial not yet run)
+    expect(session.isPremiumCached, isFalse);
+    expect(redirect('/', session), kOnboardingSoftPaywallPath,
+        reason: 'pre-trial the gate walls — the BUG is staying walled AFTER the '
+            'trial activates');
+
+    // ---- onboarding-complete: the REAL experiment driver -------------------
+    // It activates the 3-day trial AND must refresh the gate (onArmApplied) so
+    // the now-active trial is reflected BEFORE the router evaluates the gate.
+    await resolveAndApplyPaywallExperiment(
+      experimentEnabled: true,
+      userId: userId,
+      analytics: analytics,
+      onArmApplied: session.hydrateOnboardingGate,
+    );
+
+    expect(trialActiveServerSide, isTrue, reason: 'activate_trial(3) ran');
+    expect(session.isPremiumCached, isTrue,
+        reason: 'the gate must see the freshly-activated trial as premium');
+    expect(redirect('/', session), isNull,
+        reason: 'BUG REPRO: a treatment trial-holder lands in the app, never '
+            'the post-tour soft paywall');
+    expect(redirect('/duas', session), isNull,
+        reason: 'no wall at the slim-tour-exit route either');
+    // The arm-aware soft-gate tagging now reflects the real arm (was the stale
+    // "unassigned" on-device because the gate was never re-hydrated).
+    expect(session.paywallArm, 'treatment_reverse_trial');
+
+    session.dispose();
+  });
+
   testWidgets(
       'post-expiry: the router renders a DISMISSIBLE soft paywall and the X '
       'dismiss drops the user to the free tier (app)', (tester) async {
@@ -239,5 +313,20 @@ void main() {
         reason: 'cleared → app; the user is never re-walled');
     expect(find.byType(PaywallScreen), findsNothing,
         reason: 'after dismiss the user is routed off the paywall into the app');
+
+    // ---- RELAUNCH: a fresh session hydrating from persisted state must NOT
+    // re-wall. The soft-paywall X-dismiss has to DURABLY clear the gate (via
+    // OnboardingGateService), not just flip the in-memory latch — otherwise a
+    // control user hits the soft paywall on EVERY cold launch instead of
+    // landing home (device repro 2026-06-18, a@c.com / control). ----
+    final relaunch = softSession(premium: () => false);
+    addTearDown(relaunch.dispose);
+    await relaunch.hydrateOnboardingGate();
+    expect(relaunch.paywallCleared, isTrue,
+        reason: 'soft-paywall dismiss must persist the cleared latch across '
+            'launches');
+    expect(redirect('/', relaunch), isNull,
+        reason: 'BUG REPRO: control user re-walled every launch — the dismiss '
+            'did not durably persist the cleared latch');
   });
 }

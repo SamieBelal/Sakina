@@ -70,16 +70,25 @@ void main() {
 
     group('grandfathering (latch short-circuits tour)', () {
       test('paywallCleared → app even when tour not completed', () {
+        // The CLEARED latch grandfathers existing users past the tour. Only the
+        // latch does this — premium alone no longer does (see below), so a
+        // reverse-trial treatment user (premium via the trial but NOT cleared)
+        // still completes the forced tour.
         expect(
           stage(paywallCleared: true, tourCompleted: false),
           OnboardingStage.app,
         );
       });
 
-      test('premium → app even when tour not completed', () {
+      test('premium but NOT cleared (new user) → tour first, not app', () {
+        // Reverse-trial regression (device 2026-06-18): a treatment user is
+        // granted the 3-day trial (→ isPremium) at onboarding-complete. If
+        // premium short-circuited the tour, treatment would SKIP the forced
+        // tour while control sees it — confounding the experiment. A new
+        // (uncleared) user completes the tour first regardless of premium.
         expect(
-          stage(isPremium: true, tourCompleted: false),
-          OnboardingStage.app,
+          stage(isPremium: true, tourCompleted: false, paywallCleared: false),
+          OnboardingStage.tour,
         );
       });
     });
@@ -124,7 +133,9 @@ void main() {
       // tour × cleared × premium → expected
       final cases = <(bool, bool, bool), OnboardingStage>{
         (false, false, false): OnboardingStage.tour,
-        (false, false, true): OnboardingStage.app, // premium short-circuit
+        // New (uncleared) premium user → tour FIRST (premium no longer skips
+        // the forced tour; only the cleared latch does).
+        (false, false, true): OnboardingStage.tour,
         (false, true, false): OnboardingStage.app, // latch short-circuit
         (false, true, true): OnboardingStage.app,
         (true, false, false): OnboardingStage.hardPaywall,
@@ -275,21 +286,23 @@ void main() {
           );
         });
 
-        test('an active trial mid-tour short-circuits to app (premium is '
-            'checked BEFORE the tour gate, so a treatment user never sees the '
-            'forced tour while the trial window is live)', () {
-          // Precedence step 2 (premium||cleared → app) runs before step 3
-          // (!tourCompleted → tour). So a live trial window routes to app even
-          // with tourCompleted:false.
+        test('an active trial mid-tour still routes to the forced tour (the '
+            'tour gate is checked BEFORE the premium short-circuit, so a '
+            'treatment user sees the SAME tour as control)', () {
+          // The forced-tour check (step 2: new+uncleared+!tourCompleted → tour)
+          // runs BEFORE the premium short-circuit (step 3). So a treatment
+          // user — premium via the freshly-granted trial but not yet cleared —
+          // completes the tour first instead of skipping it. Keeps both arms'
+          // tour exposure identical (device repro 2026-06-18).
           expect(
             modeStage(
               paywallMode: PostTourPaywallMode.soft,
               isPremium: true,
               tourCompleted: false,
             ),
-            OnboardingStage.app,
-            reason: 'premium short-circuits BEFORE the tour check '
-                '(see resolveOnboardingStage precedence step 2)',
+            OnboardingStage.tour,
+            reason: 'the forced tour is checked BEFORE the premium short-circuit '
+                'for new (uncleared) users',
           );
         });
       });
