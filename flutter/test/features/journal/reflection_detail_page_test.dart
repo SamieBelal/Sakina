@@ -44,7 +44,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Quran Verse'), findsOneWidget);
+    // Cardless restyle: the verse block header is the label "Quran".
+    expect(find.text('Quran'), findsOneWidget);
     expect(find.text('Ar-Ra\'d 13:28'), findsOneWidget);
   });
 
