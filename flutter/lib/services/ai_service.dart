@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart'
     show debugPrint, kDebugMode, kIsWeb, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/core/utils/beat_splitter.dart';
 import 'package:sakina/core/constants/dua_knowledge.dart';
 import 'package:sakina/core/constants/duas.dart';
 import 'package:sakina/core/constants/knowledge_base.dart';
@@ -44,6 +45,18 @@ class ReflectResponse {
   final List<RelatedName> relatedNames;
   final bool offTopic;
 
+  // ── Bite-sized "beats" (the tap-through reflection flow) ──
+  // When [hasBeats] is true these are the source of truth; [reframe] and [story]
+  // above are DERIVED (joined) values kept for legacy clients / previews. Empty
+  // strings / lists mean "not present" — the corresponding beat screen is simply
+  // omitted from the flow (segment count is computed from content).
+  final String reframeKey; // one resonant pull-quote line
+  final String reframeBody; // 1-2 sentences expanding the key line
+  final String storyTitle; // 3-6 word story title
+  final List<String> storyBeats; // one sentence per screen (2-3 entries)
+  final String storySource; // citation only, e.g. "Qur'an 20:25-28"
+  final String takeaway; // one line tying the story to the feeling
+
   const ReflectResponse({
     required this.name,
     required this.nameArabic,
@@ -56,7 +69,22 @@ class ReflectResponse {
     required this.duaSource,
     required this.relatedNames,
     required this.offTopic,
+    this.reframeKey = '',
+    this.reframeBody = '',
+    this.storyTitle = '',
+    this.storyBeats = const [],
+    this.storySource = '',
+    this.takeaway = '',
   });
+
+  /// True when the response carries structured beat data (any beat field
+  /// populated). When false, renderers fall back to `splitIntoBeats` over
+  /// [reframe] / [story].
+  bool get hasBeats =>
+      reframeKey.isNotEmpty ||
+      reframeBody.isNotEmpty ||
+      storyBeats.isNotEmpty ||
+      takeaway.isNotEmpty;
 }
 
 class ReflectContextEntry {
@@ -160,8 +188,14 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 
 ##NAME## (the transliterated Name, e.g. Al-Lateef)
 ##NAME_AR## (the Arabic Name, e.g. اللطيف)
-##REFRAME## (2-3 sentences reframing the user's feeling through the lens of this Name)
-##STORY## (a prophetic story or Quranic narrative illustrating this Name — 3-5 sentences)
+##REFRAME_KEY## (ONE resonant line, MAX 12 words — the single thought the reader should carry. No filler openers like "Remember that…" or "It's important to…".)
+##REFRAME_BODY## (1-2 short sentences expanding the key line, MAX 30 words total)
+##STORY_TITLE## (a 3-6 word title for the story, e.g. "Musa at the Sea")
+##STORY_BEAT_1## (one sentence of the story, MAX 20 words)
+##STORY_BEAT_2## (one sentence of the story, MAX 20 words)
+##STORY_BEAT_3## (one sentence of the story, MAX 20 words — OMIT this whole line if the story lands in 2 beats)
+##STORY_SOURCE## (citation only, e.g. "Sahih al-Bukhari 3477" or "Qur'an 20:25-28")
+##TAKEAWAY## (ONE line, MAX 14 words, connecting the story back to the user's feeling)
 ##DUA_AR## (the Arabic dua text)
 ##DUA_TR## (transliteration of the dua)
 ##DUA_EN## (English translation of the dua)
@@ -169,11 +203,11 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 ##RELATED## (2-3 other Names that also relate, format: Name (Arabic) | Name (Arabic) | ...)
 
 Rules:
-- Keep the reframe warm, empathetic, and grounded in Islamic theology. No fluff.
-- The story must be authentic — from Quran or sahih hadith. NEVER fabricate.
+- Write for a phone screen: one idea per line, warm, empathetic, grounded in Islamic theology. No fluff. NEVER exceed the word caps above.
+- The story must be authentic — from Quran or sahih hadith. NEVER fabricate. Breaking it into beats changes the PACKAGING, never the source: do not embellish, invent detail, or distort to fit the word cap.
 - The dua must be real — from Quran or authenticated hadith collections. NEVER fabricate.
 - Related names must come from the canonical list above.
-- If the user's input is clearly off-topic (not about feelings, emotions, or spiritual state), still respond with your best match but keep the reframe brief.''';
+- If the user's input is clearly off-topic (not about feelings, emotions, or spiritual state), still respond with your best match but keep the reframe key line brief.''';
 }
 
 // ---------------------------------------------------------------------------
@@ -245,14 +279,87 @@ List<ReflectVerse> _parseReflectVerses(String text) {
   return verses;
 }
 
+/// The six structured beat fields, resolved through the ladder.
+class _ParsedBeats {
+  final String reframeKey;
+  final String reframeBody;
+  final String storyTitle;
+  final List<String> storyBeats;
+  final String storySource;
+  final String takeaway;
+  const _ParsedBeats({
+    required this.reframeKey,
+    required this.reframeBody,
+    required this.storyTitle,
+    required this.storyBeats,
+    required this.storySource,
+    required this.takeaway,
+  });
+}
+
+/// Resolves beat fields from a model response, walking the robustness ladder
+/// (see [parseReflectResponse]). Never throws; missing pieces come back empty.
+_ParsedBeats _parseBeats(String text) {
+  String get(String marker) => _parseSection(text, marker)?.trim() ?? '';
+
+  final reframeKey = get('##REFRAME_KEY##');
+  final reframeBody = get('##REFRAME_BODY##');
+  final storyTitle = get('##STORY_TITLE##');
+  final structuredBeats = [
+    get('##STORY_BEAT_1##'),
+    get('##STORY_BEAT_2##'),
+    get('##STORY_BEAT_3##'),
+  ].where((b) => b.isNotEmpty).toList();
+  final storySource = get('##STORY_SOURCE##');
+  final takeaway = get('##TAKEAWAY##');
+
+  final legacyReframe = get('##REFRAME##');
+  final legacyStory = get('##STORY##');
+
+  final hasAnyBeatMarker = reframeKey.isNotEmpty ||
+      reframeBody.isNotEmpty ||
+      storyTitle.isNotEmpty ||
+      structuredBeats.isNotEmpty ||
+      storySource.isNotEmpty ||
+      takeaway.isNotEmpty;
+
+  if (hasAnyBeatMarker) {
+    // Rung 1 / 1.5 — keep every field that parsed; backfill only the gaps.
+    var body = reframeBody;
+    if (body.isEmpty && legacyReframe.isNotEmpty) body = legacyReframe;
+    var beats = structuredBeats;
+    if (beats.isEmpty && legacyStory.isNotEmpty) {
+      beats = splitIntoBeats(legacyStory);
+    }
+    return _ParsedBeats(
+      reframeKey: reframeKey,
+      reframeBody: body,
+      storyTitle: storyTitle,
+      storyBeats: beats,
+      storySource: storySource,
+      takeaway: takeaway,
+    );
+  }
+
+  // Rung 3 — legacy prose only. Do NOT promote a sentence fragment to the key
+  // line (a mid-sentence pull quote reads worse than none); the body carries
+  // the reframe, and the story splits into beats.
+  return _ParsedBeats(
+    reframeKey: '',
+    reframeBody: legacyReframe,
+    storyTitle: '',
+    storyBeats: legacyStory.isNotEmpty ? splitIntoBeats(legacyStory) : const [],
+    storySource: '',
+    takeaway: '',
+  );
+}
+
 ReflectResponse? parseReflectResponse(String text) {
   final rawName = _parseSection(text, '##NAME##');
   final rawNameArabic = _parseSection(text, '##NAME_AR##');
   // Strip parentheses that the AI sometimes adds
   final name = rawName?.replaceAll(RegExp(r'[()]'), '').trim();
   final nameArabic = rawNameArabic?.replaceAll(RegExp(r'[()]'), '').trim();
-  final reframe = _parseSection(text, '##REFRAME##');
-  final story = _parseSection(text, '##STORY##');
   final duaArabic = _parseSection(text, '##DUA_AR##');
   final duaTransliteration = _parseSection(text, '##DUA_TR##');
   final duaTranslation = _parseSection(text, '##DUA_EN##');
@@ -260,13 +367,28 @@ ReflectResponse? parseReflectResponse(String text) {
   final relatedRaw = _parseSection(text, '##RELATED##');
   final parsedVerses = _parseReflectVerses(text);
 
+  // ── Beat ladder ──
+  // Rung 1: all beat markers present → structured response.
+  // Rung 1.5: SOME beat markers present → use what parsed; fill missing story
+  //   beats by splitting legacy story text; missing key/title/takeaway simply
+  //   drop their screens (segment count is content-driven).
+  // Rung 3: no beat markers, legacy ##REFRAME##/##STORY## present → split the
+  //   legacy prose into beats so old-contract responses still animate.
+  final beats = _parseBeats(text);
+
+  // Derived (joined) legacy fields — kept for legacy clients & previews. When
+  // beat data is present it is the source of truth; these are regenerated from
+  // it, never edited independently.
+  final reframeForLegacy = [beats.reframeKey, beats.reframeBody]
+      .where((s) => s.isNotEmpty)
+      .join(' ')
+      .trim();
+  final storyForLegacy = beats.storyBeats.join(' ').trim();
+
   // Treat empty-content markers as missing so the caller falls back to the
-  // demo response — a `##NAME##\n` with no content downstream produces a
+  // demo response — a `##NAME##\n` with no usable reframe downstream produces a
   // blank hero card in the reflect UI.
-  if (name == null ||
-      name.isEmpty ||
-      reframe == null ||
-      reframe.isEmpty) {
+  if (name == null || name.isEmpty || reframeForLegacy.isEmpty) {
     return null;
   }
 
@@ -288,8 +410,14 @@ ReflectResponse? parseReflectResponse(String text) {
   return ReflectResponse(
     name: canonicalName,
     nameArabic: canonical?.nameArabic ?? nameArabic ?? '',
-    reframe: reframe,
-    story: story ?? '',
+    reframe: reframeForLegacy,
+    story: storyForLegacy,
+    reframeKey: beats.reframeKey,
+    reframeBody: beats.reframeBody,
+    storyTitle: beats.storyTitle,
+    storyBeats: beats.storyBeats,
+    storySource: beats.storySource,
+    takeaway: beats.takeaway,
     verses: normalizeApprovedVerses(
       canonicalName,
       parsedVerses,
