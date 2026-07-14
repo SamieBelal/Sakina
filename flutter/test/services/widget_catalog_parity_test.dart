@@ -33,6 +33,23 @@ void main() {
     }
   });
 
+  test('widgetNameKeyFor resolves to a snapshot anchor for every Name', () {
+    // Guards the runtime personalized path: WidgetAnchorCatalog.anchorFor looks
+    // up the snapshot via widgetNameKeyFor. If the key isn't in the snapshot,
+    // anchorFor silently falls back to name.lesson (a full paragraph). This
+    // pins that every allahNames Name resolves to a real anchor key.
+    final snap = jsonDecode(
+            File('assets/widget/name_anchors_snapshot.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final keys = snap.keys.where((k) => !k.startsWith('_')).toSet();
+    for (final name in allahNames) {
+      final key = widgetNameKeyFor(name);
+      expect(keys.contains(key), isTrue,
+          reason: '${name.transliteration} → "$key" is not a snapshot key — '
+              'anchorFor would fall back to name.lesson');
+    }
+  });
+
   test('daily-index math agrees for a full year of days', () {
     final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final names = (json['names'] as List).cast<Map<String, dynamic>>();

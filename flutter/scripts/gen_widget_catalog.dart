@@ -17,33 +17,9 @@ import 'dart:io';
 
 import 'package:sakina/core/constants/allah_names.dart';
 
-/// `allahNames` transliteration variants → the `name_anchors.name_key` spelling.
-/// Only the entries whose normalized transliteration does NOT already equal the
-/// snapshot key. Explicit over clever: every divergent romanization is listed.
-const Map<String, String> _keyOverrides = {
-  'ar-raheem': 'ar-rahim',
-  'al-hakeem': 'al-hakim',
-  'al-kareem': 'al-karim',
-  'al-wakeel': 'al-wakil',
-  'al-lateef': 'al-latif',
-  'al-mujeeb': 'al-mujib',
-  'al-baseer': 'al-basir',
-  'al-khabeer': 'al-khabir',
-  'ash-shaheed': 'ash-shahid',
-  'al-qawiyy': 'al-qawi',
-  'al-mateen': 'al-matin',
-};
-
-String _normalize(String transliteration) => transliteration
-    .toLowerCase()
-    .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-    .replaceAll(RegExp(r'^-+|-+$'), '');
-
-/// The snapshot key for [name].
-String _anchorKey(AllahName name) {
-  final base = _normalize(name.transliteration);
-  return _keyOverrides[base] ?? base;
-}
+// Key resolution lives in ONE place: `widgetNameKeyFor` (with
+// `widgetNameKeyOverrides`) in allah_names.dart. The generator, the runtime
+// anchor lookup, and the deep-link key all call it, so they can never diverge.
 
 void main() {
   final root = Directory.current.path;
@@ -66,7 +42,7 @@ void main() {
 
   for (var i = 0; i < allahNames.length; i++) {
     final name = allahNames[i];
-    final key = _anchorKey(name);
+    final key = widgetNameKeyFor(name);
     final anchor = anchors[key];
     if (anchor == null) {
       unresolved.add('#${name.id} ${name.transliteration} → "$key" (no anchor)');

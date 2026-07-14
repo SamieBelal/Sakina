@@ -127,7 +127,7 @@ private func resolve(at date: Date, phase: RenderPhase) -> NameDisplay {
     let base: (key: String, arabic: String, translit: String, english: String, anchor: String)
     if personalized, let p = payload {
         base = (p.name_key, p.arabic, p.transliteration, p.name_english, p.anchor)
-    } else if let catalog = catalog {
+    } else if let catalog = catalog, !catalog.names.isEmpty {
         let row = dailyRow(for: date, catalog: catalog, cal: cal)
         base = (row.name_key, row.arabic, row.transliteration, row.english, row.anchor)
     } else {
