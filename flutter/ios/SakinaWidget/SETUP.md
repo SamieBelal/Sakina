@@ -29,19 +29,18 @@ then `flutter build ios`. Ordered; each step is required.
   bijection). The parity test `test/services/widget_catalog_parity_test.dart`
   guards app↔widget agreement.
 
-## 4. Fonts (source the TTFs — they are NOT in the repo)
-The app uses runtime `google_fonts`, so no TTFs exist in-repo and the widget
-process cannot use google_fonts. Download the static TTFs and add them to the
-**SakinaWidget** target (Copy Bundle Resources), matching the `UIAppFonts`
-entries in `Info.plist`:
-- Aref Ruqaa (Regular) — the Arabic hero
-- Amiri (Regular) — reserved for verse text
-- DM Serif Display (Regular) — transliteration
-- DM Sans (Regular, Bold) — kicker / body / streak
-Sources: fonts.google.com (Aref Ruqaa, Amiri, DM Serif Display, DM Sans).
-Verify the PostScript names used in `SakinaWidget.swift` (`ArefRuqaa-Regular`,
-`DMSerifDisplay-Regular`, `DMSans`) match the actual fonts (Font Book ▸ show
-PostScript name); adjust `.custom("…")` names if they differ.
+## 4. Fonts (ALREADY DOWNLOADED — just add to the target)
+The TTFs are already staged in **`ios/SakinaWidget/Fonts/`** (OFL, fetched from
+Google Fonts): `ArefRuqaa-Regular.ttf`, `Amiri-Regular.ttf`,
+`DMSerifDisplay-Regular.ttf`, `DMSans.ttf` (variable — weights via
+SwiftUI `.fontWeight()`). The app uses runtime `google_fonts`, which the widget
+process cannot use, hence the bundled copies.
+- In Xcode, drag the `Fonts/` folder into the **SakinaWidget** target's
+  "Copy Bundle Resources" (or add each TTF). The `UIAppFonts` entries in
+  `Info.plist` already match these filenames.
+- Sanity-check PostScript names once in Font Book (Aref Ruqaa → `ArefRuqaa-Regular`,
+  DM Serif Display → `DMSerifDisplay-Regular`, DM Sans → `DMSans`). If any differ,
+  adjust the `.custom("…")` names in `SakinaWidget.swift`.
 
 ## 5. URL scheme for deep links
 - Runner target ▸ Info ▸ URL Types ▸ add URL Scheme **`sakina`** (matches

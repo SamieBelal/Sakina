@@ -20,13 +20,16 @@
 	<!-- Fonts must be bundled in THIS target — the main app's runtime google_fonts
 	     are invisible to the widget process. Add the TTFs (see SETUP.md) and keep
 	     these PostScript-name registrations. -->
+	<!-- These TTFs are already staged in ios/SakinaWidget/Fonts/ (OFL, fetched
+	     from Google Fonts). DMSans.ttf is the variable font — weights come from
+	     SwiftUI .fontWeight(). Just add the folder to the target's Copy Bundle
+	     Resources; filenames here already match. -->
 	<key>UIAppFonts</key>
 	<array>
 		<string>ArefRuqaa-Regular.ttf</string>
 		<string>Amiri-Regular.ttf</string>
 		<string>DMSerifDisplay-Regular.ttf</string>
-		<string>DMSans-Regular.ttf</string>
-		<string>DMSans-Bold.ttf</string>
+		<string>DMSans.ttf</string>
 	</array>
 </dict>
 </plist>
