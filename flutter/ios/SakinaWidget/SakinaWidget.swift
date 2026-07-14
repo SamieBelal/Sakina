@@ -195,7 +195,7 @@ private struct Provider: TimelineProvider {
 
 // MARK: - Views
 
-private func widgetURL(_ nameKey: String, build: Bool = false) -> URL? {
+private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
     let path = build ? "build-dua" : "muhasabah"
     let key = build && !nameKey.isEmpty ? "&name_key=\(nameKey)" : ""
     return URL(string: "sakina://widget/\(path)?homeWidget\(key)")
@@ -259,7 +259,7 @@ private struct MediumView: View {
                 HStack {
                     StreakChip(display: display)
                     Spacer()
-                    Link(destination: widgetURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
+                    Link(destination: widgetDeepLinkURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
                         Label("Dua", systemImage: "hands.sparkles.fill")
                             .font(.custom("DMSans", size: 11)).fontWeight(.bold)
                             .foregroundColor(.white)
@@ -271,7 +271,7 @@ private struct MediumView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .widgetURL(widgetURL(display.nameKey))
+        .widgetURL(widgetDeepLinkURL(display.nameKey))
     }
 }
 
@@ -295,7 +295,7 @@ private struct SmallView: View {
             StreakChip(display: display)
         }
         .padding(14)
-        .widgetURL(widgetURL(display.nameKey))
+        .widgetURL(widgetDeepLinkURL(display.nameKey))
     }
 }
 
@@ -310,7 +310,7 @@ private struct AccessoryView: View {
                     .font(.caption2).lineLimit(1)
             }
         }
-        .widgetURL(widgetURL(display.nameKey))
+        .widgetURL(widgetDeepLinkURL(display.nameKey))
     }
 }
 
@@ -323,9 +323,19 @@ private struct SakinaWidgetEntryView: View {
         case .systemSmall:
             container { SmallView(display: entry.display) }
         case .accessoryRectangular:
-            AccessoryView(display: entry.display)
+            // Lock Screen accessory: still MUST adopt containerBackground on
+            // iOS 17+, but transparent so the system tint/material shows.
+            accessoryContainer { AccessoryView(display: entry.display) }
         default:
             container { MediumView(display: entry.display) }
+        }
+    }
+
+    @ViewBuilder private func accessoryContainer<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content().containerBackground(.clear, for: .widget)
+        } else {
+            content()
         }
     }
 
