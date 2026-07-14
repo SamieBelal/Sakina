@@ -809,3 +809,16 @@ AllahName getTodaysName() {
   final dayOfYear = now.difference(startOfYear).inDays;
   return allahNames[dayOfYear % allahNames.length];
 }
+
+/// Stable kebab-case key for [name], used as the home-screen widget's deep-link
+/// hint and payload identity (see `WidgetDataService`).
+///
+/// NOTE: the AUTHORITATIVE app↔widget daily-Name catalog is generated at build
+/// time from THIS same `allahNames` list (spec §10.1 / task T7), so the widget's
+/// offline daily fallback indexes `dayOfYear % 99` into an identically-ordered
+/// catalog. This helper only produces the personalized-payload key + deep link,
+/// where the app also passes the resolved Name fields directly.
+String widgetNameKeyFor(AllahName name) => name.transliteration
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+    .replaceAll(RegExp(r'^-+|-+$'), '');
