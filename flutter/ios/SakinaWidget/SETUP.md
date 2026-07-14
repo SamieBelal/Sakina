@@ -1,61 +1,51 @@
-# SakinaWidget — Xcode setup checklist
+# SakinaWidget — status & what's left
 
-The Swift/plist/entitlements files here are the widget **source**. They do not
-build until the Xcode target and capabilities are wired. Do these on the Mac,
-then `flutter build ios`. Ordered; each step is required.
+As of 2026-07-14 the widget is **code-complete and builds** (`flutter build ios
+--simulator` is green: app + `SakinaWidgetExtension.appex`). Most of the original
+checklist is done. This file now records what's done and what remains.
 
-## 1. Create the Widget Extension target
-- Xcode → open `ios/Runner.xcworkspace` → File ▸ New ▸ Target ▸ **Widget Extension**.
-- Product name: `SakinaWidget`. **Uncheck** "Include Configuration Intent" (we use `StaticConfiguration`). **Uncheck** "Include Live Activity".
-- When prompted "Activate scheme?", Activate.
-- Delete the auto-generated `SakinaWidget.swift`/`Assets`/`Info.plist` Xcode created, and **add the files in this folder** to the new target instead (`SakinaWidget.swift`, `Info.plist`, `SakinaWidget.entitlements`, `catalog.json`).
-- Set the target's **Info.plist** build setting to `ios/SakinaWidget/Info.plist`.
-- Deployment target: iOS 16.0+ (accessory/Lock Screen). Small/Medium work on 14+.
+## ✅ Done (nothing to do)
 
-## 2. App Group (BOTH targets)
-- Runner target ▸ Signing & Capabilities ▸ **+ Capability ▸ App Groups** ▸ add
-  `group.com.sakina.app.widget`.
-- SakinaWidget target ▸ same capability, same group. (The committed
-  `SakinaWidget.entitlements` already declares it; make sure the target's
-  CODE_SIGN_ENTITLEMENTS points at it.)
-- This group ID MUST equal `kWidgetAppGroupId` in
-  `lib/services/widget_data_service.dart`. If you change it, change it in all
-  three places (both entitlements + Dart).
+1. **Widget Extension target** `SakinaWidgetExtension` created (Xcode 16 made it a
+   *file-system-synchronized group*, so every file in `ios/SakinaWidget/` is
+   automatically compiled/bundled — no manual "add to target").
+2. **Sources reconciled** — the wizard's `SakinaWidgetBundle.swift` is the sole
+   `@main`; it renders `SakinaWidget` (our widget). The unwanted Control Center
+   widget was removed.
+3. **App Group** `group.com.sakina.app.widget` on **both** Runner and
+   SakinaWidgetExtension; matches `kWidgetAppGroupId` in
+   `lib/services/widget_data_service.dart`. (Xcode's entitlements file is
+   `ios/SakinaWidgetExtension.entitlements`.)
+4. **`catalog.json`** — committed + auto-bundled (synced group). Regenerate when
+   Names/anchors change: `dart run scripts/gen_widget_catalog.dart` (fails the
+   build unless the mapping is a bijection; parity guarded by
+   `test/services/widget_catalog_parity_test.dart`).
+5. **Fonts** — `Fonts/` (Aref Ruqaa, Amiri, DM Serif Display, DM Sans-variable)
+   staged + auto-bundled; `UIAppFonts` in the Info.plist matches.
+6. **`sakina` URL scheme** — already present in `Runner/Info.plist`.
+7. **Build blockers fixed** (do not revert):
+   - Info.plist moved OUT of the synced folder to
+     `ios/SakinaWidgetExtension-Info.plist` (else "Multiple commands produce
+     Info.plist"). `INFOPLIST_FILE` points there.
+   - Global helper renamed `widgetURL` → `widgetDeepLinkURL` (clashed with
+     SwiftUI's `.widgetURL`).
+   - "Embed Foundation Extensions" build phase moved ABOVE "Thin Binary" in the
+     Runner target (fixes "Cycle inside Runner" — flutter/flutter#135056).
 
-## 3. Bundle `catalog.json`
-- Add `ios/SakinaWidget/catalog.json` to the **SakinaWidget** target's
-  "Copy Bundle Resources". Regenerate it whenever the Names/anchors change:
-  `dart run scripts/gen_widget_catalog.dart` (fails if the mapping isn't a
-  bijection). The parity test `test/services/widget_catalog_parity_test.dart`
-  guards app↔widget agreement.
+## ⬜ What's left (yours — needs a run / device / Apple account)
 
-## 4. Fonts (ALREADY DOWNLOADED — just add to the target)
-The TTFs are already staged in **`ios/SakinaWidget/Fonts/`** (OFL, fetched from
-Google Fonts): `ArefRuqaa-Regular.ttf`, `Amiri-Regular.ttf`,
-`DMSerifDisplay-Regular.ttf`, `DMSans.ttf` (variable — weights via
-SwiftUI `.fontWeight()`). The app uses runtime `google_fonts`, which the widget
-process cannot use, hence the bundled copies.
-- In Xcode, drag the `Fonts/` folder into the **SakinaWidget** target's
-  "Copy Bundle Resources" (or add each TTF). The `UIAppFonts` entries in
-  `Info.plist` already match these filenames.
-- Sanity-check PostScript names once in Font Book (Aref Ruqaa → `ArefRuqaa-Regular`,
-  DM Serif Display → `DMSerifDisplay-Regular`, DM Sans → `DMSans`). If any differ,
-  adjust the `.custom("…")` names in `SakinaWidget.swift`.
+1. **Run it and add the widget** (simulator is fine for Small/Medium):
+   `flutter run --dart-define-from-file=env.json`, then long-press the home
+   screen ▸ **+** ▸ **Sakina** ▸ add Small or Medium.
+2. **Visual/data QA:** Arabic renders in Aref Ruqaa (not system font); daily Name
+   matches the app's home for the same day; do a check-in → streak chip turns
+   emerald; tap → `/muhasabah`; dua pill → build-a-dua; sign out → widget reverts
+   to daily with no streak (privacy).
+3. **Physical device only:** Lock Screen + StandBy widgets. Automatic signing
+   should provision the extension now that the App Group is set; if a release
+   build complains, regenerate the profiles (see `TODO.md`).
 
-## 5. URL scheme for deep links
-- Runner target ▸ Info ▸ URL Types ▸ add URL Scheme **`sakina`** (matches
-  `kWidgetUrlScheme` in `lib/core/widget_deep_link.dart` and the `.widgetURL`s
-  in `SakinaWidget.swift`).
-
-## 6. Provisioning
-- Adding an extension = a second bundle ID (`…Runner.SakinaWidget`) + its own
-  provisioning profile, and the App Group must be enabled on both App IDs in the
-  Apple Developer portal. Automatic signing usually handles this; for manual
-  signing regenerate both profiles. **This will break `flutter build ios
-  --release` until the profiles exist** — see `TODO.md` release checklist.
-
-## 7. Verify on a physical device
-- Add the widget (Small, Medium, Lock Screen). Confirm: Arabic renders in Aref
-  Ruqaa (not system), daily Name matches the app's home for the same day, tap →
-  muḥāsabah, dua pill → build-a-dua, streak states (do a check-in → chip turns
-  emerald), sign out → widget reverts to daily with no streak (privacy).
+If the Arabic shows as a plain font, the `Fonts/` subfolder path is the likely
+cause — flatten the TTFs to the folder root. If the widget shows the generic
+"Allah / Turn to Him" fallback after a check-in, the App Group payload isn't
+landing — check the group ID on both targets.
