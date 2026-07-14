@@ -201,6 +201,8 @@ private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
     return URL(string: "sakina://widget/\(path)?homeWidget\(key)")
 }
 
+/// A capsule pill that visually matches the Dua pill (same padding/shape), so
+/// the footer reads as a matched pair. Uses Outfit (the app's Latin UI font).
 private struct StreakChip: View {
     let display: NameDisplay
     var body: some View {
@@ -208,22 +210,28 @@ private struct StreakChip: View {
         case .hidden:
             EmptyView()
         case .zero:
-            Text("✦ Start your streak")
-                .font(.custom("DMSans", size: 11)).fontWeight(.bold)
-                .foregroundColor(Palette.goldInk)
+            pill("Start your streak", icon: "sparkles",
+                 fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
         case .done:
-            Label("\(display.streak)", systemImage: "flame.fill")
-                .font(.custom("DMSans", size: 12)).fontWeight(.bold)
-                .foregroundColor(Palette.emerald)
+            pill("\(display.streak)", icon: "flame.fill",
+                 fg: Palette.emerald, bg: Palette.emerald.opacity(0.12))
         case .pending:
-            Label("\(display.streak) · keep it going", systemImage: "flame.fill")
-                .font(.custom("DMSans", size: 11)).fontWeight(.semibold)
-                .foregroundColor(Palette.goldInk)
+            pill("\(display.streak)", icon: "flame.fill",
+                 fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
         case .atRisk:
-            Label("Don't lose your \(display.streak)", systemImage: "flame.fill")
-                .font(.custom("DMSans", size: 11)).fontWeight(.bold)
-                .foregroundColor(Palette.amber)
+            pill("Don't lose your \(display.streak)", icon: "flame.fill",
+                 fg: Palette.amber, bg: Palette.amber.opacity(0.18))
         }
+    }
+
+    private func pill(_ text: String, icon: String, fg: Color, bg: Color) -> some View {
+        Label(text, systemImage: icon)
+            .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
+            .foregroundColor(fg)
+            .lineLimit(1)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(bg)
+            .clipShape(Capsule())
     }
 }
 
@@ -237,36 +245,40 @@ private struct MediumView: View {
                     .font(.custom("ArefRuqaa-Regular", size: 44))
                     .foregroundColor(Palette.emerald)
                     .environment(\.layoutDirection, .rightToLeft)
-                    .minimumScaleFactor(0.7).lineLimit(1)
+                    .minimumScaleFactor(0.45).lineLimit(1)
                 Text(display.transliteration)
-                    .font(.custom("DMSerifDisplay-Regular", size: 13))
+                    .font(.custom("Outfit", size: 16)).fontWeight(.bold)
                     .foregroundColor(Palette.ink)
+                    .lineLimit(1).minimumScaleFactor(0.5)
             }
             .frame(maxWidth: .infinity)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("A NAME FOR YOU")
-                    .font(.custom("DMSans", size: 10)).fontWeight(.bold)
-                    .kerning(1.4).foregroundColor(Palette.goldInk)
+            VStack(alignment: .leading, spacing: 4) {
+                // Anchor is the hook — no redundant "A NAME FOR YOU" label.
+                // Shrink-to-fit: the full anchor ALWAYS shows (up to 3 lines).
                 Text(display.anchor)
-                    .font(.custom("DMSans", size: 13))
+                    .font(.custom("Outfit", size: 15)).fontWeight(.medium)
                     .foregroundColor(Palette.ink)
-                    .lineLimit(2).minimumScaleFactor(0.85)
+                    .lineLimit(3).minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
                 Text(display.english)
-                    .font(.custom("DMSans", size: 11))
-                    .foregroundColor(Palette.ink.opacity(0.7)).lineLimit(1)
-                HStack {
+                    .font(.custom("Outfit", size: 12))
+                    .foregroundColor(Palette.ink.opacity(0.65))
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                // Matched capsule pills, vertically centered: streak (status) and
+                // Dua (action) read as a proper pair.
+                HStack(alignment: .center, spacing: 6) {
                     StreakChip(display: display)
-                    Spacer()
+                    Spacer(minLength: 4)
                     Link(destination: widgetDeepLinkURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
                         Label("Dua", systemImage: "hands.sparkles.fill")
-                            .font(.custom("DMSans", size: 11)).fontWeight(.bold)
+                            .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(Palette.gold).clipShape(Capsule())
                     }
                 }
+                .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -279,19 +291,25 @@ private struct MediumView: View {
 private struct SmallView: View {
     let display: NameDisplay
     var body: some View {
+        // 2×2 is too small for a full sentence — show the glanceable core
+        // (Name + meaning + streak), all shrink-to-fit so nothing truncates.
         VStack(spacing: 6) {
-            Text(display.anchor)
-                .font(.custom("DMSans", size: 9)).fontWeight(.bold)
-                .kerning(1.2).foregroundColor(Palette.goldInk)
-                .multilineTextAlignment(.center).lineLimit(2)
+            Spacer(minLength: 0)
             Text(display.arabic)
-                .font(.custom("ArefRuqaa-Regular", size: 38))
+                .font(.custom("ArefRuqaa-Regular", size: 40))
                 .foregroundColor(Palette.emerald)
                 .environment(\.layoutDirection, .rightToLeft)
-                .minimumScaleFactor(0.7).lineLimit(1)
+                .minimumScaleFactor(0.45).lineLimit(1)
             Text(display.transliteration)
-                .font(.custom("DMSerifDisplay-Regular", size: 13))
+                .font(.custom("Outfit", size: 17)).fontWeight(.bold)
                 .foregroundColor(Palette.ink)
+                .lineLimit(1).minimumScaleFactor(0.5)
+            Text(display.english)
+                .font(.custom("Outfit", size: 11))
+                .foregroundColor(Palette.ink.opacity(0.65))
+                .multilineTextAlignment(.center)
+                .lineLimit(2).minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
             StreakChip(display: display)
         }
         .padding(14)
@@ -299,16 +317,49 @@ private struct SmallView: View {
     }
 }
 
+/// Lock Screen (highest-frequency surface, ~80–100 glances/day) = the muḥāsabah
+/// RETENTION NUDGE. State-driven, loss-aversion when the daily reflection isn't
+/// done; a calm reward when it is; fresh daily content when logged out. Tinted
+/// monochrome by the system, so state is conveyed by TEXT, never color.
 private struct AccessoryView: View {
     let display: NameDisplay
+
+    private var title: String {
+        switch display.streakState {
+        case .done:    return display.transliteration        // reward: the Name you received
+        case .pending: return "Reflect today"                // gentle nudge
+        case .atRisk:  return "Don't lose your \(display.streak)"  // loss aversion (evening)
+        case .zero:    return "Reflect today"
+        case .hidden:  return display.transliteration         // logged out: fresh daily Name
+        }
+    }
+
+    @ViewBuilder private var subtitle: some View {
+        switch display.streakState {
+        case .done:
+            Label("\(display.streak) · \(display.english)", systemImage: "flame.fill")
+                .labelStyle(.titleAndIcon)
+        case .pending:
+            Label("Keep your \(display.streak)", systemImage: "flame.fill")
+                .labelStyle(.titleAndIcon)
+        case .atRisk:
+            Text("Reflect before midnight")
+        case .zero:
+            Text("Start your streak")
+        case .hidden:
+            Text(display.english)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text("A Name for today").font(.caption2).fontWeight(.bold)
-            Text(display.transliteration).font(.headline)
-            if display.streakState != .hidden {
-                Text("🔥 \(display.streak) · \(display.english)")
-                    .font(.caption2).lineLimit(1)
-            }
+            Text(title)
+                .font(.title3).fontWeight(.semibold)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            subtitle
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.7)
         }
         .widgetURL(widgetDeepLinkURL(display.nameKey))
     }

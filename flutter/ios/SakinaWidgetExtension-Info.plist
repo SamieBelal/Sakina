@@ -12,16 +12,16 @@
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
 	<!-- Fonts must be bundled in the extension target — the app's runtime
-	     google_fonts are invisible to the widget process. The TTFs are in
-	     ios/SakinaWidget/Fonts/ (auto-synced to the target via the
-	     file-system-synchronized group). DMSans.ttf is variable; weights come
-	     from SwiftUI .fontWeight(). -->
+	     google_fonts are invisible to the widget process. TTFs live in
+	     ios/SakinaWidget/Fonts/ (auto-synced via the file-system-synchronized
+	     group). Outfit is the app's Latin UI font (AppTypography = GoogleFonts
+	     .outfit); it's variable, so weights come from SwiftUI .fontWeight().
+	     Aref Ruqaa = Arabic Name hero; Amiri reserved for verse text. -->
 	<key>UIAppFonts</key>
 	<array>
 		<string>ArefRuqaa-Regular.ttf</string>
 		<string>Amiri-Regular.ttf</string>
-		<string>DMSerifDisplay-Regular.ttf</string>
-		<string>DMSans.ttf</string>
+		<string>Outfit.ttf</string>
 	</array>
 </dict>
 </plist>
