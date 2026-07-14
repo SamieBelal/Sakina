@@ -136,7 +136,9 @@ class WidgetDataService {
       anchor: anchor,
       checkedInToday: checkedInToday,
       streak: streak,
-      updatedAtIso: _clock().toIso8601String(),
+      // UTC + trailing 'Z' so the Swift ISO8601DateFormatter can parse it; the
+      // extension compares it against the current LOCAL day (§10.7).
+      updatedAtIso: _clock().toUtc().toIso8601String(),
     );
     await _write(payload.encode());
   }

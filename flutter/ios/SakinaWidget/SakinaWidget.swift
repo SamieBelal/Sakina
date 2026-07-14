@@ -245,7 +245,7 @@ private struct MediumView: View {
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(display.anchor.uppercased().prefix(0) == "" ? "A NAME FOR YOU" : "A NAME FOR YOU")
+                Text("A NAME FOR YOU")
                     .font(.custom("DMSans", size: 10)).fontWeight(.bold)
                     .kerning(1.4).foregroundColor(Palette.goldInk)
                 Text(display.anchor)
@@ -338,7 +338,8 @@ private struct SakinaWidgetEntryView: View {
     }
 }
 
-@main
+// NOTE: the @main entry point is SakinaWidgetBundle (Xcode wizard file); this
+// widget is referenced from its body, so it must NOT also be @main.
 struct SakinaWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kWidgetKind, provider: Provider()) { entry in
