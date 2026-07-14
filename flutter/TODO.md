@@ -2,6 +2,19 @@
 
 Deferred work — not blocking the current iOS submission, but needed before specific future milestones. Each item names its trigger so it's clear when it becomes urgent.
 
+## Home-screen widget: App Group + extension provisioning
+
+**Trigger:** before any iOS build once `feat/home-screen-widget` merges (the widget
+extension target is added in Xcode — see `ios/SakinaWidget/SETUP.md`).
+
+Adding the `SakinaWidget` WidgetKit extension introduces a **second bundle ID**
+(`…Runner.SakinaWidget`) and requires the **App Group** `group.com.sakina.app.widget`
+enabled on **both** App IDs, plus a provisioning profile for the extension.
+`flutter build ios --release` will fail until both profiles exist. With automatic
+signing Xcode handles this; for manual signing, regenerate both profiles in the
+Apple Developer portal. Also bundle the font TTFs into the extension target (§4 of
+SETUP.md) — the app's runtime `google_fonts` are invisible to the widget process.
+
 ## Android release signing
 
 **Trigger:** before any Play Store submission (internal track, beta, or production). Not needed for iOS-only releases.

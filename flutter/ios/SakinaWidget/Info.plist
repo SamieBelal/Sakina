@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Sakina</string>
+	<key>CFBundleName</key>
+	<string>SakinaWidget</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.widgetkit-extension</string>
+	</dict>
+	<!-- Fonts must be bundled in THIS target — the main app's runtime google_fonts
+	     are invisible to the widget process. Add the TTFs (see SETUP.md) and keep
+	     these PostScript-name registrations. -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>ArefRuqaa-Regular.ttf</string>
+		<string>Amiri-Regular.ttf</string>
+		<string>DMSerifDisplay-Regular.ttf</string>
+		<string>DMSans-Regular.ttf</string>
+		<string>DMSans-Bold.ttf</string>
+	</array>
+</dict>
+</plist>

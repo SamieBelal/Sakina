@@ -12,6 +12,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/../lib"
+# Home-screen widget content (bundled catalog + Swift) ships OUTSIDE lib/, so it
+# would bypass this tripwire without an explicit scan. See widget spec §10.2.
+WIDGET_DIR="${SCRIPT_DIR}/../ios/SakinaWidget"
 
 # Match only string literals (a quote character must immediately follow the
 # marker), not the doc comments in lib/core/env.dart and
@@ -25,6 +28,16 @@ if grep -rnE 'FAKE_DO_NOT_SHIP_["\x27]' "${LIB_DIR}" ; then
   echo "ERROR: FAKE_DO_NOT_SHIP_ placeholders found in lib/."
   echo "Replace with real attributable content before merging."
   echo "See docs/superpowers/plans/2026-05-14-paywall-rebuild.md Task 4."
+  exit 1
+fi
+
+# Same gate for the home-screen widget's bundled content (catalog.json + Swift),
+# which lives outside lib/ and would otherwise ship placeholder scripture/anchors
+# undetected.
+if [ -d "${WIDGET_DIR}" ] && grep -rnE 'FAKE_DO_NOT_SHIP_["\x27]' "${WIDGET_DIR}" ; then
+  echo ""
+  echo "ERROR: FAKE_DO_NOT_SHIP_ placeholders found in ios/SakinaWidget/."
+  echo "The widget catalog/Swift must contain only verified content."
   exit 1
 fi
 
