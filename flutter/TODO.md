@@ -165,3 +165,24 @@ the edge function (server-only; NO App Store update needed). Then production
 cancellations fire the push → deep link → survey.
 
 **Surfaced by:** Physical-device Test 3 setup, 2026-05-31.
+
+## Formalize the design system: /design-consultation → DESIGN.md
+
+**What:** Run `/design-consultation` and capture the result as a repo `DESIGN.md`:
+palette (incl. the new `sacredCanvas*` token block), typography stack, spacing
+philosophy, motion vocabulary (beat-advance transition), and the on-canvas rules
+("gold is a non-text accent only — it fails 4.5:1 contrast on emerald"; "cream
+`sacredInk` for functional text").
+
+**Why:** The 2026-07-14 bite-sized-AI-text design review had to derive the system
+from CLAUDE.md prose + one mockup. The sacred canvas is the app's second surface
+identity — the point where undocumented systems start drifting (the next emerald
+becomes `#1A6B4B`).
+
+**Trigger:** Before designing the next net-new surface (widget, gift moment,
+onboarding refresh) — or whenever a second contributor starts doing UI work.
+
+**Depends on / blocked by:** Nothing. Cross-link DESIGN.md from CLAUDE.md's design
+section so the two don't drift.
+
+**Surfaced by:** `/plan-design-review` of the bite-sized-AI-text spec, 2026-07-14.
