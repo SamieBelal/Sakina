@@ -392,6 +392,18 @@ abstract final class AnalyticsEvents {
   /// Fired when the user dismisses the widget-install nudge (hidden for good).
   static const widgetInstallNudgeDismissed = 'widget_install_nudge_dismissed';
 
+  /// Fired when a home-screen/Lock-Screen widget tap deep-links into the app —
+  /// the core "are users engaging the widgets" metric. Props: `target`
+  /// (muhasabah|build_dua), `launch` (cold|warm). Correlate with
+  /// `check_in_completed` for widget→reflection conversion.
+  static const widgetOpened = 'widget_opened';
+
+  /// Fired once per app session with the current widget-install snapshot —
+  /// the adoption metric. Props: `installed` (bool), `count`, `families`
+  /// (e.g. systemSmall/systemMedium/accessoryRectangular). Also set as user
+  /// properties so DAU can be segmented by "has widget".
+  static const widgetInstalledState = 'widget_installed_state';
+
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
   // funnel-splitting across the 3 referral ingress paths.

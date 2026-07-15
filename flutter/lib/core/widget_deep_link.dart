@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../services/analytics_events.dart';
 import '../widgets/achievement_toast.dart' show rootNavigatorKey;
 
 /// URL scheme the iOS widget's `.widgetURL` uses. MUST be registered in the
@@ -15,26 +16,29 @@ const String kWidgetUrlScheme = 'sakina';
 /// without the platform channel or a live router.
 ///
 /// Widget links look like `sakina://widget/muhasabah?homeWidget` or
-/// `sakina://widget/build-dua?name_key=al-wakil&homeWidget` (the `homeWidget`
-/// marker is appended by the home_widget plugin).
+/// `sakina://widget/build-dua?homeWidget` (the `homeWidget` marker is appended
+/// by the home_widget plugin). Build-a-dua is need-based (free text), not tied
+/// to a Name, so no `name_key` is carried.
 String? parseWidgetDeepLink(Uri? uri) {
+  switch (_widgetTarget(uri)) {
+    case 'muhasabah':
+      return '/muhasabah';
+    case 'build-dua':
+      return '/duas';
+    default:
+      return null;
+  }
+}
+
+/// The widget-link target segment (`muhasabah` / `build-dua`), or null if [uri]
+/// is not a recognised widget link. Shared by the router mapping and the
+/// `widget_opened` analytics label.
+String? _widgetTarget(Uri? uri) {
   if (uri == null) return null;
   final isWidgetLink =
       uri.host == 'widget' || uri.queryParameters.containsKey('homeWidget');
   if (!isWidgetLink) return null;
-
-  final target = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : uri.host;
-  switch (target) {
-    case 'muhasabah':
-      return '/muhasabah';
-    case 'build-dua':
-      final key = uri.queryParameters['name_key'];
-      // Carry the Name so the builder can seed it (DuasScreen reads
-      // state.uri.queryParameters['name_key'] once seeding lands).
-      return (key != null && key.isNotEmpty) ? '/duas?name_key=$key' : '/duas';
-    default:
-      return null;
-  }
+  return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : uri.host;
 }
 
 /// Bridges `home_widget` taps into GoRouter navigation.
@@ -64,21 +68,32 @@ class WidgetDeepLinkHandler {
   final void Function(VoidCallback) _postFrame;
   StreamSubscription<Uri?>? _sub;
 
+  /// Static hook wired once in `main.dart` (null in tests). Lets this
+  /// non-Riverpod handler emit `widget_opened` without an analytics dependency
+  /// — same pattern as `StreakAnalytics.onAnalyticsEvent`.
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   /// Wire up cold-launch replay + warm-tap listening. Call once after the app
   /// is built (e.g. from the root widget's `initState`).
   Future<void> start() async {
-    _sub = _clicks.listen(_handle);
+    _sub = _clicks.listen((uri) => _handle(uri, cold: false));
     // Cold start: replay the launch URI after the first frame so the router
     // is mounted and auth has settled.
     final launch = await _initialUri();
     if (launch != null) {
-      _postFrame(() => _handle(launch));
+      _postFrame(() => _handle(launch, cold: true));
     }
   }
 
-  void _handle(Uri? uri) {
+  void _handle(Uri? uri, {required bool cold}) {
     final location = parseWidgetDeepLink(uri);
-    if (location != null) _navigate(location);
+    if (location == null) return;
+    onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
+      'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
+      'launch': cold ? 'cold' : 'warm',
+    });
+    _navigate(location);
   }
 
   void dispose() => _sub?.cancel();

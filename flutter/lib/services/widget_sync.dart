@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../core/constants/allah_names.dart';
 import 'checkin_history_service.dart';
 import 'streak_service.dart';
+import 'widget_analytics.dart';
 import 'widget_data_service.dart';
 
 /// Resolved inputs for a home-screen widget refresh.
@@ -92,6 +93,9 @@ Future<void> syncHomeWidget({DateTime Function()? clock}) async {
       checkedInToday: inputs.checkedInToday,
       personalized: inputs.personalized,
     );
+    // Adoption snapshot (once per session) — piggybacks on the sync that runs
+    // on foreground, so we learn who has the widget without an extra trigger.
+    await reportWidgetInstallState();
   } catch (_) {
     // Widget refresh is best-effort; a failure must not break app sync.
   }

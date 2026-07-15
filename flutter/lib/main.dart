@@ -20,6 +20,7 @@ import 'features/reflect/providers/reflect_provider.dart';
 import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'core/widget_deep_link.dart';
 import 'services/analytics_events.dart';
+import 'services/widget_analytics.dart';
 import 'services/widget_data_service.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
@@ -288,6 +289,14 @@ Future<void> main() async {
   CardCollectionAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   StreakAnalytics.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // Home-screen widget telemetry: `widget_opened` (taps → app) from the
+  // deep-link handler, and `widget_installed_state` (adoption snapshot) from
+  // the sync path. Neither has Riverpod access, so they bridge through these
+  // static hooks like the rest.
+  WidgetDeepLinkHandler.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  widgetAnalyticsHook =
       (event, props) => analytics.track(event, properties: props);
   // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
   // sign-out so a shared/QA device doesn't bleed one user's identity into the

@@ -11,17 +11,15 @@ void main() {
           '/muhasabah');
     });
 
-    test('build-dua link carries name_key', () {
+    test('build-dua link → /duas (need-based, no Name seed)', () {
+      expect(parseWidgetDeepLink(Uri.parse('sakina://widget/build-dua?homeWidget')),
+          '/duas');
+      // Any stray name_key is ignored — build-a-dua is not Name-based.
       expect(
         parseWidgetDeepLink(
             Uri.parse('sakina://widget/build-dua?name_key=al-wakil&homeWidget')),
-        '/duas?name_key=al-wakil',
+        '/duas',
       );
-    });
-
-    test('build-dua without a key → bare /duas', () {
-      expect(parseWidgetDeepLink(Uri.parse('sakina://widget/build-dua?homeWidget')),
-          '/duas');
     });
 
     test('non-widget link → null (ignored)', () {
@@ -58,9 +56,34 @@ void main() {
         clicks: controller.stream,
       );
       await handler.start();
-      controller.add(Uri.parse('sakina://widget/build-dua?name_key=ar-rahman&homeWidget'));
+      controller.add(Uri.parse('sakina://widget/build-dua?homeWidget'));
       await Future<void>.delayed(Duration.zero);
-      expect(navigated, ['/duas?name_key=ar-rahman']);
+      expect(navigated, ['/duas']);
+      await controller.close();
+      handler.dispose();
+    });
+
+    test('fires widget_opened with target + launch type', () async {
+      final events = <Map<String, dynamic>>[];
+      WidgetDeepLinkHandler.onAnalyticsEvent =
+          (event, props) => events.add({'event': event, ...props});
+      addTearDown(() => WidgetDeepLinkHandler.onAnalyticsEvent = null);
+
+      final controller = StreamController<Uri?>();
+      final handler = WidgetDeepLinkHandler(
+        navigate: (_) {},
+        initialUri: () async => Uri.parse('sakina://widget/muhasabah?homeWidget'),
+        clicks: controller.stream,
+        postFrame: (cb) => cb(),
+      );
+      await handler.start(); // cold replay → muhasabah
+      controller.add(Uri.parse('sakina://widget/build-dua?homeWidget')); // warm
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, [
+        {'event': 'widget_opened', 'target': 'muhasabah', 'launch': 'cold'},
+        {'event': 'widget_opened', 'target': 'build_dua', 'launch': 'warm'},
+      ]);
       await controller.close();
       handler.dispose();
     });

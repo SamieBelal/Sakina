@@ -196,9 +196,9 @@ private struct Provider: TimelineProvider {
 // MARK: - Views
 
 private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
+    // build-a-dua is need-based (free text), not tied to a Name, so no name_key.
     let path = build ? "build-dua" : "muhasabah"
-    let key = build && !nameKey.isEmpty ? "&name_key=\(nameKey)" : ""
-    return URL(string: "sakina://widget/\(path)?homeWidget\(key)")
+    return URL(string: "sakina://widget/\(path)?homeWidget")
 }
 
 /// A capsule pill that visually matches the Dua pill (same padding/shape), so
