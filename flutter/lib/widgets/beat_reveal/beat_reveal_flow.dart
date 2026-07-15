@@ -524,7 +524,7 @@ class _CompletionBeat extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.auto_awesome, size: 40, color: AppColors.secondary)
+            const Icon(Icons.auto_awesome, size: 40, color: AppColors.sacredInk)
                 .animate()
                 .scaleXY(begin: 0.6, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack)
                 .fadeIn(duration: 400.ms),

@@ -61,8 +61,10 @@ class AmeenMedallion extends StatelessWidget {
               const SizedBox(height: 33),
               AdjustedArabicDisplay(
                 text: 'آمين',
+                // Cream calligraphy (not gold) — gold fails contrast on the
+                // emerald canvas. The gold halo behind supplies the warmth.
                 style: AppTypography.nameOfAllahDisplay.copyWith(
-                  color: AppColors.secondary,
+                  color: AppColors.sacredInk,
                   fontSize: 76,
                   shadows: [
                     Shadow(

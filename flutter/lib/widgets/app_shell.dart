@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/app_session.dart';
 import '../core/constants/app_colors.dart';
+import '../core/immersive_mode_provider.dart';
 import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
@@ -333,9 +334,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     final tabIndex = _currentIndex(context);
     final isOffTab = tabIndex < 0;
 
+    // Immersive surfaces (the beat reveal flow) hide the bottom nav so the
+    // emerald canvas fills the whole screen. The Scaffold gives the body full
+    // height when bottomNavigationBar is null.
+    final immersive = ref.watch(immersiveModeProvider);
+
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: immersive
+          ? null
+          : BottomNavigationBar(
         // BottomNavigationBar requires a valid index. When the user is on a
         // pushed sub-route (e.g. /quests, /settings, /store) we still need
         // to pass a legal index, but we visually deselect everything by

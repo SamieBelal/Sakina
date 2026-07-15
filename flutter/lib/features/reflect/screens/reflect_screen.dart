@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/immersive_mode_provider.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
@@ -69,6 +70,11 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
 
   @override
   void dispose() {
+    // Defensively clear immersive mode so the bottom nav can never stay hidden
+    // if this screen is torn down while the flow is showing.
+    try {
+      ref.read(immersiveModeProvider.notifier).state = false;
+    } catch (_) {}
     for (final controller in _rippleControllers) {
       controller.dispose();
     }
@@ -172,8 +178,19 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     // The result and off-topic outcomes run full-screen on the emerald sacred
     // canvas via BeatRevealFlow (its own Scaffold + chrome). Input, loading, and
     // follow-up keep the existing light-theme screens.
-    if (state.screenState == ReflectScreenState.result ||
-        state.screenState == ReflectScreenState.offtopic) {
+    final inFlow = state.screenState == ReflectScreenState.result ||
+        state.screenState == ReflectScreenState.offtopic;
+
+    // Hide the bottom nav while the flow is on-screen so the emerald canvas is
+    // truly full-screen. Self-healing: re-evaluated every build, so the flag
+    // clears the moment the flow ends (reset → input).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final n = ref.read(immersiveModeProvider.notifier);
+      if (n.state != inFlow) n.state = inFlow;
+    });
+
+    if (inFlow) {
       return _buildReflectBeatFlow(state, notifier);
     }
 
