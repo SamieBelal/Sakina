@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -518,29 +520,39 @@ class _CompletionBeat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.sacredCanvasBase.withValues(alpha: 0.001),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.auto_awesome, size: 40, color: AppColors.sacredInk)
-                .animate()
-                .scaleXY(begin: 0.6, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack)
-                .fadeIn(duration: 400.ms),
-            const SizedBox(height: 16),
-            Text(
-              'Ameen',
-              style: AppTypography.bodyLarge.copyWith(
-                fontSize: 30,
-                fontWeight: FontWeight.w600,
-                color: AppColors.sacredInk,
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
-          ],
+    // Blur + dim the dua content behind so the "Ameen" moment stands alone on a
+    // clean field instead of overlapping the still-visible dua text.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: ColoredBox(
+            color: AppColors.sacredCanvasBase.withValues(alpha: 0.66),
+          ),
         ),
-      ),
-    );
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.auto_awesome, size: 44, color: AppColors.sacredInk)
+                  .animate()
+                  .scaleXY(begin: 0.6, end: 1.0, duration: 500.ms, curve: Curves.easeOutBack)
+                  .fadeIn(duration: 400.ms),
+              const SizedBox(height: 18),
+              Text(
+                'Ameen',
+                style: AppTypography.bodyLarge.copyWith(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.sacredInk,
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
+            ],
+          ),
+        ),
+      ],
+    ).animate().fadeIn(duration: 220.ms);
   }
 }
 
