@@ -12,6 +12,8 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -135,8 +137,13 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           onUpgrade: () => GoRouter.of(context).push('/paywall'),
         ).whenComplete(notifier.dismissWarmupExhausted);
       }
-      // Show upgrade sheet when the free journal limit is hit
-      if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {
+      // Journal-limit upsell (decision 18A): NEVER surface it over the beat
+      // canvas mid-ritual. `needsUpgrade` flips at response time (screenState =
+      // result), so we defer the sheet until the user lands back on the input
+      // screen after the flow — the natural pause.
+      if (next.needsUpgrade &&
+          next.screenState == ReflectScreenState.input &&
+          prev?.screenState != ReflectScreenState.input) {
         UpgradeRequiredSheet.show(
           context,
           currentCount: next.savedReflections.length,
@@ -163,6 +170,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       _stopRippleAnimation();
     }
 
+    // The result and off-topic outcomes run full-screen on the emerald sacred
+    // canvas via BeatRevealFlow (its own Scaffold + chrome). Input, loading, and
+    // follow-up keep the existing light-theme screens.
+    if (state.screenState == ReflectScreenState.result ||
+        state.screenState == ReflectScreenState.offtopic) {
+      return _buildReflectBeatFlow(state, notifier);
+    }
+
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
@@ -171,6 +186,64 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         body: _buildBody(state, notifier),
       ),
     );
+  }
+
+  Widget _buildReflectBeatFlow(ReflectState state, ReflectNotifier notifier) {
+    final isOffTopic = state.screenState == ReflectScreenState.offtopic;
+    return BeatRevealFlow(
+      status: isOffTopic ? BeatFlowStatus.offtopic : BeatFlowStatus.ready,
+      response: state.result,
+      includeVerses: true, // Reflect surfaces catalog verses as their own beats
+      onAmeen: () => notifier.reset(),
+      onReturnHome: () => notifier.reset(),
+      onOffTopicRetry: () => notifier.reset(),
+      onRetry: () => notifier.reset(),
+      onShare: () => _shareCurrentReflection(state),
+      onBeatAdvanced: (index, kind) {
+        ReflectNotifier.onAnalyticsEvent?.call(
+          AnalyticsEvents.reflectBeatAdvanced,
+          {
+            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceReflect,
+            AnalyticsEvents.propBeatIndex: index,
+            AnalyticsEvents.propBeatKind: kind.name,
+          },
+        );
+      },
+      onSkip: (from) {
+        ReflectNotifier.onAnalyticsEvent?.call(
+          AnalyticsEvents.reflectFlowSkipped,
+          {
+            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceReflect,
+            AnalyticsEvents.propFromBeatIndex: from,
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _shareCurrentReflection(ReflectState state) async {
+    final result = state.result;
+    if (result == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      // Reuses the existing capture/share-sheet pipeline. A dedicated emerald
+      // takeaway-card composition (decision 20A) is a follow-up.
+      await shareReflectionCard(
+        context: context,
+        nameArabic: result.nameArabic,
+        nameEnglish: result.name,
+        verses: result.verses,
+        duaArabic: result.duaArabic,
+        duaTransliteration: result.duaTransliteration,
+        duaTranslation: result.duaTranslation,
+        duaSource: result.duaSource,
+        reframe: result.reframe,
+        story: result.story,
+      );
+    } catch (e) {
+      debugPrint('[SHARE ERROR] $e');
+      showShareErrorSnackBar(messenger);
+    }
   }
 
   Widget _buildBody(ReflectState state, ReflectNotifier notifier) {
