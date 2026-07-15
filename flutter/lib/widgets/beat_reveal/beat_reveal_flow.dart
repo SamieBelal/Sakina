@@ -383,30 +383,40 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   }
 
   Widget _tapHint() {
-    final hint = IgnorePointer(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.unfold_more,
-            size: 16,
+    // The hint is an active advance target (not just decoration): tapping it
+    // advances the beat. It sits below the content tap-zone, so it's the tour's
+    // `readStoryCta` anchor — tapping the outlined hint advances the beat AND
+    // the tour, the same gesture the flow teaches.
+    final label = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.unfold_more,
+          size: 16,
+          color: AppColors.sacredInk.withValues(alpha: 0.45),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Tap to move through your reflection',
+          style: AppTypography.bodySmall.copyWith(
             color: AppColors.sacredInk.withValues(alpha: 0.45),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Tap to move through your reflection',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.sacredInk.withValues(alpha: 0.45),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     ).animate(onPlay: (c) => _reducedMotion ? null : c.repeat(reverse: true)).fadeIn(
           duration: 1200.ms,
           begin: 0.35,
         );
+    final hint = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _advance,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: label,
+      ),
+    );
     final wrapped = widget.readStoryAnchorBuilder?.call(hint) ?? hint;
-    return Positioned(left: 0, right: 0, bottom: 30, child: Center(child: wrapped));
+    return Positioned(left: 0, right: 0, bottom: 22, child: Center(child: wrapped));
   }
 }
 
