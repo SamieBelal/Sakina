@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -277,9 +276,10 @@ class TakeawayShareCard extends StatelessWidget {
             if (reframeKey.trim().isNotEmpty) ...[
               Text(
                 reframeKey,
-                style: GoogleFonts.dmSerifDisplay(
+                style: AppTypography.bodyLarge.copyWith(
                   fontSize: keySize,
                   height: 1.32,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.sacredInk,
                 ),
                 textAlign: TextAlign.center,
@@ -289,9 +289,10 @@ class TakeawayShareCard extends StatelessWidget {
             if (takeaway.trim().isNotEmpty)
               Text(
                 takeaway,
-                style: GoogleFonts.dmSerifDisplay(
+                style: AppTypography.bodyLarge.copyWith(
                   fontSize: takeawaySize,
                   height: 1.4,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.sacredInk.withValues(alpha: 0.85),
                 ),
                 textAlign: TextAlign.center,

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -16,9 +15,13 @@ class BeatScreenView extends StatelessWidget {
 
   const BeatScreenView({super.key, required this.screen});
 
-  static TextStyle _serif(double size) => GoogleFonts.dmSerifDisplay(
+  // Pull-quote style for the key line + takeaway. Uses the app's body font
+  // (Outfit) — same family as the story beats — at a larger size + weight so it
+  // still reads as a pull quote without switching to a serif.
+  static TextStyle _pullQuote(double size) => AppTypography.bodyLarge.copyWith(
         fontSize: size,
-        height: 1.32,
+        height: 1.35,
+        fontWeight: FontWeight.w600,
         color: AppColors.sacredInk,
       );
 
@@ -40,7 +43,7 @@ class BeatScreenView extends StatelessWidget {
           children: [
             _goldBar(),
             const SizedBox(height: 18),
-            Text(screen.primary, style: _serif(27)),
+            Text(screen.primary, style: _pullQuote(27)),
           ],
         );
 
@@ -133,7 +136,7 @@ class BeatScreenView extends StatelessWidget {
           children: [
             _goldBar(),
             const SizedBox(height: 18),
-            Text(screen.primary, style: _serif(23)),
+            Text(screen.primary, style: _pullQuote(23)),
           ],
         );
 

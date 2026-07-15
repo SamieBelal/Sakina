@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/services/ai_service.dart';
@@ -467,9 +466,10 @@ class _MessageView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.dmSerifDisplay(
+              style: AppTypography.bodyLarge.copyWith(
                 fontSize: 22,
                 height: 1.35,
+                fontWeight: FontWeight.w600,
                 color: AppColors.sacredInk,
               ),
             ),
@@ -531,8 +531,9 @@ class _CompletionBeat extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Ameen',
-              style: GoogleFonts.dmSerifDisplay(
+              style: AppTypography.bodyLarge.copyWith(
                 fontSize: 30,
+                fontWeight: FontWeight.w600,
                 color: AppColors.sacredInk,
               ),
             ).animate().fadeIn(duration: 500.ms, delay: 150.ms),
