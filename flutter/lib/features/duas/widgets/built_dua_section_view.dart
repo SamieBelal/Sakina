@@ -146,7 +146,11 @@ class BuiltDuaSectionView extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                 ).animate().fadeIn(
                                     duration: 300.ms, delay: 340.ms),
-                                const SizedBox(height: AppSpacing.xl),
+                                // Flexible gap: centers the content above and
+                                // pins the progress + CTA to the bottom, so the
+                                // Next button uses the full-screen height rather
+                                // than floating with dead space beneath it.
+                                const Spacer(),
                                 // Segmented progress bar — gold fill on
                                 // sacredTrack, one segment per section.
                                 DuaSegmentedProgress(
@@ -183,7 +187,6 @@ class BuiltDuaSectionView extends StatelessWidget {
                                     ),
                                   ).animate().fadeIn(
                                       duration: 200.ms, delay: 120.ms),
-                                const Spacer(),
                               ],
                             ),
                           ),
