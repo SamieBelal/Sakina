@@ -38,6 +38,18 @@ const int _verseReferenceMaxChars = 200;
 const int _versesMaxCount = 8;
 const int _relatedNamesMaxCount = 8;
 
+// Beat-data clamps (decision 9A). Persistence keeps display text unclamped;
+// these caps only bound what we write so a verbose model response can never make
+// the `beat_data` CHECK throw and drop the whole save. Mirror the server CHECK
+// in the beat_data migration EXACTLY.
+const int _beatKeyMaxChars = 200;
+const int _beatBodyMaxChars = 500;
+const int _beatTitleMaxChars = 120;
+const int _beatLineMaxChars = 500;
+const int _beatSourceMaxChars = 200;
+const int _beatTakeawayMaxChars = 200;
+const int _storyBeatsMaxCount = 3;
+
 /// Clamp a string to at most [maxChars] codepoints (Dart `String.length`).
 /// Matches the server's Postgres `length()` CHECK which also counts codepoints.
 /// Returns '' for null so the row always has explicit values (the schema
@@ -107,6 +119,18 @@ class SavedReflection {
   final String duaSource;
   final List<Map<String, String>> relatedNames;
 
+  // ── Structured beats (source of truth when present) ──
+  // reframe/story above are DERIVED (joined) legacy values kept for old clients
+  // and previews; when these beat fields are populated they are authoritative
+  // (decision 21A). Persisted as a single `beat_data` jsonb column / map — null
+  // for legacy rows, which fall back to splitIntoBeats(reframe/story).
+  final String reframeKey;
+  final String reframeBody;
+  final String storyTitle;
+  final List<String> storyBeats;
+  final String storySource;
+  final String takeaway;
+
   const SavedReflection({
     required this.id,
     required this.date,
@@ -122,7 +146,92 @@ class SavedReflection {
     this.duaTranslation = '',
     this.duaSource = '',
     this.relatedNames = const [],
+    this.reframeKey = '',
+    this.reframeBody = '',
+    this.storyTitle = '',
+    this.storyBeats = const [],
+    this.storySource = '',
+    this.takeaway = '',
   });
+
+  /// True when this reflection carries structured beat data. When false,
+  /// renderers fall back to `splitIntoBeats` over [reframe] / [story].
+  bool get hasBeats =>
+      reframeKey.isNotEmpty ||
+      reframeBody.isNotEmpty ||
+      storyBeats.isNotEmpty ||
+      takeaway.isNotEmpty;
+
+  /// The `beat_data` payload — `null` when there are no beats (legacy shape),
+  /// so old rows stay `NULL` and take the fallback path. Clamped per decision
+  /// 9A so a verbose response can never trip the server CHECK.
+  Map<String, dynamic>? _beatData() {
+    if (!hasBeats) return null;
+    return {
+      'reframeKey': _clampText(reframeKey, _beatKeyMaxChars),
+      'reframeBody': _clampText(reframeBody, _beatBodyMaxChars),
+      'storyTitle': _clampText(storyTitle, _beatTitleMaxChars),
+      'storyBeats': storyBeats
+          .take(_storyBeatsMaxCount)
+          .map((b) => _clampText(b, _beatLineMaxChars))
+          .toList(),
+      'storySource': _clampText(storySource, _beatSourceMaxChars),
+      'takeaway': _clampText(takeaway, _beatTakeawayMaxChars),
+    };
+  }
+
+  static SavedReflection _withBeatData(
+    SavedReflection base,
+    Object? raw,
+  ) {
+    if (raw is! Map) return base;
+    final m = Map<String, dynamic>.from(raw);
+    return base.copyWithBeats(
+      reframeKey: m['reframeKey'] as String? ?? '',
+      reframeBody: m['reframeBody'] as String? ?? '',
+      storyTitle: m['storyTitle'] as String? ?? '',
+      // Defensive: one malformed element (null / non-string from a corrupted
+      // cache or legacy row) must not throw and wipe the whole journal cache.
+      storyBeats: (m['storyBeats'] as List<dynamic>?)
+              ?.map((e) => e?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toList() ??
+          const [],
+      storySource: m['storySource'] as String? ?? '',
+      takeaway: m['takeaway'] as String? ?? '',
+    );
+  }
+
+  SavedReflection copyWithBeats({
+    required String reframeKey,
+    required String reframeBody,
+    required String storyTitle,
+    required List<String> storyBeats,
+    required String storySource,
+    required String takeaway,
+  }) =>
+      SavedReflection(
+        id: id,
+        date: date,
+        userText: userText,
+        name: name,
+        nameArabic: nameArabic,
+        reframePreview: reframePreview,
+        reframe: reframe,
+        story: story,
+        verses: verses,
+        duaArabic: duaArabic,
+        duaTransliteration: duaTransliteration,
+        duaTranslation: duaTranslation,
+        duaSource: duaSource,
+        relatedNames: relatedNames,
+        reframeKey: reframeKey,
+        reframeBody: reframeBody,
+        storyTitle: storyTitle,
+        storyBeats: storyBeats,
+        storySource: storySource,
+        takeaway: takeaway,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -139,31 +248,34 @@ class SavedReflection {
         'duaTranslation': duaTranslation,
         'duaSource': duaSource,
         'relatedNames': relatedNames,
+        'beatData': _beatData(),
       };
 
-  factory SavedReflection.fromJson(Map<String, dynamic> json) =>
-      SavedReflection(
-        id: json['id'] as String,
-        date: json['date'] as String,
-        userText: json['userText'] as String,
-        name: json['name'] as String,
-        nameArabic: json['nameArabic'] as String,
-        reframePreview: json['reframePreview'] as String,
-        reframe: json['reframe'] as String? ?? '',
-        story: json['story'] as String? ?? '',
-        verses: (json['verses'] as List<dynamic>?)
-                ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        duaArabic: json['duaArabic'] as String? ?? '',
-        duaTransliteration: json['duaTransliteration'] as String? ?? '',
-        duaTranslation: json['duaTranslation'] as String? ?? '',
-        duaSource: json['duaSource'] as String? ?? '',
-        relatedNames: (json['relatedNames'] as List<dynamic>?)
-                ?.map((e) => Map<String, String>.from(e as Map))
-                .toList() ??
-            [],
-      );
+  factory SavedReflection.fromJson(Map<String, dynamic> json) {
+    final base = SavedReflection(
+      id: json['id'] as String,
+      date: json['date'] as String,
+      userText: json['userText'] as String,
+      name: json['name'] as String,
+      nameArabic: json['nameArabic'] as String,
+      reframePreview: json['reframePreview'] as String,
+      reframe: json['reframe'] as String? ?? '',
+      story: json['story'] as String? ?? '',
+      verses: (json['verses'] as List<dynamic>?)
+              ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      duaArabic: json['duaArabic'] as String? ?? '',
+      duaTransliteration: json['duaTransliteration'] as String? ?? '',
+      duaTranslation: json['duaTranslation'] as String? ?? '',
+      duaSource: json['duaSource'] as String? ?? '',
+      relatedNames: (json['relatedNames'] as List<dynamic>?)
+              ?.map((e) => Map<String, String>.from(e as Map))
+              .toList() ??
+          [],
+    );
+    return _withBeatData(base, json['beatData']);
+  }
 
   /// Convert to Supabase row format.
   ///
@@ -197,32 +309,35 @@ class SavedReflection {
         'dua_source': _clampText(duaSource, _duaSourceMaxChars),
         'related_names':
             relatedNames.take(_relatedNamesMaxCount).toList(),
+        'beat_data': _beatData(),
       };
 
   /// Create from a Supabase row.
-  factory SavedReflection.fromSupabaseRow(Map<String, dynamic> row) =>
-      SavedReflection(
-        id: row['id'] as String? ?? _uuid.v4(),
-        date: row['saved_at'] as String? ?? '',
-        userText: row['user_text'] as String? ?? '',
-        name: row['name'] as String? ?? '',
-        nameArabic: row['name_arabic'] as String? ?? '',
-        reframePreview: row['reframe_preview'] as String? ?? '',
-        reframe: row['reframe'] as String? ?? '',
-        story: row['story'] as String? ?? '',
-        verses: (row['verses'] as List<dynamic>?)
-                ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        duaArabic: row['dua_arabic'] as String? ?? '',
-        duaTransliteration: row['dua_transliteration'] as String? ?? '',
-        duaTranslation: row['dua_translation'] as String? ?? '',
-        duaSource: row['dua_source'] as String? ?? '',
-        relatedNames: (row['related_names'] as List<dynamic>?)
-                ?.map((e) => Map<String, String>.from(e as Map))
-                .toList() ??
-            [],
-      );
+  factory SavedReflection.fromSupabaseRow(Map<String, dynamic> row) {
+    final base = SavedReflection(
+      id: row['id'] as String? ?? _uuid.v4(),
+      date: row['saved_at'] as String? ?? '',
+      userText: row['user_text'] as String? ?? '',
+      name: row['name'] as String? ?? '',
+      nameArabic: row['name_arabic'] as String? ?? '',
+      reframePreview: row['reframe_preview'] as String? ?? '',
+      reframe: row['reframe'] as String? ?? '',
+      story: row['story'] as String? ?? '',
+      verses: (row['verses'] as List<dynamic>?)
+              ?.map((e) => ReflectVerse.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      duaArabic: row['dua_arabic'] as String? ?? '',
+      duaTransliteration: row['dua_transliteration'] as String? ?? '',
+      duaTranslation: row['dua_translation'] as String? ?? '',
+      duaSource: row['dua_source'] as String? ?? '',
+      relatedNames: (row['related_names'] as List<dynamic>?)
+              ?.map((e) => Map<String, String>.from(e as Map))
+              .toList() ??
+          [],
+    );
+    return _withBeatData(base, row['beat_data']);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -771,6 +886,15 @@ class ReflectNotifier extends StateNotifier<ReflectState>
           _clampText(response.duaTranslation, _duaTranslationMaxChars),
       duaSource: _clampText(response.duaSource, _duaSourceMaxChars),
       relatedNames: clampedRelatedNames,
+      reframeKey: _clampText(response.reframeKey, _beatKeyMaxChars),
+      reframeBody: _clampText(response.reframeBody, _beatBodyMaxChars),
+      storyTitle: _clampText(response.storyTitle, _beatTitleMaxChars),
+      storyBeats: response.storyBeats
+          .take(_storyBeatsMaxCount)
+          .map((b) => _clampText(b, _beatLineMaxChars))
+          .toList(),
+      storySource: _clampText(response.storySource, _beatSourceMaxChars),
+      takeaway: _clampText(response.takeaway, _beatTakeawayMaxChars),
     );
 
     // P2-5 (ENG-REVIEW Finding 2): write to Supabase FIRST. With the new
@@ -783,10 +907,21 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     // (REVIEW Finding 1), so both writes see identical truncated values.
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
-      await supabaseSyncService.insertRow(
+      // Only commit to local state on a CONFIRMED server write. insertRow
+      // swallows errors and returns false; without this guard a server-rejected
+      // row (shape/length CHECK, RLS, transient 5xx) would still show as
+      // "saved" locally and then be silently dropped by a later sync — the exact
+      // phantom-entry the Supabase-first ordering is meant to prevent.
+      final ok = await supabaseSyncService.insertRow(
         'user_reflections',
         reflection.toSupabaseRow(userId),
       );
+      if (!ok) {
+        state = state.copyWith(
+          error: "Couldn't save your reflection. Please try again.",
+        );
+        return;
+      }
     }
 
     final updated = [reflection, ...state.savedReflections];

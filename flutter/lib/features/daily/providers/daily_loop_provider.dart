@@ -1075,6 +1075,21 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     state = state.copyWith(reflectStep: step);
   }
 
+  /// Completes the deeper flow in one step. The beat reveal flow owns per-beat
+  /// stepping now and calls this once at "Ameen" — so quest/economy hooks fire
+  /// exactly once. Mirrors the old [advanceReflectStep] step-3 branch:
+  /// muḥāsabah is its own reward (no XP / tokens here), this only flips the
+  /// lifecycle to completed and persists.
+  Future<void> completeDeeper() async {
+    if (state.currentStep == DailyLoopStep.completed) return; // idempotent
+    state = state.copyWith(
+      deeperDone: true,
+      questDone: true,
+      currentStep: DailyLoopStep.completed,
+    );
+    await _persistTodayState();
+  }
+
   Future<void> advanceReflectStep() async {
     final current = state.reflectStep.clamp(1, 3); // step 0 is skipped
 

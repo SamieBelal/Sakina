@@ -28,6 +28,21 @@ abstract final class AnalyticsEvents {
   // trustworthy warm-start signal (app_opened only fires on cold start).
   static const checkInCompleted = 'check_in_completed';
   static const sessionStarted = 'session_started';
+
+  // Beat reveal flow (bite-sized reflection). `reflect_beat_advanced` fires on
+  // each forward advance; `reflect_flow_skipped` fires when the user taps "Skip
+  // to duʿa". Both segment where readers bail inside the flow — the redesign's
+  // whole point is completion of the read, so it must be instrumented.
+  //   reflect_beat_advanced props: surface, beat_index, beat_kind
+  //   reflect_flow_skipped  props: surface, from_beat_index
+  static const reflectBeatAdvanced = 'reflect_beat_advanced';
+  static const reflectFlowSkipped = 'reflect_flow_skipped';
+  static const propSurface = 'surface';
+  static const propBeatIndex = 'beat_index';
+  static const propBeatKind = 'beat_kind';
+  static const propFromBeatIndex = 'from_beat_index';
+  static const surfaceMuhasabah = 'muhasabah';
+  static const surfaceReflect = 'reflect';
   // Re-engagement: fired when a user taps a push notification (client). Pairs
   // with a future server-side `notification_sent` to compute push CTR and
   // notification→session lift.

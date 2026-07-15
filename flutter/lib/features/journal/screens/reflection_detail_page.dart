@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/journal/widgets/chunked_section_view.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/widgets/confirm_delete_dialog.dart';
 import 'package:sakina/widgets/share_card.dart';
@@ -17,7 +18,10 @@ class ReflectionDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasFullData = reflection.reframe.isNotEmpty;
+    final hasReflectionBody = reflection.hasBeats ||
+        reflection.reframe.isNotEmpty ||
+        reflection.story.isNotEmpty ||
+        reflection.duaArabic.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -231,39 +235,25 @@ class ReflectionDetailPage extends StatelessWidget {
                         .fadeIn(duration: 600.ms)
                         .slideY(begin: 0.05, end: 0, duration: 600.ms),
 
-                    if (hasFullData) ...[
-                      const SizedBox(height: 24),
-                      // Reflection section
-                      _sectionCard(
-                        label: 'Reflection',
-                        content: reflection.reframe,
-                        delay: 200,
-                      ),
+                    if (hasReflectionBody) ...[
+                      const SizedBox(height: 32),
+                      // Cardless, typographic chunked layout (spec §4).
+                      // Renders structured beats when present, falls back to
+                      // splitIntoBeats(reframe/story) for legacy entries.
+                      ChunkedSectionView(reflection: reflection)
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 200.ms)
+                          .slideY(begin: 0.03, end: 0, duration: 600.ms, delay: 200.ms),
                       if (reflection.verses.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _verseCard(delay: 300),
-                      ],
-                      const SizedBox(height: 16),
-                      // Story section
-                      if (reflection.story.isNotEmpty)
-                        _sectionCard(
-                          label: 'A Prophetic Story',
-                          content: reflection.story,
-                          delay: 400,
-                        ),
-                      if (reflection.duaArabic.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        // Dua section
-                        _duaCard(delay: 600),
+                        const SizedBox(height: 32),
+                        _verses(delay: 300),
                       ],
                     ] else ...[
-                      const SizedBox(height: 24),
-                      // Fallback for old reflections without full data
-                      _sectionCard(
-                        label: 'Reflection',
-                        content: reflection.reframePreview,
-                        delay: 200,
-                      ),
+                      const SizedBox(height: 32),
+                      // Legacy entries with only a preview string.
+                      ChunkedSectionView(reflection: reflection)
+                          .animate()
+                          .fadeIn(duration: 600.ms, delay: 200.ms),
                     ],
                     const SizedBox(height: 32),
                   ],
@@ -276,221 +266,72 @@ class ReflectionDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _sectionCard(
-      {required String label, required String content, int delay = 0}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+  /// Cardless Quran verse block: gold accent bar above a small label, then each
+  /// verse as Arabic (RTL) + translation + reference, separated by whitespace.
+  Widget _verses({int delay = 0}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 3,
+          decoration: BoxDecoration(
+            color: AppColors.secondary,
+            borderRadius: BorderRadius.circular(2),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: AppTypography.labelMedium
-                    .copyWith(color: AppColors.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            content,
-            style: AppTypography.bodyLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              height: 1.6,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Quran',
+          style:
+              AppTypography.labelMedium.copyWith(color: AppColors.primary),
+          textDirection: TextDirection.ltr,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        ...List.generate(reflection.verses.length, (index) {
+          final verse = reflection.verses[index];
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom:
+                  index == reflection.verses.length - 1 ? 0 : AppSpacing.lg,
             ),
-          ),
-        ],
-      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  verse.arabic,
+                  style: AppTypography.quranArabic.copyWith(fontSize: 24),
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  verse.translation,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontStyle: FontStyle.italic,
+                    height: 1.6,
+                  ),
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  verse.reference,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textTertiaryLight,
+                  ),
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     )
         .animate()
         .fadeIn(duration: 600.ms, delay: delay.ms)
-        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
-  }
-
-  Widget _duaCard({int delay = 0}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withValues(alpha: 0.12),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Dua',
-                style: AppTypography.labelMedium
-                    .copyWith(color: AppColors.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: Text(
-              reflection.duaArabic,
-              style: AppTypography.quranArabic,
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: AppColors.dividerLight),
-          const SizedBox(height: 16),
-          Text(
-            reflection.duaTransliteration,
-            style: AppTypography.bodyMedium.copyWith(
-              fontStyle: FontStyle.italic,
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            reflection.duaTranslation,
-            style: AppTypography.bodyLarge.copyWith(
-              color: AppColors.textPrimaryLight,
-              height: 1.6,
-            ),
-          ),
-          if (reflection.duaSource.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              reflection.duaSource,
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.textTertiaryLight),
-            ),
-          ],
-        ],
-      ),
-    )
-        .animate()
-        .fadeIn(duration: 600.ms, delay: delay.ms)
-        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
-  }
-
-  Widget _verseCard({int delay = 0}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: AppColors.secondary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Quran Verse',
-                style: AppTypography.labelMedium
-                    .copyWith(color: AppColors.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...List.generate(reflection.verses.length, (index) {
-            final verse = reflection.verses[index];
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index == reflection.verses.length - 1 ? 0 : 20,
-              ),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      verse.arabic,
-                      style: AppTypography.quranArabic.copyWith(fontSize: 24),
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    verse.translation,
-                    style: AppTypography.bodyLarge.copyWith(
-                      color: AppColors.textPrimaryLight,
-                      fontStyle: FontStyle.italic,
-                      height: 1.6,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    verse.reference,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    )
-        .animate()
-        .fadeIn(duration: 600.ms, delay: delay.ms)
-        .slideY(begin: 0.05, end: 0, duration: 600.ms, delay: delay.ms);
+        .slideY(begin: 0.03, end: 0, duration: 600.ms, delay: delay.ms);
   }
 }

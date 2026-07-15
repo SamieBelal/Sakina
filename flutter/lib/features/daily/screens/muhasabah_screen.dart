@@ -14,8 +14,11 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/achievement_checker.dart';
-import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
@@ -45,9 +48,16 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// twice — same shape as the reflect/duas D-E5 race.
   bool _discoverInFlight = false;
 
+  /// Lifetime count of beat-flow advances (decision 4A). Null until loaded from
+  /// prefs; the first-run "tap to continue" hint shows while this is < 3 (or
+  /// whenever the guided tour is active — decision 10A). Bumped on first advance.
+  int? _hintAdvances;
+  static const String _hintAdvancesKey = 'beat_hint_advances';
+
   @override
   void initState() {
     super.initState();
+    _loadHintAdvances();
     // One-shot: if the user landed here with no check-in done yet today,
     // fire discoverName once. Every other state-change side effect is
     // dispatched from the ref.listen in build(); no other code path in
@@ -93,32 +103,110 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
     final state = ref.watch(dailyLoopProvider);
     final notifier = ref.read(dailyLoopProvider.notifier);
-    // Back button is only meaningful in the deeper-reflection flow on
-    // steps > 1 (step 0 is the gacha-overlay name, step 1 is the first
-    // card the user sees and has no prior step to return to).
-    final showBack = state.currentStep == DailyLoopStep.deeper &&
-        state.reflectStep > 1 &&
-        state.reflectResult != null &&
-        !state.checkinLoading &&
-        !state.reflectLoading;
+
+    // The deeper reflection runs full-screen on the emerald sacred canvas
+    // (BeatRevealFlow brings its own Scaffold + chrome + back handling). The
+    // canvas is entered the moment the user leaves the gacha, so the wait is
+    // part of the ritual — hence we branch on `deeper` even while loading.
+    if (state.currentStep == DailyLoopStep.deeper) {
+      return _buildBeatFlow(state, notifier);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                child: _buildContent(state, notifier),
-              ),
-            ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: _buildContent(state, notifier),
           ),
-          if (showBack)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 12,
-              left: 16,
-              child: _backButton(notifier),
-            ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadHintAdvances() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getInt(_hintAdvancesKey) ?? 0;
+      if (mounted) setState(() => _hintAdvances = v);
+    } catch (_) {
+      if (mounted) setState(() => _hintAdvances = 3); // fail safe: hide hint
+    }
+  }
+
+  Future<void> _bumpHintAdvances() async {
+    final current = _hintAdvances ?? 0;
+    if (current >= 3) return;
+    final next = current + 1;
+    if (mounted) setState(() => _hintAdvances = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_hintAdvancesKey, next);
+    } catch (_) {
+      // Non-critical.
+    }
+  }
+
+  Widget _buildBeatFlow(DailyLoopState state, DailyLoopNotifier notifier) {
+    final status = state.error != null
+        ? BeatFlowStatus.error
+        : state.reflectLoading || state.reflectResult == null
+            ? BeatFlowStatus.loading
+            : BeatFlowStatus.ready;
+
+    // Force the hint whenever the tour is active so the `readStoryCta` anchor
+    // (which wraps the hint) is present on every tour path, incl. resume — the
+    // anchor never times out for want of a target (decision 10A).
+    final tourActive =
+        ref.watch(onboardingTourControllerProvider.select((s) => s.isActive));
+    final showHint = tourActive || ((_hintAdvances ?? 3) < 3);
+
+    return BeatRevealFlow(
+      status: status,
+      response: state.reflectResult,
+      showFirstRunHint: showHint,
+      onFirstAdvance: _bumpHintAdvances,
+      onAmeen: () {
+        HapticFeedback.mediumImpact();
+        final tieredUp = state.cardEngageResult?.tierChanged == true;
+        final qn = ref.read(questsProvider.notifier);
+        qn.onMuhasabahCompleted();
+        qn.onNameDiscovered();
+        if (tieredUp) qn.onCardTieredUp();
+        notifier.completeDeeper();
+      },
+      onReturnHome: () {
+        if (mounted) context.go('/');
+      },
+      onRetry: () => notifier.startDeeper(),
+      onBeatAdvanced: (index, kind) {
+        DailyLoopNotifier.onAnalyticsEvent?.call(
+          AnalyticsEvents.reflectBeatAdvanced,
+          {
+            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceMuhasabah,
+            AnalyticsEvents.propBeatIndex: index,
+            AnalyticsEvents.propBeatKind: kind.name,
+          },
+        );
+      },
+      onSkip: (from) {
+        DailyLoopNotifier.onAnalyticsEvent?.call(
+          AnalyticsEvents.reflectFlowSkipped,
+          {
+            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceMuhasabah,
+            AnalyticsEvents.propFromBeatIndex: from,
+          },
+        );
+      },
+      readStoryAnchorBuilder: (child) => TourAnchor(
+        surface: TourSurface.muhasabah,
+        anchorId: 'readStoryCta',
+        child: child,
+      ),
+      ameenAnchorBuilder: (child) => TourAnchor(
+        surface: TourSurface.muhasabah,
+        anchorId: 'ameenCta',
+        child: child,
       ),
     );
   }
@@ -185,10 +273,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (state.currentStep == DailyLoopStep.completed) {
       return _buildCompleted(state);
     }
-    if (state.currentStep == DailyLoopStep.deeper &&
-        state.reflectResult != null) {
-      return _buildDeeper(state, notifier);
-    }
+    // Deeper reflection is handled full-screen in build() via _buildBeatFlow.
     if (state.checkinDone && state.checkinName != null) {
       return _buildCheckinResult(state, notifier);
     }
@@ -355,316 +440,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         ],
       ),
     );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DEEPER REFLECTION (step-by-step)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Widget _buildDeeper(DailyLoopState state, DailyLoopNotifier notifier) {
-    final result = state.reflectResult!;
-    final step = state.reflectStep;
-
-    final (
-      String headerLabel,
-      Widget content,
-      String buttonLabel,
-      bool isAmeen
-    ) = switch (step) {
-      0 => (
-          'A Name for your heart',
-          _nameContent(result),
-          'See Reflection',
-          false
-        ),
-      1 => (
-          'Reflection',
-          _textContent(result.reframe),
-          'Read the Story',
-          false
-        ),
-      2 => (
-          'A Prophetic Story',
-          _textContent(result.story),
-          'See the Dua',
-          false
-        ),
-      _ => ('Dua', _duaContent(result), 'Ameen', true),
-    };
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      child: KeyedSubtree(
-        key: ValueKey(step),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.pagePadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: _sparkleRow()),
-              const SizedBox(height: 16),
-              // Card container
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header with gold accent bar
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ).animate().scaleY(
-                            begin: 0,
-                            end: 1,
-                            duration: 300.ms,
-                            delay: 200.ms,
-                            curve: Curves.easeOut),
-                        const SizedBox(width: 8),
-                        Text(
-                          headerLabel,
-                          style: AppTypography.labelMedium
-                              .copyWith(color: AppColors.primary),
-                        ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    // Content
-                    content.animate().fadeIn(duration: 600.ms, delay: 300.ms),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              // Button
-              if (isAmeen)
-                TourAnchor(
-                  surface: TourSurface.muhasabah,
-                  anchorId: 'ameenCta',
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      final tieredUp =
-                          state.cardEngageResult?.tierChanged == true;
-                      notifier.advanceReflectStep();
-                      final qn = ref.read(questsProvider.notifier);
-                      qn.onMuhasabahCompleted();
-                      // Every Muhasabah pulls a card → mark as a discovery.
-                      qn.onNameDiscovered();
-                      if (tieredUp) qn.onCardTieredUp();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: 56,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(100),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        'Ameen',
-                        style: AppTypography.headlineMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                    .animate()
-                    .fadeIn(duration: 500.ms, delay: 500.ms)
-                    .slideY(begin: 0.1, end: 0, duration: 500.ms, delay: 500.ms)
-              else
-                Builder(builder: (context) {
-                  // Only the step-1 "Read the Story" button is a tour anchor.
-                  // Step 0 ("See Reflection") and step 2 ("See the Dua") are
-                  // intentionally NOT wrapped — see tour step list.
-                  final isReadStory = step == 1;
-                  final button = GestureDetector(
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      notifier.advanceReflectStep();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.buttonRadius),
-                      ),
-                      child: Text(
-                        buttonLabel,
-                        style: AppTypography.labelLarge
-                            .copyWith(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                  final wrapped = isReadStory
-                      ? TourAnchor(
-                          surface: TourSurface.muhasabah,
-                          anchorId: 'readStoryCta',
-                          child: button,
-                        )
-                      : button;
-                  return wrapped.animate().fadeIn(
-                      duration: 400.ms, delay: 500.ms);
-                }),
-            ],
-          ),
-        )
-            .animate()
-            .fadeIn(duration: 600.ms)
-            .slideY(begin: 0.05, end: 0, duration: 600.ms),
-      ),
-    );
-  }
-
-  Widget _nameContent(ReflectResponse result) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-      ),
-      child: Column(
-        children: [
-          Text(
-            result.nameArabic,
-            style: AppTypography.nameOfAllahDisplay.copyWith(
-              color: AppColors.primary,
-              fontSize: 40,
-            ),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(duration: 800.ms).scaleXY(
-              begin: 0.85,
-              end: 1.0,
-              duration: 800.ms,
-              curve: Curves.easeOutBack),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            result.name,
-            style:
-                AppTypography.headlineMedium.copyWith(color: AppColors.primary),
-            textAlign: TextAlign.center,
-          ).animate().fadeIn(duration: 500.ms, delay: 300.ms),
-        ],
-      ),
-    );
-  }
-
-  Widget _textContent(String text) {
-    return Text(
-      text,
-      style: AppTypography.bodyLarge.copyWith(
-        color: AppColors.textPrimaryLight,
-        height: 1.6,
-      ),
-    );
-  }
-
-  Widget _duaContent(ReflectResponse result) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: Text(
-            result.duaArabic,
-            style: AppTypography.quranArabic,
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.center,
-          ),
-        ).animate().fadeIn(duration: 800.ms, delay: 200.ms).scaleXY(
-            begin: 0.9,
-            end: 1.0,
-            duration: 800.ms,
-            delay: 200.ms,
-            curve: Curves.easeOutBack),
-        const SizedBox(height: AppSpacing.md),
-        const Divider(color: AppColors.dividerLight),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          result.duaTransliteration,
-          style: AppTypography.bodyMedium.copyWith(
-            fontStyle: FontStyle.italic,
-            color: AppColors.textSecondaryLight,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          result.duaTranslation,
-          style: AppTypography.bodyLarge.copyWith(
-            color: AppColors.textPrimaryLight,
-            height: 1.6,
-          ),
-        ),
-        if (result.duaSource.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            result.duaSource,
-            style: AppTypography.bodySmall
-                .copyWith(color: AppColors.textTertiaryLight),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _backButton(DailyLoopNotifier notifier) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        // startDeeper() lands the user on step 1 (skipping step 0, which is
-        // the name-display the user just saw in the gacha overlay). Block
-        // navigating back into step 0 — there's no value re-showing the
-        // name, and the rendering path assumes reflectResult is non-null.
-        final current = ref.read(dailyLoopProvider).reflectStep;
-        if (current > 1) {
-          notifier.setReflectStep(current - 1);
-        }
-      },
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.surfaceLight,
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: const Icon(
-          Icons.arrow_back_rounded,
-          size: 18,
-          color: AppColors.textSecondaryLight,
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
