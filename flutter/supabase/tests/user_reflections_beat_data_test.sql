@@ -54,7 +54,7 @@ begin
        reframe, story, verses, dua_arabic, dua_transliteration, dua_translation,
        dua_source, related_names, beat_data)
     values
-      (gen_random_uuid(), current_setting('test.uid')::uuid, now()::text,
+      (gen_random_uuid(), current_setting('test.uid')::uuid, now(),
        'u', 'Al-Lateef', 'اللطيف', 'p', 'r', 's', '[]'::jsonb,
        '', '', '', '', '[]'::jsonb, p_beat);
   exception when others then
@@ -97,6 +97,30 @@ select pg_temp.expect(
 select pg_temp.expect(
   NOT pg_temp.try_insert_beat('"a string"'::jsonb),
   'non-object beat_data rejected');
+
+-- TEST 7: oversized storyBeats ELEMENT rejected (the per-element loop branch).
+select pg_temp.expect(
+  NOT pg_temp.try_insert_beat(jsonb_build_object(
+    'storyBeats', jsonb_build_array(repeat('x', 501)))),
+  'oversized storyBeats element rejected');
+
+-- TEST 8: non-string storyBeats element rejected.
+select pg_temp.expect(
+  NOT pg_temp.try_insert_beat(jsonb_build_object(
+    'storyBeats', jsonb_build_array(42))),
+  'non-string storyBeats element rejected');
+
+-- TEST 9: unknown key rejected (hardening migration 20260715000000).
+select pg_temp.expect(
+  NOT pg_temp.try_insert_beat(jsonb_build_object(
+    'reframeKey', 'ok', 'evil', 'x')),
+  'unknown beat_data key rejected');
+
+-- TEST 10: oversized blob rejected via the total-size cap (hardening migration).
+-- The size-cap check runs first, so a >8KB value is rejected there.
+select pg_temp.expect(
+  NOT pg_temp.try_insert_beat(jsonb_build_object('reframeKey', repeat('x', 9000))),
+  'oversized beat_data blob rejected by size cap');
 
 -- Report.
 do $$

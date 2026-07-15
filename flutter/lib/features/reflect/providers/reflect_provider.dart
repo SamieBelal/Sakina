@@ -190,8 +190,11 @@ class SavedReflection {
       reframeKey: m['reframeKey'] as String? ?? '',
       reframeBody: m['reframeBody'] as String? ?? '',
       storyTitle: m['storyTitle'] as String? ?? '',
+      // Defensive: one malformed element (null / non-string from a corrupted
+      // cache or legacy row) must not throw and wipe the whole journal cache.
       storyBeats: (m['storyBeats'] as List<dynamic>?)
-              ?.map((e) => e as String)
+              ?.map((e) => e?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
               .toList() ??
           const [],
       storySource: m['storySource'] as String? ?? '',
@@ -904,10 +907,21 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     // (REVIEW Finding 1), so both writes see identical truncated values.
     final userId = supabaseSyncService.currentUserId;
     if (userId != null) {
-      await supabaseSyncService.insertRow(
+      // Only commit to local state on a CONFIRMED server write. insertRow
+      // swallows errors and returns false; without this guard a server-rejected
+      // row (shape/length CHECK, RLS, transient 5xx) would still show as
+      // "saved" locally and then be silently dropped by a later sync — the exact
+      // phantom-entry the Supabase-first ordering is meant to prevent.
+      final ok = await supabaseSyncService.insertRow(
         'user_reflections',
         reflection.toSupabaseRow(userId),
       );
+      if (!ok) {
+        state = state.copyWith(
+          error: "Couldn't save your reflection. Please try again.",
+        );
+        return;
+      }
     }
 
     final updated = [reflection, ...state.savedReflections];
