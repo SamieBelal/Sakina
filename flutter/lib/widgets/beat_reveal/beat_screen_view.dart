@@ -51,7 +51,7 @@ class BeatScreenView extends StatelessWidget {
         return Text(
           screen.primary,
           style: AppTypography.bodyLarge
-              .copyWith(color: AppColors.sacredInk, height: 1.6, fontSize: 18),
+              .copyWith(color: AppColors.sacredInk, height: 1.55, fontSize: 22),
         );
 
       case BeatKind.story:
@@ -73,8 +73,8 @@ class BeatScreenView extends StatelessWidget {
               screen.primary,
               style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.sacredInk,
-                height: 1.65,
-                fontSize: 18,
+                height: 1.6,
+                fontSize: 22,
               ),
             ),
             if (screen.source.isNotEmpty) ...[
@@ -110,7 +110,8 @@ class BeatScreenView extends StatelessWidget {
               screen.label, // translation
               style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.sacredInk,
-                height: 1.6,
+                height: 1.55,
+                fontSize: 20,
               ),
               textAlign: TextAlign.center,
               textDirection: TextDirection.ltr,
