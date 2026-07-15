@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/immersive_mode_provider.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/duas/widgets/built_dua_ameen_screen.dart';
@@ -111,6 +112,10 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     } catch (_) {
       // Container already torn down (app shutdown) — nothing to reset.
     }
+    // Defensively clear immersive mode so the bottom nav can never stay hidden.
+    try {
+      ref.read(immersiveModeProvider.notifier).state = false;
+    } catch (_) {}
     for (final c in _rippleControllers) {
       c.dispose();
     }
@@ -202,6 +207,17 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
     } else {
       _stopRipple();
     }
+
+    // Hide the bottom nav while the Build-a-Dua emerald canvas is on-screen
+    // (the section viewer + Ameen screen, i.e. whenever a build result exists)
+    // so it's truly full-screen like the reflect flow. Self-healing: cleared
+    // the moment the flow ends.
+    final inCanvas = state.buildResult != null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final n = ref.read(immersiveModeProvider.notifier);
+      if (n.state != inCanvas) n.state = inCanvas;
+    });
 
     return GestureDetector(
       onTap: () => dismissKeyboard(context),
