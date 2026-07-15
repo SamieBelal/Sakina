@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -134,6 +135,181 @@ Future<void> _defaultShareReflectionCard({
       ),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Takeaway share — the beat flow's quotable moment, on the emerald canvas
+// ---------------------------------------------------------------------------
+
+/// Signature of [shareTakeawayCard]. Exposed so tests can inject a throwing
+/// fake (mirrors [ShareReflectionFn]).
+typedef ShareTakeawayFn = Future<void> Function({
+  required BuildContext context,
+  required String nameArabic,
+  required String nameEnglish,
+  required String reframeKey,
+  required String takeaway,
+  Rect? sharePositionOrigin,
+});
+
+ShareTakeawayFn shareTakeawayCard = _defaultShareTakeawayCard;
+
+Future<void> _defaultShareTakeawayCard({
+  required BuildContext context,
+  required String nameArabic,
+  required String nameEnglish,
+  required String reframeKey,
+  required String takeaway,
+  Rect? sharePositionOrigin,
+}) async {
+  Widget card(bool preview) => TakeawayShareCard(
+        nameArabic: nameArabic,
+        nameEnglish: nameEnglish,
+        reframeKey: reframeKey,
+        takeaway: takeaway,
+        preview: preview,
+      );
+
+  if (kIsWeb) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SingleChildScrollView(child: card(true)),
+        ),
+      ),
+    );
+    return;
+  }
+
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => _SharePreviewScreen(
+        shareText: 'A reflection on $nameEnglish — from Sakina',
+        fileName: 'sakina_reflection.png',
+        cardBuilder: card,
+      ),
+    ),
+  );
+}
+
+/// The emerald "sacred canvas" share card — Name + key line + takeaway. Cream
+/// type on the canvas gradient; gold is a non-text accent only (contrast rule).
+class TakeawayShareCard extends StatelessWidget {
+  const TakeawayShareCard({
+    required this.nameArabic,
+    required this.nameEnglish,
+    required this.reframeKey,
+    required this.takeaway,
+    this.preview = false,
+    super.key,
+  });
+
+  final String nameArabic;
+  final String nameEnglish;
+  final String reframeKey;
+  final String takeaway;
+  final bool preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final double w = preview ? 380 : 1080;
+    final double pad = preview ? 32 : 88;
+    final double padV = preview ? 40 : 104;
+    final double brandSize = preview ? 11 : 16;
+    final double arabicSize = preview ? 46 : 96;
+    final double englishSize = preview ? 16 : 28;
+    final double keySize = preview ? 24 : 46;
+    final double takeawaySize = preview ? 15 : 26;
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: w,
+        padding: EdgeInsets.symmetric(horizontal: pad, vertical: padV),
+        decoration: const BoxDecoration(
+          gradient: AppColors.sacredCanvasGradient,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'SAKINA',
+              style: AppTypography.labelLarge.copyWith(
+                fontSize: brandSize,
+                color: AppColors.sacredInk.withValues(alpha: 0.7),
+                letterSpacing: 6,
+              ),
+            ),
+            SizedBox(height: preview ? 28 : 68),
+            Text(
+              nameArabic,
+              style: AppTypography.nameOfAllahDisplay.copyWith(
+                fontSize: arabicSize,
+                color: AppColors.secondary, // gold: non-text-critical accent
+              ),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: preview ? 6 : 12),
+            Text(
+              nameEnglish,
+              style: AppTypography.headlineLarge.copyWith(
+                fontSize: englishSize,
+                color: AppColors.sacredInk,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: preview ? 28 : 64),
+            Container(
+              width: preview ? 40 : 80,
+              height: 3,
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: preview ? 24 : 56),
+            if (reframeKey.trim().isNotEmpty) ...[
+              Text(
+                reframeKey,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: keySize,
+                  height: 1.32,
+                  color: AppColors.sacredInk,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: preview ? 24 : 56),
+            ],
+            if (takeaway.trim().isNotEmpty)
+              Text(
+                takeaway,
+                style: GoogleFonts.dmSerifDisplay(
+                  fontSize: takeawaySize,
+                  height: 1.4,
+                  color: AppColors.sacredInk.withValues(alpha: 0.85),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            SizedBox(height: preview ? 32 : 72),
+            Container(
+              width: preview ? 24 : 40,
+              height: 3,
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

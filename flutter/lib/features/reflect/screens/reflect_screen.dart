@@ -225,20 +225,32 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
     if (result == null) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      // Reuses the existing capture/share-sheet pipeline. A dedicated emerald
-      // takeaway-card composition (decision 20A) is a follow-up.
-      await shareReflectionCard(
-        context: context,
-        nameArabic: result.nameArabic,
-        nameEnglish: result.name,
-        verses: result.verses,
-        duaArabic: result.duaArabic,
-        duaTransliteration: result.duaTransliteration,
-        duaTranslation: result.duaTranslation,
-        duaSource: result.duaSource,
-        reframe: result.reframe,
-        story: result.story,
-      );
+      // The takeaway beat's share icon exports the emerald takeaway card
+      // (decision 20A): Name + key line + takeaway. Legacy responses without
+      // beats fall back to the existing reflection card.
+      if (result.hasBeats &&
+          (result.reframeKey.isNotEmpty || result.takeaway.isNotEmpty)) {
+        await shareTakeawayCard(
+          context: context,
+          nameArabic: result.nameArabic,
+          nameEnglish: result.name,
+          reframeKey: result.reframeKey,
+          takeaway: result.takeaway,
+        );
+      } else {
+        await shareReflectionCard(
+          context: context,
+          nameArabic: result.nameArabic,
+          nameEnglish: result.name,
+          verses: result.verses,
+          duaArabic: result.duaArabic,
+          duaTransliteration: result.duaTransliteration,
+          duaTranslation: result.duaTranslation,
+          duaSource: result.duaSource,
+          reframe: result.reframe,
+          story: result.story,
+        );
+      }
     } catch (e) {
       debugPrint('[SHARE ERROR] $e');
       showShareErrorSnackBar(messenger);
