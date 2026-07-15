@@ -2,6 +2,19 @@
 
 Deferred work — not blocking the current iOS submission, but needed before specific future milestones. Each item names its trigger so it's clear when it becomes urgent.
 
+## Home-screen widget: App Group + extension provisioning
+
+**Trigger:** before any iOS build once `feat/home-screen-widget` merges (the widget
+extension target is added in Xcode — see `ios/SakinaWidget/SETUP.md`).
+
+Adding the `SakinaWidget` WidgetKit extension introduces a **second bundle ID**
+(`…Runner.SakinaWidget`) and requires the **App Group** `group.com.sakina.app.widget`
+enabled on **both** App IDs, plus a provisioning profile for the extension.
+`flutter build ios --release` will fail until both profiles exist. With automatic
+signing Xcode handles this; for manual signing, regenerate both profiles in the
+Apple Developer portal. Also bundle the font TTFs into the extension target (§4 of
+SETUP.md) — the app's runtime `google_fonts` are invisible to the widget process.
+
 ## Android release signing
 
 **Trigger:** before any Play Store submission (internal track, beta, or production). Not needed for iOS-only releases.
@@ -165,3 +178,24 @@ the edge function (server-only; NO App Store update needed). Then production
 cancellations fire the push → deep link → survey.
 
 **Surfaced by:** Physical-device Test 3 setup, 2026-05-31.
+
+## Formalize the design system: /design-consultation → DESIGN.md
+
+**What:** Run `/design-consultation` and capture the result as a repo `DESIGN.md`:
+palette (incl. the new `sacredCanvas*` token block), typography stack, spacing
+philosophy, motion vocabulary (beat-advance transition), and the on-canvas rules
+("gold is a non-text accent only — it fails 4.5:1 contrast on emerald"; "cream
+`sacredInk` for functional text").
+
+**Why:** The 2026-07-14 bite-sized-AI-text design review had to derive the system
+from CLAUDE.md prose + one mockup. The sacred canvas is the app's second surface
+identity — the point where undocumented systems start drifting (the next emerald
+becomes `#1A6B4B`).
+
+**Trigger:** Before designing the next net-new surface (widget, gift moment,
+onboarding refresh) — or whenever a second contributor starts doing UI work.
+
+**Depends on / blocked by:** Nothing. Cross-link DESIGN.md from CLAUDE.md's design
+section so the two don't drift.
+
+**Surfaced by:** `/plan-design-review` of the bite-sized-AI-text spec, 2026-07-14.

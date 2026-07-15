@@ -18,6 +18,7 @@ import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
 import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
+import 'package:sakina/features/widget_promo/widgets/widget_install_nudge_card.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -305,6 +306,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //     card leaves zero dead space). Re-adds the referral loop the
               //     hard paywall removed, on the welcome side of the wall.
               const ReferralNudgeCard(),
+
+              // 2c. Add-the-widget nudge — shown once the user has a streak
+              //     (they've felt the loop), until dismissed. Adoption is the
+              //     gating factor for widget retention. Self-collapses like the
+              //     referral card, so no spacer needed here.
+              const WidgetInstallNudgeCard(),
 
               // 3. Unified dashboard card
               _buildDashboardCard(state, hero),

@@ -13,6 +13,10 @@ abstract final class AppColors {
 
   static const secondary = Color(0xFFC8985E);
   static const secondaryLight = Color(0xFFF5EBD9);
+  // Gold for TEXT on cream: bright secondary (#C8985E) is ~2.2:1 on #FBF7F2 and
+  // fails WCAG 4.5:1. Use this darker gold-ink for kickers/labels; keep
+  // `secondary` for fills (pills, accents). See widget design review 2026-07-14.
+  static const goldInk = Color(0xFF9A6F37);
 
   static const textPrimaryLight = Color(0xFF1A1A2E);
   static const textSecondaryLight = Color(0xFF6B7280);

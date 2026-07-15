@@ -18,7 +18,10 @@ import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
 import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
+import 'core/widget_deep_link.dart';
 import 'services/analytics_events.dart';
+import 'services/widget_analytics.dart';
+import 'services/widget_data_service.dart';
 import 'services/analytics_provider.dart';
 import 'services/analytics_service.dart';
 import 'services/app_config_service.dart';
@@ -103,6 +106,11 @@ Future<void> _persistReferralFromUri(Uri uri) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register the App Group so home-screen widget writes land in the shared
+  // container the iOS WidgetKit extension reads. No-op on platforms without a
+  // widget. Must run before any widgetDataService write.
+  await widgetDataService.initialize();
 
   // Capture any inbound referral deep link BEFORE further init so the
   // pending_referral prefs key is committed by the time the signup flow runs.
@@ -282,6 +290,14 @@ Future<void> main() async {
       (event, props) => analytics.track(event, properties: props);
   StreakAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
+  // Home-screen widget telemetry: `widget_opened` (taps → app) from the
+  // deep-link handler, and `widget_installed_state` (adoption snapshot) from
+  // the sync path. Neither has Riverpod access, so they bridge through these
+  // static hooks like the rest.
+  WidgetDeepLinkHandler.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  widgetAnalyticsHook =
+      (event, props) => analytics.track(event, properties: props);
   // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
   // sign-out so a shared/QA device doesn't bleed one user's identity into the
   // next. AppSessionNotifier has no Riverpod access, so it calls this static
@@ -309,10 +325,33 @@ Future<void> main() async {
   );
 }
 
-class SakinaApp extends StatelessWidget {
+class SakinaApp extends StatefulWidget {
   const SakinaApp({required this.appSession, super.key});
 
   final AppSessionNotifier appSession;
+
+  @override
+  State<SakinaApp> createState() => _SakinaAppState();
+}
+
+class _SakinaAppState extends State<SakinaApp> {
+  // Build the router once (not per-build) so it survives rebuilds.
+  late final _router = buildRouter(appSession: widget.appSession);
+
+  // Routes home-screen widget taps into the app (cold + warm). Spec §10.3.
+  final WidgetDeepLinkHandler _widgetLinks = WidgetDeepLinkHandler();
+
+  @override
+  void initState() {
+    super.initState();
+    _widgetLinks.start();
+  }
+
+  @override
+  void dispose() {
+    _widgetLinks.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -322,7 +361,7 @@ class SakinaApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.light,
-      routerConfig: buildRouter(appSession: appSession),
+      routerConfig: _router,
       builder: (context, child) => Column(
         children: [
           const BillingIssueBanner(),

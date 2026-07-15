@@ -809,3 +809,40 @@ AllahName getTodaysName() {
   final dayOfYear = now.difference(startOfYear).inDays;
   return allahNames[dayOfYear % allahNames.length];
 }
+
+/// `allahNames` transliteration variants → the `name_anchors` snapshot key.
+/// The snapshot/catalog use short-vowel romanizations (`ar-rahim`), but several
+/// `allahNames` transliterations use long vowels (`Ar-Raheem`). This is the ONE
+/// canonical override table — `scripts/gen_widget_catalog.dart` imports and uses
+/// [widgetNameKeyFor] too, so the generator, the runtime anchor lookup
+/// (`WidgetAnchorCatalog.anchorFor`), and the deep-link `name_key` can never
+/// disagree.
+const Map<String, String> widgetNameKeyOverrides = {
+  'ar-raheem': 'ar-rahim',
+  'al-hakeem': 'al-hakim',
+  'al-kareem': 'al-karim',
+  'al-wakeel': 'al-wakil',
+  'al-lateef': 'al-latif',
+  'al-mujeeb': 'al-mujib',
+  'al-baseer': 'al-basir',
+  'al-khabeer': 'al-khabir',
+  'ash-shaheed': 'ash-shahid',
+  'al-qawiyy': 'al-qawi',
+  'al-mateen': 'al-matin',
+};
+
+/// Canonical snapshot/catalog key for [name] — used as the widget's daily-Name
+/// catalog key, the personalized-payload anchor lookup key, and the deep-link
+/// `name_key`. Applies [widgetNameKeyOverrides] so it matches the committed
+/// `name_anchors` snapshot for every Name.
+///
+/// The AUTHORITATIVE app↔widget daily-Name catalog is generated at build time
+/// from THIS same `allahNames` list (spec §10.1), so the widget's offline daily
+/// fallback indexes `dayOfYear % 98` into an identically-ordered catalog.
+String widgetNameKeyFor(AllahName name) {
+  final base = name.transliteration
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  return widgetNameKeyOverrides[base] ?? base;
+}

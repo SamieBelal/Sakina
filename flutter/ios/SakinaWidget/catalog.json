@@ -1,0 +1,790 @@
+{
+  "version": 1,
+  "count": 98,
+  "names": [
+    {
+      "index": 0,
+      "name_key": "ar-rahman",
+      "arabic": "الرَّحْمَنُ",
+      "transliteration": "Ar-Rahman",
+      "english": "The Most Gracious",
+      "anchor": "You are held by infinite mercy."
+    },
+    {
+      "index": 1,
+      "name_key": "ar-rahim",
+      "arabic": "الرَّحِيمُ",
+      "transliteration": "Ar-Raheem",
+      "english": "The Most Merciful",
+      "anchor": "You are intimately, personally loved."
+    },
+    {
+      "index": 2,
+      "name_key": "al-malik",
+      "arabic": "الْمَلِكُ",
+      "transliteration": "Al-Malik",
+      "english": "The King",
+      "anchor": "He is sovereign over what feels out of your hands."
+    },
+    {
+      "index": 3,
+      "name_key": "al-quddus",
+      "arabic": "الْقُدُّوسُ",
+      "transliteration": "Al-Quddus",
+      "english": "The Most Holy",
+      "anchor": "There is a purity available to your heart."
+    },
+    {
+      "index": 4,
+      "name_key": "as-salam",
+      "arabic": "السَّلَامُ",
+      "transliteration": "As-Salam",
+      "english": "The Source of Peace",
+      "anchor": "Peace is a person you can return to."
+    },
+    {
+      "index": 5,
+      "name_key": "al-mumin",
+      "arabic": "الْمُؤْمِنُ",
+      "transliteration": "Al-Mumin",
+      "english": "The Guardian of Faith",
+      "anchor": "He is the source of every safety you have ever felt."
+    },
+    {
+      "index": 6,
+      "name_key": "al-azeez",
+      "arabic": "الْعَزِيزُ",
+      "transliteration": "Al-Azeez",
+      "english": "The Almighty",
+      "anchor": "He cannot be overcome — and neither can what He holds."
+    },
+    {
+      "index": 7,
+      "name_key": "al-jabbar",
+      "arabic": "الْجَبَّارُ",
+      "transliteration": "Al-Jabbar",
+      "english": "The Compeller",
+      "anchor": "He mends what has been broken in you."
+    },
+    {
+      "index": 8,
+      "name_key": "al-khaliq",
+      "arabic": "الْخَالِقُ",
+      "transliteration": "Al-Khaliq",
+      "english": "The Creator",
+      "anchor": "You were made on purpose, by the One who knows what He's doing."
+    },
+    {
+      "index": 9,
+      "name_key": "al-ghaffar",
+      "arabic": "الْغَفَّارُ",
+      "transliteration": "Al-Ghaffar",
+      "english": "The Ever-Forgiving",
+      "anchor": "You are not defined by your worst moments."
+    },
+    {
+      "index": 10,
+      "name_key": "al-wahhab",
+      "arabic": "الْوَهَّابُ",
+      "transliteration": "Al-Wahhab",
+      "english": "The Bestower",
+      "anchor": "He gives gifts you would never think to ask for."
+    },
+    {
+      "index": 11,
+      "name_key": "ar-razzaq",
+      "arabic": "الرَّزَّاقُ",
+      "transliteration": "Ar-Razzaq",
+      "english": "The Provider",
+      "anchor": "Your provision has already been written."
+    },
+    {
+      "index": 12,
+      "name_key": "al-aleem",
+      "arabic": "الْعَلِيمُ",
+      "transliteration": "Al-Aleem",
+      "english": "The All-Knowing",
+      "anchor": "He knows what you cannot put into words."
+    },
+    {
+      "index": 13,
+      "name_key": "al-hayy",
+      "arabic": "الْحَيُّ",
+      "transliteration": "Al-Hayy",
+      "english": "The Ever-Living",
+      "anchor": "He is alive in a way nothing else is."
+    },
+    {
+      "index": 14,
+      "name_key": "al-qayyum",
+      "arabic": "الْقَيُّومُ",
+      "transliteration": "Al-Qayyum",
+      "english": "The Self-Sustaining",
+      "anchor": "He is the only constant when everything shifts."
+    },
+    {
+      "index": 15,
+      "name_key": "an-nur",
+      "arabic": "النُّورُ",
+      "transliteration": "An-Nur",
+      "english": "The Light",
+      "anchor": "His light finds you even in the dark."
+    },
+    {
+      "index": 16,
+      "name_key": "al-muhaymin",
+      "arabic": "الْمُهَيْمِنُ",
+      "transliteration": "Al-Muhaymin",
+      "english": "The Overseer",
+      "anchor": "He watches over your life like a guardian, not a critic."
+    },
+    {
+      "index": 17,
+      "name_key": "al-mutakabbir",
+      "arabic": "الْمُتَكَبِّرُ",
+      "transliteration": "Al-Mutakabbir",
+      "english": "The Supreme",
+      "anchor": "Greatness belongs to Him alone — and that is a relief."
+    },
+    {
+      "index": 18,
+      "name_key": "al-bari",
+      "arabic": "الْبَارِئُ",
+      "transliteration": "Al-Bari",
+      "english": "The Evolver",
+      "anchor": "He brings into being what did not exist before."
+    },
+    {
+      "index": 19,
+      "name_key": "al-musawwir",
+      "arabic": "الْمُصَوِّرُ",
+      "transliteration": "Al-Musawwir",
+      "english": "The Fashioner",
+      "anchor": "Every detail of you was shaped on purpose."
+    },
+    {
+      "index": 20,
+      "name_key": "al-qahhar",
+      "arabic": "الْقَهَّارُ",
+      "transliteration": "Al-Qahhar",
+      "english": "The Subduer",
+      "anchor": "Nothing can finally defeat what He has chosen."
+    },
+    {
+      "index": 21,
+      "name_key": "al-fattah",
+      "arabic": "الْفَتَّاحُ",
+      "transliteration": "Al-Fattah",
+      "english": "The Opener",
+      "anchor": "Doors will open that you cannot open yourself."
+    },
+    {
+      "index": 22,
+      "name_key": "al-qabid",
+      "arabic": "الْقَابِضُ",
+      "transliteration": "Al-Qabid",
+      "english": "The Withholder",
+      "anchor": "When provision is withheld, He is still at work."
+    },
+    {
+      "index": 23,
+      "name_key": "al-basit",
+      "arabic": "الْبَاسِطُ",
+      "transliteration": "Al-Basit",
+      "english": "The Expander",
+      "anchor": "He widens what felt narrow."
+    },
+    {
+      "index": 24,
+      "name_key": "al-hakim",
+      "arabic": "الْحَكِيمُ",
+      "transliteration": "Al-Hakeem",
+      "english": "The All-Wise",
+      "anchor": "Nothing in your life is wasted."
+    },
+    {
+      "index": 25,
+      "name_key": "al-wadud",
+      "arabic": "الْوَدُودُ",
+      "transliteration": "Al-Wadud",
+      "english": "The Most Loving",
+      "anchor": "You are wired for deep, lasting love."
+    },
+    {
+      "index": 26,
+      "name_key": "ash-shakur",
+      "arabic": "الشَّكُورُ",
+      "transliteration": "Ash-Shakur",
+      "english": "The Most Appreciative",
+      "anchor": "Every act of gratitude multiplies what you have."
+    },
+    {
+      "index": 27,
+      "name_key": "al-haleem",
+      "arabic": "الْحَلِيمُ",
+      "transliteration": "Al-Haleem",
+      "english": "The Forbearing",
+      "anchor": "He is patient with you in a way no one else is."
+    },
+    {
+      "index": 28,
+      "name_key": "al-karim",
+      "arabic": "الْكَرِيمُ",
+      "transliteration": "Al-Kareem",
+      "english": "The Most Generous",
+      "anchor": "He gives generously, without you having to deserve it."
+    },
+    {
+      "index": 29,
+      "name_key": "at-tawwab",
+      "arabic": "التَّوَّابُ",
+      "transliteration": "At-Tawwab",
+      "english": "The Acceptor of Repentance",
+      "anchor": "The door of return is always open."
+    },
+    {
+      "index": 30,
+      "name_key": "as-sabur",
+      "arabic": "الصَّبُورُ",
+      "transliteration": "As-Sabur",
+      "english": "The Patient",
+      "anchor": "The wait is not a sign that He has forgotten you."
+    },
+    {
+      "index": 31,
+      "name_key": "al-hadi",
+      "arabic": "الْهَادِي",
+      "transliteration": "Al-Hadi",
+      "english": "The Guide",
+      "anchor": "You will be guided to where you need to be."
+    },
+    {
+      "index": 32,
+      "name_key": "as-samad",
+      "arabic": "الصَّمَدُ",
+      "transliteration": "As-Samad",
+      "english": "The Eternal Refuge",
+      "anchor": "He is the only One who can truly fill what is empty."
+    },
+    {
+      "index": 33,
+      "name_key": "al-wakil",
+      "arabic": "الْوَكِيلُ",
+      "transliteration": "Al-Wakeel",
+      "english": "The Trustee",
+      "anchor": "You can let go — He has it."
+    },
+    {
+      "index": 34,
+      "name_key": "al-latif",
+      "arabic": "اللَّطِيفُ",
+      "transliteration": "Al-Lateef",
+      "english": "The Subtle",
+      "anchor": "He works in the details you cannot see."
+    },
+    {
+      "index": 35,
+      "name_key": "al-mujib",
+      "arabic": "الْمُجِيبُ",
+      "transliteration": "Al-Mujeeb",
+      "english": "The Responsive",
+      "anchor": "Your duas are being answered."
+    },
+    {
+      "index": 36,
+      "name_key": "ash-shafi",
+      "arabic": "الشَّافِي",
+      "transliteration": "Ash-Shafi",
+      "english": "The Healer",
+      "anchor": "Healing — of every kind — is in His hands."
+    },
+    {
+      "index": 37,
+      "name_key": "al-hafeez",
+      "arabic": "الْحَفِيظُ",
+      "transliteration": "Al-Hafeez",
+      "english": "The Preserver",
+      "anchor": "He guards what you cannot protect yourself."
+    },
+    {
+      "index": 38,
+      "name_key": "ar-raqeeb",
+      "arabic": "الرَّقِيبُ",
+      "transliteration": "Ar-Raqeeb",
+      "english": "The Watchful",
+      "anchor": "He is attentive to you, not just aware of you."
+    },
+    {
+      "index": 39,
+      "name_key": "al-khafid",
+      "arabic": "الْخَافِضُ",
+      "transliteration": "Al-Khafid",
+      "english": "The Abaser",
+      "anchor": "He humbles what has grown too big."
+    },
+    {
+      "index": 40,
+      "name_key": "ar-rafi",
+      "arabic": "الرَّافِعُ",
+      "transliteration": "Ar-Rafi",
+      "english": "The Exalter",
+      "anchor": "He raises what has been lowered."
+    },
+    {
+      "index": 41,
+      "name_key": "al-muizz",
+      "arabic": "الْمُعِزُّ",
+      "transliteration": "Al-Muizz",
+      "english": "The Bestower of Honor",
+      "anchor": "He grants honor that no one can take from you."
+    },
+    {
+      "index": 42,
+      "name_key": "al-muzill",
+      "arabic": "الْمُذِلُّ",
+      "transliteration": "Al-Muzill",
+      "english": "The Humiliator",
+      "anchor": "He humbles whom He wills — paired with Al-Muizz, who honors whom He wills."
+    },
+    {
+      "index": 43,
+      "name_key": "as-sami",
+      "arabic": "السَّمِيعُ",
+      "transliteration": "As-Sami",
+      "english": "The All-Hearing",
+      "anchor": "Every word you speak to Him lands."
+    },
+    {
+      "index": 44,
+      "name_key": "al-basir",
+      "arabic": "الْبَصِيرُ",
+      "transliteration": "Al-Baseer",
+      "english": "The All-Seeing",
+      "anchor": "He sees everything others overlook in you."
+    },
+    {
+      "index": 45,
+      "name_key": "al-hakam",
+      "arabic": "الْحَكَمُ",
+      "transliteration": "Al-Hakam",
+      "english": "The Judge",
+      "anchor": "He is the Judge who will set every wrong right."
+    },
+    {
+      "index": 46,
+      "name_key": "al-adl",
+      "arabic": "الْعَدْلُ",
+      "transliteration": "Al-Adl",
+      "english": "The Just",
+      "anchor": "His justice is exact — and woven with mercy."
+    },
+    {
+      "index": 47,
+      "name_key": "al-khabir",
+      "arabic": "الْخَبِيرُ",
+      "transliteration": "Al-Khabeer",
+      "english": "The All-Aware",
+      "anchor": "He knows your interior life completely."
+    },
+    {
+      "index": 48,
+      "name_key": "al-azeem",
+      "arabic": "الْعَظِيمُ",
+      "transliteration": "Al-Azeem",
+      "english": "The Magnificent",
+      "anchor": "He is greater than the thing that is overwhelming you."
+    },
+    {
+      "index": 49,
+      "name_key": "al-ghafur",
+      "arabic": "الْغَفُورُ",
+      "transliteration": "Al-Ghafur",
+      "english": "The Forgiving",
+      "anchor": "His forgiveness covers what no one else can see."
+    },
+    {
+      "index": 50,
+      "name_key": "al-ali",
+      "arabic": "الْعَلِيُّ",
+      "transliteration": "Al-Ali",
+      "english": "The Most High",
+      "anchor": "He sees your situation from above — all of it."
+    },
+    {
+      "index": 51,
+      "name_key": "al-kabeer",
+      "arabic": "الْكَبِيرُ",
+      "transliteration": "Al-Kabeer",
+      "english": "The Greatest",
+      "anchor": "Nothing in your life is too big for Him."
+    },
+    {
+      "index": 52,
+      "name_key": "al-muqeet",
+      "arabic": "الْمُقِيتُ",
+      "transliteration": "Al-Muqeet",
+      "english": "The Nourisher",
+      "anchor": "He sustains you in ways you don't see."
+    },
+    {
+      "index": 53,
+      "name_key": "al-haseeb",
+      "arabic": "الْحَسِيبُ",
+      "transliteration": "Al-Haseeb",
+      "english": "The Reckoner",
+      "anchor": "He accounts for every kindness you have ever offered."
+    },
+    {
+      "index": 54,
+      "name_key": "al-jaleel",
+      "arabic": "الْجَلِيلُ",
+      "transliteration": "Al-Jaleel",
+      "english": "The Majestic",
+      "anchor": "His majesty is a refuge, not a distance."
+    },
+    {
+      "index": 55,
+      "name_key": "al-wasi",
+      "arabic": "الْوَاسِعُ",
+      "transliteration": "Al-Wasi",
+      "english": "The All-Encompassing",
+      "anchor": "His mercy is wider than you can imagine."
+    },
+    {
+      "index": 56,
+      "name_key": "al-majeed",
+      "arabic": "الْمَجِيدُ",
+      "transliteration": "Al-Majeed",
+      "english": "The Glorious",
+      "anchor": "His glory is gentle as much as it is grand."
+    },
+    {
+      "index": 57,
+      "name_key": "al-baith",
+      "arabic": "الْبَاعِثُ",
+      "transliteration": "Al-Baith",
+      "english": "The Resurrector",
+      "anchor": "He raises what has died — including in you."
+    },
+    {
+      "index": 58,
+      "name_key": "ash-shahid",
+      "arabic": "الشَّهِيدُ",
+      "transliteration": "Ash-Shaheed",
+      "english": "The Witness",
+      "anchor": "He is a witness to everything you endure."
+    },
+    {
+      "index": 59,
+      "name_key": "al-haqq",
+      "arabic": "الْحَقُّ",
+      "transliteration": "Al-Haqq",
+      "english": "The Truth",
+      "anchor": "He is the one Reality everything else points to."
+    },
+    {
+      "index": 60,
+      "name_key": "al-qawi",
+      "arabic": "الْقَوِيُّ",
+      "transliteration": "Al-Qawiyy",
+      "english": "The Strong",
+      "anchor": "His strength is available to you."
+    },
+    {
+      "index": 61,
+      "name_key": "al-matin",
+      "arabic": "الْمَتِينُ",
+      "transliteration": "Al-Mateen",
+      "english": "The Firm",
+      "anchor": "There is a steadiness beneath your feet."
+    },
+    {
+      "index": 62,
+      "name_key": "al-waliyy",
+      "arabic": "الْوَلِيُّ",
+      "transliteration": "Al-Waliyy",
+      "english": "The Protecting Friend",
+      "anchor": "He is your closest ally — closer than any friend."
+    },
+    {
+      "index": 63,
+      "name_key": "al-hameed",
+      "arabic": "الْحَمِيدُ",
+      "transliteration": "Al-Hameed",
+      "english": "The Praiseworthy",
+      "anchor": "Every praise eventually points back to Him."
+    },
+    {
+      "index": 64,
+      "name_key": "al-muhsi",
+      "arabic": "الْمُحْصِي",
+      "transliteration": "Al-Muhsi",
+      "english": "The Counter",
+      "anchor": "Not a single thing about you escapes His count."
+    },
+    {
+      "index": 65,
+      "name_key": "al-mubdi",
+      "arabic": "الْمُبْدِئُ",
+      "transliteration": "Al-Mubdi",
+      "english": "The Originator",
+      "anchor": "Every beginning has come from Him."
+    },
+    {
+      "index": 66,
+      "name_key": "al-muid",
+      "arabic": "الْمُعِيدُ",
+      "transliteration": "Al-Muid",
+      "english": "The Restorer",
+      "anchor": "He restores what has been undone."
+    },
+    {
+      "index": 67,
+      "name_key": "al-muhyi",
+      "arabic": "الْمُحْيِي",
+      "transliteration": "Al-Muhyi",
+      "english": "The Giver of Life",
+      "anchor": "He gives life to what feels lifeless."
+    },
+    {
+      "index": 68,
+      "name_key": "al-mumeet",
+      "arabic": "الْمُمِيتُ",
+      "transliteration": "Al-Mumeet",
+      "english": "The Bringer of Death",
+      "anchor": "Death is in His hands — and so is the life that follows."
+    },
+    {
+      "index": 69,
+      "name_key": "al-wajid",
+      "arabic": "الْوَاجِدُ",
+      "transliteration": "Al-Wajid",
+      "english": "The Finder",
+      "anchor": "Nothing He wants is beyond His reach."
+    },
+    {
+      "index": 70,
+      "name_key": "al-majid",
+      "arabic": "الْمَاجِدُ",
+      "transliteration": "Al-Majid",
+      "english": "The Noble",
+      "anchor": "His nobility expresses itself as generosity toward you."
+    },
+    {
+      "index": 71,
+      "name_key": "al-wahid",
+      "arabic": "الْوَاحِدُ",
+      "transliteration": "Al-Wahid",
+      "english": "The One",
+      "anchor": "He alone is One — and that is enough."
+    },
+    {
+      "index": 72,
+      "name_key": "al-ahad",
+      "arabic": "الْأَحَدُ",
+      "transliteration": "Al-Ahad",
+      "english": "The Unique",
+      "anchor": "He is unique — there is nothing else like Him."
+    },
+    {
+      "index": 73,
+      "name_key": "al-qadir",
+      "arabic": "الْقَادِرُ",
+      "transliteration": "Al-Qadir",
+      "english": "The Capable",
+      "anchor": "He is able to do what looks impossible."
+    },
+    {
+      "index": 74,
+      "name_key": "al-muqtadir",
+      "arabic": "الْمُقْتَدِرُ",
+      "transliteration": "Al-Muqtadir",
+      "english": "The Omnipotent",
+      "anchor": "His power has no resistance it cannot overcome."
+    },
+    {
+      "index": 75,
+      "name_key": "al-muqaddim",
+      "arabic": "الْمُقَدِّمُ",
+      "transliteration": "Al-Muqaddim",
+      "english": "The Expediter",
+      "anchor": "He brings forward what is meant for you in His time."
+    },
+    {
+      "index": 76,
+      "name_key": "al-muakhkhir",
+      "arabic": "الْمُؤَخِّرُ",
+      "transliteration": "Al-Muakhkhir",
+      "english": "The Delayer",
+      "anchor": "What He delays is not what He has denied."
+    },
+    {
+      "index": 77,
+      "name_key": "al-awwal",
+      "arabic": "الْأَوَّلُ",
+      "transliteration": "Al-Awwal",
+      "english": "The First",
+      "anchor": "He was there before anything you know."
+    },
+    {
+      "index": 78,
+      "name_key": "al-akhir",
+      "arabic": "الْآخِرُ",
+      "transliteration": "Al-Akhir",
+      "english": "The Last",
+      "anchor": "He will be there after everything ends."
+    },
+    {
+      "index": 79,
+      "name_key": "az-zahir",
+      "arabic": "الظَّاهِرُ",
+      "transliteration": "Az-Zahir",
+      "english": "The Manifest",
+      "anchor": "Signs of Him are everywhere, if you look."
+    },
+    {
+      "index": 80,
+      "name_key": "al-batin",
+      "arabic": "الْبَاطِنُ",
+      "transliteration": "Al-Batin",
+      "english": "The Hidden",
+      "anchor": "He is closer than your inner thoughts."
+    },
+    {
+      "index": 81,
+      "name_key": "al-wali",
+      "arabic": "الْوَالِي",
+      "transliteration": "Al-Wali",
+      "english": "The Governor",
+      "anchor": "He governs your affairs whether you see Him or not."
+    },
+    {
+      "index": 82,
+      "name_key": "al-mutaali",
+      "arabic": "الْمُتَعَالِ",
+      "transliteration": "Al-Mutaali",
+      "english": "The Most Exalted",
+      "anchor": "He is above every limitation you can imagine."
+    },
+    {
+      "index": 83,
+      "name_key": "al-barr",
+      "arabic": "الْبَرُّ",
+      "transliteration": "Al-Barr",
+      "english": "The Source of Goodness",
+      "anchor": "His kindness toward you is constant."
+    },
+    {
+      "index": 84,
+      "name_key": "al-afuw",
+      "arabic": "الْعَفُوُّ",
+      "transliteration": "Al-Afuw",
+      "english": "The Pardoner",
+      "anchor": "His forgiveness erases — it doesn't just cover."
+    },
+    {
+      "index": 85,
+      "name_key": "ar-rauf",
+      "arabic": "الرَّءُوفُ",
+      "transliteration": "Ar-Rauf",
+      "english": "The Compassionate",
+      "anchor": "His tenderness toward you is gentler than you know."
+    },
+    {
+      "index": 86,
+      "name_key": "malik-ul-mulk",
+      "arabic": "مَالِكُ الْمُلْكِ",
+      "transliteration": "Malik-ul-Mulk",
+      "english": "Owner of Sovereignty",
+      "anchor": "All ownership belongs to Him alone."
+    },
+    {
+      "index": 87,
+      "name_key": "dhul-jalali-wal-ikram",
+      "arabic": "ذُو الْجَلَالِ وَالْإِكْرَامِ",
+      "transliteration": "Dhul-Jalali wal-Ikram",
+      "english": "Lord of Majesty and Bounty",
+      "anchor": "He is both awe-inspiring and overwhelmingly generous."
+    },
+    {
+      "index": 88,
+      "name_key": "al-muqsit",
+      "arabic": "الْمُقْسِطُ",
+      "transliteration": "Al-Muqsit",
+      "english": "The Equitable",
+      "anchor": "He gives every soul exactly what is fair."
+    },
+    {
+      "index": 89,
+      "name_key": "al-jami",
+      "arabic": "الْجَامِعُ",
+      "transliteration": "Al-Jami",
+      "english": "The Gatherer",
+      "anchor": "He will gather what has been scattered."
+    },
+    {
+      "index": 90,
+      "name_key": "al-ghaniyy",
+      "arabic": "الْغَنِيُّ",
+      "transliteration": "Al-Ghaniyy",
+      "english": "The Self-Sufficient",
+      "anchor": "He does not need anything from you — and yet He wants you."
+    },
+    {
+      "index": 91,
+      "name_key": "al-mughni",
+      "arabic": "الْمُغْنِي",
+      "transliteration": "Al-Mughni",
+      "english": "The Enricher",
+      "anchor": "He enriches whoever He chooses to enrich."
+    },
+    {
+      "index": 92,
+      "name_key": "al-mani",
+      "arabic": "الْمَانِعُ",
+      "transliteration": "Al-Mani",
+      "english": "The Withholder",
+      "anchor": "What He withholds, He withholds for your protection."
+    },
+    {
+      "index": 93,
+      "name_key": "ad-darr",
+      "arabic": "الضَّارُّ",
+      "transliteration": "Ad-Darr",
+      "english": "The Distresser",
+      "anchor": "Even what causes you pain is under His authority."
+    },
+    {
+      "index": 94,
+      "name_key": "an-nafi",
+      "arabic": "النَّافِعُ",
+      "transliteration": "An-Nafi",
+      "english": "The Benefiter",
+      "anchor": "Every benefit you have ever received has come from Him."
+    },
+    {
+      "index": 95,
+      "name_key": "al-badi",
+      "arabic": "الْبَدِيعُ",
+      "transliteration": "Al-Badi",
+      "english": "The Originator of the Heavens",
+      "anchor": "He creates beauty that has no precedent."
+    },
+    {
+      "index": 96,
+      "name_key": "al-baqi",
+      "arabic": "الْبَاقِي",
+      "transliteration": "Al-Baqi",
+      "english": "The Everlasting",
+      "anchor": "When everything else fades, He remains."
+    },
+    {
+      "index": 97,
+      "name_key": "ar-rasheed",
+      "arabic": "الرَّشِيدُ",
+      "transliteration": "Ar-Rasheed",
+      "english": "The Guide to Right Path",
+      "anchor": "He guides you toward what is genuinely right for you."
+    }
+  ]
+}

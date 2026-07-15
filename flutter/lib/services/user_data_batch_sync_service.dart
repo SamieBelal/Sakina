@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sakina/features/daily/providers/daily_question_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
@@ -6,6 +8,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/widget_sync.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/gating_service.dart';
@@ -205,6 +208,11 @@ Future<void> hydrateUserDataFromBatchRpc() async {
   // separate round-trip. `sync_all_user_data` does not include this column
   // yet, so it's a small extra select on hydration.
   await hydrateStarterNameFromSupabase();
+
+  // Refresh the home-screen widget once, from freshly-hydrated caches. Single
+  // trigger site (spec §10.4) — any path that syncs updates the widget for
+  // free. Best-effort; never blocks or breaks sync.
+  unawaited(syncHomeWidget());
 }
 
 Future<void> _hydrateOrSeedListSection({

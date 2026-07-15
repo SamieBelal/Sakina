@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
 import 'package:sakina/services/starter_name_cache.dart';
+import 'package:sakina/services/widget_data_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -368,10 +369,22 @@ class AuthService {
     // key — drain it too so the next user's analytics attribution is clean.
     await prefs.remove('pending_referral');
     await prefs.remove('pending_referral_source');
+    // Wipe the home-screen widget payload from the App Group container — a
+    // SEPARATE store from scoped prefs, so a second user on this device must
+    // not inherit the previous user's streak/Name (spec §10.5).
+    await widgetDataService.clearWidget();
   }
 
   Future<void> deleteAccount() async {
+    final userId = _supabase.auth.currentUser?.id;
     await _supabase.rpc('delete_own_account');
+    // Local wipe — the RPC only deletes server rows. Clear this device so the
+    // deleted user's cached economy/state and widget payload don't linger.
+    final prefs = await SharedPreferences.getInstance();
+    if (userId != null && userId.isNotEmpty) {
+      await clearScopedPreferencesForUser(prefs, userId);
+    }
+    await widgetDataService.clearWidget();
   }
 
   bool get isSignedIn => _supabase.auth.currentUser != null;
