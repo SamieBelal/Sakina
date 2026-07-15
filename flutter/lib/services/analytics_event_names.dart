@@ -380,6 +380,18 @@ abstract final class AnalyticsEvents {
   /// Fired when the user dismisses the card via its "×" (starts the cooldown).
   static const homeReferralNudgeDismissed = 'home_referral_nudge_dismissed';
 
+  // ── Home-screen widget install nudge ──
+  // Adoption is the gating factor for widget retention (a widget nobody adds
+  // retains nobody), so the shown → how-to → dismiss funnel is instrumented.
+  /// Fired once per session when the widget-install nudge resolves to visible.
+  static const widgetInstallNudgeShown = 'widget_install_nudge_shown';
+
+  /// Fired when the user taps "Show me how" (expands the add-widget steps).
+  static const widgetInstallNudgeHowtoTapped = 'widget_install_nudge_howto_tapped';
+
+  /// Fired when the user dismisses the widget-install nudge (hidden for good).
+  static const widgetInstallNudgeDismissed = 'widget_install_nudge_dismissed';
+
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
   // funnel-splitting across the 3 referral ingress paths.

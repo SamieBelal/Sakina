@@ -287,12 +287,12 @@ private struct MediumView: View {
     }
 }
 
-/// Small — centered single column (Direction B's two columns don't fit 2×2).
+/// Small — the "status" tile: Name + a state-driven footer that prompts
+/// "Reflect today" when the daily muḥāsabah isn't done, and rewards the streak
+/// when it is. Colors render on the Home Screen (unlike the tinted Lock Screen).
 private struct SmallView: View {
     let display: NameDisplay
     var body: some View {
-        // 2×2 is too small for a full sentence — show the glanceable core
-        // (Name + meaning + streak), all shrink-to-fit so nothing truncates.
         VStack(spacing: 6) {
             Spacer(minLength: 0)
             Text(display.arabic)
@@ -304,16 +304,35 @@ private struct SmallView: View {
                 .font(.custom("Outfit", size: 17)).fontWeight(.bold)
                 .foregroundColor(Palette.ink)
                 .lineLimit(1).minimumScaleFactor(0.5)
+            Spacer(minLength: 0)
+            footer
+        }
+        .padding(14)
+        .widgetURL(widgetDeepLinkURL(display.nameKey))
+    }
+
+    @ViewBuilder private var footer: some View {
+        switch display.streakState {
+        case .done:
+            // Reward: the streak chip (they've reflected today).
+            StreakChip(display: display)
+        case .pending, .atRisk:
+            // Not reflected yet → the CTA (this is the "status" tile's job).
+            Text("Reflect today")
+                .font(.custom("Outfit", size: 12)).fontWeight(.bold)
+                .foregroundColor(Palette.goldInk)
+        case .zero:
+            Text("Start your streak")
+                .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
+                .foregroundColor(Palette.goldInk)
+        case .hidden:
+            // Logged out → the meaning (content, no personal state).
             Text(display.english)
                 .font(.custom("Outfit", size: 11))
                 .foregroundColor(Palette.ink.opacity(0.65))
                 .multilineTextAlignment(.center)
                 .lineLimit(2).minimumScaleFactor(0.7)
-            Spacer(minLength: 0)
-            StreakChip(display: display)
         }
-        .padding(14)
-        .widgetURL(widgetDeepLinkURL(display.nameKey))
     }
 }
 
