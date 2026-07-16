@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Duʿā-times feature: coarse location only, to compute local prayer times.
+         Approximate location never leaves the device (see design spec §12). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:label="sakina"
         android:name="${applicationName}"

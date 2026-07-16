@@ -72,6 +72,14 @@ dependencies:
   home_widget: ^0.9.3
   lottie: ^3.3.3
 
+  # Duʿā-times feature (dua_acceptance_times widget)
+  # Pinned exactly: adhan_dart port has historically re-cased/renamed members
+  # (see docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md §4).
+  # A compile-guard test references SunnahTimes.lastThirdOfTheNight so an upgrade
+  # that renames it fails CI.
+  adhan_dart: 2.0.1
+  geolocator: 14.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
