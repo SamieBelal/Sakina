@@ -260,8 +260,10 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => const EmeraldCardPreviewScreen(),
       ),
 
-      // DEBUG: Dev tools (debug builds only)
-      if (kDebugMode)
+      // DEBUG/QA: Dev tools — registered in debug AND profile (on-device QA)
+      // builds, stripped from release by `!kReleaseMode` (matches the Settings
+      // entry). Was kDebugMode, so the route 404'd in profile builds.
+      if (!kReleaseMode)
         GoRoute(
           path: '/dev-tools',
           parentNavigatorKey: rootNavigatorKey,
