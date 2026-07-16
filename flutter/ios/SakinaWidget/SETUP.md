@@ -41,22 +41,29 @@ acceptance-times surface (families: systemSmall, systemMedium,
 accessoryRectangular, accessoryInline) from a precomputed schedule the Flutter
 app writes to the App Group under key `sakina_dua_times_payload`.
 
-### ⬜ Xcode target membership (CANNOT be done reliably from the CLI — do this in Xcode)
+### ✅ Xcode target membership — automatic (no manual step)
 
-Because Xcode 16 made `ios/SakinaWidget/` a **file-system-synchronized group**,
-new files added inside it are normally compiled/bundled into
-`SakinaWidgetExtension` automatically. Verify — do NOT assume:
+Verified 2026-07-15 against `project.pbxproj`: the `SakinaWidget` group is a
+`PBXFileSystemSynchronizedRootGroup` with an **empty `exceptions = ()`** list,
+attached to the **SakinaWidgetExtension** target (and NOT Runner). That means
+every file in `ios/SakinaWidget/` is a target member automatically — `.swift` →
+Sources, `.json` → Resources. Proof: the original `catalog.json` is referenced
+**nowhere** in `project.pbxproj` yet ships and loads fine today.
 
-1. **`SakinaDuaTimesWidget.swift`** must be a member of the
-   **SakinaWidgetExtension** target (Xcode ▸ select the file ▸ File Inspector ▸
-   *Target Membership* ▸ ✅ SakinaWidgetExtension). If the synced group already
-   picked it up, nothing to do; if not, hand-add membership. It must **NOT** be a
-   member of the Runner target.
+So both new files are **already** members — nothing to add in Xcode, and you
+should NOT hand-edit `project.pbxproj` (that risks breaking the synced group):
+
+1. **`SakinaDuaTimesWidget.swift`** — auto-compiled into SakinaWidgetExtension.
+   (Correctly NOT `@main`; `SakinaWidgetBundle` remains the single `@main`.)
 2. **`dua_calendar.json`** (bundled cold-start / travel-guard fallback, copied
-   from `assets/dua_calendar/dua_windows.json`) must likewise be in the
-   **SakinaWidgetExtension** target so `Bundle.main.url(forResource:
-   "dua_calendar", withExtension: "json")` resolves inside the extension. Confirm
-   it appears under the extension's *Copy Bundle Resources* build phase.
+   from `assets/dua_calendar/dua_windows.json`) — auto-bundled as a resource, so
+   `Bundle.main.url(forResource: "dua_calendar", withExtension: "json")` resolves
+   inside the extension, exactly like `catalog.json`.
+
+The only real gate is a **clean build in Xcode / `flutter build ios`** — the
+Swift was authored but never compiled in the dev env, so first build is the
+proof. If a build ever fails on membership, re-check that no
+`exceptions`/`membershipExceptions` were introduced for this folder.
 3. **App Group** `group.com.sakina.app.widget` is **already shared** on both
    Runner and SakinaWidgetExtension (set up for the first widget) — no change
    needed. Both widgets read the same suite; only the payload KEY differs
