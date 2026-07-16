@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'dua_json_converters.dart';
 import 'dua_window.dart';
+import 'dua_window_type.dart';
 
 part 'dua_window_schedule.freezed.dart';
 part 'dua_window_schedule.g.dart';
@@ -30,7 +32,10 @@ class DuaScheduleStamp with _$DuaScheduleStamp {
     double? lon,
 
     /// The UTC instant through which this schedule's windows are populated.
-    @JsonKey(name: 'computed_through_utc') required DateTime computedThroughUtc,
+    /// Serialized as epoch millis (int) for the Swift decoder.
+    @JsonKey(name: 'computed_through_utc')
+    @EpochMillisConverter()
+    required DateTime computedThroughUtc,
   }) = _DuaScheduleStamp;
 
   factory DuaScheduleStamp.fromJson(Map<String, dynamic> json) =>
@@ -44,6 +49,8 @@ class DuaScheduleStamp with _$DuaScheduleStamp {
 /// - [active]: the highest-priority window covering `now` (null if between).
 /// - [next]: the next window to open after `now` (null if none upcoming).
 /// - [upcoming]: the ordered ~7-day timeline (includes [next]) for the widget.
+/// - [urgency]: the escalation state for [active] (spec §9.1). When no window is
+///   active this is [UrgencyState.upcoming].
 /// - [computedAt]: provenance stamp for the travel guard + staleness checks.
 ///
 /// The JSON shape is the serialization contract shared with the Swift decoder
@@ -54,6 +61,7 @@ class DuaWindowSchedule with _$DuaWindowSchedule {
     DuaWindow? active,
     DuaWindow? next,
     @Default(<DuaWindow>[]) List<DuaWindow> upcoming,
+    @Default(UrgencyState.upcoming) UrgencyState urgency,
     @JsonKey(name: 'computed_at') required DuaScheduleStamp computedAt,
   }) = _DuaWindowSchedule;
 

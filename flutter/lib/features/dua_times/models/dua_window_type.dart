@@ -73,22 +73,29 @@ enum DuaWindowTier {
 
 /// Runtime urgency state used to drive the copy + escalation ladder (spec §9.1).
 ///
-/// This is a *derived* view-state (computed from `now` vs the window bounds),
-/// not persisted; it is not part of the widget serialization contract.
+/// Computed by the engine from `now` vs the active window bounds and carried in
+/// the schedule payload so the Swift widget can mirror the escalation ladder
+/// without re-deriving it. JSON values are the serialization contract — do NOT
+/// rename without updating the widget decoder.
 enum UrgencyState {
   /// Active window, > 1h remaining — calm static deadline.
+  @JsonValue('comfortable')
   comfortable,
 
   /// Active window, < 1h remaining — live ticking countdown.
+  @JsonValue('closing')
   closing,
 
   /// Active window, < 15m remaining — amber last-call treatment.
+  @JsonValue('last_call')
   lastCall,
 
   /// Active all-day window (ʿArafah, ʿAshura, White Days) — "today only",
   /// never a ticking countdown.
+  @JsonValue('all_day')
   allDay,
 
   /// No active window — counting down to the next one.
+  @JsonValue('upcoming')
   upcoming,
 }

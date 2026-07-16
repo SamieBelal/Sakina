@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'dua_json_converters.dart';
 import 'dua_window_type.dart';
 
 part 'dua_window.freezed.dart';
@@ -35,11 +36,16 @@ class DuaWindow with _$DuaWindow {
     /// (e.g. `al-Bukhari 1145`). Never fabricated — carried from the catalog.
     @JsonKey(name: 'source_ref') String? sourceRef,
 
-    /// Window open instant (absolute UTC).
-    @JsonKey(name: 'start_utc') required DateTime startUtc,
+    /// Window open instant (absolute UTC). Serialized as epoch millis (int) so
+    /// the Swift widget decoder can `Date(timeIntervalSince1970:)` it directly.
+    @JsonKey(name: 'start_utc')
+    @EpochMillisConverter()
+    required DateTime startUtc,
 
-    /// Window close instant (absolute UTC).
-    @JsonKey(name: 'end_utc') required DateTime endUtc,
+    /// Window close instant (absolute UTC). Serialized as epoch millis (int).
+    @JsonKey(name: 'end_utc')
+    @EpochMillisConverter()
+    required DateTime endUtc,
 
     /// True for all-day/all-night calendar windows (ʿArafah, ʿAshura, White
     /// Days, Eids, Friday day, Ramadan). Renders "today only", never a ticking
