@@ -292,7 +292,12 @@ sacred canvas with color available throughout, and a live Dart-`Timer` countdown
 ## 10. Degrade / fallback / edge cases
 
 - **Permission denied / location off:** calendar-only windows (Friday + special
-  days) + soft night framing. Card shows a subtle "Enable precise times" affordance.
+  days) + soft night framing. Card shows a **prominent "Turn on precise times"
+  banner** (gold-bordered, full-width, with a "Turn on" action + a necessity
+  subline naming the countdown AND the widget). This is NOT subtle: location is
+  the switch that unlocks the whole feature — the WIDGET can never show precise
+  times (an extension can't request location) until the app computes a located
+  schedule, so the prompt must be unmissable.
 - **High latitude:** apply `adhan_dart` high-latitude rule; if a window is still
   undefined, omit it silently (don't show a wrong time).
 - **Travel / location change:** the *app* recomputes on significant change. The

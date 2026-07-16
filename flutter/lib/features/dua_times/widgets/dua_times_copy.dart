@@ -90,6 +90,24 @@ abstract final class DuaTimesCopy {
   /// The gold CTA pill label.
   static String ctaLabel({required bool between}) =>
       between ? 'Build now →' : 'Ask now →';
+
+  // --- Enable-precise-times banner (shown when location is absent) ---------
+  // This is the switch that turns on the whole feature: without location the
+  // card can't show a live countdown, and the home/lock WIDGET can NEVER show
+  // precise times (an extension can't request location) until the app has
+  // computed a located schedule. So the copy states the need plainly.
+
+  /// Headline for the enable-location banner.
+  static const String enablePreciseTitle = 'Turn on precise times';
+
+  /// Benefit/necessity subline — names the countdown AND the widget so users
+  /// know this is required, not optional polish.
+  static const String enablePreciseSubtitle =
+      'The live countdown and the widget need your location to know '
+      'the exact moments duʿā is most likely answered.';
+
+  /// The banner's action label.
+  static const String enablePreciseCta = 'Turn on';
 }
 
 /// Formats a remaining [Duration] as a live `H:MM:SS` / `MM:SS` countdown for

@@ -125,8 +125,8 @@ class DuaTimesCardBody extends StatelessWidget {
                       onCta: onCta,
                     ),
                     if (onEnablePrecise != null) ...[
-                      const SizedBox(height: 8),
-                      _EnablePreciseAffordance(onTap: onEnablePrecise!),
+                      const SizedBox(height: AppSpacing.md),
+                      _EnablePreciseBanner(onTap: onEnablePrecise!),
                     ],
                   ],
                 ),
@@ -159,8 +159,7 @@ class DuaTimesCardBody extends StatelessWidget {
         return 'today only';
       case UrgencyState.upcoming:
         if (next == null) return 'coming soon';
-        final daysUntil =
-            _localDaysUntil(state.now, next.startUtc.toLocal());
+        final daysUntil = _localDaysUntil(state.now, next.startUtc.toLocal());
         return '${DuaTimesCopy.windowName(next.type)} · '
             '${DuaTimesCopy.relativeDay(daysUntil)}';
     }
@@ -240,8 +239,7 @@ class _Footer extends StatelessWidget {
         GestureDetector(
           onTap: onCta,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: accent,
               borderRadius: BorderRadius.circular(100),
@@ -260,10 +258,15 @@ class _Footer extends StatelessWidget {
   }
 }
 
-/// The subtle "Enable precise times" affordance (spec §10) shown when location
-/// is unavailable and only calendar/soft windows are surfaced.
-class _EnablePreciseAffordance extends StatelessWidget {
-  const _EnablePreciseAffordance({required this.onTap});
+/// The prominent "Turn on precise times" banner (spec §10) shown when location
+/// is unavailable. This is NOT a subtle nudge — it's the switch that unlocks the
+/// whole feature: without location the card can't show a live countdown, and the
+/// home/lock WIDGET can never show precise times (an extension can't request
+/// location) until the app has computed a located schedule. So it's a full-width
+/// gold-bordered banner with a clear "Turn on" action and a necessity subline,
+/// not a faint link.
+class _EnablePreciseBanner extends StatelessWidget {
+  const _EnablePreciseBanner({required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -271,21 +274,61 @@ class _EnablePreciseAffordance extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.my_location_rounded,
-              color: AppColors.sacredInkFaint, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            'Enable precise times',
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.sacredInkFaint,
-              decoration: TextDecoration.underline,
-              decorationColor: AppColors.sacredInkFaint,
-            ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.secondary.withValues(alpha: 0.55),
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.my_location_rounded,
+                color: AppColors.secondary, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DuaTimesCopy.enablePreciseTitle,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.sacredInk,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    DuaTimesCopy.enablePreciseSubtitle,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.sacredInkSoft,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.secondary,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                DuaTimesCopy.enablePreciseCta,
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.textOnPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
