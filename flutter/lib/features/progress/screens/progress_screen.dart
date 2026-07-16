@@ -17,6 +17,7 @@ import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
 import 'package:sakina/features/daily/screens/daily_launch_overlay.dart';
 import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
+import 'package:sakina/features/dua_times/widgets/dua_times_card.dart';
 import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
 import 'package:sakina/features/widget_promo/widgets/widget_install_nudge_card.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -310,6 +311,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //    and the GiftService loading-gate per CLAUDE.md PR #8.
               const RamadanGiftCard(),
               const SizedBox(height: AppSpacing.md),
+
+              // 2a. Duʿā-times card (awqāt al-ijābah). Render-gated: shows only
+              //     when there's an active or imminent duʿā window; otherwise
+              //     collapses to SizedBox.shrink() (no spacer wasted). CTA-first
+              //     on the sacred canvas; every tap drives Build-a-Duʿā. See
+              //     docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md.
+              const DuaTimesCard(),
 
               // 2b. Post-conversion referral nudge (active RC subscribers only,
               //     until they earn their first referral grant). Self-collapses

@@ -12,5 +12,6 @@ import SwiftUI
 struct SakinaWidgetBundle: WidgetBundle {
     var body: some Widget {
         SakinaWidget()
+        SakinaDuaTimesWidget()
     }
 }

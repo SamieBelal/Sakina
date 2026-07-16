@@ -17,6 +17,16 @@ const String kWidgetName = 'SakinaWidget';
 /// read atomic on the Swift side.
 const String kWidgetPayloadKey = 'sakina_widget_payload';
 
+/// The `kind` of the iOS duʿā-times widget (WidgetKit `Widget`). A SECOND widget
+/// in `SakinaWidgetBundle`, distinct from [kWidgetName]. Passed to
+/// [HomeWidget.updateWidget] to reload only that widget's timeline (spec §7).
+const String kDuaTimesWidgetName = 'SakinaDuaTimesWidget';
+
+/// Shared-container key the duʿā-times extension reads. Holds the JSON-encoded
+/// `DuaWindowSchedule` (spec §7). Kept separate from [kWidgetPayloadKey] so the
+/// two widgets never contend for the same blob.
+const String kDuaTimesPayloadKey = 'sakina_dua_times_payload';
+
 /// Immutable, JSON-serialisable widget payload. Mirrors §4.3 of the spec.
 ///
 /// The extension ONLY trusts [nameKey]/[anchor] when [checkedInToday] is true
@@ -143,12 +153,31 @@ class WidgetDataService {
     await _write(payload.encode());
   }
 
-  /// Wipe personalized state from the shared container and revert the widget to
-  /// its daily fallback. MUST run on sign-out and account deletion.
+  /// Push a precomputed duʿā-window schedule (already JSON-encoded by the engine
+  /// per the §7 serialization contract) to the duʿā-times widget, then reload its
+  /// timeline. The extension decodes it from the App Group; when it is missing,
+  /// stale, or the travel guard trips, the widget falls back to its bundled
+  /// calendar (spec §9/§10).
+  ///
+  /// Signature is a fixed contract — the `dua_window_provider` calls this exact
+  /// shape. Do not change it.
+  Future<void> saveDuaTimesSchedule(String scheduleJson) async {
+    await _client.saveWidgetData(kDuaTimesPayloadKey, scheduleJson);
+    await _client.updateWidget(name: kDuaTimesWidgetName);
+  }
+
+  /// Wipe personalized state from the shared container and revert the widgets to
+  /// their daily/calendar fallbacks. MUST run on sign-out and account deletion.
+  ///
+  /// Also nulls [kDuaTimesPayloadKey] so a second user on the device never
+  /// inherits the first user's location-derived schedule — which would leak
+  /// their approximate home location (spec §7 privacy fix).
   Future<void> clearWidget() async {
     await _client.saveWidgetData(kWidgetPayloadKey, null);
+    await _client.saveWidgetData(kDuaTimesPayloadKey, null);
     _lastWritten = null;
     await _client.updateWidget(name: kWidgetName);
+    await _client.updateWidget(name: kDuaTimesWidgetName);
   }
 
   Future<void> _write(String encoded) async {

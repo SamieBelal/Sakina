@@ -32,6 +32,49 @@ checklist is done. This file now records what's done and what remains.
    - "Embed Foundation Extensions" build phase moved ABOVE "Thin Binary" in the
      Runner target (fixes "Cycle inside Runner" — flutter/flutter#135056).
 
+## Second widget — SakinaDuaTimesWidget (added 2026-07-15)
+
+A **second** WidgetKit widget (`SakinaDuaTimesWidget`, kind
+`"SakinaDuaTimesWidget"`) now lives in this folder and is referenced from
+`SakinaWidgetBundle.body` alongside `SakinaWidget()`. It renders the duʿā
+acceptance-times surface (families: systemSmall, systemMedium,
+accessoryRectangular, accessoryInline) from a precomputed schedule the Flutter
+app writes to the App Group under key `sakina_dua_times_payload`.
+
+### ⬜ Xcode target membership (CANNOT be done reliably from the CLI — do this in Xcode)
+
+Because Xcode 16 made `ios/SakinaWidget/` a **file-system-synchronized group**,
+new files added inside it are normally compiled/bundled into
+`SakinaWidgetExtension` automatically. Verify — do NOT assume:
+
+1. **`SakinaDuaTimesWidget.swift`** must be a member of the
+   **SakinaWidgetExtension** target (Xcode ▸ select the file ▸ File Inspector ▸
+   *Target Membership* ▸ ✅ SakinaWidgetExtension). If the synced group already
+   picked it up, nothing to do; if not, hand-add membership. It must **NOT** be a
+   member of the Runner target.
+2. **`dua_calendar.json`** (bundled cold-start / travel-guard fallback, copied
+   from `assets/dua_calendar/dua_windows.json`) must likewise be in the
+   **SakinaWidgetExtension** target so `Bundle.main.url(forResource:
+   "dua_calendar", withExtension: "json")` resolves inside the extension. Confirm
+   it appears under the extension's *Copy Bundle Resources* build phase.
+3. **App Group** `group.com.sakina.app.widget` is **already shared** on both
+   Runner and SakinaWidgetExtension (set up for the first widget) — no change
+   needed. Both widgets read the same suite; only the payload KEY differs
+   (`sakina_widget_payload` vs `sakina_dua_times_payload`).
+4. **Fonts** — the duʿā widget reuses `ArefRuqaa-Regular` and `Outfit`, already
+   staged in `Fonts/` and listed in the extension Info.plist. No new fonts.
+
+### QA note for the duʿā widget
+
+Add it via long-press ▸ **+** ▸ **Sakina** ▸ **Duʿā Times**. Verify: active
+window shows "Make your duʿā" + a live `HH:MM:SS` countdown when <1h to close;
+all-day windows (ʿArafah etc.) show "today only" and never tick; between-windows
+shows "Build your duʿā" + a static relative label; lock-screen accessory is
+monochrome (no color); every tap → Build-a-Duʿā. To exercise the **travel
+guard**, change the device time zone in Settings without reopening the app — the
+widget should drop precise night-third/Friday-hour windows and fall back to the
+bundled calendar (Friday + seeded sacred days still render).
+
 ## ⬜ What's left (yours — needs a run / device / Apple account)
 
 1. **Run it and add the widget** (simulator is fine for Small/Medium):
