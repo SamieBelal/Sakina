@@ -22,6 +22,7 @@ class DuaTimesCardBody extends StatelessWidget {
     required this.onTap,
     required this.onCta,
     this.onEnablePrecise,
+    this.onDismissPrecise,
     super.key,
   });
 
@@ -31,6 +32,9 @@ class DuaTimesCardBody extends StatelessWidget {
 
   /// Non-null only when location is absent and we can nudge for precise times.
   final VoidCallback? onEnablePrecise;
+
+  /// Non-null alongside [onEnablePrecise] — the banner's ✕ (7-day snooze).
+  final VoidCallback? onDismissPrecise;
 
   bool get _isLastCall => state.urgency == UrgencyState.lastCall;
   bool get _isBetween => state.active == null;
@@ -126,7 +130,10 @@ class DuaTimesCardBody extends StatelessWidget {
                     ),
                     if (onEnablePrecise != null) ...[
                       const SizedBox(height: AppSpacing.md),
-                      _EnablePreciseBanner(onTap: onEnablePrecise!),
+                      _EnablePreciseBanner(
+                        onTap: onEnablePrecise!,
+                        onDismiss: onDismissPrecise,
+                      ),
                     ],
                   ],
                 ),
@@ -266,8 +273,12 @@ class _Footer extends StatelessWidget {
 /// gold-bordered banner with a clear "Turn on" action and a necessity subline,
 /// not a faint link.
 class _EnablePreciseBanner extends StatelessWidget {
-  const _EnablePreciseBanner({required this.onTap});
+  const _EnablePreciseBanner({required this.onTap, this.onDismiss});
   final VoidCallback onTap;
+
+  /// The ✕ snooze action. Its own gesture wins over the banner-wide [onTap], so
+  /// tapping ✕ dismisses while tapping anywhere else enables.
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -284,46 +295,65 @@ class _EnablePreciseBanner extends StatelessWidget {
             color: AppColors.secondary.withValues(alpha: 0.55),
           ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.my_location_rounded,
-                color: AppColors.secondary, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DuaTimesCopy.enablePreciseTitle,
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.sacredInk,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.5,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.my_location_rounded,
+                    color: AppColors.secondary, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(
+                      DuaTimesCopy.enablePreciseTitle,
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.sacredInk,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    DuaTimesCopy.enablePreciseSubtitle,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.sacredInkSoft,
-                      height: 1.3,
+                ),
+                if (onDismiss != null)
+                  GestureDetector(
+                    onTap: onDismiss,
+                    behavior: HitTestBehavior.opaque,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          size: 18, color: AppColors.sacredInkFaint),
                     ),
                   ),
-                ],
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 32, top: 3, right: 4),
+              child: Text(
+                DuaTimesCopy.enablePreciseSubtitle,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.sacredInkSoft,
+                  height: 1.3,
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text(
-                DuaTimesCopy.enablePreciseCta,
-                style: AppTypography.labelMedium.copyWith(
-                  color: AppColors.textOnPrimary,
-                  fontWeight: FontWeight.w700,
+            Padding(
+              padding: const EdgeInsets.only(left: 32, top: 11),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  DuaTimesCopy.enablePreciseCta,
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.textOnPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

@@ -59,11 +59,8 @@ class _DuaTimesCardState extends ConsumerState<DuaTimesCard> {
   }
 
   Future<void> _onEnablePreciseTap() async {
-    ref
-        .read(analyticsProvider)
-        .track(AnalyticsEvents.duaTimesLocationPrompt);
-    final outcome =
-        await ref.read(duaWindowProvider.notifier).promptLocation();
+    ref.read(analyticsProvider).track(AnalyticsEvents.duaTimesLocationPrompt);
+    final outcome = await ref.read(duaWindowProvider.notifier).promptLocation();
     if (!mounted) return;
     ref.read(analyticsProvider).track(
           outcome == LocationPromptOutcome.granted
@@ -85,15 +82,22 @@ class _DuaTimesCardState extends ConsumerState<DuaTimesCard> {
 
     _fireImpressionOnce(s);
 
-    final showEnablePrecise = !ref.read(duaWindowProvider.notifier)
-            .hasPreciseLocation &&
-        s.active == null; // only nudge when we can't show a precise "now".
+    final showEnablePrecise =
+        !ref.read(duaWindowProvider.notifier).hasPreciseLocation &&
+            s.active == null && // only nudge when we can't show a precise "now"
+            !s.preciseBannerSnoozed; // and the user hasn't snoozed it
 
     return DuaTimesCardBody(
       state: s,
       onTap: () => _onCtaTap(s),
       onCta: () => _onCtaTap(s),
       onEnablePrecise: showEnablePrecise ? _onEnablePreciseTap : null,
-    ).animate().fadeIn(duration: 400.ms).moveY(begin: 8, end: 0, duration: 400.ms);
+      onDismissPrecise: showEnablePrecise
+          ? () => ref.read(duaWindowProvider.notifier).snoozePreciseBanner()
+          : null,
+    )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .moveY(begin: 8, end: 0, duration: 400.ms);
   }
 }

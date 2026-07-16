@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/dua_window_engine.dart';
 import '../../../services/dua_window_repository.dart';
@@ -27,11 +28,16 @@ class DuaWindowState {
     this.schedule,
     required this.now,
     this.building = false,
+    this.preciseBannerSnoozed = false,
   });
 
   final DuaWindowSchedule? schedule;
   final DateTime now;
   final bool building;
+
+  /// True when the user dismissed the "Turn on precise times" banner and the
+  /// 7-day snooze window is still active — the card hides the banner until then.
+  final bool preciseBannerSnoozed;
 
   DuaWindow? get active => schedule?.active;
   DuaWindow? get next => schedule?.next;
@@ -46,12 +52,14 @@ class DuaWindowState {
     DuaWindowSchedule? schedule,
     DateTime? now,
     bool? building,
+    bool? preciseBannerSnoozed,
     bool clearSchedule = false,
   }) {
     return DuaWindowState(
       schedule: clearSchedule ? null : (schedule ?? this.schedule),
       now: now ?? this.now,
       building: building ?? this.building,
+      preciseBannerSnoozed: preciseBannerSnoozed ?? this.preciseBannerSnoozed,
     );
   }
 }
@@ -85,6 +93,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     DateTime Function()? clock,
     Future<String> Function()? resolveTimezone,
     WidgetDataService? widgetDataService,
+    Future<SharedPreferences> Function()? prefs,
     bool observeLifecycle = true,
     bool autoBuild = true,
     bool startTicker = true,
@@ -94,6 +103,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         _clock = clock ?? DateTime.now,
         _resolveTimezone = resolveTimezone ?? _defaultResolveTimezone,
         _widgetData = widgetDataService,
+        _prefs = prefs ?? SharedPreferences.getInstance,
         _observeLifecycle = observeLifecycle,
         super(DuaWindowState(now: (clock ?? DateTime.now)())) {
     if (_observeLifecycle) {
@@ -117,7 +127,16 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   final DateTime Function() _clock;
   final Future<String> Function() _resolveTimezone;
   final WidgetDataService? _widgetData;
+  final Future<SharedPreferences> Function() _prefs;
   final bool _observeLifecycle;
+
+  /// SharedPreferences key holding the epoch-ms until which the precise-times
+  /// banner is snoozed (set when the user taps its ✕).
+  static const String _bannerSnoozeKey =
+      'dua_times_precise_banner_snoozed_until';
+
+  /// How long a single ✕ dismiss hides the banner before it resurfaces.
+  static const Duration _bannerSnoozeDuration = Duration(days: 7);
 
   Timer? _ticker;
   String? _lastBuiltYmd;
@@ -183,14 +202,39 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       await rebuild(promptLocation: true);
       return LocationPromptOutcome.granted;
     }
-    // ensurePermission() is the only method that prompts (spec §15 lazy prompt).
-    await _location.ensurePermission();
-    final nowGranted = await _location.hasPermission();
+    // Prompt if askable; if permanently denied ("Never"), route to Settings so
+    // the tap is never a dead end (the grant is picked up on foreground).
+    final granted = await _location.ensureOrOpenSettings();
     await rebuild(promptLocation: true);
-    // Treat anything that isn't a positive grant as denied for analytics.
-    return nowGranted
+    return granted
         ? LocationPromptOutcome.granted
         : LocationPromptOutcome.denied;
+  }
+
+  /// Dismiss the "Turn on precise times" banner for [_bannerSnoozeDuration].
+  /// Persisted so it survives relaunch; the banner resurfaces after the window
+  /// (location is pivotal, so we snooze rather than permanently hide it).
+  Future<void> snoozePreciseBanner() async {
+    final until = _clock().add(_bannerSnoozeDuration);
+    try {
+      final p = await _prefs();
+      await p.setInt(_bannerSnoozeKey, until.millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('[DuaWindowNotifier] snooze persist failed: $e');
+    }
+    if (_disposed) return;
+    state = state.copyWith(preciseBannerSnoozed: true);
+  }
+
+  Future<bool> _isBannerSnoozed(DateTime now) async {
+    try {
+      final p = await _prefs();
+      final untilMs = p.getInt(_bannerSnoozeKey);
+      if (untilMs == null) return false;
+      return now.millisecondsSinceEpoch < untilMs;
+    } catch (_) {
+      return false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -216,7 +260,12 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       );
       if (_disposed) return;
       _lastBuiltYmd = _ymd(now);
-      state = state.copyWith(schedule: schedule, now: now, building: false);
+      state = state.copyWith(
+        schedule: schedule,
+        now: now,
+        building: false,
+        preciseBannerSnoozed: await _isBannerSnoozed(now),
+      );
       await _pushToWidget(schedule);
     } catch (e) {
       if (_disposed) return;
@@ -243,8 +292,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     }
   }
 
-  static String _ymd(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-'
+  static String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 

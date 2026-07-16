@@ -53,19 +53,20 @@ class LocationService {
     Future<LocationPermission> Function()? requestPermission,
     Future<bool> Function()? serviceEnabled,
     Future<Position> Function()? currentPosition,
+    Future<bool> Function()? openAppSettings,
     Future<SharedPreferences> Function()? prefs,
   })  : _checkPermission = checkPermission ?? Geolocator.checkPermission,
-        _requestPermission =
-            requestPermission ?? Geolocator.requestPermission,
-        _serviceEnabled =
-            serviceEnabled ?? Geolocator.isLocationServiceEnabled,
+        _requestPermission = requestPermission ?? Geolocator.requestPermission,
+        _serviceEnabled = serviceEnabled ?? Geolocator.isLocationServiceEnabled,
         _currentPosition = currentPosition ?? _defaultCurrentPosition,
+        _openAppSettings = openAppSettings ?? Geolocator.openAppSettings,
         _prefs = prefs ?? SharedPreferences.getInstance;
 
   final Future<LocationPermission> Function() _checkPermission;
   final Future<LocationPermission> Function() _requestPermission;
   final Future<bool> Function() _serviceEnabled;
   final Future<Position> Function() _currentPosition;
+  final Future<bool> Function() _openAppSettings;
   final Future<SharedPreferences> Function() _prefs;
 
   /// SharedPreferences keys for the cached coarse fix. Not user-scoped: a coarse
@@ -88,8 +89,7 @@ class LocationService {
   /// True when location permission is granted (while-in-use or always).
   Future<bool> hasPermission() async {
     final p = await _checkPermission();
-    return p == LocationPermission.whileInUse ||
-        p == LocationPermission.always;
+    return p == LocationPermission.whileInUse || p == LocationPermission.always;
   }
 
   /// Lazily request permission (the ONLY method that prompts). Returns the
@@ -102,6 +102,26 @@ class LocationService {
       permission = await _requestPermission();
     }
     return permission;
+  }
+
+  /// Ensure permission for an explicit user tap ("Turn on precise times").
+  ///
+  /// - `denied` (askable) ⇒ show the system prompt.
+  /// - `deniedForever` ⇒ iOS/Android won't re-show the prompt after a "Never",
+  ///   so route the user to the OS app-settings page instead. Otherwise the
+  ///   button would silently do nothing.
+  ///
+  /// Returns `true` only when permission ended up granted in-flow. When we open
+  /// Settings we return `false` — the actual grant is picked up when the app
+  /// returns to the foreground and the schedule rebuilds.
+  Future<bool> ensureOrOpenSettings() async {
+    final permission = await ensurePermission();
+    if (permission == LocationPermission.deniedForever) {
+      await _openAppSettings();
+      return false;
+    }
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
   }
 
   /// Fetch a coarse location, degrading gracefully.
