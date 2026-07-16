@@ -221,6 +221,11 @@ private struct DuaRender {
     let isActive: Bool
     /// The instant urgency should be evaluated from (the timeline entry's date).
     let at: Date
+    /// True when we're NOT showing precise times — location was never granted
+    /// (`computed_at.lat == nil`) or we're on the stale/bundled fallback. The
+    /// home widget then shows an "Open Sakina to turn on precise times" hint,
+    /// since a widget extension can't request location itself (spec §9).
+    var promptEnable: Bool = false
 }
 
 /// Recompute urgency for a specific instant. Mirrors `_urgencyFor` in
@@ -252,6 +257,9 @@ private func resolve(at date: Date) -> DuaRender {
         let stale = schedule.computedAt.computedThroughUTC < date
 
         if !stale {
+            // No location stamp ⇒ user never granted → prompt them to open the
+            // app (or after a tripped guard, opening re-computes at the new tz).
+            let prompt = schedule.computedAt.lat == nil || tripped
             // Active window — suppressed if it's precise and the guard tripped.
             var active = schedule.active
             if let a = active, tripped && a.locationDependent {
@@ -261,7 +269,8 @@ private func resolve(at date: Date) -> DuaRender {
                 return DuaRender(window: a,
                                  urgency: urgencyFor(active: a, at: date),
                                  isActive: true,
-                                 at: date)
+                                 at: date,
+                                 promptEnable: prompt)
             }
             // Between: point at the next window. When the guard tripped, skip
             // precise upcoming windows and surface the next calendar one.
@@ -271,7 +280,8 @@ private func resolve(at date: Date) -> DuaRender {
             } ?? (tripped ? nil : schedule.next)
             if let n = candidate {
                 return DuaRender(window: n, urgency: .upcoming,
-                                 isActive: false, at: date)
+                                 isActive: false, at: date,
+                                 promptEnable: prompt)
             }
         }
     }
@@ -281,8 +291,10 @@ private func resolve(at date: Date) -> DuaRender {
 }
 
 private func resolveFromBundledCalendar(at date: Date, cal: Calendar) -> DuaRender {
+    // Bundled fallback = no fresh located schedule → always prompt to open the app.
     guard let file = loadBundledCalendar() else {
-        return DuaRender(window: nil, urgency: .upcoming, isActive: false, at: date)
+        return DuaRender(window: nil, urgency: .upcoming, isActive: false,
+                         at: date, promptEnable: true)
     }
 
     var active: Window?
@@ -312,11 +324,12 @@ private func resolveFromBundledCalendar(at date: Date, cal: Calendar) -> DuaRend
     }
 
     if let a = active {
-        return DuaRender(window: a, urgency: .allDay, isActive: true, at: date)
+        return DuaRender(window: a, urgency: .allDay, isActive: true, at: date,
+                         promptEnable: true)
     }
     upcoming.sort { $0.startUTC < $1.startUTC }
     return DuaRender(window: upcoming.first, urgency: .upcoming,
-                     isActive: false, at: date)
+                     isActive: false, at: date, promptEnable: true)
 }
 
 private func calendarWindow(row: CalendarRow, start: Date, end: Date) -> Window {
@@ -577,6 +590,8 @@ private struct DuaSmallView: View {
     }
 
     private var cueText: String {
+        // Location off → point them to the app (widget can't prompt).
+        if render.promptEnable { return "Open Sakina · precise times" }
         guard let w = render.window else { return "" }
         if render.isActive {
             if w.isAllDay { return "today only" }
@@ -624,7 +639,15 @@ private struct DuaMediumView: View {
                     .font(.custom("Outfit", size: 21)).fontWeight(.heavy)
                     .foregroundColor(urgent ? Color(red: 0.29, green: 0.20, blue: 0.09) : Palette.ink)
                     .lineLimit(1).minimumScaleFactor(0.55)
-                if let w = render.window {
+                if render.promptEnable {
+                    // Widget extensions can't request location — tell a
+                    // widget-only user where the switch is (spec §9).
+                    Label("Open Sakina to turn on precise times",
+                          systemImage: "location.circle.fill")
+                        .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
+                        .foregroundColor(Palette.goldInk)
+                        .lineLimit(2).minimumScaleFactor(0.75)
+                } else if let w = render.window {
                     Text(render.isActive ? whyLine(w) : "\(windowLabel(w)) — \(whyLine(w))")
                         .font(.custom("Outfit", size: 12.5)).fontWeight(.medium)
                         .foregroundColor(Color(red: 0.44, green: 0.42, blue: 0.38))
