@@ -53,14 +53,15 @@ const _kPhase3Offset = Duration(milliseconds: 2900);
 class _LevelUpOverlayState extends State<LevelUpOverlay>
     with TickerProviderStateMixin {
   // 0=glow buildup, 1=burst, 2=reveal (Continue button shown), 3=tap-anywhere armed.
-  // Phase 3 exists to absorb the double-continue race: the Continue button
-  // fades in at delay=900ms+duration=500ms (= 1400ms) inside phase 2, and
-  // during that window two GestureDetectors compete (full-screen body + the
-  // button itself). Gating the outer detector to phase >= 3 keeps the button
-  // tappable immediately while the "tap anywhere to continue" affordance only
-  // arms once the button is fully on-screen — same pattern as
-  // name_reveal_overlay.dart's phase-3 gate.
+  // Phase 3 gates the outer "tap anywhere" detector so the Continue button
+  // (rendered at phase 2, tappable immediately during its fade-in) wins the
+  // gesture arena cleanly; the outer affordance only arms ~1s after the reveal
+  // once the medallion + rewards have settled. The `_dismissed` latch below is
+  // the real double-fire backstop — same pattern as the other reveal overlays.
   int _phase = 0;
+  // Latch so a fast double-tap in the phase-3 window can't fire onContinue
+  // (nav.pop) twice and pop the screen beneath the overlay.
+  bool _dismissed = false;
   // Pending timers — kept as a list so dispose() can cancel any that haven't
   // fired yet. Previous implementation used bare `Future.delayed(...)` which
   // schedules Timers without giving us a handle to cancel them; widget
@@ -119,6 +120,8 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
   }
 
   void _handleContinue() {
+    if (_dismissed) return;
+    _dismissed = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();

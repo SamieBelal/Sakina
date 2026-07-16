@@ -51,6 +51,9 @@ class NameRevealOverlay extends StatefulWidget {
 class _NameRevealOverlayState extends State<NameRevealOverlay>
     with TickerProviderStateMixin {
   int _phase = 0; // 0=orb, 1=burst, 2=name, 3=details
+  // Latch so a fast double-tap in phase 3 can't fire onContinue (nav.pop) twice
+  // and pop the screen beneath the overlay.
+  bool _dismissed = false;
 
   // Drives the Lottie reveal (orb → light-burst → settle). Its duration is set
   // from the composition on load; the phase delays below are tuned to its beats
@@ -105,6 +108,8 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
       widget.engageResult!.tierChanged;
 
   void _handleContinue() {
+    if (_dismissed) return;
+    _dismissed = true;
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();

@@ -87,7 +87,7 @@ class _SakinaLoaderState extends State<SakinaLoader>
       case SakinaLoaderVariant.breathingStar:
         return _buildBreathingStar(widget.color);
       case SakinaLoaderVariant.ripple:
-        return _buildRipple(widget.color ?? AppColors.secondary);
+        return _buildRipple();
     }
   }
 
@@ -139,7 +139,10 @@ class _SakinaLoaderState extends State<SakinaLoader>
   // so tinting is no longer supported — the [color] param is ignored. This
   // mirrors breathingStar, whose default Lottie path also ignores tint and
   // only colors the monochrome SVG fallback.
-  Widget _buildRipple(Color color) {
+  // The ripple loader is a fixed-palette Lottie (baked gold + emerald), so the
+  // widget's [color] is intentionally not applied here — mirrors breathingStar,
+  // whose default Lottie path also ignores tint.
+  Widget _buildRipple() {
     return SizedBox(
       width: widget.size,
       height: widget.size,
