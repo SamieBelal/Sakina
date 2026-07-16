@@ -49,16 +49,17 @@ class LastThirdOfNight {
 class PrayerTimeService {
   const PrayerTimeService();
 
-  /// Build calculation parameters for [method] + [madhab] with a sane
-  /// high-latitude rule chosen from [coordinates] (spec §4: `seventhOfTheNight`
-  /// above 48°, `middleOfTheNight` otherwise).
+  /// Build calculation parameters for [method] with a sane high-latitude rule
+  /// chosen from [coordinates] (spec §4: `seventhOfTheNight` above 48°,
+  /// `middleOfTheNight` otherwise). No madhab — ʿAsr is unused (D6).
   CalculationParameters _params({
     required Coordinates coordinates,
     required CalculationParameters method,
-    required Madhab madhab,
   }) {
+    // No madhab: the feature never uses ʿAsr (the only madhab-dependent prayer).
+    // The Friday window anchors to Maghrib, night-third to Maghrib/Fajr, iftar
+    // to Maghrib — all madhab-independent. So we don't gather or thread madhab.
     return method.copyWith(
-      madhab: madhab,
       highLatitudeRule: HighLatitudeRule.recommended(coordinates),
     );
   }
@@ -77,13 +78,11 @@ class PrayerTimeService {
     required double lon,
     required DateTime date,
     CalculationParameters? method,
-    Madhab madhab = Madhab.shafi,
   }) {
     final coordinates = Coordinates(lat, lon);
     final params = _params(
       coordinates: coordinates,
       method: method ?? defaultMethod(),
-      madhab: madhab,
     );
     final pt = PrayerTimes(
       coordinates: coordinates,
@@ -125,13 +124,11 @@ class PrayerTimeService {
     required DateTime now,
     required DateTime nowLocalDate,
     CalculationParameters? method,
-    Madhab madhab = Madhab.shafi,
   }) {
     final coordinates = Coordinates(lat, lon);
     final params = _params(
       coordinates: coordinates,
       method: method ?? defaultMethod(),
-      madhab: madhab,
     );
     final nowUtc = now.toUtc();
 

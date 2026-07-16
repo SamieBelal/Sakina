@@ -1,4 +1,3 @@
-import 'package:adhan_dart/adhan_dart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/services/prayer_time_service.dart';
 
@@ -49,31 +48,9 @@ void main() {
     });
   });
 
-  group('madhab toggle shifts ʿAsr', () {
-    test('Hanafi ʿAsr is later than Shafiʿī ʿAsr', () {
-      final shafi = service.prayerTimes(
-        lat: meccaLat,
-        lon: meccaLon,
-        date: jan1,
-        madhab: Madhab.shafi,
-      );
-      final hanafi = service.prayerTimes(
-        lat: meccaLat,
-        lon: meccaLon,
-        date: jan1,
-        madhab: Madhab.hanafi,
-      );
-      expect(hanafi.asr!.isAfter(shafi.asr!), isTrue);
-      // The shift is substantial (tens of minutes), not rounding noise.
-      expect(
-        hanafi.asr!.difference(shafi.asr!),
-        greaterThan(const Duration(minutes: 20)),
-      );
-      // Only ʿAsr moves — Fajr/Maghrib are madhab-independent.
-      expect(hanafi.fajr, equals(shafi.fajr));
-      expect(hanafi.maghrib, equals(shafi.maghrib));
-    });
-  });
+  // (Removed the madhab/ʿAsr test: madhab was dropped from the feature — the
+  // Friday window now anchors to Maghrib, not ʿAsr, so nothing is madhab-
+  // dependent. See dua_window_catalog.fridayHourLeadBeforeMaghrib.)
 
   group('lastThirdOfNight correctness', () {
     test('window opens at 2/3 of Maghrib→Fajr and closes at Fajr', () {

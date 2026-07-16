@@ -26,7 +26,9 @@ time to raise your hands," never "your duʿā will be accepted."
 - In-app card (render-gated, mirrors `RamadanGiftCard` pattern).
 - Native iOS widget (small, medium, lock-screen accessory) with live countdown.
 - Graceful degrade to calendar-only windows when location is unavailable/denied.
-- Madhab setting (affects ʿAsr → Friday hour and can shift night-third).
+- **No madhab setting (D6).** Dropped — the Friday window anchors to Maghrib
+  (sunset), not ʿAsr, so nothing in the feature is madhab-dependent. No madhab
+  is gathered or stored.
 
 ### Out of scope (deferred)
 - **Scheduled notifications** ("ʿArafah is tomorrow", "the night-third has begun") → Phase 2. Requires `flutter_local_notifications` scheduling per device/location; OneSignal (server-push) cannot do location-local timing cleanly.
@@ -47,7 +49,7 @@ an optional "why" disclosure.
 | Window | Timing | Source | Needs location? |
 |---|---|---|---|
 | Last third of the night | Maghrib→Fajr, final third (`adhan_dart` `SunnahTimes.lastThirdOfTheNight`) | al-Bukhari 1145 | Yes |
-| The Friday hour | ʿAsr→Maghrib on Friday | al-Bukhari 935, Muslim 852; Abu Dawud/Nasa'i "last hour after ʿAsr" | Friday = no; the *hour* = yes |
+| The Friday hour | **last hour before Maghrib** on Friday (sunset-anchored, D6) | al-Bukhari 935, Muslim 852; Abu Dawud/Nasa'i "seek it in the last hour" | Friday = no; the *hour* = yes (Maghrib) |
 | Iftar moment (Ramadan) | ~20 min before Maghrib during Ramadan | Tirmidhi 3598 (fasting person's duʿā) | Yes |
 
 Soft framing when location is absent: "the depths of the night" keyed to the
@@ -85,7 +87,7 @@ pure device-weekday check (no data needed).
 ### Prayer times
 - `adhan_dart` (pure Dart, MIT, no runtime deps, Dart 3.11 compatible). Computes
   Fajr/Sunrise/Dhuhr/Asr/Maghrib/Isha + `SunnahTimes` (last third / middle of
-  night) offline from lat/long + date + method + madhab.
+  night) offline from lat/long + date + method. (No madhab — ʿAsr is unused, D6.)
 - **Pin the exact version and verify the API before building (step 0 of impl).**
   The port has historically re-cased/renamed members. Confirm `SunnahTimes`
   exposes `lastThirdOfTheNight` in the pinned version and add a one-line
@@ -136,11 +138,14 @@ pure device-weekday check (no data needed).
 
 ## 5. Settings & defaults
 
-- **Madhab:** default standard (Shāfiʿī-style ʿAsr). Toggle in Settings (Hanafī
-  = later ʿAsr, shifts the Friday hour). Could seed from existing onboarding
-  prayer data later.
+- **Madhab: none (D6).** Removed. Madhab only ever affects ʿAsr, and the Friday
+  window now anchors to Maghrib (sunset), not ʿAsr — so no prayer in the feature
+  is madhab-dependent. This deletes both a Settings toggle AND an onboarding
+  "gather your madhab" step. Faithful to the hadith ("the last hour"), since a
+  madhab-precise ʿAsr would be false precision for a devotional nudge.
 - **Calculation method:** default Muslim World League (MWL). Fixed in v1 (not
-  user-exposed) to keep the surface small; expandable later.
+  user-exposed) to keep the surface small; expandable later. (Method sets the
+  Fajr/Isha twilight angle → the night-third boundary; it is NOT madhab.)
 - These are local device settings (SharedPreferences), not economy/server data.
 
 ## 6. Architecture & components
@@ -330,17 +335,17 @@ separate and belongs in the release checklist.
   + `LocationService` → `DuaWindowEngine` (fully unit-tested) → `DuaTimesCard`
   (validate the window logic live) → schedule serialization → **native widget
   last**, consuming a schedule the card already proved correct.
-- **Phase 2:** scheduled local notifications; Android widget; madhab auto-seed
-  from onboarding; optional rain window.
+- **Phase 2:** scheduled local notifications; Android widget; optional rain
+  window. (No madhab work — dropped per D6.)
 
 ## 14. Testing
 
 Coverage target: every `DuaWindowEngine` branch + the serialization contract.
 
 - **`PrayerTimeService`** — known lat/long/date fixtures vs published times;
-  `SunnahTimes.lastThirdOfTheNight` correctness; madhab toggle shifts ʿAsr.
+  `SunnahTimes.lastThirdOfTheNight` correctness. (No madhab test — dropped, D6.)
 - **`DuaWindowEngine`** — active vs between resolution; next-window target;
-  overlap priority; Friday-hour only Fri (ʿAsr→Maghrib); iftar only in Ramadan;
+  overlap priority; Friday-hour only Fri (last hour before Maghrib); iftar only in Ramadan;
   **night-third spanning local midnight** (regression-class edge — keyed to the
   night, not truncated at midnight); high-latitude undefined → omitted;
   permission-denied → calendar-only schedule; 7-day schedule generation; DST
@@ -376,14 +381,18 @@ Coverage target: every `DuaWindowEngine` branch + the serialization contract.
 - **D5 — widget travel safety:** payload stamped with `computed_at.tz`; Swift
   suppresses precise windows when device tz differs (calendar + soft-night
   fallback). Precise-in-widget preserved without lying after travel.
+- **D6 — no madhab (2026-07-15):** the Friday window anchors to the last hour
+  before **Maghrib** (sunset), not ʿAsr. ʿAsr is the only madhab-dependent
+  prayer and it's now unused, so the `madhab` param, the Settings toggle, and
+  the onboarding "gather madhab" step are all deleted. `Madhab` removed from
+  `PrayerTimeService` + `DuaWindowEngine`.
 
 ### Remaining defaults (confirm or adjust anytime)
 
 1. **In-app card placement** — default: primary home dashboard, mirroring the
    gift card's render-gating. (Confirm exact slot during impl.)
-2. **Madhab default** — default Shāfiʿī ʿAsr + Settings toggle.
-3. **Eid inclusion** — included as "blessed day" framing.
-4. **Location prompt timing** — lazy, first time the card would show a precise
+2. **Eid inclusion** — included as "blessed day" framing.
+3. **Location prompt timing** — lazy, first time the card would show a precise
    window, not on launch.
 
 ## GSTACK REVIEW REPORT

@@ -74,9 +74,16 @@ class DuaWindowCatalog {
     tier: DuaWindowTier.hero,
     titleKey: 'dua_window.friday_hour.title',
     whyKey: 'dua_window.friday_hour.why',
-    sourceRef: 'al-Bukhari 935, Muslim 852; Abu Dawud/Nasaʾi (last hour after ʿAsr)',
+    sourceRef: 'al-Bukhari 935, Muslim 852; Abu Dawud/Nasaʾi (the last hour before Maghrib)',
     locationDependent: true,
   );
+
+  /// The Friday hero window opens this many minutes before Maghrib. The hadith's
+  /// "seek it in the last hour" → the final 60 min before sunset. Anchored to
+  /// Maghrib (sunset) ONLY — no ʿAsr, no madhab: the ruling is itself approximate
+  /// so a madhab-precise ʿAsr would be false precision (and would force us to
+  /// gather the user's madhab).
+  static const Duration fridayHourLeadBeforeMaghrib = Duration(minutes: 60);
 
   /// Iftar moment — ~20 min before Maghrib during Ramadan.
   /// Source: Tirmidhi 3598 (the fasting person's duʿā). Location-dependent.

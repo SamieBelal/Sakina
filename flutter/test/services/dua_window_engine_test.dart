@@ -191,22 +191,24 @@ void main() {
   });
 
   group('Friday hour', () {
-    test('emitted on Friday (ʿAsr→Maghrib), absent other days', () async {
+    test('emitted on Friday (last hour before Maghrib), absent other days',
+        () async {
       final emptyCal = DuaCalendar(
         rows: const [],
         lastSeededThrough: DateTime(2027, 6, 20),
         fromBundledAsset: false,
       );
       final e = engine(emptyCal);
-      // 2027-05-14 is a Friday. Probe: ʿAsr 12:35 → Maghrib 15:51 UTC.
+      // 2027-05-14 is a Friday. Maghrib ~15:51 UTC → the window is the last hour
+      // before it (~14:51 → 15:51). Probe at 15:30 (inside).
       final fri = await e.buildSchedule(
-        now: DateTime.utc(2027, 5, 14, 13, 0), // inside the hour
+        now: DateTime.utc(2027, 5, 14, 15, 30), // inside the last hour
         location: mecca,
       );
       expect(
         fri.active?.type,
         DuaWindowType.fridayHour,
-        reason: 'inside ʿAsr→Maghrib on Friday',
+        reason: 'inside the last hour before Maghrib on Friday',
       );
 
       // 2027-05-13 is a Thursday — no Friday hour anywhere in the schedule.

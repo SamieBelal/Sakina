@@ -1,4 +1,3 @@
-import 'package:adhan_dart/adhan_dart.dart';
 import 'package:flutter/foundation.dart';
 
 import '../features/dua_times/data/dua_window_catalog.dart';
@@ -45,18 +44,15 @@ class DuaWindowEngine {
     LocationService? locationService,
     PrayerTimeService prayerTimeService = const PrayerTimeService(),
     LocalMidnightResolver localMidnightUtc = _deviceLocalMidnightUtc,
-    Madhab madhab = Madhab.shafi,
   })  : _repository = repository,
         _locationService = locationService,
         _prayer = prayerTimeService,
-        _localMidnightUtc = localMidnightUtc,
-        _madhab = madhab;
+        _localMidnightUtc = localMidnightUtc;
 
   final DuaWindowRepository _repository;
   final LocationService? _locationService;
   final PrayerTimeService _prayer;
   final LocalMidnightResolver _localMidnightUtc;
-  final Madhab _madhab;
 
   /// How far ahead the schedule's `upcoming[]` timeline reaches (spec §9 widget
   /// timeline). Seven days keeps the widget correct without the app reopening.
@@ -257,7 +253,6 @@ class DuaWindowEngine {
         lon: loc.lon,
         now: day.isAtSameMomentAs(localNow) ? now : day,
         nowLocalDate: day,
-        madhab: _madhab,
       );
       if (third != null &&
           !third.endUtc.isBefore(nowUtc) &&
@@ -282,15 +277,17 @@ class DuaWindowEngine {
         lat: loc.lat,
         lon: loc.lon,
         date: day,
-        madhab: _madhab,
       );
 
-      // ---- The Friday hour (ʿAsr → Maghrib on Friday) ----
-      if (day.weekday == DateTime.friday &&
-          pt.asr != null &&
-          pt.maghrib != null) {
-        final start = pt.asr!;
+      // ---- The Friday hour: the LAST HOUR BEFORE MAGHRIB on Friday ----
+      // Anchored to Maghrib (sunset) only — NOT ʿAsr. The hadith says "the last
+      // hour"; ʿAsr is the one madhab-dependent prayer, and pinning to it would
+      // be false precision + force gathering the user's madhab. Sunset is
+      // madhab-independent, so this needs no madhab.
+      if (day.weekday == DateTime.friday && pt.maghrib != null) {
         final end = pt.maghrib!;
+        final start =
+            end.subtract(DuaWindowCatalog.fridayHourLeadBeforeMaghrib);
         if (end.isAfter(start) &&
             !end.isBefore(nowUtc) &&
             !start.isAfter(horizonEnd)) {
