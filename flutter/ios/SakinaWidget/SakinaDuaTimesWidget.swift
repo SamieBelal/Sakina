@@ -513,8 +513,9 @@ private func verb(urgency: Urgency, isActive: Bool) -> String {
 /// has to be terse to fill it fully.
 private func lockVerb(urgency: Urgency, isActive: Bool) -> String {
     if !isActive { return "Build duʿā" }
-    if urgency == .lastCall { return "Ask now" }
-    return "Make duʿā"
+    // "Make duʿā now" over "Ask now" — unambiguous. Urgency is carried by the
+    // ⚠ glyph + ticking countdown, so we don't need a separate last-call verb.
+    return "Make duʿā now"
 }
 
 private func ctaText(isActive: Bool) -> String {
@@ -716,7 +717,9 @@ private struct DuaRectView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(lockVerb(urgency: render.urgency, isActive: render.isActive))
                     .font(.title3).fontWeight(.semibold)
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                    // Shrink-to-fit (down to 0.5) rather than truncate, so the
+                    // longer "Make duʿā now" fits on one line at any width.
+                    .lineLimit(1).minimumScaleFactor(0.5)
                 cue
             }
             Spacer(minLength: 0)
