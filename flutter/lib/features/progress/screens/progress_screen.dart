@@ -278,7 +278,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     );
 
     if (!state.loaded || !_launchGateReady) {
-      return SakinaLoader.fullScreen();
+      // This tab renders inside the bottom-nav shell, so a plain centered
+      // loader sits above the true screen centre (the nav bar eats the lower
+      // strip). Offset it down by the nav-bar height so it reads dead-centre.
+      return Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: Padding(
+          padding: EdgeInsets.only(
+            top: kBottomNavigationBarHeight +
+                MediaQuery.paddingOf(context).bottom,
+          ),
+          child: const Center(child: SakinaLoader(size: 180)),
+        ),
+      );
     }
 
     return Scaffold(

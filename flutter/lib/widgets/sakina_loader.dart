@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 
 /// Variants of the Sakina loader.
 ///
 /// - [breathingStar]: an 8-pointed khatam star that slowly pulses and rotates,
-///   evoking a lamp breathing. Use for most loading states.
+///   evoking a lamp breathing. Use for most loading states. When no [color] is
+///   given it renders the premium two-tone (emerald + gold) Lottie medallion;
+///   when an explicit [color] is passed (e.g. on the emerald sacred canvas) it
+///   falls back to the monochrome khatam SVG so contrast is preserved.
 /// - [ripple]: three concentric circles rippling outward. Use for longer
 ///   waits (e.g. AI generation) where you want "working, please wait" affordance.
 enum SakinaLoaderVariant { breathingStar, ripple }
@@ -18,21 +22,23 @@ enum SakinaLoaderVariant { breathingStar, ripple }
 class SakinaLoader extends StatefulWidget {
   const SakinaLoader({
     super.key,
-    this.size = 90,
+    this.size = 120,
     this.color,
     this.variant = SakinaLoaderVariant.breathingStar,
   });
 
   /// Creates a full-screen loader wrapped in a themed [Scaffold].
-  /// Convenience for the common "screen is booting" pattern.
+  /// Convenience for the common "screen is booting" pattern. Uses a larger
+  /// size so the mark reads as a centered focal point, not a small spinner.
   static Widget fullScreen({
     Color? color,
     SakinaLoaderVariant variant = SakinaLoaderVariant.breathingStar,
+    double size = 180,
   }) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: Center(
-        child: SakinaLoader(color: color, variant: variant),
+        child: SakinaLoader(size: size, color: color, variant: variant),
       ),
     );
   }
@@ -48,7 +54,6 @@ class SakinaLoader extends StatefulWidget {
 class _SakinaLoaderState extends State<SakinaLoader>
     with TickerProviderStateMixin {
   AnimationController? _breathController;
-  List<AnimationController>? _rippleControllers;
 
   @override
   void initState() {
@@ -56,49 +61,54 @@ class _SakinaLoaderState extends State<SakinaLoader>
 
     switch (widget.variant) {
       case SakinaLoaderVariant.breathingStar:
-        _breathController = AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 1400),
-        )..repeat(reverse: true);
-      case SakinaLoaderVariant.ripple:
-        _rippleControllers = List.generate(
-          3,
-          (_) => AnimationController(
+        // Only the monochrome SVG fallback (explicit color) is driven by a
+        // controller; the default path uses the self-animating Lottie asset.
+        if (widget.color != null) {
+          _breathController = AnimationController(
             vsync: this,
-            duration: const Duration(milliseconds: 1600),
-          ),
-        );
-        for (var i = 0; i < _rippleControllers!.length; i++) {
-          Future.delayed(Duration(milliseconds: i * 530), () {
-            if (mounted) _rippleControllers![i].repeat();
-          });
+            duration: const Duration(milliseconds: 1400),
+          )..repeat(reverse: true);
         }
+      case SakinaLoaderVariant.ripple:
+        // Self-animating Lottie loop — no controller needed.
+        break;
     }
   }
 
   @override
   void dispose() {
     _breathController?.dispose();
-    if (_rippleControllers != null) {
-      for (final c in _rippleControllers!) {
-        c.dispose();
-      }
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ?? AppColors.secondary;
     switch (widget.variant) {
       case SakinaLoaderVariant.breathingStar:
-        return _buildBreathingStar(color);
+        return _buildBreathingStar(widget.color);
       case SakinaLoaderVariant.ripple:
-        return _buildRipple(color);
+        return _buildRipple();
     }
   }
 
-  Widget _buildBreathingStar(Color color) {
+  Widget _buildBreathingStar(Color? color) {
+    // Default: premium two-tone Lottie medallion (breathe + slow rotation baked
+    // into the asset). Sits on cream surfaces across the app.
+    if (color == null) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Lottie.asset(
+          'assets/animations/breathing_star.json',
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+          repeat: true,
+        ),
+      );
+    }
+
+    // Explicit tint (e.g. sacredInk on the emerald canvas): monochrome khatam.
     return SizedBox(
       width: widget.size,
       height: widget.size,
@@ -125,36 +135,23 @@ class _SakinaLoaderState extends State<SakinaLoader>
     );
   }
 
-  Widget _buildRipple(Color color) {
+  // The ripple loader is now a fixed-palette Lottie (baked gold + emerald),
+  // so tinting is no longer supported — the [color] param is ignored. This
+  // mirrors breathingStar, whose default Lottie path also ignores tint and
+  // only colors the monochrome SVG fallback.
+  // The ripple loader is a fixed-palette Lottie (baked gold + emerald), so the
+  // widget's [color] is intentionally not applied here — mirrors breathingStar,
+  // whose default Lottie path also ignores tint.
+  Widget _buildRipple() {
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: List.generate(_rippleControllers!.length, (index) {
-          return AnimatedBuilder(
-            animation: _rippleControllers![index],
-            builder: (context, _) {
-              final value = _rippleControllers![index].value;
-              final scale = 0.3 + (2.2 - 0.3) * value;
-              final opacity = (0.6 - 0.6 * value).clamp(0.0, 1.0);
-              return Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: widget.size * 0.4,
-                    height: widget.size * 0.4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: color, width: 2),
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        }),
+      child: Lottie.asset(
+        'assets/animations/ripple_loader.json',
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        repeat: true,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -9,10 +10,12 @@ import 'package:sakina/core/theme/app_typography.dart';
 // Full-Screen Streak Milestone Celebration Overlay
 //
 // Amber-themed "unboxing" moment when a user hits a streak milestone
-// (7/14/30/60/90/180/365 days). Four phases:
-//   0 → anticipation flame orb + ripples
-//   1 → radiating amber burst rings
-//   2 → flame icon + huge streak number + "Day Streak!" label
+// (7/14/30/60/90/180/365 days). The ambient FX are driven by a single Lottie
+// animation (embers gather → flame ignites & rises → living hearth-glow); the
+// native content is layered on top through the phase machine:
+//   0 → embers gathering (Lottie only)
+//   1 → flame ignites (heavy haptic; background warms)
+//   2 → flame icon + huge streak number + "Day Streak!" label reveal
 //   3 → reward pills (XP + Scrolls) + Continue button
 //
 // Push as a transparent route via rootNavigator:
@@ -53,10 +56,18 @@ class StreakMilestoneOverlay extends StatefulWidget {
       _StreakMilestoneOverlayState();
 }
 
-class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
-  // 0=anticipation orb, 1=burst rings, 2=number reveal, 3=rewards + continue
+class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
+    with TickerProviderStateMixin {
+  // 0=embers gathering, 1=flame ignites, 2=number reveal, 3=rewards + continue
   int _phase = 0;
   bool _dismissed = false;
+
+  // Drives the Lottie hearth (embers gather → flame ignites & rises → settle).
+  // Its duration is set from the composition on load; the phase delays below
+  // are tuned to its beats (gather ≈ 0–0.93s, IGNITE ≈ frame 96 / 1.6s, rise
+  // 1.6–2.67s, settle from ≈ 2.67s).
+  late final AnimationController _lottieController;
+  bool _lottieStarted = false;
 
   static const _amber = AppColors.streakAmber;
   static const _bg = Color(0xFF0A0A12);
@@ -64,23 +75,32 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
   @override
   void initState() {
     super.initState();
+    _lottieController = AnimationController(vsync: this);
     _runSequence();
   }
 
+  @override
+  void dispose() {
+    _lottieController.dispose();
+    super.dispose();
+  }
+
   Future<void> _runSequence() async {
-    // Phase 0 → 1: anticipation flame orb (1.2s), then burst + heavy haptic
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Phase 0 → 1: embers gather, then the flame IGNITES (~frame 96 = 1.6s).
+    // Fire the heavy haptic on the ignite beat and warm the background.
+    await Future.delayed(const Duration(milliseconds: 1650));
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     setState(() => _phase = 1);
 
-    // Phase 1 → 2: brief burst (400ms), then number reveal
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Phase 1 → 2: streak number resolves just after the flame catches, as the
+    // warm column begins to rise.
+    await Future.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
     setState(() => _phase = 2);
 
-    // Phase 2 → 3: number sits for a moment, then rewards + Continue
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Phase 2 → 3: number sits while the column rises, then rewards + Continue.
+    await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
     HapticFeedback.lightImpact();
     setState(() => _phase = 3);
@@ -128,137 +148,32 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // ── Background glow ──
-              if (_phase >= 1)
-                Positioned.fill(
-                  child: Center(
-                    child: Container(
-                      width: 350,
-                      height: 350,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            _amber.withValues(alpha: 0.22),
-                            _amber.withValues(alpha: 0.06),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .scaleXY(
-                          begin: 0.0,
-                          end: 1.0,
-                          duration: 600.ms,
-                          curve: Curves.easeOut,
-                        )
-                        .then()
-                        .animate(onPlay: (c) => c.repeat(reverse: true))
-                        .scaleXY(
-                          begin: 1.0,
-                          end: 1.15,
-                          duration: 2000.ms,
-                        ),
+              // ── Ambient hearth (Lottie): embers gather → flame ignites &
+              // rises → living hearth-glow settles ──
+              // Replaces the hand-coded glow/burst-rings/anticipation-orb/
+              // particles. Plays once, centered; the streak number + label are
+              // layered natively on top. Warm amber matches the streak theme.
+              Positioned.fill(
+                child: Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 1.5,
+                    height: MediaQuery.of(context).size.width * 1.5,
+                    child: Lottie.asset(
+                      'assets/animations/streak_milestone.json',
+                      controller: _lottieController,
+                      fit: BoxFit.contain,
+                      repeat: false,
+                      onLoaded: (composition) {
+                        if (_lottieStarted) return;
+                        _lottieStarted = true;
+                        _lottieController
+                          ..duration = composition.duration
+                          ..forward(from: 0);
+                      },
+                    ),
                   ),
                 ),
-
-              // ── Phase 1: Radiating amber burst rings ──
-              if (_phase == 1)
-                ...List.generate(4, (i) {
-                  return Center(
-                    child: Container(
-                      width: 100 + (i * 60.0),
-                      height: 100 + (i * 60.0),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _amber.withValues(alpha: 0.45 - (i * 0.08)),
-                          width: 2,
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .scaleXY(
-                          begin: 0.3,
-                          end: 1.6,
-                          duration: 800.ms,
-                          delay: (i * 80).ms,
-                          curve: Curves.easeOut,
-                        )
-                        .fadeOut(
-                          duration: 800.ms,
-                          delay: (i * 80).ms,
-                        ),
-                  );
-                }),
-
-              // ── Phase 0: Anticipation flame orb with 3 concentric ripples ──
-              if (_phase == 0)
-                Center(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ...List.generate(3, (i) {
-                        return Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _amber.withValues(alpha: 0.35),
-                              width: 1.5,
-                            ),
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat())
-                            .scaleXY(
-                              begin: 0.5,
-                              end: 2.0,
-                              duration: 1500.ms,
-                              delay: (i * 300).ms,
-                            )
-                            .fadeOut(
-                              duration: 1500.ms,
-                              delay: (i * 300).ms,
-                            );
-                      }),
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              _amber.withValues(alpha: 0.25),
-                              _amber.withValues(alpha: 0.0),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _amber.withValues(alpha: 0.55),
-                              blurRadius: 40,
-                              spreadRadius: 12,
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.local_fire_department,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                        ),
-                      )
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scaleXY(
-                            begin: 0.85,
-                            end: 1.25,
-                            duration: 800.ms,
-                          ),
-                    ],
-                  ),
-                ),
+              ),
 
               // ── Phase 2+: Flame icon + streak number reveal ──
               if (_phase >= 2)
@@ -413,47 +328,6 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay> {
                     ),
                   ),
                 ),
-
-              // ── Floating amber particles (phase 2+) ──
-              if (_phase >= 2)
-                ...List.generate(12, (i) {
-                  final isLeft = i % 2 == 0;
-                  final startX = isLeft ? -0.5 : 0.5;
-                  return Positioned(
-                    top: 100 + (i * 50.0),
-                    left: isLeft ? 20 + (i * 15.0) : null,
-                    right: isLeft ? null : 20 + (i * 12.0),
-                    child: Container(
-                      width: 4 + (i % 3) * 2.0,
-                      height: 4 + (i % 3) * 2.0,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _amber.withValues(alpha: 0.65 - (i * 0.04)),
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(
-                          delay: (i * 100).ms,
-                          duration: 400.ms,
-                        )
-                        .slideY(
-                          begin: 0.5,
-                          end: -2.0,
-                          delay: (i * 100).ms,
-                          duration: 2500.ms,
-                        )
-                        .slideX(
-                          begin: startX,
-                          end: 0,
-                          delay: (i * 100).ms,
-                          duration: 2500.ms,
-                        )
-                        .fadeOut(
-                          delay: (1500 + i * 100).ms,
-                          duration: 800.ms,
-                        ),
-                  );
-                }),
             ],
           ),
         ),

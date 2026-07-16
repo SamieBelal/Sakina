@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
+import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/constants/app_strings.dart';
@@ -645,13 +646,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
-            Text(
-              _displayTitleArabic,
-              style: AppTypography.nameOfAllahDisplay.copyWith(
-                fontSize: 28,
-                color: AppColors.primary,
-              ),
-              textDirection: TextDirection.rtl,
+            // Aref Ruqaa clips/bleeds when rendered bare — route it through
+            // AdjustedArabicDisplay AND reserve vertical room above/below so the
+            // tall ascenders + diacritics aren't cut (mirrors progress_screen).
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const SizedBox(height: 22),
+                AdjustedArabicDisplay(
+                  text: _displayTitleArabic,
+                  textAlign: TextAlign.right,
+                  style: AppTypography.nameOfAllahDisplay.copyWith(
+                    fontSize: 28,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
             ),
             const SizedBox(width: 8),
             const Icon(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -44,10 +45,18 @@ class PremiumCelebrationOverlay extends StatefulWidget {
       _PremiumCelebrationOverlayState();
 }
 
-class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
-  // 0=anticipation orb, 1=burst rings, 2=title reveal, 3=perks + Begin button
+class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
+    with TickerProviderStateMixin {
+  // 0=gather/wind-up, 1=gold bloom + flash, 2=title reveal, 3=perks + Begin
   int _phase = 0;
   bool _dismissed = false;
+
+  // Drives the Lottie unlock (gather → bloom + warm-white flash → seal ring →
+  // settle). Its duration is set from the composition on load; the phase delays
+  // below are tuned to its beats (@60fps: flash swell ≈ 1.27s, gold bloom lands
+  // ≈ 1.53s / frame 92, seal ring + sparkles settle ≈ 2.5s, rest from ≈ 2.13s).
+  late final AnimationController _lottieController;
+  bool _lottieStarted = false;
 
   static const _gold = AppColors.secondary;
   static const _bg = Color(0xFF0A0A12);
@@ -55,23 +64,33 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
   @override
   void initState() {
     super.initState();
+    _lottieController = AnimationController(vsync: this);
     _runSequence();
   }
 
+  @override
+  void dispose() {
+    _lottieController.dispose();
+    super.dispose();
+  }
+
   Future<void> _runSequence() async {
-    // Phase 0 → 1: anticipation orb (1.2s), then burst + heavy haptic
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Phase 0 → 1: the gold light gathers + winds up, then BLOOMS with a warm-
+    // white flash at frame ~92 (≈1.55s). Fire the celebratory heavy haptic on
+    // the flash beat.
+    await Future.delayed(const Duration(milliseconds: 1550));
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     setState(() => _phase = 1);
 
-    // Phase 1 → 2: brief gap then title reveal
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Phase 1 → 2: title resolves just AFTER the bloom, as the flash settles.
+    await Future.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     setState(() => _phase = 2);
 
-    // Phase 2 → 3: perk pills + Begin button, light haptic
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Phase 2 → 3: perk pills + Begin button once the seal ring + sparkles have
+    // settled into the resting emblem. Light haptic.
+    await Future.delayed(const Duration(milliseconds: 950));
     if (!mounted) return;
     HapticFeedback.lightImpact();
     setState(() => _phase = 3);
@@ -119,131 +138,32 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // ── Background glow ──
-              if (_phase >= 1)
-                Positioned.fill(
-                  child: Center(
-                    child: Container(
-                      width: 360,
-                      height: 360,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            _gold.withValues(alpha: 0.22),
-                            _gold.withValues(alpha: 0.06),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .scaleXY(
-                          begin: 0.0,
-                          end: 1.0,
-                          duration: 600.ms,
-                          curve: Curves.easeOut,
-                        )
-                        .then()
-                        .animate(onPlay: (c) => c.repeat(reverse: true))
-                        .scaleXY(
-                          begin: 1.0,
-                          end: 1.15,
-                          duration: 2000.ms,
-                        ),
+              // ── Ambient unlock (Lottie): gather → gold bloom + warm-white
+              // flash → seal-of-light ring → settle into a radiant emblem.
+              // Replaces the hand-coded glow/rings/orb/particles. Plays once,
+              // centered; the native "Sakina Premium / Unlocked" wordmark,
+              // perk pills, and Begin button are layered on top.
+              Positioned.fill(
+                child: Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 1.5,
+                    height: MediaQuery.of(context).size.width * 1.5,
+                    child: Lottie.asset(
+                      'assets/animations/premium_celebration.json',
+                      controller: _lottieController,
+                      fit: BoxFit.contain,
+                      repeat: false,
+                      onLoaded: (composition) {
+                        if (_lottieStarted) return;
+                        _lottieStarted = true;
+                        _lottieController
+                          ..duration = composition.duration
+                          ..forward(from: 0);
+                      },
+                    ),
                   ),
                 ),
-
-              // ── Phase 1: Radiating burst rings (gold) ──
-              if (_phase == 1)
-                ...List.generate(4, (i) {
-                  return Center(
-                    child: Container(
-                      width: 100 + (i * 60.0),
-                      height: 100 + (i * 60.0),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _gold.withValues(alpha: 0.45 - (i * 0.08)),
-                          width: 2,
-                        ),
-                      ),
-                    )
-                        .animate()
-                        .scaleXY(
-                          begin: 0.3,
-                          end: 1.6,
-                          duration: 800.ms,
-                          delay: (i * 80).ms,
-                          curve: Curves.easeOut,
-                        )
-                        .fadeOut(
-                          duration: 800.ms,
-                          delay: (i * 80).ms,
-                        ),
-                  );
-                }),
-
-              // ── Phase 0: Anticipation gold orb with 3 concentric ripples ──
-              if (_phase == 0)
-                Center(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ...List.generate(3, (i) {
-                        return Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _gold.withValues(alpha: 0.35),
-                              width: 1.5,
-                            ),
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat())
-                            .scaleXY(
-                              begin: 0.5,
-                              end: 2.0,
-                              duration: 1500.ms,
-                              delay: (i * 300).ms,
-                            )
-                            .fadeOut(
-                              duration: 1500.ms,
-                              delay: (i * 300).ms,
-                            );
-                      }),
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.white,
-                              _gold.withValues(alpha: 0.95),
-                              _gold.withValues(alpha: 0.0),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _gold.withValues(alpha: 0.6),
-                              blurRadius: 40,
-                              spreadRadius: 15,
-                            ),
-                          ],
-                        ),
-                      )
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scaleXY(
-                            begin: 0.8,
-                            end: 1.3,
-                            duration: 800.ms,
-                          ),
-                    ],
-                  ),
-                ),
+              ),
 
               // ── Phase 2+: Title reveal ──
               if (_phase >= 2)
@@ -296,9 +216,17 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
                             ? 'Your journey begins, ${widget.userName}'
                             : 'Your journey begins',
                         style: AppTypography.bodyLarge.copyWith(
-                          color: _gold,
+                          // Warm off-white + dark shadow so it stays legible
+                          // over the celebratory gold light behind it.
+                          color: const Color(0xFFF6EFE4),
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                            ),
+                          ],
                         ),
                         textAlign: TextAlign.center,
                       )
@@ -401,47 +329,6 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay> {
                     ),
                   ),
                 ),
-
-              // ── Floating gold particles (phase 2+) ──
-              if (_phase >= 2)
-                ...List.generate(12, (i) {
-                  final isLeft = i % 2 == 0;
-                  final startX = isLeft ? -0.5 : 0.5;
-                  return Positioned(
-                    top: 100 + (i * 50.0),
-                    left: isLeft ? 20 + (i * 15.0) : null,
-                    right: isLeft ? null : 20 + (i * 12.0),
-                    child: Container(
-                      width: 4 + (i % 3) * 2.0,
-                      height: 4 + (i % 3) * 2.0,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _gold.withValues(alpha: 0.65 - (i * 0.04)),
-                      ),
-                    )
-                        .animate()
-                        .fadeIn(
-                          delay: (i * 100).ms,
-                          duration: 400.ms,
-                        )
-                        .slideY(
-                          begin: 0.5,
-                          end: -2.0,
-                          delay: (i * 100).ms,
-                          duration: 2500.ms,
-                        )
-                        .slideX(
-                          begin: startX,
-                          end: 0,
-                          delay: (i * 100).ms,
-                          duration: 2500.ms,
-                        )
-                        .fadeOut(
-                          delay: (1500 + i * 100).ms,
-                          duration: 800.ms,
-                        ),
-                  );
-                }),
             ],
           ),
         ),
