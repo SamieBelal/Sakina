@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -1193,23 +1194,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ]),
         const SizedBox(height: AppSpacing.lg),
 
-        // Developer (debug builds only)
-        // NOTE: Commented out so it never reaches production. To use Dev Tools
-        // during local dev/QA, uncomment the block below and run a debug build.
-        // The `if (kDebugMode)` guard already strips it from release, but we
-        // keep it commented as an extra safety net.
-        // if (kDebugMode) ...[
-        //   _buildSectionLabel('Developer'),
-        //   const SizedBox(height: AppSpacing.sm),
-        //   _buildSettingsCard([
-        //     _buildSettingsRow(
-        //       icon: Icons.bug_report_rounded,
-        //       label: 'Dev Tools',
-        //       onTap: () => context.push('/dev-tools'),
-        //     ),
-        //   ]),
-        //   const SizedBox(height: AppSpacing.lg),
-        // ],
+        // Developer — shown in debug AND profile (QA review) builds, stripped
+        // from release by the `!kReleaseMode` guard. (Was kDebugMode, which is
+        // false in the profile builds we use for on-device QA, so Dev Tools
+        // was unreachable there.) Re-comment before a store build if desired.
+        if (!kReleaseMode) ...[
+          _buildSectionLabel('Developer'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildSettingsCard([
+            _buildSettingsRow(
+              icon: Icons.bug_report_rounded,
+              label: 'Dev Tools',
+              onTap: () => context.push('/dev-tools'),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.lg),
+        ],
 
         // Danger Zone
         _buildSectionLabel('Danger Zone'),

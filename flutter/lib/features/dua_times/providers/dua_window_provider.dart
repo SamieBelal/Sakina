@@ -121,6 +121,24 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     state = state.copyWith(schedule: schedule, now: now ?? _clock());
   }
 
+  /// Dev/QA only: freeze the card + widget on a synthetic [schedule] so a
+  /// reviewer can SEE each state (Friday hour, last-call, ʿArafah…) without
+  /// waiting for the real day. Suppresses real rebuilds until [debugUnfreeze],
+  /// and pushes the schedule to the native widget too. Release-stripped (only
+  /// reachable from Dev Tools). Instants are relative to now so countdowns tick.
+  void debugPreview(DuaWindowSchedule schedule) {
+    _debugFrozen = true;
+    _lastBuiltYmd = _ymd(_clock());
+    state = state.copyWith(schedule: schedule, now: _clock());
+    unawaited(_pushToWidget(schedule));
+  }
+
+  /// Exit preview mode and rebuild the real schedule.
+  void debugUnfreeze() {
+    _debugFrozen = false;
+    unawaited(rebuild());
+  }
+
   final DuaWindowEngine _engine;
   final LocationService _location;
   final DuaWindowRepository _repository;
@@ -141,6 +159,11 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   Timer? _ticker;
   String? _lastBuiltYmd;
   bool _disposed = false;
+
+  /// When true, real rebuilds are suppressed and the card/widget stay on a
+  /// synthetic Dev-Tools preview schedule (see [debugPreview]). The ticker still
+  /// advances `now`, so the live countdown keeps ticking.
+  bool _debugFrozen = false;
 
   static Future<String> _defaultResolveTimezone() async {
     try {
@@ -244,7 +267,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   /// Rebuild the schedule from calendar + prayer times and push it to the
   /// widget. Safe to call repeatedly; degrades silently on any failure.
   Future<void> rebuild({bool promptLocation = false}) async {
-    if (_disposed) return;
+    if (_disposed || _debugFrozen) return;
     state = state.copyWith(building: true, now: _clock());
     try {
       // Refresh the seeded calendar cache before building (spec §7 foreground
