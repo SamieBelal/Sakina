@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 import 'package:sakina/services/dua_window_engine.dart';
@@ -253,10 +254,53 @@ void main() {
       ].any((w) => w.type == DuaWindowType.iftar);
       expect(hasIftarOutside, isFalse);
     });
+
+    test(
+        'pinned to fasting days — fires on the first & last fast, never on '
+        'the eve before Ramadan or on Eid', () async {
+      // Ramadan 1448 = Feb 8 → Mar 8 (29 days). Iftar breaks the fast at
+      // Maghrib on each of those days: the standard Umm al-Qura convention
+      // (start_date = the first fasting day; Eid = the day after end_date, no
+      // fast). This pins the ±1 boundary so it can't drift in a refactor.
+      final e = engine(fullCalendar, resolver: _fixedOffset(3));
+
+      String utcDate(DuaWindow w) {
+        final d = w.startUtc.toUtc();
+        return '${d.year.toString().padLeft(4, '0')}-'
+            '${d.month.toString().padLeft(2, '0')}-'
+            '${d.day.toString().padLeft(2, '0')}';
+      }
+
+      Set<String> iftarDates(DuaWindowSchedule s) => <DuaWindow>{
+            ...s.upcoming,
+            if (s.active != null) s.active!,
+          }.where((w) => w.type == DuaWindowType.iftar).map(utcDate).toSet();
+
+      // Near the END (horizon Mar 5..12): last fast Mar 8, Eid Mar 9.
+      final endDates = iftarDates(
+        await e.buildSchedule(
+            now: DateTime.utc(2027, 3, 5, 9), location: mecca),
+      );
+      expect(endDates.contains('2027-03-08'), isTrue,
+          reason: 'last fast (29 Ramadan)');
+      expect(endDates.any((d) => d.compareTo('2027-03-09') >= 0), isFalse,
+          reason: 'no iftar on Eid al-Fitr or after');
+
+      // Near the START (horizon Feb 5..12): first fast Feb 8.
+      final startDates = iftarDates(
+        await e.buildSchedule(
+            now: DateTime.utc(2027, 2, 5, 9), location: mecca),
+      );
+      expect(startDates.contains('2027-02-08'), isTrue,
+          reason: 'first fast (1 Ramadan)');
+      expect(startDates.any((d) => d.compareTo('2027-02-08') < 0), isFalse,
+          reason: 'no iftar the evenings before Ramadan');
+    });
   });
 
   group('degrade: no location', () {
-    test('LocationService denied (null fix) → calendar-only schedule', () async {
+    test('LocationService denied (null fix) → calendar-only schedule',
+        () async {
       SharedPreferences.setMockInitialValues({});
       final deniedLocation = LocationService(
         checkPermission: () async => LocationPermission.deniedForever,

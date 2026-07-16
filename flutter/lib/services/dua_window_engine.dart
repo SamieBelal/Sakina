@@ -307,6 +307,12 @@ class DuaWindowEngine {
       }
 
       // ---- Iftar (~20 min before Maghrib, ONLY during Ramadan) ----
+      // Iftar breaks the fast at Maghrib on each fasting day. Convention: the
+      // seeded Ramadan `start_date` IS the first fasting day and `end_date` the
+      // last (Umm al-Qura). So iftar fires Maghrib of start_date … end_date and
+      // NOT the evening before Ramadan nor on Eid (the day after end_date is
+      // excluded by _isRamadanLocalDay's exclusive end). Pinned by the
+      // "fasting days" boundary test. (±1 vs local moon-sighting is inherent.)
       if (pt.maghrib != null && _isRamadanLocalDay(calendar, day)) {
         final end = pt.maghrib!;
         final start = end.subtract(DuaWindowCatalog.iftarLeadBeforeMaghrib);
@@ -339,7 +345,8 @@ class DuaWindowEngine {
     // If it's already past ~05:00 local, target tonight (next calendar day's
     // pre-dawn); else target this pre-dawn.
     final localHour = now.hour;
-    final anchorDay = localHour >= 5 ? local.add(const Duration(days: 1)) : local;
+    final anchorDay =
+        localHour >= 5 ? local.add(const Duration(days: 1)) : local;
     final start = _localMidnightUtc(
       anchorDay.year,
       anchorDay.month,
@@ -363,6 +370,9 @@ class DuaWindowEngine {
     );
   }
 
+  /// True if [localDay] is a Ramadan fasting day: its local midnight falls in
+  /// `[start_date, end_date + 1 day)`. The exclusive end means the day AFTER
+  /// `end_date` (Eid) is NOT a fasting day, so iftar never fires on Eid.
   bool _isRamadanLocalDay(DuaCalendar calendar, DateTime localDay) {
     final dayStart = _localMidnightUtc(
       localDay.year,
@@ -405,17 +415,14 @@ class DuaWindowEngine {
     DuaWindow? active;
     for (final w in deduped) {
       if (!nowUtc.isBefore(w.startUtc) && nowUtc.isBefore(w.endUtc)) {
-        if (active == null ||
-            priorityOf(w.type) > priorityOf(active.type)) {
+        if (active == null || priorityOf(w.type) > priorityOf(active.type)) {
           active = w;
         }
       }
     }
 
     // Upcoming = windows opening at/after now, ordered by start then priority.
-    final upcoming = deduped
-        .where((w) => !w.startUtc.isBefore(nowUtc))
-        .toList()
+    final upcoming = deduped.where((w) => !w.startUtc.isBefore(nowUtc)).toList()
       ..sort((a, b) {
         final byStart = a.startUtc.compareTo(b.startUtc);
         if (byStart != 0) return byStart;
