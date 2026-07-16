@@ -282,18 +282,25 @@ class _EnablePreciseBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A solid CREAM panel on the emerald card — high contrast so it can't be
+    // missed (location is the switch for the whole feature). Big title, one
+    // short benefit line, a large gold "Turn on" button, and a ✕ snooze.
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        padding: const EdgeInsets.fromLTRB(16, 14, 12, 16),
         decoration: BoxDecoration(
-          color: AppColors.secondary.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppColors.secondary.withValues(alpha: 0.55),
-          ),
+          color: AppColors.sacredInk,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.sacredCanvasTop.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,17 +309,18 @@ class _EnablePreciseBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.my_location_rounded,
-                    color: AppColors.secondary, size: 22),
-                const SizedBox(width: 10),
+                    color: AppColors.primary, size: 24),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 1),
                     child: Text(
                       DuaTimesCopy.enablePreciseTitle,
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.sacredInk,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.5,
+                      style: AppTypography.headlineMedium.copyWith(
+                        color: AppColors.primaryDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        height: 1.1,
                       ),
                     ),
                   ),
@@ -321,38 +329,41 @@ class _EnablePreciseBanner extends StatelessWidget {
                   GestureDetector(
                     onTap: onDismiss,
                     behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
                       child: Icon(Icons.close_rounded,
-                          size: 18, color: AppColors.sacredInkFaint),
+                          size: 20,
+                          color: AppColors.primary.withValues(alpha: 0.45)),
                     ),
                   ),
               ],
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 32, top: 3, right: 4),
+              padding: const EdgeInsets.only(left: 36, top: 6, right: 8),
               child: Text(
                 DuaTimesCopy.enablePreciseSubtitle,
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.sacredInkSoft,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textPrimaryLight.withValues(alpha: 0.72),
+                  fontSize: 13.5,
                   height: 1.3,
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(left: 32, top: 11),
+              padding: const EdgeInsets.only(left: 36, top: 14),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
                   DuaTimesCopy.enablePreciseCta,
-                  style: AppTypography.labelMedium.copyWith(
+                  style: AppTypography.labelLarge.copyWith(
                     color: AppColors.textOnPrimary,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
                   ),
                 ),
               ),

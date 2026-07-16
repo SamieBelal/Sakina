@@ -100,11 +100,10 @@ abstract final class DuaTimesCopy {
   /// Headline for the enable-location banner.
   static const String enablePreciseTitle = 'Turn on precise times';
 
-  /// Benefit/necessity subline — names the countdown AND the widget so users
-  /// know this is required, not optional polish.
+  /// Benefit subline — short and punchy (one line). The necessity is carried by
+  /// the prominence of the banner, not a long sentence.
   static const String enablePreciseSubtitle =
-      'The live countdown and the widget need your location to know '
-      'the exact moments duʿā is most likely answered.';
+      'See the live countdown to each blessed moment.';
 
   /// The banner's action label.
   static const String enablePreciseCta = 'Turn on';
