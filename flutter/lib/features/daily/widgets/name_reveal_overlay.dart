@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -51,24 +52,41 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
     with TickerProviderStateMixin {
   int _phase = 0; // 0=orb, 1=burst, 2=name, 3=details
 
+  // Drives the Lottie reveal (orb → light-burst → settle). Its duration is set
+  // from the composition on load; the phase delays below are tuned to its beats
+  // (flash ≈ 1.4s, halo settle from ≈ 1.9s).
+  late final AnimationController _lottieController;
+  bool _lottieStarted = false;
+
   @override
   void initState() {
     super.initState();
     debugPrint(
         '[REVEAL] nameArabic="${widget.nameArabic}" nameEnglish="${widget.nameEnglish}" card.arabic="${widget.card?.arabic}"');
+    _lottieController = AnimationController(vsync: this);
     _runSequence();
   }
 
+  @override
+  void dispose() {
+    _lottieController.dispose();
+    super.dispose();
+  }
+
   Future<void> _runSequence() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Wind-up + flash land here (Lottie anticipation contracts ~1.2s, flashes
+    // ~1.4s). Fire the heavy haptic on the flash.
+    await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     setState(() => _phase = 1);
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Name resolves as the flash settles.
+    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     setState(() => _phase = 2);
 
+    // Details/card come in once the light has settled into the halo.
     await Future.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
     HapticFeedback.lightImpact();
@@ -130,115 +148,31 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // ── Background glow ──
-                if (_phase >= 1)
-                  Positioned.fill(
-                    child: Center(
-                      child: Container(
-                        width: 350,
-                        height: 350,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              _tierColor.withValues(alpha: 0.2),
-                              _tierColor.withValues(alpha: 0.05),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(
-                              begin: 0.0,
-                              end: 1.0,
-                              duration: 600.ms,
-                              curve: Curves.easeOut)
-                          .then()
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scaleXY(begin: 1.0, end: 1.15, duration: 2000.ms),
+                // ── Ambient reveal (Lottie): orb → light-burst → settle ──
+                // Replaces the hand-coded glow/rings/orb/particles. Plays once,
+                // centered; the Arabic Name is layered natively on top. The
+                // light is warm gold (divine-light read) across all tiers.
+                Positioned.fill(
+                  child: Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 1.5,
+                      height: MediaQuery.of(context).size.width * 1.5,
+                      child: Lottie.asset(
+                        'assets/animations/name_reveal.json',
+                        controller: _lottieController,
+                        fit: BoxFit.contain,
+                        repeat: false,
+                        onLoaded: (composition) {
+                          if (_lottieStarted) return;
+                          _lottieStarted = true;
+                          _lottieController
+                            ..duration = composition.duration
+                            ..forward(from: 0);
+                        },
+                      ),
                     ),
                   ),
-
-                // ── Radiating rings (phase 1) ──
-                if (_phase == 1)
-                  ...List.generate(4, (i) {
-                    return Center(
-                      child: Container(
-                        width: 100 + (i * 60.0),
-                        height: 100 + (i * 60.0),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color:
-                                _tierColor.withValues(alpha: 0.4 - (i * 0.08)),
-                            width: 2,
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(
-                              begin: 0.3,
-                              end: 1.5,
-                              duration: 800.ms,
-                              delay: (i * 80).ms,
-                              curve: Curves.easeOut)
-                          .fadeOut(duration: 800.ms, delay: (i * 80).ms),
-                    );
-                  }),
-
-                // ── Phase 0: Pulsing orb ──
-                if (_phase == 0)
-                  Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ...List.generate(3, (i) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: _tierColor.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat())
-                              .scaleXY(
-                                  begin: 0.5,
-                                  end: 2.0,
-                                  duration: 1500.ms,
-                                  delay: (i * 300).ms)
-                              .fadeOut(duration: 1500.ms, delay: (i * 300).ms);
-                        }),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                Colors.white,
-                                _tierColor.withValues(alpha: 0.9),
-                                _tierColor.withValues(alpha: 0.0),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _tierColor.withValues(alpha: 0.6),
-                                blurRadius: 40,
-                                spreadRadius: 15,
-                              )
-                            ],
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat(reverse: true))
-                            .scaleXY(begin: 0.8, end: 1.3, duration: 800.ms),
-                      ],
-                    ),
-                  ),
+                ),
 
                 // ── Phase 2+: Arabic Name ──
                 if (_phase >= 2)
@@ -414,39 +348,6 @@ class _NameRevealOverlayState extends State<NameRevealOverlay>
                     ),
                   ),
 
-                // ── Floating particles (phase 2+) ──
-                if (_phase >= 2)
-                  ...List.generate(12, (i) {
-                    final isLeft = i % 2 == 0;
-                    final startX = isLeft ? -0.5 : 0.5;
-                    return Positioned(
-                      top: 100 + (i * 50.0),
-                      left: isLeft ? 20 + (i * 15.0) : null,
-                      right: isLeft ? null : 20 + (i * 12.0),
-                      child: Container(
-                        width: 4 + (i % 3) * 2.0,
-                        height: 4 + (i % 3) * 2.0,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _tierColor.withValues(alpha: 0.6 - (i * 0.04)),
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(delay: (i * 100).ms, duration: 400.ms)
-                          .slideY(
-                              begin: 0.5,
-                              end: -2.0,
-                              delay: (i * 100).ms,
-                              duration: 2500.ms)
-                          .slideX(
-                              begin: startX,
-                              end: 0,
-                              delay: (i * 100).ms,
-                              duration: 2500.ms)
-                          .fadeOut(
-                              delay: (1500 + i * 100).ms, duration: 800.ms),
-                    );
-                  }),
               ],
             ),
           ),

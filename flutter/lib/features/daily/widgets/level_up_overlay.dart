@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -33,17 +34,24 @@ class LevelUpOverlay extends StatefulWidget {
   State<LevelUpOverlay> createState() => _LevelUpOverlayState();
 }
 
-// Phase transition timing for `_runSequence`. Cumulative offsets from initState.
-// Phase 0 → 1 at +800ms (glow buildup ends).
-// Phase 1 → 2 at +1300ms (= 800 + 500 burst).
-// Phase 2 → 3 at +2700ms (= 1300 + 1400; matches the Continue button's
-//   `delay: 900ms + duration: 500ms` fade-in window — same pattern as
-//   name_reveal_overlay.dart's phase-3 gate).
-const _kPhase1Offset = Duration(milliseconds: 800);
-const _kPhase2Offset = Duration(milliseconds: 1300);
-const _kPhase3Offset = Duration(milliseconds: 2700);
+// Phase transition timing for `_runSequence`, retuned to the level_up.json beats
+// (200f @ 60fps ≈ 3.33s one-shot; crown-lock flash peaks at frame 112 ≈ 1.87s).
+// Cumulative offsets from initState:
+// Phase 0 → 1 at +1100ms — mid-ascent (shaft rise + tier rings nesting); the
+//   heavy haptic marks the launch/climb, not the reveal.
+// Phase 1 → 2 at +1900ms — just after the warm-white CROWN-LOCK flash (~1.87s).
+//   The "RANK UP / Level N" native content resolves onto the settled medallion;
+//   the celebratory (heavy) haptic fires on this lock beat.
+// Phase 2 → 3 at +2900ms — ~1s after the reveal, once the medallion + rising
+//   sparks have settled. Gates the outer "tap anywhere" detector; the Continue
+//   button's own `delay: 900ms + duration: 500ms` fade-in window sits inside
+//   phase 2 (same double-continue guard pattern as name_reveal_overlay.dart).
+const _kPhase1Offset = Duration(milliseconds: 1100);
+const _kPhase2Offset = Duration(milliseconds: 1900);
+const _kPhase3Offset = Duration(milliseconds: 2900);
 
-class _LevelUpOverlayState extends State<LevelUpOverlay> {
+class _LevelUpOverlayState extends State<LevelUpOverlay>
+    with TickerProviderStateMixin {
   // 0=glow buildup, 1=burst, 2=reveal (Continue button shown), 3=tap-anywhere armed.
   // Phase 3 exists to absorb the double-continue race: the Continue button
   // fades in at delay=900ms+duration=500ms (= 1400ms) inside phase 2, and
@@ -59,9 +67,17 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
   // disposal would leak pending timers and trip `!timersPending` in tests.
   final List<Timer> _pendingTimers = [];
 
+  // Drives the level_up.json reveal (anticipation dip → light shaft + tier rings
+  // ascend → chevrons pulse → crown-lock flash ≈ 1.87s → medallion + sparks
+  // settle). Its duration is set from the composition on load; the phase offsets
+  // above are tuned to its beats. Replaces the hand-coded orb/rings/glow/sparks.
+  late final AnimationController _lottieController;
+  bool _lottieStarted = false;
+
   @override
   void initState() {
     super.initState();
+    _lottieController = AnimationController(vsync: this);
     _runSequence();
   }
 
@@ -71,11 +87,14 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     // hot-reload or didUpdateWidget hook would otherwise duplicate timers.
     if (_pendingTimers.isNotEmpty) return;
     _schedulePhase(_kPhase1Offset, () {
-      HapticFeedback.heavyImpact();
+      // Mid-ascent buildup as the shaft rises and rings nest.
+      HapticFeedback.mediumImpact();
       setState(() => _phase = 1);
     });
     _schedulePhase(_kPhase2Offset, () {
-      HapticFeedback.mediumImpact();
+      // Celebratory haptic on the crown-lock flash beat (~1.87s), landing with
+      // the "RANK UP / Level N" reveal.
+      HapticFeedback.heavyImpact();
       setState(() => _phase = 2);
     });
     _schedulePhase(_kPhase3Offset, () {
@@ -95,6 +114,7 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
     for (final t in _pendingTimers) {
       t.cancel();
     }
+    _lottieController.dispose();
     super.dispose();
   }
 
@@ -144,118 +164,32 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // ── Background glow ──
-                if (_phase >= 1)
-                  Positioned.fill(
-                    child: Center(
-                      child: Container(
-                        width: 400,
-                        height: 400,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              AppColors.secondary.withValues(alpha: 0.25),
-                              AppColors.primary.withValues(alpha: 0.08),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(
-                            begin: 0.0,
-                            end: 1.0,
-                            duration: 700.ms,
-                            curve: Curves.easeOut,
-                          )
-                          .then()
-                          .animate(onPlay: (c) => c.repeat(reverse: true))
-                          .scaleXY(begin: 1.0, end: 1.12, duration: 2000.ms),
+                // ── Ambient reveal (Lottie): anticipation → ascent → tier-lock ──
+                // Replaces the hand-coded glow/rings/orb/sparks. Plays once,
+                // centered, over the emerald→ink canvas; the native "RANK UP /
+                // Level N" content is layered on top and resolves at the
+                // crown-lock beat (~1.87s).
+                Positioned.fill(
+                  child: Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 1.5,
+                      height: MediaQuery.of(context).size.width * 1.5,
+                      child: Lottie.asset(
+                        'assets/animations/level_up.json',
+                        controller: _lottieController,
+                        fit: BoxFit.contain,
+                        repeat: false,
+                        onLoaded: (composition) {
+                          if (_lottieStarted) return;
+                          _lottieStarted = true;
+                          _lottieController
+                            ..duration = composition.duration
+                            ..forward(from: 0);
+                        },
+                      ),
                     ),
                   ),
-
-                // ── Radiating rings (phase 1) ──
-                if (_phase == 1)
-                  ...List.generate(5, (i) {
-                    return Center(
-                      child: Container(
-                        width: 80 + (i * 50.0),
-                        height: 80 + (i * 50.0),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.secondary
-                                .withValues(alpha: 0.5 - (i * 0.08)),
-                            width: 2,
-                          ),
-                        ),
-                      )
-                          .animate()
-                          .scaleXY(
-                            begin: 0.3,
-                            end: 1.8,
-                            duration: 900.ms,
-                            delay: (i * 80).ms,
-                            curve: Curves.easeOut,
-                          )
-                          .fadeOut(duration: 900.ms, delay: (i * 80).ms),
-                    );
-                  }),
-
-                // ── Phase 0: Pulsing orb ──
-                if (_phase == 0)
-                  Center(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ...List.generate(3, (i) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: AppColors.secondary.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat())
-                              .scaleXY(
-                                begin: 0.5,
-                                end: 2.0,
-                                duration: 1200.ms,
-                                delay: (i * 250).ms,
-                              )
-                              .fadeOut(duration: 1200.ms, delay: (i * 250).ms);
-                        }),
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              colors: [
-                                Colors.white,
-                                AppColors.secondary.withValues(alpha: 0.9),
-                                AppColors.secondary.withValues(alpha: 0.0),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.secondary.withValues(alpha: 0.6),
-                                blurRadius: 50,
-                                spreadRadius: 20,
-                              )
-                            ],
-                          ),
-                        )
-                            .animate(onPlay: (c) => c.repeat(reverse: true))
-                            .scaleXY(begin: 0.8, end: 1.4, duration: 600.ms),
-                      ],
-                    ),
-                  ),
+                ),
 
                 // ── Phase 2: Full reveal ──
                 if (_phase >= 2) ...[
@@ -521,46 +455,6 @@ class _LevelUpOverlayState extends State<LevelUpOverlay> {
                     ),
                   ),
                 ],
-
-                // ── Floating sparkle particles (phase 2+) ──
-                if (_phase >= 2)
-                  ...List.generate(16, (i) {
-                    final isLeft = i % 2 == 0;
-                    final startX = isLeft ? -0.5 : 0.5;
-                    final isGold = i % 3 == 0;
-                    return Positioned(
-                      top: 60 + (i * 40.0),
-                      left: isLeft ? 10 + (i * 12.0) : null,
-                      right: isLeft ? null : 10 + (i * 10.0),
-                      child: Container(
-                        width: 3 + (i % 4) * 1.5,
-                        height: 3 + (i % 4) * 1.5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: (isGold ? AppColors.secondary : AppColors.primary)
-                              .withValues(alpha: 0.7 - (i * 0.03)),
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(delay: (i * 80).ms, duration: 300.ms)
-                          .slideY(
-                            begin: 0.5,
-                            end: -2.5,
-                            delay: (i * 80).ms,
-                            duration: 3000.ms,
-                          )
-                          .slideX(
-                            begin: startX,
-                            end: 0,
-                            delay: (i * 80).ms,
-                            duration: 3000.ms,
-                          )
-                          .fadeOut(
-                            delay: (2000 + i * 80).ms,
-                            duration: 800.ms,
-                          ),
-                    );
-                  }),
               ],
             ),
           ),

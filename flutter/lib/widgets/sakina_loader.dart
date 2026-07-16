@@ -54,7 +54,6 @@ class SakinaLoader extends StatefulWidget {
 class _SakinaLoaderState extends State<SakinaLoader>
     with TickerProviderStateMixin {
   AnimationController? _breathController;
-  List<AnimationController>? _rippleControllers;
 
   @override
   void initState() {
@@ -71,29 +70,14 @@ class _SakinaLoaderState extends State<SakinaLoader>
           )..repeat(reverse: true);
         }
       case SakinaLoaderVariant.ripple:
-        _rippleControllers = List.generate(
-          3,
-          (_) => AnimationController(
-            vsync: this,
-            duration: const Duration(milliseconds: 1600),
-          ),
-        );
-        for (var i = 0; i < _rippleControllers!.length; i++) {
-          Future.delayed(Duration(milliseconds: i * 530), () {
-            if (mounted) _rippleControllers![i].repeat();
-          });
-        }
+        // Self-animating Lottie loop — no controller needed.
+        break;
     }
   }
 
   @override
   void dispose() {
     _breathController?.dispose();
-    if (_rippleControllers != null) {
-      for (final c in _rippleControllers!) {
-        c.dispose();
-      }
-    }
     super.dispose();
   }
 
@@ -151,36 +135,20 @@ class _SakinaLoaderState extends State<SakinaLoader>
     );
   }
 
+  // The ripple loader is now a fixed-palette Lottie (baked gold + emerald),
+  // so tinting is no longer supported — the [color] param is ignored. This
+  // mirrors breathingStar, whose default Lottie path also ignores tint and
+  // only colors the monochrome SVG fallback.
   Widget _buildRipple(Color color) {
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: List.generate(_rippleControllers!.length, (index) {
-          return AnimatedBuilder(
-            animation: _rippleControllers![index],
-            builder: (context, _) {
-              final value = _rippleControllers![index].value;
-              final scale = 0.3 + (2.2 - 0.3) * value;
-              final opacity = (0.6 - 0.6 * value).clamp(0.0, 1.0);
-              return Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: widget.size * 0.4,
-                    height: widget.size * 0.4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: color, width: 2),
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        }),
+      child: Lottie.asset(
+        'assets/animations/ripple_loader.json',
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        repeat: true,
       ),
     );
   }
