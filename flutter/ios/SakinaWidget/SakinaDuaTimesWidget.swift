@@ -715,17 +715,28 @@ private struct DuaRectView: View {
                 .font(.system(size: 20, weight: .semibold))
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(lockVerb(urgency: render.urgency, isActive: render.isActive))
-                    .font(.title3).fontWeight(.semibold)
-                    // Shrink-to-fit (down to 0.5) rather than truncate, so the
-                    // longer "Make duʿā now" fits on one line at any width.
-                    .lineLimit(1).minimumScaleFactor(0.5)
+                fittedVerb
                 cue
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .widgetURL(duaDeepLinkURL())
+    }
+
+    /// The verb at the LARGEST size that fits the accessory width on one line.
+    /// `minimumScaleFactor` is unreliable on Lock-Screen accessories, so we use
+    /// `ViewThatFits` (WidgetKit's proper tool): it renders the first candidate
+    /// that fits, biggest → smallest, so the verb is never truncated.
+    @ViewBuilder private var fittedVerb: some View {
+        let s = lockVerb(urgency: render.urgency, isActive: render.isActive)
+        ViewThatFits(in: .horizontal) {
+            Text(s).font(.title2).fontWeight(.semibold).lineLimit(1)
+            Text(s).font(.title3).fontWeight(.semibold).lineLimit(1)
+            Text(s).font(.headline).lineLimit(1)
+            Text(s).font(.subheadline).fontWeight(.semibold).lineLimit(1)
+            Text(s).font(.footnote).fontWeight(.semibold).lineLimit(1)
+        }
     }
 
     @ViewBuilder private var cue: some View {
