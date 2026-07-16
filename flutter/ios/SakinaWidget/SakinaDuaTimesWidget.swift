@@ -508,6 +508,15 @@ private func verb(urgency: Urgency, isActive: Bool) -> String {
     return "Make your duʿā"
 }
 
+/// SHORT verb for the tiny lock-screen accessories, so it never truncates
+/// ("Ask before it clo…") — the accessory slot is a fixed OS size, so the copy
+/// has to be terse to fill it fully.
+private func lockVerb(urgency: Urgency, isActive: Bool) -> String {
+    if !isActive { return "Build duʿā" }
+    if urgency == .lastCall { return "Ask now" }
+    return "Make duʿā"
+}
+
 private func ctaText(isActive: Bool) -> String {
     isActive ? "Ask now →" : "Build now →"
 }
@@ -700,18 +709,19 @@ private struct DuaRectView: View {
     let render: DuaRender
 
     var body: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 8) {
             Image(systemName: glyphName(urgency: render.urgency, isActive: render.isActive))
-                .font(.system(size: 18))
+                .font(.system(size: 20, weight: .semibold))
                 .frame(width: 22)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verb(urgency: render.urgency, isActive: render.isActive))
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lockVerb(urgency: render.urgency, isActive: render.isActive))
+                    .font(.title3).fontWeight(.semibold)
                     .lineLimit(1).minimumScaleFactor(0.7)
                 cue
             }
             Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .widgetURL(duaDeepLinkURL())
     }
 
@@ -720,13 +730,13 @@ private struct DuaRectView: View {
            let w = render.window {
             (Text(timerInterval: render.at...w.endUTC, countsDown: true)
                 + Text(" left"))
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .lineLimit(1)
         } else {
             Text(cueText)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1).minimumScaleFactor(0.7)
         }
@@ -750,7 +760,7 @@ private struct DuaInlineView: View {
            let w = render.window {
             // System caps inline to a single Text-ish view; concatenate.
             Label {
-                Text(verb(urgency: render.urgency, isActive: render.isActive))
+                Text(lockVerb(urgency: render.urgency, isActive: render.isActive))
                     + Text(" · ")
                     + Text(timerInterval: render.at...w.endUTC, countsDown: true)
             } icon: {
@@ -763,11 +773,11 @@ private struct DuaInlineView: View {
 
     private var inlineText: String {
         guard let w = render.window else {
-            return verb(urgency: render.urgency, isActive: render.isActive)
+            return lockVerb(urgency: render.urgency, isActive: render.isActive)
         }
         if render.isActive {
             let tail = w.isAllDay ? "make duʿā" : closeLabel(w)
-            return "\(verb(urgency: render.urgency, isActive: render.isActive)) · \(tail)"
+            return "\(lockVerb(urgency: render.urgency, isActive: render.isActive)) · \(tail)"
         }
         return "Build duʿā · \(windowLabel(w)) \(relativeDay(w.startUTC))"
     }
