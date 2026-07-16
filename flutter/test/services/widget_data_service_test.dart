@@ -81,12 +81,21 @@ void main() {
     expect(client.updates, 2);
   });
 
-  test('clearWidget wipes the payload key (privacy) and reloads', () async {
+  test('clearWidget wipes BOTH payload keys (privacy) and reloads both widgets',
+      () async {
     final client = _FakeHomeWidgetClient();
     await build(client).clearWidget();
 
-    expect(client.saved.last.key, kWidgetPayloadKey);
-    expect(client.saved.last.value, isNull, reason: 'payload must be erased');
-    expect(client.updates, 1);
+    // clearWidget now erases the Name payload AND the duʿā-times payload (the
+    // sign-out leak fix, spec §7) and reloads both widgets.
+    final wipedKeys = client.saved.map((e) => e.key).toSet();
+    expect(
+      wipedKeys,
+      containsAll(<String>[kWidgetPayloadKey, kDuaTimesPayloadKey]),
+      reason: 'both the Name and duʿā-times payloads must be erased',
+    );
+    expect(client.saved.every((e) => e.value == null), isTrue,
+        reason: 'payloads erased to null');
+    expect(client.updates, 2, reason: 'both widgets reload');
   });
 }
