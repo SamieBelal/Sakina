@@ -126,23 +126,28 @@ class LocationService {
 
   /// Fetch a coarse location, degrading gracefully.
   ///
-  /// - Services off or permission denied/deniedForever ⇒ returns the cached fix
-  ///   if present (so offline still works), else `null` (calendar-only).
+  /// Permission gates the cache: the cached fix is only reused when permission
+  /// is *granted* but a fresh fix is unavailable (services off / transient
+  /// failure — legitimate offline use). When permission is **denied /
+  /// deniedForever / undetermined we return `null`** (calendar-only, and the
+  /// card shows the enable banner) — a revoked user must NOT be served precise
+  /// times from a stale, possibly wrong-city cached location.
+  ///
   /// - [prompt] true ⇒ lazily request permission first (§15 lazy prompt).
   /// - On a successful fresh fix, caches lat/lon for offline reuse.
   Future<CoarseLocation?> getCoarseLocation({bool prompt = false}) async {
     try {
-      if (!await _serviceEnabled()) {
-        return await _cached();
-      }
-
       var permission = await _checkPermission();
       if (prompt && permission == LocationPermission.denied) {
         permission = await _requestPermission();
       }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.unableToDetermine) {
+      final granted = permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+      // Not permitted → calendar-only. Do NOT fall back to the stale cache.
+      if (!granted) return null;
+
+      // Granted but location services are off → the last cached fix is fine.
+      if (!await _serviceEnabled()) {
         return await _cached();
       }
 
@@ -154,7 +159,7 @@ class LocationService {
         fromCache: false,
       );
     } catch (e) {
-      // Never throw at call sites — degrade to cache/calendar-only.
+      // Granted-path transient failure → last cached fix if we have one.
       debugPrint('LocationService.getCoarseLocation failed: $e');
       return await _cached();
     }
