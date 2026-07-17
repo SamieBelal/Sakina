@@ -134,6 +134,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Auth gate for the cron/admin-only trigger. This function sends real pushes
+// (and now drains dua_precise_notifications), so it must NEVER be triggerable
+// by anyone who merely knows the URL. We require a service-role bearer:
+//   Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
+// which is exactly what the pg_cron job sends (see the cron migration
+// 20260717123000_send_scheduled_notifications_cron_auth.sql, which reads the
+// key from Vault) and what an admin manual invoke sends. A MISSING or WRONG
+// header is rejected — closing the old public-trigger hole where a null
+// Authorization was treated as authorized (code-review finding P2-2).
+//
+// Pure + exported so the guard is unit-testable without booting Deno.serve.
+export function isAuthorized(
+  authHeader: string | null,
+  serviceRoleKey: string,
+): boolean {
+  return authHeader === `Bearer ${serviceRoleKey}`;
+}
+
 const NOTIFICATION_TYPES: NotificationType[] = [
   {
     key: "daily",
@@ -393,9 +411,7 @@ Deno.serve(async (request) => {
   }
 
   const authHeader = request.headers.get("Authorization");
-  if (
-    authHeader !== null && authHeader !== `Bearer ${serviceRoleKey}`
-  ) {
+  if (!isAuthorized(authHeader, serviceRoleKey)) {
     return jsonResponse(401, { error: "Unauthorized" });
   }
 

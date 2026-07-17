@@ -5,8 +5,46 @@ import {
   DUA_WINDOW_DATA_TYPE,
   DUA_WINDOW_DEEP_LINK,
   type DuaPreciseRow,
+  isAuthorized,
   selectDueDuaNotifications,
 } from "./index.ts";
+
+// ── Auth guard (code-review finding P2-2) ────────────────────────────────────
+//
+// The function sends real pushes + drains dua_precise_notifications, so it must
+// only run for the cron/admin caller. isAuthorized requires the service-role
+// bearer. Critically, a MISSING header must be REJECTED (the old guard allowed
+// a null Authorization, letting anyone with the URL trigger a full send). The
+// cron migration is what supplies this bearer (from Vault), so these two must
+// ship in the documented order — see the migration's DEPLOY RUNBOOK.
+
+const SERVICE_ROLE_KEY = "test-service-role-key";
+
+Deno.test("isAuthorized: missing Authorization header → rejected", () => {
+  assertEquals(isAuthorized(null, SERVICE_ROLE_KEY), false);
+});
+
+Deno.test("isAuthorized: wrong bearer → rejected", () => {
+  assertEquals(
+    isAuthorized("Bearer not-the-key", SERVICE_ROLE_KEY),
+    false,
+  );
+});
+
+Deno.test("isAuthorized: empty bearer → rejected", () => {
+  assertEquals(isAuthorized("Bearer ", SERVICE_ROLE_KEY), false);
+});
+
+Deno.test("isAuthorized: raw key without Bearer prefix → rejected", () => {
+  assertEquals(isAuthorized(SERVICE_ROLE_KEY, SERVICE_ROLE_KEY), false);
+});
+
+Deno.test("isAuthorized: correct service-role bearer → allowed", () => {
+  assertEquals(
+    isAuthorized(`Bearer ${SERVICE_ROLE_KEY}`, SERVICE_ROLE_KEY),
+    true,
+  );
+});
 
 // ── Due-query selection ──────────────────────────────────────────────────────
 //
