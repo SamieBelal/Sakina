@@ -48,7 +48,12 @@ private enum Urgency: String, Decodable {
     case upcoming
 }
 
-/// Mirrors `DuaWindowType` @JsonValue strings in dua_window_type.dart.
+/// Mirrors `DuaWindowType` @JsonValue strings in dua_window_type.dart. An
+/// unrecognized string is intentionally NOT coerced — `Window`'s decoder drops
+/// the whole window rather than mis-render an unknown future kind (fail safe:
+/// no window over the wrong window). Default `RawRepresentable` conformance
+/// gives us the throwing decode we want (unknown raw ⇒ decode error, caught by
+/// the caller).
 private enum WindowType: String, Decodable {
     case lastThirdOfNight = "last_third_of_night"
     case fridayHour = "friday_hour"
@@ -61,31 +66,22 @@ private enum WindowType: String, Decodable {
     case whiteDays = "white_days"
     case eid
     case fridayDay = "friday_day"
-
-    /// Unknown/newer types decode to a safe "special day" rather than crashing.
-    init(from decoder: Decoder) throws {
-        let raw = try decoder.singleValueContainer().decode(String.self)
-        self = WindowType(rawValue: raw) ?? .whiteDays
-    }
 }
 
 /// One resolved window. Instants arrive as epoch **millis** (int) — divide by
 /// 1000 for `Date(timeIntervalSince1970:)` (§7 / EpochMillisConverter).
 private struct Window: Decodable {
     let type: WindowType
-    let tier: String
-    let titleKey: String
-    let sourceRef: String?
     let startUTC: Date
     let endUTC: Date
     let isAllDay: Bool
     let locationDependent: Bool
 
+    // NOTE: `tier`, `title_key`, `source_ref` may still be present in the JSON
+    // but are deliberately NOT decoded — all copy is driven by `type`. An
+    // unrecognized `type` throws here so callers can drop the window (fail safe).
     enum CodingKeys: String, CodingKey {
         case type
-        case tier
-        case titleKey = "title_key"
-        case sourceRef = "source_ref"
         case startUTC = "start_utc"
         case endUTC = "end_utc"
         case isAllDay = "is_all_day"
@@ -95,9 +91,6 @@ private struct Window: Decodable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         type = try c.decode(WindowType.self, forKey: .type)
-        tier = try c.decode(String.self, forKey: .tier)
-        titleKey = try c.decode(String.self, forKey: .titleKey)
-        sourceRef = try c.decodeIfPresent(String.self, forKey: .sourceRef)
         startUTC = Self.date(try c.decode(Int64.self, forKey: .startUTC))
         endUTC = Self.date(try c.decode(Int64.self, forKey: .endUTC))
         isAllDay = try c.decode(Bool.self, forKey: .isAllDay)
@@ -115,12 +108,17 @@ private struct Stamp: Decodable {
     let lat: Double?
     let lon: Double?
     let computedThroughUTC: Date
+    /// Epoch **millis** the payload was built (nullable/absent when unknown).
+    /// Drives the build-age staleness guard in `resolve(at:)` — beyond 48h old
+    /// we drop to the bundled calendar even if the horizon still covers `date`.
+    let builtAtUTC: Int64?
 
     enum CodingKeys: String, CodingKey {
         case tz
         case lat
         case lon
         case computedThroughUTC = "computed_through_utc"
+        case builtAtUTC = "built_at_utc"
     }
 
     init(from decoder: Decoder) throws {
@@ -130,6 +128,7 @@ private struct Stamp: Decodable {
         lon = try c.decodeIfPresent(Double.self, forKey: .lon)
         let millis = try c.decode(Int64.self, forKey: .computedThroughUTC)
         computedThroughUTC = Date(timeIntervalSince1970: Double(millis) / 1000.0)
+        builtAtUTC = try c.decodeIfPresent(Int64.self, forKey: .builtAtUTC)
     }
 }
 
@@ -150,11 +149,44 @@ private struct Schedule: Decodable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        active = try c.decodeIfPresent(Window.self, forKey: .active)
-        next = try c.decodeIfPresent(Window.self, forKey: .next)
-        upcoming = (try? c.decodeIfPresent([Window].self, forKey: .upcoming)) ?? []
+        // A window with an unrecognized `type` throws in Window.init — treat it
+        // as absent rather than coercing it to the wrong kind (fail safe, §7).
+        active = (try? c.decodeIfPresent(Window.self, forKey: .active)) ?? nil
+        next = (try? c.decodeIfPresent(Window.self, forKey: .next)) ?? nil
+        upcoming = Self.decodeUpcoming(from: c)
         urgency = (try? c.decode(Urgency.self, forKey: .urgency)) ?? .upcoming
         computedAt = try c.decode(Stamp.self, forKey: .computedAt)
+    }
+
+    /// Decode `upcoming` element-by-element so one window with an unknown
+    /// `type` is dropped instead of failing the whole array. Each slot is first
+    /// consumed as a `FailableWindow` (which always succeeds and advances the
+    /// unkeyed container's cursor), then its optional payload is unwrapped.
+    private static func decodeUpcoming(
+        from c: KeyedDecodingContainer<CodingKeys>
+    ) -> [Window] {
+        guard var array = try? c.nestedUnkeyedContainer(forKey: .upcoming) else {
+            return []
+        }
+        var result: [Window] = []
+        while !array.isAtEnd {
+            // FailableWindow.init never throws, so the cursor always advances —
+            // avoids the classic "failed decode doesn't consume the element"
+            // stall in an unkeyed container.
+            guard let slot = try? array.decode(FailableWindow.self) else { break }
+            if let w = slot.window { result.append(w) }
+        }
+        return result
+    }
+}
+
+/// Wraps a `Window` decode so an element with an unknown `type` (or otherwise
+/// malformed) yields `window == nil` instead of throwing — letting the unkeyed
+/// container advance past it. Used only to skip bad rows in `upcoming`.
+private struct FailableWindow: Decodable {
+    let window: Window?
+    init(from decoder: Decoder) throws {
+        window = try? Window(from: decoder)
     }
 }
 
@@ -193,8 +225,10 @@ private func localMidnight(_ ymd: String, _ cal: Calendar) -> Date? {
     return cal.date(from: comps).map { cal.startOfDay(for: $0) }
 }
 
-private func windowType(fromKind kind: String) -> WindowType {
-    WindowType(rawValue: kind) ?? .whiteDays
+/// Map a bundled row's `kind` to a `WindowType`, or nil for an unknown/newer
+/// kind — the caller skips those rows rather than mis-rendering them (fail safe).
+private func windowType(fromKind kind: String) -> WindowType? {
+    WindowType(rawValue: kind)
 }
 
 // MARK: - Payload loading
@@ -254,7 +288,15 @@ private func resolve(at date: Date) -> DuaRender {
 
     if let schedule = loadSchedule() {
         let tripped = travelGuardTripped(schedule.computedAt)
-        let stale = schedule.computedAt.computedThroughUTC < date
+        // Horizon staleness: the payload no longer covers this instant.
+        var stale = schedule.computedAt.computedThroughUTC < date
+        // Build-age staleness: if the payload declares when it was built and
+        // that's older than 48h, distrust it (data drift) and fall through to
+        // the bundled calendar. Absent `built_at_utc` ⇒ horizon-only (legacy).
+        if let builtMillis = schedule.computedAt.builtAtUTC {
+            let builtAt = Date(timeIntervalSince1970: Double(builtMillis) / 1000.0)
+            if date.timeIntervalSince(builtAt) > 48 * 3600 { stale = true }
+        }
 
         if !stale {
             // No location stamp ⇒ user never granted → prompt them to open the
@@ -302,12 +344,14 @@ private func resolveFromBundledCalendar(at date: Date, cal: Calendar) -> DuaRend
 
     // Seeded all-day sacred days.
     for row in file.rows {
+        // Unknown/newer kind → skip the row (don't coerce to White Days).
+        guard let type = windowType(fromKind: row.kind) else { continue }
         guard let start = localMidnight(row.start_date, cal),
               let endInclusive = localMidnight(row.end_date, cal) else { continue }
         // end is inclusive → close at local midnight of the day AFTER end_date.
         let end = cal.date(byAdding: .day, value: 1, to: endInclusive) ?? endInclusive
         if end <= date { continue }
-        let w = calendarWindow(row: row, start: start, end: end)
+        let w = calendarWindow(type: type, start: start, end: end)
         if start <= date && date < end {
             if active == nil { active = w }
         } else if start > date {
@@ -332,26 +376,28 @@ private func resolveFromBundledCalendar(at date: Date, cal: Calendar) -> DuaRend
                      isActive: false, at: date, promptEnable: true)
 }
 
-private func calendarWindow(row: CalendarRow, start: Date, end: Date) -> Window {
+private func calendarWindow(type: WindowType, start: Date, end: Date) -> Window {
     // Construct via JSON round-trip-free init isn't available; build directly.
-    Window(type: windowType(fromKind: row.kind),
-           tier: row.tier,
-           titleKey: row.title_key,
-           sourceRef: row.source_ref,
+    Window(type: type,
            startUTC: start,
            endUTC: end,
            isAllDay: true,
            locationDependent: false)
 }
 
+/// Build a whole-local-day `.fridayDay` window starting at `start` (its local
+/// midnight). Shared by the "covering today" and "next Friday" helpers so the
+/// literal Window args live in exactly one place.
+private func fridayWindow(start: Date, cal: Calendar) -> Window {
+    let end = cal.date(byAdding: .day, value: 1, to: start) ?? start
+    return Window(type: .fridayDay, startUTC: start, endUTC: end,
+                  isAllDay: true, locationDependent: false)
+}
+
 private func fridayWindow(covering date: Date, cal: Calendar) -> Window? {
     let start = cal.startOfDay(for: date)
     guard cal.component(.weekday, from: start) == 6 else { return nil } // Fri = 6
-    let end = cal.date(byAdding: .day, value: 1, to: start) ?? start
-    return Window(type: .fridayDay, tier: "special",
-                  titleKey: "dua_window.friday.title", sourceRef: nil,
-                  startUTC: start, endUTC: end, isAllDay: true,
-                  locationDependent: false)
+    return fridayWindow(start: start, cal: cal)
 }
 
 private func nextFridayWindow(after date: Date, cal: Calendar) -> Window? {
@@ -359,11 +405,7 @@ private func nextFridayWindow(after date: Date, cal: Calendar) -> Window? {
     for i in 1...7 {
         guard let day = cal.date(byAdding: .day, value: i, to: today) else { continue }
         if cal.component(.weekday, from: day) == 6 {
-            let end = cal.date(byAdding: .day, value: 1, to: day) ?? day
-            return Window(type: .fridayDay, tier: "special",
-                          titleKey: "dua_window.friday.title", sourceRef: nil,
-                          startUTC: day, endUTC: end, isAllDay: true,
-                          locationDependent: false)
+            return fridayWindow(start: day, cal: cal)
         }
     }
     return nil
@@ -372,12 +414,9 @@ private func nextFridayWindow(after date: Date, cal: Calendar) -> Window? {
 // Convenience memberwise init for Window (Decodable declared a custom init, so
 // add one for programmatic construction in the fallback path).
 extension Window {
-    init(type: WindowType, tier: String, titleKey: String, sourceRef: String?,
-         startUTC: Date, endUTC: Date, isAllDay: Bool, locationDependent: Bool) {
+    init(type: WindowType, startUTC: Date, endUTC: Date,
+         isAllDay: Bool, locationDependent: Bool) {
         self.type = type
-        self.tier = tier
-        self.titleKey = titleKey
-        self.sourceRef = sourceRef
         self.startUTC = startUTC
         self.endUTC = endUTC
         self.isAllDay = isAllDay

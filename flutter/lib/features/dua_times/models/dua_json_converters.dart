@@ -16,3 +16,20 @@ class EpochMillisConverter implements JsonConverter<DateTime, int> {
   @override
   int toJson(DateTime object) => object.toUtc().millisecondsSinceEpoch;
 }
+
+/// Nullable variant of [EpochMillisConverter]: serializes a nullable UTC
+/// [DateTime] as **epoch milliseconds** (`int?`), emitting/parsing `null` when
+/// the instant is unknown. Used for optional provenance fields (e.g. the
+/// build-instant staleness stamp) that must stay absent/null rather than
+/// defaulting to a bogus epoch.
+class NullableEpochMillisConverter implements JsonConverter<DateTime?, int?> {
+  const NullableEpochMillisConverter();
+
+  @override
+  DateTime? fromJson(int? json) => json == null
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(json, isUtc: true);
+
+  @override
+  int? toJson(DateTime? object) => object?.toUtc().millisecondsSinceEpoch;
+}

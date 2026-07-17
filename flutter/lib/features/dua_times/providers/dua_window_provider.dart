@@ -6,13 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../services/dua_window_engine.dart';
-import '../../../services/dua_window_repository.dart';
-import '../../../services/location_service.dart';
-import '../../../services/widget_data_service.dart';
-import '../models/dua_window.dart';
-import '../models/dua_window_schedule.dart';
-import '../models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
+import 'package:sakina/services/dua_window_engine.dart';
+import 'package:sakina/services/dua_window_repository.dart';
+import 'package:sakina/services/location_service.dart';
+import 'package:sakina/services/widget_data_service.dart';
 
 /// The observable state the duʿā-times card renders from.
 ///
@@ -196,9 +196,25 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       unawaited(rebuild());
       return;
     }
-    // Otherwise just advance the clock so the countdown label re-renders. Only
-    // matters while a time-boxed window is active/closing.
-    state = state.copyWith(now: now);
+    // Otherwise only advance the clock when a LIVE per-second countdown is
+    // actually on screen — an active, non-all-day window in the closing or
+    // last-call urgency band. For comfortable / all-day / between / upcoming
+    // states the label doesn't change per second, so publishing `now` every
+    // tick would rebuild the card at 1Hz for nothing.
+    if (_hasLiveCountdown) {
+      state = state.copyWith(now: now);
+    }
+  }
+
+  /// True when the card is showing a ticking per-second countdown: an active,
+  /// non-all-day window whose urgency is [UrgencyState.closing] or
+  /// [UrgencyState.lastCall]. (all-day windows never tick; comfortable is a
+  /// static > 1h deadline; upcoming/between counts down to a far next window.)
+  bool get _hasLiveCountdown {
+    final active = state.active;
+    if (active == null) return false;
+    final u = state.urgency;
+    return u == UrgencyState.closing || u == UrgencyState.lastCall;
   }
 
   // ---------------------------------------------------------------------------

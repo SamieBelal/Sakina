@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'supabase_sync_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 
 /// A single seeded ALL-DAY calendar row from `dua_windows` (spec §3/§4).
 ///
@@ -141,6 +141,20 @@ class DuaWindowRepository {
   /// SharedPreferences cache key for the merged calendar JSON.
   static const String cacheKey = 'sakina_dua_windows_v1';
 
+  /// SharedPreferences key holding the epoch-ms of the last SUCCESSFUL remote
+  /// fetch — drives the [refreshFromRemote] throttle.
+  static const String lastFetchKey = 'sakina_dua_windows_last_fetch_ms';
+
+  /// Minimum spacing between remote fetches. The provider calls
+  /// [refreshFromRemote] on every foreground (2 Supabase round-trips each), but
+  /// the seed changes ~yearly, so a fetch within this window returns the cache
+  /// without hitting the network.
+  static const Duration remoteRefreshThrottle = Duration(hours: 6);
+
+  /// In-memory mirror of [lastFetchKey], seeded lazily on first [refreshFromRemote]
+  /// so repeated foregrounds in one session don't re-read prefs.
+  int? _lastFetchMs;
+
   /// Bundled cold-start asset (registered under `assets:` in pubspec.yaml).
   static const String bundledAssetPath = 'assets/dua_calendar/dua_windows.json';
 
@@ -159,8 +173,14 @@ class DuaWindowRepository {
   /// split so a cold offline launch still surfaces dated windows.
   Future<DuaCalendar> load() async {
     final cached = await _readCache();
-    if (cached != null && cached.rows.isNotEmpty) return cached;
-    return _readBundledAsset();
+    final calendar = (cached != null && cached.rows.isNotEmpty)
+        ? cached
+        : await _readBundledAsset();
+    // Seed-horizon check runs on the offline/cold-start path too — not just on
+    // [refreshFromRemote] — so an app that never gets a fresh remote fetch still
+    // logs the "extend the seed" warning before the feature silently goes blank.
+    _warnIfNearHorizon(calendar);
+    return calendar;
   }
 
   /// Fetch the latest rows + sentinel from Supabase and overwrite the cache.
@@ -169,6 +189,12 @@ class DuaWindowRepository {
   /// preserved and the method returns the currently-loadable calendar. Safe to
   /// call whether or not a Supabase client is initialised.
   Future<DuaCalendar> refreshFromRemote() async {
+    // Throttle: skip the network fetch (2 Supabase round-trips) if a successful
+    // fetch happened within [remoteRefreshThrottle]. Seeded data changes
+    // ~yearly, so serving the cache between foregrounds is safe.
+    if (await _isFetchThrottled()) {
+      return load();
+    }
     try {
       final rows = await _sync.fetchPublicRows(_table, orderBy: 'start_date');
       final metaRows = await _sync.fetchPublicRows(_metaTable, orderBy: 'id');
@@ -188,6 +214,7 @@ class DuaWindowRepository {
         'rows': parsedRows.map((r) => r.toMap()).toList(),
       };
       await _sync.setPublicCatalogCache(cacheKey, jsonEncode(payload));
+      await _recordFetchNow();
 
       final calendar = DuaCalendar(
         rows: parsedRows,
@@ -199,6 +226,37 @@ class DuaWindowRepository {
     } catch (e) {
       debugPrint('[DuaWindowRepository] refreshFromRemote failed: $e');
       return load();
+    }
+  }
+
+  /// True when a successful remote fetch happened within [remoteRefreshThrottle]
+  /// of now — the caller should serve the cache instead of hitting the network.
+  /// Seeds the in-memory [_lastFetchMs] from prefs on first call.
+  Future<bool> _isFetchThrottled() async {
+    if (_lastFetchMs == null) {
+      try {
+        final p = await _prefs();
+        _lastFetchMs = p.getInt(lastFetchKey);
+      } catch (e) {
+        debugPrint('[DuaWindowRepository] _isFetchThrottled read failed: $e');
+        return false;
+      }
+    }
+    final last = _lastFetchMs;
+    if (last == null) return false;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - last;
+    return elapsed >= 0 && elapsed < remoteRefreshThrottle.inMilliseconds;
+  }
+
+  /// Stamp the last-successful-fetch time in prefs + the in-memory mirror.
+  Future<void> _recordFetchNow() async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    _lastFetchMs = nowMs;
+    try {
+      final p = await _prefs();
+      await p.setInt(lastFetchKey, nowMs);
+    } catch (e) {
+      debugPrint('[DuaWindowRepository] _recordFetchNow persist failed: $e');
     }
   }
 

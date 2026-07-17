@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../widgets/adjusted_arabic_display.dart';
-import '../models/dua_window.dart';
-import '../models/dua_window_type.dart';
-import '../providers/dua_window_provider.dart';
-import 'dua_times_copy.dart';
+import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
+import 'package:sakina/features/dua_times/widgets/dua_times_copy.dart';
+import 'package:sakina/widgets/adjusted_arabic_display.dart';
 
 /// The visual body of the duʿā-times card (spec §8/§9.1), on the emerald sacred
 /// canvas. Pure presentation — all state resolution + analytics live in
@@ -57,7 +57,7 @@ class DuaTimesCardBody extends StatelessWidget {
         ? DuaTimesCopy.beforeItClosesKicker
         : (_isBetween
             ? DuaTimesCopy.comingUpKicker
-            : DuaTimesCopy.bebelovedTimeKicker);
+            : DuaTimesCopy.belovedTimeKicker);
     final why = _whyLine(active, next);
     final cue = _cueLine(active, next);
 

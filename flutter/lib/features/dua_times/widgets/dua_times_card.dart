@@ -4,11 +4,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../services/analytics_events.dart';
-import '../../../services/analytics_provider.dart';
-import '../providers/dua_window_provider.dart';
-import 'dua_times_card_body.dart';
-import 'dua_times_copy.dart';
+import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
+import 'package:sakina/features/dua_times/widgets/dua_times_card_body.dart';
+import 'package:sakina/features/dua_times/widgets/dua_times_copy.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
 
 /// Route the whole card + every CTA deep-link to (Build-a-Duʿā). Mirrors the
 /// widget deep link `sakina://widget/build-dua` which maps to `/duas`.

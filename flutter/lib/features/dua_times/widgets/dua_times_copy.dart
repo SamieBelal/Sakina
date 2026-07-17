@@ -1,5 +1,5 @@
-import '../models/dua_window.dart';
-import '../models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 
 /// Human-readable copy for the in-app duʿā-times card (spec §9.1).
 ///
@@ -13,7 +13,7 @@ import '../models/dua_window_type.dart';
 abstract final class DuaTimesCopy {
   /// The short "kicker" eyebrow above the verb on the medium/active card.
   static const String beforeItClosesKicker = 'Closing soon';
-  static const String bebelovedTimeKicker = 'A beloved time';
+  static const String belovedTimeKicker = 'A beloved time';
   static const String comingUpKicker = 'Coming up';
 
   /// A short, human name for [type] used in the supporting cue line.

@@ -43,6 +43,7 @@ void main() {
         lat: 21.4225,
         lon: 39.8262,
         computedThroughUtc: DateTime.utc(2027, 5, 22, 21, 0),
+        builtAtUtc: DateTime.utc(2027, 5, 15, 21, 0),
       ),
     );
 
@@ -88,13 +89,19 @@ void main() {
 
     // ---- Stamp keys ----
     final stamp = json['computed_at'] as Map<String, dynamic>;
-    expect(stamp.keys.toList(), ['tz', 'lat', 'lon', 'computed_through_utc']);
+    expect(stamp.keys.toList(),
+        ['tz', 'lat', 'lon', 'computed_through_utc', 'built_at_utc']);
     expect(stamp['tz'], 'Asia/Riyadh');
     expect(stamp['lat'], 21.4225);
     expect(stamp['lon'], 39.8262);
     expect(stamp['computed_through_utc'],
         DateTime.utc(2027, 5, 22, 21, 0).millisecondsSinceEpoch);
     expect(stamp['computed_through_utc'], isA<int>());
+    // CONTRACT (Swift): `built_at_utc` is an epoch-millis int inside
+    // `computed_at`; null/absent when unknown.
+    expect(stamp['built_at_utc'],
+        DateTime.utc(2027, 5, 15, 21, 0).millisecondsSinceEpoch);
+    expect(stamp['built_at_utc'], isA<int>());
   });
 
   test('round-trips through fromJson', () {

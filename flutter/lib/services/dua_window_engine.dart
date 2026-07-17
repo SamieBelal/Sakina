@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../features/dua_times/data/dua_window_catalog.dart';
-import '../features/dua_times/models/dua_window.dart';
-import '../features/dua_times/models/dua_window_schedule.dart';
-import '../features/dua_times/models/dua_window_type.dart';
-import 'dua_window_repository.dart';
-import 'location_service.dart';
-import 'prayer_time_service.dart';
+import 'package:sakina/features/dua_times/data/dua_window_catalog.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
+import 'package:sakina/services/dua_window_repository.dart';
+import 'package:sakina/services/location_service.dart';
+import 'package:sakina/services/prayer_time_service.dart';
 
 /// Coarse coordinates the engine computes precise windows from.
 @immutable
@@ -171,9 +171,14 @@ class DuaWindowEngine {
       if (endUtc.isBefore(nowUtc)) continue;
       if (startUtc.isAfter(horizonEnd)) continue;
 
+      // Unknown kind → drop the row rather than mislabel it (wrong copy +
+      // priority). The mapper logs and returns null; skip it.
+      final type = _typeFromKind(row.kind);
+      if (type == null) continue;
+
       out.add(
         DuaWindow(
-          type: _typeFromKind(row.kind),
+          type: type,
           tier: _tierFromString(row.tier),
           titleKey: row.titleKey,
           sourceRef: row.sourceRef,
@@ -257,8 +262,7 @@ class DuaWindowEngine {
       if (third != null &&
           !third.endUtc.isBefore(nowUtc) &&
           !third.startUtc.isAfter(horizonEnd)) {
-        _addUnique(
-          out,
+        out.add(
           DuaWindow(
             type: DuaWindowType.lastThirdOfNight,
             tier: DuaWindowTier.hero,
@@ -272,20 +276,24 @@ class DuaWindowEngine {
         );
       }
 
-      // Prayer times for this local day (for Friday hour + iftar).
-      final pt = _prayer.prayerTimes(
-        lat: loc.lat,
-        lon: loc.lon,
-        date: day,
-      );
+      // Prayer times for this local day (for Friday hour + iftar). Only compute
+      // when the day can actually produce a precise window — Fridays (the Friday
+      // hour) or Ramadan fasting days (iftar) — since `prayerTimes` is the
+      // expensive astronomical calc and the rest of the ~9-day walk never reads
+      // it. The night-third above uses its own `lastThirdOfNight` call.
+      final needsPrayerTimes =
+          day.weekday == DateTime.friday || _isRamadanLocalDay(calendar, day);
+      final pt = needsPrayerTimes
+          ? _prayer.prayerTimes(lat: loc.lat, lon: loc.lon, date: day)
+          : null;
 
       // ---- The Friday hour: the LAST HOUR BEFORE MAGHRIB on Friday ----
       // Anchored to Maghrib (sunset) only — NOT ʿAsr. The hadith says "the last
       // hour"; ʿAsr is the one madhab-dependent prayer, and pinning to it would
       // be false precision + force gathering the user's madhab. Sunset is
       // madhab-independent, so this needs no madhab.
-      if (day.weekday == DateTime.friday && pt.maghrib != null) {
-        final end = pt.maghrib!;
+      if (day.weekday == DateTime.friday && pt?.maghrib != null) {
+        final end = pt!.maghrib!;
         final start =
             end.subtract(DuaWindowCatalog.fridayHourLeadBeforeMaghrib);
         if (end.isAfter(start) &&
@@ -313,8 +321,8 @@ class DuaWindowEngine {
       // NOT the evening before Ramadan nor on Eid (the day after end_date is
       // excluded by _isRamadanLocalDay's exclusive end). Pinned by the
       // "fasting days" boundary test. (±1 vs local moon-sighting is inherent.)
-      if (pt.maghrib != null && _isRamadanLocalDay(calendar, day)) {
-        final end = pt.maghrib!;
+      if (pt?.maghrib != null && _isRamadanLocalDay(calendar, day)) {
+        final end = pt!.maghrib!;
         final start = end.subtract(DuaWindowCatalog.iftarLeadBeforeMaghrib);
         if (!end.isBefore(nowUtc) && !start.isAfter(horizonEnd)) {
           out.add(
@@ -443,6 +451,9 @@ class DuaWindowEngine {
         lat: location?.lat,
         lon: location?.lon,
         computedThroughUtc: horizonEnd,
+        // Build-instant staleness stamp: `nowUtc` is the engine's reference
+        // clock (already UTC). The native widget's refresh guard reads this.
+        builtAtUtc: nowUtc,
       ),
     );
   }
@@ -460,16 +471,6 @@ class DuaWindowEngine {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  void _addUnique(List<DuaWindow> list, DuaWindow w) {
-    final exists = list.any(
-      (e) =>
-          e.type == w.type &&
-          e.startUtc.isAtSameMomentAs(w.startUtc) &&
-          e.endUtc.isAtSameMomentAs(w.endUtc),
-    );
-    if (!exists) list.add(w);
-  }
-
   List<DuaWindow> _dedupe(List<DuaWindow> windows) {
     final seen = <String>{};
     final out = <DuaWindow>[];
@@ -481,7 +482,7 @@ class DuaWindowEngine {
     return out;
   }
 
-  DuaWindowType _typeFromKind(String kind) {
+  DuaWindowType? _typeFromKind(String kind) {
     switch (kind) {
       case 'arafah':
         return DuaWindowType.arafah;
@@ -500,9 +501,10 @@ class DuaWindowEngine {
       case 'friday_day':
         return DuaWindowType.fridayDay;
       default:
-        // Unknown kind: treat as a soft special day rather than crashing.
-        debugPrint('[DuaWindowEngine] unknown calendar kind: $kind');
-        return DuaWindowType.whiteDays;
+        // Unknown kind: drop the row rather than mislabel it with the wrong
+        // copy/priority. Caller skips a null.
+        debugPrint('[DuaWindowEngine] unknown calendar kind (dropped): $kind');
+        return null;
     }
   }
 

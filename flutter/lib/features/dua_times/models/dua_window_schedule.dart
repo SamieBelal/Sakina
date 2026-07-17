@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'dua_json_converters.dart';
-import 'dua_window.dart';
-import 'dua_window_type.dart';
+import 'package:sakina/features/dua_times/models/dua_json_converters.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 
 part 'dua_window_schedule.freezed.dart';
 part 'dua_window_schedule.g.dart';
@@ -36,6 +36,16 @@ class DuaScheduleStamp with _$DuaScheduleStamp {
     @JsonKey(name: 'computed_through_utc')
     @EpochMillisConverter()
     required DateTime computedThroughUtc,
+
+    /// The UTC instant the schedule was actually *built* (the engine's `now`).
+    /// Distinct from [computedThroughUtc] (the coverage horizon): this is the
+    /// staleness stamp the native widget's refresh guard reads to decide whether
+    /// a payload is fresh. Serialized as epoch millis (`int`) under the key
+    /// `built_at_utc`; null/absent when unknown. Nullable so existing
+    /// constructions still compile.
+    @JsonKey(name: 'built_at_utc')
+    @NullableEpochMillisConverter()
+    DateTime? builtAtUtc,
   }) = _DuaScheduleStamp;
 
   factory DuaScheduleStamp.fromJson(Map<String, dynamic> json) =>

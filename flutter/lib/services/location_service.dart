@@ -40,7 +40,7 @@ class CoarseLocation {
 /// - **Coarse accuracy only** — prayer times need city-level precision, not
 ///   navigation-grade. Ships coarse for App Store data-minimization.
 /// - **Lazy prompt** — permission is requested only when a caller explicitly
-///   invokes [ensurePermission]/[getCoarseLocation], never on construction.
+///   invokes [ensureOrOpenSettings]/[getCoarseLocation], never on construction.
 /// - **Graceful degrade** — permission denied / services off ⇒ returns `null`
 ///   (or the last cache) so callers fall back to calendar-only windows.
 ///
@@ -69,9 +69,9 @@ class LocationService {
   final Future<bool> Function() _openAppSettings;
   final Future<SharedPreferences> Function() _prefs;
 
-  /// SharedPreferences keys for the cached coarse fix. Not user-scoped: a coarse
-  /// city is not per-account data, and the widget sign-out wipe (spec §7) clears
-  /// the *derived schedule*, not this raw cache.
+  /// SharedPreferences keys for the cached coarse fix. Wiped on sign-out via
+  /// [clearCache] (called from the widget clear hook) so a second user on the
+  /// device never inherits the first user's approximate location (spec §7).
   static const String _latKey = 'dua_times_last_lat';
   static const String _lonKey = 'dua_times_last_lon';
 
@@ -81,10 +81,6 @@ class LocationService {
 
   static Future<Position> _defaultCurrentPosition() =>
       Geolocator.getCurrentPosition(locationSettings: _coarseSettings);
-
-  /// Current permission state WITHOUT prompting. Callers use this to decide
-  /// whether to show an "Enable precise times" affordance.
-  Future<LocationPermission> permissionState() => _checkPermission();
 
   /// True when location permission is granted (while-in-use or always).
   Future<bool> hasPermission() async {
@@ -96,7 +92,7 @@ class LocationService {
   /// resulting state. Callers invoke this from an explicit user affordance, not
   /// on launch. Returns the existing state without prompting if already granted
   /// or permanently denied.
-  Future<LocationPermission> ensurePermission() async {
+  Future<LocationPermission> _ensurePermission() async {
     var permission = await _checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await _requestPermission();
@@ -115,7 +111,7 @@ class LocationService {
   /// Settings we return `false` — the actual grant is picked up when the app
   /// returns to the foreground and the schedule rebuilds.
   Future<bool> ensureOrOpenSettings() async {
-    final permission = await ensurePermission();
+    final permission = await _ensurePermission();
     if (permission == LocationPermission.deniedForever) {
       await _openAppSettings();
       return false;
@@ -165,8 +161,19 @@ class LocationService {
     }
   }
 
-  /// The last cached coarse fix, or `null` if none stored.
-  Future<CoarseLocation?> cachedLocation() => _cached();
+  /// Wipe the cached coarse fix (both lat/lon keys). Called on sign-out via the
+  /// widget clear hook so a second user on the device never inherits the first
+  /// user's approximate home location (spec §7 privacy fix). The derived widget
+  /// schedule is cleared separately by [WidgetDataService.clearWidget].
+  Future<void> clearCache() async {
+    try {
+      final p = await _prefs();
+      await p.remove(_latKey);
+      await p.remove(_lonKey);
+    } catch (e) {
+      debugPrint('LocationService.clearCache failed: $e');
+    }
+  }
 
   Future<CoarseLocation?> _cached() async {
     try {

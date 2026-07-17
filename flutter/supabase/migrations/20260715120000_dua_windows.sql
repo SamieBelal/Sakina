@@ -171,5 +171,8 @@ on conflict (id) do nothing;
 insert into public.dua_windows_meta (id, last_seeded_through, updated_at)
 values (true, '2027-06-20', now())
 on conflict (id) do update
-  set last_seeded_through = excluded.last_seeded_through,
+  -- Monotonic horizon: never let a re-run/reset clobber an already-extended
+  -- last_seeded_through back to this migration's baseline. greatest() keeps the
+  -- furthest-out date. (No-op on prod, whose row is already correct.)
+  set last_seeded_through = greatest(public.dua_windows_meta.last_seeded_through, excluded.last_seeded_through),
       updated_at          = now();

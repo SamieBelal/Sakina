@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:home_widget/home_widget.dart';
-
-import '../core/constants/allah_names.dart';
+import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/services/location_service.dart';
 
 /// App Group container shared between the Flutter app and the iOS WidgetKit
 /// extension. MUST match the App Group capability added to BOTH the Runner and
@@ -108,15 +108,24 @@ class WidgetDataService {
   WidgetDataService({
     HomeWidgetClient? client,
     DateTime Function()? clock,
+    LocationService? locationService,
   })  : _client = client ?? const _PluginHomeWidgetClient(),
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        _location = locationService ?? LocationService();
 
   final HomeWidgetClient _client;
   final DateTime Function() _clock;
+  final LocationService _location;
 
   /// Last serialized payload written this process — the perf guard (§10.4):
   /// skip [HomeWidget.updateWidget] when nothing changed.
   String? _lastWritten;
+
+  /// Last duʿā-times schedule JSON written this process — the same perf guard
+  /// as [_lastWritten], but for the duʿā-times widget. Skips the save +
+  /// WidgetKit reload when the schedule is byte-identical (spec §7: the
+  /// ~40-70/day reload budget is easy to burn on every foreground rebuild).
+  String? _lastDuaTimesWritten;
 
   /// Register the App Group. Call once from `main()` before `runApp`.
   Future<void> initialize() async {
@@ -162,6 +171,12 @@ class WidgetDataService {
   /// Signature is a fixed contract — the `dua_window_provider` calls this exact
   /// shape. Do not change it.
   Future<void> saveDuaTimesSchedule(String scheduleJson) async {
+    // Perf guard (spec §7): the provider rebuilds + pushes on every foreground,
+    // date-rollover, and tick-driven rebuild. A WidgetKit reload per push burns
+    // the ~40-70/day budget fast, so skip the save + reload when the schedule
+    // is byte-identical to the last one written this process.
+    if (scheduleJson == _lastDuaTimesWritten) return;
+    _lastDuaTimesWritten = scheduleJson;
     await _client.saveWidgetData(kDuaTimesPayloadKey, scheduleJson);
     await _client.updateWidget(name: kDuaTimesWidgetName);
   }
@@ -175,7 +190,12 @@ class WidgetDataService {
   Future<void> clearWidget() async {
     await _client.saveWidgetData(kWidgetPayloadKey, null);
     await _client.saveWidgetData(kDuaTimesPayloadKey, null);
+    // Also wipe the raw coarse lat/lon cache: nulling the derived schedule isn't
+    // enough — the next user's rebuild would re-derive precise times from the
+    // first user's cached location (spec §7 privacy fix).
+    await _location.clearCache();
     _lastWritten = null;
+    _lastDuaTimesWritten = null;
     await _client.updateWidget(name: kWidgetName);
     await _client.updateWidget(name: kDuaTimesWidgetName);
   }

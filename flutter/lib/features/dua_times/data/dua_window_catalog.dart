@@ -1,10 +1,10 @@
-import '../models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 
 /// A curated, sourced definition of a RECURRING duʿā-acceptance window.
 ///
-/// This is *metadata* only — copy keys, tier, source reference, and the
-/// location-dependence flag. The concrete `startUtc`/`endUtc` bounds are
-/// resolved at runtime by the (later-wave) `DuaWindowEngine` from prayer times.
+/// This is *metadata* only — copy key, tier, and source reference. The concrete
+/// `startUtc`/`endUtc` bounds are resolved at runtime by the `DuaWindowEngine`
+/// from prayer times.
 ///
 /// No scripture is fabricated here: [sourceRef] carries the hadith reference
 /// verbatim from the design spec §3 tables (per `CLAUDE.md` — content comes from
@@ -14,10 +14,7 @@ class DuaWindowDefinition {
     required this.type,
     required this.tier,
     required this.titleKey,
-    required this.whyKey,
     required this.sourceRef,
-    required this.locationDependent,
-    this.isAllDay = false,
   });
 
   /// The window category.
@@ -29,18 +26,8 @@ class DuaWindowDefinition {
   /// i18n copy key for the window title.
   final String titleKey;
 
-  /// i18n copy key for the optional "why this is a beloved time" disclosure.
-  final String whyKey;
-
   /// Hadith source reference (verbatim from spec §3). Never fabricated.
   final String sourceRef;
-
-  /// True if resolving concrete bounds needs a location (prayer times).
-  final bool locationDependent;
-
-  /// True for all-day/all-night windows (none of the recurring set are;
-  /// calendar all-day windows come from the seeded `dua_windows` table).
-  final bool isAllDay;
 }
 
 /// Curated definitions for the RECURRING (location-dependent) windows only.
@@ -61,9 +48,7 @@ class DuaWindowCatalog {
     type: DuaWindowType.lastThirdOfNight,
     tier: DuaWindowTier.hero,
     titleKey: 'dua_window.last_third.title',
-    whyKey: 'dua_window.last_third.why',
     sourceRef: 'al-Bukhari 1145',
-    locationDependent: true,
   );
 
   /// The Friday hour — ʿAsr→Maghrib on Friday.
@@ -73,9 +58,7 @@ class DuaWindowCatalog {
     type: DuaWindowType.fridayHour,
     tier: DuaWindowTier.hero,
     titleKey: 'dua_window.friday_hour.title',
-    whyKey: 'dua_window.friday_hour.why',
     sourceRef: 'al-Bukhari 935, Muslim 852; Abu Dawud/Nasaʾi (the last hour before Maghrib)',
-    locationDependent: true,
   );
 
   /// The Friday hero window opens this many minutes before Maghrib. The hadith's
@@ -91,20 +74,11 @@ class DuaWindowCatalog {
     type: DuaWindowType.iftar,
     tier: DuaWindowTier.special,
     titleKey: 'dua_window.iftar.title',
-    whyKey: 'dua_window.iftar.why',
     sourceRef: 'Tirmidhi 3598',
-    locationDependent: true,
   );
 
   /// The iftar window opens this many minutes before Maghrib (spec §3).
   static const Duration iftarLeadBeforeMaghrib = Duration(minutes: 20);
-
-  /// All recurring (location-dependent) window definitions, in priority order.
-  static const List<DuaWindowDefinition> recurring = <DuaWindowDefinition>[
-    lastThirdOfNight,
-    fridayHour,
-    iftar,
-  ];
 
   /// Soft location-absent framing — "the depths of the night", keyed to the
   /// device clock, justified by Muslim 757 ("an hour each night"). Humble copy
@@ -114,8 +88,6 @@ class DuaWindowCatalog {
     type: DuaWindowType.lastThirdOfNight,
     tier: DuaWindowTier.soft,
     titleKey: 'dua_window.soft_night.title',
-    whyKey: 'dua_window.soft_night.why',
     sourceRef: 'Muslim 757',
-    locationDependent: false,
   );
 }

@@ -26,6 +26,11 @@ void main() {
     final DateTime lastThird = sunnah.lastThirdOfTheNight;
     expect(lastThird, isA<DateTime>());
 
+    // `PrayerTimes.fajrAfter` is the night-third END (next-day Fajr) the service
+    // reads in `_windowFrom`. Reference it here so a rename fails CI too.
+    final DateTime fajrAfter = pt.fajrAfter;
+    expect(fajrAfter, isA<DateTime>());
+
     // Also pin the enum values we rely on.
     expect(Madhab.shafi.shadowLength, 1);
     expect(Madhab.hanafi.shadowLength, 2);

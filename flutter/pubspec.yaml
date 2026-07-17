@@ -78,6 +78,8 @@ dependencies:
   # A compile-guard test references SunnahTimes.lastThirdOfTheNight so an upgrade
   # that renames it fails CI.
   adhan_dart: 2.0.1
+  # Pinned exactly: native (platform-channel) plugin — pin for build stability /
+  # reproducible iOS+Android builds; bump deliberately after a device smoke test.
   geolocator: 14.0.2
 
 dev_dependencies:

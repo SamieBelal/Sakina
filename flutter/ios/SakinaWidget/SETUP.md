@@ -71,6 +71,25 @@ proof. If a build ever fails on membership, re-check that no
 4. **Fonts** — the duʿā widget reuses `ArefRuqaa-Regular` and `Outfit`, already
    staged in `Fonts/` and listed in the extension Info.plist. No new fonts.
 
+### Payload contract note — `computed_at.built_at_utc` (added 2026-07-16)
+
+The schedule's `computed_at` object carries an optional **`built_at_utc`** field —
+an epoch-**millis** integer marking when the Flutter side built the payload
+(nullable / absent when unknown). The widget decodes it as `Int64?` and uses it
+for a **build-age staleness guard**: in addition to the existing horizon check
+(`computed_through_utc < now`), a payload is treated as stale — and the widget
+falls back to the bundled `dua_calendar.json` — when `built_at_utc` is present
+AND `now − built_at > 48h`. If the field is absent, behavior is unchanged
+(horizon-only staleness). The Dart writer in `widget_data_service.dart` should
+emit `built_at_utc` under `computed_at` for this guard to engage; older payloads
+without it still work.
+
+Two related hardening changes shipped alongside it (no contract impact, just
+fail-safe rendering): an unrecognized window `type`/`kind` is now **dropped**
+rather than coerced to White Days (JSON may still carry extra `tier`/`title_key`/
+`source_ref` keys — they're simply not decoded), so a future window kind renders
+as *no window* instead of the wrong one.
+
 ### QA note for the duʿā widget
 
 Add it via long-press ▸ **+** ▸ **Sakina** ▸ **Duʿā Times**. Verify: active

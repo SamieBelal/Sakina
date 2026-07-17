@@ -12,7 +12,7 @@
 
 begin;
 
-select plan(26);
+select plan(27);
 
 -- ---------------------------------------------------------------------------
 -- (c) Structure — table + columns + types
@@ -57,6 +57,18 @@ select ok(
 select ok(
   not exists (select 1 from public.dua_windows where end_date < start_date),
   'every seeded window has end_date >= start_date'
+);
+
+-- The dua_window_range_valid CHECK must reject an inverted range (end_date <
+-- start_date). Attempt an insert with start > end and assert the check
+-- constraint fires (SQLSTATE 23514). Runs as superuser so RLS can't mask it.
+select throws_ok(
+  $$ insert into public.dua_windows
+       (id, kind, tier, title_key, start_date, end_date)
+     values ('inverted_range', 'arafah', 'hero', 'x', '2027-01-02', '2027-01-01') $$,
+  '23514',
+  null,
+  'dua_window_range_valid CHECK rejects an inverted date range (23514)'
 );
 
 select ok(

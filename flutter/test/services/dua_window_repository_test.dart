@@ -4,7 +4,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 import 'package:sakina/services/dua_window_engine.dart';
 import 'package:sakina/services/dua_window_repository.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Counts `fetchPublicRows` calls so we can assert the remote-refresh throttle.
+class _CountingSyncService extends SupabaseSyncService {
+  int fetchCalls = 0;
+  final List<Map<String, dynamic>> rowsToReturn;
+  final List<Map<String, dynamic>> metaToReturn;
+
+  _CountingSyncService({
+    required this.rowsToReturn,
+    required this.metaToReturn,
+  });
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchPublicRows(
+    String table, {
+    String columns = '*',
+    String orderBy = 'id',
+    bool ascending = true,
+    int? limit,
+  }) async {
+    fetchCalls++;
+    return table == 'dua_windows' ? rowsToReturn : metaToReturn;
+  }
+
+  @override
+  Future<void> setPublicCatalogCache(String cacheKey, String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(cacheKey, json);
+  }
+}
 
 /// A minimal self-describing bundled-asset payload mirroring the real
 /// `assets/dua_calendar/dua_windows.json` shape.
@@ -87,6 +118,67 @@ void main() {
       final cal = await repo.load();
       expect(cal.fromBundledAsset, isFalse);
       expect(cal.rows.single.kind, 'ashura');
+    });
+  });
+
+  group('remote-refresh throttle', () {
+    final remoteRows = <Map<String, dynamic>>[
+      {
+        'id': 'arafah_1448',
+        'kind': 'arafah',
+        'tier': 'hero',
+        'title_key': 'dua_window.arafah',
+        'start_date': '2027-05-15',
+        'end_date': '2027-05-15',
+        'source_ref': 'Tirmidhi 3585',
+      }
+    ];
+    final remoteMeta = <Map<String, dynamic>>[
+      {'id': 1, 'last_seeded_through': '2027-06-20'}
+    ];
+
+    test('a fetch within the throttle window serves cache (no network)',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final sync = _CountingSyncService(
+        rowsToReturn: remoteRows,
+        metaToReturn: remoteMeta,
+      );
+      final repo = DuaWindowRepository(
+        syncService: sync,
+        prefs: SharedPreferences.getInstance,
+        loadAsset: (_) async => throw StateError('asset not needed'),
+      );
+
+      await repo.refreshFromRemote();
+      // 2 round-trips on the first fetch (rows + meta).
+      expect(sync.fetchCalls, 2);
+
+      // Second call within 6h → throttled, no new round-trips.
+      await repo.refreshFromRemote();
+      expect(sync.fetchCalls, 2, reason: 'second refresh must serve the cache');
+    });
+
+    test('an expired throttle timestamp allows a fresh fetch', () async {
+      final stale = DateTime.now()
+          .subtract(const Duration(hours: 7))
+          .millisecondsSinceEpoch;
+      SharedPreferences.setMockInitialValues({
+        DuaWindowRepository.lastFetchKey: stale,
+      });
+      final sync = _CountingSyncService(
+        rowsToReturn: remoteRows,
+        metaToReturn: remoteMeta,
+      );
+      final repo = DuaWindowRepository(
+        syncService: sync,
+        prefs: SharedPreferences.getInstance,
+        loadAsset: (_) async => throw StateError('asset not needed'),
+      );
+
+      await repo.refreshFromRemote();
+      expect(sync.fetchCalls, 2,
+          reason: 'a >6h-old fetch timestamp must not throttle');
     });
   });
 

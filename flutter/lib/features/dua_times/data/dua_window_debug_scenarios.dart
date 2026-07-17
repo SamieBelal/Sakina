@@ -1,6 +1,6 @@
-import '../models/dua_window.dart';
-import '../models/dua_window_schedule.dart';
-import '../models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/models/dua_window.dart';
+import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
+import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 
 /// Dev/QA-only synthetic schedules so reviewers can SEE each card + widget state
 /// on demand, without waiting for the real clock (e.g. an actual Friday, or
