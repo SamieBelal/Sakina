@@ -73,8 +73,9 @@ With client-computes-instants, **raw location never leaves the device** — the 
 
 ## 6. Opt-in & preferences
 
-- One category `notify_dua_windows` in `user_notification_preferences`. Opt-in gates BOTH the local calendar schedule AND the server precise-window enqueue (and the coarse-coords sync).
-- Default: opt-in ON after first Duʿā Times engagement; global mute respected (verify the global-mute construct exists in `notification_service.dart` before depending on it — outside-voice #5).
+- One category `notify_dua_windows` in `user_notification_preferences`, surfaced as **one more per-category switch row in the existing Settings notifications section** (`settings_screen.dart` lines 1366–1418 pattern) via `_setNotificationPreference('notify_dua_windows', value)`. The switch gates BOTH the local calendar schedule AND the server precise-window sync/enqueue.
+- **Default: ON for anyone who allowed notifications in onboarding** — consistent with the other 5 categories, which all default `true` once permission is granted (onboarding page 10 → `requestPermission()` + `optIn()`). No separate "after first engagement" opt-in gesture (that was over-engineered and inconsistent). The Settings switch is the off-ramp; the master push toggle still gates everything.
+- **Symmetry on toggle-off:** turning `notify_dua_windows` off deletes the user's synced `dua_precise_notifications` rows (stops server pushes) AND clears the local dua calendar id band — the mirror of toggle-on.
 - **Fatigue policy (D1):** night-third precise push defaults to Friday / White Days / Laylat nights, not nightly; full-nightly optional.
 
 ## 7. Phased implementation
