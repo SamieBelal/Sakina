@@ -100,6 +100,34 @@ export function selectDueDuaNotifications(
   });
 }
 
+// Collapse to AT MOST ONE dua push per user per run. When a user has two precise
+// instants due in the same tick (e.g. the Friday hour and iftar coinciding, or
+// two different window_types landing together) sending both is a same-tick
+// double-buzz. We keep exactly one row per user — the EARLIEST fire_utc (the
+// window that opened first), tie-broken by window_type then id for full
+// determinism. The dropped row is left unsent; the >1h-late guard in
+// selectDueDuaNotifications stops it re-firing in a later run once its sibling
+// is marked sent, so the user is not double-buzzed across runs either.
+// Pure + exported so it is unit-testable without a DB.
+export function dedupeDuaByUser(rows: DuaPreciseRow[]): DuaPreciseRow[] {
+  const bestByUser = new Map<string, DuaPreciseRow>();
+  for (const row of rows) {
+    const current = bestByUser.get(row.user_id);
+    if (current === undefined || isEarlierDuaRow(row, current)) {
+      bestByUser.set(row.user_id, row);
+    }
+  }
+  return rows.filter((row) => bestByUser.get(row.user_id) === row);
+}
+
+function isEarlierDuaRow(a: DuaPreciseRow, b: DuaPreciseRow): boolean {
+  const aMs = Date.parse(a.fire_utc);
+  const bMs = Date.parse(b.fire_utc);
+  if (aMs !== bMs) return aMs < bMs;
+  if (a.window_type !== b.window_type) return a.window_type < b.window_type;
+  return a.id < b.id;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -305,8 +333,11 @@ async function processDuaPreciseWindows(params: {
   // In-code re-filter (defense in depth against a mis-scoped query).
   const due = selectDueDuaNotifications(rows, now);
 
-  // Quiet-hours dedup: drop rows for users already pushed this run.
-  const toSend = due.filter((r) => !alreadyPushedUserIds.has(r.user_id));
+  // At-most-one dua push per user per run: collapse two different-window rows
+  // due in the same tick into one (the earliest), then drop users already
+  // pushed by another notification type this run (quiet-hours dedup).
+  const oncePerUser = dedupeDuaByUser(due);
+  const toSend = oncePerUser.filter((r) => !alreadyPushedUserIds.has(r.user_id));
   const skippedDedup = due.length - toSend.length;
 
   // Mark first (at-most-once), then send.

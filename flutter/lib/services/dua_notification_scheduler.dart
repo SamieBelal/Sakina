@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:sakina/features/dua_times/data/dua_window_copy_book.dart';
 import 'package:sakina/features/dua_times/models/dua_window.dart';
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
@@ -314,7 +315,7 @@ class DuaNotificationScheduler {
     final localDate = '${local.year.toString().padLeft(4, '0')}-'
         '${local.month.toString().padLeft(2, '0')}-'
         '${local.day.toString().padLeft(2, '0')}';
-    final key = '${_typeKey(w.type)}|$localDate';
+    final key = '${w.type.wireName}|$localDate';
     return kDuaIdBase + _stableHash(key);
   }
 
@@ -337,21 +338,23 @@ class DuaNotificationScheduler {
 
   Future<void> _scheduleOne(_PlannedNotification p, tz.Location loc) async {
     final when = tz.TZDateTime.from(p.fireUtc, loc);
+    // Resolve the seeded row's raw title *key* (e.g. `dua_window.white_days`)
+    // into real, distinct display copy. The seed carries i18n keys, not
+    // strings, so passing `titleKey` straight through would show the literal
+    // key to the user. [DuaWindowCopyBook] is the single swap-point for a
+    // localized lookup once the i18n slice lands (keyed by `type.wireName`).
+    final copy = DuaWindowCopyBook.resolve(p.window.type);
     await _plugin.zonedSchedule(
       p.id,
-      // i18n-ready: the title/body are copy keys resolved at the presentation
-      // layer once the copy/i18n slice lands (out of scope here). Passing the
-      // window's titleKey keeps the payload localizable and avoids baking an
-      // English string. Body left as the key too.
-      p.window.titleKey,
-      p.window.titleKey,
+      copy.title,
+      copy.body,
       when,
       _details(),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       // Route taps to /duas via the deep-link payload the click handler reads.
-      payload: 'dua_window:${_typeKey(p.window.type)}',
+      payload: 'dua_window:${p.window.type.wireName}',
     );
   }
 
@@ -403,32 +406,5 @@ class DuaNotificationScheduler {
       hash = (hash * 0x01000193) & 0x7fffffff;
     }
     return hash % kDuaIdBandSize;
-  }
-
-  String _typeKey(DuaWindowType type) {
-    switch (type) {
-      case DuaWindowType.lastThirdOfNight:
-        return 'last_third_of_night';
-      case DuaWindowType.fridayHour:
-        return 'friday_hour';
-      case DuaWindowType.iftar:
-        return 'iftar';
-      case DuaWindowType.arafah:
-        return 'arafah';
-      case DuaWindowType.dhulHijjah10:
-        return 'dhul_hijjah_10';
-      case DuaWindowType.laylatAlQadr:
-        return 'laylat_al_qadr';
-      case DuaWindowType.ramadan:
-        return 'ramadan';
-      case DuaWindowType.ashura:
-        return 'ashura';
-      case DuaWindowType.whiteDays:
-        return 'white_days';
-      case DuaWindowType.eid:
-        return 'eid';
-      case DuaWindowType.fridayDay:
-        return 'friday_day';
-    }
   }
 }

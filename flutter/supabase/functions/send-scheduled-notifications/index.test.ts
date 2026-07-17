@@ -1,6 +1,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 
 import {
+  dedupeDuaByUser,
   DUA_WINDOW_DATA_TYPE,
   DUA_WINDOW_DEEP_LINK,
   type DuaPreciseRow,
@@ -144,4 +145,54 @@ Deno.test("does NOT dedup distinct instants of the same user/window", () => {
   });
   const due = selectDueDuaNotifications([a, b], NOW);
   assertEquals(due.length, 2);
+});
+
+// ── At-most-one dua push per user per run (same-tick double-buzz guard) ───────
+
+Deno.test("dedupeDuaByUser: two due windows for one user → exactly one send", () => {
+  // Two DIFFERENT window_types due in the same run for the same user. Without
+  // the guard both would fire (same-tick double-buzz). Keep only the earliest.
+  const user = crypto.randomUUID();
+  const friday = row({
+    user_id: user,
+    window_type: "friday_hour",
+    fire_utc: new Date(NOW.getTime() - 5 * 60_000).toISOString(),
+  });
+  const iftar = row({
+    user_id: user,
+    window_type: "iftar",
+    fire_utc: NOW.toISOString(),
+  });
+  const deduped = dedupeDuaByUser([iftar, friday]);
+  assertEquals(deduped.length, 1);
+  // The earliest fire_utc wins (friday opened 5 min earlier).
+  assertEquals(deduped[0].id, friday.id);
+});
+
+Deno.test("dedupeDuaByUser: distinct users are each kept", () => {
+  const a = row({ user_id: crypto.randomUUID(), window_type: "iftar" });
+  const b = row({
+    user_id: crypto.randomUUID(),
+    window_type: "last_third_of_night",
+  });
+  const deduped = dedupeDuaByUser([a, b]);
+  assertEquals(deduped.length, 2);
+});
+
+Deno.test("dedupeDuaByUser: same fire_utc tie broken deterministically", () => {
+  const user = crypto.randomUUID();
+  const iftar = row({
+    user_id: user,
+    window_type: "iftar",
+    fire_utc: NOW.toISOString(),
+  });
+  const friday = row({
+    user_id: user,
+    window_type: "friday_hour",
+    fire_utc: NOW.toISOString(),
+  });
+  // window_type tie-break: "friday_hour" < "iftar" lexicographically.
+  const deduped = dedupeDuaByUser([iftar, friday]);
+  assertEquals(deduped.length, 1);
+  assertEquals(deduped[0].id, friday.id);
 });

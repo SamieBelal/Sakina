@@ -18,6 +18,9 @@ class _FakePlugin implements FlutterLocalNotificationsPlugin {
   /// Every `zonedSchedule` call this process, in order (id + fire instant).
   final List<MapEntry<int, DateTime>> scheduleCalls = [];
 
+  /// The title + body of every `zonedSchedule` call, keyed by id (last wins).
+  final Map<int, ({String? title, String? body})> scheduledCopy = {};
+
   /// Every id passed to `cancel`.
   final List<int> cancelledIds = [];
 
@@ -38,6 +41,7 @@ class _FakePlugin implements FlutterLocalNotificationsPlugin {
   }) async {
     pending[id] = title ?? '';
     scheduleCalls.add(MapEntry(id, scheduledDate.toUtc()));
+    scheduledCopy[id] = (title: title, body: body);
   }
 
   @override
@@ -388,6 +392,64 @@ void main() {
 
       expect(plugin.scheduleCalls, isEmpty,
           reason: 'precise windows are the server-push path, never local');
+    });
+  });
+
+  group('resolved copy (no raw i18n keys)', () {
+    // Every calendar window type the LOCAL scheduler can emit. eid intentionally
+    // appears once (both Eids share one DuaWindowType → one copy entry).
+    const calendarTypes = <DuaWindowType>[
+      DuaWindowType.whiteDays,
+      DuaWindowType.arafah,
+      DuaWindowType.ashura,
+      DuaWindowType.dhulHijjah10,
+      DuaWindowType.laylatAlQadr,
+      DuaWindowType.ramadan,
+      DuaWindowType.eid,
+      DuaWindowType.fridayDay,
+    ];
+
+    test('no scheduled title/body is a raw key, and every type resolves',
+        () async {
+      final plugin = _FakePlugin();
+      final scheduler = DuaNotificationScheduler(
+        plugin: plugin,
+        clock: () => baseNow,
+      );
+
+      // One window per calendar type, on distinct days so ids never collide.
+      final windows = <DuaWindow>[
+        for (var i = 0; i < calendarTypes.length; i++)
+          _calendarWindow(
+            type: calendarTypes[i],
+            y: 2027,
+            m: 5,
+            d: 1 + i,
+            zoneName: 'UTC',
+          ),
+      ];
+
+      await scheduler.reschedule(_schedule(windows), localTzName: 'UTC');
+
+      // Every type produced a scheduled notification.
+      expect(plugin.scheduleCalls.length, calendarTypes.length,
+          reason: 'every calendar window type must schedule');
+
+      for (final copy in plugin.scheduledCopy.values) {
+        final title = copy.title ?? '';
+        final body = copy.body ?? '';
+        expect(title, isNotEmpty);
+        expect(body, isNotEmpty);
+        // The seed carries raw keys like `dua_window.white_days` — none must
+        // ever reach a real notification title/body.
+        expect(title.contains('dua_window.'), isFalse,
+            reason: 'title must be resolved copy, not a raw key: "$title"');
+        expect(body.contains('dua_window.'), isFalse,
+            reason: 'body must be resolved copy, not a raw key: "$body"');
+        // Title and body must be distinct real strings.
+        expect(title == body, isFalse,
+            reason: 'title and body must differ: "$title"');
+      }
     });
   });
 }

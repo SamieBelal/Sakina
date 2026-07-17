@@ -237,6 +237,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           await gate.apply(schedule, force: true);
         }
         if (!mounted) return;
+      } else {
+        // Master opt-OUT symmetry (privacy): clear the reserved local calendar
+        // band AND delete the user's synced `dua_precise_notifications` rows so
+        // the server stops pushing — mirroring the per-category toggle-off.
+        // Best-effort — the gate degrades silently and never throws.
+        final gate = ref.read(duaNotificationGateProvider);
+        if (gate != null) {
+          await gate.clear();
+        }
+        if (!mounted) return;
       }
 
       if (_pushNotificationsEnabled != isOptedIn) {
