@@ -105,11 +105,17 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         _widgetData = widgetDataService,
         _prefs = prefs ?? SharedPreferences.getInstance,
         _observeLifecycle = observeLifecycle,
+        _tickerEnabled = startTicker,
         super(DuaWindowState(now: (clock ?? DateTime.now)())) {
     if (_observeLifecycle) {
       WidgetsBinding.instance.addObserver(this);
     }
-    if (startTicker) _startTicker();
+    // NOTE: the ticker is LAZY — it is NOT started here. `_syncTicker()` starts
+    // it only once a rebuild produces a live per-second countdown, and cancels
+    // it otherwise. Starting a perpetual `Timer.periodic` in the constructor
+    // leaked a pending timer into every full-app widget test that renders this
+    // card without an active window (tripped `!timersPending`), and burned a
+    // 1Hz timer for nothing the ~99% of the day there's no live countdown.
     // Kick the first build; the card renders the empty case until it lands.
     if (autoBuild) unawaited(rebuild());
   }
@@ -119,6 +125,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   void debugSetSchedule(DuaWindowSchedule schedule, {DateTime? now}) {
     _lastBuiltYmd = _ymd(now ?? _clock());
     state = state.copyWith(schedule: schedule, now: now ?? _clock());
+    _syncTicker();
   }
 
   /// Dev/QA only: freeze the card + widget on a synthetic [schedule] so a
@@ -130,6 +137,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     _debugFrozen = true;
     _lastBuiltYmd = _ymd(_clock());
     state = state.copyWith(schedule: schedule, now: _clock());
+    _syncTicker();
     unawaited(_pushToWidget(schedule));
   }
 
@@ -147,6 +155,10 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   final WidgetDataService? _widgetData;
   final Future<SharedPreferences> Function() _prefs;
   final bool _observeLifecycle;
+
+  /// Whether the per-second countdown ticker is allowed to run at all. Tests
+  /// pass `startTicker: false` to keep a deterministic, timer-free notifier.
+  final bool _tickerEnabled;
 
   /// SharedPreferences key holding the epoch-ms until which the precise-times
   /// banner is snoozed (set when the user taps its ✕).
@@ -181,9 +193,19 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   // Ticking clock — drives the live countdown only (cheap).
   // ---------------------------------------------------------------------------
 
-  void _startTicker() {
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  /// Start or stop the 1Hz ticker to match demand. The ticker runs ONLY while a
+  /// live per-second countdown is on screen (an active window in the closing /
+  /// last-call band); otherwise it is cancelled. Called after every state change
+  /// (rebuild / tick / preview) so the timer's lifetime is tied to actual need —
+  /// which both fixes the `!timersPending` leak in full-app tests and avoids a
+  /// perpetual 1Hz timer the ~99% of the day there is nothing to count down.
+  void _syncTicker() {
+    if (!_tickerEnabled || _disposed || !_hasLiveCountdown) {
+      _ticker?.cancel();
+      _ticker = null;
+      return;
+    }
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   void _tick() {
@@ -196,14 +218,13 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       unawaited(rebuild());
       return;
     }
-    // Otherwise only advance the clock when a LIVE per-second countdown is
-    // actually on screen — an active, non-all-day window in the closing or
-    // last-call urgency band. For comfortable / all-day / between / upcoming
-    // states the label doesn't change per second, so publishing `now` every
-    // tick would rebuild the card at 1Hz for nothing.
+    // Advance the clock so the live countdown label updates. `_syncTicker` only
+    // keeps us ticking while `_hasLiveCountdown` holds, so this publish is never
+    // wasted; once the window leaves the live band (or ends), re-sync stops us.
     if (_hasLiveCountdown) {
       state = state.copyWith(now: now);
     }
+    _syncTicker();
   }
 
   /// True when the card is showing a ticking per-second countdown: an active,
@@ -305,6 +326,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         building: false,
         preciseBannerSnoozed: await _isBannerSnoozed(now),
       );
+      _syncTicker();
       await _pushToWidget(schedule);
     } catch (e) {
       if (_disposed) return;
