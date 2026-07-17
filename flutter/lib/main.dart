@@ -19,6 +19,7 @@ import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
 import 'features/dua_times/providers/dua_notification_scheduler_provider.dart';
+import 'features/dua_times/providers/dua_window_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
@@ -355,6 +356,13 @@ Future<void> main() async {
   WidgetDeepLinkHandler.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   widgetAnalyticsHook =
+      (event, props) => analytics.track(event, properties: props);
+  // Duʿā-times Live Activity telemetry (start/end). The notifier promotes the
+  // active window to a Lock-Screen / Dynamic Island countdown and bridges its
+  // `dua_live_activity_started` / `_ended` through this static hook (no Riverpod
+  // in the notifier). Taps are attributed separately via the `live_activity`
+  // deep-link source in WidgetDeepLinkHandler.
+  DuaWindowNotifier.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
   // sign-out so a shared/QA device doesn't bleed one user's identity into the

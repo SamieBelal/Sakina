@@ -89,10 +89,19 @@ class WidgetDeepLinkHandler {
   void _handle(Uri? uri, {required bool cold}) {
     final location = parseWidgetDeepLink(uri);
     if (location == null) return;
-    onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
-      'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
-      'launch': cold ? 'cold' : 'warm',
-    });
+    // A Live Activity tap carries `?source=live_activity` (plan correction #5)
+    // so its tap-through into Build-a-Duʿā is measurable separately from a
+    // home-widget tap — otherwise the LA's north-star metric is invisible.
+    if (uri?.queryParameters['source'] == 'live_activity') {
+      onAnalyticsEvent?.call(AnalyticsEvents.duaLiveActivityTapped, {
+        'launch': cold ? 'cold' : 'warm',
+      });
+    } else {
+      onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
+        'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
+        'launch': cold ? 'cold' : 'warm',
+      });
+    }
     _navigate(location);
   }
 

@@ -135,3 +135,26 @@ enum UrgencyState {
   @JsonValue('upcoming')
   upcoming,
 }
+
+/// The stable snake_case wire string for an [UrgencyState].
+///
+/// MUST match the `@JsonValue(...)` labels above — the serialization contract
+/// shared with the native widget's Swift decoder AND the Live Activity
+/// `ContentState.urgency` field. Centralised here (alongside [DuaWindowTypeWire])
+/// so the Live Activity seam and the schedule encoder speak one vocabulary.
+extension UrgencyStateWire on UrgencyState {
+  String get wireName {
+    switch (this) {
+      case UrgencyState.comfortable:
+        return 'comfortable';
+      case UrgencyState.closing:
+        return 'closing';
+      case UrgencyState.lastCall:
+        return 'last_call';
+      case UrgencyState.allDay:
+        return 'all_day';
+      case UrgencyState.upcoming:
+        return 'upcoming';
+    }
+  }
+}
