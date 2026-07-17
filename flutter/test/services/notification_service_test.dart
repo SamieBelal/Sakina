@@ -405,6 +405,8 @@ void main() {
       notifyReengagementTagKey: false,
       notifyWeeklyTagKey: true,
       notifyUpdatesTagKey: false,
+      // Absent from the fake row → defaults ON (same as the other categories).
+      notifyDuaWindowsTagKey: true,
     });
   });
 
@@ -442,6 +444,8 @@ void main() {
       notifyReengagementTagKey: false,
       notifyWeeklyTagKey: true,
       notifyUpdatesTagKey: false,
+      // Not set in SharedPreferences → defaults ON (cached read fallback).
+      notifyDuaWindowsTagKey: true,
     });
   });
 

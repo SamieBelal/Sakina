@@ -296,6 +296,63 @@ void main() {
     });
   });
 
+  group('cancelAllDuaNotifications', () {
+    test('cancels ONLY the dua band and lets a foreign id survive', () async {
+      final plugin = _FakePlugin();
+      const foreignId = 99; // OneSignal-style, outside the band.
+      plugin.seedForeign(foreignId);
+
+      final scheduler = DuaNotificationScheduler(
+        plugin: plugin,
+        clock: () => baseNow,
+      );
+
+      // Schedule two real windows into the band first.
+      await scheduler.reschedule(
+        _schedule([
+          _calendarWindow(
+              type: DuaWindowType.arafah, y: 2027, m: 5, d: 15, zoneName: 'UTC'),
+          _calendarWindow(
+              type: DuaWindowType.eid, y: 2027, m: 5, d: 16, zoneName: 'UTC'),
+        ]),
+        localTzName: 'UTC',
+      );
+      expect(await scheduler.pendingDuaCount(), 2);
+
+      await scheduler.cancelAllDuaNotifications();
+
+      // Band cleared; foreign id untouched.
+      expect(await scheduler.pendingDuaCount(), 0);
+      expect(plugin.pending.containsKey(foreignId), isTrue);
+      expect(plugin.cancelledIds.contains(foreignId), isFalse);
+    });
+
+    test('resets guards so the next reschedule rebuilds the band', () async {
+      final plugin = _FakePlugin();
+      final windows = [
+        _calendarWindow(
+            type: DuaWindowType.arafah, y: 2027, m: 5, d: 15, zoneName: 'UTC'),
+      ];
+      final scheduler = DuaNotificationScheduler(
+        plugin: plugin,
+        clock: () => baseNow,
+      );
+
+      await scheduler.reschedule(_schedule(windows), localTzName: 'UTC');
+      final firstCount = plugin.scheduleCalls.length;
+      expect(firstCount, greaterThan(0));
+
+      await scheduler.cancelAllDuaNotifications();
+
+      // Without a guard reset, the byte-identical set would be skipped even
+      // though the band is now empty. The reset must let it rebuild.
+      await scheduler.reschedule(_schedule(windows), localTzName: 'UTC');
+      expect(plugin.scheduleCalls.length, firstCount * 2,
+          reason: 'guards reset ⇒ identical set reschedules after a cancel');
+      expect(await scheduler.pendingDuaCount(), 1);
+    });
+  });
+
   group('empty schedule', () {
     test('nothing scheduled, cancel still targets only the band', () async {
       final plugin = _FakePlugin();

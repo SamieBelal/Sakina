@@ -184,6 +184,20 @@ class DuaNotificationScheduler {
     }
   }
 
+  /// Count of currently-pending notifications inside the reserved dua band.
+  /// Walks [FlutterLocalNotificationsPlugin.pendingNotificationRequests] and
+  /// counts only band members (FOREIGN ids — OneSignal's etc. — are excluded).
+  /// Used by Dev Tools to confirm a reschedule landed. Returns 0 on any error.
+  Future<int> pendingDuaCount() async {
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      return pending.where((req) => _isDuaId(req.id)).length;
+    } catch (error) {
+      debugPrint('[DuaNotificationScheduler] pendingDuaCount failed: $error');
+      return 0;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Planning (pure)
   // ---------------------------------------------------------------------------

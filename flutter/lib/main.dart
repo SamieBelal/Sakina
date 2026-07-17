@@ -18,6 +18,7 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
+import 'features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
@@ -163,9 +164,10 @@ Future<void> main() async {
   await widgetDataService.initialize();
 
   // Initialize the local-notifications plugin + timezone DB for the duʿā-window
-  // calendar scheduler. Best-effort — never blocks launch. The plugin instance
-  // is held for the (later-slice) opt-in wiring; not yet consumed here.
-  // ignore: unused_local_variable
+  // calendar scheduler. Best-effort — never blocks launch. The instance is
+  // handed to `localNotificationsPluginProvider` below so the duʿā scheduler +
+  // Dev Tools can consume it; null (web / init failure) leaves the scheduler
+  // provider null and every caller no-ops.
   final localNotifications = await _initLocalNotifications();
 
   // Capture any inbound referral deep link BEFORE further init so the
@@ -373,6 +375,7 @@ Future<void> main() async {
         cachedOnboardingStateProvider.overrideWithValue(cachedOnboardingState),
         analyticsProvider.overrideWithValue(analytics),
         notificationServiceProvider.overrideWithValue(notificationService),
+        localNotificationsPluginProvider.overrideWithValue(localNotifications),
       ],
       child: AppLifecycleObserver(
         child: SakinaApp(appSession: appSession),
