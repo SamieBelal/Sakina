@@ -101,6 +101,59 @@ guard**, change the device time zone in Settings without reopening the app — t
 widget should drop precise night-third/Friday-hour windows and fall back to the
 bundled calendar (Friday + seeded sacred days still render).
 
+## Live Activity — SakinaDuaTimesLiveActivity (added 2026-07-17)
+
+A **Live Activity** (Lock Screen + Dynamic Island) for the active duʿā window —
+the same countdown as the home widget, promoted to a glanceable surface. v1 is a
+purely **local, foreground-started** ticking countdown (no push/server). See
+`docs/superpowers/plans/2026-07-16-dua-live-activities.md`.
+
+### ✅ Done in code (Dart fully tested; Swift authored, needs first build)
+
+- **Info.plist:** `NSSupportsLiveActivities = YES` added to BOTH
+  `ios/Runner/Info.plist` and `ios/SakinaWidgetExtension-Info.plist`.
+- **Dart seam:** `lib/services/dua_live_activity_service.dart` (channel
+  `sakina/dua_live_activity`), wired into `DuaWindowNotifier` next to the widget
+  push, ended on sign-out/delete in `auth_service.dart`. Unit-tested.
+- **Swift:** `ios/DuaLiveActivityAttributes.swift` (shared attributes),
+  `ios/SakinaWidget/DuaLiveActivity.swift` (ActivityConfiguration + Dynamic
+  Island), `ios/Runner/LiveActivityBridge.swift` (ActivityKit bridge),
+  registered in `AppDelegate`, and added to `SakinaWidgetBundle` (gated
+  `if #available(iOS 16.2, *)`).
+
+### ⚠️ Manual Xcode target membership (REQUIRED — do this before first build)
+
+Unlike the `ios/SakinaWidget/` synced-group files, two files are NOT auto-added
+to the right targets:
+
+1. **`ios/DuaLiveActivityAttributes.swift`** — select it in Xcode → File
+   Inspector → **Target Membership** → tick **BOTH** `Runner` AND
+   `SakinaWidgetExtension`. (ActivityKit matches the activity to its config by
+   this attributes type, so both the app and the extension must compile it.)
+2. **`ios/Runner/LiveActivityBridge.swift`** — add to the **Runner** target only.
+   (`DuaLiveActivity.swift` stays extension-only via the synced group.)
+
+Do NOT hand-edit `project.pbxproj`. If the extension build ever complains about a
+missing `DuaLiveActivityAttributes`, re-check membership #1.
+
+### On-device QA (Dynamic Island needs an iPhone 14 Pro or later)
+
+The existing **Dev Tools ▸ Duʿā Times preview** buttons drive the Live Activity
+(they call `debugPreview`, which now syncs the LA):
+- **Night · closing** / **Friday · closing** / **Friday · LAST CALL** → a
+  time-boxed window is active → the Live Activity **starts** (Lock Screen +
+  Dynamic Island), ticking `HH:MM:SS` to close; tap → Build-a-Duʿā.
+- **ʿArafah · today** (all-day) → LA is **skipped** (O1) and any live one ends.
+- **Between** → LA **ends** (flips to a static "Build your duʿā" grace state
+  ~2 min, then dismisses).
+- **Reset (real)** → syncs to the real schedule.
+
+Also verify: Settings ▸ (disable Live Activities) → nothing starts, no crash;
+sign out → the activity ends; the tap deep-link opens Build-a-Duʿā and fires
+`dua_live_activity_tapped` (NOT `widget_opened`) — if the tap does NOT reach the
+app, the LA URL isn't being forwarded to `HomeWidget.widgetClicked`; route
+`sakina://widget/build-dua?source=live_activity` through `app_links` instead.
+
 ## ⬜ What's left (yours — needs a run / device / Apple account)
 
 1. **Run it and add the widget** (simulator is fine for Small/Medium):

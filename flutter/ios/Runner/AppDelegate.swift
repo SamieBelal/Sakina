@@ -12,5 +12,11 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // Duʿā-times Live Activity bridge. The implicit-engine bridge exposes no
+    // binary messenger directly (plan correction #4) — draw it from a plugin
+    // registrar on the same registry the generated plugins use.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "LiveActivityBridge") {
+      LiveActivityBridge.register(messenger: registrar.messenger())
+    }
   }
 }
