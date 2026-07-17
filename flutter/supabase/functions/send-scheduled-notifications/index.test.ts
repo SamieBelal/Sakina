@@ -11,17 +11,16 @@ import {
 
 // ── Auth guard (code-review finding P2-2) ────────────────────────────────────
 //
-// The function sends real pushes + drains dua_precise_notifications, so it must
-// only run for the cron/admin caller. isAuthorized requires the service-role
-// bearer. Critically, a MISSING header must be REJECTED (the old guard allowed
-// a null Authorization, letting anyone with the URL trigger a full send). The
-// cron migration is what supplies this bearer (from Vault), so these two must
-// ship in the documented order — see the migration's DEPLOY RUNBOOK.
+// TODO(P2-2): the strict gate (missing header REJECTED) was reverted after a
+// service-role key mismatch broke the prod cron. Until re-tightened (correct
+// env key or a dedicated CRON_SECRET), a MISSING header is ACCEPTED — the
+// pre-existing behavior the cron relies on (it sends only Content-Type). A
+// WRONG/empty non-null bearer is still rejected.
 
 const SERVICE_ROLE_KEY = "test-service-role-key";
 
-Deno.test("isAuthorized: missing Authorization header → rejected", () => {
-  assertEquals(isAuthorized(null, SERVICE_ROLE_KEY), false);
+Deno.test("isAuthorized: missing Authorization header → accepted (P2-2 reverted)", () => {
+  assertEquals(isAuthorized(null, SERVICE_ROLE_KEY), true);
 });
 
 Deno.test("isAuthorized: wrong bearer → rejected", () => {

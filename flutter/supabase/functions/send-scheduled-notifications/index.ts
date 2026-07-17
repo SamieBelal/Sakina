@@ -134,22 +134,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Auth gate for the cron/admin-only trigger. This function sends real pushes
-// (and now drains dua_precise_notifications), so it must NEVER be triggerable
-// by anyone who merely knows the URL. We require a service-role bearer:
-//   Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
-// which is exactly what the pg_cron job sends (see the cron migration
-// 20260717123000_send_scheduled_notifications_cron_auth.sql, which reads the
-// key from Vault) and what an admin manual invoke sends. A MISSING or WRONG
-// header is rejected — closing the old public-trigger hole where a null
-// Authorization was treated as authorized (code-review finding P2-2).
+// Auth gate for the cron/admin-only trigger.
+//
+// TODO(P2-2): the STRICT gate `authHeader === 'Bearer '+serviceRoleKey` was
+// deployed and then REVERTED to this null-tolerant form after the bearer the
+// cron sent (from a Vault-stored key) did NOT match the function's live
+// SUPABASE_SERVICE_ROLE_KEY env, which 401'd every scheduled run and broke
+// notifications. Re-tighten ONLY after confirming the exact env key OR
+// switching to a dedicated CRON_SECRET set as BOTH an edge-function secret and
+// the Vault value the cron sends (so both sides use one verified value). Until
+// then a missing Authorization is accepted (the pre-existing behavior), so the
+// cron (which sends only Content-Type) keeps firing.
 //
 // Pure + exported so the guard is unit-testable without booting Deno.serve.
 export function isAuthorized(
   authHeader: string | null,
   serviceRoleKey: string,
 ): boolean {
-  return authHeader === `Bearer ${serviceRoleKey}`;
+  return authHeader === null || authHeader === `Bearer ${serviceRoleKey}`;
 }
 
 const NOTIFICATION_TYPES: NotificationType[] = [
@@ -295,20 +297,33 @@ async function fetchDueDuaNotifications(
   nowIso: string,
   lateFloorIso: string,
 ): Promise<DuaPreciseRow[]> {
-  const { data, error } = await supabase
+  // Two-step, no PostgREST embedded join: there is NO FK between
+  // dua_precise_notifications and user_notification_preferences (both key on
+  // auth.users), so `user_notification_preferences!inner(...)` cannot be
+  // resolved and errors at runtime. Fetch the due rows, then gate them by the
+  // opt-in prefs in a second query + in-code filter.
+  const { data: rows, error } = await supabase
     .from("dua_precise_notifications")
-    .select(
-      "id, user_id, window_type, fire_utc, title, body, sent_at, " +
-        "user_notification_preferences!inner(push_enabled, notify_dua_windows)",
-    )
+    .select("id, user_id, window_type, fire_utc, title, body, sent_at")
     .is("sent_at", null)
     .lte("fire_utc", nowIso)
-    .gt("fire_utc", lateFloorIso)
-    .eq("user_notification_preferences.push_enabled", true)
-    .eq("user_notification_preferences.notify_dua_windows", true);
-
+    .gt("fire_utc", lateFloorIso);
   if (error) throw error;
-  return (data ?? []) as DuaPreciseRow[];
+
+  const dueRows = (rows ?? []) as DuaPreciseRow[];
+  if (dueRows.length === 0) return [];
+
+  const userIds = [...new Set(dueRows.map((r) => r.user_id))];
+  const { data: prefs, error: prefErr } = await supabase
+    .from("user_notification_preferences")
+    .select("user_id")
+    .in("user_id", userIds)
+    .eq("push_enabled", true)
+    .eq("notify_dua_windows", true);
+  if (prefErr) throw prefErr;
+
+  const optedIn = new Set((prefs ?? []).map((p: { user_id: string }) => p.user_id));
+  return dueRows.filter((r) => optedIn.has(r.user_id));
 }
 
 // Mark the given precise rows sent in one statement to prevent double-send.
