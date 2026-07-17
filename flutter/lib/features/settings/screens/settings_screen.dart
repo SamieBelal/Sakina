@@ -303,9 +303,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (gate == null) return;
 
     if (!enabled) {
-      // Toggle-OFF symmetry: clear the reserved dua calendar band immediately.
-      // TODO(dua-notif): delete synced dua_precise_notifications rows on
-      // toggle-off (server precise-row deletion is a later slice).
+      // Toggle-OFF symmetry: clear the reserved dua calendar band AND delete the
+      // user's synced `dua_precise_notifications` rows (so server pushes stop) —
+      // both handled inside gate.clear().
       await gate.clear();
       return;
     }
