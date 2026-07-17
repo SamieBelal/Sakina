@@ -124,3 +124,24 @@ Deno.test("dua-window push uses the agreed data.type + Build-a-Duʿā deep link"
   assertEquals(DUA_WINDOW_DATA_TYPE, "dua_window");
   assertEquals(DUA_WINDOW_DEEP_LINK, "sakina://widget/build-dua");
 });
+
+Deno.test("dedups two sync_versions of the same instant to a single send", () => {
+  // A client re-sync's insert-then-delete overlap can surface two rows for the
+  // same (user, window_type, fire_utc). Both are due + unsent; only one fires.
+  const user = crypto.randomUUID();
+  const older = row({ user_id: user, fire_utc: NOW.toISOString() });
+  const newer = row({ user_id: user, fire_utc: NOW.toISOString() });
+  const due = selectDueDuaNotifications([older, newer], NOW);
+  assertEquals(due.length, 1);
+});
+
+Deno.test("does NOT dedup distinct instants of the same user/window", () => {
+  const user = crypto.randomUUID();
+  const a = row({ user_id: user, fire_utc: NOW.toISOString() });
+  const b = row({
+    user_id: user,
+    fire_utc: new Date(NOW.getTime() - 10 * 60_000).toISOString(),
+  });
+  const due = selectDueDuaNotifications([a, b], NOW);
+  assertEquals(due.length, 2);
+});

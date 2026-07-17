@@ -528,6 +528,10 @@ class NotificationService {
         return '/cancellation-feedback';
       case 'tour_replay':
         return '/settings?action=replay_tour';
+      case 'dua_window':
+        // Dua-window precise-notification push (server `data.type='dua_window'`).
+        // Route into Build-a-Duʿā so the reminder lands on the action.
+        return '/duas';
       case 'daily_reminder':
       case 'streak_risk':
       case 'streak_milestone':

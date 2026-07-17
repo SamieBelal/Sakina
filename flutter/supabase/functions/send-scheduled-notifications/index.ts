@@ -78,12 +78,24 @@ export function selectDueDuaNotifications(
   now: Date,
 ): DuaPreciseRow[] {
   const nowMs = now.getTime();
-  return rows.filter((row) => {
+  const dueRows = rows.filter((row) => {
     if (row.sent_at !== null) return false;
     const fireMs = Date.parse(row.fire_utc);
     if (Number.isNaN(fireMs)) return false;
     if (fireMs > nowMs) return false; // window hasn't opened yet
     if (fireMs <= nowMs - DUA_LATE_TOLERANCE_MS) return false; // >1h late
+    return true;
+  });
+  // Dedup by (user, window_type, fire_utc): a client re-sync's brief
+  // insert-then-delete overlap can surface two sync_versions of the same
+  // instant. The rows are identical (same window/instant/copy), so sending
+  // at most one is correct; the >1h-late guard above stops the leftover row
+  // from firing in a later cron run once the first is marked sent.
+  const seen = new Set<string>();
+  return dueRows.filter((row) => {
+    const key = `${row.user_id}|${row.window_type}|${row.fire_utc}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
