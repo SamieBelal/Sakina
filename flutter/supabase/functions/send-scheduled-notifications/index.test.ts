@@ -11,38 +11,31 @@ import {
 
 // ── Auth guard (code-review finding P2-2) ────────────────────────────────────
 //
-// TODO(P2-2): the strict gate (missing header REJECTED) was reverted after a
-// service-role key mismatch broke the prod cron. Until re-tightened (correct
-// env key or a dedicated CRON_SECRET), a MISSING header is ACCEPTED — the
-// pre-existing behavior the cron relies on (it sends only Content-Type). A
-// WRONG/empty non-null bearer is still rejected.
+// P2-2: the function REQUIRES a dedicated CRON_SECRET bearer (the cron sends it
+// from Vault). A missing, empty, wrong, or unprefixed header is rejected —
+// closing the public-trigger hole. The Deno.serve handler additionally 500s if
+// the CRON_SECRET env is unset, so a misconfig is loud, not a silent 401.
 
-const SERVICE_ROLE_KEY = "test-service-role-key";
+const CRON_SECRET = "test-cron-secret";
 
-Deno.test("isAuthorized: missing Authorization header → accepted (P2-2 reverted)", () => {
-  assertEquals(isAuthorized(null, SERVICE_ROLE_KEY), true);
+Deno.test("isAuthorized: missing Authorization header → rejected", () => {
+  assertEquals(isAuthorized(null, CRON_SECRET), false);
 });
 
 Deno.test("isAuthorized: wrong bearer → rejected", () => {
-  assertEquals(
-    isAuthorized("Bearer not-the-key", SERVICE_ROLE_KEY),
-    false,
-  );
+  assertEquals(isAuthorized("Bearer not-the-secret", CRON_SECRET), false);
 });
 
 Deno.test("isAuthorized: empty bearer → rejected", () => {
-  assertEquals(isAuthorized("Bearer ", SERVICE_ROLE_KEY), false);
+  assertEquals(isAuthorized("Bearer ", CRON_SECRET), false);
 });
 
-Deno.test("isAuthorized: raw key without Bearer prefix → rejected", () => {
-  assertEquals(isAuthorized(SERVICE_ROLE_KEY, SERVICE_ROLE_KEY), false);
+Deno.test("isAuthorized: raw secret without Bearer prefix → rejected", () => {
+  assertEquals(isAuthorized(CRON_SECRET, CRON_SECRET), false);
 });
 
-Deno.test("isAuthorized: correct service-role bearer → allowed", () => {
-  assertEquals(
-    isAuthorized(`Bearer ${SERVICE_ROLE_KEY}`, SERVICE_ROLE_KEY),
-    true,
-  );
+Deno.test("isAuthorized: correct CRON_SECRET bearer → allowed", () => {
+  assertEquals(isAuthorized(`Bearer ${CRON_SECRET}`, CRON_SECRET), true);
 });
 
 // ── Due-query selection ──────────────────────────────────────────────────────

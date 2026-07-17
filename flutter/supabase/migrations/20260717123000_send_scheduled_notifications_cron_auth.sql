@@ -1,46 +1,59 @@
--- 2026-07-17: send-scheduled-notifications cron auth.
+-- 2026-07-17: send-scheduled-notifications cron auth (P2-2).
 --
--- TODO(P2-2) — REVERTED. The intent of this migration was to close the
--- public-trigger hole on the send-scheduled-notifications edge function by
--- having the pg_cron job send a service-role bearer that the function requires.
--- It was deployed and then REVERTED at runtime: the bearer the cron sent (a
--- Vault-stored `service_role_key`) did NOT match the function's live
--- SUPABASE_SERVICE_ROLE_KEY env, so every authenticated cron run 401'd and
--- scheduled notifications (daily/streak/dua) stopped. To restore service the
--- function was reverted to accept a missing Authorization header (see
--- index.ts `isAuthorized` TODO(P2-2)) and the cron reverted to send NO auth.
+-- Close the public-trigger hole: the edge function now REQUIRES a dedicated
+-- CRON_SECRET bearer (see index.ts `isAuthorized`). This migration re-schedules
+-- the pg_cron job to send `Authorization: Bearer <cron_secret>`, embedding the
+-- secret read from Vault AT APPLY TIME (privileged) rather than at run time —
+-- pg_cron's execution role cannot reliably read vault.decrypted_secrets, so a
+-- run-time subquery would send an empty bearer and 401. Embedding a DEDICATED,
+-- rotatable CRON_SECRET (not the service-role key) is the accepted trade for the
+-- key landing in cron.job.command.
 --
--- This migration now just ensures the cron is scheduled in that WORKING,
--- no-auth form (idempotent; matches 20260512212403's schedule + URL). The Vault
--- secret `service_role_key` may already exist from the reverted attempt; it is
--- harmless and can be reused when P2-2 is redone correctly.
+-- The SAME value must be set as the CRON_SECRET edge-function secret:
+--   supabase secrets set CRON_SECRET=<value> --project-ref <ref>
+-- and stored in Vault as `cron_secret` (both done out-of-band on prod).
 --
--- TO REDO P2-2 SAFELY (future work): use a DEDICATED cron secret set as BOTH an
--- edge-function secret (`supabase secrets set CRON_SECRET=<v>`) AND the Vault
--- value the cron sends, then gate the function on that ONE verified value —
--- rather than the auto-injected SUPABASE_SERVICE_ROLE_KEY, whose exact value
--- can't be confirmed from outside the function. Deploy order: cron sends the
--- secret BEFORE the function requires it.
+-- CI-safe: if `cron_secret` is absent from Vault (fresh/CI stack), the bearer is
+-- embedded as empty — the migration applies cleanly (CI never runs the cron).
+-- Do NOT raise here; a raise aborts the whole local stack. The function 500s on
+-- an unset CRON_SECRET, so a real misconfig is loud at request time, not silent.
+--
+-- DEPLOY ORDER (zero-outage, as executed on prod): set the edge secret + Vault
+-- value → deploy an ACCEPT-phase function (CRON_SECRET or no-auth) → verify the
+-- secret matches → apply THIS migration (cron sends the secret) → deploy the
+-- REQUIRE-phase function. Never deploy require before the cron sends the secret.
 
 create extension if not exists pg_net with schema extensions;
 
 do $$
+declare
+  v_secret text;
 begin
+  select decrypted_secret into v_secret
+  from vault.decrypted_secrets
+  where name = 'cron_secret';
+
   if exists (
     select 1 from cron.job where jobname = 'send-scheduled-notifications'
   ) then
     perform cron.unschedule('send-scheduled-notifications');
   end if;
-end$$;
 
-select cron.schedule(
-  'send-scheduled-notifications',
-  '0,30 * * * *',
-  $cron$
-    select net.http_post(
-      url := 'https://smhvsqrxqoehqncphjrq.supabase.co/functions/v1/send-scheduled-notifications',
-      headers := jsonb_build_object('Content-Type', 'application/json'),
-      body := '{}'::jsonb
-    );
-  $cron$
-);
+  perform cron.schedule(
+    'send-scheduled-notifications',
+    '0,30 * * * *',
+    format(
+      $cron$
+        select net.http_post(
+          url := 'https://smhvsqrxqoehqncphjrq.supabase.co/functions/v1/send-scheduled-notifications',
+          headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer %s'
+          ),
+          body := '{}'::jsonb
+        );
+      $cron$,
+      coalesce(v_secret, '')
+    )
+  );
+end$$;

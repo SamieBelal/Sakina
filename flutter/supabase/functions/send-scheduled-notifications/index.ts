@@ -134,24 +134,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Auth gate for the cron/admin-only trigger.
-//
-// TODO(P2-2): the STRICT gate `authHeader === 'Bearer '+serviceRoleKey` was
-// deployed and then REVERTED to this null-tolerant form after the bearer the
-// cron sent (from a Vault-stored key) did NOT match the function's live
-// SUPABASE_SERVICE_ROLE_KEY env, which 401'd every scheduled run and broke
-// notifications. Re-tighten ONLY after confirming the exact env key OR
-// switching to a dedicated CRON_SECRET set as BOTH an edge-function secret and
-// the Vault value the cron sends (so both sides use one verified value). Until
-// then a missing Authorization is accepted (the pre-existing behavior), so the
-// cron (which sends only Content-Type) keeps firing.
-//
-// Pure + exported so the guard is unit-testable without booting Deno.serve.
+// Auth gate for the cron/admin-only trigger (P2-2). Require a dedicated
+// CRON_SECRET bearer. The pg_cron job sends `Bearer <cron_secret>` (embedded
+// from Vault by migration 20260717123000); the SAME value is the CRON_SECRET
+// edge-function secret. Missing/wrong is rejected → the public-trigger hole is
+// closed. Uses a DEDICATED secret rather than the auto-injected
+// SUPABASE_SERVICE_ROLE_KEY (whose exact value can't be verified from outside
+// the function — a mismatch there caused an outage; see the deploy-gotchas
+// memory). Pure + exported so the guard is unit-testable.
 export function isAuthorized(
   authHeader: string | null,
-  serviceRoleKey: string,
+  cronSecret: string,
 ): boolean {
-  return authHeader === null || authHeader === `Bearer ${serviceRoleKey}`;
+  return authHeader === `Bearer ${cronSecret}`;
 }
 
 const NOTIFICATION_TYPES: NotificationType[] = [
@@ -415,6 +410,7 @@ Deno.serve(async (request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const oneSignalAppId = Deno.env.get("ONESIGNAL_APP_ID");
   const oneSignalRestApiKey = Deno.env.get("ONESIGNAL_API_KEY");
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
 
   if (
     !supabaseUrl || !serviceRoleKey || !oneSignalAppId || !oneSignalRestApiKey
@@ -424,9 +420,14 @@ Deno.serve(async (request) => {
         "Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ONESIGNAL_APP_ID, or ONESIGNAL_API_KEY",
     });
   }
+  // A loud 500 (not a silent 401) if CRON_SECRET is unset — a misconfig that
+  // would otherwise 401 the cron and silently stop all notifications.
+  if (cronSecret === "") {
+    return jsonResponse(500, { error: "Missing CRON_SECRET" });
+  }
 
   const authHeader = request.headers.get("Authorization");
-  if (!isAuthorized(authHeader, serviceRoleKey)) {
+  if (!isAuthorized(authHeader, cronSecret)) {
     return jsonResponse(401, { error: "Unauthorized" });
   }
 
