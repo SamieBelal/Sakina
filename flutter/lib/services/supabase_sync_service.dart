@@ -200,22 +200,32 @@ class SupabaseSyncService {
     }
   }
 
-  /// Upsert multiple rows in a single request, ignoring rows that already
-  /// exist on [onConflict]. Unlike [batchInsertRows], a row that collides
-  /// with an existing one (e.g. a concurrent insert landed between a fetch
-  /// and this push) is skipped rather than failing the whole batch, and
-  /// existing rows are left untouched (their timestamps are preserved).
+  /// Upsert multiple rows in a single request, resolving collisions on the
+  /// [onConflict] columns. Unlike [batchInsertRows], a row that collides with
+  /// an existing one (e.g. a concurrent insert landed between a fetch and this
+  /// push) does NOT fail the whole batch.
+  ///
+  /// [updateOnConflict] chooses the collision behaviour:
+  /// - `false` (default) — IGNORE: the colliding row is skipped and the existing
+  ///   row is left untouched (its timestamps are preserved). Use this when the
+  ///   existing row is authoritative (e.g. `user_achievements.unlocked_at`).
+  /// - `true` — UPDATE: the colliding row's non-conflict columns overwrite the
+  ///   existing row. Use this when the incoming row is authoritative and must
+  ///   win — e.g. the precise-notification sync bumping `sync_version` on a
+  ///   re-synced instant so it survives the subsequent delete-below-version,
+  ///   under the `(user_id, window_type, fire_utc)` unique constraint.
   Future<bool> batchUpsertRows(
     String table,
     List<Map<String, dynamic>> rows, {
     required String onConflict,
+    bool updateOnConflict = false,
   }) async {
     if (rows.isEmpty) return true;
     try {
       await Supabase.instance.client.from(table).upsert(
             rows,
             onConflict: onConflict,
-            ignoreDuplicates: true,
+            ignoreDuplicates: !updateOnConflict,
           );
       return true;
     } catch (e) {

@@ -24,8 +24,11 @@ abstract class DuaPreciseSyncBackend {
   /// has no rows yet.
   Future<int?> currentSyncVersion(String userId);
 
-  /// Insert the [rows] (all stamped with the SAME new `sync_version`). Returns
-  /// true on success.
+  /// Insert the [rows] (all stamped with the SAME new `sync_version`) as an
+  /// UPSERT on the `(user_id, window_type, fire_utc)` unique constraint —
+  /// re-synced instants have their `sync_version`/`title`/`body` UPDATED (so
+  /// they survive the delete-below), and duplicate instants are impossible.
+  /// Returns true on success.
   Future<bool> insertRows(List<Map<String, dynamic>> rows);
 
   /// Delete [userId]'s rows whose `sync_version` is strictly below
@@ -55,7 +58,18 @@ class _SupabaseBackend implements DuaPreciseSyncBackend {
 
   @override
   Future<bool> insertRows(List<Map<String, dynamic>> rows) =>
-      _sync.batchInsertRows(kDuaPreciseNotificationsTable, rows);
+      // UPSERT on the (user_id, window_type, fire_utc) unique constraint,
+      // UPDATING sync_version/title/body on conflict. Re-syncing the same
+      // instants (the normal case) bumps their version so they survive the
+      // subsequent delete-below-version instead of colliding and failing the
+      // batch (which a plain insert would, emptying the schedule). Duplicate
+      // instants are then physically impossible, so the sync race is benign.
+      _sync.batchUpsertRows(
+        kDuaPreciseNotificationsTable,
+        rows,
+        onConflict: 'user_id,window_type,fire_utc',
+        updateOnConflict: true,
+      );
 
   @override
   Future<bool> deleteRowsBelowVersion(String userId, int belowVersion) =>
@@ -85,11 +99,23 @@ class _SupabaseBackend implements DuaPreciseSyncBackend {
 /// consumed by the engine; it is not transmitted.
 ///
 /// **Atomic sync-by-`sync_version` (plan Risk 2):** each [sync] bumps the
-/// version, INSERTS the fresh rows at the new version, and only THEN deletes the
+/// version, UPSERTS the fresh rows at the new version, and only THEN deletes the
 /// user's rows at any lower version. Insert-before-delete means the user is
 /// never left with zero scheduled rows mid-run — the mirror of the local id-band
 /// targeted cancel. A blind delete-all-then-insert (which could drop a due push
 /// if the process died between the two calls) is deliberately avoided.
+///
+/// The `(user_id, window_type, fire_utc)` UNIQUE constraint
+/// (`20260717122000_dua_precise_notifications_unique_instant.sql`) now
+/// GUARANTEES no duplicate-instant rows: the upsert-on-conflict UPDATES
+/// `sync_version`/`title`/`body`, so re-syncing the same instants (the normal
+/// case — same prayer times every sync) bumps them to the new version and they
+/// survive the delete-below, while stale instants keep the old version and are
+/// retired. This makes the concurrent-sync race (two devices / a fast double
+/// foreground both reading `prior=N` and inserting at `N+1`) BENIGN — the two
+/// runs converge on one row per instant instead of duplicating it. The
+/// server-side dedup in the enqueue cron is now belt-and-suspenders, not the
+/// primary guard against duplicate pushes (code-review P2-1).
 ///
 /// A plain service — NO Riverpod (per `CLAUDE.md`). The engine, location service,
 /// backend, and clock are injected so it is deterministic + unit-testable.

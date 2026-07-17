@@ -77,7 +77,26 @@ class _FakeBackend implements DuaPreciseSyncBackend {
   Future<bool> insertRows(List<Map<String, dynamic>> newRows) async {
     insertCalls++;
     if (failInsert) return false;
-    rows.addAll(newRows.map(Map<String, dynamic>.from));
+    // Model the (user_id, window_type, fire_utc) UNIQUE constraint as an
+    // UPSERT-on-conflict-UPDATE: a row whose natural key already exists is
+    // UPDATED in place (sync_version/title/body overwritten) rather than
+    // duplicated — exactly Postgres `ON CONFLICT ... DO UPDATE`. This is what
+    // makes duplicate-instant rows physically impossible and the sync race
+    // benign.
+    for (final incoming in newRows) {
+      final row = Map<String, dynamic>.from(incoming);
+      final idx = rows.indexWhere(
+        (existing) =>
+            existing['user_id'] == row['user_id'] &&
+            existing['window_type'] == row['window_type'] &&
+            existing['fire_utc'] == row['fire_utc'],
+      );
+      if (idx >= 0) {
+        rows[idx] = row; // conflict → UPDATE in place (no duplicate row).
+      } else {
+        rows.add(row);
+      }
+    }
     return true;
   }
 
@@ -404,6 +423,103 @@ void main() {
       expect(backend.rows.every((r) => r['sync_version'] == 1), isTrue);
       expect(backend.deleteBelowCalls, 1,
           reason: 'delete-below only ran on the successful v1 sync');
+    });
+
+    test(
+        'unique constraint: re-sync of identical instants → no dup rows, none '
+        'dropped, version bumped', () async {
+      final backend = _FakeBackend();
+      final svc = service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      );
+
+      await svc.sync();
+      final v1Rows = backend.rows.length;
+      final v1Keys = backend.rows
+          .map((r) => '${r['window_type']}|${r['fire_utc']}')
+          .toSet();
+      expect(v1Rows, greaterThan(0));
+
+      // Re-sync the EXACT same instants (same clock, same location). Under the
+      // unique constraint the upsert UPDATES each existing instant to v2 rather
+      // than inserting a colliding duplicate.
+      await svc.sync();
+
+      // Same instants, same count — no duplicate rows for any (window_type,
+      // fire_utc), and none dropped.
+      expect(backend.rows.length, v1Rows, reason: 'no dup rows, none dropped');
+      final v2Keys = backend.rows
+          .map((r) => '${r['window_type']}|${r['fire_utc']}')
+          .toList();
+      expect(v2Keys.toSet().length, v2Keys.length, reason: 'no duplicate keys');
+      expect(v2Keys.toSet(), v1Keys, reason: 'identical instant set');
+      // Every surviving row was bumped to v2 (delete-below retired nothing
+      // because the upsert moved every instant forward).
+      expect(backend.rows.every((r) => r['sync_version'] == 2), isTrue);
+    });
+
+    test('stale instant absent from the new set is deleted', () async {
+      final backend = _FakeBackend();
+      // Seed a v1 stale instant that the engine will NOT re-emit (a far-future
+      // fire_utc that is outside the fresh horizon's produced set).
+      backend.rows.add(<String, dynamic>{
+        'user_id': 'user-1',
+        'window_type': 'iftar',
+        'fire_utc': DateTime.utc(2099, 1, 1, 12).toIso8601String(),
+        'sync_version': 1,
+        'title': 'stale',
+        'body': 'stale',
+      });
+
+      await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      // The stale v1 instant is gone (kept sync_version 1 → below v2 → deleted),
+      // and no fresh row carries that fire_utc.
+      final staleSurvives = backend.rows.any(
+        (r) => r['fire_utc'] == DateTime.utc(2099, 1, 1, 12).toIso8601String(),
+      );
+      expect(staleSurvives, isFalse, reason: 'stale instant retired');
+      expect(backend.rows, isNotEmpty);
+      expect(backend.rows.every((r) => r['sync_version'] == 2), isTrue);
+    });
+
+    test(
+        'two interleaved syncs cannot produce two rows for one instant',
+        () async {
+      // Simulate two concurrent syncs (two devices / a fast double foreground)
+      // sharing ONE server table: both read prior=0, both compute the same
+      // instants, both upsert at v1. Without the unique constraint each would
+      // insert its own copy → duplicates. With it modelled as upsert-on-
+      // conflict, the second sync UPDATES the first's rows in place.
+      final backend = _FakeBackend();
+      final svcA = service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      );
+      final svcB = service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      );
+
+      // Interleave: run both against the same backend.
+      await svcA.sync();
+      await svcB.sync();
+
+      // Exactly one row per (window_type, fire_utc) — no instant is duplicated
+      // even though two syncs both wrote the full set.
+      final keys = backend.rows
+          .map((r) => '${r['window_type']}|${r['fire_utc']}')
+          .toList();
+      expect(keys.toSet().length, keys.length,
+          reason: 'no instant duplicated across interleaved syncs');
     });
 
     test('no location → clears the user rows (empty instants)', () async {
