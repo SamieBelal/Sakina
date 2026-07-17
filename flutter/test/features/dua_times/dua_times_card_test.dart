@@ -88,6 +88,34 @@ DuaWindowSchedule _betweenSchedule() {
     next: next,
     upcoming: [next],
     urgency: UrgencyState.upcoming,
+    // Location OFF (no lat) → the between-state card still renders so the
+    // "Turn on precise times" banner has a home (the narrow gate otherwise hides
+    // the between state when location is granted).
+    computedAt: DuaScheduleStamp(
+      tz: 'Asia/Riyadh',
+      computedThroughUtc: DateTime.utc(2027, 5, 22, 21, 0),
+    ),
+  );
+}
+
+/// A between schedule with location GRANTED (lat present) — the narrow gate
+/// collapses this (no active window, nothing to nudge).
+DuaWindowSchedule _grantedBetweenSchedule() {
+  final next = DuaWindow(
+    type: DuaWindowType.arafah,
+    tier: DuaWindowTier.hero,
+    titleKey: 'dua_window.arafah',
+    sourceRef: 'Tirmidhi 3585',
+    startUtc: DateTime.utc(2027, 5, 16, 21, 0),
+    endUtc: DateTime.utc(2027, 5, 17, 21, 0),
+    isAllDay: true,
+    locationDependent: false,
+  );
+  return DuaWindowSchedule(
+    active: null,
+    next: next,
+    upcoming: [next],
+    urgency: UrgencyState.upcoming,
     computedAt: DuaScheduleStamp(
       tz: 'Asia/Riyadh',
       lat: 21.4,
@@ -102,8 +130,11 @@ DuaWindowSchedule _emptySchedule() => DuaWindowSchedule(
       next: null,
       upcoming: const [],
       urgency: UrgencyState.upcoming,
+      // Location granted (lat present) + no active window → gate collapses.
       computedAt: DuaScheduleStamp(
-        tz: 'local',
+        tz: 'Asia/Riyadh',
+        lat: 21.4,
+        lon: 39.8,
         computedThroughUtc: DateTime.utc(2027, 5, 22, 21, 0),
       ),
     );
@@ -229,6 +260,28 @@ void main() {
     expect(find.text('Make your duʿā'), findsNothing);
     expect(find.text('Build your duʿā'), findsNothing);
     // No impression event fires for a collapsed card.
+    expect(
+        analytics.events.contains(AnalyticsEvents.duaTimesCardImpression),
+        isFalse);
+  });
+
+  testWidgets(
+      'narrow gate: between-state hidden when location is granted (only active '
+      'windows show)', (tester) async {
+    final analytics = _SpyAnalytics();
+    final navLog = <String>[];
+    final notifier = _seededNotifier(_grantedBetweenSchedule());
+
+    await tester.pumpWidget(_harness(
+      notifier: notifier,
+      analytics: analytics,
+      router: _router(navLog),
+    ));
+    await tester.pump();
+
+    // No active window + location granted → the card collapses (no perpetual
+    // "next window" between-state).
+    expect(find.text('Build your duʿā'), findsNothing);
     expect(
         analytics.events.contains(AnalyticsEvents.duaTimesCardImpression),
         isFalse);

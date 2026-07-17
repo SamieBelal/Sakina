@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
 
 import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
 import 'package:sakina/features/dua_times/widgets/dua_times_card_body.dart';
@@ -73,31 +74,44 @@ class _DuaTimesCardState extends ConsumerState<DuaTimesCard> {
   Widget build(BuildContext context) {
     final s = ref.watch(duaWindowProvider);
 
-    // Render gate: nothing worth showing → collapse (spec §8/§10). While the
-    // very first build is still in flight the schedule is null → also collapse,
-    // avoiding a flash-then-reflow on cold launch (mirrors RamadanGiftCard).
-    if (!s.hasRenderableWindow) {
+    // Still building (schedule not yet computed) → collapse, no cold-launch flash.
+    if (s.schedule == null) {
+      return const SizedBox.shrink();
+    }
+
+    final hasPreciseLocation =
+        ref.read(duaWindowProvider.notifier).hasPreciseLocation;
+    // Narrow render gate: show the card only while a window is ACTIVE — i.e.
+    // exactly when the widget is showing a live window/countdown, not the
+    // perpetual "next window" between-state. Carve-out: when location is off and
+    // the enable nudge isn't snoozed, keep showing so the "Turn on precise times"
+    // banner still has a home (once granted → active-only; the ✕ snoozes it).
+    final canNudgeEnable = !hasPreciseLocation && !s.preciseBannerSnoozed;
+    if (s.active == null && !canNudgeEnable) {
       return const SizedBox.shrink();
     }
 
     _fireImpressionOnce(s);
 
-    final showEnablePrecise =
-        !ref.read(duaWindowProvider.notifier).hasPreciseLocation &&
-            s.active == null && // only nudge when we can't show a precise "now"
-            !s.preciseBannerSnoozed; // and the user hasn't snoozed it
+    final showEnablePrecise = canNudgeEnable && s.active == null;
 
-    return DuaTimesCardBody(
-      state: s,
-      onTap: () => _onCtaTap(s),
-      onCta: () => _onCtaTap(s),
-      onEnablePrecise: showEnablePrecise ? _onEnablePreciseTap : null,
-      onDismissPrecise: showEnablePrecise
-          ? () => ref.read(duaWindowProvider.notifier).snoozePreciseBanner()
-          : null,
-    )
-        .animate()
-        .fadeIn(duration: 400.ms)
-        .moveY(begin: 8, end: 0, duration: 400.ms);
+    // Own a bottom margin so the card self-spaces from the content below (like
+    // RamadanGiftCard / the nudge cards) — and leaves zero dead space when the
+    // gate collapses it above.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: DuaTimesCardBody(
+        state: s,
+        onTap: () => _onCtaTap(s),
+        onCta: () => _onCtaTap(s),
+        onEnablePrecise: showEnablePrecise ? _onEnablePreciseTap : null,
+        onDismissPrecise: showEnablePrecise
+            ? () => ref.read(duaWindowProvider.notifier).snoozePreciseBanner()
+            : null,
+      )
+          .animate()
+          .fadeIn(duration: 400.ms)
+          .moveY(begin: 8, end: 0, duration: 400.ms),
+    );
   }
 }

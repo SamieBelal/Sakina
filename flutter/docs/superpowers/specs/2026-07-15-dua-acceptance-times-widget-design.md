@@ -201,8 +201,15 @@ Same App Group `group.com.sakina.app.widget`.
 ## 8. In-app card UI
 
 `DuaTimesCard`, render-gated like `RamadanGiftCard`, placed on the primary home
-surface (candidate: alongside `RamadanGiftCard` in `progress_screen.dart` and/or
-the main home dashboard — exact slot finalized in the plan).
+surface (alongside `RamadanGiftCard` in `progress_screen.dart`). Owns a bottom
+margin so it self-spaces from the content below and leaves zero dead space when
+collapsed.
+
+**Narrow render gate:** the card shows ONLY while a window is **active** (i.e.
+exactly when the widget is showing a live window/countdown), NOT the perpetual
+"next window" between-state. Carve-out: when location is off and the enable nudge
+isn't snoozed, it still shows so the "Turn on precise times" banner has a home
+(once granted → active-only; the ✕ snoozes it).
 
 CTA-first, on the emerald **sacred canvas**, using the same copy + escalation
 ladder as the widget (§9.1) but with color available throughout:
