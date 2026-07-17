@@ -32,6 +32,75 @@ checklist is done. This file now records what's done and what remains.
    - "Embed Foundation Extensions" build phase moved ABOVE "Thin Binary" in the
      Runner target (fixes "Cycle inside Runner" — flutter/flutter#135056).
 
+## Second widget — SakinaDuaTimesWidget (added 2026-07-15)
+
+A **second** WidgetKit widget (`SakinaDuaTimesWidget`, kind
+`"SakinaDuaTimesWidget"`) now lives in this folder and is referenced from
+`SakinaWidgetBundle.body` alongside `SakinaWidget()`. It renders the duʿā
+acceptance-times surface (families: systemSmall, systemMedium,
+accessoryRectangular, accessoryInline) from a precomputed schedule the Flutter
+app writes to the App Group under key `sakina_dua_times_payload`.
+
+### ✅ Xcode target membership — automatic (no manual step)
+
+Verified 2026-07-15 against `project.pbxproj`: the `SakinaWidget` group is a
+`PBXFileSystemSynchronizedRootGroup` with an **empty `exceptions = ()`** list,
+attached to the **SakinaWidgetExtension** target (and NOT Runner). That means
+every file in `ios/SakinaWidget/` is a target member automatically — `.swift` →
+Sources, `.json` → Resources. Proof: the original `catalog.json` is referenced
+**nowhere** in `project.pbxproj` yet ships and loads fine today.
+
+So both new files are **already** members — nothing to add in Xcode, and you
+should NOT hand-edit `project.pbxproj` (that risks breaking the synced group):
+
+1. **`SakinaDuaTimesWidget.swift`** — auto-compiled into SakinaWidgetExtension.
+   (Correctly NOT `@main`; `SakinaWidgetBundle` remains the single `@main`.)
+2. **`dua_calendar.json`** (bundled cold-start / travel-guard fallback, copied
+   from `assets/dua_calendar/dua_windows.json`) — auto-bundled as a resource, so
+   `Bundle.main.url(forResource: "dua_calendar", withExtension: "json")` resolves
+   inside the extension, exactly like `catalog.json`.
+
+The only real gate is a **clean build in Xcode / `flutter build ios`** — the
+Swift was authored but never compiled in the dev env, so first build is the
+proof. If a build ever fails on membership, re-check that no
+`exceptions`/`membershipExceptions` were introduced for this folder.
+3. **App Group** `group.com.sakina.app.widget` is **already shared** on both
+   Runner and SakinaWidgetExtension (set up for the first widget) — no change
+   needed. Both widgets read the same suite; only the payload KEY differs
+   (`sakina_widget_payload` vs `sakina_dua_times_payload`).
+4. **Fonts** — the duʿā widget reuses `ArefRuqaa-Regular` and `Outfit`, already
+   staged in `Fonts/` and listed in the extension Info.plist. No new fonts.
+
+### Payload contract note — `computed_at.built_at_utc` (added 2026-07-16)
+
+The schedule's `computed_at` object carries an optional **`built_at_utc`** field —
+an epoch-**millis** integer marking when the Flutter side built the payload
+(nullable / absent when unknown). The widget decodes it as `Int64?` and uses it
+for a **build-age staleness guard**: in addition to the existing horizon check
+(`computed_through_utc < now`), a payload is treated as stale — and the widget
+falls back to the bundled `dua_calendar.json` — when `built_at_utc` is present
+AND `now − built_at > 48h`. If the field is absent, behavior is unchanged
+(horizon-only staleness). The Dart writer in `widget_data_service.dart` should
+emit `built_at_utc` under `computed_at` for this guard to engage; older payloads
+without it still work.
+
+Two related hardening changes shipped alongside it (no contract impact, just
+fail-safe rendering): an unrecognized window `type`/`kind` is now **dropped**
+rather than coerced to White Days (JSON may still carry extra `tier`/`title_key`/
+`source_ref` keys — they're simply not decoded), so a future window kind renders
+as *no window* instead of the wrong one.
+
+### QA note for the duʿā widget
+
+Add it via long-press ▸ **+** ▸ **Sakina** ▸ **Duʿā Times**. Verify: active
+window shows "Make your duʿā" + a live `HH:MM:SS` countdown when <1h to close;
+all-day windows (ʿArafah etc.) show "today only" and never tick; between-windows
+shows "Build your duʿā" + a static relative label; lock-screen accessory is
+monochrome (no color); every tap → Build-a-Duʿā. To exercise the **travel
+guard**, change the device time zone in Settings without reopening the app — the
+widget should drop precise night-third/Friday-hour windows and fall back to the
+bundled calendar (Friday + seeded sacred days still render).
+
 ## ⬜ What's left (yours — needs a run / device / Apple account)
 
 1. **Run it and add the widget** (simulator is fine for Small/Medium):

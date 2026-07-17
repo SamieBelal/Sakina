@@ -199,3 +199,47 @@ onboarding refresh) — or whenever a second contributor starts doing UI work.
 section so the two don't drift.
 
 **Surfaced by:** `/plan-design-review` of the bite-sized-AI-text spec, 2026-07-14.
+
+## App Store: Duʿā Times location permission (privacy label + review notes)
+
+**Trigger:** before the App Store submission of the first version (≈1.3.0) that
+ships the Duʿā Times feature — i.e. the first build containing
+`NSLocationWhenInUseUsageDescription`.
+
+The feature adds a coarse, lazy, on-device-only location permission for
+prayer-time math. Apple scrutinizes location, so before submitting:
+
+1. **Privacy Nutrition Label** (App Store Connect → App Privacy): declare
+   location = **Data Not Collected**. Rationale: lat/lon is computed on-device
+   and only cached locally / written to the App Group — it is NEVER transmitted
+   to Supabase, analytics, or any third party. (Verify this stays true if the
+   schedule payload ever changes.)
+2. **App Review Notes** (Version → App Review Information): paste —
+   "This version adds an optional coarse-location permission used only to
+   compute Islamic prayer times on-device for the 'best times for duʿā' feature.
+   Location is never transmitted off-device; it's cached locally and used only
+   for prayer-time math. If denied, the feature degrades to calendar-only."
+   (Can be set via asc-mcp `app_versions_set_review_details` once the version
+   exists in `PREPARE_FOR_SUBMISSION`.)
+3. Confirm the 5.1.1-satisfying posture: coarse accuracy, lazy prompt (only on
+   the "Turn on precise times" tap), graceful degrade. Re-read the `Info.plist`
+   purpose string.
+
+**Surfaced by:** Duʿā Times feature (PR #51), 2026-07-16.
+
+## Extend the dua_windows seed before its horizon (2027-06-20)
+
+**Trigger:** by ~Q1 2027, OR when the in-app seed-horizon health check warns
+(`dua_windows_meta.last_seeded_through` within ~90 days of now). After this date
+the feature shows no *dated* windows (Friday + precise windows still work).
+
+Recipe:
+1. Re-verify Umm al-Qura Gregorian dates for the next window set (Ramadan 1449,
+   Dhul-Ḥijjah 1449 + ʿArafah/Eid, ʿAshura 1450, monthly White Days) — validate
+   row-by-row against the Umm al-Qura calendar (as done 2026-07-16).
+2. Add rows via a new migration to `public.dua_windows` and bump
+   `dua_windows_meta.last_seeded_through`.
+3. Keep the bundled fallbacks in sync: `assets/dua_calendar/dua_windows.json`
+   AND `ios/SakinaWidget/dua_calendar.json`.
+
+**Surfaced by:** Duʿā Times feature (PR #51), 2026-07-16.

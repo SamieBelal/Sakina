@@ -202,8 +202,8 @@ class _Card extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               streak > 0
-                  ? "Add the widget to see today's Name and your $streak-day streak every time you unlock."
-                  : "Add the widget to see today's Name and your streak every time you unlock.",
+                  ? "Add a Sakina widget — today's Name and your $streak-day streak, or the best times for duʿā with a live countdown — right where you'll see it."
+                  : "Add a Sakina widget — today's Name and your streak, or the best times for duʿā with a live countdown — right where you'll see it.",
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondaryLight,
                 height: 1.5,
@@ -252,7 +252,7 @@ class _HowToSteps extends StatelessWidget {
     const steps = [
       'Touch and hold an empty spot on your Home Screen.',
       'Tap the + in the top corner.',
-      'Search for “Sakina” and pick a size.',
+      'Search “Sakina” and pick a widget (you’ll see two) and a size.',
       'Tap Add Widget — you’re done.',
     ];
     return Container(

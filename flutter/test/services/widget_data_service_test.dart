@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:sakina/core/constants/allah_names.dart';
+import 'package:sakina/services/location_service.dart';
 import 'package:sakina/services/widget_data_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Records every call so we can assert the perf guard and clear behavior.
 class _FakeHomeWidgetClient implements HomeWidgetClient {
@@ -24,12 +27,22 @@ class _FakeHomeWidgetClient implements HomeWidgetClient {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   final name = allahNames.firstWhere((n) => n.transliteration == 'Al-Malik');
   var tick = DateTime(2026, 7, 14, 9);
+
+  /// A LocationService wired to in-memory mock prefs so clearWidget's
+  /// clearCache() call is exercised (not swallowed by an uninitialized binding).
+  LocationService buildLocation() => LocationService(
+        checkPermission: () async => LocationPermission.always,
+        prefs: SharedPreferences.getInstance,
+      );
 
   WidgetDataService build(_FakeHomeWidgetClient client) => WidgetDataService(
         client: client,
         clock: () => tick,
+        locationService: buildLocation(),
       );
 
   test('syncWidget writes a well-formed payload and reloads once', () async {
@@ -81,12 +94,49 @@ void main() {
     expect(client.updates, 2);
   });
 
-  test('clearWidget wipes the payload key (privacy) and reloads', () async {
+  test('saveDuaTimesSchedule: identical JSON does not re-save or reload',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    const scheduleJson = '{"active":null,"urgency":"upcoming"}';
+
+    await svc.saveDuaTimesSchedule(scheduleJson);
+    await svc.saveDuaTimesSchedule(scheduleJson); // byte-identical
+    expect(client.updates, 1,
+        reason: 'second identical schedule push must be deduped');
+    expect(client.saved.where((e) => e.key == kDuaTimesPayloadKey), hasLength(1),
+        reason: 'second identical schedule must not re-save');
+
+    // A changed schedule pushes again.
+    await svc.saveDuaTimesSchedule('{"active":null,"urgency":"comfortable"}');
+    expect(client.updates, 2, reason: 'a changed schedule reloads the widget');
+  });
+
+  test(
+      'clearWidget wipes BOTH payload keys + location cache (privacy) '
+      'and reloads both widgets', () async {
+    SharedPreferences.setMockInitialValues({
+      'dua_times_last_lat': 21.4225,
+      'dua_times_last_lon': 39.8262,
+    });
     final client = _FakeHomeWidgetClient();
     await build(client).clearWidget();
 
-    expect(client.saved.last.key, kWidgetPayloadKey);
-    expect(client.saved.last.value, isNull, reason: 'payload must be erased');
-    expect(client.updates, 1);
+    // clearWidget now erases the Name payload AND the duʿā-times payload (the
+    // sign-out leak fix, spec §7) and reloads both widgets.
+    final wipedKeys = client.saved.map((e) => e.key).toSet();
+    expect(
+      wipedKeys,
+      containsAll(<String>[kWidgetPayloadKey, kDuaTimesPayloadKey]),
+      reason: 'both the Name and duʿā-times payloads must be erased',
+    );
+    expect(client.saved.every((e) => e.value == null), isTrue,
+        reason: 'payloads erased to null');
+    expect(client.updates, 2, reason: 'both widgets reload');
+
+    // The raw coarse lat/lon cache must be wiped too.
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('dua_times_last_lat'), isNull);
+    expect(prefs.getDouble('dua_times_last_lon'), isNull);
   });
 }

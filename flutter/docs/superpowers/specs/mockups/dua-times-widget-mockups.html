@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sakina · Duʿā Times Widget — Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Outfit:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --emerald:#1B6B4A; --emerald-deep:#12513a; --gold:#C8985E; --gold-ink:#9A6F37;
+    --cream:#FBF7F2; --ink:#2C2A26; --amber:#E8A154; --amber-ink:#B76A20;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Outfit',system-ui,sans-serif;
+    background:#0e0f11;color:#e8e6e2;
+    padding:48px 24px 96px;line-height:1.35;
+  }
+  h1{font-family:'DM Serif Display',serif;font-weight:400;font-size:30px;color:#fff;letter-spacing:.2px}
+  .sub{color:#9a978f;max-width:720px;margin:10px 0 8px;font-size:14.5px}
+  h2{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#c8985e;margin:56px 0 6px;font-weight:700}
+  .note{color:#8c8981;font-size:13px;margin-bottom:22px;max-width:760px}
+  .row{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+  .cap{font-size:12px;color:#8c8981;margin-top:10px;text-align:center;max-width:200px}
+  .cap b{color:#cfccc4;font-weight:600}
+  .stack{display:flex;flex-direction:column;align-items:center}
+
+  /* ---------- LOCK SCREEN ---------- */
+  .lock{
+    width:300px;height:600px;border-radius:44px;overflow:hidden;position:relative;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #2a3a44 0%, #14202a 45%, #0b1319 100%);
+    box-shadow:0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.06);
+    padding:64px 26px 40px;
+  }
+  .lock .lockdate{color:rgba(255,255,255,.72);text-align:center;font-size:15px;font-weight:500;letter-spacing:.3px}
+  .lock .clock{color:#fff;text-align:center;font-weight:600;font-size:82px;letter-spacing:-2px;margin-top:2px;line-height:1;
+    font-variant-numeric:tabular-nums;text-shadow:0 2px 20px rgba(0,0,0,.35)}
+  .inline-row{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;color:rgba(255,255,255,.9);font-size:15px;font-weight:600}
+  .inline-row .g{opacity:.9}
+
+  /* accessoryRectangular — monochrome, vibrant white on wallpaper */
+  .rect{
+    margin:20px auto 0;width:236px;min-height:56px;border-radius:16px;
+    background:rgba(255,255,255,.14);backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    padding:11px 14px;display:flex;align-items:center;gap:11px;
+    box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18);
+  }
+  .rect .glyph{font-size:22px;color:#fff;opacity:.95;flex:none;width:24px;text-align:center}
+  .rect .body{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .rect .cta{color:#fff;font-weight:700;font-size:16px;letter-spacing:.1px;white-space:nowrap}
+  .rect .cue{color:rgba(255,255,255,.72);font-weight:500;font-size:13px;font-variant-numeric:tabular-nums}
+  .rect.urgent{background:rgba(255,255,255,.2)}
+  .rect.urgent .glyph{color:#fff}
+  .rect .cue.live{color:#fff;font-weight:700}
+  .chev{margin-left:auto;color:rgba(255,255,255,.6);font-size:18px;flex:none}
+
+  /* ---------- HOME SCREEN ---------- */
+  .home{
+    width:360px;border-radius:40px;padding:40px 26px;
+    background:
+      radial-gradient(120% 60% at 20% 0%, #f3ddc0 0%, #e7c9a6 40%, #d9b892 100%);
+    box-shadow:0 24px 60px rgba(0,0,0,.45);
+    display:flex;flex-direction:column;gap:22px;align-items:center;
+  }
+  .grid{display:grid;grid-template-columns:158px 158px;gap:22px}
+
+  .w{background:var(--cream);border-radius:22px;box-shadow:0 8px 22px rgba(60,42,20,.18);
+     position:relative;overflow:hidden}
+  .w.small{width:158px;height:158px;padding:15px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .w.medium{width:338px;height:158px;padding:17px 19px;display:flex;gap:16px;align-items:stretch}
+
+  .halo{position:absolute;inset:0;background:
+     radial-gradient(60% 45% at 50% 12%, rgba(27,107,74,.06), transparent 70%);pointer-events:none}
+
+  .crescent{font-size:26px;color:var(--emerald);line-height:1}
+  .arabic{font-family:'Aref Ruqaa',serif;color:var(--emerald);font-size:26px;line-height:1}
+  .kicker{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink);font-weight:700}
+
+  /* small */
+  .small .top{flex:none}
+  .small .verb{font-family:'DM Serif Display',serif;color:var(--ink);font-size:19px;line-height:1.06;margin-top:8px}
+  .small .cue{color:#6f6a60;font-size:12.5px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .small .pill{margin-top:auto;background:var(--gold);color:#fff;font-weight:700;font-size:12.5px;
+    padding:7px 0;border-radius:999px;width:100%;text-align:center;letter-spacing:.2px}
+
+  /* medium */
+  .medium .hero{width:92px;flex:none;border-radius:16px;background:linear-gradient(160deg,#e9f1ec,#dcebe2);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .medium .meta{flex:1;display:flex;flex-direction:column;min-width:0}
+  .medium .verb{font-family:'DM Serif Display',serif;color:var(--ink);font-size:22px;line-height:1.05}
+  .medium .why{color:#6f6a60;font-size:12.5px;font-weight:500;margin-top:5px}
+  .medium .foot{margin-top:auto;display:flex;align-items:center;gap:10px}
+  .medium .count{font-weight:700;color:#6f6a60;font-size:13px;font-variant-numeric:tabular-nums}
+  .medium .pill{margin-left:auto;background:var(--gold);color:#fff;font-weight:700;font-size:13px;
+    padding:8px 15px;border-radius:999px;white-space:nowrap}
+
+  /* last-call amber variants */
+  .urgent .crescent,.urgent .arabic{color:var(--amber-ink)}
+  .urgent .hero{background:linear-gradient(160deg,#fbe9d4,#f6ddc0)}
+  .urgent .pill{background:var(--amber)}
+  .urgent .count,.urgent .cue{color:var(--amber-ink)}
+  .urgent .verb{color:#4a3417}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;color:#8c8981;font-size:12.5px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:50%}
+</style>
+</head>
+<body>
+
+  <h1>Duʿā Times widget — the “make it now” model</h1>
+  <p class="sub">Straight call to action + escalating urgency. Lock screen is monochrome and one line (urgency via the ticking number + glyph swap, since colour isn’t available there). Home screen amplifies with colour and an amber “closing soon” state. Rendered with the real palette &amp; fonts (Aref Ruqaa / Outfit / DM&nbsp;Serif&nbsp;Display).</p>
+
+  <!-- ===================== LOCK SCREEN ===================== -->
+  <h2>Lock screen · accessoryRectangular (under the clock)</h2>
+  <p class="note">One line. The CTA verb never leaves; the deadline escalates: calm target → live countdown under 1h → sharper verb + ⚠ glyph under 15m. Between windows it becomes “Build”.</p>
+
+  <div class="row">
+    <div class="stack">
+      <div class="lock">
+        <div class="lockdate">Thursday, 15 July</div>
+        <div class="clock">2:14</div>
+        <div class="rect">
+          <div class="glyph">☾</div>
+          <div class="body"><div class="cta">Make duʿā now</div><div class="cue">until Fajr · 4:52</div></div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="cap"><b>Comfortable</b> · &gt;1h left. Calm deadline, no ticking.</div>
+    </div>
+
+    <div class="stack">
+      <div class="lock">
+        <div class="lockdate">Thursday, 15 July</div>
+        <div class="clock">4:05</div>
+        <div class="rect">
+          <div class="glyph">☾</div>
+          <div class="body"><div class="cta">Make duʿā now</div><div class="cue live">47:12 left</div></div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="cap"><b>Closing</b> · &lt;1h. Live countdown appears — this is the urgency.</div>
+    </div>
+
+    <div class="stack">
+      <div class="lock">
+        <div class="lockdate">Thursday, 15 July</div>
+        <div class="clock">4:41</div>
+        <div class="rect urgent">
+          <div class="glyph">⚠</div>
+          <div class="body"><div class="cta">Ask before it closes</div><div class="cue live">11:40 left</div></div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="cap"><b>Last call</b> · &lt;15m. Verb sharpens, glyph flips.</div>
+    </div>
+
+    <div class="stack">
+      <div class="lock">
+        <div class="lockdate">Saturday, 27 June</div>
+        <div class="clock">9:41</div>
+        <div class="rect">
+          <div class="glyph">☽</div>
+          <div class="body"><div class="cta">Build your duʿā</div><div class="cue">ʿArafah · tomorrow</div></div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+      <div class="cap"><b>Between</b> · pre-commit for the upcoming sacred day.</div>
+    </div>
+  </div>
+
+  <h2 style="margin-top:44px">Lock screen · accessoryInline (beside the clock)</h2>
+  <p class="note">Maximum restraint — one row, one glyph, shares the line with the clock.</p>
+  <div class="row">
+    <div class="stack">
+      <div class="lock" style="height:250px">
+        <div class="lockdate">Thursday, 15 July</div>
+        <div class="inline-row"><span class="g">☾</span> Make duʿā now · 47:12</div>
+        <div class="clock" style="font-size:78px;margin-top:6px">4:05</div>
+      </div>
+      <div class="cap"><b>Active</b>, closing.</div>
+    </div>
+    <div class="stack">
+      <div class="lock" style="height:250px">
+        <div class="lockdate">Saturday, 27 June</div>
+        <div class="inline-row"><span class="g">☽</span> Build duʿā · ʿArafah tomorrow</div>
+        <div class="clock" style="font-size:78px;margin-top:6px">9:41</div>
+      </div>
+      <div class="cap"><b>Between.</b></div>
+    </div>
+  </div>
+
+  <!-- ===================== HOME SCREEN ===================== -->
+  <h2>Home screen · small &amp; medium (colour returns)</h2>
+  <p class="note">Verb leads, one supporting line, gold CTA pill. Under 15m the whole card shifts to the amber “closing soon” state (same amber as your streak at-risk).</p>
+
+  <div class="home">
+    <div class="grid">
+      <!-- small active -->
+      <div class="w small">
+        <div class="halo"></div>
+        <div class="top"><div class="crescent">☾</div></div>
+        <div class="verb">Make your duʿā</div>
+        <div class="cue">answered · until Fajr</div>
+        <div class="pill">Ask now →</div>
+      </div>
+      <!-- small last-call -->
+      <div class="w small urgent">
+        <div class="halo"></div>
+        <div class="top"><div class="crescent">⚠</div></div>
+        <div class="verb">Ask before<br>it closes</div>
+        <div class="cue">11:40 left</div>
+        <div class="pill">Ask now →</div>
+      </div>
+    </div>
+
+    <!-- medium comfortable -->
+    <div class="w medium">
+      <div class="halo"></div>
+      <div class="hero"><div class="crescent">☾</div><div class="arabic">دُعَاء</div></div>
+      <div class="meta">
+        <div class="kicker">A beloved time</div>
+        <div class="verb">Make your duʿā</div>
+        <div class="why">The last third of the night — “who is calling Me?”</div>
+        <div class="foot"><div class="count">until Fajr · 4:52</div><div class="pill">Ask now →</div></div>
+      </div>
+    </div>
+
+    <!-- medium last-call -->
+    <div class="w medium urgent">
+      <div class="halo"></div>
+      <div class="hero"><div class="crescent">⚠</div><div class="arabic">دُعَاء</div></div>
+      <div class="meta">
+        <div class="kicker" style="color:var(--amber-ink)">Closing soon</div>
+        <div class="verb">Ask before Fajr</div>
+        <div class="why">The night’s last third is nearly over.</div>
+        <div class="foot"><div class="count">closing · 11:40</div><div class="pill">Ask now →</div></div>
+      </div>
+    </div>
+
+    <!-- medium between -->
+    <div class="w medium">
+      <div class="halo"></div>
+      <div class="hero"><div class="crescent">☽</div><div class="arabic">دُعَاء</div></div>
+      <div class="meta">
+        <div class="kicker">Coming tomorrow</div>
+        <div class="verb">Build your duʿā</div>
+        <div class="why">Day of ʿArafah — the best duʿā of the year.</div>
+        <div class="foot"><div class="count">opens in 14h</div><div class="pill">Build now →</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#1B6B4A"></span>emerald — calm/active</span>
+    <span><span class="dot" style="background:#C8985E"></span>gold — CTA</span>
+    <span><span class="dot" style="background:#E8A154"></span>amber — last call (&lt;15m)</span>
+    <span>all tap → <b style="color:#cfccc4">sakina://widget/build-dua</b></span>
+  </div>
+
+</body>
+</html>

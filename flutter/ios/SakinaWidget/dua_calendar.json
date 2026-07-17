@@ -1,0 +1,25 @@
+{
+  "_comment": "Bundled cold-start export of the Supabase `dua_windows` table + `dua_windows_meta` sentinel. Mirrors supabase/migrations/20260715120000_dua_windows.sql. Read by DuaWindowRepository when the local cache is empty and the network is unavailable (spec §4). This same clean, self-describing shape is bundled into the iOS widget extension. Dates are bare local dates (YYYY-MM-DD); the device expands each to its own local midnight->midnight (spec §4 date-line rule). Keep in sync with the migration seed.",
+  "version": 1,
+  "last_seeded_through": "2027-06-20",
+  "rows": [
+    { "id": "white_days_safar_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-07-27", "end_date": "2026-07-29", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_rabi1_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-08-26", "end_date": "2026-08-28", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_rabi2_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-09-24", "end_date": "2026-09-26", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_jumada1_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-10-24", "end_date": "2026-10-26", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_jumada2_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-11-23", "end_date": "2026-11-25", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_rajab_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2026-12-22", "end_date": "2026-12-24", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_shaban_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2027-01-21", "end_date": "2027-01-23", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_shawwal_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2027-03-21", "end_date": "2027-03-23", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_dhulqada_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2027-04-20", "end_date": "2027-04-22", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_dhulhijja_1448", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2027-05-19", "end_date": "2027-05-21", "source_ref": "Tirmidhi 761" },
+    { "id": "white_days_muharram_1449", "kind": "white_days", "tier": "soft", "title_key": "dua_window.white_days", "start_date": "2027-06-18", "end_date": "2027-06-20", "source_ref": "Tirmidhi 761" },
+    { "id": "ashura_1449", "kind": "ashura", "tier": "special", "title_key": "dua_window.ashura", "start_date": "2027-06-14", "end_date": "2027-06-15", "source_ref": "Muslim 1162" },
+    { "id": "ramadan_1448", "kind": "ramadan", "tier": "special", "title_key": "dua_window.ramadan", "start_date": "2027-02-08", "end_date": "2027-03-08", "source_ref": null },
+    { "id": "laylat_al_qadr_1448", "kind": "laylat_al_qadr", "tier": "hero", "title_key": "dua_window.laylat_al_qadr", "start_date": "2027-02-28", "end_date": "2027-03-08", "source_ref": "al-Bukhari 2020" },
+    { "id": "eid_fitr_1448", "kind": "eid", "tier": "special", "title_key": "dua_window.eid_fitr", "start_date": "2027-03-09", "end_date": "2027-03-09", "source_ref": null },
+    { "id": "dhul_hijjah_10_1448", "kind": "dhul_hijjah_10", "tier": "special", "title_key": "dua_window.dhul_hijjah_10", "start_date": "2027-05-07", "end_date": "2027-05-16", "source_ref": "al-Bukhari 969" },
+    { "id": "arafah_1448", "kind": "arafah", "tier": "hero", "title_key": "dua_window.arafah", "start_date": "2027-05-15", "end_date": "2027-05-15", "source_ref": "Tirmidhi 3585" },
+    { "id": "eid_adha_1448", "kind": "eid", "tier": "special", "title_key": "dua_window.eid_adha", "start_date": "2027-05-16", "end_date": "2027-05-16", "source_ref": null }
+  ]
+}

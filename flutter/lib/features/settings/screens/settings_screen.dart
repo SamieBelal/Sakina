@@ -1195,9 +1195,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Developer (debug builds only)
         // NOTE: Commented out so it never reaches production. To use Dev Tools
-        // during local dev/QA, uncomment the block below and run a debug build.
-        // The `if (kDebugMode)` guard already strips it from release, but we
-        // keep it commented as an extra safety net.
+        // during local dev/QA, uncomment the block below. For PROFILE builds
+        // (on-device QA) change the guard to `!kReleaseMode`; `kDebugMode` is
+        // false in profile so Dev Tools would be unreachable there.
         // if (kDebugMode) ...[
         //   _buildSectionLabel('Developer'),
         //   const SizedBox(height: AppSpacing.sm),

@@ -6,6 +6,8 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
+import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
+import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -153,7 +155,8 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                   children: [
                     const SubpageHeader(
                       title: 'Dev Tools',
-                      subtitle: 'Debug mode — manipulate app state for testing.',
+                      subtitle:
+                          'Debug mode — manipulate app state for testing.',
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     _buildOverviewCard(),
@@ -172,7 +175,11 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection('Achievements', _buildAchievementButtons()),
                     const SizedBox(height: AppSpacing.lg),
-                    _buildSection('Toast Previews', _buildToastPreviewButtons()),
+                    _buildSection(
+                        'Toast Previews', _buildToastPreviewButtons()),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildSection(
+                        'Duʿā Times preview', _buildDuaTimesPreviewButtons()),
                     const SizedBox(height: AppSpacing.xl),
                     _buildSection('Nuclear Options', _buildNuclearButtons()),
                     const SizedBox(height: AppSpacing.xxl),
@@ -217,8 +224,8 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
           Row(
             children: [
               _overviewItem('Daily Day', '$_dailyRewardDay/7'),
-              _overviewItem(
-                  'Achievements', '$_achievementsUnlocked/${allAchievements.length}'),
+              _overviewItem('Achievements',
+                  '$_achievementsUnlocked/${allAchievements.length}'),
               const Expanded(child: SizedBox()),
             ],
           ),
@@ -363,8 +370,10 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _actionChip('Advance Day',
-            () => _run(() => devAdvanceDailyRewardDay((_dailyRewardDay % 7) + 1))),
+        _actionChip(
+            'Advance Day',
+            () => _run(
+                () => devAdvanceDailyRewardDay((_dailyRewardDay % 7) + 1))),
         _actionChip('Reset Cycle', () => _run(devResetDailyRewards),
             destructive: true),
       ],
@@ -380,11 +389,9 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _actionChip(
-            'Reset Progress', () => _run(devResetQuestProgress),
+        _actionChip('Reset Progress', () => _run(devResetQuestProgress),
             destructive: true),
-        _actionChip(
-            'Reset First Steps', () => _run(devResetFirstSteps),
+        _actionChip('Reset First Steps', () => _run(devResetFirstSteps),
             destructive: true),
       ],
     );
@@ -466,6 +473,47 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Duʿā Times preview — force each card + widget state without waiting for the
+  // real day. Freezes the schedule (and pushes it to the native widget) until
+  // "Reset (real)". Go back to Home to see the card; check the home/lock widget.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildDuaTimesPreviewButtons() {
+    final notifier = ref.read(duaWindowProvider.notifier);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _actionChip(
+            'Friday · comfortable',
+            () => notifier.debugPreview(
+                DuaWindowDebugScenarios.fridayComfortable(DateTime.now()))),
+        _actionChip(
+            'Friday · closing',
+            () => notifier.debugPreview(
+                DuaWindowDebugScenarios.fridayClosing(DateTime.now()))),
+        _actionChip(
+            'Friday · LAST CALL',
+            () => notifier.debugPreview(
+                DuaWindowDebugScenarios.fridayLastCall(DateTime.now()))),
+        _actionChip(
+            'Night · closing',
+            () => notifier.debugPreview(
+                DuaWindowDebugScenarios.nightClosing(DateTime.now()))),
+        _actionChip(
+            'ʿArafah · today',
+            () => notifier.debugPreview(
+                DuaWindowDebugScenarios.arafahToday(DateTime.now()))),
+        _actionChip(
+            'Between',
+            () => notifier
+                .debugPreview(DuaWindowDebugScenarios.between(DateTime.now()))),
+        _actionChip('Reset (real)', notifier.debugUnfreeze),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Nuclear Options
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -516,12 +564,13 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: destructive
-              ? AppColors.errorBackground
-              : AppColors.primaryLight,
+          color:
+              destructive ? AppColors.errorBackground : AppColors.primaryLight,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: destructive ? AppColors.error.withValues(alpha: 0.3) : AppColors.primary.withValues(alpha: 0.3),
+            color: destructive
+                ? AppColors.error.withValues(alpha: 0.3)
+                : AppColors.primary.withValues(alpha: 0.3),
             width: 0.5,
           ),
         ),
@@ -546,7 +595,9 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
           foregroundColor:
               destructive ? AppColors.error : AppColors.textPrimaryLight,
           side: BorderSide(
-            color: destructive ? AppColors.error.withValues(alpha: 0.3) : AppColors.borderLight,
+            color: destructive
+                ? AppColors.error.withValues(alpha: 0.3)
+                : AppColors.borderLight,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -620,13 +671,11 @@ class _PreviewAchievementToastState extends State<_PreviewAchievementToast> {
                   color: const Color(0xFF1A1A2E),
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                   border: Border.all(
-                    color:
-                        widget.achievement.color.withValues(alpha: 0.4),
+                    color: widget.achievement.color.withValues(alpha: 0.4),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.achievement.color
-                          .withValues(alpha: 0.2),
+                      color: widget.achievement.color.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                       offset: const Offset(0, 4),
@@ -645,8 +694,7 @@ class _PreviewAchievementToastState extends State<_PreviewAchievementToast> {
                       height: 40,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: widget.achievement.color
-                            .withValues(alpha: 0.15),
+                        color: widget.achievement.color.withValues(alpha: 0.15),
                       ),
                       child: Icon(
                         widget.achievement.icon,
@@ -681,8 +729,7 @@ class _PreviewAchievementToastState extends State<_PreviewAchievementToast> {
                     ),
                     Icon(
                       Icons.auto_awesome,
-                      color: widget.achievement.color
-                          .withValues(alpha: 0.6),
+                      color: widget.achievement.color.withValues(alpha: 0.6),
                       size: 18,
                     ),
                   ],

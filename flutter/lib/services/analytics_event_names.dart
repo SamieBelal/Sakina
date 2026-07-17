@@ -419,6 +419,38 @@ abstract final class AnalyticsEvents {
   /// properties so DAU can be segmented by "has widget".
   static const widgetInstalledState = 'widget_installed_state';
 
+  // ── Duʿā Times (awqāt al-ijābah) home card ──
+  // Time-aware "best time to make duʿā" surface (spec
+  // docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md
+  // §11). The card is render-gated like the gift card, so `impression` fires
+  // once per session when it resolves to a visible active/between state. Every
+  // CTA (card body + pill) points at Build-a-Duʿā — this feature's north star.
+  /// Fired once per session when the card resolves to a visible state.
+  /// Props: `active_window` (window type of the active window, or null),
+  /// `next_window` (window type of the upcoming window, or null),
+  /// `urgency` (comfortable|closing|last_call|all_day|upcoming).
+  static const String duaTimesCardImpression = 'dua_times_card_impression';
+
+  /// Fired when the card (or its CTA pill) is tapped → navigates to Build-a-Duʿā.
+  /// Props: `active_window`, `urgency`.
+  static const String duaTimesCardCtaTap = 'dua_times_card_cta_tap';
+
+  /// Fired when the lazy location permission prompt is presented (the card
+  /// would show a precise window and permission was not yet granted).
+  static const String duaTimesLocationPrompt = 'dua_times_location_prompt';
+
+  /// Fired when the user grants location permission from the card affordance.
+  static const String duaTimesLocationGranted = 'dua_times_location_granted';
+
+  /// Fired when the user denies (or has permanently denied) location from the
+  /// card affordance — the card degrades to calendar + soft-night windows.
+  static const String duaTimesLocationDenied = 'dua_times_location_denied';
+
+  // Property keys for the dua-times events.
+  static const String propActiveWindow = 'active_window';
+  static const String propNextWindow = 'next_window';
+  static const String propUrgency = 'urgency';
+
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables
   // funnel-splitting across the 3 referral ingress paths.

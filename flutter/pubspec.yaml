@@ -1,7 +1,7 @@
 name: sakina
 description: "Islamic spiritual wellness app. Feel → Allah's Names → Quran → Dua."
 publish_to: 'none'
-version: 1.2.0+5
+version: 1.3.0+6
 
 environment:
   sdk: ^3.6.0
@@ -72,6 +72,16 @@ dependencies:
   home_widget: ^0.9.3
   lottie: ^3.3.3
 
+  # Duʿā-times feature (dua_acceptance_times widget)
+  # Pinned exactly: adhan_dart port has historically re-cased/renamed members
+  # (see docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md §4).
+  # A compile-guard test references SunnahTimes.lastThirdOfTheNight so an upgrade
+  # that renames it fails CI.
+  adhan_dart: 2.0.1
+  # Pinned exactly: native (platform-channel) plugin — pin for build stability /
+  # reproducible iOS+Android builds; bump deliberately after a device smoke test.
+  geolocator: 14.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -115,3 +125,4 @@ flutter:
     - assets/patterns/
     - assets/illustrations/
     - assets/illustrations/main_screens/
+    - assets/dua_calendar/

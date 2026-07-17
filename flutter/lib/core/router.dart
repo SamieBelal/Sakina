@@ -260,7 +260,8 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => const EmeraldCardPreviewScreen(),
       ),
 
-      // DEBUG: Dev tools (debug builds only)
+      // DEBUG: Dev tools (debug builds only). For PROFILE-build QA, temporarily
+      // change this guard to `!kReleaseMode` (and uncomment the Settings entry).
       if (kDebugMode)
         GoRoute(
           path: '/dev-tools',
