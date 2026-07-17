@@ -16,6 +16,56 @@ class EngineLocation {
   final double lon;
 }
 
+/// A single PRECISE-window fire instant, computed on-device for the server-push
+/// sync path (plan §4). Only the window category + its fire instant leave the
+/// device — never raw lat/lon (plan §5 privacy win).
+///
+/// [fireUtc] is the window's **start** instant (decision D2: fire at window
+/// open — the server enqueues the OneSignal push at exactly this local moment).
+@immutable
+class PreciseInstant {
+  const PreciseInstant({required this.type, required this.fireUtc});
+
+  final DuaWindowType type;
+
+  /// Absolute UTC instant the window opens (== the push fire time, D2).
+  final DateTime fireUtc;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PreciseInstant &&
+      other.type == type &&
+      other.fireUtc.isAtSameMomentAs(fireUtc);
+
+  @override
+  int get hashCode => Object.hash(type, fireUtc.toUtc().millisecondsSinceEpoch);
+
+  @override
+  String toString() => 'PreciseInstant(${type.wireName}, $fireUtc)';
+}
+
+/// D1 fatigue policy for the location-dependent **last-third-of-night** push.
+///
+/// The night-third recurs EVERY night, but a nightly 3am buzz is fatiguing, so
+/// by default the sync only emits it on the nights that carry extra spiritual
+/// weight (Friday nights, White-Days nights, Laylat-al-Qadr nights). The
+/// friday-hour and iftar precise pushes are ALWAYS included and are not affected
+/// by this policy.
+///
+/// TUNABLE (plan D1 — "default Fri / White Days / Laylat, not nightly; full
+/// nightly optional"): switch to [everyNight] to opt a user into the nightly
+/// cadence, or [never] to suppress the night-third push entirely.
+enum NightThirdFatiguePolicy {
+  /// Only Friday nights, White-Days nights, and Laylat-al-Qadr nights (default).
+  specialNightsOnly,
+
+  /// Every night in the horizon (opt-in; more reminders).
+  everyNight,
+
+  /// Never — suppress the night-third precise push.
+  never,
+}
+
 /// Converts a bare local date (y/m/d) to the absolute UTC instant of that
 /// date's device-local midnight (spec §4 date-line rule).
 ///
@@ -57,6 +107,13 @@ class DuaWindowEngine {
   /// How far ahead the schedule's `upcoming[]` timeline reaches (spec §9 widget
   /// timeline). Seven days keeps the widget correct without the app reopening.
   static const Duration horizon = Duration(days: 7);
+
+  /// How far ahead [computePreciseInstants] projects the server-push precise
+  /// windows (plan §4/D4 — "rec: 30–45d"). A longer horizon covers more dormancy
+  /// at ~no cost; 30 days is the low end of the recommended band. Kept SEPARATE
+  /// from [horizon] (the widget timeline) so the widget stays cheap while the
+  /// sync reaches further ahead.
+  static const Duration preciseSyncHorizon = Duration(days: 30);
 
   /// Overlap priority weight — higher wins the hero line (spec §4).
   static int priorityOf(DuaWindowType type) {
@@ -139,6 +196,166 @@ class DuaWindowEngine {
     final coarse = await svc.getCoarseLocation(prompt: prompt);
     if (coarse == null) return null;
     return EngineLocation(lat: coarse.lat, lon: coarse.lon);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Precise-instant projection (server-push sync path — plan §4)
+  // ---------------------------------------------------------------------------
+
+  /// Project a [preciseSyncHorizon]-day list of PRECISE-window fire instants for
+  /// the server-push path — `last_third_of_night`, `friday_hour`, and `iftar`,
+  /// each as a [PreciseInstant] whose `fireUtc` is the window's **start** instant
+  /// (D2: fire at window open).
+  ///
+  /// This reuses the exact same prayer-time math as [buildSchedule]'s
+  /// `_preciseWindows`, only over the longer horizon and with the D1 fatigue
+  /// filter applied to the night-third. It is DELIBERATELY separate from
+  /// `buildSchedule` and does NO network / location lookup itself — the caller
+  /// (the sync service) resolves the coarse [location] first and passes it in.
+  /// When [location] is null (permission absent / no cached fix) this returns an
+  /// EMPTY list — precise windows degrade to nothing, consistent with the card
+  /// (plan §10 degrade).
+  ///
+  /// Pure + deterministic given ([now], [location], the injected [PrayerTimeService]
+  /// and the calendar). No Riverpod / platform channels (per `CLAUDE.md`).
+  Future<List<PreciseInstant>> computePreciseInstants({
+    required DateTime now,
+    required EngineLocation? location,
+    NightThirdFatiguePolicy nightThirdPolicy =
+        NightThirdFatiguePolicy.specialNightsOnly,
+  }) async {
+    if (location == null) return const <PreciseInstant>[];
+
+    final nowUtc = now.toUtc();
+    final horizonEnd = nowUtc.add(preciseSyncHorizon);
+    final calendar = await _repository.load();
+
+    final out = <PreciseInstant>[];
+    final localNow = DateTime(now.year, now.month, now.day);
+
+    // Walk each local day in the horizon (plus the day before, for the
+    // night-third that opened yesterday) — mirrors `_preciseWindows`.
+    for (var i = -1; i <= preciseSyncHorizon.inDays + 1; i++) {
+      final day = localNow.add(Duration(days: i));
+
+      // ---- Last third of the night (D1 fatigue-gated) ----
+      // The third queried for `day` opens on the EVENING of `day` (post-Maghrib)
+      // and fires in the pre-dawn of `day + 1`. So the fatigue anchor is `day`
+      // itself: "Friday night" = the third that opens Friday evening.
+      final eveningDay = day;
+      if (nightThirdPolicy != NightThirdFatiguePolicy.never &&
+          (nightThirdPolicy == NightThirdFatiguePolicy.everyNight ||
+              _isSpecialNight(calendar, eveningDay))) {
+        final third = _prayer.lastThirdOfNight(
+          lat: location.lat,
+          lon: location.lon,
+          now: day.isAtSameMomentAs(localNow) ? now : day,
+          nowLocalDate: day,
+        );
+        _addInstant(
+          out,
+          DuaWindowType.lastThirdOfNight,
+          third?.startUtc,
+          nowUtc,
+          horizonEnd,
+        );
+      }
+
+      // Prayer times only when the day can produce a precise window — Fridays
+      // (friday hour) or Ramadan fasting days (iftar). Same guard as
+      // `_preciseWindows` so the astronomical calc isn't run needlessly.
+      final needsPrayerTimes =
+          day.weekday == DateTime.friday || _isRamadanLocalDay(calendar, day);
+      if (!needsPrayerTimes) continue;
+      final pt = _prayer.prayerTimes(
+        lat: location.lat,
+        lon: location.lon,
+        date: day,
+      );
+
+      // ---- Friday hour: the last hour before Maghrib on Friday (always) ----
+      if (day.weekday == DateTime.friday && pt.maghrib != null) {
+        final start =
+            pt.maghrib!.subtract(DuaWindowCatalog.fridayHourLeadBeforeMaghrib);
+        _addInstant(
+          out,
+          DuaWindowType.fridayHour,
+          start,
+          nowUtc,
+          horizonEnd,
+        );
+      }
+
+      // ---- Iftar: ~20 min before Maghrib during Ramadan (always) ----
+      if (pt.maghrib != null && _isRamadanLocalDay(calendar, day)) {
+        final start =
+            pt.maghrib!.subtract(DuaWindowCatalog.iftarLeadBeforeMaghrib);
+        _addInstant(out, DuaWindowType.iftar, start, nowUtc, horizonEnd);
+      }
+    }
+
+    // Stable order (by fire, then type) for a deterministic sync payload +
+    // deterministic version diffing. De-dup by (type, fireUtc) since day-walking
+    // can emit the same night-third twice.
+    final seen = <String>{};
+    final deduped = <PreciseInstant>[];
+    for (final p in out) {
+      final key = '${p.type.wireName}|${p.fireUtc.millisecondsSinceEpoch}';
+      if (seen.add(key)) deduped.add(p);
+    }
+    deduped.sort((a, b) {
+      final byFire = a.fireUtc.compareTo(b.fireUtc);
+      if (byFire != 0) return byFire;
+      return a.type.wireName.compareTo(b.type.wireName);
+    });
+    return deduped;
+  }
+
+  /// Add a [PreciseInstant] if [start] is non-null and its fire instant is in
+  /// `[nowUtc, horizonEnd]` (future-only, D2 fire-at-start).
+  void _addInstant(
+    List<PreciseInstant> out,
+    DuaWindowType type,
+    DateTime? start,
+    DateTime nowUtc,
+    DateTime horizonEnd,
+  ) {
+    if (start == null) return;
+    final fireUtc = start.toUtc();
+    if (fireUtc.isBefore(nowUtc)) return;
+    if (fireUtc.isAfter(horizonEnd)) return;
+    out.add(PreciseInstant(type: type, fireUtc: fireUtc));
+  }
+
+  /// True when the EVENING of [eveningDay] opens a night that carries extra
+  /// weight for the night-third fatigue policy (D1): a Friday night, a
+  /// White-Days night, or a Laylat-al-Qadr night. The caller passes the evening
+  /// day (the third that fires pre-dawn AFTER [eveningDay] belongs to it), so
+  /// e.g. a Friday evening ⇒ the pre-dawn third of Saturday qualifies.
+  bool _isSpecialNight(DuaCalendar calendar, DateTime eveningDay) {
+    final localDay = eveningDay;
+    if (localDay.weekday == DateTime.friday) return true;
+    final dayStart = _localMidnightUtc(
+      localDay.year,
+      localDay.month,
+      localDay.day,
+    );
+    for (final row in calendar.rows) {
+      if (row.kind != 'white_days' && row.kind != 'laylat_al_qadr') continue;
+      final start = _localMidnightUtc(
+        row.startDate.year,
+        row.startDate.month,
+        row.startDate.day,
+      );
+      final endExclusive = row.endDate.add(const Duration(days: 1));
+      final end = _localMidnightUtc(
+        endExclusive.year,
+        endExclusive.month,
+        endExclusive.day,
+      );
+      if (!dayStart.isBefore(start) && dayStart.isBefore(end)) return true;
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------------------

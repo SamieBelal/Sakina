@@ -56,6 +56,42 @@ enum DuaWindowType {
   fridayDay,
 }
 
+/// The stable snake_case wire string for a [DuaWindowType].
+///
+/// This MUST match the `@JsonValue(...)` labels above (the serialization
+/// contract shared with the native widget's Swift decoder AND the server's
+/// `dua_precise_notifications.window_type` column). Centralised here so the
+/// notification scheduler, the precise-sync service, and the copy map all speak
+/// the same vocabulary instead of each re-deriving it (per `CLAUDE.md`).
+extension DuaWindowTypeWire on DuaWindowType {
+  String get wireName {
+    switch (this) {
+      case DuaWindowType.lastThirdOfNight:
+        return 'last_third_of_night';
+      case DuaWindowType.fridayHour:
+        return 'friday_hour';
+      case DuaWindowType.iftar:
+        return 'iftar';
+      case DuaWindowType.arafah:
+        return 'arafah';
+      case DuaWindowType.dhulHijjah10:
+        return 'dhul_hijjah_10';
+      case DuaWindowType.laylatAlQadr:
+        return 'laylat_al_qadr';
+      case DuaWindowType.ramadan:
+        return 'ramadan';
+      case DuaWindowType.ashura:
+        return 'ashura';
+      case DuaWindowType.whiteDays:
+        return 'white_days';
+      case DuaWindowType.eid:
+        return 'eid';
+      case DuaWindowType.fridayDay:
+        return 'friday_day';
+    }
+  }
+}
+
 /// Visual + priority weight of a window on the surfaces.
 ///
 /// `hero` wins the primary line (see overlap priority in spec §4);

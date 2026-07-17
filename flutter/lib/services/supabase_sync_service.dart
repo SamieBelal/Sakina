@@ -135,6 +135,56 @@ class SupabaseSyncService {
     }
   }
 
+  /// Delete all of [userId]'s rows in [table] whose [column] is strictly less
+  /// than [value]. Used by the precise-notification sync to retire the previous
+  /// `sync_version`'s rows AFTER the new version's rows are safely inserted, so
+  /// the user's schedule is never emptied mid-run (never a blind delete-all).
+  Future<bool> deleteRowsBelow(
+    String table,
+    String userId, {
+    required String column,
+    required int value,
+  }) async {
+    try {
+      await Supabase.instance.client
+          .from(table)
+          .delete()
+          .eq('user_id', userId)
+          .lt(column, value);
+      return true;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] deleteRowsBelow($table) failed: $e');
+      return false;
+    }
+  }
+
+  /// The largest value of an integer [column] across [userId]'s rows in [table],
+  /// or `null` when the user has no rows (or on error). Used to advance the
+  /// precise-notification `sync_version` monotonically per user.
+  Future<int?> fetchMaxInt(
+    String table,
+    String userId, {
+    required String column,
+  }) async {
+    try {
+      final rows = await Supabase.instance.client
+          .from(table)
+          .select(column)
+          .eq('user_id', userId)
+          .order(column, ascending: false)
+          .limit(1);
+      final list = List<Map<String, dynamic>>.from(rows);
+      if (list.isEmpty) return null;
+      final raw = list.first[column];
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      return null;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] fetchMaxInt($table) failed: $e');
+      return null;
+    }
+  }
+
   /// Insert multiple rows in a single request.
   Future<bool> batchInsertRows(
     String table,
