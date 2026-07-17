@@ -168,21 +168,35 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     String table,
     List<Map<String, dynamic>> rowsToUpsert, {
     required String onConflict,
+    bool updateOnConflict = false,
   }) async {
     batchUpsertCalls.add({
       'table': table,
       'rows': rowsToUpsert,
       'onConflict': onConflict,
+      'updateOnConflict': updateOnConflict,
     });
-    // Simulate Postgres upsert with ignoreDuplicates: rows colliding on the
-    // onConflict columns are skipped, leaving the existing row untouched.
+    // Simulate Postgres upsert. On a collision over the onConflict columns:
+    // - updateOnConflict == false → IGNORE: skip the incoming row, leave the
+    //   existing row untouched.
+    // - updateOnConflict == true  → UPDATE: overwrite the existing row's
+    //   non-conflict columns in place (never a duplicate row).
     final keyCols = onConflict.split(',').map((c) => c.trim()).toList();
     final list = rowLists.putIfAbsent(table, () => []);
     for (final row in rowsToUpsert) {
-      final exists = list.any(
+      final idx = list.indexWhere(
         (existing) => keyCols.every((c) => existing[c] == row[c]),
       );
-      if (exists) continue;
+      if (idx >= 0) {
+        if (updateOnConflict) {
+          final updated = Map<String, dynamic>.from(row);
+          // Preserve the existing synthetic id (Postgres keeps the row's PK on
+          // ON CONFLICT DO UPDATE).
+          updated['id'] = list[idx]['id'];
+          list[idx] = updated;
+        }
+        continue;
+      }
       final normalized = Map<String, dynamic>.from(row);
       normalized.putIfAbsent('id', () => 'fake-${_nextSyntheticId++}');
       list.add(normalized);

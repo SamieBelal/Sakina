@@ -11,6 +11,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/discovery/providers/discovery_quiz_provider.dart';
+import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
+import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
@@ -101,6 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _reengagementEnabled = true;
   bool _weeklyReflectionEnabled = true;
   bool _newContentEnabled = true;
+  bool _duaWindowsEnabled = true;
   bool _loading = true;
   // F1 fix (2026-04-26): cache display_name from user_profiles so the
   // profile card shows the user's name instead of email-twice. Email is
@@ -202,6 +205,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _weeklyReflectionEnabled =
           notificationPreferences[notifyWeeklyTagKey] ?? true;
       _newContentEnabled = notificationPreferences[notifyUpdatesTagKey] ?? true;
+      _duaWindowsEnabled =
+          notificationPreferences[notifyDuaWindowsTagKey] ?? true;
       _profileDisplayName = profileDisplayName;
       _loading = false;
     });
@@ -220,6 +225,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           : await notificationService.optOut();
 
       if (!mounted || _pushNotificationsEnabled != enabled) return;
+
+      // A fresh permission grant re-opens the local duʿā calendar band:
+      // reschedule once push is on and the `notify_dua_windows` category is
+      // enabled (the gate checks both). Best-effort — the gate degrades
+      // silently and never throws.
+      if (isOptedIn) {
+        final gate = ref.read(duaNotificationGateProvider);
+        final schedule = ref.read(duaWindowProvider).schedule;
+        if (gate != null && schedule != null) {
+          await gate.apply(schedule, force: true);
+        }
+        if (!mounted) return;
+      } else {
+        // Master opt-OUT symmetry (privacy): clear the reserved local calendar
+        // band AND delete the user's synced `dua_precise_notifications` rows so
+        // the server stops pushing — mirroring the per-category toggle-off.
+        // Best-effort — the gate degrades silently and never throws.
+        final gate = ref.read(duaNotificationGateProvider);
+        if (gate != null) {
+          await gate.clear();
+        }
+        if (!mounted) return;
+      }
+
       if (_pushNotificationsEnabled != isOptedIn) {
         setState(() => _pushNotificationsEnabled = isOptedIn);
         // User toggled ON but the OS denied permission. OneSignal's
@@ -269,12 +298,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// The duʿā-window toggle carries a scheduler side effect the other rows
+  /// don't: turning it OFF clears the reserved local calendar id band (the
+  /// mirror of toggle-on); turning it ON reschedules the current calendar
+  /// schedule so reminders reappear without waiting for the next foreground
+  /// rebuild. Both go through the opt-in gate.
+  Future<void> _setDuaWindowsEnabled(bool enabled) async {
+    // Persist the preference first (local cache + server) via the shared path,
+    // so the gate below reads the just-written value.
+    await _setNotificationPreference(notifyDuaWindowsTagKey, enabled);
+    if (!mounted) return;
+
+    final gate = ref.read(duaNotificationGateProvider);
+    if (gate == null) return;
+
+    if (!enabled) {
+      // Toggle-OFF symmetry: clear the reserved dua calendar band AND delete the
+      // user's synced `dua_precise_notifications` rows (so server pushes stop) —
+      // both handled inside gate.clear().
+      await gate.clear();
+      return;
+    }
+    // Toggle-ON: reschedule from the current built schedule, if any. Force past
+    // the throttle so the flip takes effect now.
+    final schedule = ref.read(duaWindowProvider).schedule;
+    if (schedule != null) {
+      await gate.apply(schedule, force: true);
+    }
+  }
+
   bool _notificationPreferenceValue(String key) {
     if (key == notifyDailyTagKey) return _dailyReminderEnabled;
     if (key == notifyStreakTagKey) return _streakReminderEnabled;
     if (key == notifyReengagementTagKey) return _reengagementEnabled;
     if (key == notifyWeeklyTagKey) return _weeklyReflectionEnabled;
     if (key == notifyUpdatesTagKey) return _newContentEnabled;
+    if (key == notifyDuaWindowsTagKey) return _duaWindowsEnabled;
     throw ArgumentError.value(
         key, 'key', 'Unsupported notification preference');
   }
@@ -290,6 +349,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _weeklyReflectionEnabled = enabled;
     } else if (key == notifyUpdatesTagKey) {
       _newContentEnabled = enabled;
+    } else if (key == notifyDuaWindowsTagKey) {
+      _duaWindowsEnabled = enabled;
     } else {
       throw ArgumentError.value(
           key, 'key', 'Unsupported notification preference');
@@ -1420,6 +1481,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   value,
                 )
             : null,
+      ),
+      _buildDivider(),
+      _buildToggleRow(
+        icon: Icons.nights_stay_outlined,
+        label: 'Duʿā Window Reminders',
+        subtitle: 'When a time of accepted duʿā is open',
+        value: _duaWindowsEnabled,
+        onChanged: subTogglesEnabled ? _setDuaWindowsEnabled : null,
       ),
     ]);
   }

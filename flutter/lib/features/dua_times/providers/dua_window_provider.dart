@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/features/dua_times/models/dua_window.dart';
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
+import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'package:sakina/services/dua_window_engine.dart';
 import 'package:sakina/services/dua_window_repository.dart';
 import 'package:sakina/services/location_service.dart';
@@ -94,6 +95,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     Future<String> Function()? resolveTimezone,
     WidgetDataService? widgetDataService,
     Future<SharedPreferences> Function()? prefs,
+    void Function(DuaWindowSchedule schedule)? onScheduleBuilt,
     bool observeLifecycle = true,
     bool autoBuild = true,
     bool startTicker = true,
@@ -104,6 +106,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         _resolveTimezone = resolveTimezone ?? _defaultResolveTimezone,
         _widgetData = widgetDataService,
         _prefs = prefs ?? SharedPreferences.getInstance,
+        _onScheduleBuilt = onScheduleBuilt,
         _observeLifecycle = observeLifecycle,
         _tickerEnabled = startTicker,
         super(DuaWindowState(now: (clock ?? DateTime.now)())) {
@@ -154,6 +157,15 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   final Future<String> Function() _resolveTimezone;
   final WidgetDataService? _widgetData;
   final Future<SharedPreferences> Function() _prefs;
+
+  /// Fired after every successful [rebuild] with the freshly-built schedule.
+  /// The provider wires this to the duʿā calendar-notification scheduler so the
+  /// local reminders are recomputed on the same triggers the card rebuilds on
+  /// (foreground-resume, date-rollover, location change). Kept as a plain
+  /// callback so this notifier stays free of the notification/service layer —
+  /// the DI + opt-in gating lives in the provider (mirrors `_pushToWidget`).
+  final void Function(DuaWindowSchedule schedule)? _onScheduleBuilt;
+
   final bool _observeLifecycle;
 
   /// Whether the per-second countdown ticker is allowed to run at all. Tests
@@ -328,6 +340,15 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       );
       _syncTicker();
       await _pushToWidget(schedule);
+      // Recompute the local calendar-notification schedule on the same triggers
+      // the card rebuilds on. Best-effort: the callback itself never throws (the
+      // scheduler degrades silently), but guard anyway so a hook failure can't
+      // break the card.
+      try {
+        _onScheduleBuilt?.call(schedule);
+      } catch (e) {
+        debugPrint('[DuaWindowNotifier] onScheduleBuilt failed: $e');
+      }
     } catch (e) {
       if (_disposed) return;
       debugPrint('[DuaWindowNotifier] rebuild failed: $e');
@@ -382,5 +403,15 @@ final duaWindowProvider =
     engine: engine,
     locationService: locationService,
     repository: repository,
+    // Recompute the local duʿā calendar reminders whenever the schedule is
+    // rebuilt (foreground-resume / date-rollover / location change). The gate
+    // enforces the opt-in + `notify_dua_windows` pref; it's null (no-op) when
+    // the notifications plugin isn't wired (web / tests). Fire-and-forget so the
+    // card never waits on the OS scheduler.
+    onScheduleBuilt: (schedule) {
+      final gate = ref.read(duaNotificationGateProvider);
+      if (gate == null) return;
+      unawaited(gate.apply(schedule));
+    },
   );
 });

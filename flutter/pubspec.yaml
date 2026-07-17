@@ -72,6 +72,12 @@ dependencies:
   home_widget: ^0.9.3
   lottie: ^3.3.3
 
+  # Local scheduled notifications (duʿā-window calendar reminders — Phase 1).
+  # `timezone` provides TZDateTime for zonedSchedule; the local zone name is
+  # resolved via the existing flutter_timezone and fed to tz.getLocation().
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
   # Duʿā-times feature (dua_acceptance_times widget)
   # Pinned exactly: adhan_dart port has historically re-cased/renamed members
   # (see docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md §4).

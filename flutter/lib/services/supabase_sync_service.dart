@@ -135,6 +135,56 @@ class SupabaseSyncService {
     }
   }
 
+  /// Delete all of [userId]'s rows in [table] whose [column] is strictly less
+  /// than [value]. Used by the precise-notification sync to retire the previous
+  /// `sync_version`'s rows AFTER the new version's rows are safely inserted, so
+  /// the user's schedule is never emptied mid-run (never a blind delete-all).
+  Future<bool> deleteRowsBelow(
+    String table,
+    String userId, {
+    required String column,
+    required int value,
+  }) async {
+    try {
+      await Supabase.instance.client
+          .from(table)
+          .delete()
+          .eq('user_id', userId)
+          .lt(column, value);
+      return true;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] deleteRowsBelow($table) failed: $e');
+      return false;
+    }
+  }
+
+  /// The largest value of an integer [column] across [userId]'s rows in [table],
+  /// or `null` when the user has no rows (or on error). Used to advance the
+  /// precise-notification `sync_version` monotonically per user.
+  Future<int?> fetchMaxInt(
+    String table,
+    String userId, {
+    required String column,
+  }) async {
+    try {
+      final rows = await Supabase.instance.client
+          .from(table)
+          .select(column)
+          .eq('user_id', userId)
+          .order(column, ascending: false)
+          .limit(1);
+      final list = List<Map<String, dynamic>>.from(rows);
+      if (list.isEmpty) return null;
+      final raw = list.first[column];
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      return null;
+    } catch (e) {
+      debugPrint('[SupabaseSyncService] fetchMaxInt($table) failed: $e');
+      return null;
+    }
+  }
+
   /// Insert multiple rows in a single request.
   Future<bool> batchInsertRows(
     String table,
@@ -150,22 +200,32 @@ class SupabaseSyncService {
     }
   }
 
-  /// Upsert multiple rows in a single request, ignoring rows that already
-  /// exist on [onConflict]. Unlike [batchInsertRows], a row that collides
-  /// with an existing one (e.g. a concurrent insert landed between a fetch
-  /// and this push) is skipped rather than failing the whole batch, and
-  /// existing rows are left untouched (their timestamps are preserved).
+  /// Upsert multiple rows in a single request, resolving collisions on the
+  /// [onConflict] columns. Unlike [batchInsertRows], a row that collides with
+  /// an existing one (e.g. a concurrent insert landed between a fetch and this
+  /// push) does NOT fail the whole batch.
+  ///
+  /// [updateOnConflict] chooses the collision behaviour:
+  /// - `false` (default) — IGNORE: the colliding row is skipped and the existing
+  ///   row is left untouched (its timestamps are preserved). Use this when the
+  ///   existing row is authoritative (e.g. `user_achievements.unlocked_at`).
+  /// - `true` — UPDATE: the colliding row's non-conflict columns overwrite the
+  ///   existing row. Use this when the incoming row is authoritative and must
+  ///   win — e.g. the precise-notification sync bumping `sync_version` on a
+  ///   re-synced instant so it survives the subsequent delete-below-version,
+  ///   under the `(user_id, window_type, fire_utc)` unique constraint.
   Future<bool> batchUpsertRows(
     String table,
     List<Map<String, dynamic>> rows, {
     required String onConflict,
+    bool updateOnConflict = false,
   }) async {
     if (rows.isEmpty) return true;
     try {
       await Supabase.instance.client.from(table).upsert(
             rows,
             onConflict: onConflict,
-            ignoreDuplicates: true,
+            ignoreDuplicates: !updateOnConflict,
           );
       return true;
     } catch (e) {

@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -7,7 +10,9 @@ import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
+import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
+import 'package:sakina/services/dua_notification_scheduler.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -180,6 +185,11 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection(
                         'Duʿā Times preview', _buildDuaTimesPreviewButtons()),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildSection('Duʿā notifications',
+                          _buildDuaNotificationButtons()),
+                    ],
                     const SizedBox(height: AppSpacing.xl),
                     _buildSection('Nuclear Options', _buildNuclearButtons()),
                     const SizedBox(height: AppSpacing.xxl),
@@ -511,6 +521,110 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
         _actionChip('Reset (real)', notifier.debugUnfreeze),
       ],
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Duʿā notifications (debug only)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// A fixed local-notification id for the 60s test ping. Deliberately OUTSIDE
+  /// the reserved dua band ([kDuaIdBase]..) so it doesn't pollute the band-count
+  /// reported by the "Reschedule now" button — this ping is the OneSignal ↔
+  /// flutter_local_notifications delegate-coexistence spike, not a real window.
+  static const int _devTestNotificationId = 990001;
+
+  Widget _buildDuaNotificationButtons() {
+    return Column(
+      children: [
+        _fullWidthButton(
+          'Send test duʿā notification (60s)',
+          () => _run(_sendTestDuaNotification),
+        ),
+        const SizedBox(height: 8),
+        _fullWidthButton(
+          'Reschedule duʿā calendar notifications now',
+          () => _run(_rescheduleDuaNotificationsNow),
+        ),
+      ],
+    );
+  }
+
+  /// Requests the iOS notification permission via flutter_local_notifications'
+  /// own Darwin plugin (independent of OneSignal), then schedules ONE local
+  /// notification ~60s out so the tester can lock the phone and watch it fire.
+  /// Doubles as the delegate-coexistence spike.
+  Future<void> _sendTestDuaNotification() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final plugin = ref.read(localNotificationsPluginProvider);
+    if (plugin == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Local notifications unavailable on this platform.'),
+      ));
+      return;
+    }
+
+    // Request iOS permission through the local-notifications plugin's own
+    // Darwin channel (alert/badge/sound). On Android this returns null and the
+    // schedule below still works.
+    await plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+
+    final when = tz.TZDateTime.now(tz.local).add(const Duration(seconds: 60));
+    await plugin.zonedSchedule(
+      _devTestNotificationId,
+      'Sakina',
+      'A time of accepted duʿā is open — test ping.',
+      when,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          kDuaChannelId,
+          kDuaChannelName,
+          channelDescription: kDuaChannelDescription,
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Test duʿā notification scheduled ~60s out. '
+          'Lock the phone and wait.'),
+    ));
+  }
+
+  /// Forces a reschedule of the calendar band, then reports how many dua-band
+  /// notifications are currently pending — so the tester sees it worked even
+  /// though real calendar windows fire far in the future.
+  Future<void> _rescheduleDuaNotificationsNow() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final scheduler = ref.read(duaNotificationSchedulerProvider);
+    final gate = ref.read(duaNotificationGateProvider);
+    if (scheduler == null || gate == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Duʿā scheduler unavailable on this platform.'),
+      ));
+      return;
+    }
+
+    final schedule = ref.read(duaWindowProvider).schedule;
+    if (schedule == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('No duʿā schedule built yet — open the home card first.'),
+      ));
+      return;
+    }
+
+    await gate.apply(schedule, force: true);
+    final count = await scheduler.pendingDuaCount();
+    messenger.showSnackBar(SnackBar(
+      content: Text('Rescheduled. $count dua-band notification(s) pending.'),
+    ));
   }
 
   // ─────────────────────────────────────────────────────────────────────────

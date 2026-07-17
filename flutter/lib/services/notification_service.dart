@@ -16,6 +16,7 @@ const String notifyStreakTagKey = 'notify_streak';
 const String notifyReengagementTagKey = 'notify_reengagement';
 const String notifyWeeklyTagKey = 'notify_weekly';
 const String notifyUpdatesTagKey = 'notify_updates';
+const String notifyDuaWindowsTagKey = 'notify_dua_windows';
 
 const List<String> notificationPreferenceTagKeys = <String>[
   notifyDailyTagKey,
@@ -23,6 +24,7 @@ const List<String> notificationPreferenceTagKeys = <String>[
   notifyReengagementTagKey,
   notifyWeeklyTagKey,
   notifyUpdatesTagKey,
+  notifyDuaWindowsTagKey,
 ];
 
 const String _pushEnabledCacheKey = 'sakina_notifications_push_enabled';
@@ -332,6 +334,7 @@ class NotificationService {
             notifyReengagementTagKey,
             notifyWeeklyTagKey,
             notifyUpdatesTagKey,
+            notifyDuaWindowsTagKey,
           ].join(','),
         );
         if (row != null) {
@@ -383,6 +386,8 @@ class NotificationService {
                 row[notifyReengagementTagKey] as bool? ?? true,
             notifyWeeklyTagKey: row[notifyWeeklyTagKey] as bool? ?? true,
             notifyUpdatesTagKey: row[notifyUpdatesTagKey] as bool? ?? true,
+            notifyDuaWindowsTagKey:
+                row[notifyDuaWindowsTagKey] as bool? ?? true,
           };
           // Update local cache
           final prefs = await _sharedPreferencesLoader();
@@ -523,6 +528,10 @@ class NotificationService {
         return '/cancellation-feedback';
       case 'tour_replay':
         return '/settings?action=replay_tour';
+      case 'dua_window':
+        // Dua-window precise-notification push (server `data.type='dua_window'`).
+        // Route into Build-a-Duʿā so the reminder lands on the action.
+        return '/duas';
       case 'daily_reminder':
       case 'streak_risk':
       case 'streak_milestone':
@@ -567,6 +576,9 @@ class NotificationService {
           prefs.getBool(_scopedPreferenceCacheKey(notifyWeeklyTagKey)) ?? true,
       notifyUpdatesTagKey:
           prefs.getBool(_scopedPreferenceCacheKey(notifyUpdatesTagKey)) ?? true,
+      notifyDuaWindowsTagKey:
+          prefs.getBool(_scopedPreferenceCacheKey(notifyDuaWindowsTagKey)) ??
+              true,
     };
   }
 

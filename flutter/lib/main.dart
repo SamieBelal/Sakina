@@ -3,17 +3,22 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 import 'core/app_lifecycle_observer.dart';
 import 'core/app_session.dart';
 import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
+import 'features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
@@ -104,6 +109,52 @@ Future<void> _persistReferralFromUri(Uri uri) async {
   await prefs.setString(pendingReferralPrefsKey, code);
 }
 
+/// Initialize the local-notifications plugin + the timezone database used by
+/// the duʿā-window calendar scheduler (`DuaNotificationScheduler`,
+/// `zonedSchedule`). Loads the full tz DB and pins the device's IANA local
+/// zone as `tz.local` so `TZDateTime` conversions are correct.
+///
+/// Best-effort: a failure here must never block cold launch — the scheduler
+/// degrades silently, and OneSignal push is unaffected.
+///
+/// TODO(dua-notif Phase 0): device delegate spike. OneSignal 5.x and
+/// flutter_local_notifications both want the iOS `UNUserNotificationCenter`
+/// delegate — pin ownership + assert a local-notification tap routes to /duas
+/// AND OneSignal open-tracking still fires. Do NOT touch AppDelegate here.
+Future<FlutterLocalNotificationsPlugin?> _initLocalNotifications() async {
+  if (kIsWeb) return null;
+  try {
+    tzdata.initializeTimeZones();
+    try {
+      final localZone = (await FlutterTimezone.getLocalTimezone()).identifier;
+      tz.setLocalLocation(tz.getLocation(localZone));
+    } catch (_) {
+      // Unknown/unavailable zone → leave tz.local at its UTC default; the
+      // scheduler falls back gracefully. Non-fatal.
+    }
+    final plugin = FlutterLocalNotificationsPlugin();
+    // TODO(dua-notif Phase 0): device delegate spike — the iOS delegate wiring
+    // (Darwin init + AppDelegate coexistence with OneSignal) is intentionally
+    // NOT configured here; it is a device-QA task. This init is safe to run
+    // now because scheduling is gated behind opt-in (a later slice).
+    const initSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(
+        // Do NOT request permission at init — that races OneSignal's own
+        // prompt. Permission + delegate ownership are resolved in Phase 0.
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
+    );
+    await plugin.initialize(initSettings);
+    return plugin;
+  } catch (error) {
+    debugPrint('local notifications init failed: $error');
+    return null;
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -111,6 +162,13 @@ Future<void> main() async {
   // container the iOS WidgetKit extension reads. No-op on platforms without a
   // widget. Must run before any widgetDataService write.
   await widgetDataService.initialize();
+
+  // Initialize the local-notifications plugin + timezone DB for the duʿā-window
+  // calendar scheduler. Best-effort — never blocks launch. The instance is
+  // handed to `localNotificationsPluginProvider` below so the duʿā scheduler +
+  // Dev Tools can consume it; null (web / init failure) leaves the scheduler
+  // provider null and every caller no-ops.
+  final localNotifications = await _initLocalNotifications();
 
   // Capture any inbound referral deep link BEFORE further init so the
   // pending_referral prefs key is committed by the time the signup flow runs.
@@ -317,6 +375,7 @@ Future<void> main() async {
         cachedOnboardingStateProvider.overrideWithValue(cachedOnboardingState),
         analyticsProvider.overrideWithValue(analytics),
         notificationServiceProvider.overrideWithValue(notificationService),
+        localNotificationsPluginProvider.overrideWithValue(localNotifications),
       ],
       child: AppLifecycleObserver(
         child: SakinaApp(appSession: appSession),
