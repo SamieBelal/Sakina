@@ -89,6 +89,11 @@ class WidgetDeepLinkHandler {
   void _handle(Uri? uri, {required bool cold}) {
     final location = parseWidgetDeepLink(uri);
     if (location == null) return;
+    // NOTE: this path only sees HOME-WIDGET taps (delivered via
+    // HomeWidget.widgetClicked). A Live Activity `Link` is delivered straight to
+    // GoRouter by Flutter deep-linking, NOT this stream, so its
+    // `dua_live_activity_tapped` attribution lives solely in the router redirect
+    // (single owner — no double-count). See lib/core/router.dart.
     onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
       'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
       'launch': cold ? 'cold' : 'warm',

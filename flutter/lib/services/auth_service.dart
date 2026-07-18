@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
+import 'package:sakina/services/dua_live_activity_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/widget_data_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -373,6 +374,13 @@ class AuthService {
     // SEPARATE store from scoped prefs, so a second user on this device must
     // not inherit the previous user's streak/Name (spec §10.5).
     await widgetDataService.clearWidget();
+    // End any live duʿā-window Live Activity too, so a second user on the
+    // device never inherits a lock-screen countdown derived from the first
+    // user's location-based schedule (plan §8 D3).
+    // Force an immediate end-all (orphan-safe, no grace card): a second user on
+    // the device must never see a Lock-Screen activity derived from this user's
+    // location-based window schedule (plan §8 D3).
+    await duaLiveActivityService.end(immediate: true, force: true);
   }
 
   Future<void> deleteAccount() async {
@@ -385,6 +393,10 @@ class AuthService {
       await clearScopedPreferencesForUser(prefs, userId);
     }
     await widgetDataService.clearWidget();
+    // Force an immediate end-all (orphan-safe, no grace card): a second user on
+    // the device must never see a Lock-Screen activity derived from this user's
+    // location-based window schedule (plan §8 D3).
+    await duaLiveActivityService.end(immediate: true, force: true);
   }
 
   bool get isSignedIn => _supabase.auth.currentUser != null;

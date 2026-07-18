@@ -1,7 +1,7 @@
 # Duʿā Live Activities — Implementation Plan (Phase 2)
 
 **Date:** 2026-07-16
-**Status:** Plan — pending review
+**Status:** **BUILT 2026-07-17** on `feat/dua-live-activities` (Dart core fully unit-tested + `flutter analyze` clean; Swift authored + syntax-parsed but needs first Xcode build + on-device Dynamic Island QA). Eng-reviewed 2026-07-17 — **v1 TRIMMED to an honest ticking-countdown** (no background escalation promise). See "Build log" + "Review corrections" + report at the bottom.
 **Author:** Ibrahim + Claude
 **Feature:** Live Activity for the duʿā-acceptance-times window (v1 local, foreground-started)
 **Builds on:** `docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md` (the shipped Duʿā Times home-widget feature). Read that first — this plan reuses its App Group, its precomputed `DuaWindowSchedule`, and its urgency ladder verbatim.
@@ -192,9 +192,9 @@ Build order mirrors the spec's philosophy (prove the seam before the pixels). Ea
 - Add `NSSupportsLiveActivities = YES` to `ios/Runner/Info.plist` and `ios/SakinaWidgetExtension-Info.plist` (§6).
 - Confirm the extension builds; no target-membership change needed (synced group).
 
-**A2. Extract shared domain/copy into `DuaWindowShared.swift`**
+**A2. Extract shared domain/copy into `DuaWindowShared.swift`** *(review: isolate + verify — blast radius = the 2 shipped widgets)*
 - Move `Urgency`, `WindowType`, `Window` (or a lighter `LiveWindow`), `urgencyFor`, `verb`, `closeLabel`, `windowLabel`, `whyLine`, `glyphName`, `duaDeepLinkURL` out of `SakinaDuaTimesWidget.swift` into `DuaWindowShared.swift`, non-`private`.
-- Re-run `flutter build ios --simulator`; the shipped home widget must still render identically (this is the regression gate).
+- **This is a PURE, ISOLATED refactor and must be its OWN commit — no Live Activity code in the same change.** It touches the file powering both shipped home widgets (44 private members today) and there are NO automated snapshot tests for Swift widget views, so the only gate is on-device eyeballing. Verify BOTH shipped widgets (`SakinaWidget` + `SakinaDuaTimesWidget`, all families) render identically on a physical device BEFORE any Live Activity code lands — so any later regression is attributable to the LA work, not the refactor.
 
 ### Phase B — Native ActivityKit surface
 
@@ -322,3 +322,86 @@ v1 is deliberately small because it **reuses** the shipped extension, App Group,
 - **`live_activities` Flutter package** (context7 `/istornz/flutter_live_activities`): `init(appGroupId:)` / `createActivity` / `updateActivity` / `endActivity`; requires `NSSupportsLiveActivities = YES` in **both** app and Widget Extension Info.plist; drives SwiftUI via **UUID-prefixed UserDefaults keys** in a **dedicated extension target** — the conventions that would fight our synced-group setup (basis for the "thin channel" decision, §7).
 - **`home_widget`** (context7 `/abausg/home_widget`): confirms the App Group + `saveWidgetData`/`updateWidget` model already used by `WidgetDataService`; the Live Activity reuses the same App Group but does not need `home_widget` to tick.
 - **Repo:** `docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md`; `ios/SakinaWidget/SakinaDuaTimesWidget.swift` (`Window`/`Urgency`/`urgencyFor`/`resolve(at:)`/`travelGuardTripped`/copy tables/`Text(timerInterval:)`); `ios/SakinaWidget/SakinaWidgetBundle.swift` (single `@main`, two widgets); `ios/SakinaWidget/SETUP.md` (synchronized group, empty `exceptions`, App Group on both targets, Info.plist moved out of synced folder); `lib/services/widget_data_service.dart` (`saveDuaTimesSchedule`, `kDuaTimesPayloadKey`, perf guard, `clearWidget()`); `lib/features/dua_times/providers/dua_window_provider.dart` (`rebuild()`, foreground resume, `_pushToWidget`, ticker); `ios/Runner/AppDelegate.swift`; `ios/Podfile` (`platform :ios, '14.0'`); `ios/Runner.xcodeproj/project.pbxproj` (mixed `IPHONEOS_DEPLOYMENT_TARGET`).
+
+## Review corrections (2026-07-17 — eng-review + outside voice)
+
+**Scope trim (decision):** v1 ships an **honest ticking countdown**, NOT the "alive, escalating 4 AM surface." The plan's escalation copy (comfortable→closing→**last-call** amber "Ask before it closes") CANNOT fire while the app is backgrounded — a *local* Live Activity cannot self-update its `ContentState` on a schedule; only push can. So v1 renders: the crescent glyph + `verb()` + a live `Text(timerInterval:)` countdown + a **static** label. Drop any copy that implies real-time escalation. The escalation is a **Phase 2b (push-to-start)** capability. Set the effort/expectations accordingly.
+
+**Technical corrections to fold (factual fixes — the plan as written is wrong on these):**
+1. **`@available` on the TYPE declarations (§5, was §6).** `if #available(iOS 16.2, *)` around `SakinaDuaTimesLiveActivity()` in the bundle body is NOT enough — `DuaLiveActivityAttributes` (`ActivityAttributes`) and `SakinaDuaTimesLiveActivity` (`ActivityConfiguration`) must carry `@available(iOS 16.2, *)` on the declarations themselves, or the extension won't compile under a <16.2 floor.
+2. **Orphan reconciliation on launch (§8 C1).** The in-memory activity-id map is empty on cold launch, so an activity from a prior session (app killed before `.end`) is orphaned/unreachable and can hit the per-app activity limit or double-render. On launch, enumerate `Activity<DuaLiveActivityAttributes>.activities` and adopt/end stale ones before starting a new one.
+3. **`dismissalPolicy:.after(endUtc)` does NOT end a still-active activity at a future date (§3, §8 C1).** `.after` only controls how long a *dismissed* activity lingers. To auto-clean when the app is killed before close, rely on **`staleDate = endUtc`** (flips to `.stale`, still visible) — accept it lingers as a stale/zeroed state until the next app open calls `.end`. The "self-cleans at the boundary when killed" claim was overstated; correct it.
+4. **MethodChannel messenger wiring (§8 C1).** `AppDelegate` registration "next to `GeneratedPluginRegistrant`" in `didInitializeImplicitFlutterEngine` has NO binary messenger there. Get the messenger from the root `FlutterViewController` (or the engine bridge) — verify before building the bridge.
+5. **Deep-link attribution (§10 O5).** Do NOT reuse `duaDeepLinkURL()` verbatim — append `?source=live_activity` so LA taps are distinguishable from home-widget taps (the north-star metric is unmeasurable otherwise).
+
+**Accepted limitations (documented, not bugs):**
+- Appears only when the user foregrounds during a time-boxed window (rare for the 4 AM night-third) — pairs with the now-shipped scheduled-notifications feature to drive foreground.
+- All-day windows skipped (O1/O2) → no LA on Friday/ʿArafah/Ramadan days (most calendar days). Combined with the above, the surface is dark far more often than the original plan implied.
+- **App Review (§11):** an unprompted lock-screen religious countdown is a novel surface — budget a purpose string / first-run opt-in and a possible reviewer question, not "no new privacy."
+
+**Hardening kept from the section review:** isolate the `DuaWindowShared.swift` refactor as its own verified commit (blast radius = 2 shipped widgets, no snapshot tests — outside-voice #8); a shared Dart↔Swift key-constants source + golden contract test (the exact drift class we hit on the notifications PR).
+
+## Build log (2026-07-17, `feat/dua-live-activities`)
+
+**What was built (all 5 review corrections folded in):**
+
+- **A1 — Info.plist:** `NSSupportsLiveActivities = YES` on Runner + extension.
+- **C2 — Dart seam:** `lib/services/dua_live_activity_service.dart` — channel-
+  abstracted (`LiveActivityChannel`), perf-guarded, idempotent `sync` (start/
+  update/replace) + `end`, `isSupported` cache, error-swallowing. Wire contract:
+  `{window_type, end_utc_millis, urgency, is_all_day, deep_link}`.
+- **D — Lifecycle wiring:** `DuaWindowNotifier._syncLiveActivity()` runs right
+  after `_pushToWidget` (the foreground moment iOS <17.2 needs). O1/O2 (time-boxed
+  only), O4 (idempotent), started/ended analytics via a new static
+  `onAnalyticsEvent` hook (wired in `main.dart`). Ends on sign-out/delete in
+  `auth_service.dart` (D3). Correction #5: LA taps carry `?source=live_activity`
+  and fire `dua_live_activity_tapped` (distinct from `widget_opened`) in
+  `widget_deep_link.dart`.
+- **B — ActivityKit surface:** `ios/DuaLiveActivityAttributes.swift` (shared),
+  `ios/SakinaWidget/DuaLiveActivity.swift` (ActivityConfiguration + Dynamic
+  Island; static "Build" O3 final state), added to `SakinaWidgetBundle` with
+  `if #available(iOS 16.2, *)`. Correction #1: `@available` on the type decls.
+- **C1 — Bridge:** `ios/Runner/LiveActivityBridge.swift` — correction #2 (orphan
+  reconcile via `Activity.activities` on start), #3 (`staleDate = endDate`; end
+  uses `.after(now+120)` grace, not `.after(endDate)`), #4 (messenger from
+  `engineBridge.pluginRegistry.registrar(forPlugin:)`), registered in
+  `AppDelegate`.
+- **Tests:** `test/services/dua_live_activity_service_test.dart` (11 — lifecycle
+  + golden wire-contract), `test/features/dua_times/dua_live_activity_wiring_test.dart`
+  (4 — provider transitions incl. O1 skip + O4 idempotency). All pass; analyze clean.
+
+**DEVIATION FROM PLAN §7 (flagged for review):** the shipped
+`SakinaDuaTimesWidget.swift` was **NOT refactored** into `DuaWindowShared.swift`.
+Instead the Live Activity is **self-contained** — it derives its small copy set
+from the `window_type` string it receives. Rationale: (a) the review trimmed v1's
+escalation ladder, so the shared *logic* the extraction existed to unify is moot;
+(b) I could not compile Swift in the build env, and the refactor's blast radius is
+the **2 shipped widgets** with **no snapshot tests** (device-only gate) — a self-
+contained LA keeps the shipped widgets **untouched** (zero regression risk). Cost:
+~3 windows' worth of static copy duplicated (`DuaLiveCopy` in `DuaLiveActivity.swift`
+vs the widget's tables — same spec §9.1 voice; keep in sync). If you prefer the
+plan's single-source extraction, that's a follow-up on top of this.
+
+**Remaining before ship (device):** manual Xcode target membership (SETUP.md §"Live
+Activity"), first `flutter build ios`, and on-device Dynamic Island QA via the
+existing Dev Tools ▸ Duʿā Times preview buttons.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES_OPEN | Scope trimmed to honest ticking-countdown v1; folded refactor-isolation + golden contract test; 5 factual technical corrections captured |
+| Outside Voice | `/plan-eng-review` (Claude subagent; codex broken on host) | Independent 2nd opinion | 1 | ISSUES_FOUND | 12 findings; #5/#7/#1/#11 drove the scope trim; #3/#4/#5/#6/#9 folded as factual corrections |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+
+**Completion summary:** Step 0 scope accepted (irreducible minimum for a Live Activity), then re-scoped after the outside voice: **v1 trimmed** to a ticking countdown + static label (no local escalation it can't deliver). Architecture: 1 (shared-file refactor isolation). Code Quality: 1 (Dart↔Swift key contract → golden test). Perf: none. Outside voice: 12 findings; 5 folded as factual corrections, 4 (#1/#5/#7/#11) drove the trim, rest documented as limitations. Device-only Dynamic Island QA remains (iPhone 14 Pro+).
+
+**CROSS-MODEL:** review + outside voice agreed the local surface is thin; user resolved by trimming v1 (not deferring to 2b, not building the full escalation promise).
+
+**VERDICT:** ISSUES_OPEN — v1 is buildable as a TRIMMED honest ticking-countdown once the 5 technical corrections are applied and the escalation copy is dropped. The "alive/escalating" version is Phase 2b (push-to-start + APNs proxy), explicitly deferred. Not started; not ship-scoped until the corrections land in the plan's step detail.
+
+**UNRESOLVED DECISIONS:**
+- ~~O1/O3/O4~~ **CONFIRMED 2026-07-17** (build start): O1 = **skip all-day windows** (time-boxed only); O3 = **final 'Build your duʿā' state then dismiss** at close; O4 = **idempotent start** (update if a window activity already exists, dedup by window id, no once/day cap).
+- ~~Sequencing vs the scheduled-notifications feature~~ **CLEARED** — PR #53 merged 2026-07-17 18:12; P2-2 cron reconciled in `34609e5`. LA build started 2026-07-17.
+- Phase 2b (push-to-start) — deferred, un-triggered

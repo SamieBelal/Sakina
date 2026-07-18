@@ -446,10 +446,40 @@ abstract final class AnalyticsEvents {
   /// card affordance — the card degrades to calendar + soft-night windows.
   static const String duaTimesLocationDenied = 'dua_times_location_denied';
 
+  // ── Duʿā Times Live Activity (Lock Screen + Dynamic Island) ──
+  // Phase 2 of Duʿā Times: the same active-window countdown promoted to the
+  // Lock Screen / Dynamic Island (spec plan
+  // docs/superpowers/plans/2026-07-16-dua-live-activities.md §10 O5). v1 is a
+  // local, foreground-started ticking countdown (no push). The north star is
+  // identical to the card/home widget: every glance + tap drives Build-a-Duʿā.
+  // Emitted from DuaWindowNotifier via its static onAnalyticsEvent hook (no
+  // Riverpod in the service layer), mirroring the widget's onAnalyticsEvent
+  // pattern. The tap event is emitted from the router redirect (single owner).
+  /// Fired when a Live Activity is started for a newly-active window.
+  /// Props: `active_window` (window type), `urgency`.
+  static const String duaLiveActivityStarted = 'dua_live_activity_started';
+
+  /// Fired when the Live Activity (or a Dynamic Island element) is tapped and
+  /// deep-links into Build-a-Duʿā. Distinguished from a home-widget tap by the
+  /// `source: live_activity` param on the deep link (plan correction #5).
+  /// Props: `active_window`, `urgency`.
+  static const String duaLiveActivityTapped = 'dua_live_activity_tapped';
+
+  /// Fired when the Live Activity is ended. Props: `active_window`, `reason`
+  /// (window_closed|window_changed). Sign-out teardown is intentionally NOT
+  /// instrumented (the user is leaving; low signal), so there is no
+  /// `signed_out` reason — the wipe still happens, it's just not measured.
+  static const String duaLiveActivityEnded = 'dua_live_activity_ended';
+
   // Property keys for the dua-times events.
   static const String propActiveWindow = 'active_window';
   static const String propNextWindow = 'next_window';
   static const String propUrgency = 'urgency';
+  static const String propReason = 'reason';
+
+  /// Reason values for [duaLiveActivityEnded].
+  static const String liveActivityEndWindowClosed = 'window_closed';
+  static const String liveActivityEndWindowChanged = 'window_changed';
 
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables

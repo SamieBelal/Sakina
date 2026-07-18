@@ -10,6 +10,8 @@ import 'package:sakina/features/dua_times/models/dua_window.dart';
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
 import 'package:sakina/features/dua_times/models/dua_window_type.dart';
 import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/dua_live_activity_service.dart';
 import 'package:sakina/services/dua_window_engine.dart';
 import 'package:sakina/services/dua_window_repository.dart';
 import 'package:sakina/services/location_service.dart';
@@ -94,6 +96,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     DateTime Function()? clock,
     Future<String> Function()? resolveTimezone,
     WidgetDataService? widgetDataService,
+    DuaLiveActivityService? liveActivityService,
     Future<SharedPreferences> Function()? prefs,
     void Function(DuaWindowSchedule schedule)? onScheduleBuilt,
     bool observeLifecycle = true,
@@ -105,6 +108,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         _clock = clock ?? DateTime.now,
         _resolveTimezone = resolveTimezone ?? _defaultResolveTimezone,
         _widgetData = widgetDataService,
+        _liveActivity = liveActivityService,
         _prefs = prefs ?? SharedPreferences.getInstance,
         _onScheduleBuilt = onScheduleBuilt,
         _observeLifecycle = observeLifecycle,
@@ -142,6 +146,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     state = state.copyWith(schedule: schedule, now: _clock());
     _syncTicker();
     unawaited(_pushToWidget(schedule));
+    unawaited(_syncLiveActivity(schedule));
   }
 
   /// Exit preview mode and rebuild the real schedule.
@@ -150,12 +155,20 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     unawaited(rebuild());
   }
 
+  /// Static analytics hook (mirrors [DuasNotifier.onAnalyticsEvent]). Wired in
+  /// `main.dart` to `analytics.track`; left null in tests. Bridges the Live
+  /// Activity start/end telemetry without giving this notifier an analytics
+  /// dependency (the codebase's "no Riverpod/analytics in the notifier" rule).
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   final DuaWindowEngine _engine;
   final LocationService _location;
   final DuaWindowRepository _repository;
   final DateTime Function() _clock;
   final Future<String> Function() _resolveTimezone;
   final WidgetDataService? _widgetData;
+  final DuaLiveActivityService? _liveActivity;
   final Future<SharedPreferences> Function() _prefs;
 
   /// Fired after every successful [rebuild] with the freshly-built schedule.
@@ -340,6 +353,12 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       );
       _syncTicker();
       await _pushToWidget(schedule);
+      // Promote the active time-boxed window to a Lock-Screen / Dynamic Island
+      // Live Activity (best-effort, no-ops off-iOS). This IS the foreground
+      // moment iOS < 17.2 requires to start one (plan §4) — `rebuild` runs on
+      // `resumed`. Right next to the widget push so the two surfaces stay in
+      // lockstep.
+      await _syncLiveActivity(schedule);
       // Recompute the local calendar-notification schedule on the same triggers
       // the card rebuilds on. Best-effort: the callback itself never throws (the
       // scheduler degrades silently), but guard anyway so a hook failure can't
@@ -372,6 +391,73 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       // Widget push is best-effort — never break the card on a widget failure.
       debugPrint('[DuaWindowNotifier] _pushToWidget failed: $e');
     }
+  }
+
+  /// Reconcile the Live Activity with the freshly-built [schedule] (plan §8 D2).
+  ///
+  /// - An active, **time-boxed** window (not all-day — plan O1/O2) → start (or
+  ///   update / replace) the ticking countdown activity.
+  /// - No active time-boxed window (between windows, or an all-day window is
+  ///   active) → end any live activity.
+  ///
+  /// Emits `dua_live_activity_started` / `_ended` via [onAnalyticsEvent] on
+  /// genuine transitions. Best-effort: the service never throws, but guard
+  /// anyway so a Live-Activity failure can't break the card (like the widget
+  /// push above).
+  Future<void> _syncLiveActivity(DuaWindowSchedule schedule) async {
+    final service = _liveActivity ?? duaLiveActivityService;
+    try {
+      final active = schedule.active;
+      // O1/O2: only time-boxed windows get a Live Activity — an all-day window
+      // has no countdown, so it would burn the single LA slot with static copy.
+      final isTimeBoxed = active != null && !active.isAllDay;
+      if (isTimeBoxed) {
+        final content = DuaLiveActivityContent.fromWindow(
+          active,
+          schedule.urgency,
+        );
+        final result = await service.sync(content);
+        // A replace ends the previous window before starting the new one.
+        if (result.endedWindowType != null) {
+          _emitLiveActivity(
+            AnalyticsEvents.duaLiveActivityEnded,
+            activeWindow: result.endedWindowType,
+            reason: AnalyticsEvents.liveActivityEndWindowChanged,
+          );
+        }
+        if (result.didStart) {
+          _emitLiveActivity(
+            AnalyticsEvents.duaLiveActivityStarted,
+            activeWindow: content.windowType,
+            urgency: content.urgency,
+          );
+        }
+      } else {
+        final endedType = await service.end();
+        if (endedType != null) {
+          _emitLiveActivity(
+            AnalyticsEvents.duaLiveActivityEnded,
+            activeWindow: endedType,
+            reason: AnalyticsEvents.liveActivityEndWindowClosed,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[DuaWindowNotifier] _syncLiveActivity failed: $e');
+    }
+  }
+
+  void _emitLiveActivity(
+    String event, {
+    String? activeWindow,
+    String? urgency,
+    String? reason,
+  }) {
+    final props = <String, dynamic>{};
+    if (activeWindow != null) props[AnalyticsEvents.propActiveWindow] = activeWindow;
+    if (urgency != null) props[AnalyticsEvents.propUrgency] = urgency;
+    if (reason != null) props[AnalyticsEvents.propReason] = reason;
+    onAnalyticsEvent?.call(event, props);
   }
 
   static String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'

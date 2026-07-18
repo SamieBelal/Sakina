@@ -21,6 +21,18 @@ void main() {
       );
     });
 
+    test('Live Activity link (host=widget, no homeWidget marker) → /duas', () {
+      // The LA `Link` uses `?source=live_activity` (NOT the home_widget
+      // `?homeWidget` marker) and is delivered raw to the router. It must still
+      // resolve so the router redirect can map it — else "no routes for
+      // sakina://widget/build-dua?source=live_activity" (the observed 404).
+      expect(
+        parseWidgetDeepLink(
+            Uri.parse('sakina://widget/build-dua?source=live_activity')),
+        '/duas',
+      );
+    });
+
     test('non-widget link → null (ignored)', () {
       expect(parseWidgetDeepLink(Uri.parse('https://sakina.app/referral/abc')),
           isNull);

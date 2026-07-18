@@ -18,6 +18,7 @@ import '../features/onboarding/screens/hook_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
 import '../services/analytics_events.dart';
+import 'widget_deep_link.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
@@ -123,10 +124,32 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
     observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
-    redirect: (context, state) => onboardingGateRedirect(
-      currentPath: state.uri.path,
-      appSession: appSession,
-    ),
+    redirect: (context, state) {
+      // Widget + Live Activity deep links arrive as a full `sakina://widget/...`
+      // URI. The home widget routes via `HomeWidget.widgetClicked`, but a Live
+      // Activity `Link` is delivered straight to the router by Flutter deep-
+      // linking — so GoRouter sees the raw URI and 404s. Normalize it here to
+      // the in-app path (`/duas` / `/muhasabah`). The mapped path re-runs this
+      // redirect (host is no longer `widget`), so the onboarding gate still
+      // applies and there's no loop.
+      final widgetTarget = parseWidgetDeepLink(state.uri);
+      if (widgetTarget != null) {
+        // A Live Activity tap (source=live_activity) fires its attribution here,
+        // exactly once and from a single owner — only the raw URI matches (the
+        // mapped path re-runs with host != widget). Home-widget taps never reach
+        // this branch (they arrive via HomeWidget.widgetClicked), so there is no
+        // double-count. No cold/warm prop: the redirect can't reliably tell.
+        if (state.uri.queryParameters['source'] == 'live_activity') {
+          WidgetDeepLinkHandler.onAnalyticsEvent
+              ?.call(AnalyticsEvents.duaLiveActivityTapped, const {});
+        }
+        return widgetTarget;
+      }
+      return onboardingGateRedirect(
+        currentPath: state.uri.path,
+        appSession: appSession,
+      );
+    },
     routes: [
       // Onboarding (no bottom nav)
       GoRoute(
