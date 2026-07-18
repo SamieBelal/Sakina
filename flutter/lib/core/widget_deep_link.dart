@@ -89,19 +89,15 @@ class WidgetDeepLinkHandler {
   void _handle(Uri? uri, {required bool cold}) {
     final location = parseWidgetDeepLink(uri);
     if (location == null) return;
-    // A Live Activity tap carries `?source=live_activity` (plan correction #5)
-    // so its tap-through into Build-a-Duʿā is measurable separately from a
-    // home-widget tap — otherwise the LA's north-star metric is invisible.
-    if (uri?.queryParameters['source'] == 'live_activity') {
-      onAnalyticsEvent?.call(AnalyticsEvents.duaLiveActivityTapped, {
-        'launch': cold ? 'cold' : 'warm',
-      });
-    } else {
-      onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
-        'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
-        'launch': cold ? 'cold' : 'warm',
-      });
-    }
+    // NOTE: this path only sees HOME-WIDGET taps (delivered via
+    // HomeWidget.widgetClicked). A Live Activity `Link` is delivered straight to
+    // GoRouter by Flutter deep-linking, NOT this stream, so its
+    // `dua_live_activity_tapped` attribution lives solely in the router redirect
+    // (single owner — no double-count). See lib/core/router.dart.
+    onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
+      'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
+      'launch': cold ? 'cold' : 'warm',
+    });
     _navigate(location);
   }
 

@@ -52,7 +52,10 @@ private enum DuaLiveCopy {
     }
 
     /// The lead verb. Amber last-call is a color treatment, not a copy change,
-    /// so the verb stays calm + unambiguous (matches the widget's `lockVerb`).
+    /// so the verb stays calm + unambiguous. NOTE: this is intentionally a small
+    /// self-contained copy set for the 3 time-boxed windows v1 ever starts — it
+    /// is NOT a verbatim mirror of the widget's `lockVerb`/tables (see the file
+    /// header + plan §7 deviation). Keep the *voice* aligned if either changes.
     static func verb(urgency: String) -> String {
         urgency == "last_call" ? "Ask before it closes" : "Make your duʿā"
     }
@@ -66,6 +69,16 @@ private enum DuaLiveCopy {
 @available(iOS 16.2, *)
 private func duaEndDate(_ state: DuaLiveActivityAttributes.ContentState) -> Date {
     Date(timeIntervalSince1970: Double(state.endUtcMillis) / 1000.0)
+}
+
+/// The countdown range, clamped so `lower <= upper`. A past/equal end instant
+/// (clock drift, or a foreground that lands just after the window closed before
+/// `end` fires) would make `now...endDate` an INVERTED ClosedRange, which traps
+/// the widget process. Clamp the upper bound to guard that sharp edge.
+@available(iOS 16.2, *)
+private func duaTimerRange(_ state: DuaLiveActivityAttributes.ContentState) -> ClosedRange<Date> {
+    let now = Date()
+    return now...max(duaEndDate(state), now.addingTimeInterval(1))
 }
 
 @available(iOS 16.2, *)
@@ -111,7 +124,7 @@ private struct DuaLiveActivityLockView: View {
                     Text(DuaLiveCopy.verb(urgency: state.urgency))
                         .font(.headline).fontWeight(.semibold)
                         .lineLimit(1).minimumScaleFactor(0.7)
-                    (Text(timerInterval: Date()...duaEndDate(state), countsDown: true)
+                    (Text(timerInterval: duaTimerRange(state), countsDown: true)
                         + Text(" · \(DuaLiveCopy.closeLabel(context.attributes.windowType))"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -139,7 +152,7 @@ struct SakinaDuaTimesLiveActivity: Widget {
         } dynamicIsland: { context in
             let state = context.state
             let isLastCall = state.urgency == "last_call"
-            let endDate = duaEndDate(state)
+            let timerRange = duaTimerRange(state)
 
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -167,7 +180,7 @@ struct SakinaDuaTimesLiveActivity: Widget {
                             Text("The window has closed.")
                                 .font(.subheadline).foregroundStyle(.secondary)
                         } else {
-                            (Text(timerInterval: Date()...endDate, countsDown: true)
+                            (Text(timerInterval: timerRange, countsDown: true)
                                 + Text(" · \(DuaLiveCopy.closeLabel(context.attributes.windowType))"))
                                 .font(.subheadline).foregroundStyle(.secondary)
                                 .monospacedDigit().lineLimit(1)
@@ -188,7 +201,7 @@ struct SakinaDuaTimesLiveActivity: Widget {
                     Image(systemName: "hands.sparkles.fill")
                         .foregroundStyle(DuaLAPalette.gold)
                 } else {
-                    Text(timerInterval: Date()...endDate, countsDown: true)
+                    Text(timerInterval: timerRange, countsDown: true)
                         .monospacedDigit()
                         .frame(maxWidth: 56)
                         .foregroundStyle(isLastCall ? DuaLAPalette.amber : DuaLAPalette.gold)

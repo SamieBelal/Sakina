@@ -236,9 +236,10 @@ class DuaLiveActivityService {
         _current = content;
         return const LiveActivitySyncResult(LiveActivityTransition.updated);
       }
-      // Different window is active now — end the old, start the new.
+      // Different window is active now — end the old (immediately, so it doesn't
+      // linger in a grace state while the new one starts), then start the new.
       final endedType = current.windowType;
-      await _channel.end(_endArgs(current));
+      await _channel.end(_endArgs(current, immediate: true));
       await _channel.start(content.toMap());
       _current = content;
       return LiveActivitySyncResult(
@@ -251,27 +252,47 @@ class DuaLiveActivityService {
     }
   }
 
-  /// End the live activity if one is live. Returns the window type that was
-  /// ended (for analytics), or null if nothing was live. The native side
-  /// applies the O3 grace behaviour (flip to a static "Build your duʿā" final
-  /// state, then dismiss). Never throws.
-  Future<String?> end() async {
+  /// End the live activity. Returns the window type that was ended (for
+  /// analytics), or null if nothing was live. Never throws.
+  ///
+  /// - [immediate] true dismisses the activity at once (sign-out / account-
+  ///   delete — any residue on a shared device is a privacy concern); false
+  ///   applies the O3 grace (flip to a static "Build your duʿā", then dismiss).
+  /// - [force] true always dispatches a native **end-all** even when this
+  ///   process has no [_current] — so an orphaned activity from a killed prior
+  ///   session (whose id we lost on cold launch) is still torn down before the
+  ///   next user. The routine window-closed path leaves [force] false so it
+  ///   no-ops when nothing is live, avoiding a channel call on every
+  ///   between-windows rebuild.
+  Future<String?> end({bool immediate = false, bool force = false}) async {
     final current = _current;
-    if (current == null) return null;
     _current = null;
+    if (current == null && !force) return null;
+    if (!await isSupported()) return current?.windowType;
     try {
-      await _channel.end(_endArgs(current));
+      final args = current != null
+          ? _endArgs(current, immediate: immediate)
+          : <String, dynamic>{
+              'final_build_state': !immediate,
+              'immediate': immediate,
+            };
+      await _channel.end(args);
     } catch (e) {
       debugPrint('[DuaLiveActivityService] end failed: $e');
     }
-    return current.windowType;
+    return current?.windowType;
   }
 
-  Map<String, dynamic> _endArgs(DuaLiveActivityContent content) => {
+  Map<String, dynamic> _endArgs(
+    DuaLiveActivityContent content, {
+    required bool immediate,
+  }) =>
+      {
         ...content.toMap(),
-        // Signals the native side to render the O3 final "Build your duʿā"
-        // state (static, routes to Build-a-Duʿā) before dismissing.
-        'final_build_state': true,
+        // `final_build_state` renders the O3 static "Build your duʿā" state
+        // before dismissing; skipped for an immediate (privacy) teardown.
+        'final_build_state': !immediate,
+        'immediate': immediate,
       };
 }
 

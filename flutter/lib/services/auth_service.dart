@@ -377,7 +377,10 @@ class AuthService {
     // End any live duʿā-window Live Activity too, so a second user on the
     // device never inherits a lock-screen countdown derived from the first
     // user's location-based schedule (plan §8 D3).
-    await duaLiveActivityService.end();
+    // Force an immediate end-all (orphan-safe, no grace card): a second user on
+    // the device must never see a Lock-Screen activity derived from this user's
+    // location-based window schedule (plan §8 D3).
+    await duaLiveActivityService.end(immediate: true, force: true);
   }
 
   Future<void> deleteAccount() async {
@@ -390,7 +393,10 @@ class AuthService {
       await clearScopedPreferencesForUser(prefs, userId);
     }
     await widgetDataService.clearWidget();
-    await duaLiveActivityService.end();
+    // Force an immediate end-all (orphan-safe, no grace card): a second user on
+    // the device must never see a Lock-Screen activity derived from this user's
+    // location-based window schedule (plan §8 D3).
+    await duaLiveActivityService.end(immediate: true, force: true);
   }
 
   bool get isSignedIn => _supabase.auth.currentUser != null;

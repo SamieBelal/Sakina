@@ -456,7 +456,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     final props = <String, dynamic>{};
     if (activeWindow != null) props[AnalyticsEvents.propActiveWindow] = activeWindow;
     if (urgency != null) props[AnalyticsEvents.propUrgency] = urgency;
-    if (reason != null) props['reason'] = reason;
+    if (reason != null) props[AnalyticsEvents.propReason] = reason;
     onAnalyticsEvent?.call(event, props);
   }
 

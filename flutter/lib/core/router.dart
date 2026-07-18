@@ -134,11 +134,14 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
       // applies and there's no loop.
       final widgetTarget = parseWidgetDeepLink(state.uri);
       if (widgetTarget != null) {
-        // A Live Activity tap (source=live_activity) fires its own attribution
-        // exactly once — only the raw URI matches here, not the mapped path.
+        // A Live Activity tap (source=live_activity) fires its attribution here,
+        // exactly once and from a single owner — only the raw URI matches (the
+        // mapped path re-runs with host != widget). Home-widget taps never reach
+        // this branch (they arrive via HomeWidget.widgetClicked), so there is no
+        // double-count. No cold/warm prop: the redirect can't reliably tell.
         if (state.uri.queryParameters['source'] == 'live_activity') {
           WidgetDeepLinkHandler.onAnalyticsEvent
-              ?.call(AnalyticsEvents.duaLiveActivityTapped, {'launch': 'warm'});
+              ?.call(AnalyticsEvents.duaLiveActivityTapped, const {});
         }
         return widgetTarget;
       }

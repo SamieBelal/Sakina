@@ -452,8 +452,9 @@ abstract final class AnalyticsEvents {
   // docs/superpowers/plans/2026-07-16-dua-live-activities.md §10 O5). v1 is a
   // local, foreground-started ticking countdown (no push). The north star is
   // identical to the card/home widget: every glance + tap drives Build-a-Duʿā.
-  // Emitted from DuaWindowNotifier via the onLiveActivityEvent hook (no Riverpod
-  // in the service layer), mirroring the widget's onAnalyticsEvent pattern.
+  // Emitted from DuaWindowNotifier via its static onAnalyticsEvent hook (no
+  // Riverpod in the service layer), mirroring the widget's onAnalyticsEvent
+  // pattern. The tap event is emitted from the router redirect (single owner).
   /// Fired when a Live Activity is started for a newly-active window.
   /// Props: `active_window` (window type), `urgency`.
   static const String duaLiveActivityStarted = 'dua_live_activity_started';
@@ -464,20 +465,21 @@ abstract final class AnalyticsEvents {
   /// Props: `active_window`, `urgency`.
   static const String duaLiveActivityTapped = 'dua_live_activity_tapped';
 
-  /// Fired when the Live Activity is ended (window closed, window changed, or
-  /// sign-out). Props: `active_window`, `reason` (window_closed|window_changed|
-  /// signed_out).
+  /// Fired when the Live Activity is ended. Props: `active_window`, `reason`
+  /// (window_closed|window_changed). Sign-out teardown is intentionally NOT
+  /// instrumented (the user is leaving; low signal), so there is no
+  /// `signed_out` reason — the wipe still happens, it's just not measured.
   static const String duaLiveActivityEnded = 'dua_live_activity_ended';
 
   // Property keys for the dua-times events.
   static const String propActiveWindow = 'active_window';
   static const String propNextWindow = 'next_window';
   static const String propUrgency = 'urgency';
+  static const String propReason = 'reason';
 
   /// Reason values for [duaLiveActivityEnded].
   static const String liveActivityEndWindowClosed = 'window_closed';
   static const String liveActivityEndWindowChanged = 'window_changed';
-  static const String liveActivityEndSignedOut = 'signed_out';
 
   // Source values for the `source` property attached to
   // refereeSignedUpWithReferral and refereeGranted7dWindow events. Enables

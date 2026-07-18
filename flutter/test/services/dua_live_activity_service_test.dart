@@ -167,7 +167,8 @@ void main() {
       expect(svc.currentWindowType, isNull);
     });
 
-    test('end when nothing live → no-op, returns null', () async {
+    test('routine end when nothing live → no-op, returns null (no spam)',
+        () async {
       final channel = _FakeChannel();
       final svc = DuaLiveActivityService(channel: channel);
 
@@ -175,6 +176,35 @@ void main() {
 
       expect(ended, isNull);
       expect(channel.calls, isEmpty);
+    });
+
+    test('force end when nothing live → dispatches native end-all (orphan-safe)',
+        () async {
+      // Sign-out path: even with no in-memory activity, an orphan from a killed
+      // prior session must be torn down before the next user.
+      final channel = _FakeChannel();
+      final svc = DuaLiveActivityService(channel: channel);
+
+      final ended = await svc.end(immediate: true, force: true);
+
+      expect(ended, isNull); // nothing we owned
+      expect(channel.calls, ['end']); // but native end-all still fired
+      expect(channel.ends.single['immediate'], true);
+      expect(channel.ends.single['final_build_state'], false);
+    });
+
+    test('immediate end of a live activity → immediate flag, no grace card',
+        () async {
+      final channel = _FakeChannel();
+      final svc = DuaLiveActivityService(channel: channel);
+      await svc.sync(
+          DuaLiveActivityContent.fromWindow(_window(), UrgencyState.closing));
+
+      final ended = await svc.end(immediate: true, force: true);
+
+      expect(ended, 'last_third_of_night');
+      expect(channel.ends.single['immediate'], true);
+      expect(channel.ends.single['final_build_state'], false);
     });
 
     test('unsupported OS → sync no-ops, no channel calls', () async {
