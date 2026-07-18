@@ -29,12 +29,24 @@ enum DuaPreciseSyncOutcome {
 }
 
 /// The result of a precise sync: the [outcome] plus, on [DuaPreciseSyncOutcome
-/// .synced], the [count] of precise instants written.
+/// .synced], the [count] of precise instants written and the [syncVersion] they
+/// were written under.
 class DuaPreciseSyncResult {
-  const DuaPreciseSyncResult(this.outcome, {this.count = 0});
+  const DuaPreciseSyncResult(
+    this.outcome, {
+    this.count = 0,
+    this.syncVersion,
+  });
 
   final DuaPreciseSyncOutcome outcome;
   final int count;
+
+  /// The `sync_version` the rows were written under (null unless [outcome] is
+  /// [DuaPreciseSyncOutcome.synced]). Stamped onto `dua_notif_synced` so the
+  /// client sync can be joined to the server `notification_sent{dua_window}`
+  /// (whose rows carry the same version) — per-sync attribution, not just
+  /// population-level.
+  final int? syncVersion;
 }
 
 /// The narrow persistence surface the sync service needs, so it can be unit
@@ -235,6 +247,7 @@ class DuaPreciseSyncService {
       return DuaPreciseSyncResult(
         DuaPreciseSyncOutcome.synced,
         count: rows.length,
+        syncVersion: nextVersion,
       );
     } catch (error) {
       debugPrint('[DuaPreciseSyncService] sync failed: $error');

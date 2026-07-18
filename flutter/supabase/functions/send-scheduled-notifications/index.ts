@@ -41,6 +41,7 @@ export type DuaPreciseRow = {
   title: string | null;
   body: string | null;
   sent_at: string | null;
+  sync_version: number | null;
 };
 
 // The push type stamped onto dua-window sends. The client maps this to /duas
@@ -299,7 +300,7 @@ async function fetchDueDuaNotifications(
   // opt-in prefs in a second query + in-code filter.
   const { data: rows, error } = await supabase
     .from("dua_precise_notifications")
-    .select("id, user_id, window_type, fire_utc, title, body, sent_at")
+    .select("id, user_id, window_type, fire_utc, title, body, sent_at, sync_version")
     .is("sent_at", null)
     .lte("fire_utc", nowIso)
     .gt("fire_utc", lateFloorIso);
@@ -393,6 +394,8 @@ async function processDuaPreciseWindows(params: {
     await mixpanelTrack("notification_sent", row.user_id, {
       type: DUA_WINDOW_DATA_TYPE,
       window_type: row.window_type,
+      // Per-sync join key back to the client `dua_notif_synced` (same version).
+      sync_version: row.sync_version,
     }, {
       insertId: `${row.user_id}:${DUA_WINDOW_DATA_TYPE}:${row.id}`,
     });

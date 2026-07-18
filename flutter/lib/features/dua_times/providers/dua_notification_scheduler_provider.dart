@@ -129,6 +129,10 @@ class DuaNotificationGate {
         onAnalyticsEvent?.call(AnalyticsEvents.duaNotifSynced, {
           AnalyticsEvents.propCount: syncResult.count,
           AnalyticsEvents.propOutcome: syncResult.outcome.name,
+          // Per-sync join key to the server `notification_sent{dua_window}`
+          // (present only on a `synced` outcome).
+          if (syncResult.syncVersion != null)
+            AnalyticsEvents.propSyncVersion: syncResult.syncVersion,
         });
       }
     } catch (error) {

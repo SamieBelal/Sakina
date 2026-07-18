@@ -58,6 +58,7 @@ function row(overrides: Partial<DuaPreciseRow>): DuaPreciseRow {
     title: "A window for duʿā is open",
     body: "This is a blessed time.",
     sent_at: null,
+    sync_version: 1,
     ...overrides,
   };
 }
