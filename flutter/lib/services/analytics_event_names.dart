@@ -500,12 +500,12 @@ abstract final class AnalyticsEvents {
   /// server-side `notification_sent{type: dua_window}`. Only fires for opted-in
   /// users when a sync actually runs (past the 6h throttle); `skipped` no-ops
   /// are suppressed. Props: `count` (rows synced — 0 for non-`synced`
-  /// outcomes), `outcome` (synced|cleared|failed). CAVEATS for querying: (1)
-  /// this is POPULATION/user-level attribution vs the server event (no
-  /// per-instant/`window_type` join key), so it answers "cron down vs clients
-  /// not syncing" at the aggregate level, not per push. (2) It does NOT measure
-  /// OPT-IN RATE — the opted-out path emits nothing (by design, to avoid
-  /// per-rebuild noise); derive opt-in from the notification-preference events.
+  /// outcomes), `outcome` (synced|cleared|failed), `sync_version` (on `synced`
+  /// only — the PER-SYNC join key: the server `notification_sent{dua_window}`
+  /// carries the same version, so a specific sync can be traced to the exact
+  /// pushes it produced). CAVEAT: this does NOT measure OPT-IN RATE — the
+  /// opted-out path emits nothing (by design, to avoid per-rebuild noise);
+  /// derive opt-in from the notification-preference events.
   static const String duaNotifSynced = 'dua_notif_synced';
 
   // Property keys for the dua-times events.
@@ -518,6 +518,12 @@ abstract final class AnalyticsEvents {
   static const String propLocationPresent = 'location_present';
   static const String propCount = 'count';
   static const String propOutcome = 'outcome';
+
+  /// The `sync_version` the precise rows were written under — the per-sync join
+  /// key between `dua_notif_synced` (client) and `notification_sent{dua_window}`
+  /// (server, whose rows carry the same version). Present only on a `synced`
+  /// outcome. Lets a specific sync be traced to the exact pushes it produced.
+  static const String propSyncVersion = 'sync_version';
 
   /// `source` on `widget_opened` — disambiguates which surface drove the tap so
   /// the duʿā-times widget is separable from the daily-Name widget (both can

@@ -84,9 +84,14 @@ void main() {
 
   tearDown(() => DuaNotificationGate.onAnalyticsEvent = null);
 
-  test('apply emits dua_notif_synced{count,outcome} when a sync runs', () async {
+  test('apply emits dua_notif_synced{count,outcome,sync_version} on a synced run',
+      () async {
     final sync = _StubSync(
-      const DuaPreciseSyncResult(DuaPreciseSyncOutcome.synced, count: 7),
+      const DuaPreciseSyncResult(
+        DuaPreciseSyncOutcome.synced,
+        count: 7,
+        syncVersion: 42,
+      ),
     );
     final gate = DuaNotificationGate(
       scheduler: _StubScheduler(),
@@ -101,6 +106,26 @@ void main() {
     expect(events, [AnalyticsEvents.duaNotifSynced]);
     expect(props.single[AnalyticsEvents.propCount], 7);
     expect(props.single[AnalyticsEvents.propOutcome], 'synced');
+    // The per-sync join key to server notification_sent.
+    expect(props.single[AnalyticsEvents.propSyncVersion], 42);
+  });
+
+  test('cleared outcome emits no sync_version (only present on synced)',
+      () async {
+    final sync = _StubSync(
+      const DuaPreciseSyncResult(DuaPreciseSyncOutcome.cleared),
+    );
+    final gate = DuaNotificationGate(
+      scheduler: _StubScheduler(),
+      notificationService: _StubNotif(optedIn: true, duaEnabled: true),
+      preciseSync: sync,
+      clock: _clock,
+    );
+
+    await gate.apply(_schedule());
+
+    expect(props.single[AnalyticsEvents.propOutcome], 'cleared');
+    expect(props.single.containsKey(AnalyticsEvents.propSyncVersion), false);
   });
 
   test('opted-out → clears, emits nothing (no sync ran)', () async {

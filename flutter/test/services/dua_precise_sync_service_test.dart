@@ -383,9 +383,11 @@ void main() {
       expect(result.outcome, DuaPreciseSyncOutcome.synced);
       expect(result.count, backend.rows.length);
       expect(result.count, greaterThan(0));
+      // The per-sync join key — first sync writes version 1.
+      expect(result.syncVersion, 1);
     });
 
-    test('no location → cleared result (count 0)', () async {
+    test('no location → cleared result (count 0, no sync_version)', () async {
       final backend = _FakeBackend();
       final result = await service(
         calendar: calendarWith(),
@@ -395,6 +397,7 @@ void main() {
 
       expect(result.outcome, DuaPreciseSyncOutcome.cleared);
       expect(result.count, 0);
+      expect(result.syncVersion, isNull);
     });
 
     test('signed out → skipped result', () async {
