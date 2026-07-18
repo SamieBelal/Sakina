@@ -11,6 +11,32 @@ import 'package:sakina/services/supabase_sync_service.dart';
 /// its own rows (RLS scopes reads/writes to `auth.uid()`).
 const String kDuaPreciseNotificationsTable = 'dua_precise_notifications';
 
+/// How a [DuaPreciseSyncService.sync] resolved — surfaced so the notification
+/// gate can emit the `dua_notif_synced` observability event (the denominator
+/// for the server-side `notification_sent{type: dua_window}`).
+enum DuaPreciseSyncOutcome {
+  /// No signed-in user — nothing to scope rows to (no analytics).
+  skipped,
+
+  /// No location / no instants → the user's precise rows were retired.
+  cleared,
+
+  /// [count] rows were written for the new sync version.
+  synced,
+
+  /// A backend write failed (prior rows were kept, not dropped).
+  failed,
+}
+
+/// The result of a precise sync: the [outcome] plus, on [DuaPreciseSyncOutcome
+/// .synced], the [count] of precise instants written.
+class DuaPreciseSyncResult {
+  const DuaPreciseSyncResult(this.outcome, {this.count = 0});
+
+  final DuaPreciseSyncOutcome outcome;
+  final int count;
+}
+
 /// The narrow persistence surface the sync service needs, so it can be unit
 /// tested against an in-memory fake without a live Supabase client. The real
 /// implementation ([_SupabaseBackend]) routes every call through the existing
@@ -149,11 +175,15 @@ class DuaPreciseSyncService {
   ///   list is empty; we treat that as "clear my precise rows" so a user who
   ///   revoked location stops getting precise pushes (mirrors the card degrade).
   ///
-  /// Never throws — returns silently on any failure.
-  Future<void> sync() async {
+  /// Never throws — returns a [DuaPreciseSyncResult] describing the outcome (so
+  /// the gate can emit `dua_notif_synced`); [DuaPreciseSyncOutcome.failed] on
+  /// any error.
+  Future<DuaPreciseSyncResult> sync() async {
     try {
       final userId = _backend.currentUserId;
-      if (userId == null) return;
+      if (userId == null) {
+        return const DuaPreciseSyncResult(DuaPreciseSyncOutcome.skipped);
+      }
 
       final location = await _resolveLocation();
       final instants = await _engine.computePreciseInstants(
@@ -166,7 +196,7 @@ class DuaPreciseSyncService {
       // retire everything so we don't leave stale pushes enqueued.
       if (instants.isEmpty) {
         await _backend.deleteAllForUser(userId);
-        return;
+        return const DuaPreciseSyncResult(DuaPreciseSyncOutcome.cleared);
       }
 
       final priorVersion = await _backend.currentSyncVersion(userId) ?? 0;
@@ -190,7 +220,7 @@ class DuaPreciseSyncService {
 
       if (rows.isEmpty) {
         await _backend.deleteAllForUser(userId);
-        return;
+        return const DuaPreciseSyncResult(DuaPreciseSyncOutcome.cleared);
       }
 
       // Insert the NEW version's rows first…
@@ -198,11 +228,17 @@ class DuaPreciseSyncService {
       // …then retire the previous version(s). If the insert failed we do NOT
       // delete — better to keep the (possibly stale) prior rows than to leave
       // the user with nothing scheduled.
-      if (inserted) {
-        await _backend.deleteRowsBelowVersion(userId, nextVersion);
+      if (!inserted) {
+        return const DuaPreciseSyncResult(DuaPreciseSyncOutcome.failed);
       }
+      await _backend.deleteRowsBelowVersion(userId, nextVersion);
+      return DuaPreciseSyncResult(
+        DuaPreciseSyncOutcome.synced,
+        count: rows.length,
+      );
     } catch (error) {
       debugPrint('[DuaPreciseSyncService] sync failed: $error');
+      return const DuaPreciseSyncResult(DuaPreciseSyncOutcome.failed);
     }
   }
 

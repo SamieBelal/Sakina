@@ -97,6 +97,12 @@ class WidgetDeepLinkHandler {
     onAnalyticsEvent?.call(AnalyticsEvents.widgetOpened, {
       'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
       'launch': cold ? 'cold' : 'warm',
+      // Which widget drove the tap — the duʿā-times widget tags its link
+      // `source=dua_times_widget`; the daily-Name widget carries no source, so
+      // it defaults to `home_widget`. Lets the two be told apart (both can
+      // deep-link to Build-a-Duʿā).
+      AnalyticsEvents.propSource: uri?.queryParameters[AnalyticsEvents.propSource] ??
+          AnalyticsEvents.widgetSourceHomeWidget,
     });
     _navigate(location);
   }

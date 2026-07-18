@@ -352,6 +352,17 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         preciseBannerSnoozed: await _isBannerSnoozed(now),
       );
       _syncTicker();
+      // Engine-health + eligibility signal (prod observability): the ONLY way
+      // to see the engine is alive and how often it produces an eligible /
+      // located window. rebuild() is low-frequency (foreground / date-rollover /
+      // location change), so one emit per success is a heartbeat, not spam.
+      onAnalyticsEvent?.call(AnalyticsEvents.duaScheduleBuilt, {
+        AnalyticsEvents.propHasActive: schedule.active != null,
+        AnalyticsEvents.propActiveWindow: schedule.active?.type.wireName,
+        AnalyticsEvents.propUrgency: schedule.urgency.wireName,
+        AnalyticsEvents.propHasNext: schedule.next != null,
+        AnalyticsEvents.propLocationPresent: schedule.computedAt.lat != null,
+      });
       await _pushToWidget(schedule);
       // Promote the active time-boxed window to a Lock-Screen / Dynamic Island
       // Live Activity (best-effort, no-ops off-iOS). This IS the foreground
@@ -371,6 +382,10 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     } catch (e) {
       if (_disposed) return;
       debugPrint('[DuaWindowNotifier] rebuild failed: $e');
+      // Engine-health alarm: a build failure is invisible otherwise (the card
+      // just silently stays empty). Lets prod distinguish "no window today" from
+      // "the engine is broken".
+      onAnalyticsEvent?.call(AnalyticsEvents.duaScheduleBuildFailed, const {});
       state = state.copyWith(building: false);
     }
   }

@@ -74,7 +74,8 @@ void main() {
       handler.dispose();
     });
 
-    test('fires widget_opened with target + launch type', () async {
+    test('fires widget_opened with target + launch + source (home widget)',
+        () async {
       final events = <Map<String, dynamic>>[];
       WidgetDeepLinkHandler.onAnalyticsEvent =
           (event, props) => events.add({'event': event, ...props});
@@ -91,10 +92,47 @@ void main() {
       controller.add(Uri.parse('sakina://widget/build-dua?homeWidget')); // warm
       await Future<void>.delayed(Duration.zero);
 
+      // No `source` param on the daily-Name widget links → default home_widget.
       expect(events, [
-        {'event': 'widget_opened', 'target': 'muhasabah', 'launch': 'cold'},
-        {'event': 'widget_opened', 'target': 'build_dua', 'launch': 'warm'},
+        {
+          'event': 'widget_opened',
+          'target': 'muhasabah',
+          'launch': 'cold',
+          'source': 'home_widget'
+        },
+        {
+          'event': 'widget_opened',
+          'target': 'build_dua',
+          'launch': 'warm',
+          'source': 'home_widget'
+        },
       ]);
+      await controller.close();
+      handler.dispose();
+    });
+
+    test('duʿā-times widget tap carries source=dua_times_widget (disambiguation)',
+        () async {
+      final events = <Map<String, dynamic>>[];
+      WidgetDeepLinkHandler.onAnalyticsEvent =
+          (event, props) => events.add({'event': event, ...props});
+      addTearDown(() => WidgetDeepLinkHandler.onAnalyticsEvent = null);
+
+      final controller = StreamController<Uri?>();
+      final handler = WidgetDeepLinkHandler(
+        navigate: (_) {},
+        initialUri: () async => null,
+        clicks: controller.stream,
+        postFrame: (cb) => cb(),
+      );
+      await handler.start();
+      // The duʿā-times widget's link (SakinaDuaTimesWidget.duaDeepLinkURL).
+      controller.add(
+          Uri.parse('sakina://widget/build-dua?homeWidget&source=dua_times_widget'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events.single['source'], 'dua_times_widget');
+      expect(events.single['target'], 'build_dua');
       await controller.close();
       handler.dispose();
     });

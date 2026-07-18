@@ -474,9 +474,11 @@ private func whyLine(_ w: Window) -> String {
 // MARK: - Deep link (reuse the existing widget deep-link style)
 
 /// Whole widget AND every CTA → Build-a-Duʿā (spec §9 north star). The
-/// `homeWidget` marker mirrors SakinaWidget.swift's links.
+/// `homeWidget` marker mirrors SakinaWidget.swift's links; `source=dua_times_widget`
+/// lets analytics separate THIS widget's taps from the daily-Name widget's
+/// Build-a-Duʿā taps (WidgetDeepLinkHandler reads it onto `widget_opened`).
 private func duaDeepLinkURL() -> URL {
-    URL(string: "sakina://widget/build-dua?homeWidget")!
+    URL(string: "sakina://widget/build-dua?homeWidget&source=dua_times_widget")!
 }
 
 // MARK: - Countdown rule (§9 bullet 3 / §9.1 ladder)
