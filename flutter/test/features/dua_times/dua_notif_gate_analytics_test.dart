@@ -121,6 +121,24 @@ void main() {
     expect(events, isEmpty);
   });
 
+  test('skipped outcome (signed-out no-op) → sync runs but emits nothing',
+      () async {
+    final sync = _StubSync(
+      const DuaPreciseSyncResult(DuaPreciseSyncOutcome.skipped),
+    );
+    final gate = DuaNotificationGate(
+      scheduler: _StubScheduler(),
+      notificationService: _StubNotif(optedIn: true, duaEnabled: true),
+      preciseSync: sync,
+      clock: _clock,
+    );
+
+    await gate.apply(_schedule());
+
+    expect(sync.syncCalls, 1); // the sync ran…
+    expect(events, isEmpty); // …but a no-op skip isn't a data point
+  });
+
   test('throttled second apply → sync + emit only once', () async {
     final sync = _StubSync(
       const DuaPreciseSyncResult(DuaPreciseSyncOutcome.synced, count: 4),

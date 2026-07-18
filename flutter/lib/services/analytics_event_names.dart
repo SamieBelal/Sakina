@@ -480,10 +480,15 @@ abstract final class AnalyticsEvents {
   // NOTE: the home-screen WIDGET extension itself cannot emit (no network in the
   // WidgetKit process) — its only client-observable signal is the tap
   // (`widget_opened{source: dua_times_widget}`, see below).
-  /// Fired once per SUCCESSFUL schedule build (DuaWindowNotifier.rebuild — runs
-  /// on foreground / date-rollover / location change). The engine-liveness +
+  /// Fired when a SUCCESSFUL schedule build changes the schedule's SHAPE
+  /// (deduped — rebuild runs on every `resumed`, so an event = a distinct
+  /// eligibility state, NOT an app-open count). The engine-liveness +
   /// eligibility signal. Props: `has_active`, `active_window` (type|null),
-  /// `urgency`, `has_next`, `location_present` (precise vs calendar-only).
+  /// `urgency`, `has_next`, `location_present`. NOTE: `location_present` is a
+  /// *capability* flag (location was resolvable, so precise windows COULD be
+  /// computed) — it is not proof any precise window is active or was pushed;
+  /// pair it with `dua_notif_synced.count > 0` for that. Query rates PER USER
+  /// (unique users), not per event.
   static const String duaScheduleBuilt = 'dua_schedule_built';
 
   /// Fired when a schedule build THROWS (engine / repository failure) — the
@@ -491,10 +496,16 @@ abstract final class AnalyticsEvents {
   static const String duaScheduleBuildFailed = 'dua_schedule_build_failed';
 
   /// Fired when the precise notification instants are synced to the server
-  /// (`dua_precise_notifications`) — the denominator for the server-side
-  /// `notification_sent{type: dua_window}`. Props: `count` (rows synced),
-  /// `outcome` (synced|cleared|failed). Only fires when a sync actually runs
-  /// (opted-in + past the 6h throttle), so it's naturally rate-limited.
+  /// (`dua_precise_notifications`) — the client-side COUNTERPART to the
+  /// server-side `notification_sent{type: dua_window}`. Only fires for opted-in
+  /// users when a sync actually runs (past the 6h throttle); `skipped` no-ops
+  /// are suppressed. Props: `count` (rows synced — 0 for non-`synced`
+  /// outcomes), `outcome` (synced|cleared|failed). CAVEATS for querying: (1)
+  /// this is POPULATION/user-level attribution vs the server event (no
+  /// per-instant/`window_type` join key), so it answers "cron down vs clients
+  /// not syncing" at the aggregate level, not per push. (2) It does NOT measure
+  /// OPT-IN RATE — the opted-out path emits nothing (by design, to avoid
+  /// per-rebuild noise); derive opt-in from the notification-preference events.
   static const String duaNotifSynced = 'dua_notif_synced';
 
   // Property keys for the dua-times events.

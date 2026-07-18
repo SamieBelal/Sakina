@@ -119,10 +119,13 @@ class DuaNotificationGate {
         force: force,
       );
       final syncResult = await _syncPrecise(force: force);
-      // Emit only when a sync actually RAN (null = throttle-skipped / no plugin),
-      // so this is naturally rate-limited to ~once/6h/user + on toggles — the
-      // opted-in population + synced-instant volume that feeds server sends.
-      if (syncResult != null) {
+      // Emit only when a sync actually RAN and did something (null =
+      // throttle-skipped / no plugin; `skipped` = signed-out no-op). Naturally
+      // rate-limited to ~once/6h/user + on toggles — the synced-instant volume
+      // (`synced`/`cleared`/`failed`) that is the counterpart to the server
+      // `notification_sent{dua_window}`.
+      if (syncResult != null &&
+          syncResult.outcome != DuaPreciseSyncOutcome.skipped) {
         onAnalyticsEvent?.call(AnalyticsEvents.duaNotifSynced, {
           AnalyticsEvents.propCount: syncResult.count,
           AnalyticsEvents.propOutcome: syncResult.outcome.name,

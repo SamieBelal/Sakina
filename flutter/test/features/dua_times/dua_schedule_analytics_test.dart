@@ -88,6 +88,21 @@ void main() {
     expect(events, isNot(contains(AnalyticsEvents.duaScheduleBuildFailed)));
   });
 
+  test('repeated rebuilds with the same shape emit dua_schedule_built ONCE '
+      '(resumed-bounce dedup)', () async {
+    final notifier = _notifier();
+
+    await notifier.rebuild();
+    await notifier.rebuild(); // e.g. a transient Control-Center resumed bounce
+    await notifier.rebuild();
+
+    expect(
+      events.where((e) => e == AnalyticsEvents.duaScheduleBuilt).length,
+      1,
+      reason: 'unchanged eligibility state must not re-emit on every resumed',
+    );
+  });
+
   test('build failure emits dua_schedule_build_failed (engine-health alarm)',
       () async {
     final repo = _repo();
