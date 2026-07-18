@@ -197,6 +197,14 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
   String? _lastBuiltYmd;
   bool _disposed = false;
 
+  /// The shape signature of the last schedule we emitted `dua_schedule_built`
+  /// for. rebuild() runs on EVERY `resumed` (incl. transient Control-Center /
+  /// notification-shade bounces), so an unconditional emit would both flood
+  /// Mixpanel and bias the eligibility denominator toward fidgety users. We only
+  /// emit when the schedule's shape actually changes — so a user still gets one
+  /// event per distinct eligibility state, not one per app-glance.
+  String? _lastScheduleBuiltSignature;
+
   /// When true, real rebuilds are suppressed and the card/widget stay on a
   /// synthetic Dev-Tools preview schedule (see [debugPreview]). The ticker still
   /// advances `now`, so the live countdown keeps ticking.
@@ -352,6 +360,7 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
         preciseBannerSnoozed: await _isBannerSnoozed(now),
       );
       _syncTicker();
+      _emitScheduleBuilt(schedule);
       await _pushToWidget(schedule);
       // Promote the active time-boxed window to a Lock-Screen / Dynamic Island
       // Live Activity (best-effort, no-ops off-iOS). This IS the foreground
@@ -371,6 +380,10 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
     } catch (e) {
       if (_disposed) return;
       debugPrint('[DuaWindowNotifier] rebuild failed: $e');
+      // Engine-health alarm: a build failure is invisible otherwise (the card
+      // just silently stays empty). Lets prod distinguish "no window today" from
+      // "the engine is broken".
+      onAnalyticsEvent?.call(AnalyticsEvents.duaScheduleBuildFailed, const {});
       state = state.copyWith(building: false);
     }
   }
@@ -391,6 +404,33 @@ class DuaWindowNotifier extends StateNotifier<DuaWindowState>
       // Widget push is best-effort — never break the card on a widget failure.
       debugPrint('[DuaWindowNotifier] _pushToWidget failed: $e');
     }
+  }
+
+  /// Emit `dua_schedule_built` (engine-liveness + eligibility) — but ONLY when
+  /// the schedule's shape changed since the last emit. rebuild() runs on every
+  /// `resumed` (including transient Control-Center / app-switcher bounces), so
+  /// an unconditional emit would flood Mixpanel AND bias the eligibility
+  /// denominator toward fidgety users (10 glances ≠ 10 eligibility states). The
+  /// dedup keeps one event per distinct state per session, which is what the
+  /// prod question ("is the engine producing eligible/located schedules?")
+  /// actually needs.
+  void _emitScheduleBuilt(DuaWindowSchedule schedule) {
+    final activeWindow = schedule.active?.type.wireName;
+    final urgency = schedule.urgency.wireName;
+    final hasNext = schedule.next != null;
+    final locationPresent = schedule.computedAt.lat != null;
+    // `has_active` is derivable from `active_window`, so it's not in the
+    // signature — a null active_window already encodes it.
+    final signature = '${activeWindow ?? '-'}|$urgency|$hasNext|$locationPresent';
+    if (signature == _lastScheduleBuiltSignature) return;
+    _lastScheduleBuiltSignature = signature;
+    onAnalyticsEvent?.call(AnalyticsEvents.duaScheduleBuilt, {
+      AnalyticsEvents.propHasActive: schedule.active != null,
+      AnalyticsEvents.propActiveWindow: activeWindow,
+      AnalyticsEvents.propUrgency: urgency,
+      AnalyticsEvents.propHasNext: hasNext,
+      AnalyticsEvents.propLocationPresent: locationPresent,
+    });
   }
 
   /// Reconcile the Live Activity with the freshly-built [schedule] (plan §8 D2).

@@ -371,6 +371,54 @@ void main() {
       }
     });
 
+    test('returns a synced result carrying the row count (observability)',
+        () async {
+      final backend = _FakeBackend();
+      final result = await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      expect(result.outcome, DuaPreciseSyncOutcome.synced);
+      expect(result.count, backend.rows.length);
+      expect(result.count, greaterThan(0));
+    });
+
+    test('no location → cleared result (count 0)', () async {
+      final backend = _FakeBackend();
+      final result = await service(
+        calendar: calendarWith(),
+        location: _deniedLocation(),
+        backend: backend,
+      ).sync();
+
+      expect(result.outcome, DuaPreciseSyncOutcome.cleared);
+      expect(result.count, 0);
+    });
+
+    test('signed out → skipped result', () async {
+      final backend = _FakeBackend(userId: null);
+      final result = await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      expect(result.outcome, DuaPreciseSyncOutcome.skipped);
+    });
+
+    test('insert failure → failed result', () async {
+      final backend = _FakeBackend()..failInsert = true;
+      final result = await service(
+        calendar: calendarWith(),
+        location: _grantedLocation(meccaLat, meccaLon),
+        backend: backend,
+      ).sync();
+
+      expect(result.outcome, DuaPreciseSyncOutcome.failed);
+    });
+
     test('atomic sync-by-version: re-sync replaces prior rows, no drop/dup',
         () async {
       final backend = _FakeBackend();

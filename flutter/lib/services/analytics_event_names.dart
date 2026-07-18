@@ -471,11 +471,61 @@ abstract final class AnalyticsEvents {
   /// `signed_out` reason — the wipe still happens, it's just not measured.
   static const String duaLiveActivityEnded = 'dua_live_activity_ended';
 
+  // ── Duʿā-windows engine + notification-sync health (prod observability) ──
+  // The card / notification-open / notification-sent(server) / live-activity
+  // events cover CONSUMPTION; these cover GENERATION so the whole machine is
+  // observable end-to-end in prod (see the review 2026-07-18):
+  //   • dua_schedule_built    — the engine is alive + the eligibility denominator
+  //   • dua_notif_synced       — the denominator for server `notification_sent`
+  // NOTE: the home-screen WIDGET extension itself cannot emit (no network in the
+  // WidgetKit process) — its only client-observable signal is the tap
+  // (`widget_opened{source: dua_times_widget}`, see below).
+  /// Fired when a SUCCESSFUL schedule build changes the schedule's SHAPE
+  /// (deduped — rebuild runs on every `resumed`, so an event = a distinct
+  /// eligibility state, NOT an app-open count). The engine-liveness +
+  /// eligibility signal. Props: `has_active`, `active_window` (type|null),
+  /// `urgency`, `has_next`, `location_present`. NOTE: `location_present` is a
+  /// *capability* flag (location was resolvable, so precise windows COULD be
+  /// computed) — it is not proof any precise window is active or was pushed;
+  /// pair it with `dua_notif_synced.count > 0` for that. Query rates PER USER
+  /// (unique users), not per event.
+  static const String duaScheduleBuilt = 'dua_schedule_built';
+
+  /// Fired when a schedule build THROWS (engine / repository failure) — the
+  /// engine-health alarm. No props (the error is logged, not shipped).
+  static const String duaScheduleBuildFailed = 'dua_schedule_build_failed';
+
+  /// Fired when the precise notification instants are synced to the server
+  /// (`dua_precise_notifications`) — the client-side COUNTERPART to the
+  /// server-side `notification_sent{type: dua_window}`. Only fires for opted-in
+  /// users when a sync actually runs (past the 6h throttle); `skipped` no-ops
+  /// are suppressed. Props: `count` (rows synced — 0 for non-`synced`
+  /// outcomes), `outcome` (synced|cleared|failed). CAVEATS for querying: (1)
+  /// this is POPULATION/user-level attribution vs the server event (no
+  /// per-instant/`window_type` join key), so it answers "cron down vs clients
+  /// not syncing" at the aggregate level, not per push. (2) It does NOT measure
+  /// OPT-IN RATE — the opted-out path emits nothing (by design, to avoid
+  /// per-rebuild noise); derive opt-in from the notification-preference events.
+  static const String duaNotifSynced = 'dua_notif_synced';
+
   // Property keys for the dua-times events.
   static const String propActiveWindow = 'active_window';
   static const String propNextWindow = 'next_window';
   static const String propUrgency = 'urgency';
   static const String propReason = 'reason';
+  static const String propHasActive = 'has_active';
+  static const String propHasNext = 'has_next';
+  static const String propLocationPresent = 'location_present';
+  static const String propCount = 'count';
+  static const String propOutcome = 'outcome';
+
+  /// `source` on `widget_opened` — disambiguates which surface drove the tap so
+  /// the duʿā-times widget is separable from the daily-Name widget (both can
+  /// deep-link to Build-a-Duʿā). The duʿā-times widget tags its link
+  /// `source=dua_times_widget`; taps without the param default to `home_widget`.
+  static const String propSource = 'source';
+  static const String widgetSourceHomeWidget = 'home_widget';
+  static const String widgetSourceDuaTimes = 'dua_times_widget';
 
   /// Reason values for [duaLiveActivityEnded].
   static const String liveActivityEndWindowClosed = 'window_closed';

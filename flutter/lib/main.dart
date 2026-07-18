@@ -364,6 +364,11 @@ Future<void> main() async {
   // deep-link source in WidgetDeepLinkHandler.
   DuaWindowNotifier.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
+  // Duʿā-windows generation-side observability: `dua_schedule_built` /
+  // `_build_failed` come through DuaWindowNotifier's hook above;
+  // `dua_notif_synced` (server-send denominator) comes through the gate's.
+  DuaNotificationGate.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
   // Identity hygiene (2026-06-15 audit, D2): reset Mixpanel's distinct_id on
   // sign-out so a shared/QA device doesn't bleed one user's identity into the
   // next. AppSessionNotifier has no Riverpod access, so it calls this static

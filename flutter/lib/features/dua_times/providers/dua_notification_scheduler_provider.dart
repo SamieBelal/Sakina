@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sakina/features/dua_times/models/dua_window_schedule.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/dua_notification_scheduler.dart';
 import 'package:sakina/services/dua_precise_sync_service.dart';
 import 'package:sakina/services/dua_window_engine.dart';
@@ -79,6 +80,13 @@ class DuaNotificationGate {
         _preciseThrottle = preciseSyncThrottle,
         _clock = clock ?? DateTime.now;
 
+  /// Static analytics hook (mirrors [DuaWindowNotifier.onAnalyticsEvent]). Wired
+  /// in `main.dart` to `analytics.track`; null in tests. Emits `dua_notif_synced`
+  /// — the client-side denominator for the server `notification_sent{dua_window}`
+  /// (so a drop in sends can be attributed to the cron vs. clients not syncing).
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
   final DuaNotificationScheduler _scheduler;
   final NotificationService _notificationService;
 
@@ -110,7 +118,19 @@ class DuaNotificationGate {
         localTzName: schedule.computedAt.tz,
         force: force,
       );
-      await _syncPrecise(force: force);
+      final syncResult = await _syncPrecise(force: force);
+      // Emit only when a sync actually RAN and did something (null =
+      // throttle-skipped / no plugin; `skipped` = signed-out no-op). Naturally
+      // rate-limited to ~once/6h/user + on toggles — the synced-instant volume
+      // (`synced`/`cleared`/`failed`) that is the counterpart to the server
+      // `notification_sent{dua_window}`.
+      if (syncResult != null &&
+          syncResult.outcome != DuaPreciseSyncOutcome.skipped) {
+        onAnalyticsEvent?.call(AnalyticsEvents.duaNotifSynced, {
+          AnalyticsEvents.propCount: syncResult.count,
+          AnalyticsEvents.propOutcome: syncResult.outcome.name,
+        });
+      }
     } catch (error) {
       debugPrint('[DuaNotificationGate] apply failed: $error');
     }
@@ -119,15 +139,17 @@ class DuaNotificationGate {
   /// Run the precise sync, honoring the throttle unless [force]. The sync itself
   /// degrades silently; the throttle here only avoids needless recompute +
   /// round-trips on the high-frequency rebuild path.
-  Future<void> _syncPrecise({required bool force}) async {
+  /// Returns the sync result when a sync actually ran, or null when it was
+  /// skipped (no precise-sync available, or throttled) so [apply] emits nothing.
+  Future<DuaPreciseSyncResult?> _syncPrecise({required bool force}) async {
     final sync = _preciseSync;
-    if (sync == null) return;
+    if (sync == null) return null;
     final now = _clock().toUtc();
     if (!force && _lastPreciseSync != null) {
-      if (now.difference(_lastPreciseSync!) < _preciseThrottle) return;
+      if (now.difference(_lastPreciseSync!) < _preciseThrottle) return null;
     }
     _lastPreciseSync = now;
-    await sync.sync();
+    return sync.sync();
   }
 
   Future<void> _clearPrecise() async {
