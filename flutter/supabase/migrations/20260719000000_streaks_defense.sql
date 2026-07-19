@@ -26,6 +26,7 @@ create table if not exists public.user_streak_excused_dates (
 
 alter table public.user_streak_excused_dates enable row level security;
 
+drop policy if exists "Users can view own excused dates" on public.user_streak_excused_dates;
 create policy "Users can view own excused dates" on public.user_streak_excused_dates
   for select to authenticated using ((select auth.uid()) = user_id);
 -- No direct INSERT policy: writes go through add_excused_date() (cap-enforced).
@@ -181,6 +182,7 @@ create table if not exists public.user_streak_milestones_claimed (
 
 alter table public.user_streak_milestones_claimed enable row level security;
 
+drop policy if exists "Users can view own milestone claims" on public.user_streak_milestones_claimed;
 create policy "Users can view own milestone claims" on public.user_streak_milestones_claimed
   for select to authenticated using ((select auth.uid()) = user_id);
 
