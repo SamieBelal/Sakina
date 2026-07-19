@@ -496,6 +496,9 @@ Future<StreakState> markActiveToday() async {
       StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakRepaired, {
         'method': repairMethod,
         'streak_day': currentStreak,
+        // The streak that was at risk (before this reflection's +1) — a free
+        // effort/freeze repair continues it, so pre-lapse = currentStreak - 1.
+        'pre_lapse_streak': currentStreak - 1,
       });
     }
     if (preLapseStreak > 0) {
@@ -532,8 +535,9 @@ Future<StreakState> markActiveToday() async {
 /// atomic (`repair_streak_paid` debits + restores in one txn, and decides
 /// premium-free vs paid server-side — the client never asserts premium).
 /// Returns the outcome; on insufficient tokens, [PaidRepairResult.needsTokens]
-/// is true so the caller can route to the Store.
-Future<PaidRepairResult> repairStreakPaid() async {
+/// is true so the caller can route to the Store. [preLapseStreak] is the value
+/// being bought back (for the `streak_repaired` analytics).
+Future<PaidRepairResult> repairStreakPaid({int preLapseStreak = 0}) async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) {
     return const PaidRepairResult(success: false);
@@ -561,6 +565,7 @@ Future<PaidRepairResult> repairStreakPaid() async {
         'method': method,
         'streak_day': restored,
         'tokens_spent': cost,
+        'pre_lapse_streak': preLapseStreak,
       });
     } catch (_) {}
 

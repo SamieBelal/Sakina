@@ -86,7 +86,7 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     HapticFeedback.lightImpact();
 
     // Premium-free vs paid is decided server-side; we don't assert it here.
-    final result = await repairStreakPaid();
+    final result = await repairStreakPaid(preLapseStreak: widget.preLapseStreak);
     if (!mounted) return;
 
     if (result.success) {
