@@ -11,6 +11,8 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
+import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
@@ -422,6 +424,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildDashboardCard(DailyLoopState state, HomeHeroData hero) {
+    final companion = ref.watch(companionStateProvider);
     final xpState = _calculateXpProgress(state.xpTotal);
     final double xpProgress = xpState.xpForNextLevel > 0
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
@@ -619,25 +622,16 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           const SizedBox(height: 14),
 
           // Today's Name (hero section)
-          // Gold sparkles
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(5, (i) {
-              return Icon(
-                Icons.auto_awesome,
-                color:
-                    AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
-                size: i == 2 ? 18 : 12,
-              )
-                  .animate()
-                  .scale(
-                      begin: const Offset(0, 0),
-                      end: const Offset(1, 1),
-                      curve: Curves.elasticOut,
-                      duration: 600.ms,
-                      delay: (i * 80).ms)
-                  .fadeIn(duration: 400.ms, delay: (i * 80).ms);
-            }),
+          // The living companion — its light reflects the streak. Ambient;
+          // pauses when scrolled offscreen (CompanionMedallion handles that).
+          // Fixed-height slot so the hero doesn't jump before hydration.
+          SizedBox(
+            height: 130,
+            child: companion == null
+                ? null
+                : Center(
+                    child: CompanionMedallion(state: companion, size: 130),
+                  ),
           ),
           const SizedBox(height: 8),
           Text(

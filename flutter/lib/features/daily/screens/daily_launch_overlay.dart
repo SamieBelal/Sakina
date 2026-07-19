@@ -10,6 +10,8 @@ import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
+import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
@@ -186,6 +188,7 @@ class _StreakGreetingStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dailyLoopProvider);
     final streak = state.streakCount;
+    final companion = ref.watch(companionStateProvider);
 
     // On day 0 (no streak yet), surface the user's starter Name from
     // onboarding so the home greeting names the same Name they just bonded
@@ -220,22 +223,16 @@ class _StreakGreetingStep extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Streak flame
-          Container(
-            width: 80,
-            height: 80,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.streakBackground,
-            ),
-            child: const Icon(
-              Icons.local_fire_department,
-              color: AppColors.streakAmber,
-              size: 44,
-            ),
-          )
-              .animate(onPlay: (c) => c.repeat(reverse: true))
-              .scaleXY(begin: 1.0, end: 1.08, duration: 900.ms),
+          // The living companion — arrives at the current streak state; the
+          // muḥāsabah completed later lights it. Replaces the static flame.
+          SizedBox(
+            height: 96,
+            child: companion == null
+                ? const SizedBox(width: 96)
+                : Center(
+                    child: CompanionMedallion(state: companion, size: 96),
+                  ),
+          ),
           const SizedBox(height: 24),
 
           // Streak count

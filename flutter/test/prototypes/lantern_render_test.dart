@@ -38,16 +38,16 @@ void main() {
   test('every brightness state paints + writes a frame', () async {
     const s = 560.0;
     var i = 0;
-    for (final b in Brightness.values) {
+    for (final b in CompanionBrightness.values) {
       await _render('${++i}-${b.name}',
           s, CompanionState(brightness: b, protected: false));
     }
     // The freeze shield composited over a radiant lamp.
     await _render('${++i}-protected',
-        s, const CompanionState(brightness: Brightness.fullyLit, protected: true));
+        s, const CompanionState(brightness: CompanionBrightness.fullyLit, protected: true));
 
     expect(
-        File('/tmp/lantern-preview/${Brightness.values.length + 1}-protected.png')
+        File('/tmp/lantern-preview/${CompanionBrightness.values.length + 1}-protected.png')
             .existsSync(),
         isTrue);
   });

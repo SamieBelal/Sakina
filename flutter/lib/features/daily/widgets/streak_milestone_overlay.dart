@@ -5,6 +5,8 @@ import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/streaks/models/companion_state.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-Screen Streak Milestone Celebration Overlay
@@ -183,19 +185,24 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                   right: 24,
                   child: Column(
                     children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        color: _amber,
-                        size: 48,
-                      )
-                          .animate()
-                          .fadeIn(duration: 500.ms)
-                          .scaleXY(
-                            begin: 0.5,
-                            end: 1.0,
+                      Animate(
+                        effects: [
+                          FadeEffect(duration: 500.ms),
+                          ScaleEffect(
+                            begin: const Offset(0.5, 0.5),
+                            end: const Offset(1, 1),
                             duration: 500.ms,
                             curve: Curves.easeOutBack,
                           ),
+                        ],
+                        child: const CompanionMedallion(
+                          state: CompanionState(
+                            brightness: CompanionBrightness.fullyLit,
+                            protected: false,
+                          ),
+                          size: 132,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         '${widget.streakCount}',

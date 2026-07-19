@@ -29,27 +29,27 @@ CompanionState resolveCompanionState({
   );
 }
 
-Brightness _resolveBrightness(StreakState streak, DateTime now) {
+CompanionBrightness _resolveBrightness(StreakState streak, DateTime now) {
   // Never acted → endowed (lit, faint) — never a cold Day 0.
   if (streak.lastActive == null && streak.longestStreak == 0) {
-    return Brightness.endowedDim;
+    return CompanionBrightness.endowedDim;
   }
 
   // Has history but the streak is at zero → resting, not lost.
   if (streak.currentStreak == 0) {
-    return Brightness.dormant;
+    return CompanionBrightness.dormant;
   }
 
   // Streak ≥ 1. If today's reflection is done, the lamp is lit — bucket by depth.
   if (streak.todayActive) {
-    if (streak.currentStreak <= 3) return Brightness.dim;
-    if (streak.currentStreak <= 29) return Brightness.glowing;
-    return Brightness.fullyLit;
+    if (streak.currentStreak <= 3) return CompanionBrightness.dim;
+    if (streak.currentStreak <= 29) return CompanionBrightness.glowing;
+    return CompanionBrightness.fullyLit;
   }
 
   // Streak ≥ 1 but today not yet done — waiting to be lit. Local-hour split
   // only (same brightness, different copy/breath cue).
   return now.hour < companionAtRiskHour
-      ? Brightness.pendingUnlit
-      : Brightness.atRiskUnlit;
+      ? CompanionBrightness.pendingUnlit
+      : CompanionBrightness.atRiskUnlit;
 }
