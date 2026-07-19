@@ -365,6 +365,13 @@ Future<void> hydrateStreakCache({
   );
 }
 
+/// Clear the pending lapse cache (pre_lapse / lapsed_at). Used by dev tools to
+/// reset a forced streak state so the next [markActiveToday] recomputes cleanly.
+Future<void> clearLapseCache() async {
+  final prefs = await SharedPreferences.getInstance();
+  await _setCachedLapse(prefs, preLapseStreak: 0, lapsedAt: null);
+}
+
 Future<StreakState> markActiveToday() async {
   final prefs = await SharedPreferences.getInstance();
   final today = _todayString();

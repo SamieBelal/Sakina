@@ -367,6 +367,14 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
         _actionChip('Set 365', () => _run(() => devSetStreak(365, 365))),
         _actionChip('Reset', () => _run(() => devSetStreak(0, 0)),
             destructive: true),
+        // Phase 2 repair-ladder hooks. After tapping, complete a muḥāsabah
+        // (Home → Begin Muḥāsabah → Ameen) to see the outcome.
+        _actionChip('Gap −2d → free repair',
+            () => _run(() => devSetStreakGap(30, 30, 2))),
+        _actionChip('Gap −4d → EXPIRE (rescue)',
+            () => _run(() => devSetStreakGap(30, 30, 4))),
+        _actionChip('Excuse ydy → continue',
+            () => _run(() => devExcuseYesterdayGap(30, 30))),
       ],
     );
   }
