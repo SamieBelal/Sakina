@@ -242,6 +242,10 @@ abstract final class AnalyticsEvents {
   static const settingsPremiumBillingIssueTapped =
       'settings_premium_billing_issue_tapped';
 
+  // Home → Premium strip. Second in-app upgrade entry point (alongside the
+  // Settings → Premium card), shown to free users above the muḥāsabah CTA.
+  static const homePremiumStripTapped = 'home_premium_strip_tapped';
+
   // Subscription cancellation feedback survey. Shown instantly after an in-app
   // Customer Center cancel, or reactively (next open / push) for OS-Settings
   // cancels. See docs/superpowers/specs/2026-05-31-cancellation-feedback-design.md.

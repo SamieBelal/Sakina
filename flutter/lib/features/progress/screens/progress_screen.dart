@@ -20,6 +20,7 @@ import 'package:sakina/features/gifts/widgets/ramadan_gift_card.dart';
 import 'package:sakina/features/dua_times/widgets/dua_times_card.dart';
 import 'package:sakina/features/referrals/widgets/referral_nudge_card.dart';
 import 'package:sakina/features/widget_promo/widgets/widget_install_nudge_card.dart';
+import 'package:sakina/features/home/widgets/home_premium_strip.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -332,6 +333,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //     gating factor for widget retention. Self-collapses like the
               //     referral card, so no spacer needed here.
               const WidgetInstallNudgeCard(),
+
+              // 2d. Home → Premium strip — free-user upgrade entry point,
+              //     placed just above the muḥāsabah CTA (inside the dashboard
+              //     card below). Self-collapses to SizedBox.shrink() for premium
+              //     users, so no spacer needed here.
+              const HomePremiumStrip(),
 
               // 3. Unified dashboard card
               _buildDashboardCard(state, hero),
