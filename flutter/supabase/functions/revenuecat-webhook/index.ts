@@ -52,14 +52,6 @@ serve((request) =>
       });
     },
     sendCancellationSurveyPush: async (payload) => {
-      // TODO(launch): REMOVE this sandbox gate once the app build containing the
-      // cancellation survey + sakina://cancellation-feedback deep link is LIVE on
-      // the App Store. Until then, production users have no survey UI, so a push
-      // would dead-end at the home screen — so we only fire for SANDBOX (test
-      // devices) during pre-launch verification. Removing the gate is a
-      // server-only edge-function redeploy; no App Store update needed.
-      if (payload.environment !== "SANDBOX") return;
-
       // Best-effort. The handler isolates failures, but bail early if OneSignal
       // is unconfigured so we don't make a doomed request.
       if (!oneSignalAppId || !oneSignalRestApiKey) return;
