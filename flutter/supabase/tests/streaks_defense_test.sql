@@ -210,12 +210,16 @@ begin
   -- 9. Premium-free path: no debit, restores, meters premium_free_repair_at
   --    Premium is SERVER-determined — seed an active RC entitlement row.
   -- =========================================================================
+  -- user_subscriptions is webhook-populated (authenticated has SELECT only),
+  -- so seed it as the superuser, then resume impersonating uid_a.
+  perform pg_temp.reset_auth();
   insert into public.user_subscriptions
     (user_id, entitlement, product_id, expires_at, last_event_type, last_event_at)
     values (uid_a, 'premium', 'test_premium', now() + interval '30 days',
             'INITIAL_PURCHASE', now())
     on conflict (user_id, entitlement) do update set
       expires_at = now() + interval '30 days';
+  perform pg_temp.set_auth(uid_a);
   perform pg_temp.expect(public.has_active_premium_entitlement(uid_a),
     '9-pre. server sees active premium entitlement');
 
@@ -246,7 +250,9 @@ begin
   perform pg_temp.expect(v_balance = 750, '10b. paid path charged 250 after free spent');
 
   -- Revoke premium so the remaining tests exercise the non-premium (paid) path.
+  perform pg_temp.reset_auth();
   delete from public.user_subscriptions where user_id = uid_a;
+  perform pg_temp.set_auth(uid_a);
   perform pg_temp.expect(not public.has_active_premium_entitlement(uid_a),
     '10c. premium revoked for subsequent tests');
 
