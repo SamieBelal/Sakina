@@ -915,6 +915,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       streakLapseRestorable: false,
       lapsePreLapseStreak: 0,
     );
+    // Also clear the persisted lapse bookkeeping so a re-entry into muḥāsabah
+    // on the SAME day (markActiveToday's already-active fast path returns the
+    // cached pre-lapse) doesn't re-surface a rescue the user just dismissed.
+    // The paid buy-back path already clears this cache inside repairStreakPaid.
+    unawaited(clearLapseCache());
   }
 
   /// Restore the just-expired streak locally after a successful paid buy-back

@@ -260,6 +260,30 @@ void main() {
     });
   });
 
+  test(
+      'clearLapseCache zeroes the persisted pre-lapse so a dismissed rescue '
+      'does not re-surface (getStreak reports no restorable lapse)', () async {
+    // An expired streak leaves a restorable pre-lapse in the cache.
+    fakeSync.rows['user_streaks:user-1'] = {
+      'current_streak': 20,
+      'longest_streak': 20,
+      'last_active': _utcDay(-4),
+    };
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
+
+    final expired = await markActiveToday();
+    expect(expired.hasRestorableLapse, isTrue,
+        reason: 'precondition: the expiry left a buy-back-worthy pre-lapse');
+
+    // Dismissing the rescue ("Start fresh") must clear the persisted lapse so
+    // a same-day re-entry into muḥāsabah cannot re-offer it.
+    await clearLapseCache();
+
+    final after = await getStreak();
+    expect(after.preLapseStreak, 0);
+    expect(after.hasRestorableLapse, isFalse);
+  });
+
   group('StreakState.repairCostTokens (server-priced mirror)', () {
     StreakState s(int pre) => StreakState(
         currentStreak: 1,

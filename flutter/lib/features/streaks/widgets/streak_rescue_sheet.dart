@@ -100,9 +100,14 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     }
     setState(() => _busy = false);
     if (result.needsTokens) {
-      Navigator.of(context).pop();
+      // Capture the router BEFORE popping: after pop this sheet's element is
+      // defunct, so `context.push` would look up an ancestor on a deactivated
+      // widget and throw. (Matches the pop-then-navigate pattern used
+      // elsewhere.)
+      final router = GoRouter.of(context);
       ref.read(dailyLoopProvider.notifier).clearStreakLapse();
-      context.push('/store');
+      Navigator.of(context).pop();
+      router.push('/store');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Couldn’t relight just now — try again.')),
