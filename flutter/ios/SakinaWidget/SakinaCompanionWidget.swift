@@ -83,7 +83,13 @@ private func resolveCompanion(at date: Date, phase: RenderPhase) -> CompanionDis
     let checkedIn = p.checked_in_today && p.mode == "personalized"
         && isSameLocalDay(p.updated_at, date, cal)
     let streak = p.streak
-    let atRisk = !checkedIn && phase == .eveningAtRisk
+    // At-risk mirrors the Dart mapper's local-hour split (companionAtRiskHour =
+    // 20): un-lit AND at/after 8pm local. Derive it from the entry's own hour so
+    // a `.current` snapshot rendered after 8pm still reads at-risk — not only the
+    // scheduled `.eveningAtRisk` entry (which isn't produced when the timeline is
+    // built after 8pm).
+    let hour = cal.component(.hour, from: date)
+    let atRisk = !checkedIn && (phase == .eveningAtRisk || hour >= 20)
 
     let brightness: String
     if streak <= 0 {
