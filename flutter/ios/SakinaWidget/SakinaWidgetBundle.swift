@@ -12,6 +12,7 @@ import SwiftUI
 struct SakinaWidgetBundle: WidgetBundle {
     var body: some Widget {
         SakinaWidget()
+        SakinaCompanionWidget()
         SakinaDuaTimesWidget()
         // The duʿā-times Live Activity (Lock Screen + Dynamic Island). Gated so
         // the extension still compiles + runs below iOS 16.2 (ActivityKit floor);
