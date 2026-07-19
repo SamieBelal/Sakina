@@ -522,20 +522,17 @@ Future<StreakState> markActiveToday() async {
 }
 
 /// Buy back an EXPIRED streak with tokens (§2g). Server-authoritative and
-/// atomic (`repair_streak_paid` debits + restores in one txn). Returns the
-/// outcome; on insufficient tokens, [PaidRepairResult.needsTokens] is true so
-/// the caller can route to the Store. [isPremium] is asserted by the client
-/// (RC premium isn't in the DB) and metered server-side.
-Future<PaidRepairResult> repairStreakPaid({required bool isPremium}) async {
+/// atomic (`repair_streak_paid` debits + restores in one txn, and decides
+/// premium-free vs paid server-side — the client never asserts premium).
+/// Returns the outcome; on insufficient tokens, [PaidRepairResult.needsTokens]
+/// is true so the caller can route to the Store.
+Future<PaidRepairResult> repairStreakPaid() async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) {
     return const PaidRepairResult(success: false);
   }
   try {
-    final result = await Supabase.instance.client.rpc(
-      'repair_streak_paid',
-      params: {'p_is_premium': isPremium},
-    );
+    final result = await Supabase.instance.client.rpc('repair_streak_paid');
     final map = (result as Map).cast<String, dynamic>();
     final restored = (map['current_streak'] as num).toInt();
     final method = map['method'] as String? ?? AnalyticsEvents.repairMethodPaid;

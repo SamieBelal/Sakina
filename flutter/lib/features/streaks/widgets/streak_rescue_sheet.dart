@@ -84,10 +84,9 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     HapticFeedback.lightImpact();
-    final isPremium =
-        ref.read(premiumStateProvider).valueOrNull?.isPremium ?? false;
 
-    final result = await repairStreakPaid(isPremium: isPremium);
+    // Premium-free vs paid is decided server-side; we don't assert it here.
+    final result = await repairStreakPaid();
     if (!mounted) return;
 
     if (result.success) {

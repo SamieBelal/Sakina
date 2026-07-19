@@ -108,7 +108,7 @@ begin
       premium_free_repair_at = null;
   update public.user_tokens set balance = 1000, total_spent = 0 where user_id = uid_a;
 
-  v_result := public.repair_streak_paid(false);
+  v_result := public.repair_streak_paid();
   select balance into v_balance from public.user_tokens where user_id = uid_a;
   select current_streak, longest_streak, pre_lapse_streak into v_cur, v_longest, v_pre
     from public.user_streaks where user_id = uid_a;
@@ -125,7 +125,7 @@ begin
     pre_lapse_streak = 15, lapsed_at = now() - interval '5 days',
     last_paid_repair_at = null where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
-  v_result := public.repair_streak_paid(false);
+  v_result := public.repair_streak_paid();
   perform pg_temp.expect((v_result->>'cost')::int = 100, '2. cost=100 for 7-29 band');
 
   -- =========================================================================
@@ -135,7 +135,7 @@ begin
     pre_lapse_streak = 120, lapsed_at = now() - interval '3 days',
     last_paid_repair_at = null where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
-  v_result := public.repair_streak_paid(false);
+  v_result := public.repair_streak_paid();
   perform pg_temp.expect((v_result->>'cost')::int = 500, '3. cost=500 for 90+ band');
 
   -- =========================================================================
@@ -144,7 +144,7 @@ begin
   update public.user_streaks set current_streak = 1, pre_lapse_streak = 5,
     lapsed_at = now() - interval '2 days', last_paid_repair_at = null where user_id = uid_a;
   begin
-    v_result := public.repair_streak_paid(false);
+    v_result := public.repair_streak_paid();
     perform pg_temp.expect(false, '4. pre_lapse<7 should raise');
   exception when others then
     perform pg_temp.expect(true, '4. pre_lapse<7 refused');
@@ -156,7 +156,7 @@ begin
   update public.user_streaks set current_streak = 40, pre_lapse_streak = 30,
     lapsed_at = now() - interval '2 days', last_paid_repair_at = null where user_id = uid_a;
   begin
-    v_result := public.repair_streak_paid(false);
+    v_result := public.repair_streak_paid();
     perform pg_temp.expect(false, '5. pre_lapse<=current should raise');
   exception when others then
     perform pg_temp.expect(true, '5. nothing-to-restore refused');
@@ -168,7 +168,7 @@ begin
   update public.user_streaks set current_streak = 1, pre_lapse_streak = 30,
     lapsed_at = now() - interval '40 days', last_paid_repair_at = null where user_id = uid_a;
   begin
-    v_result := public.repair_streak_paid(false);
+    v_result := public.repair_streak_paid();
     perform pg_temp.expect(false, '6. window passed should raise');
   exception when others then
     perform pg_temp.expect(true, '6. expired window refused');
@@ -182,7 +182,7 @@ begin
     last_paid_repair_at = null where user_id = uid_a;
   update public.user_tokens set balance = 10 where user_id = uid_a;  -- < 250
   begin
-    v_result := public.repair_streak_paid(false);
+    v_result := public.repair_streak_paid();
     perform pg_temp.expect(false, '7a. insufficient tokens should raise');
   exception when others then
     perform pg_temp.expect(true, '7a. insufficient tokens refused');
@@ -200,7 +200,7 @@ begin
     last_paid_repair_at = now() - interval '3 days' where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
   begin
-    v_result := public.repair_streak_paid(false);
+    v_result := public.repair_streak_paid();
     perform pg_temp.expect(false, '8. rate-limit should raise');
   exception when others then
     perform pg_temp.expect(true, '8. paid rate-limited within 30d');
@@ -208,12 +208,22 @@ begin
 
   -- =========================================================================
   -- 9. Premium-free path: no debit, restores, meters premium_free_repair_at
+  --    Premium is SERVER-determined — seed an active RC entitlement row.
   -- =========================================================================
+  insert into public.user_subscriptions
+    (user_id, entitlement, product_id, expires_at, last_event_type, last_event_at)
+    values (uid_a, 'premium', 'test_premium', now() + interval '30 days',
+            'INITIAL_PURCHASE', now())
+    on conflict (user_id, entitlement) do update set
+      expires_at = now() + interval '30 days';
+  perform pg_temp.expect(public.has_active_premium_entitlement(uid_a),
+    '9-pre. server sees active premium entitlement');
+
   update public.user_streaks set current_streak = 1, longest_streak = 30,
     pre_lapse_streak = 30, lapsed_at = now() - interval '5 days',
     last_paid_repair_at = null, premium_free_repair_at = null where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
-  v_result := public.repair_streak_paid(true);
+  v_result := public.repair_streak_paid();
   select balance into v_balance from public.user_tokens where user_id = uid_a;
   perform pg_temp.expect((v_result->>'method') = 'premium_free', '9a. method=premium_free');
   perform pg_temp.expect((v_result->>'cost')::int = 0, '9b. premium free costs 0');
@@ -230,10 +240,15 @@ begin
     last_paid_repair_at = null,
     premium_free_repair_at = now() - interval '2 days' where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
-  v_result := public.repair_streak_paid(true);
+  v_result := public.repair_streak_paid();
   perform pg_temp.expect((v_result->>'method') = 'paid', '10a. premium free spent → falls to paid');
   select balance into v_balance from public.user_tokens where user_id = uid_a;
   perform pg_temp.expect(v_balance = 750, '10b. paid path charged 250 after free spent');
+
+  -- Revoke premium so the remaining tests exercise the non-premium (paid) path.
+  delete from public.user_subscriptions where user_id = uid_a;
+  perform pg_temp.expect(not public.has_active_premium_entitlement(uid_a),
+    '10c. premium revoked for subsequent tests');
 
   -- =========================================================================
   -- 11. longest_streak = greatest(old, restored)
@@ -242,7 +257,7 @@ begin
     pre_lapse_streak = 30, lapsed_at = now() - interval '5 days',
     last_paid_repair_at = null, premium_free_repair_at = null where user_id = uid_a;
   update public.user_tokens set balance = 1000 where user_id = uid_a;
-  v_result := public.repair_streak_paid(false);
+  v_result := public.repair_streak_paid();
   select longest_streak into v_longest from public.user_streaks where user_id = uid_a;
   perform pg_temp.expect(v_longest = 200, '11. longest never decreases (restored 35 < old 200)');
 
@@ -289,7 +304,7 @@ begin
   -- =========================================================================
   begin
     execute 'set local role anon';
-    perform public.repair_streak_paid(false);
+    perform public.repair_streak_paid();
     perform pg_temp.expect(false, '15. anon repair should be denied');
   exception when others then
     perform pg_temp.expect(true, '15. anon cannot execute repair_streak_paid');

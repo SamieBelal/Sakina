@@ -73,10 +73,11 @@ $$;
 -- ── 4. Paid streak buy-back (post-expiry rescue) ─────────────────────────────
 -- Atomic: debits tokens AND restores the streak in one transaction, or neither.
 -- Server-priced by the pre-lapse band (client cannot under-pay). Rate-limited
--- to 1 / 30d. Premium gets one free repair / 30d before tokens are charged
--- (RC premium isn't in the DB, so the client asserts p_is_premium; the server
--- still meters the free credit via premium_free_repair_at so it can't repeat).
-create or replace function public.repair_streak_paid(p_is_premium boolean default false)
+-- to 1 / 30d. Premium gets one free repair / 30d before tokens are charged.
+-- Premium is determined SERVER-SIDE (spoof-proof) from the webhook-populated
+-- entitlement + the *_premium_until grants — matching the client's isPremium
+-- definition — so the client never asserts its own premium status.
+create or replace function public.repair_streak_paid()
 returns jsonb
 language plpgsql
 security definer
@@ -89,9 +90,20 @@ declare
   v_cost int;
   v_restored int;
   v_balance int;
+  v_is_premium boolean;
   v_premium_free boolean := false;
 begin
   if uid is null then raise exception 'Not authenticated'; end if;
+
+  -- Server-authoritative premium (RC entitlement via webhook OR granted premium).
+  v_is_premium := public.has_active_premium_entitlement(uid)
+    or exists (
+      select 1 from public.user_profiles p
+      where p.id = uid
+        and (p.referral_premium_until > now_ts
+             or p.gift_premium_until > now_ts
+             or p.trial_premium_until > now_ts)
+    );
 
   select current_streak, longest_streak, pre_lapse_streak, lapsed_at,
          last_paid_repair_at, premium_free_repair_at
@@ -123,7 +135,7 @@ begin
   v_restored := s.pre_lapse_streak + s.current_streak;
 
   -- Premium free-monthly credit takes precedence over charging tokens.
-  if p_is_premium and (s.premium_free_repair_at is null
+  if v_is_premium and (s.premium_free_repair_at is null
       or now_ts >= s.premium_free_repair_at + interval '30 days') then
     v_premium_free := true;
   end if;
@@ -211,8 +223,8 @@ $$;
 
 -- ── 6. Grants (match the reconcile pattern: authenticated only) ──────────────
 revoke execute on function public.add_excused_date(date) from public, anon;
-revoke execute on function public.repair_streak_paid(boolean) from public, anon;
+revoke execute on function public.repair_streak_paid() from public, anon;
 revoke execute on function public.claim_streak_milestone(int) from public, anon;
 grant execute on function public.add_excused_date(date) to authenticated;
-grant execute on function public.repair_streak_paid(boolean) to authenticated;
+grant execute on function public.repair_streak_paid() to authenticated;
 grant execute on function public.claim_streak_milestone(int) to authenticated;
