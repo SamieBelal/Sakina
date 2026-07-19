@@ -169,11 +169,17 @@ const NOTIFICATION_TYPES: NotificationType[] = [
     sentColumn: "last_streak_sent_at",
     targetHour: 20,
     requiresStreak: true,
-    title: () => "Protect your streak",
+    // Reverent framing (plan §2h / §3): gamify showing up (istiqāmah), never
+    // guilt/"keep your streak alive". This same evening nudge reaches a user
+    // inside the 48h repair window (their streak hasn't been processed as
+    // lapsed until they return), so it doubles as the gentle relight prompt.
+    // We never send a post-expiry "you lost it" push — the reminder simply
+    // stops once the streak resets.
+    title: () => "A quiet moment awaits",
     message: (row) =>
       row.current_streak > 0
-        ? `Keep your ${row.current_streak}-day streak alive today.`
-        : "Check in with Sakina today.",
+        ? `Return to Sakina today — your lantern is glowing on day ${row.current_streak}.`
+        : "A quiet moment with Allah is waiting for you today.",
     dataType: "streak_risk",
   },
   {

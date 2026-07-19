@@ -362,5 +362,34 @@ void main() {
       expect(next, hasLength(1));
       expect(next.first.milestone.days, 14);
     });
+
+    test(
+        'server-authoritative claim prevents re-grant on cache-clear: local '
+        'set empty but server says already-claimed → NOT newly reached (§2f)',
+        () async {
+      // Simulate a fresh device (empty local claimed-set) where the server
+      // already recorded the day-7 claim.
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': false};
+
+      final newly = await checkStreakMilestones(7);
+      expect(newly, isEmpty,
+          reason: 'server says already claimed → no re-grant on new device');
+
+      // And it is now cached locally so we do not re-call the RPC.
+      final claimed = await getClaimedMilestones();
+      expect(claimed, contains(7));
+    });
+
+    test(
+        'server confirms a genuinely new claim → milestone IS newly reached',
+        () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true};
+
+      final newly = await checkStreakMilestones(7);
+      expect(newly, hasLength(1));
+      expect(newly.first.milestone.days, 7);
+    });
   });
 }

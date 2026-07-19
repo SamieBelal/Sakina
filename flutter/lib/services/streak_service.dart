@@ -88,21 +88,45 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
     int currentStreak) async {
   final prefs = await SharedPreferences.getInstance();
   final claimed = await _getScopedClaimedMilestones(prefs);
+  final userId = supabaseSyncService.currentUserId;
 
   final newlyReached = <StreakMilestoneResult>[];
+  var changed = false;
   for (final milestone in streakMilestones) {
-    if (currentStreak >= milestone.days && !claimed.contains(milestone.days)) {
-      claimed.add(milestone.days);
+    if (currentStreak < milestone.days) continue;
+    if (claimed.contains(milestone.days)) continue; // already granted here
+
+    // Server-authoritative claim (§2f): the server decides whether this is
+    // genuinely new, so a cache-clear / new device can't re-fire + re-grant.
+    // If the RPC is unavailable (offline / local-only), fall back to granting
+    // — preserving the prior local-prefs behavior.
+    bool isNew = true;
+    if (userId != null) {
+      final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'claim_streak_milestone',
+        {'p_day': milestone.days},
+      );
+      isNew = res == null ? true : (res['newly_claimed'] as bool? ?? true);
+    }
+
+    claimed.add(milestone.days);
+    changed = true;
+    if (isNew) {
       newlyReached
           .add(StreakMilestoneResult(milestone: milestone, isNew: true));
     }
   }
 
-  if (newlyReached.isNotEmpty) {
+  // Persist the local claimed-set whenever it grew (even for server-confirmed
+  // already-claimed milestones) so we don't re-call the RPC next time.
+  if (changed) {
     await prefs.setString(
       supabaseSyncService.scopedKey(_claimedMilestonesKey),
       jsonEncode(claimed.toList()),
     );
+  }
+
+  if (newlyReached.isNotEmpty) {
     // Emit AFTER the claimed-set persists (best-effort, wrapped). Emitting
     // inside the loop would report a milestone that a failing persist never
     // marked claimed → it would re-fire next call. Matches markActiveToday's

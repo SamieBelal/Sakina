@@ -166,8 +166,51 @@ begin
 end;
 $$;
 
--- ── 5. Grants (match the reconcile pattern: authenticated only) ──────────────
+-- ── 5. Server-authoritative milestone claimed-set (§2f, T3) ──────────────────
+-- Today `checkStreakMilestones` claims in local prefs → on cache-clear / new
+-- device the set is empty and every milestone re-fires + re-grants. Move the
+-- CLAIM server-side (idempotent by PK) so the client only grants when the
+-- server confirms a milestone is newly claimed. Additive — does NOT touch
+-- sync_all_user_data; grants stay client-triggered but gated on this.
+create table if not exists public.user_streak_milestones_claimed (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  milestone_day int not null,
+  claimed_at timestamptz not null default now(),
+  primary key (user_id, milestone_day)
+);
+
+alter table public.user_streak_milestones_claimed enable row level security;
+
+create policy "Users can view own milestone claims" on public.user_streak_milestones_claimed
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+create or replace function public.claim_streak_milestone(p_day int)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  v_new boolean;
+begin
+  if uid is null then raise exception 'Not authenticated'; end if;
+
+  insert into public.user_streak_milestones_claimed (user_id, milestone_day)
+    values (uid, p_day)
+    on conflict (user_id, milestone_day) do nothing;
+
+  -- FOUND is true iff a row was actually inserted (false on conflict-skip),
+  -- i.e. this is the first time the user has claimed this milestone anywhere.
+  v_new := found;
+  return jsonb_build_object('newly_claimed', v_new);
+end;
+$$;
+
+-- ── 6. Grants (match the reconcile pattern: authenticated only) ──────────────
 revoke execute on function public.add_excused_date(date) from public, anon;
 revoke execute on function public.repair_streak_paid(boolean) from public, anon;
+revoke execute on function public.claim_streak_milestone(int) from public, anon;
 grant execute on function public.add_excused_date(date) to authenticated;
 grant execute on function public.repair_streak_paid(boolean) to authenticated;
+grant execute on function public.claim_streak_milestone(int) to authenticated;

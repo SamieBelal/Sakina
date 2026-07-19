@@ -272,6 +272,16 @@ begin
     perform pg_temp.expect(false, '14. duplicate excused date should NOT raise');
   end;
 
+  -- =========================================================================
+  -- 17. claim_streak_milestone idempotency (server-authoritative claimed-set)
+  -- =========================================================================
+  v_result := public.claim_streak_milestone(7);
+  perform pg_temp.expect((v_result->>'newly_claimed')::boolean,
+    '17a. first milestone claim is newly_claimed=true');
+  v_result := public.claim_streak_milestone(7);
+  perform pg_temp.expect(not (v_result->>'newly_claimed')::boolean,
+    '17b. second claim of same day is newly_claimed=false (no re-grant)');
+
   perform pg_temp.reset_auth();
 
   -- =========================================================================
