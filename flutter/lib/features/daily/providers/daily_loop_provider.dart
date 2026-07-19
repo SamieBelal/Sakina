@@ -79,6 +79,11 @@ class DailyLoopState {
   final int? streakMilestoneXp;
   final int? streakMilestoneScrolls;
 
+  // Streak expired this reflection with a restorable streak (paid buy-back, §2g).
+  // Consumed by the UI to show the rescue sheet, mirroring the milestone flag.
+  final bool streakLapseRestorable;
+  final int lapsePreLapseStreak;
+
   // Card collection
   final CardEngageResult? cardEngageResult;
   final CollectibleName? engagedCard;
@@ -122,6 +127,8 @@ class DailyLoopState {
     this.streakMilestoneCount,
     this.streakMilestoneXp,
     this.streakMilestoneScrolls,
+    this.streakLapseRestorable = false,
+    this.lapsePreLapseStreak = 0,
     this.error,
   });
 
@@ -158,6 +165,8 @@ class DailyLoopState {
     int? streakMilestoneCount,
     int? streakMilestoneXp,
     int? streakMilestoneScrolls,
+    bool? streakLapseRestorable,
+    int? lapsePreLapseStreak,
     String? error,
   }) {
     return DailyLoopState(
@@ -195,6 +204,9 @@ class DailyLoopState {
       streakMilestoneXp: streakMilestoneXp ?? this.streakMilestoneXp,
       streakMilestoneScrolls:
           streakMilestoneScrolls ?? this.streakMilestoneScrolls,
+      streakLapseRestorable:
+          streakLapseRestorable ?? this.streakLapseRestorable,
+      lapsePreLapseStreak: lapsePreLapseStreak ?? this.lapsePreLapseStreak,
       error: error,
     );
   }
@@ -407,7 +419,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // retention queries see the daily check-in. Previously only the
     // reflect flow hit logActivity(); muhasabah was silent.
     await logActivity();
-    state = state.copyWith(streakCount: streakResult.currentStreak);
+    state = state.copyWith(
+      streakCount: streakResult.currentStreak,
+      // The streak just expired with a buy-back-worthy value → offer the rescue.
+      streakLapseRestorable: streakResult.hasRestorableLapse,
+      lapsePreLapseStreak: streakResult.preLapseStreak,
+    );
     await _handleStreakMilestones(streakResult.currentStreak);
   }
 
@@ -890,6 +907,23 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       streakMilestoneCount: 0,
       streakMilestoneXp: 0,
       streakMilestoneScrolls: 0,
+    );
+  }
+
+  void clearStreakLapse() {
+    state = state.copyWith(
+      streakLapseRestorable: false,
+      lapsePreLapseStreak: 0,
+    );
+  }
+
+  /// Restore the just-expired streak locally after a successful paid buy-back
+  /// (the RPC already restored it server-side; this reflects it in the UI).
+  void applyRestoredStreak(int restoredStreak) {
+    state = state.copyWith(
+      streakCount: restoredStreak,
+      streakLapseRestorable: false,
+      lapsePreLapseStreak: 0,
     );
   }
 

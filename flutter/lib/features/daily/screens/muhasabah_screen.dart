@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
@@ -85,6 +86,13 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       if (next.streakMilestoneReached &&
           prev?.streakMilestoneReached != true) {
         _pushStreakMilestoneOverlay(next);
+        return;
+      }
+      // Streak just expired with a restorable value → offer the paid rescue
+      // (calm, dismissible). Mutually exclusive with a milestone in practice.
+      if (next.streakLapseRestorable && prev?.streakLapseRestorable != true) {
+        showStreakRescueSheet(context, ref,
+            preLapseStreak: next.lapsePreLapseStreak);
         return;
       }
       // Gacha reveal — when a tier-changed engageResult freshly arrives.
