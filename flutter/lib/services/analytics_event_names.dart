@@ -611,6 +611,21 @@ abstract final class AnalyticsEvents {
   static const String streakExtended = 'streak_extended';
   static const String streakMilestone = 'streak_milestone';
   static const String streakFreezeConsumed = 'streak_freeze_consumed';
+  // Streak-defense (Phase 2). Lapse → outcome funnel + the paid-rescue funnel.
+  static const String streakLapsed = 'streak_lapsed';
+  // streak_repaired {method: 'effort'|'freeze'|'paid'|'premium_free',
+  //                  pre_lapse_streak, tokens_spent}
+  static const String streakRepaired = 'streak_repaired';
+  static const String streakExpired = 'streak_expired';
+  static const String streakRepairOfferShown = 'streak_repair_offer_shown';
+  static const String streakRepairOfferDismissed = 'streak_repair_offer_dismissed';
+  static const String streakExcusedUsed = 'streak_excused_used';
+  static const String endowedStart = 'endowed_start';
+  // streak_repaired `method` values.
+  static const String repairMethodEffort = 'effort';
+  static const String repairMethodFreeze = 'freeze';
+  static const String repairMethodPaid = 'paid';
+  static const String repairMethodPremiumFree = 'premium_free';
   static const String questCompleted = 'quest_completed';
   static const String xpAwarded = 'xp_awarded';
   static const String levelUp = 'level_up';

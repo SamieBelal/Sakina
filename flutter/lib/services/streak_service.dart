@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -134,18 +135,46 @@ class StreakState {
   final String? lastActive;
   final bool todayActive;
 
+  /// The streak value saved when the current streak EXPIRED (soft-decay), kept
+  /// so the user can optionally buy it back (§2g). 0 when there's nothing to
+  /// restore. Set by [markActiveToday] when a return reflection lands past the
+  /// free 48h window with no freeze.
+  final int preLapseStreak;
+
+  /// ISO-8601 UTC instant of the first missed day (00:00 UTC), or null. Drives
+  /// the 30-day buy-back window.
+  final String? lapsedAt;
+
   const StreakState({
     required this.currentStreak,
     required this.longestStreak,
     required this.lastActive,
     required this.todayActive,
+    this.preLapseStreak = 0,
+    this.lapsedAt,
   });
+
+  /// True when the last reflection just expired a streak worth buying back
+  /// (≥7 days) — the daily loop surfaces the paid rescue on this.
+  bool get hasRestorableLapse => preLapseStreak >= 7;
+
+  /// Server-authoritative pricing mirror (see `repair_streak_paid`): the token
+  /// cost to buy back [preLapseStreak], or null if not offered (<7).
+  int? get repairCostTokens {
+    if (preLapseStreak < 7) return null;
+    if (preLapseStreak <= 29) return 100;
+    if (preLapseStreak <= 89) return 250;
+    return 500;
+  }
 }
 
 const String _currentStreakKey = 'sakina_current_streak';
 const String _longestStreakKey = 'sakina_longest_streak';
 const String _lastActiveKey = 'sakina_last_active';
 const String _activityLogKey = 'sakina_activity_log';
+const String _preLapseStreakKey = 'sakina_pre_lapse_streak';
+const String _lapsedAtKey = 'sakina_lapsed_at';
+const String _excusedDatesKey = 'sakina_excused_dates';
 
 Future<int> _getCachedCurrentStreak(SharedPreferences prefs) async {
   final migrated =
@@ -169,6 +198,17 @@ Future<Set<String>> _getCachedActivityLogSet(SharedPreferences prefs) async {
   return (migrated ?? const <String>[]).toSet();
 }
 
+Future<int> _getCachedPreLapseStreak(SharedPreferences prefs) async =>
+    prefs.getInt(supabaseSyncService.scopedKey(_preLapseStreakKey)) ?? 0;
+
+Future<String?> _getCachedLapsedAt(SharedPreferences prefs) async =>
+    prefs.getString(supabaseSyncService.scopedKey(_lapsedAtKey));
+
+Future<Set<String>> _getCachedExcusedDates(SharedPreferences prefs) async =>
+    (prefs.getStringList(supabaseSyncService.scopedKey(_excusedDatesKey)) ??
+            const <String>[])
+        .toSet();
+
 Future<void> _setCachedStreakState(
   SharedPreferences prefs, {
   required int currentStreak,
@@ -191,6 +231,24 @@ Future<void> _setCachedStreakState(
   }
 }
 
+/// Persist the lapse bookkeeping separately so [hydrateStreakCache] (which
+/// reconciles current/longest/lastActive from the batch RPC) never wipes a
+/// pending pre-lapse buy-back the batch RPC doesn't yet know about.
+Future<void> _setCachedLapse(
+  SharedPreferences prefs, {
+  required int preLapseStreak,
+  required String? lapsedAt,
+}) async {
+  await prefs.setInt(
+      supabaseSyncService.scopedKey(_preLapseStreakKey), preLapseStreak);
+  if (lapsedAt == null) {
+    await prefs.remove(supabaseSyncService.scopedKey(_lapsedAtKey));
+  } else {
+    await prefs.setString(
+        supabaseSyncService.scopedKey(_lapsedAtKey), lapsedAt);
+  }
+}
+
 String _todayString() {
   final now = DateTime.now().toUtc();
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -199,12 +257,6 @@ String _todayString() {
 DateTime _parseUtcDate(String isoDate) {
   final parsed = DateTime.parse(isoDate).toUtc();
   return DateTime.utc(parsed.year, parsed.month, parsed.day);
-}
-
-int _daysBetween(String dateA, String dateB) {
-  final a = _parseUtcDate(dateA);
-  final b = _parseUtcDate(dateB);
-  return (a.difference(b).inDays).abs();
 }
 
 Future<StreakState> getStreak() async {
@@ -228,7 +280,43 @@ Future<StreakState> getStreak() async {
     longestStreak: longestStreak,
     lastActive: lastActive,
     todayActive: todayActive,
+    preLapseStreak: await _getCachedPreLapseStreak(prefs),
+    lapsedAt: await _getCachedLapsedAt(prefs),
   );
+}
+
+/// Free-repair window: a return reflection within 48h of the first missed day
+/// is forgiven for free (§2b). Measured from the first UNEXCUSED missed day at
+/// 00:00 UTC, not app-open time (finding #4).
+const Duration _freeRepairWindow = Duration(hours: 48);
+
+/// Outcome of the gap check between [lastActive] and [today].
+enum _LapseKind { continues, lapsed }
+
+class _LapseResult {
+  const _LapseResult(this.kind, {this.lapsedAt});
+  final _LapseKind kind;
+  final DateTime? lapsedAt; // first unexcused missed day, 00:00 UTC (lapsed only)
+}
+
+/// Decide whether the streak continues or has lapsed, honoring excused days.
+/// A run of missed days that are ALL excused counts as continuous.
+_LapseResult _computeLapse(
+    String lastActive, String today, Set<String> excused) {
+  final last = _parseUtcDate(lastActive);
+  final now = _parseUtcDate(today);
+  DateTime? firstUnexcused;
+  for (var d = last.add(const Duration(days: 1));
+      d.isBefore(now);
+      d = d.add(const Duration(days: 1))) {
+    final key =
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    if (!excused.contains(key)) {
+      firstUnexcused ??= d;
+    }
+  }
+  if (firstUnexcused == null) return const _LapseResult(_LapseKind.continues);
+  return _LapseResult(_LapseKind.lapsed, lapsedAt: firstUnexcused);
 }
 
 Future<void> prepareStreakCacheForHydration() async {
@@ -274,7 +362,7 @@ Future<StreakState> markActiveToday() async {
     }
   }
 
-  // Already active today — return current state
+  // Already active today — return current state (unchanged fast path).
   if (lastActive == today) {
     await _setCachedStreakState(
       prefs,
@@ -287,17 +375,41 @@ Future<StreakState> markActiveToday() async {
       longestStreak: longestStreak,
       lastActive: lastActive,
       todayActive: true,
+      preLapseStreak: await _getCachedPreLapseStreak(prefs),
+      lapsedAt: await _getCachedLapsedAt(prefs),
     );
   }
 
-  // Check if streak continues (yesterday) or resets
+  // Endowed start: the very first reflection on a brand-new lamp.
+  final bool isEndowedStart = lastActive == null && longestStreak == 0;
+
+  // ── The repair ladder (§2b): free effort-repair → earned freeze → expire ──
   bool freezeConsumed = false;
-  if (lastActive != null && _daysBetween(lastActive, today) > 1) {
-    final frozeUsed = await consumeStreakFreeze();
-    if (frozeUsed) {
-      freezeConsumed = true;
-    } else {
-      currentStreak = 0;
+  String repairMethod = ''; // '', effort, freeze; expired => streakExpired
+  int preLapseStreak = 0; // set only on EXPIRED, for the paid buy-back
+  String? lapsedAtIso;
+  bool lapsedThisRun = false;
+
+  if (lastActive != null) {
+    final excused = await _getCachedExcusedDates(prefs);
+    final lapse = _computeLapse(lastActive, today, excused);
+    if (lapse.kind == _LapseKind.lapsed) {
+      lapsedThisRun = true;
+      final lapsedAt = lapse.lapsedAt!;
+      final withinFreeWindow =
+          DateTime.now().toUtc().isBefore(lapsedAt.add(_freeRepairWindow));
+      if (withinFreeWindow) {
+        // Free effort-repair: the return reflection forgives the gap.
+        repairMethod = AnalyticsEvents.repairMethodEffort;
+      } else if (await consumeStreakFreeze()) {
+        freezeConsumed = true;
+        repairMethod = AnalyticsEvents.repairMethodFreeze;
+      } else {
+        // EXPIRED — start fresh at 1, but remember what was lost for buy-back.
+        preLapseStreak = currentStreak;
+        lapsedAtIso = lapsedAt.toIso8601String();
+        currentStreak = 0;
+      }
     }
   }
 
@@ -315,6 +427,8 @@ Future<StreakState> markActiveToday() async {
       'current_streak': currentStreak,
       'longest_streak': longestStreak,
       'last_active': today,
+      'pre_lapse_streak': preLapseStreak == 0 ? null : preLapseStreak,
+      'lapsed_at': lapsedAtIso,
     });
     if (!ok && !freezeConsumed) {
       // Server write failed and no side-effects committed — safe to return
@@ -333,14 +447,33 @@ Future<StreakState> markActiveToday() async {
     longestStreak: longestStreak,
     lastActive: today,
   );
+  await _setCachedLapse(prefs,
+      preLapseStreak: preLapseStreak, lapsedAt: lapsedAtIso);
 
-  // Analytics (best-effort, wrapped — never let a telemetry throw break the
-  // streak write). The already-active-today branch returned earlier, so this
-  // runs exactly once per real increment. `streak_extended` is gated on durable
-  // persistence so the rare "freeze consumed but streak upsert failed" case
-  // doesn't report a server-unpersisted day; `streak_freeze_consumed` always
-  // fires (the freeze itself committed server-side).
+  // Analytics (best-effort, wrapped — a telemetry throw must never break the
+  // streak write). Runs once per real increment (already-active returned above).
   try {
+    if (isEndowedStart) {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.endowedStart, {});
+    }
+    if (lapsedThisRun) {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakLapsed, {
+        'pre_lapse_streak': preLapseStreak > 0 ? preLapseStreak : currentStreak - 1,
+      });
+    }
+    if (repairMethod.isNotEmpty && streakPersisted) {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakRepaired, {
+        'method': repairMethod,
+        'streak_day': currentStreak,
+      });
+    }
+    if (preLapseStreak > 0) {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExpired, {
+        'pre_lapse_streak': preLapseStreak,
+      });
+    }
+    // `streak_extended` still fires on every durable increment (repair or not),
+    // preserving the existing funnel; `streak_freeze_consumed` on freeze use.
     if (streakPersisted) {
       StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExtended, {
         'streak_day': currentStreak,
@@ -359,7 +492,99 @@ Future<StreakState> markActiveToday() async {
     longestStreak: longestStreak,
     lastActive: today,
     todayActive: true,
+    preLapseStreak: preLapseStreak,
+    lapsedAt: lapsedAtIso,
   );
+}
+
+/// Buy back an EXPIRED streak with tokens (§2g). Server-authoritative and
+/// atomic (`repair_streak_paid` debits + restores in one txn). Returns the
+/// outcome; on insufficient tokens, [PaidRepairResult.needsTokens] is true so
+/// the caller can route to the Store. [isPremium] is asserted by the client
+/// (RC premium isn't in the DB) and metered server-side.
+Future<PaidRepairResult> repairStreakPaid({required bool isPremium}) async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) {
+    return const PaidRepairResult(success: false);
+  }
+  try {
+    final result = await Supabase.instance.client.rpc(
+      'repair_streak_paid',
+      params: {'p_is_premium': isPremium},
+    );
+    final map = (result as Map).cast<String, dynamic>();
+    final restored = (map['current_streak'] as num).toInt();
+    final method = map['method'] as String? ?? AnalyticsEvents.repairMethodPaid;
+    final cost = (map['cost'] as num?)?.toInt() ?? 0;
+
+    // Reconcile local caches: the streak is restored, the lapse cleared.
+    final prefs = await SharedPreferences.getInstance();
+    final longest = await _getCachedLongestStreak(prefs);
+    await _setCachedStreakState(
+      prefs,
+      currentStreak: restored,
+      longestStreak: restored > longest ? restored : longest,
+      lastActive: _todayString(),
+    );
+    await _setCachedLapse(prefs, preLapseStreak: 0, lapsedAt: null);
+
+    try {
+      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakRepaired, {
+        'method': method,
+        'streak_day': restored,
+        'tokens_spent': cost,
+      });
+    } catch (_) {}
+
+    return PaidRepairResult(
+        success: true, restoredStreak: restored, tokensSpent: cost);
+  } catch (e) {
+    final msg = e.toString().toLowerCase();
+    return PaidRepairResult(
+        success: false, needsTokens: msg.contains('insufficient'));
+  }
+}
+
+/// Record an excused day (menstruation / travel-illness) — capped server-side.
+/// Returns true on success. Caches the date locally so the next
+/// [markActiveToday] gap check honors it without a round-trip.
+Future<bool> addExcusedDate(DateTime date) async {
+  final iso =
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  final prefs = await SharedPreferences.getInstance();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    final result =
+        await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'add_excused_date',
+      {'p_date': iso},
+    );
+    if (result == null) return false; // cap reached or error
+  }
+  final set = await _getCachedExcusedDates(prefs);
+  set.add(iso);
+  await prefs.setStringList(
+      supabaseSyncService.scopedKey(_excusedDatesKey), set.toList());
+  try {
+    StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakExcusedUsed, {
+      'excused_count_in_window': set.length,
+    });
+  } catch (_) {}
+  return true;
+}
+
+/// Result of [repairStreakPaid].
+class PaidRepairResult {
+  const PaidRepairResult({
+    required this.success,
+    this.needsTokens = false,
+    this.restoredStreak = 0,
+    this.tokensSpent = 0,
+  });
+  final bool success;
+  final bool needsTokens; // true → not enough tokens; route to Store
+  final int restoredStreak;
+  final int tokensSpent;
 }
 
 Future<Set<String>> getActivityLog() async {

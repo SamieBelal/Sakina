@@ -189,6 +189,96 @@ void main() {
   // scoped-prefs persistence would land silently.
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Phase 2 — soft-decay repair ladder (§2b). Runs in server mode (fakeSync).
+  // ---------------------------------------------------------------------------
+  String _utcDay(int deltaDays) {
+    final d = DateTime.now().toUtc().add(Duration(days: deltaDays));
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  group('soft-decay ladder', () {
+    test(
+        'free effort-repair: one missed day, return within 48h → streak '
+        'CONTINUES (no reset, no freeze), no pre-lapse', () async {
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 10,
+        'longest_streak': 10,
+        'last_active': _utcDay(-2), // missed only yesterday
+      };
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
+
+      final result = await markActiveToday();
+
+      expect(result.currentStreak, 11,
+          reason: 'a return within the 48h window is forgiven for free');
+      expect(result.preLapseStreak, 0, reason: 'no expiry → nothing to buy back');
+    });
+
+    test(
+        'expired: return past 48h with no freeze → current resets to 1, '
+        'pre_lapse saved for buy-back, longest preserved', () async {
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 20,
+        'longest_streak': 20,
+        'last_active': _utcDay(-4), // missed 3 days → past window
+      };
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
+
+      final result = await markActiveToday();
+
+      expect(result.currentStreak, 1);
+      expect(result.longestStreak, 20, reason: 'longest never decreases');
+      expect(result.preLapseStreak, 20, reason: 'the lost streak is restorable');
+      expect(result.lapsedAt, isNotNull);
+      expect(result.hasRestorableLapse, isTrue);
+      // Persisted for the buy-back RPC.
+      final data = fakeSync.upsertCalls
+          .firstWhere((c) => c['table'] == 'user_streaks')['data'] as Map;
+      expect(data['pre_lapse_streak'], 20);
+      expect(data['lapsed_at'], isNotNull);
+    });
+
+    test('an excused missed day bridges the gap → streak continues', () async {
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 8,
+        'longest_streak': 8,
+        'last_active': _utcDay(-2),
+      };
+      fakeSync.rpcHandlers['add_excused_date'] =
+          (_) async => {'ok': true, 'count_in_window': 1};
+
+      // Excuse yesterday (the only missed day).
+      final ok = await addExcusedDate(
+          DateTime.now().toUtc().subtract(const Duration(days: 1)));
+      expect(ok, isTrue);
+
+      final result = await markActiveToday();
+      expect(result.currentStreak, 9,
+          reason: 'the only gap day was excused → treated as continuous');
+      expect(result.preLapseStreak, 0);
+    });
+  });
+
+  group('StreakState.repairCostTokens (server-priced mirror)', () {
+    StreakState s(int pre) => StreakState(
+        currentStreak: 1,
+        longestStreak: pre,
+        lastActive: '2026-01-01',
+        todayActive: true,
+        preLapseStreak: pre);
+    test('< 7 → not offered (null)', () => expect(s(5).repairCostTokens, isNull));
+    test('7–29 → 100', () {
+      expect(s(7).repairCostTokens, 100);
+      expect(s(29).repairCostTokens, 100);
+    });
+    test('30–89 → 250', () {
+      expect(s(30).repairCostTokens, 250);
+      expect(s(89).repairCostTokens, 250);
+    });
+    test('90+ → 500', () => expect(s(90).repairCostTokens, 500));
+  });
+
   group('checkStreakMilestones', () {
     test('crossing day-7 returns the day-7 milestone exactly once', () async {
       final newly = await checkStreakMilestones(7);
