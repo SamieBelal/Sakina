@@ -85,8 +85,10 @@ The onboarding→tour→paywall funnel is ONE funnel segmented by feature-flag *
 
 UI must feel premium, warm, spiritually grounded — like opening a beautifully typeset mushaf, not a tech product. Light mode is the DEFAULT (warm cream `#FBF7F2`), dark mode is secondary (warm charcoal, NOT pure black).
 
+> **Full token-level spec: [`DESIGN.md`](./DESIGN.md)** — palette (incl. the `sacredCanvas*` block), typography, spacing, motion, and the on-canvas gold-contrast rules. This section is the short-form philosophy; keep the two in sync.
+
 - **Colors:** full palettes in `lib/core/constants/app_colors.dart`. Primary is deep emerald `#1B6B4A`, secondary is warm matte gold `#C8985E`.
-- **Fonts:** Amiri / Scheherazade New for Quran verses, Aref Ruqaa for Name-of-Allah hero display (use [`AdjustedArabicDisplay`](./lib/widgets/adjusted_arabic_display.dart) — direct Aref Ruqaa text bleeds into surrounding UI). DM Serif Display for English headings, DM Sans for body/UI.
+- **Fonts:** Amiri / Scheherazade New for Quran verses, Aref Ruqaa for Name-of-Allah hero display (use [`AdjustedArabicDisplay`](./lib/widgets/adjusted_arabic_display.dart) — direct Aref Ruqaa text bleeds into surrounding UI). **Outfit** for all English display/headings and body/UI (see `lib/core/theme/app_typography.dart`).
 - **References:** Glorify (primary visual reference) · Hallow (dark mode reference) · Calm (premium wellness feel) · Duolingo (gamification mechanics only — NOT the bright palette) · Cal AI (onboarding flow).
 - **Generous whitespace (20-30% more padding than feels necessary). Soft 12-16px rounded cards. Islamic geometric patterns ONLY as 5-8% opacity decorative accents.**
 - The result card (Name + verse + dua) must be share-worthy unprompted — that's a growth mechanic, not just aesthetics.
