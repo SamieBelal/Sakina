@@ -164,25 +164,6 @@ const NOTIFICATION_TYPES: NotificationType[] = [
     dataType: "daily_reminder",
   },
   {
-    key: "streak",
-    prefColumn: "notify_streak",
-    sentColumn: "last_streak_sent_at",
-    targetHour: 20,
-    requiresStreak: true,
-    // Reverent framing (plan §2h / §3): gamify showing up (istiqāmah), never
-    // guilt/"keep your streak alive". This same evening nudge reaches a user
-    // inside the 48h repair window (their streak hasn't been processed as
-    // lapsed until they return), so it doubles as the gentle relight prompt.
-    // We never send a post-expiry "you lost it" push — the reminder simply
-    // stops once the streak resets.
-    title: () => "A quiet moment awaits",
-    message: (row) =>
-      row.current_streak > 0
-        ? `Return to Sakina today — your lantern is glowing on day ${row.current_streak}.`
-        : "A quiet moment with Allah is waiting for you today.",
-    dataType: "streak_risk",
-  },
-  {
     key: "reengagement",
     prefColumn: "notify_reengagement",
     sentColumn: "last_reengagement_sent_at",
@@ -207,6 +188,168 @@ const NOTIFICATION_TYPES: NotificationType[] = [
     dataType: "weekly_reflection",
   },
 ];
+
+// ── Unified streak-family notification (T5 / spec §5 S1, D5/D6/D7/D8/D11) ────
+//
+// Replaces the old `streak` NOTIFICATION_TYPES row. The DB computes ONE decision
+// per eligible user per LOCAL day via get_streak_notification_decisions
+// (saver | milestone | winback), collapsing mutual exclusion + the :00/:30
+// double-fire into the server. This code path just renders the locked-vocabulary
+// copy per kind and stamps the single family dedup key.
+type StreakKind = "saver" | "milestone" | "winback";
+
+type StreakDecision = {
+  user_id: string;
+  timezone: string;
+  display_name: string | null;
+  current_streak: number;
+  kind: StreakKind;
+};
+
+// The fixed local hour the streak family fires (evening saver / milestone /
+// morning-ish winback all resolve through the one 7–8pm local tick — the DB
+// decides which kind, the client-side day-boundary makes winback non-overlapping
+// with the evening saver by construction, D6).
+const STREAK_FAMILY_TARGET_HOUR = 20;
+
+// LOCKED vocabulary (spec D5). Banned words: dark, dies, lost, failed, broken.
+// Milestone tier = streak+1 (the decision fires exactly one day before a
+// threshold, so the streak the user will reach TOMORROW is current_streak + 1).
+function streakFamilyTitle(_d: StreakDecision): string {
+  // One quiet, reverent heading across the family (matches the prior saver copy).
+  return "A quiet moment awaits";
+}
+
+function streakFamilyBody(d: StreakDecision): string {
+  switch (d.kind) {
+    case "saver":
+      return "Your lantern rests tonight — one reflection keeps it lit.";
+    case "milestone": {
+      const tier = d.current_streak + 1;
+      return `Tomorrow is your ${tier}-day flame — one reflection away.`;
+    }
+    case "winback":
+      return "Your lantern is resting. Relight it whenever you're ready.";
+  }
+}
+
+// dataType stamped onto the OneSignal `data.type` (drives client routing +
+// analytics). `streak_risk` is preserved for the saver so the existing funnel is
+// unchanged; milestone/winback get distinct types.
+function streakFamilyDataType(kind: StreakKind): string {
+  switch (kind) {
+    case "saver":
+      return "streak_risk";
+    case "milestone":
+      return "streak_milestone_approaching";
+    case "winback":
+      return "streak_winback";
+  }
+}
+
+// Stamp BOTH the single family dedup key (as the user's LOCAL today, so the
+// :00/:30 ticks in the same local day are deduped) and the kind that fired.
+// One UPDATE per user. LOCAL date is computed in-code from the row's timezone so
+// it agrees with the RPC's `local_today`.
+function localTodayForTimezone(tz: string, now: Date): string {
+  // en-CA yields YYYY-MM-DD; the IANA tz shifts `now` to the user's local day.
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+  } catch (_) {
+    // Unknown/invalid tz → fall back to UTC date (matches the RPC's UTC coalesce).
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+async function markStreakFamilySent(
+  supabase: any,
+  userId: string,
+  localToday: string,
+  kind: StreakKind,
+) {
+  const { error } = await supabase
+    .from("user_notification_preferences")
+    .update({
+      last_streak_family_sent_at: localToday,
+      last_streak_family_kind: kind,
+    })
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+// Enqueue the unified streak-family pushes. Mirrors the reengagement per-user
+// path: mark AFTER a successful send (the family dedup is a per-local-day guard,
+// so a dropped send simply retries next tick — at-most-once is unnecessary here,
+// and stamping before a failed send would silently suppress the user all day).
+// Respects the shared pushedUserIds set (quiet-hours dedup) both directions.
+async function processStreakFamily(params: {
+  supabase: any;
+  appId: string;
+  restApiKey: string;
+  alreadyPushedUserIds: Set<string>;
+  now: Date;
+}): Promise<{ eligible: number; sent: number; marked: number }> {
+  const { supabase, appId, restApiKey, alreadyPushedUserIds, now } = params;
+
+  const { data, error } = await supabase.rpc(
+    "get_streak_notification_decisions",
+    { p_target_hour: STREAK_FAMILY_TARGET_HOUR },
+  );
+  if (error) throw error;
+
+  const decisions = (data ?? []) as StreakDecision[];
+  if (decisions.length === 0) return { eligible: 0, sent: 0, marked: 0 };
+
+  let sent = 0;
+  let marked = 0;
+
+  for (const d of decisions) {
+    // Quiet-hours dedup: never double-buzz a user already pushed this run.
+    if (alreadyPushedUserIds.has(d.user_id)) continue;
+
+    const ok = await sendOneSignalNotification({
+      appId,
+      restApiKey,
+      userId: d.user_id,
+      title: streakFamilyTitle(d),
+      message: streakFamilyBody(d),
+      dataType: streakFamilyDataType(d.kind),
+    });
+    if (!ok) continue;
+
+    sent += 1;
+    alreadyPushedUserIds.add(d.user_id);
+
+    // Stamp the single family dedup key (LOCAL today) + kind so the :00/:30
+    // ticks can't re-send this user today.
+    await markStreakFamilySent(
+      supabase,
+      d.user_id,
+      localTodayForTimezone(d.timezone, now),
+      d.kind,
+    );
+    marked += 1;
+
+    // Server half of push attribution. Per-user+kind+day $insert_id dedups a
+    // cron re-run/retry in Mixpanel.
+    await mixpanelTrack("notification_sent", d.user_id, {
+      type: streakFamilyDataType(d.kind),
+      segment: d.kind,
+      streak: d.current_streak,
+    }, {
+      insertId: `${d.user_id}:${streakFamilyDataType(d.kind)}:${
+        localTodayForTimezone(d.timezone, now)
+      }`,
+    });
+  }
+
+  return { eligible: decisions.length, sent, marked };
+}
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -551,6 +694,19 @@ Deno.serve(async (request) => {
         marked,
       };
     }
+
+    // Unified streak-family pass (T5). Runs AFTER the fixed-cadence types so the
+    // shared pushedUserIds dedup set is populated. The DB decides ONE of
+    // saver|milestone|winback per eligible user at their local 8pm; this stamps
+    // the single last_streak_family_sent_at dedup key so :00/:30 can't re-send.
+    const streakResult = await processStreakFamily({
+      supabase,
+      appId: oneSignalAppId,
+      restApiKey: oneSignalRestApiKey,
+      alreadyPushedUserIds: pushedUserIds,
+      now: new Date(),
+    });
+    summary["streak_family"] = streakResult;
 
     // Precise duʿā-window pushes (client-computed instants). Runs AFTER the
     // fixed-cadence types so the shared pushedUserIds dedup set is populated
