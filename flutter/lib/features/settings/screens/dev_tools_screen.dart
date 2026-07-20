@@ -332,7 +332,38 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
         _actionChip('L15 (2495)', () => _jumpToXp(2495)),
         _actionChip('L25 (12195)', () => _jumpToXp(12195)),
         _actionChip('Set 0', () => _run(() => devSetXp(0)), destructive: true),
+        // Direct visual preview of the rank-up overlay (bypasses the XP math),
+        // mirroring 'Preview milestone'.
+        _actionChip('Preview level-up', _previewLevelUp),
       ],
+    );
+  }
+
+  /// Push the rank-up overlay directly (dev preview) with representative
+  /// Level-5 ("Grateful") data.
+  Future<void> _previewLevelUp() async {
+    final nav = Navigator.of(context, rootNavigator: true);
+    await nav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => LevelUpOverlay(
+          levelNumber: 5,
+          title: 'Grateful',
+          titleArabic: 'شَاكِر',
+          rewards: const LevelUpRewards(
+            tokensAwarded: 5,
+            scrollsAwarded: 2,
+            titleUnlocked: true,
+            unlockedTitle: 'Grateful',
+            unlockedTitleArabic: 'شَاكِر',
+          ),
+          onContinue: () => nav.pop(),
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
     );
   }
 
