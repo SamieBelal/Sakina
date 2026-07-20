@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
@@ -88,13 +87,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         _pushStreakMilestoneOverlay(next);
         return;
       }
-      // Streak just expired with a restorable value → offer the paid rescue
-      // (calm, dismissible). Mutually exclusive with a milestone in practice.
-      if (next.streakLapseRestorable && prev?.streakLapseRestorable != true) {
-        showStreakRescueSheet(context, ref,
-            preLapseStreak: next.lapsePreLapseStreak);
-        return;
-      }
+      // Streak lapse (restorable) is NOT surfaced here — that would slam the
+      // rescue modal over the sacred Name reveal. The flag stays set on the
+      // daily-loop state; the Home screen offers the paid rescue as a calm
+      // epilogue once the whole ritual is done (see progress_screen).
       // Gacha reveal — when a tier-changed engageResult freshly arrives.
       // Identity comparison is sufficient: every discoverName call
       // constructs a new CardEngageResult, so back-to-back discoveries

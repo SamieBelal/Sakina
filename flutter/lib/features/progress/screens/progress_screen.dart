@@ -13,6 +13,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
@@ -118,6 +119,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// `_submitInFlight` regression fix — without it both taps pass the gate
   /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
   bool _discoverInFlight = false;
+
+  /// One-shot guard for the deferred streak-rescue sheet — see
+  /// [_maybeShowStreakRescue]. Reset only by a fresh screen instance; the
+  /// underlying `streakLapseRestorable` flag is cleared by the sheet itself.
+  bool _rescueShown = false;
 
   @override
   void initState() {
@@ -259,9 +265,33 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     await _checkDiscoveryQuiz();
   }
 
+  /// Offer the paid streak buy-back as a calm epilogue — AFTER the muḥāsabah
+  /// ritual, once Home is the top route. The lapse is detected mid-flow (in
+  /// `markActiveToday`) and left on the daily-loop state; showing it here (not
+  /// on the muḥāsabah screen) keeps the modal off the sacred Name reveal.
+  void _maybeShowStreakRescue() {
+    if (!mounted || _rescueShown) return;
+    // Still behind the muḥāsabah / an overlay — wait until Home is on top.
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
+    final state = ref.read(dailyLoopProvider);
+    if (!state.streakLapseRestorable) return;
+    _rescueShown = true;
+    showStreakRescueSheet(context, ref,
+        preLapseStreak: state.lapsePreLapseStreak);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
+
+    // Deferred streak-rescue epilogue: schedule a check for after this frame —
+    // it self-gates on Home being the current route, so it fires only once the
+    // muḥāsabah has been left, never over the reveal.
+    if (state.streakLapseRestorable && !_rescueShown) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _maybeShowStreakRescue());
+    }
 
     // Replay-tour re-trigger: Settings "Replay app tour" calls
     // onboardingTourControllerProvider.replay() directly — the controller
