@@ -141,6 +141,9 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
                     protected: false,
                   ),
                   size: 108,
+                  // On the white card — no full-canvas cold vignette (it renders
+                  // as a grey square); just the dead lantern object.
+                  ambient: false,
                 ),
               ),
             ),

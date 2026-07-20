@@ -20,6 +20,7 @@ class CompanionMedallion extends StatefulWidget {
     required this.state,
     required this.size,
     this.animate = true,
+    this.ambient = true,
   });
 
   final CompanionState state;
@@ -27,6 +28,11 @@ class CompanionMedallion extends StatefulWidget {
 
   /// When false the pulse never runs (a static frame — e.g. tests / thumbnails).
   final bool animate;
+
+  /// Whether to paint the full-canvas ambient background (lit aura / dormant
+  /// vignette). Leave true on dark/immersive surfaces; set false on light cards
+  /// (e.g. the rescue sheet) so the dormant vignette doesn't show as a grey box.
+  final bool ambient;
 
   @override
   State<CompanionMedallion> createState() => _CompanionMedallionState();
@@ -144,6 +150,7 @@ class _CompanionMedallionState extends State<CompanionMedallion>
                   protected: widget.state.protected,
                   pulse: _pulse.value,
                   ambientShader: _shader,
+                  ambient: widget.ambient,
                 ),
               );
             },

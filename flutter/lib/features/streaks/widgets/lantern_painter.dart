@@ -57,6 +57,7 @@ class LanternPainter extends CustomPainter {
     required this.pulse,
     this.wear,
     this.ambientShader,
+    this.ambient = true,
   });
 
   final double illumination;
@@ -64,6 +65,13 @@ class LanternPainter extends CustomPainter {
   final bool dormant;
   final bool protected;
   final double pulse;
+
+  /// Whether to paint the full-canvas ambient background (the lit aura / the
+  /// dormant cold vignette). True on immersive dark surfaces (home, sacred
+  /// canvas). Set false when the medallion sits on a light CARD — otherwise the
+  /// dormant vignette's dark→transparent gradient renders as an ugly grey square
+  /// behind the lantern (the object itself always draws regardless).
+  final bool ambient;
 
   /// Dust/tarnish amount, 0 = pristine … 1 = grimy + cobwebbed. When null,
   /// falls back to the legacy glow-derived neglect (preserves the standalone
@@ -78,9 +86,10 @@ class LanternPainter extends CustomPainter {
     final breath = 0.5 + 0.5 * math.sin(phase);
     final g = (glow * (0.9 + 0.2 * breath)).clamp(0.0, 1.1);
 
-    // Ambient aura (lit) — or a cold, draining vignette (dormant).
+    // Ambient aura (lit) — or a cold, draining vignette (dormant). Both fill the
+    // whole canvas, so they're skipped on light cards (see [ambient]).
     final shader = ambientShader;
-    if (shader != null && !dormant) {
+    if (ambient && shader != null && !dormant) {
       shader
         ..setFloat(0, size.width)
         ..setFloat(1, size.height)
@@ -88,7 +97,7 @@ class LanternPainter extends CustomPainter {
         ..setFloat(3, (0.3 + 0.6 * glow).clamp(0.0, 1.0));
       canvas.drawRect(Offset.zero & size,
           Paint()..shader = shader..blendMode = BlendMode.plus);
-    } else if (dormant) {
+    } else if (ambient && dormant) {
       // The warmth has drained from the room. A cold vignette pulls the light
       // out of the edges, and a faint grey haze clings to the dead lamp — read
       // as loss/absence, not a warm glow.
@@ -946,5 +955,6 @@ class LanternPainter extends CustomPainter {
       old.protected != protected ||
       old.pulse != pulse ||
       old.wear != wear ||
-      old.ambientShader != ambientShader;
+      old.ambientShader != ambientShader ||
+      old.ambient != ambient;
 }
