@@ -124,13 +124,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
 
-  // Trimmed to 3. Audio recitation (benefit2) is secondary to the core
-  // emotion → Name → verse loop, so it's the cut. Cal AI / Hallow / Calm
-  // all show 3 short benefits max.
+  // Concrete premium unlocks (2026-07-20). Replaces the older 3 emotional
+  // benefits (benefit1/3/4) which never named what premium actually grants —
+  // the "what do I get?" gap is the single most common paywall objection.
+  // Ordered strongest-first: the AI cap-lift is the core value, then the
+  // collection + economy perks. Copy rationale lives in app_strings.dart.
   static const _benefits = [
-    AppStrings.paywallBenefit1,
-    AppStrings.paywallBenefit3,
-    AppStrings.paywallBenefit4,
+    AppStrings.paywallPremiumBenefit1,
+    AppStrings.paywallPremiumBenefit2,
+    AppStrings.paywallPremiumBenefit3,
+    AppStrings.paywallPremiumBenefit4,
+    AppStrings.paywallPremiumBenefit5,
   ];
 
   PackageType get _selectedPackageType => _selectedPlan == _PlanType.annual
@@ -855,7 +859,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        // 3 benefit rows — staggered fade/slide on first
+                        // Section label framing the concrete premium unlocks
+                        // below. Emerald (not the top eyebrow's gold) so it
+                        // ties visually to the emerald checkmarks in the list,
+                        // and left-aligned to anchor the scannable list that
+                        // follows (the hero copy above is centered).
+                        Text(
+                          AppStrings.paywallPremiumBenefitsHeader,
+                          style: AppTypography.labelMedium.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            letterSpacing: 0.2,
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(delay: 60.ms, duration: 380.ms),
+                        const SizedBox(height: AppSpacing.sm),
+
+                        // Benefit rows — staggered fade/slide on first
                         // paint so the eye lands here after the hero.
                         ...List.generate(_benefits.length, (i) {
                           return Padding(

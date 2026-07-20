@@ -101,6 +101,28 @@ abstract final class AppStrings {
       'Beautiful audio recitation for every reflection';
   static const paywallBenefit3 = 'Never lose your spiritual streak';
   static const paywallBenefit4 = 'Revisit every moment of your journey';
+  // Concrete premium unlocks shown on the paywall benefit list (2026-07-20).
+  // These name the *tangible* things premium grants — unlike the older
+  // emotional benefit1/3/4 copy which never said what you actually get.
+  // "Unlimited" is the established term for the 30/day fair-use ceiling
+  // (see gating_service.dart); benefit2's 5× applies to token/scroll daily
+  // rewards (daily_rewards_service.dart), not the streak-freeze day.
+  //
+  // ⚠️ SHIPPED AHEAD OF MECHANIC (owner-approved 2026-07-20): benefit3
+  // (Emerald cards) has NO grant path — the tier is built but unearnable
+  // (card_collection_service.dart caps at Gold); benefit5 (streak protection)
+  // is NOT premium-exclusive (free users get the same freeze). Both must be
+  // backed before/at the next App Store submission — tracked in TODO.md
+  // ("Back the paywall's premium-benefit claims"). 3.1.1 exposure until then.
+  static const paywallPremiumBenefitsHeader = 'Everything premium unlocks';
+  static const paywallPremiumBenefit1 =
+      'Unlimited reflections, duʿās & Name discoveries';
+  static const paywallPremiumBenefit2 = '5× daily rewards, every single day';
+  static const paywallPremiumBenefit3 =
+      'Exclusive Emerald cards for every Name';
+  static const paywallPremiumBenefit4 = 'A monthly gift of tokens & scrolls';
+  static const paywallPremiumBenefit5 =
+      'Streak protection so you never lose progress';
   static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
   static const paywallAnnualLabel = 'Yearly';

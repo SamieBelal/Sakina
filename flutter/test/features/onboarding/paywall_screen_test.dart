@@ -298,7 +298,7 @@ void main() {
     // still-on-paywall signal via the CTA and a static benefit row — both
     // remain visible only while the PaywallScreen is mounted.
     expect(find.text(AppStrings.paywallCtaTrial), findsOneWidget);
-    expect(find.text(AppStrings.paywallBenefit1), findsOneWidget);
+    expect(find.text(AppStrings.paywallPremiumBenefit1), findsOneWidget);
   });
 
   testWidgets('Restore success completes onboarding', (tester) async {
