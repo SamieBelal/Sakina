@@ -177,6 +177,28 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                 ),
               ),
 
+              // Gentle legibility scrim behind the number + label — softly
+              // darkens the area the text occupies (upper-middle) so it lifts
+              // off the plume. Centered ABOVE the flame's bright core so the
+              // fire the eye loves stays vivid.
+              if (_phase >= 2)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0, -0.12),
+                          radius: 0.42,
+                          colors: [
+                            _bg.withValues(alpha: 0.40),
+                            _bg.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 500.ms),
+
               // ── Phase 2+: Flame icon + streak number reveal ──
               if (_phase >= 2)
                 Positioned(
@@ -211,6 +233,14 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                           fontSize: 72,
                           fontWeight: FontWeight.w900,
                           shadows: [
+                            // Dark shadow FIRST for edge definition where the
+                            // white numeral overlaps the bright amber plume —
+                            // the amber glow alone blended into the flame.
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                              offset: const Offset(0, 2),
+                            ),
                             Shadow(
                               color: _amber.withValues(alpha: 0.6),
                               blurRadius: 30,
@@ -235,10 +265,24 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                       Text(
                         'Day Streak!',
                         style: AppTypography.headlineLarge.copyWith(
-                          color: _amber,
+                          // Warm cream, NOT amber — amber-on-amber-flame was
+                          // ~1.2:1 and illegible. Cream + a dark shadow reads
+                          // cleanly over the plume without dimming it.
+                          color: const Color(0xFFFDF4E3),
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              blurRadius: 12,
+                              offset: const Offset(0, 1),
+                            ),
+                            Shadow(
+                              color: _bg.withValues(alpha: 0.6),
+                              blurRadius: 22,
+                            ),
+                          ],
                         ),
                         textAlign: TextAlign.center,
                       )
