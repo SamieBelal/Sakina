@@ -144,8 +144,12 @@ as $$
     );
 $$;
 
--- ── 4. Grants (match the reconcile pattern: authenticated only) ──────────────
+-- ── 4. Grants: service_role ONLY (matches get_eligible_notification_users) ───
+-- This is a SET-RETURNING function over ALL users (the cron's recipient query),
+-- so it must NOT be callable by authenticated end-users — that would leak every
+-- user's streak + display name. The edge function invokes it with the
+-- service_role key, never as the signed-in user.
 revoke execute on function public.get_streak_notification_decisions(integer)
-  from public, anon;
+  from public, anon, authenticated;
 grant execute on function public.get_streak_notification_decisions(integer)
-  to authenticated, service_role;
+  to service_role;
