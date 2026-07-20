@@ -416,4 +416,35 @@ void main() {
       expect(newly.first.milestone.days, 7);
     });
   });
+
+  group('markActiveToday concurrency guard (T2 CRITICAL)', () {
+    test('two concurrent calls run the ladder once; freeze not double-consumed',
+        () async {
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 5,
+        'longest_streak': 10,
+        'last_active': '2026-04-01', // long gap → freeze branch
+      };
+      // Mimic the real RPC's `WHERE streak_freeze_owned = true`: it burns once,
+      // then returns false. WITHOUT the in-flight guard the second concurrent
+      // ladder run sees false and falls through to EXPIRED (streak → 1),
+      // burning the streak the freeze just saved.
+      var consumeCount = 0;
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async {
+        consumeCount++;
+        return consumeCount == 1;
+      };
+
+      final f1 = markActiveToday();
+      final f2 = markActiveToday();
+      expect(identical(f1, f2), isTrue,
+          reason: 'concurrent callers must share one in-flight Future');
+
+      final results = await Future.wait([f1, f2]);
+      expect(consumeCount, 1, reason: 'freeze must be consumed exactly once');
+      expect(results[0].currentStreak, 6);
+      expect(results[1].currentStreak, 6,
+          reason: 'the loser must NOT fall through to EXPIRED (streak 1)');
+    });
+  });
 }

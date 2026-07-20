@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 const String _historyKey = 'sakina_checkin_history';
@@ -91,6 +93,63 @@ Future<List<CheckInRecord>> getCheckinHistory() async {
   return list
       .map((e) => CheckInRecord.fromJson(e as Map<String, dynamic>))
       .toList();
+}
+
+/// Fetch the set of LOCAL calendar days (YYYY-MM-DD) the user reflected on
+/// during the current month, for the "month of light" calendar (T3 / S3 / D13).
+///
+/// The local 14-record checkin cache can't feed a 31-day grid, so this reads
+/// `user_checkin_history` directly, scoped to rows on/after the first day of
+/// the current month. `checked_in_at` is a `timestamptz`; each is normalized to
+/// the user's LOCAL calendar day (`.toLocal()` then YYYY-MM-DD) — NOT the UTC
+/// substring `CheckInRecord.fromSupabaseRow` uses — so a late-night reflection
+/// lands on the correct cell. Read-only; never writes. Returns an empty set when
+/// signed out or on any error (the summary degrades to "begins today").
+Future<Set<String>> fetchLitLocalDatesThisMonth() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return <String>{};
+
+  // First day of the current month, at 00:00 UTC, as the lower bound. Using the
+  // UTC month start is a safe (slightly-wide) floor — any row that could map to
+  // a local day in this month is included, and the local-day normalization below
+  // is what actually decides membership.
+  final nowUtc = DateTime.now().toUtc();
+  final monthStartUtc = DateTime.utc(nowUtc.year, nowUtc.month, 1);
+
+  try {
+    final rows = await Supabase.instance.client
+        .from('user_checkin_history')
+        .select('checked_in_at')
+        .eq('user_id', userId)
+        .gte('checked_in_at', monthStartUtc.toIso8601String());
+    final list = List<Map<String, dynamic>>.from(rows);
+    final result = <String>{};
+    for (final row in list) {
+      final raw = row['checked_in_at'] as String?;
+      final local = _localDayFromTimestamptz(raw);
+      if (local != null) result.add(local);
+    }
+    return result;
+  } catch (e) {
+    debugPrint('[checkin_history] fetchLitLocalDatesThisMonth failed: $e');
+    return <String>{};
+  }
+}
+
+/// Normalize a `timestamptz` string to the user's LOCAL calendar day
+/// (YYYY-MM-DD), or null if unparseable. `DateTime.parse` respects the offset in
+/// the string (or treats naked values as UTC via `.toLocal()`), so this is the
+/// local-day the reflection actually happened on for the user.
+String? _localDayFromTimestamptz(String? checkedInAt) {
+  if (checkedInAt == null || checkedInAt.isEmpty) return null;
+  try {
+    final local = DateTime.parse(checkedInAt).toLocal();
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$m-$d';
+  } catch (_) {
+    return null;
+  }
 }
 
 Future<void> saveCheckinRecord(CheckInRecord record) async {

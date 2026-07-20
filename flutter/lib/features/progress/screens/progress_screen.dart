@@ -12,8 +12,13 @@ import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
+import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/widgets/freeze_burn_card.dart';
 import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
+import 'package:sakina/features/streaks/widgets/month_of_light_summary.dart';
+import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
@@ -126,6 +131,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// still restorable, the offer re-surfaces. `clearStreakLapse()` (Start fresh /
   /// successful restore / expired) is what actually retires the offer.
   bool _rescueSheetOpen = false;
+
+  /// One-shot guard for the `milestone_sliver_shown` instrument — emitted once
+  /// per screen mount when the lit hero first shows a next-milestone bar.
+  bool _milestoneSliverLogged = false;
 
   @override
   void initState() {
@@ -461,6 +470,31 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   Widget _buildDashboardCard(DailyLoopState state, HomeHeroData hero) {
     final companion = ref.watch(companionStateProvider);
+    // Freeze-burn reunion card (S4/D14) — server-authoritative pending flag.
+    final pendingBurn =
+        ref.watch(pendingFreezeBurnProvider).valueOrNull ?? false;
+
+    // One-shot: log the next-milestone bar the first time the lit hero shows it.
+    if (!_milestoneSliverLogged && companion != null) {
+      final b = companion.brightness;
+      final lit = b == CompanionBrightness.dim ||
+          b == CompanionBrightness.glowing ||
+          b == CompanionBrightness.fullyLit;
+      final next = nextMilestone(state.streakCount);
+      if (lit && next != null) {
+        _milestoneSliverLogged = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.milestoneSliverShown,
+            properties: {
+              AnalyticsEvents.propNextTier: next.days,
+              AnalyticsEvents.propDaysRemaining: next.days - state.streakCount,
+            },
+          );
+        });
+      }
+    }
     final xpState = _calculateXpProgress(state.xpTotal);
     final double xpProgress = xpState.xpForNextLevel > 0
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
@@ -653,6 +687,21 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Reunion card after a freeze auto-bridged a missed day (S4/D14).
+          // Reunion-first copy; dismiss acks server-side so it never re-shows.
+          if (pendingBurn)
+            FreezeBurnCard(
+              streak: state.streakCount,
+              onShown: () => ref.read(analyticsProvider).track(
+                    AnalyticsEvents.freezeBurnShown,
+                    properties: {AnalyticsEvents.propStreak: state.streakCount},
+                  ),
+              onDismiss: () async {
+                await ackFreezeBurn();
+                if (mounted) ref.invalidate(pendingFreezeBurnProvider);
+              },
+            ),
+
           // Divider
           Container(height: 1, color: AppColors.dividerLight),
           const SizedBox(height: 14),
@@ -669,6 +718,15 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                     child: CompanionMedallion(state: companion, size: 130),
                   ),
           ),
+          const SizedBox(height: 8),
+          // Merged, state-driven streak line + milestone bar (spec S2/D2): the
+          // single primary streak signal in the hero. The compact top pill is a
+          // stat (kept as the tour-step-6 anchor); this is the emotional signal.
+          buildStreakLine(context, companion, state.streakCount),
+          // Collapsed "month of light" chain-calendar summary (T3 / S3 / D1):
+          // one tappable line that opens the full month grid. Degrades to
+          // "begins today" on loading/error; never a wall of empty cells.
+          const Center(child: MonthOfLightSummary()),
           const SizedBox(height: 8),
           Text(
             hero.label,
@@ -1282,4 +1340,78 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       xpForNextLevel: state.xpForNextLevel
     );
   }
+}
+
+/// The merged, state-driven streak line under the lantern hero (spec S2/D2).
+/// One primary streak signal:
+///   lit     → "Day N · d to your T-day flame" + a gold milestone bar
+///             (or "Day N · every day lit" at 365+, per D9)
+///   waiting → "Your lantern is waiting"  ·  resting → "Your lantern is resting"
+///   endowed → "Your light is lit"        ·  loading → a reserved empty slot
+/// Milestone thresholds come from [nextMilestone] (single source of truth, C1).
+/// Kept as a top-level function (no widget state) so it's cheap to unit/widget
+/// test in isolation.
+Widget buildStreakLine(
+    BuildContext context, CompanionState? companion, int streak) {
+  const slotHeight = 46.0;
+  // Pre-hydration: reserve the slot, show nothing — never flash "0 to your flame".
+  if (companion == null) return const SizedBox(height: slotHeight);
+
+  final next = nextMilestone(streak);
+  String label;
+  bool showBar = false;
+  switch (companion.brightness) {
+    case CompanionBrightness.fullyLit:
+    case CompanionBrightness.glowing:
+    case CompanionBrightness.dim:
+      label = next == null
+          ? 'Day $streak · every day lit'
+          : 'Day $streak · ${next.days - streak} to your ${next.days}-day flame';
+      showBar = next != null;
+      break;
+    case CompanionBrightness.pendingUnlit:
+    case CompanionBrightness.atRiskUnlit:
+      label = 'Your lantern is waiting';
+      showBar = next != null && streak >= 1;
+      break;
+    case CompanionBrightness.dormant:
+      label = 'Your lantern is resting';
+      break;
+    case CompanionBrightness.endowedDim:
+      label = 'Your light is lit';
+      break;
+  }
+
+  return SizedBox(
+    height: slotHeight,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: AppTypography.labelMedium.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+        if (showBar && next != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 200,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: milestoneProgress(streak, next),
+                minHeight: 6,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                // Gold is a non-text accent only (bar fill) per the design system.
+                valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }

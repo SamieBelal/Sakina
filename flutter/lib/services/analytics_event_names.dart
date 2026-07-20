@@ -184,6 +184,27 @@ abstract final class AnalyticsEvents {
   /// `days` property on `trial_activated`.
   static const String propDays = 'days';
 
+  // ── Streak retention (spec §8) ──────────────────────────────────────────
+  // Client-emitted. The server-side streak-notification events
+  // (`streak_notif_sent` / `_opened` / `streak_saver_converted`) are emitted as
+  // string literals inside send-scheduled-notifications (Deno) — see T5.
+  /// User expanded the "month of light" calendar from the Home summary.
+  static const String chainCalendarExpanded = 'chain_calendar_expanded';
+
+  /// The freeze-burn reunion card was shown on Home. Property: `streak`.
+  static const String freezeBurnShown = 'freeze_burn_ack_shown';
+
+  /// The hero next-milestone bar was shown (once per session). Properties:
+  /// `next_tier`, `days_remaining`.
+  static const String milestoneSliverShown = 'milestone_sliver_shown';
+
+  /// `streak` property on streak-retention events.
+  static const String propStreak = 'streak';
+
+  /// `next_tier` / `days_remaining` properties on `milestone_sliver_shown`.
+  static const String propNextTier = 'next_tier';
+  static const String propDaysRemaining = 'days_remaining';
+
   /// `hard_gate` property on paywall-surface events (always false for the
   /// reverse-trial soft gate).
   static const String propHardGate = 'hard_gate';

@@ -67,6 +67,28 @@ const List<StreakMilestone> streakMilestones = [
       titleUnlockArabic: 'حَارِسُ النُّور'),
 ];
 
+/// The next milestone strictly above [streak], or null once the top milestone
+/// (365) is reached. Single source of truth (spec eng-review C1) for the hero
+/// streak line, the milestone-approaching push, and the celebration — do NOT
+/// re-list the thresholds elsewhere.
+StreakMilestone? nextMilestone(int streak) {
+  for (final m in streakMilestones) {
+    if (m.days > streak) return m;
+  }
+  return null;
+}
+
+/// Progress 0..1 from the previous milestone toward [next], for the hero bar.
+double milestoneProgress(int streak, StreakMilestone next) {
+  var prevDays = 0;
+  for (final m in streakMilestones) {
+    if (m.days <= streak) prevDays = m.days;
+  }
+  final span = next.days - prevDays;
+  if (span <= 0) return 0;
+  return ((streak - prevDays) / span).clamp(0.0, 1.0);
+}
+
 class StreakMilestoneResult {
   final StreakMilestone milestone;
   final bool isNew; // true if just claimed for the first time
@@ -278,6 +300,16 @@ String _todayString() {
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
+/// The device's LOCAL day (YYYY-MM-DD), mirroring [_todayString] but WITHOUT
+/// `.toUtc()`. Written to `user_streaks.last_reflected_local` so the unified
+/// streak-notification decision (T5) can tell the user already reflected in
+/// their local day — the UTC `last_active` cannot express the local calendar
+/// day and would false-fire the evening saver for east-of-UTC users (spec D8).
+String _todayLocalString() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+}
+
 DateTime _parseUtcDate(String isoDate) {
   final parsed = DateTime.parse(isoDate).toUtc();
   return DateTime.utc(parsed.year, parsed.month, parsed.day);
@@ -372,7 +404,24 @@ Future<void> clearLapseCache() async {
   await _setCachedLapse(prefs, preLapseStreak: 0, lapsedAt: null);
 }
 
-Future<StreakState> markActiveToday() async {
+Future<StreakState>? _markActiveInFlight;
+
+/// Serializes concurrent [markActiveToday] calls (e.g. a foreground reflection
+/// racing a background refresh). Two parallel runs of the repair ladder would
+/// both observe `lapsed` and both call [consumeStreakFreeze]; the loser gets
+/// `false` and falls through to EXPIRED — burning the streak the freeze just
+/// saved. Sharing one in-flight Future makes the ladder run exactly once.
+Future<StreakState> markActiveToday() {
+  final inFlight = _markActiveInFlight;
+  if (inFlight != null) return inFlight;
+  final run = _markActiveTodayImpl().whenComplete(() {
+    _markActiveInFlight = null;
+  });
+  _markActiveInFlight = run;
+  return run;
+}
+
+Future<StreakState> _markActiveTodayImpl() async {
   final prefs = await SharedPreferences.getInstance();
   final today = _todayString();
   final userId = supabaseSyncService.currentUserId;
@@ -458,6 +507,10 @@ Future<StreakState> markActiveToday() async {
       'current_streak': currentStreak,
       'longest_streak': longestStreak,
       'last_active': today,
+      // LOCAL reflection day (spec D8/T5): lets the unified streak-notification
+      // decision suppress the evening saver for users who already reflected in
+      // their local day. `today`/`last_active` are UTC and can't express this.
+      'last_reflected_local': _todayLocalString(),
       'pre_lapse_streak': preLapseStreak == 0 ? null : preLapseStreak,
       'lapsed_at': lapsedAtIso,
     });
@@ -647,6 +700,14 @@ class PaidRepairResult {
   final int restoredStreak;
   final int tokensSpent;
   final RepairFailReason reason;
+}
+
+/// The set of excused days (YYYY-MM-DD) — menstruation / travel-illness rest
+/// days that are "gently held", not gaps (§6). Read-only accessor over the same
+/// cache the gap check honors, used by the "month of light" calendar (T3).
+Future<Set<String>> getExcusedDates() async {
+  final prefs = await SharedPreferences.getInstance();
+  return _getCachedExcusedDates(prefs);
 }
 
 Future<Set<String>> getActivityLog() async {
