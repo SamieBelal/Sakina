@@ -99,19 +99,38 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
       return;
     }
     setState(() => _busy = false);
-    if (result.needsTokens) {
-      // Capture the router BEFORE popping: after pop this sheet's element is
-      // defunct, so `context.push` would look up an ancestor on a deactivated
-      // widget and throw. (Matches the pop-then-navigate pattern used
-      // elsewhere.)
-      final router = GoRouter.of(context);
-      ref.read(dailyLoopProvider.notifier).clearStreakLapse();
-      Navigator.of(context).pop();
-      router.push('/store');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Couldn’t relight just now — try again.')),
-      );
+    switch (result.reason) {
+      case RepairFailReason.insufficientTokens:
+        // Capture the router BEFORE popping: after pop this sheet's element is
+        // defunct, so `context.push` would look up an ancestor on a deactivated
+        // widget and throw. (Matches the pop-then-navigate pattern used
+        // elsewhere.)
+        final router = GoRouter.of(context);
+        ref.read(dailyLoopProvider.notifier).clearStreakLapse();
+        Navigator.of(context).pop();
+        router.push('/store');
+      case RepairFailReason.rateLimited:
+        // Correct-but-final: a paid restore is limited to once a month. Retrying
+        // won't help, so dismiss with a clear message instead of "try again".
+        ref.read(dailyLoopProvider.notifier).clearStreakLapse();
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You can restore a streak once a month.'),
+          ),
+        );
+      case RepairFailReason.windowPassed:
+      case RepairFailReason.nothingToRestore:
+        // Nothing (left) to restore — dismiss quietly.
+        ref.read(dailyLoopProvider.notifier).clearStreakLapse();
+        Navigator.of(context).pop();
+      case RepairFailReason.none:
+      case RepairFailReason.unknown:
+        // Genuinely transient — keep the sheet open so they can retry.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Couldn’t relight just now — try again.')),
+        );
     }
   }
 

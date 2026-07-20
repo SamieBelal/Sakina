@@ -570,11 +570,28 @@ Future<PaidRepairResult> repairStreakPaid({int preLapseStreak = 0}) async {
     } catch (_) {}
 
     return PaidRepairResult(
-        success: true, restoredStreak: restored, tokensSpent: cost);
+        success: true,
+        restoredStreak: restored,
+        tokensSpent: cost,
+        reason: RepairFailReason.none);
   } catch (e) {
+    // Map the server's raise text to a specific reason so the sheet can route/
+    // message correctly. Anything unrecognised stays `unknown` ("try again").
     final msg = e.toString().toLowerCase();
+    final reason = msg.contains('insufficient')
+        ? RepairFailReason.insufficientTokens
+        : msg.contains('rate-limited')
+            ? RepairFailReason.rateLimited
+            : msg.contains('window passed')
+                ? RepairFailReason.windowPassed
+                : msg.contains('nothing to restore')
+                    ? RepairFailReason.nothingToRestore
+                    : RepairFailReason.unknown;
     return PaidRepairResult(
-        success: false, needsTokens: msg.contains('insufficient'));
+      success: false,
+      needsTokens: reason == RepairFailReason.insufficientTokens,
+      reason: reason,
+    );
   }
 }
 
@@ -606,6 +623,16 @@ Future<bool> addExcusedDate(DateTime date) async {
   return true;
 }
 
+/// Why a paid repair failed (drives the sheet's routing / copy).
+enum RepairFailReason {
+  none, // success
+  insufficientTokens, // → route to Store
+  rateLimited, // already repaired this month → informative, dismiss
+  windowPassed, // >30 days since lapse → informative, dismiss
+  nothingToRestore, // no restorable lapse → dismiss
+  unknown, // transient / unrecognised → "try again"
+}
+
 /// Result of [repairStreakPaid].
 class PaidRepairResult {
   const PaidRepairResult({
@@ -613,11 +640,13 @@ class PaidRepairResult {
     this.needsTokens = false,
     this.restoredStreak = 0,
     this.tokensSpent = 0,
+    this.reason = RepairFailReason.unknown,
   });
   final bool success;
   final bool needsTokens; // true → not enough tokens; route to Store
   final int restoredStreak;
   final int tokensSpent;
+  final RepairFailReason reason;
 }
 
 Future<Set<String>> getActivityLog() async {

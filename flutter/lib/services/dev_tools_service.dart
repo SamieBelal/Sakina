@@ -130,6 +130,10 @@ Future<void> devSetStreakGap(int current, int longest, int daysAgo) async {
       'last_active': past,
       'pre_lapse_streak': null,
       'lapsed_at': null,
+      // Clear the paid-repair meters so the buy-back is re-testable (prod caps
+      // it to once / 30 days; without this a second QA pass hits 'rate-limited').
+      'last_paid_repair_at': null,
+      'premium_free_repair_at': null,
     });
   }
 }
