@@ -38,10 +38,31 @@ class CompanionInputs {
 /// rewards.
 final companionInputsProvider = FutureProvider<CompanionInputs>((ref) async {
   // Watch the freeze source so the shield overlay updates when a freeze is
-  // bought/consumed. This is also the natural post-hydration rebuild trigger.
+  // bought/consumed.
   final freezeOwned =
       ref.watch(dailyRewardsProvider.select((r) => r.streakFreezeOwned));
-  final hydrated = ref.read(appSessionProvider).economyHydrated;
+
+  final session = ref.read(appSessionProvider);
+  final hydrated = session.economyHydrated;
+
+  // The economy hydrates asynchronously after cold launch, and `economyHydrated`
+  // is a plain ChangeNotifier flag we can only read here. On a slow (physical
+  // device) launch the first computation lands PRE-hydration → `state` is null
+  // → the surfaces render an empty companion slot. The freeze bool above is NOT
+  // a reliable recovery trigger: a fresh account that owns no freeze keeps it
+  // `false` across hydration, so `.select` never fires a rebuild and the slot
+  // stays empty forever. Bridge the session's post-hydration notifyListeners
+  // into a one-shot self-invalidate. Attached ONLY while un-hydrated, so once
+  // hydration flips (and this provider recomputes with `hydrated == true`) the
+  // listener is gone and unrelated session events don't churn the future.
+  if (!hydrated) {
+    void onSession() {
+      if (session.economyHydrated) ref.invalidateSelf();
+    }
+
+    session.addListener(onSession);
+    ref.onDispose(() => session.removeListener(onSession));
+  }
 
   final streak = await getStreak();
   return CompanionInputs(
