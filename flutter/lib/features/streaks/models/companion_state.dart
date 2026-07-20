@@ -96,14 +96,16 @@ CompanionParams _paramsFor(CompanionBrightness b) => switch (b) {
         const CompanionParams(glow: 0.20, dormant: false, wear: 0.0),
       CompanionBrightness.dormant =>
         const CompanionParams(glow: 0.0, dormant: true, wear: 1.0),
-      // "Waiting to be lit" — a barely-there ember, below the flame threshold
-      // (g<0.04 in the painter), so the glass reads dark and the lamp reads
-      // UNLIT, not dimly-lit. Warm housing (dormant:false), never the cold dead
-      // treatment — an intact lamp waiting for today's reflection.
+      // "Waiting to be lit" — truly UNLIT (glow 0): no flame at all, so the lamp
+      // reads dark-but-intact. MUST be 0, not a small value: the flame's on/off
+      // threshold is g<0.04 and the breath animation modulates g by ±10%, so any
+      // glow near 0.04 makes the flame blink on/off each breath. At 0 the khatam
+      // emblem still stays faintly etched (its core renders even at glow 0) and
+      // the housing stays warm gold (dormant:false) — a calm waiting lamp.
       CompanionBrightness.pendingUnlit =>
-        const CompanionParams(glow: 0.04, dormant: false, wear: 0.12),
+        const CompanionParams(glow: 0.0, dormant: false, wear: 0.12),
       CompanionBrightness.atRiskUnlit =>
-        const CompanionParams(glow: 0.04, dormant: false, wear: 0.12),
+        const CompanionParams(glow: 0.0, dormant: false, wear: 0.12),
       CompanionBrightness.dim =>
         const CompanionParams(glow: 0.26, dormant: false, wear: 0.68),
       CompanionBrightness.glowing =>
