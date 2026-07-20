@@ -590,7 +590,19 @@ class NotificationService {
     void navigate() {
       final context = rootNavigatorKey.currentContext;
       if (context == null) return;
-      GoRouter.of(context).go(route);
+      final router = GoRouter.of(context);
+      // The cancellation-feedback deep-link presents a survey (or nothing) then
+      // returns whence it came. PUSH it over the current stack so it can pop()
+      // back cleanly. go()'ing IN and then go('/')'ing OUT overlaps two
+      // navigations and transiently double-mounts the root Navigator — go_router
+      // wraps it in KeyedSubtree(GlobalObjectKey(rootNavigatorKey.hashCode)), so
+      // two live copies throw "Multiple widgets used the same GlobalKey" during
+      // finalizeTree and the frame blanks (empty screen).
+      if (route == '/cancellation-feedback') {
+        router.push(route);
+      } else {
+        router.go(route);
+      }
     }
 
     if (rootNavigatorKey.currentContext != null) {

@@ -46,7 +46,19 @@ class _CancellationFeedbackDeepLinkScreenState
       );
     }
 
-    if (mounted) context.go('/');
+    if (!mounted) return;
+    // Return whence we came. The deep-link route is PUSHED over the current
+    // stack (see NotificationService._defaultRouteNavigator), so pop() reveals
+    // the live screen underneath WITHOUT rebuilding the root Navigator. Using
+    // go('/') here raced the entry navigation and transiently double-mounted the
+    // root Navigator (duplicate GlobalObjectKey → "Multiple widgets used the
+    // same GlobalKey" crash / blank screen), especially in the no-survey fast
+    // path where this fires immediately after entry.
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
   }
 
   @override
