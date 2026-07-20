@@ -120,10 +120,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
   bool _discoverInFlight = false;
 
-  /// One-shot guard for the deferred streak-rescue sheet — see
-  /// [_maybeShowStreakRescue]. Reset only by a fresh screen instance; the
-  /// underlying `streakLapseRestorable` flag is cleared by the sheet itself.
-  bool _rescueShown = false;
+  /// True while the streak-rescue sheet is on screen — see
+  /// [_maybeShowStreakRescue]. Resets when the sheet closes (NOT a permanent
+  /// latch), so if the user leaves to buy tokens and returns with the lapse
+  /// still restorable, the offer re-surfaces. `clearStreakLapse()` (Start fresh /
+  /// successful restore / expired) is what actually retires the offer.
+  bool _rescueSheetOpen = false;
 
   @override
   void initState() {
@@ -270,15 +272,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// `markActiveToday`) and left on the daily-loop state; showing it here (not
   /// on the muḥāsabah screen) keeps the modal off the sacred Name reveal.
   void _maybeShowStreakRescue() {
-    if (!mounted || _rescueShown) return;
-    // Still behind the muḥāsabah / an overlay — wait until Home is on top.
+    if (!mounted || _rescueSheetOpen) return;
+    // Still behind the muḥāsabah / an overlay (incl. the Store the user may have
+    // been sent to) — wait until Home is on top.
     final route = ModalRoute.of(context);
     if (route == null || !route.isCurrent) return;
     final state = ref.read(dailyLoopProvider);
     if (!state.streakLapseRestorable) return;
-    _rescueShown = true;
+    _rescueSheetOpen = true;
     showStreakRescueSheet(context, ref,
-        preLapseStreak: state.lapsePreLapseStreak);
+            preLapseStreak: state.lapsePreLapseStreak)
+        .whenComplete(() {
+      if (mounted) _rescueSheetOpen = false;
+    });
   }
 
   @override
@@ -288,7 +294,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     // Deferred streak-rescue epilogue: schedule a check for after this frame —
     // it self-gates on Home being the current route, so it fires only once the
     // muḥāsabah has been left, never over the reveal.
-    if (state.streakLapseRestorable && !_rescueShown) {
+    if (state.streakLapseRestorable && !_rescueSheetOpen) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _maybeShowStreakRescue());
     }

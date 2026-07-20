@@ -30,7 +30,15 @@ Future<void> showStreakRescueSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+    // The sheet's OWN surface is the solid cream — so it rises from the bottom,
+    // full-width, flush to the bottom edge (covering the navbar area), with only
+    // the top corners rounded. (Was transparent + an inset floating card.)
+    backgroundColor: AppColors.surfaceLight,
+    clipBehavior: Clip.antiAlias,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
     builder: (_) => _StreakRescueSheet(preLapseStreak: preLapseStreak, cost: cost),
   );
 }
@@ -101,12 +109,13 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     setState(() => _busy = false);
     switch (result.reason) {
       case RepairFailReason.insufficientTokens:
-        // Capture the router BEFORE popping: after pop this sheet's element is
-        // defunct, so `context.push` would look up an ancestor on a deactivated
-        // widget and throw. (Matches the pop-then-navigate pattern used
-        // elsewhere.)
+        // Route to the Store to buy tokens — but do NOT clear the lapse. The
+        // offer must survive the round-trip so the user can relight after buying
+        // (Home re-shows the rescue sheet on return). Clearing it here stranded
+        // the user with no way back. Capture the router BEFORE popping: after pop
+        // this sheet's element is defunct, so `context.push` would look up an
+        // ancestor on a deactivated widget and throw.
         final router = GoRouter.of(context);
-        ref.read(dailyLoopProvider.notifier).clearStreakLapse();
         Navigator.of(context).pop();
         router.push('/store');
       case RepairFailReason.rateLimited:
@@ -140,14 +149,13 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
         ref.watch(premiumStateProvider).valueOrNull?.isPremium ?? false;
     final balance = ref.watch(dailyLoopProvider).tokenBalance;
 
+    // Bottom-only SafeArea INSIDE the solid modal surface: the sheet background
+    // (set on showModalBottomSheet) still reaches the physical bottom edge, while
+    // this keeps the buttons clear of the home indicator.
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(AppSpacing.md),
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        ),
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -166,6 +174,16 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
                 ),
               ),
             ),
+            const SizedBox(height: 4),
+            // Disambiguates the dead lamp from the live (day-1) lantern behind —
+            // this medallion is a portrait of the streak that was LOST.
+            Text('Your ${widget.preLapseStreak}-day lantern',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center),
             const SizedBox(height: 12),
             Text('Relight your lantern',
                 style: AppTypography.headlineMedium.copyWith(
