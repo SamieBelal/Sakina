@@ -245,22 +245,40 @@ private struct CompanionMediumView: View {
 }
 
 /// Lock Screen (OS-monochrome-tinted): a colored lantern would become a gray
-/// blob, so the accessory stays TEXT-ONLY (finding #6). State via words.
+/// blob, so the accessory pairs a TINTABLE SF Symbol (renders cleanly in the
+/// OS accent group) with concise, non-clipping text. State via icon + words.
 private struct CompanionAccessoryView: View {
     let display: CompanionDisplay
+    // `flame.fill` when lit (a burning wick), hollow `flame` when waiting.
+    private var symbol: String {
+        if display.loggedOut || display.streak <= 0 { return "moon.stars" }
+        return display.checkedIn ? "flame.fill" : "flame"
+    }
+    // Short enough to never truncate at accessory width.
     private var title: String {
         if display.loggedOut || display.streak <= 0 { return "Begin your streak" }
-        return display.checkedIn ? "Lantern lit · day \(display.streak)"
-                                 : "Reflect today"
+        return display.checkedIn ? "Day \(display.streak) · lit" : "Reflect today"
+    }
+    private var subtitle: String {
+        if display.loggedOut { return "Your light is ready" }
+        if display.streak <= 0 { return "Tap to begin" }
+        if display.checkedIn { return "May Allah keep you steadfast" }
+        return display.atRisk ? "Still time tonight" : "Relight your lantern"
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(title).font(.title3).fontWeight(.semibold)
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(statusLine(display)).font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1).minimumScaleFactor(0.7)
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.title3)
+                .widgetAccentable() // tint into the OS accent group, not gray
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.headline).fontWeight(.semibold)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text(subtitle).font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .widgetURL(companionDeepLink())
     }
 }
