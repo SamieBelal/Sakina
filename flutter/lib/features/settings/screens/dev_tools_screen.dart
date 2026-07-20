@@ -9,7 +9,6 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
-import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
 import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
@@ -332,38 +331,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
         _actionChip('L15 (2495)', () => _jumpToXp(2495)),
         _actionChip('L25 (12195)', () => _jumpToXp(12195)),
         _actionChip('Set 0', () => _run(() => devSetXp(0)), destructive: true),
-        // Direct visual preview of the rank-up overlay (bypasses the XP math),
-        // mirroring 'Preview milestone'.
-        _actionChip('Preview level-up', _previewLevelUp),
       ],
-    );
-  }
-
-  /// Push the rank-up overlay directly (dev preview) with representative
-  /// Level-5 ("Grateful") data.
-  Future<void> _previewLevelUp() async {
-    final nav = Navigator.of(context, rootNavigator: true);
-    await nav.push(
-      PageRouteBuilder(
-        opaque: true,
-        barrierDismissible: false,
-        pageBuilder: (_, __, ___) => LevelUpOverlay(
-          levelNumber: 5,
-          title: 'Grateful',
-          titleArabic: 'شَاكِر',
-          rewards: const LevelUpRewards(
-            tokensAwarded: 5,
-            scrollsAwarded: 2,
-            titleUnlocked: true,
-            unlockedTitle: 'Grateful',
-            unlockedTitleArabic: 'شَاكِر',
-          ),
-          onContinue: () => nav.pop(),
-        ),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
     );
   }
 
@@ -407,34 +375,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
             () => _run(() => devSetStreakGap(30, 30, 4))),
         _actionChip('Excuse ydy → continue',
             () => _run(() => devExcuseYesterdayGap(30, 30))),
-        // Direct visual preview of the milestone celebration — bypasses the
-        // real trigger (only fires when the muḥāsabah flow CROSSES a threshold
-        // and the server confirms it's newly claimed), so QA can check the
-        // overlay's animation/copy/medallion on demand.
-        _actionChip('Preview milestone (7)', () => _previewStreakMilestone(7)),
       ],
-    );
-  }
-
-  /// Push the streak-milestone celebration overlay directly (dev preview).
-  Future<void> _previewStreakMilestone(int day) async {
-    final m = streakMilestones.firstWhere((e) => e.days == day,
-        orElse: () => streakMilestones.first);
-    final nav = Navigator.of(context, rootNavigator: true);
-    await nav.push(
-      PageRouteBuilder(
-        opaque: true,
-        barrierDismissible: false,
-        pageBuilder: (_, __, ___) => StreakMilestoneOverlay(
-          streakCount: m.days,
-          xpAwarded: m.xpReward,
-          scrollsAwarded: m.scrollReward,
-          onContinue: () => nav.pop(),
-        ),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
     );
   }
 
