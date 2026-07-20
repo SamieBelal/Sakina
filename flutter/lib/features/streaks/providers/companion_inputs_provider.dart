@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sakina/core/app_session.dart';
+import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/streaks/companion_state_mapper.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
@@ -41,6 +42,13 @@ final companionInputsProvider = FutureProvider<CompanionInputs>((ref) async {
   // bought/consumed.
   final freezeOwned =
       ref.watch(dailyRewardsProvider.select((r) => r.streakFreezeOwned));
+
+  // Watch the streak the rest of the app shows so a mid-session change — a
+  // completed muḥāsabah, a paid/free repair — re-reads getStreak() below and
+  // relights the lamp without a relaunch. (dev-tools mutations refresh via the
+  // explicit invalidate in invalidateAllUserProviders, which also covers a
+  // todayActive flip that leaves the count unchanged.)
+  ref.watch(dailyLoopProvider.select((s) => s.streakCount));
 
   final session = ref.read(appSessionProvider);
   final hydrated = session.economyHydrated;
