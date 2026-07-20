@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import 'coachmark_step.dart';
@@ -455,11 +456,10 @@ class _CoachBanner extends StatelessWidget {
                           Expanded(
                             child: Text(
                               message,
-                              style: const TextStyle(
+                              style: GoogleFonts.outfit(
                                 color: AppColors.textPrimaryLight,
                                 fontSize: 15,
                                 height: 1.35,
-                                fontFamily: 'DM Sans',
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -488,12 +488,11 @@ class _CoachBanner extends StatelessWidget {
                                 alignment: Alignment.centerLeft,
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 6, horizontal: 8),
-                                child: const Text(
+                                child: Text(
                                   'Skip tour',
-                                  style: TextStyle(
+                                  style: GoogleFonts.outfit(
                                     color: AppColors.textTertiaryLight,
                                     fontSize: 12.5,
-                                    fontFamily: 'DM Sans',
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -515,12 +514,11 @@ class _CoachBanner extends StatelessWidget {
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Continue',
-                                    style: TextStyle(
+                                    style: GoogleFonts.outfit(
                                       color: Colors.white,
                                       fontSize: 11.5,
-                                      fontFamily: 'DM Sans',
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
