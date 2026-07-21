@@ -82,9 +82,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // no guard flags needed. This closes the "phantom second gacha on
     // Return to Home" bug class by construction.
     ref.listen<DailyLoopState>(dailyLoopProvider, (prev, next) {
-      // Streak milestone — fire if newly reached.
+      // Streak milestone — DEFERRED to the very end of the ritual so it never
+      // pre-empts the sacred Name reveal (the flag is set back in
+      // discoverName(), but firing then would slam the celebration over/before
+      // the gacha — same reasoning the rescue sheet is held for below). Fire on
+      // the rising edge into the completed step (after Ameen → completeDeeper),
+      // as the closing flourish.
       if (next.streakMilestoneReached &&
-          prev?.streakMilestoneReached != true) {
+          next.currentStep == DailyLoopStep.completed &&
+          prev?.currentStep != DailyLoopStep.completed) {
         _pushStreakMilestoneOverlay(next);
         return;
       }
