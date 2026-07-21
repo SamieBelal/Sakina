@@ -348,6 +348,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         levelTitleArabic: displayTitle.titleArabic,
         levelNumber: xpState.level,
         questDua: questDua,
+        // Re-derive the buy-back offer from the persisted lapse cache, so it
+        // survives the provider rebuild the muḥāsabah "Return to Home" CTA
+        // triggers (which would otherwise wipe the transient flag before Home
+        // sees it). The cache is only cleared on dismiss / restore / start-fresh.
+        streakLapseRestorable: streakState.hasRestorableLapse,
+        lapsePreLapseStreak: streakState.preLapseStreak,
       );
 
       // Restore persisted state for today

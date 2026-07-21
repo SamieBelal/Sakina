@@ -30,6 +30,10 @@ Future<void> showStreakRescueSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    // Mount on the ROOT navigator so the sheet + scrim cover the AppShell's
+    // bottom nav bar (a default shell-navigator sheet mounts inside the scaffold
+    // body, so the nav bar renders on top of it).
+    useRootNavigator: true,
     // The sheet's OWN surface is the solid cream — so it rises from the bottom,
     // full-width, flush to the bottom edge (covering the navbar area), with only
     // the top corners rounded. (Was transparent + an inset floating card.)

@@ -9,6 +9,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
@@ -590,6 +591,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       ref.invalidate(dailyLoopProvider);
                       ref.invalidate(tierUpScrollProvider);
                       ref.invalidate(dailyRewardsProvider);
+                      // The freeze-burn flag is stamped server-side mid-flow
+                      // (markActiveToday → consume_streak_freeze), so refresh the
+                      // (otherwise once-resolved) provider or Home keeps its
+                      // stale pre-burn value and the reunion card never shows.
+                      ref.invalidate(pendingFreezeBurnProvider);
                       context.go('/');
                     },
                     child: Text(
