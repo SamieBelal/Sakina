@@ -110,4 +110,81 @@ void main() {
 
     expect(of(AnalyticsEvents.streakMilestone), isEmpty);
   });
+
+  // ---------------------------------------------------------------------------
+  // streak_lapsed outcome discrimination (analytics-correctness fix)
+  // streak_lapsed must carry an 'outcome' property so Mixpanel can segment
+  // forgiven returns from truly-lost streaks.
+  // ---------------------------------------------------------------------------
+  group('streak_lapsed outcome property', () {
+    String utcDay(int deltaDays) {
+      final d = DateTime.now().toUtc().add(Duration(days: deltaDays));
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    }
+
+    test(
+        '(a) gap within 48h free window → streak_lapsed fires with outcome==effort',
+        () async {
+      // Last active yesterday: one missed day, still within 48h free window.
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 5,
+        'longest_streak': 10,
+        'last_active': utcDay(-2), // missed yesterday, within 48h
+      };
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
+
+      await markActiveToday();
+
+      final lapsed = of(AnalyticsEvents.streakLapsed).toList();
+      expect(lapsed.length, 1,
+          reason: 'a gap occurred, so streak_lapsed must fire');
+      expect(lapsed.first.$2['outcome'], AnalyticsEvents.repairMethodEffort,
+          reason: 'within 48h free window → outcome must be "effort"');
+    });
+
+    test(
+        '(b) gap past 48h WITH freeze available/consumed → streak_lapsed fires '
+        'with outcome==freeze', () async {
+      // Last active 4 days ago: well past 48h window, but freeze is available.
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 8,
+        'longest_streak': 10,
+        'last_active': utcDay(-4), // 3 missed days → past window
+      };
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => true;
+
+      await markActiveToday();
+
+      final lapsed = of(AnalyticsEvents.streakLapsed).toList();
+      expect(lapsed.length, 1,
+          reason: 'a gap occurred, so streak_lapsed must fire');
+      expect(lapsed.first.$2['outcome'], AnalyticsEvents.repairMethodFreeze,
+          reason: 'freeze consumed → outcome must be "freeze"');
+    });
+
+    test(
+        '(c) gap past 48h with NO freeze → streak_lapsed fires with '
+        'outcome==expired (and streak truly resets)', () async {
+      // Last active 4 days ago, no freeze.
+      fakeSync.rows['user_streaks:user-1'] = {
+        'current_streak': 15,
+        'longest_streak': 20,
+        'last_active': utcDay(-4), // past window
+      };
+      fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => false;
+
+      final result = await markActiveToday();
+
+      expect(result.currentStreak, 1,
+          reason: 'expired streak resets to 1');
+      expect(result.preLapseStreak, 15,
+          reason: 'pre-lapse streak saved for buy-back');
+
+      final lapsed = of(AnalyticsEvents.streakLapsed).toList();
+      expect(lapsed.length, 1,
+          reason: 'a gap occurred, so streak_lapsed must fire');
+      expect(lapsed.first.$2['outcome'], 'expired',
+          reason: 'no freeze, past window → outcome must be "expired"');
+    });
+  });
 }

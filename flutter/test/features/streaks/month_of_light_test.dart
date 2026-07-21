@@ -110,6 +110,33 @@ void main() {
       expect(cells[future], MonthCellState.future);
     });
 
+    test('today that is also excused → excused, not todayPending', () {
+      // The user marked today as a rest-day (e.g. menstruation). The cell must
+      // show excused, not todayPending, even though today has no lit reflection.
+      final cells = deriveMonthCells(
+        litLocalDates: const {},
+        excusedDates: {key(today)},
+        currentStreak: 0,
+        lastActiveLocal: null,
+        now: now,
+      );
+      expect(cells[today], MonthCellState.excused,
+          reason: 'excused must win over todayPending when today is a rest day');
+    });
+
+    test('today that is lit AND excused → lit (lit wins over excused)', () {
+      // If somehow both excused and lit (reflected today), lit should win.
+      final cells = deriveMonthCells(
+        litLocalDates: {key(today)},
+        excusedDates: {key(today)},
+        currentStreak: 1,
+        lastActiveLocal: key(today),
+        now: now,
+      );
+      expect(cells[today], MonthCellState.lit,
+          reason: 'lit must win over excused — reflecting today is still lit');
+    });
+
     test('broken streak (last_active older than yesterday) → no held span', () {
       // last_active 5 days ago → streak not currently unbroken → prior no-checkin
       // days are genuine gaps (missed), not held.
@@ -150,6 +177,63 @@ void main() {
         now: now,
       );
       expect(cells.length, 31); // July has 31 days
+    });
+
+    // ── UTC-clock alignment tests (bug: last_active is UTC but was parsed local) ──
+
+    test(
+        'east-of-UTC user after local midnight: UTC today (21st) is todayPending, '
+        'local "tomorrow" (22nd) is future', () {
+      // Scenario: UTC+5, 01:00 local on July 22nd = UTC July 21st 20:00.
+      // streak service stores last_active = "2026-07-21" (UTC).
+      // The user has NOT reflected yet — last_active is a prior day from UTC pov.
+      // The calendar must use UTC as its clock so it agrees with the streak service.
+      //
+      // now is passed as a UTC DateTime (the provider will call DateTime.now().toUtc()).
+      // We simulate "UTC July 21st 20:00" (= local July 22nd 01:00 in UTC+5).
+      final nowUtc = DateTime.utc(2026, 7, 21, 20, 0);
+      final utcToday = DateTime.utc(2026, 7, 21); // what "today" should be
+
+      // last_active was set on UTC July 20th (user reflected yesterday UTC).
+      const lastActiveUtcStr = '2026-07-20';
+
+      final cells = deriveMonthCells(
+        litLocalDates: {'2026-07-20'}, // reflected on the 20th
+        excusedDates: const {},
+        currentStreak: 1,
+        lastActiveLocal: lastActiveUtcStr,
+        now: nowUtc,
+      );
+
+      // July 21st (UTC today) → todayPending, NOT future.
+      expect(cells[utcToday], MonthCellState.todayPending,
+          reason: 'UTC today (Jul 21) must be todayPending, not pushed to future');
+
+      // July 22nd → future (it hasn't started in UTC yet).
+      expect(cells[DateTime.utc(2026, 7, 22)], MonthCellState.future,
+          reason:
+              'Jul 22 is a future UTC day and must not appear as todayPending');
+    });
+
+    test(
+        'last_active on same UTC day as now: streak span unbroken, '
+        'today-UTC is lit after reflecting', () {
+      // Confirm UTC-clock consistency: last_active == UTC today → todayActive.
+      final nowUtc = DateTime.utc(2026, 7, 21, 20, 0);
+      final utcToday = DateTime.utc(2026, 7, 21);
+
+      final cells = deriveMonthCells(
+        litLocalDates: {'2026-07-21'}, // reflected today UTC
+        excusedDates: const {},
+        currentStreak: 3,
+        lastActiveLocal: '2026-07-21', // last_active == today UTC
+        now: nowUtc,
+      );
+
+      expect(cells[utcToday], MonthCellState.lit,
+          reason: 'UTC today already reflected → lit');
+      expect(cells[DateTime.utc(2026, 7, 22)], MonthCellState.future,
+          reason: 'July 22 is still future in UTC');
     });
   });
 }

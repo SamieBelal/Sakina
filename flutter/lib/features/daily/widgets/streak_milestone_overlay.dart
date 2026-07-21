@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -64,6 +66,13 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
   int _phase = 0;
   bool _dismissed = false;
 
+  // Pending timers — kept as a list so dispose() can cancel any that haven't
+  // fired yet. The original implementation used bare Future.delayed calls which
+  // schedule Timers without giving us a handle to cancel them; widget disposal
+  // would leave pending timers that fire HapticFeedback.heavyImpact() and call
+  // setState() on a disposed State. Mirrors LevelUpOverlay._schedulePhase pattern.
+  final List<Timer> _pendingTimers = [];
+
   // Drives the Lottie hearth (embers gather → flame ignites & rises → settle).
   // Its duration is set from the composition on load; the phase delays below
   // are tuned to its beats (gather ≈ 0–0.93s, IGNITE ≈ frame 96 / 1.6s, rise
@@ -83,29 +92,43 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
 
   @override
   void dispose() {
+    for (final t in _pendingTimers) {
+      t.cancel();
+    }
     _lottieController.dispose();
     super.dispose();
   }
 
-  Future<void> _runSequence() async {
+  void _schedulePhase(Duration offset, VoidCallback fire) {
+    _pendingTimers.add(Timer(offset, () {
+      if (!mounted) return;
+      fire();
+    }));
+  }
+
+  void _runSequence() {
+    // Re-entry guard: only arm once (called from initState today).
+    if (_pendingTimers.isNotEmpty) return;
+
     // Phase 0 → 1: embers gather, then the flame IGNITES (~frame 96 = 1.6s).
     // Fire the heavy haptic on the ignite beat and warm the background.
-    await Future.delayed(const Duration(milliseconds: 1650));
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() => _phase = 1);
+    _schedulePhase(const Duration(milliseconds: 1650), () {
+      HapticFeedback.heavyImpact();
+      setState(() => _phase = 1);
+    });
 
     // Phase 1 → 2: streak number resolves just after the flame catches, as the
-    // warm column begins to rise.
-    await Future.delayed(const Duration(milliseconds: 150));
-    if (!mounted) return;
-    setState(() => _phase = 2);
+    // warm column begins to rise. Cumulative from initState: 1650 + 150 = 1800ms.
+    _schedulePhase(const Duration(milliseconds: 1800), () {
+      setState(() => _phase = 2);
+    });
 
     // Phase 2 → 3: number sits while the column rises, then rewards + Continue.
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-    HapticFeedback.lightImpact();
-    setState(() => _phase = 3);
+    // Cumulative from initState: 1800 + 1000 = 2800ms.
+    _schedulePhase(const Duration(milliseconds: 2800), () {
+      HapticFeedback.lightImpact();
+      setState(() => _phase = 3);
+    });
   }
 
   void _handleContinue() {

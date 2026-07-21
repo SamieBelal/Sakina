@@ -43,7 +43,42 @@ Future<void> showStreakRescueSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => _StreakRescueSheet(preLapseStreak: preLapseStreak, cost: cost),
+    builder: (_) => _StreakRescueSheet(
+      preLapseStreak: preLapseStreak,
+      cost: cost,
+      repairFn: repairStreakPaid,
+    ),
+  );
+}
+
+/// Signature of the repair function so tests can inject a stub.
+typedef RepairFn = Future<PaidRepairResult> Function({int preLapseStreak});
+
+/// Test-facing entry-point that accepts an injected [repairFn].
+/// Do NOT call from production code — use [showStreakRescueSheet] instead.
+@visibleForTesting
+Future<void> showStreakRescueSheetForTest(
+  BuildContext context, {
+  required int preLapseStreak,
+  required RepairFn repairFn,
+}) {
+  final cost = _repairCost(preLapseStreak);
+  if (cost == null) return Future.value();
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    backgroundColor: AppColors.surfaceLight,
+    clipBehavior: Clip.antiAlias,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => _StreakRescueSheet(
+      preLapseStreak: preLapseStreak,
+      cost: cost,
+      repairFn: repairFn,
+    ),
   );
 }
 
@@ -55,9 +90,14 @@ int? _repairCost(int preLapseStreak) {
 }
 
 class _StreakRescueSheet extends ConsumerStatefulWidget {
-  const _StreakRescueSheet({required this.preLapseStreak, required this.cost});
+  const _StreakRescueSheet({
+    required this.preLapseStreak,
+    required this.cost,
+    required this.repairFn,
+  });
   final int preLapseStreak;
   final int cost;
+  final RepairFn repairFn;
 
   @override
   ConsumerState<_StreakRescueSheet> createState() => _StreakRescueSheetState();
@@ -98,13 +138,22 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     HapticFeedback.lightImpact();
 
     // Premium-free vs paid is decided server-side; we don't assert it here.
-    final result = await repairStreakPaid(preLapseStreak: widget.preLapseStreak);
+    final result =
+        await widget.repairFn(preLapseStreak: widget.preLapseStreak);
     if (!mounted) return;
 
     if (result.success) {
       ref
           .read(dailyLoopProvider.notifier)
           .applyRestoredStreak(result.restoredStreak);
+      // Reflect the server-returned post-debit balance immediately so the
+      // sheet's "You have N tokens" line and any other tokenBalance readers
+      // don't show the stale pre-repair balance until the next full sync.
+      if (result.newBalance != null) {
+        ref
+            .read(dailyLoopProvider.notifier)
+            .refreshTokenBalance(result.newBalance!);
+      }
       // Keep the freeze/token surfaces fresh.
       ref.read(dailyRewardsProvider.notifier).reload();
       Navigator.of(context).pop();
@@ -125,9 +174,13 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
       case RepairFailReason.rateLimited:
         // Correct-but-final: a paid restore is limited to once a month. Retrying
         // won't help, so dismiss with a clear message instead of "try again".
+        // Capture the messenger BEFORE pop — after pop the sheet's element is
+        // deactivated and ScaffoldMessenger.of(context) would throw
+        // "Looking up a deactivated widget's ancestor is unsafe".
+        final rateLimitedMessenger = ScaffoldMessenger.of(context);
         ref.read(dailyLoopProvider.notifier).clearStreakLapse();
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        rateLimitedMessenger.showSnackBar(
           const SnackBar(
             content: Text('You can restore a streak once a month.'),
           ),
@@ -156,99 +209,106 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
     // Bottom-only SafeArea INSIDE the solid modal surface: the sheet background
     // (set on showModalBottomSheet) still reaches the physical bottom edge, while
     // this keeps the buttons clear of the home indicator.
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              height: 108,
-              child: Center(
-                child: CompanionMedallion(
-                  state: CompanionState(
-                    brightness: CompanionBrightness.dormant,
-                    protected: false,
+    //
+    // PopScope: block all pop attempts (drag handle, barrier tap, system back)
+    // while _busy == true so the in-flight RPC can complete and clear the lapse
+    // flag. While idle the sheet remains freely dismissible ("calm, dismissible").
+    return PopScope(
+      canPop: !_busy,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                height: 108,
+                child: Center(
+                  child: CompanionMedallion(
+                    state: CompanionState(
+                      brightness: CompanionBrightness.dormant,
+                      protected: false,
+                    ),
+                    size: 108,
+                    // On the white card — no full-canvas cold vignette (it renders
+                    // as a grey square); just the dead lantern object.
+                    ambient: false,
                   ),
-                  size: 108,
-                  // On the white card — no full-canvas cold vignette (it renders
-                  // as a grey square); just the dead lantern object.
-                  ambient: false,
                 ),
               ),
-            ),
-            const SizedBox(height: 4),
-            // Disambiguates the dead lamp from the live (day-1) lantern behind —
-            // this medallion is a portrait of the streak that was LOST.
-            Text('Your ${widget.preLapseStreak}-day lantern',
-                style: AppTypography.labelSmall.copyWith(
+              const SizedBox(height: 4),
+              // Disambiguates the dead lamp from the live (day-1) lantern behind —
+              // this medallion is a portrait of the streak that was LOST.
+              Text('Your ${widget.preLapseStreak}-day lantern',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text('Relight your lantern',
+                  style: AppTypography.headlineMedium.copyWith(
+                    color: AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              Text(
+                'Your ${widget.preLapseStreak}-day journey rested. '
+                'You can restore it and carry on where you left off.',
+                style: AppTypography.bodyMedium.copyWith(
                   color: AppColors.textSecondaryLight,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
+                  height: 1.5,
                 ),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Text('Relight your lantern',
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryLight,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(
-              'Your ${widget.preLapseStreak}-day journey rested. '
-              'You can restore it and carry on where you left off.',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-                height: 1.5,
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.buttonRadius),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.buttonRadius),
+                    ),
                   ),
-                ),
-                onPressed: _busy ? null : _buyBack,
-                child: _busy
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text(
-                        isPremium
-                            ? 'Restore my streak — free with Premium'
-                            : 'Restore for ${widget.cost} tokens',
-                        style: AppTypography.labelLarge.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                  onPressed: _busy ? null : _buyBack,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text(
+                          isPremium
+                              ? 'Restore my streak — free with Premium'
+                              : 'Restore for ${widget.cost} tokens',
+                          style: AppTypography.labelLarge.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                ),
               ),
-            ),
-            if (!isPremium) ...[
-              const SizedBox(height: 6),
-              Text('You have $balance tokens',
-                  style: AppTypography.labelSmall
-                      .copyWith(color: AppColors.textSecondaryLight)),
+              if (!isPremium) ...[
+                const SizedBox(height: 6),
+                Text('You have $balance tokens',
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.textSecondaryLight)),
+              ],
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _busy ? null : _dismiss,
+                child: Text('Start fresh instead',
+                    style: AppTypography.labelMedium
+                        .copyWith(color: AppColors.textSecondaryLight)),
+              ),
             ],
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: _busy ? null : _dismiss,
-              child: Text('Start fresh instead',
-                  style: AppTypography.labelMedium
-                      .copyWith(color: AppColors.textSecondaryLight)),
-            ),
-          ],
+          ),
         ),
       ),
     );

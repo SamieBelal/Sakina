@@ -415,6 +415,73 @@ void main() {
       expect(newly, hasLength(1));
       expect(newly.first.milestone.days, 7);
     });
+
+    test(
+        'offline grant records pending claim; going online flushes it via RPC '
+        'so a new device sees newly_claimed:false and does not double-grant '
+        '(§offline-pending)', () async {
+      // ── Phase A: offline (userId == null) ──────────────────────────────────
+      fakeSync.userId = null;
+      SupabaseSyncService.debugSetInstance(fakeSync);
+
+      final offlineNewly = await checkStreakMilestones(7);
+      expect(offlineNewly, hasLength(1),
+          reason: 'offline grant must still fire locally');
+      expect(offlineNewly.first.milestone.days, 7);
+      expect(offlineNewly.first.isNew, isTrue);
+
+      // The milestone must be in the pending-claims set so the flush can fire.
+      final prefs = await SharedPreferences.getInstance();
+      final pendingRaw =
+          prefs.getString('sakina_streak_milestones_pending_server');
+      expect(pendingRaw, isNotNull,
+          reason:
+              'offline grant must write the pending-server-claims set so it '
+              'can be flushed when connectivity returns');
+
+      // ── Phase B: user comes online ─────────────────────────────────────────
+      fakeSync.userId = 'user-1';
+      SupabaseSyncService.debugSetInstance(fakeSync);
+
+      // The server has no record of this claim yet (newly_claimed = true would
+      // be the server response, but we're only recording it — NOT re-granting).
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true};
+
+      // Any call to checkStreakMilestones while online should flush pending.
+      // Pass streak=7 again; local set already contains 7, so no new local
+      // grant — but the flush must call claim_streak_milestone for the pending
+      // day regardless.
+      await checkStreakMilestones(7);
+
+      final rpcCall = fakeSync.rpcCalls
+          .where((c) => c['fn'] == 'claim_streak_milestone')
+          .toList();
+      expect(rpcCall, hasLength(1),
+          reason:
+              'going online must flush the pending offline grant by calling '
+              'claim_streak_milestone on the server');
+      expect((rpcCall.first['params'] as Map<String, dynamic>)['p_day'], 7,
+          reason: 'the flush must target the day that was granted offline');
+
+      // After flushing, the pending set must be cleared.
+      final prefs2 = await SharedPreferences.getInstance();
+      final pendingAfter =
+          prefs2.getString('sakina_streak_milestones_pending_server:user-1');
+      final pendingAfterUnscoped =
+          prefs2.getString('sakina_streak_milestones_pending_server');
+      final pendingDays = <int>{};
+      if (pendingAfter != null) {
+        pendingDays.addAll(
+            (jsonDecode(pendingAfter) as List).cast<int>());
+      }
+      if (pendingAfterUnscoped != null) {
+        pendingDays.addAll(
+            (jsonDecode(pendingAfterUnscoped) as List).cast<int>());
+      }
+      expect(pendingDays, isEmpty,
+          reason: 'pending set must be cleared after a successful flush');
+    });
   });
 
   group('markActiveToday concurrency guard (T2 CRITICAL)', () {
@@ -445,6 +512,167 @@ void main() {
       expect(results[0].currentStreak, 6);
       expect(results[1].currentStreak, 6,
           reason: 'the loser must NOT fall through to EXPIRED (streak 1)');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // repairStreakPaid — RPC-success must survive a local-reconcile failure
+  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // addExcusedDate offline cap (§offline-excused-cap)
+  // ---------------------------------------------------------------------------
+  group('addExcusedDate offline cap', () {
+    setUp(() {
+      // Set userId to null so we exercise the offline (no-RPC) path.
+      fakeSync.userId = null;
+      SupabaseSyncService.debugSetInstance(fakeSync);
+    });
+
+    test(
+        'offline: 8 distinct in-window dates are all accepted; '
+        'a 9th in-window date is refused (returns false, not cached)', () async {
+      // Add 8 distinct dates within the last 30 days (days 1..8 ago).
+      for (var i = 1; i <= 8; i++) {
+        final date = DateTime.now().toUtc().subtract(Duration(days: i));
+        final result = await addExcusedDate(date);
+        expect(result, isTrue, reason: 'date $i should be accepted (within cap)');
+      }
+
+      // Verify 8 dates are cached.
+      final cached = await getExcusedDates();
+      expect(cached.length, 8);
+
+      // 9th in-window date must be refused.
+      final ninthDate = DateTime.now().toUtc().subtract(const Duration(days: 9));
+      final ninthResult = await addExcusedDate(ninthDate);
+      expect(ninthResult, isFalse, reason: '9th in-window date must be blocked by the local cap');
+
+      // Cache must NOT have grown.
+      final cachedAfter = await getExcusedDates();
+      expect(cachedAfter.length, 8, reason: 'refused date must not be written to cache');
+    });
+
+    test(
+        'offline: re-adding an already-cached in-window date is a no-op '
+        'success and does not consume a new slot', () async {
+      // Fill to 8.
+      for (var i = 1; i <= 8; i++) {
+        await addExcusedDate(DateTime.now().toUtc().subtract(Duration(days: i)));
+      }
+
+      // Re-add the first date (already cached).
+      final firstDate = DateTime.now().toUtc().subtract(const Duration(days: 1));
+      final reAddResult = await addExcusedDate(firstDate);
+      expect(reAddResult, isTrue,
+          reason: 're-adding an already-cached date must be idempotent (true)');
+
+      // Count stays at 8.
+      final cached = await getExcusedDates();
+      expect(cached.length, 8, reason: 'idempotent re-add must not grow the set');
+
+      // 9th NEW date is still refused (the idempotent re-add did not shrink the cap).
+      final ninthDate = DateTime.now().toUtc().subtract(const Duration(days: 9));
+      final ninthResult = await addExcusedDate(ninthDate);
+      expect(ninthResult, isFalse,
+          reason: 'cap is still reached after idempotent re-add');
+    });
+
+    test(
+        'offline: a date outside the 30-day window does NOT count toward the '
+        'in-window cap', () async {
+      // Add 8 in-window dates.
+      for (var i = 1; i <= 8; i++) {
+        await addExcusedDate(DateTime.now().toUtc().subtract(Duration(days: i)));
+      }
+
+      // Date 31 days ago is outside the window — must still succeed.
+      final oldDate = DateTime.now().toUtc().subtract(const Duration(days: 31));
+      final result = await addExcusedDate(oldDate);
+      expect(result, isTrue,
+          reason: 'out-of-window date does not count toward the rolling cap');
+    });
+  });
+
+  group('repairStreakPaid', () {
+    test(
+        'RPC success + reconcile failure → still returns success:true with '
+        'restored streak (server was charged; client must not report failure)',
+        () async {
+      // RPC returns a valid success payload.
+      final rpcResult = <String, dynamic>{
+        'current_streak': 15,
+        'method': 'paid',
+        'cost': 100,
+      };
+      // Inject a reconcile that always throws after a successful RPC.
+      final result = await repairStreakPaid(
+        preLapseStreak: 15,
+        repairRpc: () async => rpcResult,
+        reconcileCache: ({
+          required int restoredStreak,
+          required String method,
+          required int cost,
+        }) async {
+          throw StateError('SharedPreferences write failed');
+        },
+      );
+
+      expect(result.success, isTrue,
+          reason:
+              'RPC already debited tokens and restored the streak on the server; '
+              'a local-cache failure must NOT flip success to false');
+      expect(result.restoredStreak, 15);
+      expect(result.reason, RepairFailReason.none);
+      expect(result.needsTokens, isFalse);
+    });
+
+    test(
+        'RPC failure with "insufficient" error → insufficientTokens + '
+        'needsTokens:true (reason-mapping regression guard)',
+        () async {
+      final result = await repairStreakPaid(
+        repairRpc: () async =>
+            throw Exception('insufficient tokens in wallet'),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.reason, RepairFailReason.insufficientTokens);
+      expect(result.needsTokens, isTrue);
+    });
+
+    test(
+        'RPC failure with "rate-limited" error → rateLimited reason',
+        () async {
+      final result = await repairStreakPaid(
+        repairRpc: () async => throw Exception('rate-limited: already repaired'),
+      );
+
+      expect(result.success, isFalse);
+      expect(result.reason, RepairFailReason.rateLimited);
+    });
+
+    test(
+        'RPC success with balance field → PaidRepairResult.newBalance equals '
+        'the server-returned balance (token debit reflected in result)',
+        () async {
+      // The server atomically debits tokens and returns the post-debit balance.
+      final rpcResult = <String, dynamic>{
+        'current_streak': 12,
+        'method': 'paid',
+        'cost': 100,
+        'balance': 350, // post-debit balance from the server
+      };
+
+      final result = await repairStreakPaid(
+        preLapseStreak: 12,
+        repairRpc: () async => rpcResult,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.newBalance, 350,
+          reason:
+              'PaidRepairResult must surface the server-returned post-debit '
+              'balance so the caller can update dailyLoopProvider.tokenBalance');
     });
   });
 }

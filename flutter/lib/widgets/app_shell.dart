@@ -8,6 +8,7 @@ import '../core/constants/app_colors.dart';
 import '../core/immersive_mode_provider.dart';
 import '../core/theme/app_typography.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
+import '../features/daily/widgets/streak_milestone_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
 import '../features/tour/models/onboarding_tour_step.dart';
@@ -151,6 +152,31 @@ class _AppShellState extends ConsumerState<AppShell> {
         });
   }
 
+  /// Pushes the streak-milestone celebration overlay drained from the deferred
+  /// queue. The milestone was enqueued by muhasabah_screen's `onReturnHome`
+  /// callback when the user backed out of BeatRevealFlow before tapping Ameen.
+  /// Awaited so subsequent celebrations show sequentially. clearStreakMilestone
+  /// already ran at enqueue time (in onReturnHome) to prevent double-fire on
+  /// any future navigation back to muhasabah.
+  Future<void> _pushStreakMilestoneOverlay(StreakMilestoneCelebration c) {
+    final nav = Navigator.of(context, rootNavigator: true);
+    return nav.push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (_, __, ___) => StreakMilestoneOverlay(
+          streakCount: c.streak,
+          xpAwarded: c.xp,
+          scrollsAwarded: c.scrolls,
+          onContinue: nav.pop,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+  }
+
   /// Drains celebrations withheld during the tour, once, on the first home
   /// arrival after the tour (and its trailing paywall) clears. Modals show
   /// one-at-a-time (awaited) so the headline rewards lead; ambient toasts then
@@ -194,6 +220,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             await _pushLevelUpOverlay(c.xpState, c.rewards);
           } else if (c is FirstStepsCelebration) {
             await _pushFirstStepsOverlay(c.tokens, c.scrolls);
+          } else if (c is StreakMilestoneCelebration) {
+            await _pushStreakMilestoneOverlay(c);
           }
         }
         if (!mounted) return;

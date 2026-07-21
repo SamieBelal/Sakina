@@ -44,6 +44,23 @@ class AchievementToastCelebration extends DeferredCelebration {
   final Achievement achievement;
 }
 
+/// A streak-milestone celebration ([StreakMilestoneOverlay]) that was withheld
+/// because the user backed out of BeatRevealFlow (tapped the left zone at beat 0
+/// → onReturnHome) before tapping "Ameen" / calling completeDeeper(). The
+/// `ref.listen` in muhasabah_screen only fires the overlay on the
+/// `deeper → completed` transition, which never happens on back-out. We enqueue
+/// here instead so the Home screen drains and shows it as the next flourish.
+class StreakMilestoneCelebration extends DeferredCelebration {
+  const StreakMilestoneCelebration({
+    required this.streak,
+    required this.xp,
+    required this.scrolls,
+  });
+  final int streak;
+  final int xp;
+  final int scrolls;
+}
+
 /// FIFO queue of celebrations withheld during the tour. Order is preserved so
 /// the drain can replay chronologically; the drainer separates modals (shown
 /// one-at-a-time, awaited) from ambient toasts.

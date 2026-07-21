@@ -98,11 +98,58 @@ class StreakMilestoneResult {
 
 const String _claimedMilestonesKey = 'sakina_streak_milestones_claimed';
 
+// Pending-server-claims: milestone days granted offline that haven't yet been
+// recorded on the server. Stored unscoped (no userId at grant time) so that
+// a subsequent online session can find and flush them.
+const String _pendingServerClaimsKey =
+    'sakina_streak_milestones_pending_server';
+
 Future<Set<int>> _getScopedClaimedMilestones(SharedPreferences prefs) async {
   final raw = await supabaseSyncService.migrateLegacyStringCache(
       prefs, _claimedMilestonesKey);
   if (raw == null) return {};
   return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+}
+
+/// Returns the set of milestone days that were granted offline and not yet
+/// flushed to the server. Stored unscoped because there is no userId at the
+/// time of the offline grant.
+Future<Set<int>> _getPendingServerClaims(SharedPreferences prefs) async {
+  final raw = prefs.getString(_pendingServerClaimsKey);
+  if (raw == null) return {};
+  return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+}
+
+Future<void> _savePendingServerClaims(
+    SharedPreferences prefs, Set<int> days) async {
+  if (days.isEmpty) {
+    await prefs.remove(_pendingServerClaimsKey);
+  } else {
+    await prefs.setString(_pendingServerClaimsKey, jsonEncode(days.toList()));
+  }
+}
+
+/// Flush offline-granted milestone claims to the server. Called at the start
+/// of [checkStreakMilestones] whenever userId is non-null so the server
+/// eventually sees every offline grant. The RPC result is intentionally
+/// ignored — local grant already happened; this is purely a server-record
+/// write to prevent double-grant on a new device.
+Future<void> _flushPendingServerClaims(
+    SharedPreferences prefs, String userId) async {
+  final pending = await _getPendingServerClaims(prefs);
+  if (pending.isEmpty) return;
+
+  for (final day in pending.toList()) {
+    // Ignore newly_claimed — local grant was already given, this is just for
+    // server recordkeeping (prevents re-grant on cache-clear / new device).
+    await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      'claim_streak_milestone',
+      {'p_day': day},
+    );
+  }
+
+  // Clear only after all RPCs succeed (if any throw, the next call retries).
+  await _savePendingServerClaims(prefs, {});
 }
 
 /// Check which milestones were just reached. Returns only newly claimed ones.
@@ -111,6 +158,12 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
   final prefs = await SharedPreferences.getInstance();
   final claimed = await _getScopedClaimedMilestones(prefs);
   final userId = supabaseSyncService.currentUserId;
+
+  // Flush any milestone days that were granted offline (userId was null then)
+  // so the server records them before we do any new claims this session.
+  if (userId != null) {
+    await _flushPendingServerClaims(prefs, userId);
+  }
 
   final newlyReached = <StreakMilestoneResult>[];
   var changed = false;
@@ -129,6 +182,12 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
         {'p_day': milestone.days},
       );
       isNew = res == null ? true : (res['newly_claimed'] as bool? ?? true);
+    } else {
+      // Offline grant: record in the pending set so the next online session
+      // writes it to the server, preventing double-grant on a new device.
+      final pending = await _getPendingServerClaims(prefs);
+      pending.add(milestone.days);
+      await _savePendingServerClaims(prefs, pending);
     }
 
     claimed.add(milestone.days);
@@ -541,8 +600,14 @@ Future<StreakState> _markActiveTodayImpl() async {
       StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.endowedStart, {});
     }
     if (lapsedThisRun) {
+      // Derive outcome: 'effort' / 'freeze' match streak_repaired's method
+      // values exactly (reusing the same constants). 'expired' = truly lost.
+      final lapseOutcome = repairMethod.isNotEmpty
+          ? repairMethod // 'effort' or 'freeze' — the gap was forgiven
+          : 'expired'; // no repair method → streak actually reset
       StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakLapsed, {
         'pre_lapse_streak': preLapseStreak > 0 ? preLapseStreak : currentStreak - 1,
+        'outcome': lapseOutcome,
       });
     }
     if (repairMethod.isNotEmpty && streakPersisted) {
@@ -584,49 +649,65 @@ Future<StreakState> _markActiveTodayImpl() async {
   );
 }
 
+Future<void> _defaultRepairReconcile({
+  required int restoredStreak,
+  required String method,
+  required int cost,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final longest = await _getCachedLongestStreak(prefs);
+  await _setCachedStreakState(
+    prefs,
+    currentStreak: restoredStreak,
+    longestStreak: restoredStreak > longest ? restoredStreak : longest,
+    lastActive: _todayString(),
+  );
+  await _setCachedLapse(prefs, preLapseStreak: 0, lapsedAt: null);
+}
+
 /// Buy back an EXPIRED streak with tokens (§2g). Server-authoritative and
 /// atomic (`repair_streak_paid` debits + restores in one txn, and decides
 /// premium-free vs paid server-side — the client never asserts premium).
 /// Returns the outcome; on insufficient tokens, [PaidRepairResult.needsTokens]
 /// is true so the caller can route to the Store. [preLapseStreak] is the value
 /// being bought back (for the `streak_repaired` analytics).
-Future<PaidRepairResult> repairStreakPaid({int preLapseStreak = 0}) async {
+///
+/// [repairRpc] and [reconcileCache] are injectable for testing only — leave
+/// them null in production code (the defaults call the real Supabase RPC and
+/// SharedPreferences respectively).
+Future<PaidRepairResult> repairStreakPaid({
+  int preLapseStreak = 0,
+  Future<Map<String, dynamic>> Function()? repairRpc,
+  Future<void> Function({
+    required int restoredStreak,
+    required String method,
+    required int cost,
+  })? reconcileCache,
+}) async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) {
     return const PaidRepairResult(success: false);
   }
+
+  // ── Phase 1: RPC call — failure here flips success:false ──────────────────
+  // If the RPC throws (insufficient tokens, rate-limited, etc.) we map the
+  // error to a RepairFailReason and return failure.  Nothing was charged yet.
+  final int restored;
+  final String method;
+  final int cost;
+  final int? newBalance;
   try {
-    final result = await Supabase.instance.client.rpc('repair_streak_paid');
-    final map = (result as Map).cast<String, dynamic>();
-    final restored = (map['current_streak'] as num).toInt();
-    final method = map['method'] as String? ?? AnalyticsEvents.repairMethodPaid;
-    final cost = (map['cost'] as num?)?.toInt() ?? 0;
-
-    // Reconcile local caches: the streak is restored, the lapse cleared.
-    final prefs = await SharedPreferences.getInstance();
-    final longest = await _getCachedLongestStreak(prefs);
-    await _setCachedStreakState(
-      prefs,
-      currentStreak: restored,
-      longestStreak: restored > longest ? restored : longest,
-      lastActive: _todayString(),
-    );
-    await _setCachedLapse(prefs, preLapseStreak: 0, lapsedAt: null);
-
-    try {
-      StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakRepaired, {
-        'method': method,
-        'streak_day': restored,
-        'tokens_spent': cost,
-        'pre_lapse_streak': preLapseStreak,
-      });
-    } catch (_) {}
-
-    return PaidRepairResult(
-        success: true,
-        restoredStreak: restored,
-        tokensSpent: cost,
-        reason: RepairFailReason.none);
+    final Map<String, dynamic> map;
+    if (repairRpc != null) {
+      map = await repairRpc();
+    } else {
+      final result = await Supabase.instance.client.rpc('repair_streak_paid');
+      map = (result as Map).cast<String, dynamic>();
+    }
+    restored = (map['current_streak'] as num).toInt();
+    method = map['method'] as String? ?? AnalyticsEvents.repairMethodPaid;
+    cost = (map['cost'] as num?)?.toInt() ?? 0;
+    newBalance = (map['balance'] as num?)?.toInt();
   } catch (e) {
     // Map the server's raise text to a specific reason so the sheet can route/
     // message correctly. Anything unrecognised stays `unknown` ("try again").
@@ -646,6 +727,36 @@ Future<PaidRepairResult> repairStreakPaid({int preLapseStreak = 0}) async {
       reason: reason,
     );
   }
+
+  // ── Phase 2: local reconcile — failure here must NOT flip success:false ───
+  // The RPC already atomically debited tokens and restored the streak on the
+  // server.  A SharedPreferences write failure is a local-only problem; the
+  // caller must see success so it doesn't offer a retry (which would hit the
+  // server rate-limit).  Log-and-swallow; the cache will self-heal on the next
+  // hydrateStreakCache call.
+  try {
+    final reconcile = reconcileCache ?? _defaultRepairReconcile;
+    await reconcile(restoredStreak: restored, method: method, cost: cost);
+  } catch (_) {
+    // Intentionally swallowed — server state is authoritative.
+  }
+
+  // ── Phase 3: analytics — always best-effort ────────────────────────────────
+  try {
+    StreakAnalytics.onAnalyticsEvent?.call(AnalyticsEvents.streakRepaired, {
+      'method': method,
+      'streak_day': restored,
+      'tokens_spent': cost,
+      'pre_lapse_streak': preLapseStreak,
+    });
+  } catch (_) {}
+
+  return PaidRepairResult(
+      success: true,
+      restoredStreak: restored,
+      tokensSpent: cost,
+      reason: RepairFailReason.none,
+      newBalance: newBalance);
 }
 
 /// Record an excused day (menstruation / travel-illness) — capped server-side.
@@ -665,6 +776,34 @@ Future<bool> addExcusedDate(DateTime date) async {
     if (result == null) return false; // cap reached or error
   }
   final set = await _getCachedExcusedDates(prefs);
+
+  // Offline cap: mirror the server's ≤8 per rolling 30-day window so the local
+  // gap-check cannot be abused when the user is unauthenticated. Only applies
+  // to dates within the window (matching the server predicate `date > today-30`).
+  // Out-of-window dates are allowed through without counting against the cap,
+  // and re-adding an already-cached date is always a no-op success.
+  if (userId == null && !set.contains(iso)) {
+    final todayUtc = _parseUtcDate(_todayString());
+    final windowStart = todayUtc.subtract(const Duration(days: 30));
+    DateTime? newDate;
+    try {
+      newDate = _parseUtcDate(iso);
+    } catch (_) {}
+
+    // Only enforce the cap if the new date itself falls within the window.
+    if (newDate != null && newDate.isAfter(windowStart)) {
+      final inWindowCount = set.where((d) {
+        try {
+          final parsed = _parseUtcDate(d);
+          return parsed.isAfter(windowStart);
+        } catch (_) {
+          return false;
+        }
+      }).length;
+      if (inWindowCount >= 8) return false;
+    }
+  }
+
   set.add(iso);
   await prefs.setStringList(
       supabaseSyncService.scopedKey(_excusedDatesKey), set.toList());
@@ -694,12 +833,18 @@ class PaidRepairResult {
     this.restoredStreak = 0,
     this.tokensSpent = 0,
     this.reason = RepairFailReason.unknown,
+    this.newBalance,
   });
   final bool success;
   final bool needsTokens; // true → not enough tokens; route to Store
   final int restoredStreak;
   final int tokensSpent;
   final RepairFailReason reason;
+  /// Post-debit token balance returned by the server. Non-null on success;
+  /// null on failure (no tokens were charged). Callers must apply this to
+  /// [DailyLoopNotifier.refreshTokenBalance] so the UI reflects the debit
+  /// immediately without waiting for the next full economy sync.
+  final int? newBalance;
 }
 
 /// The set of excused days (YYYY-MM-DD) — menstruation / travel-illness rest

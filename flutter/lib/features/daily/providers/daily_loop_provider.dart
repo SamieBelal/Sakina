@@ -233,8 +233,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   DailyLoopNotifier({
     @visibleForTesting Future<void> Function(DailyLoopNotifier self)?
         discoverNameOverride,
+    /// When true, skips [_initialize] (and the EconomyEvents subscription).
+    /// ONLY for widget tests that pump the sheet and don't need real state.
+    @visibleForTesting bool skipInitForTests = false,
   })  : _discoverNameOverride = discoverNameOverride,
         super(const DailyLoopState()) {
+    if (skipInitForTests) return;
     // Subscribe BEFORE _initialize so consumable grants that fire while
     // initial hydration is in flight (e.g., the customerInfo listener in
     // main.dart firing on app boot with a pending receipt) update the

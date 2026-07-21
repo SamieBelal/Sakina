@@ -15,6 +15,7 @@ import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/deferred_celebrations_provider.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -187,6 +188,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         notifier.completeDeeper();
       },
       onReturnHome: () {
+        // If the user backs out of the beat flow without completing (taps
+        // the left zone at beat 0 before "Ameen"), the streak-milestone
+        // flag may already be set from discoverName() but the `completed`
+        // step transition that normally fires the overlay never happens.
+        // Enqueue the milestone to the deferred-celebration queue so Home
+        // drains and surfaces it as the next flourish — exactly once, and
+        // only if clearStreakMilestone hasn't already run (which can't
+        // happen here since we haven't completed the flow).
+        final s = ref.read(dailyLoopProvider);
+        if (s.streakMilestoneReached) {
+          ref.read(deferredCelebrationsProvider.notifier).enqueue(
+                StreakMilestoneCelebration(
+                  streak: s.streakMilestoneCount ?? 0,
+                  xp: s.streakMilestoneXp ?? 0,
+                  scrolls: s.streakMilestoneScrolls ?? 0,
+                ),
+              );
+          ref.read(dailyLoopProvider.notifier).clearStreakMilestone();
+        }
         if (mounted) context.go('/');
       },
       onRetry: () => notifier.startDeeper(),

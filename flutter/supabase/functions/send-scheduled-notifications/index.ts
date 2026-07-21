@@ -150,7 +150,7 @@ export function isAuthorized(
   return authHeader === `Bearer ${cronSecret}`;
 }
 
-const NOTIFICATION_TYPES: NotificationType[] = [
+export const NOTIFICATION_TYPES: NotificationType[] = [
   {
     key: "daily",
     prefColumn: "notify_daily",
@@ -230,6 +230,8 @@ function streakFamilyBody(d: StreakDecision): string {
     }
     case "winback":
       return "Your lantern is resting. Relight it whenever you're ready.";
+    default:
+      throw new Error(`Unknown streak kind: ${(d as StreakDecision).kind}`);
   }
 }
 
@@ -244,6 +246,8 @@ function streakFamilyDataType(kind: StreakKind): string {
       return "streak_milestone_approaching";
     case "winback":
       return "streak_winback";
+    default:
+      throw new Error(`Unknown streak kind: ${kind}`);
   }
 }
 
@@ -287,7 +291,8 @@ async function markStreakFamilySent(
 // so a dropped send simply retries next tick — at-most-once is unnecessary here,
 // and stamping before a failed send would silently suppress the user all day).
 // Respects the shared pushedUserIds set (quiet-hours dedup) both directions.
-async function processStreakFamily(params: {
+// Exported for unit testing.
+export async function processStreakFamily(params: {
   supabase: any;
   appId: string;
   restApiKey: string;
@@ -312,13 +317,29 @@ async function processStreakFamily(params: {
     // Quiet-hours dedup: never double-buzz a user already pushed this run.
     if (alreadyPushedUserIds.has(d.user_id)) continue;
 
+    // Unknown kind (e.g. future migration or data bug) must not abort the whole
+    // batch or send a push with "undefined" content. Skip and log loudly.
+    let body: string;
+    let dataType: string;
+    try {
+      body = streakFamilyBody(d);
+      dataType = streakFamilyDataType(d.kind);
+    } catch (err) {
+      console.error("streak_family: skipping decision with unknown kind", {
+        user_id: d.user_id,
+        kind: d.kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      continue;
+    }
+
     const ok = await sendOneSignalNotification({
       appId,
       restApiKey,
       userId: d.user_id,
       title: streakFamilyTitle(d),
-      message: streakFamilyBody(d),
-      dataType: streakFamilyDataType(d.kind),
+      message: body,
+      dataType,
     });
     if (!ok) continue;
 
@@ -338,11 +359,11 @@ async function processStreakFamily(params: {
     // Server half of push attribution. Per-user+kind+day $insert_id dedups a
     // cron re-run/retry in Mixpanel.
     await mixpanelTrack("notification_sent", d.user_id, {
-      type: streakFamilyDataType(d.kind),
+      type: dataType,
       segment: d.kind,
       streak: d.current_streak,
     }, {
-      insertId: `${d.user_id}:${streakFamilyDataType(d.kind)}:${
+      insertId: `${d.user_id}:${dataType}:${
         localTodayForTimezone(d.timezone, now)
       }`,
     });
@@ -553,6 +574,129 @@ async function processDuaPreciseWindows(params: {
   return { due: due.length, skippedDedup, sent, marked };
 }
 
+// Run the fixed-cadence notification loop (daily, reengagement, weekly_reflection).
+// Exported for unit testing. The caller owns `pushedUserIds` so the streak-family
+// and duʿā passes can share the same dedup set (quiet-hours / double-buzz guard).
+export async function runFixedCadenceLoop(
+  supabase: any,
+  oneSignalAppId: string,
+  oneSignalRestApiKey: string,
+  pushedUserIds: Set<string>,
+): Promise<Record<string, { eligible: number; sent: number; marked: number }>> {
+  const summary: Record<
+    string,
+    { eligible: number; sent: number; marked: number }
+  > = {};
+
+  for (const notificationType of NOTIFICATION_TYPES) {
+    const { data, error } = await supabase.rpc(
+      "get_eligible_notification_users",
+      {
+        p_pref_column: notificationType.prefColumn,
+        p_sent_column: notificationType.sentColumn,
+        p_target_hour: notificationType.targetHour,
+        p_requires_streak: notificationType.requiresStreak,
+        p_inactive_days: notificationType.inactiveDays ?? 0,
+        p_day_of_week: notificationType.dayOfWeek ?? null,
+        p_use_user_reminder_time:
+          notificationType.useUserReminderTime ?? false,
+      },
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const users = (data ?? []) as EligibleUser[];
+
+    if (users.length === 0) {
+      summary[notificationType.key] = {
+        eligible: 0,
+        sent: 0,
+        marked: 0,
+      };
+      continue;
+    }
+
+    let sent = 0;
+    let marked = 0;
+
+    if (notificationType.key === "reengagement") {
+      for (const user of users) {
+        // Quiet-hours dedup: skip a user already pushed by an earlier type this run.
+        if (pushedUserIds.has(user.user_id)) continue;
+
+        const ok = await sendOneSignalNotification({
+          appId: oneSignalAppId,
+          restApiKey: oneSignalRestApiKey,
+          userId: user.user_id,
+          title: notificationType.title(user),
+          message: notificationType.message(user),
+          dataType: notificationType.dataType,
+        });
+
+        if (!ok) continue;
+
+        sent += 1;
+        pushedUserIds.add(user.user_id);
+        await markSent(supabase, [user.user_id], notificationType.sentColumn);
+        marked += 1;
+        // notification_sent: server half of push attribution (pairs with the
+        // client's notification_opened to compute CTR). Best-effort. The
+        // per-user+type+day $insert_id dedups a cron re-run/retry in Mixpanel.
+        await mixpanelTrack("notification_sent", user.user_id, {
+          type: notificationType.dataType,
+        }, {
+          insertId: `${user.user_id}:${notificationType.dataType}:${
+            new Date().toISOString().slice(0, 10)
+          }`,
+        });
+      }
+    } else {
+      await markSent(
+        supabase,
+        users.map((user) => user.user_id),
+        notificationType.sentColumn,
+      );
+      marked = users.length;
+
+      for (const user of users) {
+        // Quiet-hours dedup: skip a user already pushed by an earlier type this run.
+        if (pushedUserIds.has(user.user_id)) continue;
+
+        const ok = await sendOneSignalNotification({
+          appId: oneSignalAppId,
+          restApiKey: oneSignalRestApiKey,
+          userId: user.user_id,
+          title: notificationType.title(user),
+          message: notificationType.message(user),
+          dataType: notificationType.dataType,
+        });
+
+        if (ok) {
+          sent += 1;
+          pushedUserIds.add(user.user_id);
+          await mixpanelTrack("notification_sent", user.user_id, {
+            type: notificationType.dataType,
+          }, {
+            insertId: `${user.user_id}:${notificationType.dataType}:${
+              new Date().toISOString().slice(0, 10)
+            }`,
+          });
+        }
+      }
+    }
+
+    summary[notificationType.key] = {
+      eligible: users.length,
+      sent,
+      marked,
+    };
+  }
+
+  return summary;
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -587,113 +731,21 @@ Deno.serve(async (request) => {
     auth: { persistSession: false },
   });
 
-  const summary: Record<string, unknown> = {};
-
   // Users who received ANY push in this run — the quiet-hours dedup set shared
   // across the existing daily/streak/etc. types and the precise duʿā windows so
   // a single user is never double-buzzed in one tick (plan Risk 6).
   const pushedUserIds = new Set<string>();
 
+  const summary: Record<string, unknown> = {};
+
   try {
-    for (const notificationType of NOTIFICATION_TYPES) {
-      const { data, error } = await supabase.rpc(
-        "get_eligible_notification_users",
-        {
-          p_pref_column: notificationType.prefColumn,
-          p_sent_column: notificationType.sentColumn,
-          p_target_hour: notificationType.targetHour,
-          p_requires_streak: notificationType.requiresStreak,
-          p_inactive_days: notificationType.inactiveDays ?? 0,
-          p_day_of_week: notificationType.dayOfWeek ?? null,
-          p_use_user_reminder_time:
-            notificationType.useUserReminderTime ?? false,
-        },
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const users = (data ?? []) as EligibleUser[];
-
-      if (users.length === 0) {
-        summary[notificationType.key] = {
-          eligible: 0,
-          sent: 0,
-          marked: 0,
-        };
-        continue;
-      }
-
-      let sent = 0;
-      let marked = 0;
-
-      if (notificationType.key === "reengagement") {
-        for (const user of users) {
-          const ok = await sendOneSignalNotification({
-            appId: oneSignalAppId,
-            restApiKey: oneSignalRestApiKey,
-            userId: user.user_id,
-            title: notificationType.title(user),
-            message: notificationType.message(user),
-            dataType: notificationType.dataType,
-          });
-
-          if (!ok) continue;
-
-          sent += 1;
-          pushedUserIds.add(user.user_id);
-          await markSent(supabase, [user.user_id], notificationType.sentColumn);
-          marked += 1;
-          // notification_sent: server half of push attribution (pairs with the
-          // client's notification_opened to compute CTR). Best-effort. The
-          // per-user+type+day $insert_id dedups a cron re-run/retry in Mixpanel.
-          await mixpanelTrack("notification_sent", user.user_id, {
-            type: notificationType.dataType,
-          }, {
-            insertId: `${user.user_id}:${notificationType.dataType}:${
-              new Date().toISOString().slice(0, 10)
-            }`,
-          });
-        }
-      } else {
-        await markSent(
-          supabase,
-          users.map((user) => user.user_id),
-          notificationType.sentColumn,
-        );
-        marked = users.length;
-
-        for (const user of users) {
-          const ok = await sendOneSignalNotification({
-            appId: oneSignalAppId,
-            restApiKey: oneSignalRestApiKey,
-            userId: user.user_id,
-            title: notificationType.title(user),
-            message: notificationType.message(user),
-            dataType: notificationType.dataType,
-          });
-
-          if (ok) {
-            sent += 1;
-            pushedUserIds.add(user.user_id);
-            await mixpanelTrack("notification_sent", user.user_id, {
-              type: notificationType.dataType,
-            }, {
-              insertId: `${user.user_id}:${notificationType.dataType}:${
-                new Date().toISOString().slice(0, 10)
-              }`,
-            });
-          }
-        }
-      }
-
-      summary[notificationType.key] = {
-        eligible: users.length,
-        sent,
-        marked,
-      };
-    }
+    const fixedCadenceSummary = await runFixedCadenceLoop(
+      supabase,
+      oneSignalAppId,
+      oneSignalRestApiKey,
+      pushedUserIds,
+    );
+    Object.assign(summary, fixedCadenceSummary);
 
     // Unified streak-family pass (T5). Runs AFTER the fixed-cadence types so the
     // shared pushedUserIds dedup set is populated. The DB decides ONE of

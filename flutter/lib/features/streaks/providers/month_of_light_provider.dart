@@ -59,15 +59,18 @@ String _dayKey(DateTime d) {
 /// so it can be unit-tested in isolation (T3 verify step 2).
 ///
 /// Inputs:
-/// - [litLocalDates]  — LOCAL YYYY-MM-DD days a reflection landed on this month.
-/// - [excusedDates]   — LOCAL YYYY-MM-DD excused rest days.
+/// - [litLocalDates]  — YYYY-MM-DD days a reflection landed on this month.
+/// - [excusedDates]   — YYYY-MM-DD excused rest days.
 /// - [currentStreak]  — `user_streaks.current_streak`.
-/// - [lastActiveLocal]— `user_streaks.last_active` as YYYY-MM-DD (local), or null.
-/// - [now]            — the current local instant (for "today" + month bounds).
+/// - [lastActiveLocal]— `user_streaks.last_active` as YYYY-MM-DD (UTC, stored by
+///                      streak_service._todayString which calls .toUtc()), or null.
+/// - [now]            — the current instant **as UTC** (pass DateTime.now().toUtc()
+///                      from the provider so both sides agree with the streak service
+///                      which also operates on the UTC calendar date).
 ///
 /// There is NO record of WHICH past days a freeze bridged, so "held" is derived
 /// from the streak invariant: if the streak is currently unbroken (last_active
-/// is today-or-yesterday-local), the last N local days ending at last_active are
+/// is today-or-yesterday UTC), the last N UTC days ending at last_active are
 /// all covered — any such day with no checkin row (and not today) was bridged and
 /// renders as "held", never as a "missed" gap (§6 guardrail).
 Map<DateTime, MonthCellState> deriveMonthCells({
@@ -77,20 +80,29 @@ Map<DateTime, MonthCellState> deriveMonthCells({
   required String? lastActiveLocal,
   required DateTime now,
 }) {
-  final today = DateTime(now.year, now.month, now.day);
-  final monthStart = DateTime(now.year, now.month, 1);
-  final nextMonth = DateTime(now.year, now.month + 1, 1);
+  // Use UTC constructor when now is UTC so all DateTime keys are UTC — this
+  // keeps the calendar aligned with streak_service._todayString() which also
+  // derives the calendar date from DateTime.now().toUtc().
+  DateTime makeDay(int y, int m, int d) =>
+      now.isUtc ? DateTime.utc(y, m, d) : DateTime(y, m, d);
+
+  final today = makeDay(now.year, now.month, now.day);
+  final monthStart = makeDay(now.year, now.month, 1);
+  final nextMonth = makeDay(now.year, now.month + 1, 1);
   final daysInMonth = nextMonth.difference(monthStart).inDays;
 
   // The current unbroken streak span, if any. It's "unbroken" when last_active
-  // is today or yesterday (local) — matching the streak service's continuity
+  // is today or yesterday (UTC) — matching the streak service's continuity
   // rule. When unbroken, days in (spanStart, lastActive] are covered.
   DateTime? spanStart;
   DateTime? spanEnd;
   if (lastActiveLocal != null && currentStreak > 0) {
-    final la = DateTime.tryParse(lastActiveLocal);
+    // last_active is stored as a UTC date string by streak_service._todayString().
+    // Append 'T00:00:00Z' so DateTime.tryParse treats it as UTC midnight, matching
+    // the source clock. A bare "YYYY-MM-DD" (no suffix) is parsed as local time.
+    final la = DateTime.tryParse('${lastActiveLocal}T00:00:00Z');
     if (la != null) {
-      final lastActive = DateTime(la.year, la.month, la.day);
+      final lastActive = makeDay(la.year, la.month, la.day);
       final daysSince = today.difference(lastActive).inDays;
       if (daysSince == 0 || daysSince == 1) {
         // Unbroken: last N days ENDING at lastActive are all covered.
@@ -110,7 +122,7 @@ Map<DateTime, MonthCellState> deriveMonthCells({
 
   final cells = <DateTime, MonthCellState>{};
   for (var i = 0; i < daysInMonth; i++) {
-    final day = DateTime(now.year, now.month, i + 1);
+    final day = makeDay(now.year, now.month, i + 1);
     final key = _dayKey(day);
 
     MonthCellState state;
@@ -118,11 +130,15 @@ Map<DateTime, MonthCellState> deriveMonthCells({
       state = MonthCellState.future;
     } else if (litLocalDates.contains(key)) {
       state = MonthCellState.lit;
-    } else if (day == today) {
-      // Today, not yet lit (lit is handled above).
-      state = MonthCellState.todayPending;
     } else if (excusedDates.contains(key)) {
+      // Excused rest day (menstruation / illness) — checked before todayPending
+      // so that today-as-excused renders as "rest day, gently held" not as
+      // "today, not yet reflected" (the two states are mutually exclusive in
+      // intent; excused explicitly overrides the open-invitation framing).
       state = MonthCellState.excused;
+    } else if (day == today) {
+      // Today, not yet lit and not excused — an open invitation.
+      state = MonthCellState.todayPending;
     } else if (inStreakSpan(day)) {
       // Covered by the current unbroken streak but no checkin row → bridged.
       state = MonthCellState.held;
@@ -139,14 +155,17 @@ Map<DateTime, MonthCellState> deriveMonthCells({
 /// gracefully — on error the widget falls back to "begins today" via
 /// `.valueOrNull` (mirrors `pendingFreezeBurnProvider`).
 final monthOfLightProvider = FutureProvider<MonthOfLight>((ref) async {
-  final now = DateTime.now();
+  // Use UTC so this calendar's "today" aligns with streak_service._todayString()
+  // which also derives the calendar date via DateTime.now().toUtc(). Without this,
+  // east-of-UTC users see a mismatched "today" cell after local midnight while the
+  // UTC date (and last_active) haven't rolled over yet.
+  final now = DateTime.now().toUtc();
   final litDates = await fetchLitLocalDatesThisMonth();
   final excused = await getExcusedDates();
   final streak = await getStreak();
 
-  // Normalize last_active (stored UTC YYYY-MM-DD) to a local day key. The streak
-  // service persists last_active as a UTC date string; treat it as a calendar
-  // day directly — the derivation only compares day-granularity against today.
+  // last_active is stored as a UTC date string by the streak service; pass it
+  // through directly — deriveMonthCells now parses it as UTC (appends 'Z').
   final lastActiveLocal = _lastActiveDayKey(streak.lastActive);
 
   final cells = deriveMonthCells(
@@ -167,13 +186,19 @@ final monthOfLightProvider = FutureProvider<MonthOfLight>((ref) async {
   return MonthOfLight(
     cells: cells,
     litCount: litCount,
-    month: DateTime(now.year, now.month, 1),
+    month: DateTime.utc(now.year, now.month, 1),
   );
 });
 
 String? _lastActiveDayKey(String? lastActive) {
   if (lastActive == null || lastActive.isEmpty) return null;
-  final parsed = DateTime.tryParse(lastActive);
+  // last_active is stored as a UTC date string (streak_service uses .toUtc()).
+  // Append 'T00:00:00Z' so DateTime.tryParse treats it as UTC midnight — without
+  // this, a bare "2026-07-21" is parsed as local midnight, diverging from the
+  // UTC clock used by the streak service for east-of-UTC users after local midnight.
+  final parsed = DateTime.tryParse('${lastActive}T00:00:00Z');
   if (parsed == null) return null;
-  return _dayKey(DateTime(parsed.year, parsed.month, parsed.day));
+  // Normalize to midnight UTC for day-level comparisons.
+  final utc = parsed.toUtc();
+  return _dayKey(DateTime.utc(utc.year, utc.month, utc.day));
 }

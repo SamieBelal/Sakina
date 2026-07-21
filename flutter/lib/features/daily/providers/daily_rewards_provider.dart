@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -6,6 +7,11 @@ class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
   DailyRewardsNotifier() : super(const DailyRewardsState()) {
     reload();
   }
+
+  /// No-op constructor for tests — skips the real [reload] that hits
+  /// SharedPreferences and Supabase. Only call from `@visibleForTesting` paths.
+  @visibleForTesting
+  DailyRewardsNotifier.testOnly() : super(const DailyRewardsState());
 
   Future<void> reload() async {
     // Reconcile local SharedPrefs cache from server before reading state.
