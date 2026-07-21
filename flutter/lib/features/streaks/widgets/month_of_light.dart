@@ -14,6 +14,11 @@ Future<void> showMonthOfLightSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    // Mount on the ROOT navigator so the sheet + scrim rise over the AppShell's
+    // bottom nav bar. On the default shell navigator the sheet mounts inside the
+    // scaffold body, so the nav bar (a separate scaffold slot) renders on top of
+    // it. Inner SafeArea(top:false) keeps content clear of the home indicator.
+    useRootNavigator: true,
     backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
     clipBehavior: Clip.antiAlias,
     showDragHandle: true,
@@ -50,6 +55,21 @@ class _MonthOfLightSheet extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // The "N days lit" stat lives here now (moved off the hero so the
+              // Home screen keeps a single status line above the Name reveal).
+              if (data != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  data.litCount == 0
+                      ? 'Your month begins today'
+                      : '${data.litCount} ${data.litCount == 1 ? 'day' : 'days'} lit this month',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               if (data == null)
                 const _GridSkeleton()
@@ -79,6 +99,8 @@ class _MonthGrid extends StatelessWidget {
   const _MonthGrid({required this.data});
   final MonthOfLight data;
 
+  static const double _rowSpacing = 6;
+
   @override
   Widget build(BuildContext context) {
     final month = data.month;
@@ -87,29 +109,54 @@ class _MonthGrid extends StatelessWidget {
     final leadingBlanks = month.weekday % 7;
     final days = data.cells.keys.toList()..sort();
 
-    final items = <Widget>[
-      for (var i = 0; i < leadingBlanks; i++) const SizedBox(width: 36, height: 36),
-      for (final day in days)
-        MonthOfLightCell(day: day, state: data.cells[day]!),
-    ];
+    // Size the 7 columns to the FULL available width so the grid stretches
+    // edge-to-edge (a fixed-width Wrap left the right side short). spaceBetween
+    // then pins the first cell to the left edge and the last to the right edge,
+    // filling perfectly regardless of sub-pixel rounding.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellSize = (constraints.maxWidth - _rowSpacing * 6) / 7;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _WeekdayHeader(),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: items,
-        ),
-      ],
+        // Flatten leading blanks + day cells into a single stream, then pad the
+        // final partial week with trailing blanks so every Row holds exactly 7.
+        final cells = <Widget>[
+          for (var i = 0; i < leadingBlanks; i++)
+            SizedBox(width: cellSize, height: cellSize),
+          for (final day in days)
+            MonthOfLightCell(day: day, state: data.cells[day]!, size: cellSize),
+        ];
+        while (cells.length % 7 != 0) {
+          cells.add(SizedBox(width: cellSize, height: cellSize));
+        }
+
+        final rows = <Widget>[];
+        for (var i = 0; i < cells.length; i += 7) {
+          rows.add(Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: cells.sublist(i, i + 7),
+          ));
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _WeekdayHeader(cellSize: cellSize),
+            const SizedBox(height: 6),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) const SizedBox(height: _rowSpacing),
+              rows[i],
+            ],
+          ],
+        );
+      },
     );
   }
 }
 
 class _WeekdayHeader extends StatelessWidget {
-  const _WeekdayHeader();
+  const _WeekdayHeader({required this.cellSize});
+
+  final double cellSize;
 
   @override
   Widget build(BuildContext context) {
@@ -117,12 +164,12 @@ class _WeekdayHeader extends StatelessWidget {
     final color =
         isDark ? AppColors.textSecondaryDark : AppColors.textTertiaryLight;
     const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    return Wrap(
-      spacing: 6,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         for (final l in labels)
           SizedBox(
-            width: 36,
+            width: cellSize,
             child: Text(
               l,
               textAlign: TextAlign.center,
