@@ -1,7 +1,8 @@
 -- Promotes every Gold card the calling user owns to Emerald, in one atomic
 -- statement. Premium is judged SERVER-SIDE (never trusts a client boolean),
--- reusing the same predicate as repair_streak_paid: RC entitlement via webhook
--- (has_active_premium_entitlement) OR any active *_premium_until grant.
+-- via has_active_premium_entitlement (RC entitlement synced by webhook) OR any
+-- active *_premium_until grant — the same OR-sources the client's isPremium()
+-- checks, resolved authoritatively here.
 -- Idempotent: once no Gold rows remain it returns an empty set. Returns the
 -- name_ids that were promoted so the client can mark those tiles "unseen".
 create or replace function public.backfill_emerald_cards()

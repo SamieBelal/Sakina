@@ -53,7 +53,11 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   _Filter _filter = _Filter.all;
   bool _questFired = false;
   bool _showOnlyDiscovered = false;
-  bool _isPremium = false;
+  // Tri-state: null = premium not resolved yet. Teaser tiles render only once
+  // this is explicitly `false`, so a premium user never flashes the locked
+  // "Emerald · Premium" tiles on their own collection while isPremium()'s
+  // (possibly networked) resolve is in flight.
+  bool? _isPremium;
   NavigatorState? _sheetNavigator;
   AppSessionNotifier? _session;
 
@@ -375,7 +379,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         // Emerald tier they haven't earned, surface one locked "Emerald ·
         // Premium" teaser tile that routes to the paywall. Premium users never
         // see it (they can earn Emerald directly). Denominator stays *4.
-        if (!_isPremium && !tiers.contains(CardTier.emerald)) {
+        if (_isPremium == false && !tiers.contains(CardTier.emerald)) {
           entries.add(_GridEntry(card: name, premiumLocked: true));
         }
       }

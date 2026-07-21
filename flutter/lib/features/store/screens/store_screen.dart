@@ -1,5 +1,7 @@
 
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -439,7 +441,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     // Premium retro-bump: restore just re-activated premium, so promote any Gold
     // cards to Emerald in this same session. Fire-and-forget — must never block
     // or fail the restore flow. Self-gates on premium and is idempotent.
-    reconcilePremiumEmeralds().catchError((_) => 0);
+    unawaited(reconcilePremiumEmeralds().catchError((_) => 0));
     try {
       await checkPremiumMonthlyGrant();
     } catch (_) {}

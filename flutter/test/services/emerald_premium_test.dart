@@ -222,6 +222,33 @@ void main() {
       expect(collection.isUnseen(9, CardTier.emerald), isTrue);
     });
 
+    test(
+        'premium: parses MAP-wrapped RPC rows ([{name_id: 5}, ...]) → promotes both',
+        () async {
+      // PostgREST can return a `setof int` RPC as scalar ints OR as
+      // single-key map rows depending on driver/version. The other premium
+      // test covers bare ints; this pins the `e is Map → e.values.first`
+      // branch (the shape production may actually receive).
+      PurchaseService.debugSetOverride(_PremiumUser());
+      SharedPreferences.setMockInitialValues(
+        _seedPrefs(tiers: {5: 3, 9: 3}),
+      );
+      fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+      SupabaseSyncService.debugSetInstance(fakeSync);
+      fakeSync.rpcHandlers['backfill_emerald_cards'] =
+          (_) async => [
+                {'name_id': 5},
+                {'name_id': 9},
+              ];
+
+      final count = await reconcilePremiumEmeralds();
+
+      expect(count, 2);
+      final collection = await getCardCollection();
+      expect(collection.cardTierFor(5), CardTier.emerald);
+      expect(collection.cardTierFor(9), CardTier.emerald);
+    });
+
     test('idempotency: premium, RPC returns [] → returns 0, no mutation',
         () async {
       PurchaseService.debugSetOverride(_PremiumUser());
