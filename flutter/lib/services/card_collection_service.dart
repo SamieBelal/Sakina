@@ -26,8 +26,9 @@ enum CardTier {
   bronze, // Tier 1: Name + meaning
   silver, // Tier 2: + hadith/prophetic teaching
   gold, // Tier 3: + dua
-  emerald, // Tier 4: premium ceiling. DB enum value added via the
-  // <date>_add_emerald_card_tier.sql migration in this PR.
+  emerald, // Tier 4: premium ceiling. Added to the DB card_tier enum on
+  // 2026-04-26; this PR adds the grant path (backfill_emerald_cards RPC +
+  // premium tier ceiling) and re-asserts the enum value idempotently.
 }
 
 extension CardTierX on CardTier {
