@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 
@@ -36,54 +37,117 @@ class _FreezeBurnCardState extends State<FreezeBurnCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 4, bottom: 10),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+        // Warm emerald wash so it reads as a real moment (not a pale placeholder
+        // box). Fades to near-transparent at the base so it settles into the
+        // dashboard card rather than fighting it.
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.primaryLight,
+            AppColors.primaryLight.withValues(alpha: 0.4),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const Icon(Icons.shield_moon_outlined,
-              color: AppColors.primary, size: 26),
-          const SizedBox(height: 8),
+          // Emerald "seal" — a protective shield held around the streak.
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.shield_moon,
+                color: Colors.white, size: 27),
+          ),
+          const SizedBox(height: 14),
           Text(
             'Welcome back',
             style: AppTypography.headlineMedium.copyWith(
-              color: AppColors.primary,
+              color: AppColors.primaryDark,
               fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             'Your ${widget.streak}-day streak is intact.',
-            style: AppTypography.bodyMedium.copyWith(
+            style: AppTypography.bodyLarge.copyWith(
               color: AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
-            'A freeze held it while you were away.',
+            'A freeze quietly held it while you were away.',
             style: AppTypography.labelSmall.copyWith(
               color: AppColors.textSecondaryLight,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
-          TextButton(
-            onPressed: widget.onDismiss,
-            child: Text(
-              'Okay',
-              style: AppTypography.labelMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-                fontWeight: FontWeight.w600,
-              ),
+          const SizedBox(height: 18),
+          // Single clean action — a white pill on the emerald wash, not a weak
+          // grey text link.
+          _DismissPill(onTap: widget.onDismiss),
+        ],
+      ),
+    )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .scaleXY(begin: 0.97, end: 1, duration: 400.ms, curve: Curves.easeOut);
+  }
+}
+
+class _DismissPill extends StatelessWidget {
+  const _DismissPill({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceLight,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            border:
+                Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+          ),
+          child: Text(
+            'Okay',
+            style: AppTypography.labelLarge.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
