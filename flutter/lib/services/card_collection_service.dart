@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -1900,6 +1901,21 @@ class CardCollectionState {
     return !seenIds.contains('$id:$maxTier');
   }
 
+  /// Total unseen tier-cards across the whole collection (every discovered
+  /// Name × each unlocked tier the user hasn't opened yet). Powers the "New"
+  /// filter chip count and the Collection nav-tab badge, so a fresh grant
+  /// (e.g. the premium Emerald retro-bump) is visible from anywhere in the app,
+  /// not just via the passive on-tile shimmer.
+  int get unseenCount {
+    var count = 0;
+    for (final id in discoveredIds) {
+      for (final tier in unlockedTiersFor(id)) {
+        if (isUnseen(id, tier)) count++;
+      }
+    }
+    return count;
+  }
+
   // Each name has 4 cards (Bronze, Silver, Gold, Emerald) = 396 total
   int get totalCards => currentCollectibleNames().length * 4;
   // Count tier-cards collected: a name at tier 3 = 3 cards, tier 2 = 2, tier 1 = 1
@@ -2190,6 +2206,11 @@ Future<int> reconcilePremiumEmeralds() async {
   data['tiers'] = tiers;
   await prefs.setString(scopedCollectionKey, jsonEncode(data));
   await prefs.setStringList(scopedSeenKey, seen);
+  // Notify collection watchers (the nav-tab badge) that the cache changed
+  // out-of-band, so the "new cards" count updates reactively rather than
+  // waiting for the Collection screen to be opened and force a reload.
+  EconomyEvents.publish(
+      const CardCollectionChanged(source: EconomyEventSource.system));
   return bumpedIds.length;
 }
 
@@ -2300,4 +2321,9 @@ Future<void> hydrateCardCollectionCacheFromRows(
       'tierUpDates': tierUpDates.map((k, v) => MapEntry(k.toString(), v)),
     }),
   );
+  // Server hydration rebuilds the collection out-of-band. Notify watchers (the
+  // Collection nav-tab badge) so the "new cards" count converges after sign-in
+  // instead of holding the stale value the provider loaded at construction.
+  EconomyEvents.publish(
+      const CardCollectionChanged(source: EconomyEventSource.system));
 }

@@ -1,13 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/economy_events.dart';
 
 class CardCollectionNotifier extends StateNotifier<CardCollectionState> {
   CardCollectionNotifier() : super(const CardCollectionState()) {
     _load();
+    // Reload when the cache is mutated out-of-band (e.g. the premium Emerald
+    // retro-bump at boot), so watchers like the Collection nav-tab badge
+    // reflect the change immediately instead of a stale count.
+    _sub = EconomyEvents.stream.listen((e) {
+      if (e is CardCollectionChanged) reload();
+    });
   }
+
+  StreamSubscription<EconomyEvent>? _sub;
 
   Future<void> _load() async {
     state = await getCardCollection();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   /// Engage a card by Name transliteration. Returns the engage result.

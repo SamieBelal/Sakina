@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sakina/services/xp_service.dart';
 
-enum EconomyEventSource { quest, firstSteps, streak, dailyReward, iap, dev }
+enum EconomyEventSource { quest, firstSteps, streak, dailyReward, iap, dev, system }
 
 sealed class EconomyEvent {
   const EconomyEvent({required this.source});
@@ -47,6 +47,15 @@ class XpGranted extends EconomyEvent {
   final XpState newState;
   final bool leveledUp;
   final LevelUpRewards? rewards;
+}
+
+/// Emitted when the card collection cache is mutated out-of-band — e.g. the
+/// premium Emerald retro-bump ([reconcilePremiumEmeralds]) promotes Gold cards
+/// at boot, writing straight to the cache. Lets watchers of the collection
+/// provider (notably the Collection nav-tab "new cards" badge) refresh
+/// reactively instead of showing a stale count until the screen is next opened.
+class CardCollectionChanged extends EconomyEvent {
+  const CardCollectionChanged({required super.source});
 }
 
 /// Broadcaster: late subscribers do NOT receive replays. UI state is loaded

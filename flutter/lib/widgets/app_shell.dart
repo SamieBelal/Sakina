@@ -7,6 +7,7 @@ import '../core/app_session.dart';
 import '../core/constants/app_colors.dart';
 import '../core/immersive_mode_provider.dart';
 import '../core/theme/app_typography.dart';
+import '../features/collection/providers/card_collection_provider.dart';
 import '../features/daily/widgets/level_up_overlay.dart';
 import '../features/quests/providers/quests_provider.dart';
 import '../features/quests/widgets/first_steps_overlay.dart';
@@ -338,6 +339,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     // emerald canvas fills the whole screen. The Scaffold gives the body full
     // height when bottomNavigationBar is null.
     final immersive = ref.watch(immersiveModeProvider);
+    // Unseen tier-cards drive a badge on the Collection tab, so a fresh grant
+    // (e.g. the premium Emerald retro-bump) is discoverable from anywhere — the
+    // on-tile shimmer alone is too easy to miss.
+    final unseenCards = ref.watch(cardCollectionProvider).unseenCount;
+    Widget collectionTabIcon(Widget inner) => Badge.count(
+          count: unseenCards,
+          isLabelVisible: unseenCards > 0,
+          backgroundColor: AppColors.primary,
+          textColor: Colors.white,
+          child: inner,
+        );
 
     return Scaffold(
       body: widget.child,
@@ -374,13 +386,13 @@ class _AppShellState extends ConsumerState<AppShell> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: const TourAnchor(
+            icon: collectionTabIcon(const TourAnchor(
               surface: TourSurface.appShell,
               anchorId: 'tabCollection',
               child: Icon(Icons.style_outlined),
-            ),
-            activeIcon:
-                Icon(isOffTab ? Icons.style_outlined : Icons.style),
+            )),
+            activeIcon: collectionTabIcon(
+                Icon(isOffTab ? Icons.style_outlined : Icons.style)),
             label: 'Collection',
           ),
           BottomNavigationBarItem(

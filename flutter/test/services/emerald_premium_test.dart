@@ -285,4 +285,27 @@ void main() {
       expect(collection.tierFor(5), 4);
     });
   });
+
+  group('unseenCount (Collection nav-tab badge source)', () {
+    test('counts every unopened tier-card across the collection', () {
+      // Card 5 → Emerald (tiers 1-4), bronze+silver already opened.
+      // Card 9 → Gold (tiers 1-3), none opened.
+      const state = CardCollectionState(
+        discoveredIds: {5, 9},
+        tiers: {5: 4, 9: 3},
+        seenIds: {'5:1', '5:2'},
+      );
+      // card 5: tiers 3,4 unseen = 2; card 9: tiers 1,2,3 unseen = 3.
+      expect(state.unseenCount, 5);
+    });
+
+    test('is zero when every unlocked tier has been opened', () {
+      const state = CardCollectionState(
+        discoveredIds: {5},
+        tiers: {5: 3},
+        seenIds: {'5:1', '5:2', '5:3'},
+      );
+      expect(state.unseenCount, 0);
+    });
+  });
 }

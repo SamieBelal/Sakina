@@ -425,12 +425,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   }
 
   Widget _buildTierFilters(CardCollectionState collection) {
-    var unseenCount = 0;
-    for (final id in collection.discoveredIds) {
-      for (final tier in collection.unlockedTiersFor(id)) {
-        if (collection.isUnseen(id, tier)) unseenCount++;
-      }
-    }
+    final unseenCount = collection.unseenCount;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -613,7 +608,47 @@ class _CardTile extends StatelessWidget {
         CardTier.gold => GoldOrnateTile(card: card, unseen: unseen),
         CardTier.emerald => EmeraldOrnateTile(card: card, unseen: unseen),
       };
-      return GestureDetector(onTap: onTap, child: ornateTile);
+      // Explicit "NEW" pill on unseen tiles — the ambient shimmer alone is easy
+      // to miss, so a labelled badge makes a freshly-granted card unmistakable
+      // on the grid. Cleared (with the shimmer) once the card is opened.
+      final Widget tileWithBadge = unseen
+          ? Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ornateTile,
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary, // warm matte gold
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      'NEW',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 9,
+                        letterSpacing: 0.5,
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ornateTile;
+      return GestureDetector(onTap: onTap, child: tileWithBadge);
     }
 
     // Emerald · Premium teaser — a tasteful, on-brand locked tile that shows a
