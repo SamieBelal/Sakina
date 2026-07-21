@@ -93,7 +93,7 @@ class CompanionParams {
 /// are clean as the streak strengthens; `dormant` is fully grimy.
 CompanionParams _paramsFor(CompanionBrightness b) => switch (b) {
       CompanionBrightness.endowedDim =>
-        const CompanionParams(glow: 0.20, dormant: false, wear: 0.0),
+        const CompanionParams(glow: 0.34, dormant: false, wear: 0.0),
       CompanionBrightness.dormant =>
         const CompanionParams(glow: 0.0, dormant: true, wear: 1.0),
       // "Waiting to be lit" — truly UNLIT (glow 0): no flame at all, so the lamp
@@ -107,9 +107,9 @@ CompanionParams _paramsFor(CompanionBrightness b) => switch (b) {
       CompanionBrightness.atRiskUnlit =>
         const CompanionParams(glow: 0.0, dormant: false, wear: 0.12),
       CompanionBrightness.dim =>
-        const CompanionParams(glow: 0.26, dormant: false, wear: 0.68),
+        const CompanionParams(glow: 0.44, dormant: false, wear: 0.68),
       CompanionBrightness.glowing =>
-        const CompanionParams(glow: 0.55, dormant: false, wear: 0.22),
+        const CompanionParams(glow: 0.72, dormant: false, wear: 0.22),
       CompanionBrightness.fullyLit =>
-        const CompanionParams(glow: 0.95, dormant: false, wear: 0.0),
+        const CompanionParams(glow: 1.0, dormant: false, wear: 0.0),
     };

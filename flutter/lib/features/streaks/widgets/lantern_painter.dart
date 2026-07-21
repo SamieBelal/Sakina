@@ -94,26 +94,33 @@ class LanternPainter extends CustomPainter {
         ..setFloat(0, size.width)
         ..setFloat(1, size.height)
         ..setFloat(2, phase)
-        ..setFloat(3, (0.3 + 0.6 * glow).clamp(0.0, 1.0));
+        ..setFloat(3, (0.3 + 0.95 * glow).clamp(0.0, 1.0));
       canvas.drawRect(Offset.zero & size,
           Paint()..shader = shader..blendMode = BlendMode.plus);
     } else if (ambient && dormant) {
-      // The warmth has drained from the room. A cold vignette pulls the light
-      // out of the edges, and a faint grey haze clings to the dead lamp — read
-      // as loss/absence, not a warm glow.
-      final c = Offset(size.width / 2, size.height * 0.46);
+      // A cold, ominous shadow pooled *behind* the lamp, dissolving to
+      // transparent before the edges. NOT an edge vignette — a dark *outer*
+      // stop fills the canvas corners and reads as a grey SQUARE on a light
+      // page. Dark centre + transparent at radius 0.5 leaves the corners
+      // (beyond the radius) clear, so no box forms — just a dead-grey presence.
+      final c = Offset(size.width / 2, size.height * 0.5);
       canvas.drawRect(
         Offset.zero & size,
         Paint()
           ..shader = ui.Gradient.radial(
             c,
-            size.shortestSide * 0.72,
-            [Colors.transparent, _dreadHaze.withValues(alpha: 0.85)],
-            [0.42, 1.0],
+            size.shortestSide * 0.5,
+            [
+              _dreadHaze.withValues(alpha: 0.62),
+              _dreadHaze.withValues(alpha: 0.34),
+              Colors.transparent,
+            ],
+            [0.0, 0.5, 1.0],
           ),
       );
+      // A faint cold breath clinging to the dead lamp (slightly above centre).
       canvas.drawCircle(
-        c,
+        Offset(size.width / 2, size.height * 0.46),
         size.shortestSide * (0.30 + 0.03 * breath),
         Paint()
           ..color = _coldGlow.withValues(alpha: 0.045 + 0.02 * breath)
@@ -195,24 +202,37 @@ class LanternPainter extends CustomPainter {
             width: s * (0.4 + 0.32 * g),
             height: s * 0.06),
         Paint()
-          ..color = _amber.withValues(alpha: 0.16 * g)
+          ..color = _amber.withValues(alpha: 0.26 * g)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.03),
       );
       // JOY (fully-lit): radiating warmth — soft god-rays + rising embers.
-      // Suppressed when protected — shelter is calm, not energetic.
-      if (g > 0.6 && !protected) {
+      // Suppressed when protected — shelter is calm, not energetic. Threshold
+      // 0.82 keeps rays exclusive to fully-lit (g≈0.90–1.1) now that the tier
+      // glow values are brighter; glowing (g≈0.65–0.79) stays the cozy halo.
+      if (g > 0.82 && !protected) {
+        // Central radiant burst — a broad soft bloom so fully-lit reads as
+        // genuinely LUMINOUS, not just a lit lamp. Scaled by joy (fully-lit
+        // only) and breathes on the seamless sinusoid.
+        canvas.drawCircle(
+          Offset(0, s * 0.02),
+          s * (0.34 + 0.06 * breath),
+          Paint()
+            ..color = _amber.withValues(alpha: 0.24 * joy)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.13)
+            ..blendMode = BlendMode.plus,
+        );
         _rays(canvas, s, g, phase);
         _embers(canvas, s, g, phase);
       }
       // CONTENT (glowing): a soft cozy halo instead of rays — reads "at ease",
-      // clearly gentler than triumph. Only the mid band, never protected.
-      if (!protected && g > 0.3 && g < 0.78) {
+      // clearly gentler than triumph. Mid band up to the ray threshold.
+      if (!protected && g > 0.3 && g < 0.82) {
         for (final rr in [0.30, 0.42, 0.55]) {
           canvas.drawCircle(
             Offset(0, s * 0.02),
             s * rr,
             Paint()
-              ..color = _amber.withValues(alpha: 0.07 * g)
+              ..color = _amber.withValues(alpha: 0.13 * g)
               ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.07)
               ..blendMode = BlendMode.plus,
           );
@@ -248,7 +268,7 @@ class LanternPainter extends CustomPainter {
       canvas.drawPath(
         body,
         Paint()
-          ..color = _amber.withValues(alpha: 0.18 * g)
+          ..color = _amber.withValues(alpha: 0.30 * g)
           ..maskFilter =
               MaskFilter.blur(BlurStyle.normal, s * (0.04 + 0.05 * g)),
       );
@@ -485,12 +505,14 @@ class LanternPainter extends CustomPainter {
   void _rays(Canvas canvas, double s, double g, double phase) {
     final ray = Paint()
       ..blendMode = BlendMode.plus
-      ..color = _amber.withValues(alpha: 0.09 * g)
+      ..color = _amber.withValues(alpha: 0.18 * g)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.02);
     for (var k = 0; k < 12; k++) {
-      final a = phase * 0.15 + k * math.pi / 6;
+      // phase/6 advances exactly two ray slots (2·π/6) per loop → seamless
+      // (the old fractional 0.15 snapped the whole burst back at the wrap).
+      final a = phase / 6 + k * math.pi / 6;
       // Alternating long/short rays for a softer, less mechanical burst.
-      final len = s * (k.isEven ? 0.52 : 0.4);
+      final len = s * (k.isEven ? 0.62 : 0.48);
       final p = Path()
         ..moveTo(0, 0)
         ..lineTo(len * math.cos(a - 0.035), len * math.sin(a - 0.035))
@@ -505,15 +527,17 @@ class LanternPainter extends CustomPainter {
   void _embers(Canvas canvas, double s, double g, double phase) {
     const seeds = [0.13, 0.37, 0.61, 0.82, 0.5, 0.24, 0.71, 0.05];
     for (var i = 0; i < seeds.length; i++) {
-      final t = (phase * 0.09 + seeds[i]) % 1.0; // 0→1 rise cycle
+      // phase/(2π) completes exactly one 0→1 rise per loop → seamless (the old
+      // fractional 0.09 teleported every ember back at the wrap).
+      final t = (phase / (2 * math.pi) + seeds[i]) % 1.0; // 0→1 rise cycle
       final x = (seeds[i] - 0.5) * s * 0.44 + math.sin(t * 6.283 + i) * s * 0.02;
       final y = s * 0.18 - t * s * 0.52;
-      final a = ((1 - t) * t * 4) * 0.5 * g; // fade in then out
+      final a = ((1 - t) * t * 4) * 0.72 * g; // fade in then out
       canvas.drawCircle(
         Offset(x, y),
-        s * 0.006 * (1 - t * 0.4),
+        s * 0.007 * (1 - t * 0.4),
         Paint()
-          ..color = _ember.withValues(alpha: a.clamp(0.0, 0.55))
+          ..color = _ember.withValues(alpha: a.clamp(0.0, 0.72))
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.004)
           ..blendMode = BlendMode.plus,
       );
@@ -532,7 +556,10 @@ class LanternPainter extends CustomPainter {
     final w = panel.width * (0.05 + 0.028 * g);
     final baseY = panel.center.dy + h * 0.30;
     final steady = g.clamp(0.0, 1.0); // 1 = calm, 0 = guttering
-    final lean = (math.sin(phase * 2.6) * 0.6 + math.sin(phase * 5.3) * 0.4) *
+    // Integer harmonics (3, 5) so the flicker returns to its exact start at the
+    // 2π loop wrap — the old 2.6/5.3 harmonics snapped every ~2.6s (the "reset"
+    // the user saw in every lit lantern).
+    final lean = (math.sin(phase * 3) * 0.6 + math.sin(phase * 5) * 0.4) *
         (1 - steady * 0.85) *
         w *
         0.7;
@@ -556,9 +583,9 @@ class LanternPainter extends CustomPainter {
     // 1. Soft glow halo behind the flame.
     canvas.drawCircle(
       Offset(cx, baseY - h * 0.42),
-      h * (0.66 + 0.06 * breath),
+      h * (0.72 + 0.06 * breath),
       Paint()
-        ..color = _amber.withValues(alpha: 0.20 * g)
+        ..color = _amber.withValues(alpha: 0.32 * g)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.5)
         ..blendMode = BlendMode.plus,
     );
@@ -601,7 +628,7 @@ class LanternPainter extends CustomPainter {
   void _fallingAsh(Canvas canvas, double s, double bodyBot, double phase) {
     const seeds = [0.2, 0.5, 0.78, 0.35, 0.63];
     for (var i = 0; i < seeds.length; i++) {
-      final t = (phase * 0.06 + seeds[i]) % 1.0;
+      final t = (phase / (2 * math.pi) + seeds[i]) % 1.0;
       final x = (seeds[i] - 0.5) * s * 0.3 + math.sin(t * 4 + i) * s * 0.015;
       final y = -s * 0.14 + t * (bodyBot + s * 0.18);
       final a = (1 - t) * 0.35;
@@ -648,7 +675,7 @@ class LanternPainter extends CustomPainter {
   // a hanging thread with a little bob that sways on `phase`. Scales with
   // neglect, so a dim (worn) lamp is webbed and a dormant one is thick with it.
   void _cobweb(Canvas canvas, Rect panel, double strength, double phase) {
-    final sway = math.sin(phase * 0.6) * panel.width * 0.012;
+    final sway = math.sin(phase) * panel.width * 0.012;
     _cornerWeb(
         canvas, panel.topRight, -1.0, panel.width * 0.52, strength, sway, phase);
     _cornerWeb(canvas, panel.topLeft, 1.0, panel.width * 0.42, strength * 0.75,
@@ -693,7 +720,7 @@ class LanternPainter extends CustomPainter {
     // A hanging droop thread + a tiny bob at the end that sways.
     final anchor = Offset.lerp(o, ends[2], 0.62)!;
     final bob = Offset(
-        anchor.dx + math.sin(phase * 0.9) * r * 0.07, anchor.dy + r * 0.44);
+        anchor.dx + math.sin(phase) * r * 0.07, anchor.dy + r * 0.44);
     final thread = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = r * 0.008
@@ -710,10 +737,10 @@ class LanternPainter extends CustomPainter {
     const sx = [0.18, 0.4, 0.62, 0.8, 0.3, 0.7, 0.52];
     const sy = [0.1, 0.55, 0.3, 0.75, 0.9, 0.45, 0.2];
     for (var i = 0; i < n; i++) {
-      final t = (phase * 0.05 + sy[i]) % 1.0;
+      final t = (phase / (2 * math.pi) + sy[i]) % 1.0;
       final x = panel.left +
           panel.width * sx[i] +
-          math.sin(phase * 0.4 + i * 2) * panel.width * 0.03;
+          math.sin(phase + i * 2) * panel.width * 0.03;
       final y = panel.bottom - t * panel.height;
       final a = math.sin(t * math.pi) * 0.62 * strength;
       canvas.drawCircle(
@@ -736,7 +763,7 @@ class LanternPainter extends CustomPainter {
     ];
     final strength = ((g - 0.6) / 0.4).clamp(0.0, 1.0);
     for (var i = 0; i < pts.length; i++) {
-      final tw = 0.5 + 0.5 * math.sin(phase * 1.3 + i * 1.7); // twinkle
+      final tw = 0.5 + 0.5 * math.sin(phase * 2 + i * 1.7); // twinkle (seamless)
       final r = s * (0.016 + 0.010 * tw);
       final a = (0.22 + 0.5 * tw) * strength;
       _sparkle(
@@ -770,7 +797,7 @@ class LanternPainter extends CustomPainter {
     for (var i = 1; i <= 8; i++) {
       final t = i / 8.0;
       final y = apex - s * 0.01 - t * s * 0.26;
-      final x = math.sin(phase * 0.5 + t * 5.0) * s * 0.035 * t;
+      final x = math.sin(phase + t * 5.0) * s * 0.035 * t;
       path.lineTo(x, y);
     }
     // Wide, faint halo pass, then the finer strand on top.
@@ -876,7 +903,7 @@ class LanternPainter extends CustomPainter {
             ..strokeWidth = r * 0.05
             ..strokeCap = StrokeCap.round
             ..blendMode = BlendMode.plus
-            ..color = _amber.withValues(alpha: (0.3 * g).clamp(0.0, 0.6))
+            ..color = _amber.withValues(alpha: (0.5 * g).clamp(0.0, 0.85))
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.06),
         );
       }
