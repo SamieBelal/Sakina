@@ -2,19 +2,6 @@
 
 Deferred work — not blocking the current iOS submission, but needed before specific future milestones. Each item names its trigger so it's clear when it becomes urgent.
 
-## Home-screen widget: App Group + extension provisioning
-
-**Trigger:** before any iOS build once `feat/home-screen-widget` merges (the widget
-extension target is added in Xcode — see `ios/SakinaWidget/SETUP.md`).
-
-Adding the `SakinaWidget` WidgetKit extension introduces a **second bundle ID**
-(`…Runner.SakinaWidget`) and requires the **App Group** `group.com.sakina.app.widget`
-enabled on **both** App IDs, plus a provisioning profile for the extension.
-`flutter build ios --release` will fail until both profiles exist. With automatic
-signing Xcode handles this; for manual signing, regenerate both profiles in the
-Apple Developer portal. Also bundle the font TTFs into the extension target (§4 of
-SETUP.md) — the app's runtime `google_fonts` are invisible to the widget process.
-
 ## Android release signing
 
 **Trigger:** before any Play Store submission (internal track, beta, or production). Not needed for iOS-only releases.
@@ -67,63 +54,6 @@ SETUP.md) — the app's runtime `google_fonts` are invisible to the widget proce
 
 ---
 
-## Supabase HIBP leaked-password protection
-
-**Trigger:** if/when you upgrade to Supabase Pro plan or above.
-
-**Status:** Supabase Auth has a built-in HaveIBeenPwned integration that rejects compromised passwords at signup/password-change. It's **gated to Pro+ plans** — not available on Free. The advisor warning (`auth_leaked_password_protection`) will keep firing on Free; safe to ignore until upgrade.
-
-**Action when upgrading:** Supabase Dashboard → Authentication → Policies → toggle on "Leaked Password Protection." 30-second change, no migration needed.
-
----
-
-## Home-screen Premium banner (second upgrade entry)
-
-**Trigger:** Apple re-rejects citing discoverability of subscriptions even after the Settings card ships, OR analytics on `settings_premium_cta_tapped` shows a low tap-through rate (<2% of free-user Settings opens within 30 days post-launch) suggesting Settings alone isn't pulling free users to the paywall.
-
-**Status:** Spec `docs/superpowers/specs/2026-05-13-settings-premium-entry-design.md` (shipped 2026-05-13) added a `SettingsPremiumCard` upgrade entry inside `/settings` only. Apple's rejection diagnosis originally suggested a Home-screen banner as well, but the Home strip was explicitly deferred to keep the warm/devotional Home aesthetic clean and to ship the Settings fix first.
-
-**What:** a small gold strip on `lib/features/home/screens/home_screen.dart` (free users only, gated on `premiumStateProvider.isPremium == false`) sitting above or below the daily check-in CTA. Copy: "Try Sakina Premium →". Tap → `context.push('/paywall')` (same route the Settings card uses; no new route plumbing).
-
-**Why:**
-- Belt-and-braces discoverability for App Review — reviewers exercise Home far more than Settings.
-- Free users in the daily-check-in habit see the upgrade pitch in the flow of normal use, not buried in Settings.
-- Reuses every existing piece: `/paywall` route, `premiumStateProvider`, analytics events pattern.
-
-**Pros:** Bulletproof App Review fix. Lifts conversion (a Home-surface upgrade entry is the highest-converting placement in every paywall analytics study). ~40 LoC widget + 3-line Home insert.
-
-**Cons:** Adds visual weight to Home, which is currently devotional and uncluttered. Risk of feeling pushy. Premium users see nothing (good), so no negative impact on paying users.
-
-**Steps when ready (~30 min total):**
-1. Create `lib/features/home/widgets/home_premium_strip.dart` — `ConsumerWidget` watching `premiumStateProvider`, returns `SizedBox.shrink()` for premium and an `InkWell`-wrapped gold strip for free users.
-2. Insert into `home_screen.dart` build above the daily check-in CTA (find the right slot by scanning for the existing `Begin Muḥāsabah` block).
-3. Add `home_premium_strip_tapped` to `AnalyticsEvents`; fire on tap before push.
-4. Add widget test under `test/features/home/widgets/` covering both states + tap behavior.
-5. Verify on iPad Air M3 (the original App Review device) that the strip renders correctly.
-
-**Surfaced by:** /plan-eng-review on the Settings Premium Entry design (2026-05-13).
-
-## Drop the 1-arg reserve_ai_bypass shim after IPA drain
-
-**Trigger:** when ≤1% of `reserve_ai_bypass` calls come from app versions older than the first version shipped with PR #26 (i.e., pre-idempotency-key clients have drained from the install base). Track via Mixpanel app-version segmentation on the `reserve_ai_bypass` event. Realistic window: 60+ days after PR #26 hits the App Store, longer if any holdout cohort persists.
-
-**Status:** PR #26 kept the 1-arg `reserve_ai_bypass(text)` as a backwards-compat shim that auto-generates a server-side idempotency key. Old IPAs lose idempotency (each call generates a fresh key on the server), keeping their original double-debit bug. Acceptable transitional state — should not be permanent.
-
-**What to do:**
-
-1. Confirm the adoption threshold in Mixpanel (≤1% of calls from pre-PR-26 versions).
-2. Write a follow-up migration that drops the 1-arg overload, leaving only the canonical 2-arg `reserve_ai_bypass(text, idempotency_key)` signature.
-3. Add a `raise exception` or NOTICE to the dropped function path during a soft-deprecation window so we catch any unexpected callers before the hard drop.
-4. Verify no Edge Function or other Postgres code still invokes the 1-arg form.
-
-**Pros:** Single canonical signature. Cleaner schema. Forces upgrades for the holdouts (who would have lost idempotency anyway on the shim path).
-
-**Cons:** Any user still on a pre-PR-26 IPA after the drop will see silent failure on their bypass action. Pick the threshold carefully.
-
-**Context:** the original shim ships with a note in `supabase/migrations/20260524010000_reserve_ai_bypass_idempotency.sql` explaining when to drop it. Originally tracked in `TODOS.md` under "P1 — Deferred follow-ups from PR #26"; consolidated into this file on 2026-05-25.
-
----
-
 ## Localize win-back push
 
 Push template `win_back_tour_replay` (see `docs/runbooks/onesignal-segments.md`) is EN only — localize when project i18n infrastructure exists.
@@ -155,50 +85,7 @@ data rather than guessed.
   screen; distinct copy for trial vs paid.
 - Analytics: offer shown / accepted / declined funnel (Mixpanel).
 
-**Depends on / blocked by:** Ship the cancellation-feedback feature first; reuse
-its detection (`expires_at` episode) and the `CancellationFeedbackSheet` surface.
-
 **Surfaced by:** `/plan-eng-review` of the cancellation-feedback spec, 2026-05-31.
-
-## Remove sandbox gate on cancellation survey push (at launch)
-
-**What:** `supabase/functions/revenuecat-webhook/index.ts` `sendCancellationSurveyPush`
-has a temporary gate `if (payload.environment !== "SANDBOX") return;`.
-
-**Why:** Pre-launch, production users don't have the survey UI / the
-`sakina://cancellation-feedback` deep link, so a push would dead-end at home.
-The gate restricts the push to SANDBOX (test devices) so no real user gets a
-useless notification.
-
-**Trigger:** The App Store release containing the cancellation-feedback survey is
-LIVE.
-
-**How:** Delete the `payload.environment !== "SANDBOX"` early-return and redeploy
-the edge function (server-only; NO App Store update needed). Then production
-cancellations fire the push → deep link → survey.
-
-**Surfaced by:** Physical-device Test 3 setup, 2026-05-31.
-
-## Formalize the design system: /design-consultation → DESIGN.md
-
-**What:** Run `/design-consultation` and capture the result as a repo `DESIGN.md`:
-palette (incl. the new `sacredCanvas*` token block), typography stack, spacing
-philosophy, motion vocabulary (beat-advance transition), and the on-canvas rules
-("gold is a non-text accent only — it fails 4.5:1 contrast on emerald"; "cream
-`sacredInk` for functional text").
-
-**Why:** The 2026-07-14 bite-sized-AI-text design review had to derive the system
-from CLAUDE.md prose + one mockup. The sacred canvas is the app's second surface
-identity — the point where undocumented systems start drifting (the next emerald
-becomes `#1A6B4B`).
-
-**Trigger:** Before designing the next net-new surface (widget, gift moment,
-onboarding refresh) — or whenever a second contributor starts doing UI work.
-
-**Depends on / blocked by:** Nothing. Cross-link DESIGN.md from CLAUDE.md's design
-section so the two don't drift.
-
-**Surfaced by:** `/plan-design-review` of the bite-sized-AI-text spec, 2026-07-14.
 
 ## App Store: Duʿā Times location permission (privacy label + review notes)
 
@@ -291,3 +178,26 @@ larger / refilling freeze allowance for premium — then wire + test it. (Or
 reword the benefit.)
 
 **Surfaced by:** `/review` claim-accuracy pass (Codex adversarial), 2026-07-20.
+
+---
+
+## Duʿā Rain Window (Phase 2) — PARKED
+
+This is a deliberately **PARKED** plan (eng-reviewed 2026-07-16), NOT committed
+work — maybe never. Only un-park on a genuine product signal.
+
+**What:** Surface a duʿā prompt when it's currently raining at the user's
+location (an authentic time for duʿā that is not turned back). It would be the
+FIRST feature to break the Duʿā Times "location never leaves the device"
+invariant — it needs a live weather backend (recommended: Apple **WeatherKit**
+via a Supabase Edge Function proxy).
+
+**Trigger:** a product signal — e.g. a rainy-market push or a seasonal campaign.
+
+**Depends on / shares:** a Supabase Edge Function proxy — the SAME infrastructure
+dependency as the pending **"OpenAI Edge Function proxy"** item above in this
+file. Build/share that proxy pattern rather than duplicating it.
+
+**Plan:** `docs/superpowers/plans/2026-07-16-dua-rain-window.md`
+
+---
