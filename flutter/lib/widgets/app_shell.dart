@@ -342,12 +342,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     // Unseen tier-cards drive a badge on the Collection tab, so a fresh grant
     // (e.g. the premium Emerald retro-bump) is discoverable from anywhere — the
     // on-tile shimmer alone is too easy to miss.
-    final unseenCards = ref.watch(cardCollectionProvider).unseenCount;
-    Widget collectionTabIcon(Widget inner) => Badge.count(
-          count: unseenCards,
+    // select() so the shell only rebuilds when the count itself changes, not on
+    // every collection mutation. Cap the label at 99+ so a 3-digit count (a
+    // day-one premium user can have many unseen tiers) doesn't overflow the badge.
+    final unseenCards =
+        ref.watch(cardCollectionProvider.select((s) => s.unseenCount));
+    Widget collectionTabIcon(Widget inner) => Badge(
           isLabelVisible: unseenCards > 0,
           backgroundColor: AppColors.primary,
           textColor: Colors.white,
+          label: Text(unseenCards > 99 ? '99+' : '$unseenCards'),
           child: inner,
         );
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -53,9 +54,13 @@ void main() {
     SupabaseSyncService.debugSetInstance(fakeSync);
   });
 
-  tearDown(() {
+  tearDown(() async {
     SupabaseSyncService.debugReset();
     PurchaseService.debugClearOverride();
+    // reconcilePremiumEmeralds / hydrateCardCollectionCacheFromRows now publish
+    // CardCollectionChanged; reset the bus so those events don't leak into a
+    // later test's EconomyEvents subscribers.
+    await EconomyEvents.resetForTest();
   });
 
   group('engageCard ceiling', () {

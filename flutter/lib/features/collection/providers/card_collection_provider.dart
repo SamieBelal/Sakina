@@ -50,7 +50,11 @@ class CardCollectionNotifier extends StateNotifier<CardCollectionState> {
   }
 
   Future<void> reload() async {
-    state = await getCardCollection();
+    final loaded = await getCardCollection();
+    // Guard against an event-triggered reload resolving after dispose (the
+    // stream listener fires reload() un-awaited) — setting state on a disposed
+    // StateNotifier throws.
+    if (mounted) state = loaded;
   }
 }
 
