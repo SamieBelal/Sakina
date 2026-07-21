@@ -9,11 +9,13 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
+import 'package:sakina/features/tour/providers/deferred_celebrations_provider.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -81,12 +83,22 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // no guard flags needed. This closes the "phantom second gacha on
     // Return to Home" bug class by construction.
     ref.listen<DailyLoopState>(dailyLoopProvider, (prev, next) {
-      // Streak milestone — fire if newly reached.
+      // Streak milestone — DEFERRED to the very end of the ritual so it never
+      // pre-empts the sacred Name reveal (the flag is set back in
+      // discoverName(), but firing then would slam the celebration over/before
+      // the gacha — same reasoning the rescue sheet is held for below). Fire on
+      // the rising edge into the completed step (after Ameen → completeDeeper),
+      // as the closing flourish.
       if (next.streakMilestoneReached &&
-          prev?.streakMilestoneReached != true) {
+          next.currentStep == DailyLoopStep.completed &&
+          prev?.currentStep != DailyLoopStep.completed) {
         _pushStreakMilestoneOverlay(next);
         return;
       }
+      // Streak lapse (restorable) is NOT surfaced here — that would slam the
+      // rescue modal over the sacred Name reveal. The flag stays set on the
+      // daily-loop state; the Home screen offers the paid rescue as a calm
+      // epilogue once the whole ritual is done (see progress_screen).
       // Gacha reveal — when a tier-changed engageResult freshly arrives.
       // Identity comparison is sufficient: every discoverName call
       // constructs a new CardEngageResult, so back-to-back discoveries
@@ -176,6 +188,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         notifier.completeDeeper();
       },
       onReturnHome: () {
+        // If the user backs out of the beat flow without completing (taps
+        // the left zone at beat 0 before "Ameen"), the streak-milestone
+        // flag may already be set from discoverName() but the `completed`
+        // step transition that normally fires the overlay never happens.
+        // Enqueue the milestone to the deferred-celebration queue so Home
+        // drains and surfaces it as the next flourish — exactly once, and
+        // only if clearStreakMilestone hasn't already run (which can't
+        // happen here since we haven't completed the flow).
+        final s = ref.read(dailyLoopProvider);
+        if (s.streakMilestoneReached) {
+          ref.read(deferredCelebrationsProvider.notifier).enqueue(
+                StreakMilestoneCelebration(
+                  streak: s.streakMilestoneCount ?? 0,
+                  xp: s.streakMilestoneXp ?? 0,
+                  scrolls: s.streakMilestoneScrolls ?? 0,
+                ),
+              );
+          ref.read(dailyLoopProvider.notifier).clearStreakMilestone();
+        }
         if (mounted) context.go('/');
       },
       onRetry: () => notifier.startDeeper(),
@@ -586,6 +617,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       ref.invalidate(dailyLoopProvider);
                       ref.invalidate(tierUpScrollProvider);
                       ref.invalidate(dailyRewardsProvider);
+                      // The freeze-burn flag is stamped server-side mid-flow
+                      // (markActiveToday → consume_streak_freeze), so refresh the
+                      // (otherwise once-resolved) provider or Home keeps its
+                      // stale pre-burn value and the reunion card never shows.
+                      ref.invalidate(pendingFreezeBurnProvider);
                       context.go('/');
                     },
                     child: Text(

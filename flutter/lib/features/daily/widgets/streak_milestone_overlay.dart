@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -5,6 +7,8 @@ import 'package:lottie/lottie.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/streaks/models/companion_state.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-Screen Streak Milestone Celebration Overlay
@@ -62,6 +66,13 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
   int _phase = 0;
   bool _dismissed = false;
 
+  // Pending timers — kept as a list so dispose() can cancel any that haven't
+  // fired yet. The original implementation used bare Future.delayed calls which
+  // schedule Timers without giving us a handle to cancel them; widget disposal
+  // would leave pending timers that fire HapticFeedback.heavyImpact() and call
+  // setState() on a disposed State. Mirrors LevelUpOverlay._schedulePhase pattern.
+  final List<Timer> _pendingTimers = [];
+
   // Drives the Lottie hearth (embers gather → flame ignites & rises → settle).
   // Its duration is set from the composition on load; the phase delays below
   // are tuned to its beats (gather ≈ 0–0.93s, IGNITE ≈ frame 96 / 1.6s, rise
@@ -81,29 +92,43 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
 
   @override
   void dispose() {
+    for (final t in _pendingTimers) {
+      t.cancel();
+    }
     _lottieController.dispose();
     super.dispose();
   }
 
-  Future<void> _runSequence() async {
+  void _schedulePhase(Duration offset, VoidCallback fire) {
+    _pendingTimers.add(Timer(offset, () {
+      if (!mounted) return;
+      fire();
+    }));
+  }
+
+  void _runSequence() {
+    // Re-entry guard: only arm once (called from initState today).
+    if (_pendingTimers.isNotEmpty) return;
+
     // Phase 0 → 1: embers gather, then the flame IGNITES (~frame 96 = 1.6s).
     // Fire the heavy haptic on the ignite beat and warm the background.
-    await Future.delayed(const Duration(milliseconds: 1650));
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() => _phase = 1);
+    _schedulePhase(const Duration(milliseconds: 1650), () {
+      HapticFeedback.heavyImpact();
+      setState(() => _phase = 1);
+    });
 
     // Phase 1 → 2: streak number resolves just after the flame catches, as the
-    // warm column begins to rise.
-    await Future.delayed(const Duration(milliseconds: 150));
-    if (!mounted) return;
-    setState(() => _phase = 2);
+    // warm column begins to rise. Cumulative from initState: 1650 + 150 = 1800ms.
+    _schedulePhase(const Duration(milliseconds: 1800), () {
+      setState(() => _phase = 2);
+    });
 
     // Phase 2 → 3: number sits while the column rises, then rewards + Continue.
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (!mounted) return;
-    HapticFeedback.lightImpact();
-    setState(() => _phase = 3);
+    // Cumulative from initState: 1800 + 1000 = 2800ms.
+    _schedulePhase(const Duration(milliseconds: 2800), () {
+      HapticFeedback.lightImpact();
+      setState(() => _phase = 3);
+    });
   }
 
   void _handleContinue() {
@@ -175,6 +200,28 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                 ),
               ),
 
+              // Gentle legibility scrim behind the number + label — softly
+              // darkens the area the text occupies (upper-middle) so it lifts
+              // off the plume. Centered ABOVE the flame's bright core so the
+              // fire the eye loves stays vivid.
+              if (_phase >= 2)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0, -0.12),
+                          radius: 0.42,
+                          colors: [
+                            _bg.withValues(alpha: 0.40),
+                            _bg.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 500.ms),
+
               // ── Phase 2+: Flame icon + streak number reveal ──
               if (_phase >= 2)
                 Positioned(
@@ -183,19 +230,24 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                   right: 24,
                   child: Column(
                     children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        color: _amber,
-                        size: 48,
-                      )
-                          .animate()
-                          .fadeIn(duration: 500.ms)
-                          .scaleXY(
-                            begin: 0.5,
-                            end: 1.0,
+                      Animate(
+                        effects: [
+                          FadeEffect(duration: 500.ms),
+                          ScaleEffect(
+                            begin: const Offset(0.5, 0.5),
+                            end: const Offset(1, 1),
                             duration: 500.ms,
                             curve: Curves.easeOutBack,
                           ),
+                        ],
+                        child: const CompanionMedallion(
+                          state: CompanionState(
+                            brightness: CompanionBrightness.fullyLit,
+                            protected: false,
+                          ),
+                          size: 132,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         '${widget.streakCount}',
@@ -204,6 +256,14 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                           fontSize: 72,
                           fontWeight: FontWeight.w900,
                           shadows: [
+                            // Dark shadow FIRST for edge definition where the
+                            // white numeral overlaps the bright amber plume —
+                            // the amber glow alone blended into the flame.
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 12,
+                              offset: const Offset(0, 2),
+                            ),
                             Shadow(
                               color: _amber.withValues(alpha: 0.6),
                               blurRadius: 30,
@@ -228,10 +288,24 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                       Text(
                         'Day Streak!',
                         style: AppTypography.headlineLarge.copyWith(
-                          color: _amber,
+                          // Warm cream, NOT amber — amber-on-amber-flame was
+                          // ~1.2:1 and illegible. Cream + a dark shadow reads
+                          // cleanly over the plume without dimming it.
+                          color: const Color(0xFFFDF4E3),
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              blurRadius: 12,
+                              offset: const Offset(0, 1),
+                            ),
+                            Shadow(
+                              color: _bg.withValues(alpha: 0.6),
+                              blurRadius: 22,
+                            ),
+                          ],
                         ),
                         textAlign: TextAlign.center,
                       )

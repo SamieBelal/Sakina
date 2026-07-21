@@ -79,6 +79,11 @@ class DailyLoopState {
   final int? streakMilestoneXp;
   final int? streakMilestoneScrolls;
 
+  // Streak expired this reflection with a restorable streak (paid buy-back, §2g).
+  // Consumed by the UI to show the rescue sheet, mirroring the milestone flag.
+  final bool streakLapseRestorable;
+  final int lapsePreLapseStreak;
+
   // Card collection
   final CardEngageResult? cardEngageResult;
   final CollectibleName? engagedCard;
@@ -122,6 +127,8 @@ class DailyLoopState {
     this.streakMilestoneCount,
     this.streakMilestoneXp,
     this.streakMilestoneScrolls,
+    this.streakLapseRestorable = false,
+    this.lapsePreLapseStreak = 0,
     this.error,
   });
 
@@ -158,6 +165,8 @@ class DailyLoopState {
     int? streakMilestoneCount,
     int? streakMilestoneXp,
     int? streakMilestoneScrolls,
+    bool? streakLapseRestorable,
+    int? lapsePreLapseStreak,
     String? error,
   }) {
     return DailyLoopState(
@@ -195,6 +204,9 @@ class DailyLoopState {
       streakMilestoneXp: streakMilestoneXp ?? this.streakMilestoneXp,
       streakMilestoneScrolls:
           streakMilestoneScrolls ?? this.streakMilestoneScrolls,
+      streakLapseRestorable:
+          streakLapseRestorable ?? this.streakLapseRestorable,
+      lapsePreLapseStreak: lapsePreLapseStreak ?? this.lapsePreLapseStreak,
       error: error,
     );
   }
@@ -221,8 +233,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   DailyLoopNotifier({
     @visibleForTesting Future<void> Function(DailyLoopNotifier self)?
         discoverNameOverride,
+    /// When true, skips [_initialize] (and the EconomyEvents subscription).
+    /// ONLY for widget tests that pump the sheet and don't need real state.
+    @visibleForTesting bool skipInitForTests = false,
   })  : _discoverNameOverride = discoverNameOverride,
         super(const DailyLoopState()) {
+    if (skipInitForTests) return;
     // Subscribe BEFORE _initialize so consumable grants that fire while
     // initial hydration is in flight (e.g., the customerInfo listener in
     // main.dart firing on app boot with a pending receipt) update the
@@ -336,6 +352,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         levelTitleArabic: displayTitle.titleArabic,
         levelNumber: xpState.level,
         questDua: questDua,
+        // Re-derive the buy-back offer from the persisted lapse cache, so it
+        // survives the provider rebuild the muḥāsabah "Return to Home" CTA
+        // triggers (which would otherwise wipe the transient flag before Home
+        // sees it). The cache is only cleared on dismiss / restore / start-fresh.
+        streakLapseRestorable: streakState.hasRestorableLapse,
+        lapsePreLapseStreak: streakState.preLapseStreak,
       );
 
       // Restore persisted state for today
@@ -407,7 +429,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // retention queries see the daily check-in. Previously only the
     // reflect flow hit logActivity(); muhasabah was silent.
     await logActivity();
-    state = state.copyWith(streakCount: streakResult.currentStreak);
+    state = state.copyWith(
+      streakCount: streakResult.currentStreak,
+      // The streak just expired with a buy-back-worthy value → offer the rescue.
+      streakLapseRestorable: streakResult.hasRestorableLapse,
+      lapsePreLapseStreak: streakResult.preLapseStreak,
+    );
     await _handleStreakMilestones(streakResult.currentStreak);
   }
 
@@ -892,6 +919,28 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       streakMilestoneCount: 0,
       streakMilestoneXp: 0,
       streakMilestoneScrolls: 0,
+    );
+  }
+
+  void clearStreakLapse() {
+    state = state.copyWith(
+      streakLapseRestorable: false,
+      lapsePreLapseStreak: 0,
+    );
+    // Also clear the persisted lapse bookkeeping so a re-entry into muḥāsabah
+    // on the SAME day (markActiveToday's already-active fast path returns the
+    // cached pre-lapse) doesn't re-surface a rescue the user just dismissed.
+    // The paid buy-back path already clears this cache inside repairStreakPaid.
+    unawaited(clearLapseCache());
+  }
+
+  /// Restore the just-expired streak locally after a successful paid buy-back
+  /// (the RPC already restored it server-side; this reflects it in the UI).
+  void applyRestoredStreak(int restoredStreak) {
+    state = state.copyWith(
+      streakCount: restoredStreak,
+      streakLapseRestorable: false,
+      lapsePreLapseStreak: 0,
     );
   }
 

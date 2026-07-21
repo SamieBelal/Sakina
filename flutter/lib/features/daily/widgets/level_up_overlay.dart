@@ -148,13 +148,11 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
               end: Alignment.bottomCenter,
               colors: _phase >= 1
                   ? [
+                      // Clean emerald → ink. (Was emerald→ink→gold-tinted, whose
+                      // warm bottom cast fought the emerald top and read muddy.)
                       const Color(0xFF1B3A2A), // dark emerald
-                      const Color(0xFF0A0A12),
-                      Color.lerp(
-                        const Color(0xFF0A0A12),
-                        AppColors.secondary,
-                        0.12,
-                      )!,
+                      const Color(0xFF0C1611), // deep emerald-ink
+                      const Color(0xFF0A0A12), // ink
                     ]
                   : [
                       const Color(0xFF0A0A12),
@@ -174,21 +172,32 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
                 // crown-lock beat (~1.87s).
                 Positioned.fill(
                   child: Center(
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * 1.5,
-                      height: MediaQuery.of(context).size.width * 1.5,
-                      child: Lottie.asset(
-                        'assets/animations/level_up.json',
-                        controller: _lottieController,
-                        fit: BoxFit.contain,
-                        repeat: false,
-                        onLoaded: (composition) {
-                          if (_lottieStarted) return;
-                          _lottieStarted = true;
-                          _lottieController
-                            ..duration = composition.duration
-                            ..forward(from: 0);
-                        },
+                    // Once the reveal lands (phase 2) the animation's final frame
+                    // keeps its concentric tier-rings on screen — centered right
+                    // where the Arabic title / pill / subtitle / rewards sit,
+                    // colliding with them. Fade it down to a soft ambient glow so
+                    // the content reads on a clean field (the ascent still plays
+                    // at full strength through phases 0–1).
+                    child: AnimatedOpacity(
+                      opacity: _phase >= 2 ? 0.22 : 1.0,
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOut,
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 1.5,
+                        height: MediaQuery.of(context).size.width * 1.5,
+                        child: Lottie.asset(
+                          'assets/animations/level_up.json',
+                          controller: _lottieController,
+                          fit: BoxFit.contain,
+                          repeat: false,
+                          onLoaded: (composition) {
+                            if (_lottieStarted) return;
+                            _lottieStarted = true;
+                            _lottieController
+                              ..duration = composition.duration
+                              ..forward(from: 0);
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -370,8 +379,10 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
                           Text(
                             widget.subtitle,
                             style: AppTypography.bodyMedium.copyWith(
-                              color:
-                                  AppColors.secondary.withValues(alpha: 0.8),
+                              // Warm off-white, not gold — gold-on-dark-ring was
+                              // low contrast.
+                              color: const Color(0xFFEADFC9)
+                                  .withValues(alpha: 0.85),
                             ),
                           ).animate().fadeIn(delay: 700.ms, duration: 400.ms),
 

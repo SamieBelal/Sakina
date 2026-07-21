@@ -90,12 +90,103 @@ Future<void> devSetStreak(int current, int longest) async {
     longestStreak: longest,
     lastActive: current > 0 ? today : null,
   );
+  await clearLapseCache();
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
     await supabaseSyncService.upsertRow('user_streaks', userId, {
       'current_streak': current,
       'longest_streak': longest,
       'last_active': current > 0 ? today : null,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
+    });
+  }
+}
+
+String _daysAgoString(int daysAgo) {
+  final d = DateTime.now().toUtc().subtract(Duration(days: daysAgo));
+  return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// Dev: put the streak into a state with `last_active` set [daysAgo] days back
+/// (and no pending lapse), so the NEXT muḥāsabah completion exercises the
+/// repair ladder. daysAgo=2 → one missed day, within 48h → free repair.
+/// daysAgo=4 → past the window → EXPIRED → the paid rescue sheet.
+Future<void> devSetStreakGap(int current, int longest, int daysAgo) async {
+  final past = _daysAgoString(daysAgo);
+  await hydrateStreakCache(
+    currentStreak: current,
+    longestStreak: longest,
+    lastActive: past,
+  );
+  await clearLapseCache();
+  // Clear any owned freeze so an EXPIRED test isn't silently bridged by it.
+  await consumeStreakFreeze();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': current,
+      'longest_streak': longest,
+      'last_active': past,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
+    });
+  }
+}
+
+/// Dev: set a 1-day gap (last_active 2 days ago) AND excuse yesterday, so the
+/// next muḥāsabah should CONTINUE the streak (the only gap day is excused).
+Future<void> devExcuseYesterdayGap(int current, int longest) async {
+  await devSetStreakGap(current, longest, 2);
+  await addExcusedDate(DateTime.now().toUtc().subtract(const Duration(days: 1)));
+}
+
+/// Dev (companion visual QA): streak ≥1 but NOT reflected today (last_active =
+/// yesterday), so `resolveCompanionState` returns the UNLIT "waiting" lamp —
+/// `pendingUnlit` before 8pm local, `atRiskUnlit` after. Both render the same
+/// dark-glass / warm-housing lamp; the split is copy/cue only, driven by the
+/// real clock. Does NOT arm a lapse (last_active is only 1 day back), so viewing
+/// Home won't trigger the rescue sheet.
+Future<void> devSetStreakUnlit(int current) async {
+  final past = _daysAgoString(1);
+  await hydrateStreakCache(
+    currentStreak: current,
+    longestStreak: current,
+    lastActive: past,
+  );
+  await clearLapseCache();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': current,
+      'longest_streak': current,
+      'last_active': past,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
+    });
+  }
+}
+
+/// Dev (companion visual QA): streak at 0 but WITH history (longest > 0), so
+/// `resolveCompanionState` returns DORMANT (the cold, snuffed "resting" lamp) —
+/// distinct from the endowed new-user lamp (which needs longest == 0). No pending
+/// lapse is armed.
+Future<void> devSetDormant() async {
+  final past = _daysAgoString(5);
+  await hydrateStreakCache(
+    currentStreak: 0,
+    longestStreak: 30,
+    lastActive: past,
+  );
+  await clearLapseCache();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': 0,
+      'longest_streak': 30,
+      'last_active': past,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
     });
   }
 }

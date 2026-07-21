@@ -429,7 +429,10 @@ class _LoadingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SakinaLoader(color: AppColors.sacredInk),
+          // The ripple Lottie (fixed gold+emerald) — its purpose is longer AI
+          // waits, and it reads on the emerald sacred canvas without a tint.
+          // (Passing `color` here forced the old monochrome khatam SVG.)
+          const SakinaLoader(variant: SakinaLoaderVariant.ripple),
           const SizedBox(height: 20),
           Text(
             'Preparing your reflection…',

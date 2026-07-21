@@ -72,6 +72,10 @@ dependencies:
   home_widget: ^0.9.3
   lottie: ^3.3.3
 
+  # Pauses the code-drawn companion medallion's animation when it scrolls
+  # offscreen (streaks + companion plan, finding #12 — bounded animation).
+  visibility_detector: ^0.4.0+2
+
   # Local scheduled notifications (duʿā-window calendar reminders — Phase 1).
   # `timezone` provides TZDateTime for zonedSchedule; the local zone name is
   # resolved via the existing flutter_timezone and fed to tz.getLocation().
@@ -118,6 +122,9 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+
+  shaders:
+    - shaders/khatam_glow.frag
 
   assets:
     # No .env. All env values arrive via --dart-define-from-file=env.json

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -1259,18 +1260,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // during local dev/QA, uncomment the block below. For PROFILE builds
         // (on-device QA) change the guard to `!kReleaseMode`; `kDebugMode` is
         // false in profile so Dev Tools would be unreachable there.
-        // if (kDebugMode) ...[
-        //   _buildSectionLabel('Developer'),
-        //   const SizedBox(height: AppSpacing.sm),
-        //   _buildSettingsCard([
-        //     _buildSettingsRow(
-        //       icon: Icons.bug_report_rounded,
-        //       label: 'Dev Tools',
-        //       onTap: () => context.push('/dev-tools'),
-        //     ),
-        //   ]),
-        //   const SizedBox(height: AppSpacing.lg),
-        // ],
+        if (kDebugMode) ...[
+          _buildSectionLabel('Developer'),
+          const SizedBox(height: AppSpacing.sm),
+          _buildSettingsCard([
+            _buildSettingsRow(
+              icon: Icons.bug_report_rounded,
+              label: 'Dev Tools',
+              onTap: () => context.push('/dev-tools'),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.lg),
+        ],
 
         // Danger Zone
         _buildSectionLabel('Danger Zone'),

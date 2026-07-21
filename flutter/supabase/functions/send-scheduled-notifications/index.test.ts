@@ -6,6 +6,8 @@ import {
   DUA_WINDOW_DEEP_LINK,
   type DuaPreciseRow,
   isAuthorized,
+  processStreakFamily,
+  runFixedCadenceLoop,
   selectDueDuaNotifications,
 } from "./index.ts";
 
@@ -227,3 +229,337 @@ Deno.test("dedupeDuaByUser: same fire_utc tie broken deterministically", () => {
   assertEquals(deduped.length, 1);
   assertEquals(deduped[0].id, friday.id);
 });
+
+// ── pushedUserIds dedup guard in the fixed-cadence loop ──────────────────────
+//
+// A user eligible for BOTH daily AND weekly_reflection in the same cron run
+// must receive EXACTLY ONE push, not two.  Before the fix, the loop had no
+// pre-send pushedUserIds check so the second type fired unconditionally.
+//
+// Test harness:
+//   • `supabase.rpc` returns the same user_id for every NOTIFICATION_TYPE call
+//     (simulates the edge-case where one user is eligible for multiple types).
+//   • `globalThis.fetch` is stubbed to make OneSignal always succeed (200).
+//   • `supabase.from().update().in()` is stubbed (markSent) — we don't care
+//     about DB writes here, only about how many OneSignal sends actually fire.
+
+Deno.test(
+  "runFixedCadenceLoop: user eligible for daily + weekly_reflection → exactly ONE OneSignal push",
+  async () => {
+    const userId = crypto.randomUUID();
+    const eligibleUser = {
+      user_id: userId,
+      timezone: "UTC",
+      display_name: null,
+      current_streak: 0,
+      last_active: null,
+    };
+
+    // Track every userId passed to OneSignal (via fetch stubs).
+    const oneSignalCalls: string[] = [];
+
+    // Stub globalThis.fetch to intercept OneSignal POSTs.
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+
+      if (url.includes("onesignal.com/notifications")) {
+        // Record which user_id was targeted.
+        const body = JSON.parse((init?.body as string) ?? "{}");
+        const ids: string[] = body?.include_aliases?.external_id ?? [];
+        oneSignalCalls.push(...ids);
+        return new Response(JSON.stringify({ id: crypto.randomUUID() }), {
+          status: 200,
+        });
+      }
+      // Mixpanel or anything else — swallow silently.
+      return new Response("{}", { status: 200 });
+    };
+
+    // Minimal supabase stub: rpc returns the same eligible user for every type;
+    // from().update().in() is a no-op (markSent batch path).
+    const supabaseStub = {
+      rpc: (_name: string, _args: unknown) =>
+        Promise.resolve({ data: [eligibleUser], error: null }),
+      from: (_table: string) => ({
+        update: (_vals: unknown) => ({
+          in: (_col: string, _ids: string[]) =>
+            Promise.resolve({ error: null }),
+        }),
+      }),
+    };
+
+    const pushedUserIds = new Set<string>();
+    await runFixedCadenceLoop(
+      supabaseStub,
+      "test-app-id",
+      "test-rest-key",
+      pushedUserIds,
+    );
+
+    // Restore fetch.
+    globalThis.fetch = originalFetch;
+
+    // Count how many times THIS user_id was pushed.
+    const sendsForUser = oneSignalCalls.filter((id) => id === userId);
+    assertEquals(
+      sendsForUser.length,
+      1,
+      `Expected exactly 1 OneSignal push for user ${userId}, got ${sendsForUser.length}`,
+    );
+  },
+);
+
+// ── Streak-family unknown-kind robustness ─────────────────────────────────────
+//
+// The DB kind column is text, cast unchecked as StreakKind. If a future
+// migration or data bug introduces a new/unexpected kind, streakFamilyBody and
+// streakFamilyDataType both fall off their switch with no default and return
+// undefined — which gets serialised to the string "undefined" in the OneSignal
+// payload (a user-facing "undefined" push), or throws, aborting the whole batch.
+//
+// Fix: default: throw in both switches + per-decision try/catch that skips the
+// bad decision rather than aborting the batch.
+//
+// This test exercises a mixed batch: one INVALID kind ("garbage") alongside one
+// VALID kind ("saver"). Assertions:
+//   (i)  No push with title or body containing "undefined" is ever sent.
+//   (ii) The valid decision ("saver") still gets its correct push.
+//   (iii) The invalid decision does NOT abort the batch.
+
+Deno.test(
+  "processStreakFamily: unknown kind skips that decision, valid kind still sends",
+  async () => {
+    const validUserId = "user-valid-" + crypto.randomUUID();
+    const badUserId = "user-bad-" + crypto.randomUUID();
+
+    // Fake RPC returns two decisions: one valid, one with garbage kind.
+    const decisions = [
+      {
+        user_id: badUserId,
+        timezone: "UTC",
+        display_name: null,
+        current_streak: 5,
+        kind: "garbage", // unknown kind — should be skipped
+      },
+      {
+        user_id: validUserId,
+        timezone: "UTC",
+        display_name: null,
+        current_streak: 10,
+        kind: "saver", // valid — should fire
+      },
+    ];
+
+    // Capture every OneSignal call.
+    const oneSignalPayloads: Array<{ userId: string; title: string; body: string }> = [];
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+
+      if (url.includes("onesignal.com/notifications")) {
+        const body = JSON.parse((init?.body as string) ?? "{}");
+        const ids: string[] = body?.include_aliases?.external_id ?? [];
+        const title: string = body?.headings?.en ?? "";
+        const msgBody: string = body?.contents?.en ?? "";
+        for (const id of ids) {
+          oneSignalPayloads.push({ userId: id, title, body: msgBody });
+        }
+        return new Response(JSON.stringify({ id: crypto.randomUUID() }), {
+          status: 200,
+        });
+      }
+      return new Response("{}", { status: 200 });
+    };
+
+    // Supabase stub: rpc returns our mixed decisions; from().update().eq() is a no-op.
+    const supabaseStub = {
+      rpc: (_name: string, _args: unknown) =>
+        Promise.resolve({ data: decisions, error: null }),
+      from: (_table: string) => ({
+        update: (_vals: unknown) => ({
+          eq: (_col: string, _val: unknown) =>
+            Promise.resolve({ error: null }),
+        }),
+      }),
+    };
+
+    const alreadyPushed = new Set<string>();
+    // Must not throw even though one decision has a bad kind.
+    await processStreakFamily({
+      supabase: supabaseStub,
+      appId: "test-app-id",
+      restApiKey: "test-rest-key",
+      alreadyPushedUserIds: alreadyPushed,
+      now: new Date(),
+    });
+
+    globalThis.fetch = originalFetch;
+
+    // (i) No "undefined" in any push payload.
+    for (const p of oneSignalPayloads) {
+      assertEquals(
+        p.title.includes("undefined"),
+        false,
+        `Push to ${p.userId} had "undefined" in title: "${p.title}"`,
+      );
+      assertEquals(
+        p.body.includes("undefined"),
+        false,
+        `Push to ${p.userId} had "undefined" in body: "${p.body}"`,
+      );
+    }
+
+    // (ii) The valid saver decision DID fire.
+    const validSend = oneSignalPayloads.find((p) => p.userId === validUserId);
+    assertEquals(
+      validSend !== undefined,
+      true,
+      `Expected a push for validUserId (saver) but none was sent`,
+    );
+    assertEquals(
+      validSend?.body,
+      "Your lantern rests tonight — one reflection keeps it lit.",
+      `Saver body mismatch: "${validSend?.body}"`,
+    );
+
+    // (iii) The bad-kind decision must NOT have fired any push.
+    const badSend = oneSignalPayloads.find((p) => p.userId === badUserId);
+    assertEquals(
+      badSend,
+      undefined,
+      `Expected NO push for badUserId (unknown kind) but got one`,
+    );
+  },
+);
+
+// ── markStreakFamilySent transient-error robustness ──────────────────────────
+//
+// BUG: markStreakFamilySent is called OUTSIDE the per-decision try/catch that
+// covers streakFamilyBody/streakFamilyDataType. If the DB update throws for one
+// user (transient PostgREST error), the throw propagates out of the for-loop and
+// aborts every subsequent user in the same batch — all users after the failing
+// one are silently skipped.
+//
+// FIX: wrap the entire per-decision body (send + markStreakFamilySent +
+// mixpanelTrack) in the per-decision try/catch so any single-user failure logs
+// and continues to the next user.
+//
+// This test has TWO valid saver decisions. The FIRST user's markStreakFamilySent
+// (the DB .update().eq()) throws a transient error. Assertions:
+//   (i)  The handler does NOT throw / reject (no batch abort).
+//   (ii) BOTH users still receive their OneSignal push (send happens before mark,
+//        so the first user's push already fired; the second must not be skipped).
+
+Deno.test(
+  "processStreakFamily: markStreakFamilySent throws for user-1 → batch continues, user-2 still gets push",
+  async () => {
+    const userId1 = "user-mark-fail-" + crypto.randomUUID();
+    const userId2 = "user-mark-ok-" + crypto.randomUUID();
+
+    const decisions = [
+      {
+        user_id: userId1,
+        timezone: "UTC",
+        display_name: null,
+        current_streak: 3,
+        kind: "saver",
+      },
+      {
+        user_id: userId2,
+        timezone: "UTC",
+        display_name: null,
+        current_streak: 7,
+        kind: "saver",
+      },
+    ];
+
+    // Capture every OneSignal send.
+    const pushedUserIds: string[] = [];
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+
+      if (url.includes("onesignal.com/notifications")) {
+        const body = JSON.parse((init?.body as string) ?? "{}");
+        const ids: string[] = body?.include_aliases?.external_id ?? [];
+        pushedUserIds.push(...ids);
+        return new Response(JSON.stringify({ id: crypto.randomUUID() }), {
+          status: 200,
+        });
+      }
+      // Mixpanel — swallow.
+      return new Response("{}", { status: 200 });
+    };
+
+    // Supabase stub: the FIRST user's .update().eq() throws a transient error;
+    // the second user's succeeds. We track call order by userId.
+    let markCallCount = 0;
+    const supabaseStub = {
+      rpc: (_name: string, _args: unknown) =>
+        Promise.resolve({ data: decisions, error: null }),
+      from: (_table: string) => ({
+        update: (_vals: unknown) => ({
+          eq: (_col: string, val: unknown) => {
+            markCallCount += 1;
+            if (val === userId1) {
+              // Simulate a transient PostgREST error for the first user.
+              return Promise.resolve({
+                error: new Error("transient DB error for user1"),
+              });
+            }
+            return Promise.resolve({ error: null });
+          },
+        }),
+      }),
+    };
+
+    const alreadyPushed = new Set<string>();
+
+    // (i) Must NOT throw even though user1's mark throws.
+    await processStreakFamily({
+      supabase: supabaseStub,
+      appId: "test-app-id",
+      restApiKey: "test-rest-key",
+      alreadyPushedUserIds: alreadyPushed,
+      now: new Date(),
+    });
+
+    globalThis.fetch = originalFetch;
+
+    // (ii) BOTH users must have received a push.
+    assertEquals(
+      pushedUserIds.includes(userId1),
+      true,
+      `Expected push for userId1 (mark throws after send) but got none`,
+    );
+    assertEquals(
+      pushedUserIds.includes(userId2),
+      true,
+      `Expected push for userId2 (should not be skipped) but got none`,
+    );
+  },
+);

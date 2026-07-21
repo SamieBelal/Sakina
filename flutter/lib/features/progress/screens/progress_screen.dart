@@ -11,6 +11,14 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
+import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
+import 'package:sakina/features/streaks/models/companion_state.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/widgets/freeze_burn_card.dart';
+import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
+import 'package:sakina/features/streaks/widgets/month_of_light.dart';
+import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
@@ -116,6 +124,21 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   /// `_submitInFlight` regression fix — without it both taps pass the gate
   /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
   bool _discoverInFlight = false;
+
+  /// True while the streak-rescue sheet is on screen — see
+  /// [_maybeShowStreakRescue]. Resets when the sheet closes (NOT a permanent
+  /// latch), so if the user leaves to buy tokens and returns with the lapse
+  /// still restorable, the offer re-surfaces. `clearStreakLapse()` (Start fresh /
+  /// successful restore / expired) is what actually retires the offer.
+  bool _rescueSheetOpen = false;
+
+  /// True while a rescue-check poll chain is in flight, so repeated builds don't
+  /// spawn overlapping retry loops (see [_kickRescueCheck]).
+  bool _rescuePollActive = false;
+
+  /// One-shot guard for the `milestone_sliver_shown` instrument — emitted once
+  /// per screen mount when the lit hero first shows a next-milestone bar.
+  bool _milestoneSliverLogged = false;
 
   @override
   void initState() {
@@ -257,9 +280,65 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     await _checkDiscoveryQuiz();
   }
 
+  /// Start a single rescue-check poll chain (idempotent — no-op if one is
+  /// already running or the sheet is open).
+  void _kickRescueCheck() {
+    if (_rescuePollActive || _rescueSheetOpen) return;
+    _rescuePollActive = true;
+    _maybeShowStreakRescue();
+  }
+
+  /// Offer the paid streak buy-back as a calm epilogue — AFTER the muḥāsabah
+  /// ritual, never over the sacred Name reveal. The offer is re-derived from the
+  /// persisted lapse cache in the daily-loop provider, so it survives the
+  /// provider rebuild the "Return to Home" CTA triggers.
+  ///
+  /// The whole ritual (and its reveal overlay) are ROOT-navigator routes above
+  /// Home; the sheet also mounts on the root navigator (to cover the nav bar).
+  /// Home's shell route stays `isCurrent` UNDER them, so we gate on the root
+  /// navigator being back at its base (`!canPop`) instead. A route pop doesn't
+  /// rebuild the covered Home, so we poll on a timer (which ticks regardless of
+  /// visibility) until it settles — bounded, self-terminating on show / clear /
+  /// unmount, budget ≈ 600 × 350ms ≈ 3.5min (well past any real reflection).
+  void _maybeShowStreakRescue({int retriesLeft = 600}) {
+    if (!mounted || _rescueSheetOpen || retriesLeft == 0) {
+      _rescuePollActive = false;
+      return;
+    }
+    final state = ref.read(dailyLoopProvider);
+    if (!state.streakLapseRestorable) {
+      _rescuePollActive = false; // cleared / consumed — retire the poll.
+      return;
+    }
+    final route = ModalRoute.of(context);
+    final settled = route != null &&
+        route.isCurrent &&
+        !Navigator.of(context, rootNavigator: true).canPop();
+    if (!settled) {
+      Future.delayed(const Duration(milliseconds: 350),
+          () => _maybeShowStreakRescue(retriesLeft: retriesLeft - 1));
+      return;
+    }
+    _rescuePollActive = false;
+    _rescueSheetOpen = true;
+    showStreakRescueSheet(context, ref,
+            preLapseStreak: state.lapsePreLapseStreak)
+        .whenComplete(() {
+      if (mounted) _rescueSheetOpen = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyLoopProvider);
+
+    // Deferred streak-rescue epilogue: kick a bounded, self-gating check that
+    // waits for the muḥāsabah to fully pop back to Home before showing (see
+    // [_maybeShowStreakRescue]). Idempotent, so repeated builds are safe.
+    if (state.streakLapseRestorable) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _kickRescueCheck());
+    }
 
     // Replay-tour re-trigger: Settings "Replay app tour" calls
     // onboardingTourControllerProvider.replay() directly — the controller
@@ -422,6 +501,32 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildDashboardCard(DailyLoopState state, HomeHeroData hero) {
+    final companion = ref.watch(companionStateProvider);
+    // Freeze-burn reunion card (S4/D14) — server-authoritative pending flag.
+    final pendingBurn =
+        ref.watch(pendingFreezeBurnProvider).valueOrNull ?? false;
+
+    // One-shot: log the next-milestone bar the first time the lit hero shows it.
+    if (!_milestoneSliverLogged && companion != null) {
+      final b = companion.brightness;
+      final lit = b == CompanionBrightness.dim ||
+          b == CompanionBrightness.glowing ||
+          b == CompanionBrightness.fullyLit;
+      final next = nextMilestone(state.streakCount);
+      if (lit && next != null) {
+        _milestoneSliverLogged = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(analyticsProvider).track(
+            AnalyticsEvents.milestoneSliverShown,
+            properties: {
+              AnalyticsEvents.propNextTier: next.days,
+              AnalyticsEvents.propDaysRemaining: next.days - state.streakCount,
+            },
+          );
+        });
+      }
+    }
     final xpState = _calculateXpProgress(state.xpTotal);
     final double xpProgress = xpState.xpForNextLevel > 0
         ? (xpState.xpIntoCurrentLevel / xpState.xpForNextLevel).clamp(0.0, 1.0)
@@ -614,46 +719,75 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Reunion card after a freeze auto-bridged a missed day (S4/D14).
+          // Reunion-first copy; dismiss acks server-side so it never re-shows.
+          if (pendingBurn)
+            FreezeBurnCard(
+              streak: state.streakCount,
+              onShown: () => ref.read(analyticsProvider).track(
+                    AnalyticsEvents.freezeBurnShown,
+                    properties: {AnalyticsEvents.propStreak: state.streakCount},
+                  ),
+              onDismiss: () async {
+                await ackFreezeBurn();
+                if (mounted) ref.invalidate(pendingFreezeBurnProvider);
+              },
+            ),
+
           // Divider
           Container(height: 1, color: AppColors.dividerLight),
           const SizedBox(height: 14),
 
           // Today's Name (hero section)
-          // Gold sparkles
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(5, (i) {
-              return Icon(
-                Icons.auto_awesome,
-                color:
-                    AppColors.secondary.withValues(alpha: i == 2 ? 1.0 : 0.6),
-                size: i == 2 ? 18 : 12,
-              )
-                  .animate()
-                  .scale(
-                      begin: const Offset(0, 0),
-                      end: const Offset(1, 1),
-                      curve: Curves.elasticOut,
-                      duration: 600.ms,
-                      delay: (i * 80).ms)
-                  .fadeIn(duration: 400.ms, delay: (i * 80).ms);
-            }),
+          // The living companion — its light reflects the streak. Ambient;
+          // pauses when scrolled offscreen (CompanionMedallion handles that).
+          // Fixed-height slot so the hero doesn't jump before hydration.
+          SizedBox(
+            height: 152,
+            child: companion == null
+                ? null
+                : Center(
+                    child: CompanionMedallion(state: companion, size: 152),
+                  ),
           ),
           const SizedBox(height: 8),
+          // Merged, state-driven streak line + milestone bar (spec S2/D2): the
+          // single primary streak signal in the hero. The compact top pill is a
+          // stat (kept as the tour-step-6 anchor); this is the emotional signal.
+          // ONE status line under the lantern that doubles as the month-of-light
+          // calendar affordance (S2/D2): a single signal between the lantern and
+          // the Name reveal, not two stacked rows. Tap → the month grid; the
+          // "N days lit this month" stat lives in the sheet header.
+          buildStreakLine(
+            context,
+            companion,
+            state.streakCount,
+            onTap: () {
+              ref
+                  .read(analyticsProvider)
+                  .track(AnalyticsEvents.chainCalendarExpanded);
+              showMonthOfLightSheet(context);
+            },
+          ),
+          // Generous gap ABOVE the eyebrow separates the lantern+streak block
+          // from the Name block; the tight gap BELOW binds the label to the
+          // Arabic Name it introduces (Gestalt proximity — it was backwards:
+          // 8 above / 44 below made it read as attached to the streak text).
+          const SizedBox(height: 32),
           Text(
-            hero.label,
-            style: AppTypography.labelSmall.copyWith(
+            hero.label.toUpperCase(),
+            style: AppTypography.labelMedium.copyWith(
               color: AppColors.secondary,
-              letterSpacing: 1,
-              fontWeight: FontWeight.w600,
+              letterSpacing: 2.2,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 44),
+          const SizedBox(height: 16),
           AdjustedArabicDisplay(
             text: hero.arabic,
             style: AppTypography.nameOfAllahDisplay.copyWith(
               color: AppColors.secondary,
-              fontSize: 48,
+              fontSize: 60,
             ),
           ),
           const SizedBox(height: 20),
@@ -1252,4 +1386,109 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       xpForNextLevel: state.xpForNextLevel
     );
   }
+}
+
+/// The merged, state-driven streak line under the lantern hero (spec S2/D2).
+/// One primary streak signal:
+///   lit     → "Day N · d to your T-day flame" + a gold milestone bar
+///             (or "Day N · every day lit" at 365+, per D9)
+///   waiting → "Your lantern is waiting"  ·  resting → "Your lantern is resting"
+///   endowed → "Your light is lit"        ·  loading → a reserved empty slot
+/// Milestone thresholds come from [nextMilestone] (single source of truth, C1).
+/// Kept as a top-level function (no widget state) so it's cheap to unit/widget
+/// test in isolation.
+///
+/// When [onTap] is given, this line doubles as the single "month of light"
+/// affordance (a trailing chevron + tap) so the hero shows ONE status line
+/// between the lantern and the Name reveal, not two — the collapsed calendar
+/// summary is folded into this row and its "N days lit" stat lives in the sheet.
+Widget buildStreakLine(
+    BuildContext context, CompanionState? companion, int streak,
+    {VoidCallback? onTap}) {
+  const slotHeight = 46.0;
+  // Pre-hydration: reserve the slot, show nothing — never flash "0 to your flame".
+  if (companion == null) return const SizedBox(height: slotHeight);
+
+  final next = nextMilestone(streak);
+  String label;
+  bool showBar = false;
+  switch (companion.brightness) {
+    case CompanionBrightness.fullyLit:
+    case CompanionBrightness.glowing:
+    case CompanionBrightness.dim:
+      label = next == null
+          ? 'Day $streak · every day lit'
+          : 'Day $streak · ${next.days - streak} to your ${next.days}-day flame';
+      showBar = next != null;
+      break;
+    case CompanionBrightness.pendingUnlit:
+    case CompanionBrightness.atRiskUnlit:
+      label = 'Your lantern is waiting';
+      showBar = next != null && streak >= 1;
+      break;
+    case CompanionBrightness.dormant:
+      label = 'Your lantern is resting';
+      break;
+    case CompanionBrightness.endowedDim:
+      label = 'Your light is lit';
+      break;
+  }
+
+  final content = SizedBox(
+    height: slotHeight,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: AppTypography.labelMedium.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // The chevron marks this line as the tap target that opens the
+            // month-of-light calendar (only when interactive).
+            if (onTap != null)
+              Icon(Icons.chevron_right,
+                  size: 16,
+                  color: AppColors.primary.withValues(alpha: 0.55)),
+          ],
+        ),
+        if (showBar && next != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 200,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: milestoneProgress(streak, next),
+                minHeight: 6,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                // Gold is a non-text accent only (bar fill) per the design system.
+                valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  if (onTap == null) return content;
+  return Semantics(
+    button: true,
+    label: '$label, opens the month calendar',
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: content,
+    ),
+  );
 }

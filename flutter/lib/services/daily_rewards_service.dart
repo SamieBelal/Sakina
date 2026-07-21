@@ -610,3 +610,29 @@ Future<bool> consumeStreakFreeze() async {
   await _persist(newState);
   return true;
 }
+
+// ── Freeze-burn reunion marker (spec S4 / D14) ──────────────────────────────
+// Server-authoritative so the Home reunion card fires exactly once across
+// devices and survives a cache clear. `consume_streak_freeze` stamps
+// `freeze_burn_acked = false` atomically with the burn; the card reads it here
+// and dismisses via [ackFreezeBurn]. Local-only sessions (no userId) leave no
+// server trace — an accepted blind spot for anonymous users.
+
+/// True when a freeze was burned and the user hasn't yet seen the reunion card.
+Future<bool> hasPendingFreezeBurn() async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return false;
+  final row = await supabaseSyncService.fetchRow(
+    'user_daily_rewards',
+    userId,
+    columns: 'freeze_burn_acked',
+  );
+  // Column defaults to true ("nothing to acknowledge"); a real burn sets false.
+  return row != null && (row['freeze_burn_acked'] as bool? ?? true) == false;
+}
+
+/// Dismiss the reunion card (server-side, idempotent).
+Future<void> ackFreezeBurn() async {
+  if (supabaseSyncService.currentUserId == null) return;
+  await supabaseSyncService.callRpc<dynamic>('ack_freeze_burn');
+}

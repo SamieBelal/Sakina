@@ -55,7 +55,8 @@ void main() {
       personalized: true,
     );
 
-    expect(client.updates, 1);
+    expect(client.updates, 2,
+        reason: 'one payload write reloads BOTH the Name and companion widgets');
     final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
     expect(json['mode'], 'personalized');
     expect(json['name_key'], 'al-malik');
@@ -81,7 +82,8 @@ void main() {
     tick = tick.add(const Duration(minutes: 5)); // timestamp changes only
     await sync();
 
-    expect(client.updates, 1, reason: 'second identical sync must be skipped');
+    expect(client.updates, 2,
+        reason: 'first sync reloads both widgets (2); second identical sync skipped');
   });
 
   test('changed streak reloads the widget', () async {
@@ -91,7 +93,8 @@ void main() {
         name: name, anchor: 'a', streak: 12, checkedInToday: true, personalized: true);
     await svc.syncWidget(
         name: name, anchor: 'a', streak: 13, checkedInToday: true, personalized: true);
-    expect(client.updates, 2);
+    expect(client.updates, 4,
+        reason: 'two distinct syncs × two widgets (Name + companion)');
   });
 
   test('saveDuaTimesSchedule: identical JSON does not re-save or reload',
@@ -132,7 +135,8 @@ void main() {
     );
     expect(client.saved.every((e) => e.value == null), isTrue,
         reason: 'payloads erased to null');
-    expect(client.updates, 2, reason: 'both widgets reload');
+    expect(client.updates, 3,
+        reason: 'clearWidget reloads the Name, companion, and duʿā-times widgets');
 
     // The raw coarse lat/lon cache must be wiped too.
     final prefs = await SharedPreferences.getInstance();

@@ -11,8 +11,12 @@ import SwiftUI
 @main
 struct SakinaWidgetBundle: WidgetBundle {
     var body: some Widget {
-        SakinaWidget()
+        // Gallery order = declaration order. Product priority: Duʿā Times first
+        // (the flagship lock-screen countdown), then the daily Name, then the
+        // lantern companion.
         SakinaDuaTimesWidget()
+        SakinaWidget()
+        SakinaCompanionWidget()
         // The duʿā-times Live Activity (Lock Screen + Dynamic Island). Gated so
         // the extension still compiles + runs below iOS 16.2 (ActivityKit floor);
         // below 16.2 the bundle simply omits it. The type itself also carries

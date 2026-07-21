@@ -13,6 +13,12 @@ const String kWidgetAppGroupId = 'group.com.sakina.app.widget';
 /// the Android provider name. Passed to [HomeWidget.updateWidget].
 const String kWidgetName = 'SakinaWidget';
 
+/// The `kind` of the companion (lantern) widget. A THIRD widget in
+/// `SakinaWidgetBundle` that reads the SAME [kWidgetPayloadKey] blob and renders
+/// the pre-rendered lantern frame for the current streak state. Reloaded
+/// alongside [kWidgetName] whenever the streak payload changes.
+const String kCompanionWidgetName = 'SakinaCompanionWidget';
+
 /// The single Shared-container key the extension reads. One JSON blob keeps the
 /// read atomic on the Swift side.
 const String kWidgetPayloadKey = 'sakina_widget_payload';
@@ -197,6 +203,7 @@ class WidgetDataService {
     _lastWritten = null;
     _lastDuaTimesWritten = null;
     await _client.updateWidget(name: kWidgetName);
+    await _client.updateWidget(name: kCompanionWidgetName);
     await _client.updateWidget(name: kDuaTimesWidgetName);
   }
 
@@ -208,6 +215,9 @@ class WidgetDataService {
     _lastWritten = comparable;
     await _client.saveWidgetData(kWidgetPayloadKey, encoded);
     await _client.updateWidget(name: kWidgetName);
+    // The companion widget reads the same blob — reload its timeline too so its
+    // lantern brightness tracks the streak.
+    await _client.updateWidget(name: kCompanionWidgetName);
   }
 
   String _stripTimestamp(String encoded) {

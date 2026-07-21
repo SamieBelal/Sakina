@@ -171,3 +171,21 @@ If the Arabic shows as a plain font, the `Fonts/` subfolder path is the likely
 cause — flatten the TTFs to the folder root. If the widget shows the generic
 "Allah / Turn to Him" fallback after a check-in, the App Group payload isn't
 landing — check the group ID on both targets.
+
+## Third widget — SakinaCompanionWidget (added 2026-07-19, Phase 3)
+
+The **living lantern companion** whose light reflects the muḥāsabah streak.
+Kind `"SakinaCompanionWidget"`, referenced from `SakinaWidgetBundle.body`
+alongside the other two. Families: systemSmall, systemMedium,
+accessoryRectangular (Lock Screen = text-only, tint-safe).
+
+- **Frames**: WidgetKit can't run the Flutter `CustomPainter` or animate, so the
+  lantern is pre-rendered PNGs — `companion_<brightness>.png` in this folder
+  (auto-bundled by the synced group). Regenerate after art changes:
+  `flutter test test/widgets/gen_companion_widget_frames_test.dart`
+- **Data**: reads the SAME App-Group blob as `SakinaWidget`
+  (`sakina_widget_payload`) — no new payload fields. The Swift brightness map
+  mirrors `lib/features/streaks/companion_state_mapper.dart` as closely as the
+  payload allows (no `longest`/`lastActive`/`freezeOwned`, so streak 0 → the
+  inviting `endowedDim`, and there's no freeze-shield overlay). The app reloads
+  it via `kCompanionWidgetName` whenever the streak payload changes.
