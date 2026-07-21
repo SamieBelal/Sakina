@@ -317,56 +317,57 @@ export async function processStreakFamily(params: {
     // Quiet-hours dedup: never double-buzz a user already pushed this run.
     if (alreadyPushedUserIds.has(d.user_id)) continue;
 
-    // Unknown kind (e.g. future migration or data bug) must not abort the whole
-    // batch or send a push with "undefined" content. Skip and log loudly.
-    let body: string;
-    let dataType: string;
+    // Per-decision try/catch: any failure (unknown kind, send error, transient
+    // DB mark error, Mixpanel error) is logged and skipped. A single user's
+    // error must never abort the rest of the batch.
     try {
-      body = streakFamilyBody(d);
-      dataType = streakFamilyDataType(d.kind);
+      // Unknown kind (e.g. future migration or data bug) must not send a push
+      // with "undefined" content. The throw here is caught below and skipped.
+      const body = streakFamilyBody(d);
+      const dataType = streakFamilyDataType(d.kind);
+
+      const ok = await sendOneSignalNotification({
+        appId,
+        restApiKey,
+        userId: d.user_id,
+        title: streakFamilyTitle(d),
+        message: body,
+        dataType,
+      });
+      if (!ok) continue;
+
+      sent += 1;
+      alreadyPushedUserIds.add(d.user_id);
+
+      // Stamp the single family dedup key (LOCAL today) + kind so the :00/:30
+      // ticks can't re-send this user today.
+      await markStreakFamilySent(
+        supabase,
+        d.user_id,
+        localTodayForTimezone(d.timezone, now),
+        d.kind,
+      );
+      marked += 1;
+
+      // Server half of push attribution. Per-user+kind+day $insert_id dedups a
+      // cron re-run/retry in Mixpanel.
+      await mixpanelTrack("notification_sent", d.user_id, {
+        type: dataType,
+        segment: d.kind,
+        streak: d.current_streak,
+      }, {
+        insertId: `${d.user_id}:${dataType}:${
+          localTodayForTimezone(d.timezone, now)
+        }`,
+      });
     } catch (err) {
-      console.error("streak_family: skipping decision with unknown kind", {
+      console.error("streak_family: skipping decision due to error", {
         user_id: d.user_id,
         kind: d.kind,
         error: err instanceof Error ? err.message : String(err),
       });
-      continue;
+      // Continue to the next decision rather than aborting the whole batch.
     }
-
-    const ok = await sendOneSignalNotification({
-      appId,
-      restApiKey,
-      userId: d.user_id,
-      title: streakFamilyTitle(d),
-      message: body,
-      dataType,
-    });
-    if (!ok) continue;
-
-    sent += 1;
-    alreadyPushedUserIds.add(d.user_id);
-
-    // Stamp the single family dedup key (LOCAL today) + kind so the :00/:30
-    // ticks can't re-send this user today.
-    await markStreakFamilySent(
-      supabase,
-      d.user_id,
-      localTodayForTimezone(d.timezone, now),
-      d.kind,
-    );
-    marked += 1;
-
-    // Server half of push attribution. Per-user+kind+day $insert_id dedups a
-    // cron re-run/retry in Mixpanel.
-    await mixpanelTrack("notification_sent", d.user_id, {
-      type: dataType,
-      segment: d.kind,
-      streak: d.current_streak,
-    }, {
-      insertId: `${d.user_id}:${dataType}:${
-        localTodayForTimezone(d.timezone, now)
-      }`,
-    });
   }
 
   return { eligible: decisions.length, sent, marked };

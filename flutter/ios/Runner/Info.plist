@@ -95,15 +95,5 @@
 		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
-		<!-- Lets `flutter run` discover the Dart VM Service over mDNS on a
-		     physical device instead of the slow "Waiting for Dart VM Service
-		     url" polling fallback. Debug tooling only; in release the VM service
-		     isn't started, so no local-network prompt is shown to users. -->
-		<key>NSLocalNetworkUsageDescription</key>
-		<string>Sakina needs local network access to connect the Flutter debug service while developing.</string>
-		<key>NSBonjourServices</key>
-		<array>
-			<string>_dartVmService._tcp</string>
-		</array>
 	</dict>
 </plist>
