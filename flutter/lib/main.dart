@@ -292,6 +292,14 @@ Future<void> main() async {
   } catch (_) {
     isPremiumAtBoot = false;
   }
+  // Premium retro-bump: promote any Gold cards to Emerald for premium users so
+  // a just-upgraded (or restored-on-a-new-device) subscriber sees their
+  // collection reflect the paid tier. Self-gates on premium (no-op + no round
+  // trip for free users) and is idempotent once nothing Gold remains.
+  // Fire-and-forget — must never block or fail cold launch. The session's
+  // batch-sync hydration reconciles the local cache again on sign-in, so any
+  // pre-hydration race here is self-healing.
+  unawaited(reconcilePremiumEmeralds().catchError((_) => 0));
   // Register the experiment-context super properties (platform, app_version,
   // the four flag_* flags, is_premium) and fire the once-ever app_install
   // event. Extracted to registerBootstrapAnalytics so the guard + super-prop

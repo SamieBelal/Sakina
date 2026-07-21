@@ -15,6 +15,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
@@ -28,27 +29,42 @@ class CollectionScreen extends ConsumerStatefulWidget {
   ConsumerState<CollectionScreen> createState() => _CollectionScreenState();
 }
 
-enum _Filter { all, newCards, bronze, silver, gold }
+enum _Filter { all, newCards, bronze, silver, gold, emerald }
 
 class _GridEntry {
   final CollectibleName card;
   final CardTier? displayTier; // null = locked
   final bool isMaxTier;
 
+  /// When true this is a locked "Emerald · Premium" teaser tile shown to free
+  /// users in the All view — tapping routes to the paywall rather than a
+  /// card-detail sheet. `displayTier` stays null so it renders as a locked
+  /// tile (with a Premium lock badge instead of the plain "???" treatment).
+  final bool premiumLocked;
+
   const _GridEntry(
-      {required this.card, this.displayTier, this.isMaxTier = false});
+      {required this.card,
+      this.displayTier,
+      this.isMaxTier = false,
+      this.premiumLocked = false});
 }
 
 class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   _Filter _filter = _Filter.all;
   bool _questFired = false;
   bool _showOnlyDiscovered = false;
+  bool _isPremium = false;
   NavigatorState? _sheetNavigator;
   AppSessionNotifier? _session;
 
   @override
   void initState() {
     super.initState();
+    // Resolve premium status so the "All" view can decide whether to show the
+    // locked Emerald · Premium teaser tiles (free users only).
+    PurchaseService().isPremium().then((v) {
+      if (mounted) setState(() => _isPremium = v);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Reload from disk on first mount so newly engaged cards appear.
@@ -130,6 +146,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
       _Filter.bronze => _buildTierEntries(collection, CardTier.bronze),
       _Filter.silver => _buildTierEntries(collection, CardTier.silver),
       _Filter.gold => _buildTierEntries(collection, CardTier.gold),
+      _Filter.emerald => _buildTierEntries(collection, CardTier.emerald),
     };
 
     return Scaffold(
@@ -238,12 +255,19 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                   (context, index) {
                     final entry = filtered[index];
                     if (entry.displayTier == null) {
-                      // Locked tile
+                      // Locked tile. A premium teaser routes to the paywall;
+                      // an ordinary undiscovered tile is inert.
                       return _CardTile(
                           card: entry.card,
                           tier: null,
                           unseen: false,
-                          onTap: null);
+                          premiumLocked: entry.premiumLocked,
+                          onTap: entry.premiumLocked
+                              ? () {
+                                  HapticFeedback.lightImpact();
+                                  context.push('/paywall');
+                                }
+                              : null);
                     }
                     return _CardTile(
                       card: entry.card,
@@ -261,7 +285,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
             // DEBUG: Preview button per tier
             if (_filter == _Filter.bronze ||
                 _filter == _Filter.silver ||
-                _filter == _Filter.gold)
+                _filter == _Filter.gold ||
+                _filter == _Filter.emerald)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.pagePadding,
@@ -271,6 +296,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                       _Filter.bronze => '/bronze-preview',
                       _Filter.silver => '/silver-preview',
                       _Filter.gold => '/gold-preview',
+                      _Filter.emerald => '/emerald-preview',
                       _ => '',
                     }),
                     child: Container(
@@ -284,6 +310,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                             const Color(0xFFA8A9AD).withValues(alpha: 0.12),
                           _Filter.gold =>
                             const Color(0xFFC8985E).withValues(alpha: 0.15),
+                          _Filter.emerald =>
+                            AppColors.primary.withValues(alpha: 0.15),
                           _ => Colors.transparent,
                         },
                         borderRadius: BorderRadius.circular(8),
@@ -297,6 +325,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                                 _Filter.bronze => const Color(0xFFCD7F32),
                                 _Filter.silver => const Color(0xFFA8A9AD),
                                 _Filter.gold => const Color(0xFFC8985E),
+                                _Filter.emerald => AppColors.primary,
                                 _ => Colors.transparent,
                               }),
                           const SizedBox(width: 6),
@@ -305,6 +334,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                               _Filter.bronze => 'Bronze',
                               _Filter.silver => 'Silver',
                               _Filter.gold => 'Gold',
+                              _Filter.emerald => 'Emerald',
                               _ => ''
                             }} Preview',
                             style: AppTypography.labelSmall.copyWith(
@@ -312,6 +342,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                                 _Filter.bronze => const Color(0xFFCD7F32),
                                 _Filter.silver => const Color(0xFFA8A9AD),
                                 _Filter.gold => const Color(0xFFC8985E),
+                                _Filter.emerald => AppColors.primary,
                                 _ => Colors.transparent,
                               },
                             ),
@@ -339,6 +370,13 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
         for (final tier in tiers) {
           entries.add(_GridEntry(
               card: name, displayTier: tier, isMaxTier: tier == tiers.last));
+        }
+        // Conversion hook: for every Name a FREE user has collected but whose
+        // Emerald tier they haven't earned, surface one locked "Emerald ·
+        // Premium" teaser tile that routes to the paywall. Premium users never
+        // see it (they can earn Emerald directly). Denominator stays *4.
+        if (!_isPremium && !tiers.contains(CardTier.emerald)) {
+          entries.add(_GridEntry(card: name, premiumLocked: true));
         }
       }
     }
@@ -410,6 +448,9 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
           const SizedBox(width: 8),
           _filterChip(_Filter.gold, 'Gold', '${collection.totalGold}',
               dotColor: const Color(0xFFC8985E)),
+          const SizedBox(width: 8),
+          _filterChip(_Filter.emerald, 'Emerald', '${collection.totalEmerald}',
+              dotColor: AppColors.primary),
         ],
       ),
     ).animate().fadeIn(duration: 400.ms, delay: 400.ms);
@@ -541,11 +582,16 @@ class _CardTile extends StatelessWidget {
       {required this.card,
       required this.tier,
       this.unseen = false,
+      this.premiumLocked = false,
       this.onTap});
 
   final CollectibleName card;
   final CardTier? tier;
   final bool unseen;
+
+  /// Locked Emerald · Premium teaser (free users only) — renders an emerald
+  /// tinted lock tile that routes to the paywall on tap.
+  final bool premiumLocked;
   final VoidCallback? onTap;
 
   @override
@@ -564,6 +610,91 @@ class _CardTile extends StatelessWidget {
         CardTier.emerald => EmeraldOrnateTile(card: card, unseen: unseen),
       };
       return GestureDetector(onTap: onTap, child: ornateTile);
+    }
+
+    // Emerald · Premium teaser — a tasteful, on-brand locked tile that shows a
+    // free user the Emerald tier exists for a Name they've collected. Tapping
+    // routes to the paywall (handled by [onTap]).
+    if (premiumLocked) {
+      const emerald = AppColors.primary; // deep emerald #1B6B4A
+      const gold = AppColors.secondary; // warm matte gold #C8985E
+      final Widget premiumTile = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              emerald.withValues(alpha: 0.10),
+              emerald.withValues(alpha: 0.04),
+            ],
+          ),
+          border: Border.all(color: emerald.withValues(alpha: 0.25), width: 1),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.lock_rounded,
+                      color: emerald.withValues(alpha: 0.55), size: 22),
+                  const SizedBox(height: 8),
+                  // Faint Arabic Name so the tile feels tied to this card.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      card.arabic,
+                      style: AppTypography.nameOfAllahDisplay.copyWith(
+                        fontSize: 18,
+                        color: emerald.withValues(alpha: 0.5),
+                      ),
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // "Premium" badge, pinned bottom-center.
+            Positioned(
+              bottom: 8,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: gold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: gold.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.lock_rounded, size: 9, color: gold),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Premium',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: gold,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 9,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      return GestureDetector(onTap: onTap, child: premiumTile);
     }
 
     // Locked/undiscovered cards

@@ -13,6 +13,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
+import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/consumable_grants_service.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -435,6 +436,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
       return;
     }
     ref.invalidate(premiumStateProvider);
+    // Premium retro-bump: restore just re-activated premium, so promote any Gold
+    // cards to Emerald in this same session. Fire-and-forget — must never block
+    // or fail the restore flow. Self-gates on premium and is idempotent.
+    reconcilePremiumEmeralds().catchError((_) => 0);
     try {
       await checkPremiumMonthlyGrant();
     } catch (_) {}

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/public_catalog_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 /// Analytics seam for card grants. `engageCard` is a top-level service function
@@ -25,7 +26,8 @@ enum CardTier {
   bronze, // Tier 1: Name + meaning
   silver, // Tier 2: + hadith/prophetic teaching
   gold, // Tier 3: + dua
-  emerald, // Tier 4: rare/special variant (DB enum value added 2026-04-26)
+  emerald, // Tier 4: premium ceiling. DB enum value added via the
+  // <date>_add_emerald_card_tier.sql migration in this PR.
 }
 
 extension CardTierX on CardTier {
@@ -1812,7 +1814,7 @@ CollectibleName? findCollectibleByName(String name) {
 /// 1. Undiscovered names first (random)
 /// 2. Lowest-tier discovered names next (bronze before silver)
 /// 3. All maxed — random gold card (duplicate)
-CollectibleName pickNextCard(CardCollectionState collection) {
+CollectibleName pickNextCard(CardCollectionState collection, {int maxTier = 3}) {
   final rand = math.Random();
   final cards = currentCollectibleNames();
 
@@ -1833,6 +1835,14 @@ CollectibleName pickNextCard(CardCollectionState collection) {
   final silver = cards.where((n) => collection.tierFor(n.id) == 2).toList();
   if (silver.isNotEmpty) {
     return silver[rand.nextInt(silver.length)];
+  }
+
+  // Priority 4: gold cards (premium only — can tier to emerald)
+  if (maxTier >= 4) {
+    final gold = cards.where((n) => collection.tierFor(n.id) == 3).toList();
+    if (gold.isNotEmpty) {
+      return gold[rand.nextInt(gold.length)];
+    }
   }
 
   // All gold — random card (duplicate engagement)
@@ -1991,7 +2001,7 @@ Future<CardCollectionState> getCardCollection() async {
 
 /// Engage with a card — discover it or upgrade its tier.
 /// Each re-encounter tiers up immediately (no cooldown).
-Future<CardEngageResult> engageCard(int cardId) async {
+Future<CardEngageResult> engageCard(int cardId, {int maxTier = 3}) async {
   final prefs = await SharedPreferences.getInstance();
   final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
   final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
@@ -2039,13 +2049,14 @@ Future<CardEngageResult> engageCard(int cardId) async {
     tierUpDates[cardId] = todayStr;
     newTier = 1;
     tierChanged = true;
-  } else if (currentTier < 3) {
+  } else if (currentTier < maxTier) {
     // Re-encounter — tier up immediately
     newTier = currentTier + 1;
     tierUpDates[cardId] = todayStr;
     tierChanged = true;
   }
-  // tier 3 (Gold) is max — duplicate engagement
+  // At the ceiling (maxTier: Gold=3 for free, Emerald=4 for premium) —
+  // duplicate engagement.
 
   final isDuplicate = !isNew && !tierChanged;
 
@@ -2120,6 +2131,65 @@ Future<CardEngageResult> engageCard(int cardId) async {
       newTier: newTier,
       tierChanged: tierChanged,
       isDuplicate: isDuplicate);
+}
+
+/// The maximum card tier the current user can reach. Free users cap at Gold
+/// (3); premium users reach Emerald (4). This is the one place the free/premium
+/// tier boundary is defined — every engage path resolves its ceiling here.
+Future<int> premiumTierCeiling() async {
+  return (await PurchaseService().isPremium()) ? 4 : 3;
+}
+
+/// Premium retro-bump. Promotes every Gold card the user owns to Emerald via
+/// the server-authoritative `backfill_emerald_cards` RPC (which self-judges
+/// premium). The client `isPremium()` check gates the call ONLY to skip a
+/// wasted round trip for free users — the server is the authority. Newly
+/// promoted tiles are marked "unseen" so they carry the existing new-card glow.
+/// Idempotent: once no Gold remains the RPC returns an empty set → no-op.
+/// Returns the number of cards promoted.
+Future<int> reconcilePremiumEmeralds() async {
+  // Cheap local gate: never round-trip for non-premium users.
+  if (!await PurchaseService().isPremium()) return 0;
+  final userId = supabaseSyncService.currentUserId;
+  if (userId == null) return 0;
+
+  final result = await supabaseSyncService
+      .callRpc<List<dynamic>>('backfill_emerald_cards');
+  if (result == null || result.isEmpty) return 0;
+
+  // A `setof int` RPC returns a scalar array ([1,2,3]); be defensive in case a
+  // driver wraps each row in a map.
+  final bumpedIds = <int>[];
+  for (final e in result) {
+    if (e is num) {
+      bumpedIds.add(e.toInt());
+    } else if (e is Map && e.values.isNotEmpty) {
+      final v = e.values.first;
+      if (v is num) bumpedIds.add(v.toInt());
+    }
+  }
+  if (bumpedIds.isEmpty) return 0;
+
+  final prefs = await SharedPreferences.getInstance();
+  final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
+  final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
+  final raw =
+      await supabaseSyncService.migrateLegacyStringCache(prefs, _collectionKey);
+  if (raw == null) return bumpedIds.length;
+
+  final data = jsonDecode(raw) as Map<String, dynamic>;
+  final tiers = (data['tiers'] as Map<String, dynamic>?)
+          ?.map((k, v) => MapEntry(k, v as int)) ??
+      <String, int>{};
+  final seen = List<String>.from(prefs.getStringList(scopedSeenKey) ?? const []);
+  for (final id in bumpedIds) {
+    tiers['$id'] = 4;
+    seen.remove('$id:4'); // mark unseen → new-card glow on the emerald tile
+  }
+  data['tiers'] = tiers;
+  await prefs.setString(scopedCollectionKey, jsonEncode(data));
+  await prefs.setStringList(scopedSeenKey, seen);
+  return bumpedIds.length;
 }
 
 /// Mark a card as seen (user tapped to view detail).

@@ -465,8 +465,9 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // (GatingService.bypassTokenCost) at the entry CTAs. Once we're
       // inside the flow, every step is free for the user.
       final collection = await getCardCollection();
-      final card = pickNextCard(collection);
-      final engageResult = await engageCard(card.id);
+      final maxTier = await premiumTierCeiling();
+      final card = pickNextCard(collection, maxTier: maxTier);
+      final engageResult = await engageCard(card.id, maxTier: maxTier);
 
       CardEngageResult? cardResult;
       if (engageResult.tierChanged) {
@@ -705,7 +706,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
             '[CARD] Found collectible: ${collectible?.transliteration ?? "NULL"} (id: ${collectible?.id})');
         if (collectible != null) {
           engagedCard = collectible; // Always set for check-in result display
-          final engageResult = await engageCard(collectible.id);
+          final maxTier = await premiumTierCeiling();
+          final engageResult = await engageCard(collectible.id, maxTier: maxTier);
           debugPrint(
               '[CARD] Engage result: isNew=${engageResult.isNew}, tierChanged=${engageResult.tierChanged}, newTier=${engageResult.newTier}, isDuplicate=${engageResult.isDuplicate}');
           if (engageResult.tierChanged) {

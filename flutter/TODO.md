@@ -246,42 +246,18 @@ Recipe:
 
 ---
 
-## Back the paywall's premium-benefit claims (Emerald cards + streak protection)
+## Back the paywall's premium-benefit claims (streak protection)
 
 **Trigger:** before the next App Store submission that ships the updated
-onboarding paywall (commit on `feat/paywall-benefits`). Two of the five
-advertised premium benefits are NOT yet backed by a real entitlement. Shipping
+onboarding paywall (commit on `feat/paywall-benefits`). One of the five
+advertised premium benefits is NOT yet backed by a real entitlement. Shipping
 the copy ahead of the mechanic is a deliberate, owner-approved call
 (2026-07-20), but it's **App Store 3.1.1 exposure** (advertising IAP benefits
 that don't function) and a trust risk for paying users. De-risk soon.
+(The Emerald-cards claim is now backed — premium tier ceiling + server-side
+grant RPC — so it's dropped from this list.)
 
-### 1. Emerald cards — advertised "Exclusive Emerald cards for every Name", currently unearnable
-
-The Emerald tier (tier 4) is fully built as a **shell** — `CardTier.emerald`
-(`lib/services/card_collection_service.dart:28`), tier↔int↔string maps, and
-render/preview widgets labelled "Premium Exclusive"
-(`lib/features/collection/widgets/emerald_card_preview.dart`,
-`emerald_ornate_card.dart`) — but there is **no grant path**. Daily gacha caps
-at Gold (`card_collection_service.dart:2042`, `else if (currentTier < 3)`), the
-store only upgrades Bronze→Silver→Gold (`store_screen.dart:551`), and no
-referral / purchase / premium path awards tier 4.
-`lib/services/analytics_event_names.dart:583`: *"gold is the current ceiling,
-engageCard never produces emerald."*
-
-**Recipe (~small):**
-1. Let PREMIUM users tier past Gold to Emerald: gate the tier-up cap in
-   `card_collection_service.dart` (~line 2042) on `PurchaseService.isPremium()`
-   — premium re-encounters reach tier 4 (`currentTier < 4`), free stays `< 3`.
-2. Decide the exact rule: the copy says "for every Name" — confirm whether
-   premium unlocks Emerald across the whole set or must tier each card up.
-3. The collection screen already renders earned Emerald tiles (display path at
-   `:1917` handles `maxTier >= 4`); verify it.
-4. Test: premium user reaches Emerald; free user still caps at Gold.
-5. Collection is client-side (SharedPreferences), so no economy-table/RPC
-   change is needed — but respect the freemium-guard invariants if it ever
-   moves server-side.
-
-### 2. Streak protection — advertised "so you never lose progress", not premium-exclusive
+### 1. Streak protection — advertised "so you never lose progress", not premium-exclusive
 
 Free users already get the same single streak-freeze slot
 (`lib/services/streak_service.dart:296`; `daily_rewards_service.dart:85` returns

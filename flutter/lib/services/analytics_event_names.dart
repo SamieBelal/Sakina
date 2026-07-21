@@ -580,8 +580,9 @@ abstract final class AnalyticsEvents {
   // CardCollectionAnalytics.onAnalyticsEvent (no Riverpod in that service).
   // card_revealed = first discovery; tier_up = an owned card upgrading;
   // mutually exclusive per engage so Mixpanel counts stay clean. tier values
-  // are tierToEnum strings (bronze/silver/gold/emerald — gold is the current
-  // ceiling, engageCard never produces emerald).
+  // are tierToEnum strings (bronze/silver/gold/emerald). Emerald is the premium
+  // ceiling: free users cap at gold; premium reaches emerald via the tier
+  // ceiling and the backfill_emerald_cards retro-bump.
   static const String cardRevealed = 'card_revealed';
   static const String tierUp = 'tier_up';
   static const String collectionCompleted = 'collection_completed';

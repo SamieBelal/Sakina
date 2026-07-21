@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/card_collection_service.dart';
 import '../../../services/onboarding_gate_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/supabase_sync_service.dart';
@@ -548,6 +549,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _completePurchaseFlow() async {
     ref.invalidate(premiumStateProvider);
+
+    // Premium retro-bump: the user just became premium (purchase OR restore both
+    // funnel through here), so promote any Gold cards to Emerald in this same
+    // session. Fire-and-forget — must never block or fail the purchase flow.
+    // Self-gates on premium and is idempotent once nothing Gold remains.
+    unawaited(reconcilePremiumEmeralds().catchError((_) => 0));
 
     // HARD GATE: persist the durable entry latch NOW, BEFORE the (blocking,
     // dismissable) celebration overlay. Premium is already confirmed by the

@@ -108,12 +108,12 @@ abstract final class AppStrings {
   // (see gating_service.dart); benefit2's 5× applies to token/scroll daily
   // rewards (daily_rewards_service.dart), not the streak-freeze day.
   //
-  // ⚠️ SHIPPED AHEAD OF MECHANIC (owner-approved 2026-07-20): benefit3
-  // (Emerald cards) has NO grant path — the tier is built but unearnable
-  // (card_collection_service.dart caps at Gold); benefit5 (streak protection)
-  // is NOT premium-exclusive (free users get the same freeze). Both must be
-  // backed before/at the next App Store submission — tracked in TODO.md
-  // ("Back the paywall's premium-benefit claims"). 3.1.1 exposure until then.
+  // ⚠️ SHIPPED AHEAD OF MECHANIC (owner-approved 2026-07-20): benefit5
+  // (streak protection) is NOT premium-exclusive (free users get the same
+  // freeze), so the claim is still unbacked. Must be backed before/at the
+  // next App Store submission — tracked in TODO.md ("Back the paywall's
+  // premium-benefit claims"). 3.1.1 exposure until then. (benefit3, Emerald
+  // cards, is now backed: premium tier ceiling + server-side grant RPC.)
   static const paywallPremiumBenefitsHeader = 'Everything premium unlocks';
   static const paywallPremiumBenefit1 =
       'Unlimited reflections, duʿās & Name discoveries';

@@ -15,14 +15,14 @@ class CardCollectionNotifier extends StateNotifier<CardCollectionState> {
     final card = findCollectibleByName(nameTransliteration);
     if (card == null) return null;
 
-    final result = await engageCard(card.id);
+    final result = await engageCard(card.id, maxTier: await premiumTierCeiling());
     state = await getCardCollection();
     return result;
   }
 
   /// Engage a card by ID directly.
   Future<CardEngageResult> engageById(int id) async {
-    final result = await engageCard(id);
+    final result = await engageCard(id, maxTier: await premiumTierCeiling());
     state = await getCardCollection();
     return result;
   }
