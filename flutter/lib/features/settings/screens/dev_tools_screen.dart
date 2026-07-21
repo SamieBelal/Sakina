@@ -174,6 +174,8 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection('Streak', _buildStreakButtons()),
                     const SizedBox(height: AppSpacing.lg),
+                    _buildSection('Companion state', _buildCompanionButtons()),
+                    const SizedBox(height: AppSpacing.lg),
                     _buildSection('Daily Rewards', _buildDailyRewardButtons()),
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection('Quests', _buildQuestButtons()),
@@ -375,6 +377,31 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
             () => _run(() => devSetStreakGap(30, 30, 4))),
         _actionChip('Excuse ydy → continue',
             () => _run(() => devExcuseYesterdayGap(30, 30))),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Companion state (avatar brightness) — derived from streak/last_active/time,
+  // so these chips set the underlying state to force each resolved brightness.
+  // Home lantern updates live (via invalidateAllUserProviders in _run).
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildCompanionButtons() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        // Lit tiers (reflected today → last_active = today).
+        _actionChip('Endowed (new)', () => _run(() => devSetStreak(0, 0))),
+        _actionChip('Dim (1–3)', () => _run(() => devSetStreak(2, 2))),
+        _actionChip('Glowing (4–29)', () => _run(() => devSetStreak(10, 10))),
+        _actionChip('Fully-lit (30+)', () => _run(() => devSetStreak(45, 45))),
+        // Unlit (streak ≥1, not reflected today) — pending before 8pm local,
+        // at-risk after. Same lamp, copy/cue differs by the real clock.
+        _actionChip('Unlit / waiting', () => _run(() => devSetStreakUnlit(30))),
+        // Dormant (0 with history) — the cold snuffed "resting" lamp.
+        _actionChip('Dormant (resting)', () => _run(devSetDormant)),
       ],
     );
   }

@@ -141,6 +141,56 @@ Future<void> devExcuseYesterdayGap(int current, int longest) async {
   await addExcusedDate(DateTime.now().toUtc().subtract(const Duration(days: 1)));
 }
 
+/// Dev (companion visual QA): streak ≥1 but NOT reflected today (last_active =
+/// yesterday), so `resolveCompanionState` returns the UNLIT "waiting" lamp —
+/// `pendingUnlit` before 8pm local, `atRiskUnlit` after. Both render the same
+/// dark-glass / warm-housing lamp; the split is copy/cue only, driven by the
+/// real clock. Does NOT arm a lapse (last_active is only 1 day back), so viewing
+/// Home won't trigger the rescue sheet.
+Future<void> devSetStreakUnlit(int current) async {
+  final past = _daysAgoString(1);
+  await hydrateStreakCache(
+    currentStreak: current,
+    longestStreak: current,
+    lastActive: past,
+  );
+  await clearLapseCache();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': current,
+      'longest_streak': current,
+      'last_active': past,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
+    });
+  }
+}
+
+/// Dev (companion visual QA): streak at 0 but WITH history (longest > 0), so
+/// `resolveCompanionState` returns DORMANT (the cold, snuffed "resting" lamp) —
+/// distinct from the endowed new-user lamp (which needs longest == 0). No pending
+/// lapse is armed.
+Future<void> devSetDormant() async {
+  final past = _daysAgoString(5);
+  await hydrateStreakCache(
+    currentStreak: 0,
+    longestStreak: 30,
+    lastActive: past,
+  );
+  await clearLapseCache();
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    await supabaseSyncService.upsertRow('user_streaks', userId, {
+      'current_streak': 0,
+      'longest_streak': 30,
+      'last_active': past,
+      'pre_lapse_streak': null,
+      'lapsed_at': null,
+    });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Daily Rewards
 // ---------------------------------------------------------------------------
