@@ -1,17 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/purchase_service.dart';
 
 class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
   DailyRewardsNotifier() : super(const DailyRewardsState()) {
     reload();
+    // Refresh when the freeze-count cache is mutated out-of-band (the monthly
+    // premium top-up writes straight to the cache), so the freeze badge isn't
+    // stale until relaunch. A plain cache re-read is enough — the writer
+    // already reconciled with the server. Whichever order the grant and this
+    // notifier's construction happen in, the state converges: if the event
+    // fires before we subscribe, construction reload() reads the fresh cache;
+    // if after, this listener catches it.
+    _econSub = EconomyEvents.stream.listen((e) async {
+      if (e is StreakFreezeChanged) {
+        state = await getDailyRewards();
+      }
+    });
   }
 
   /// No-op constructor for tests — skips the real [reload] that hits
   /// SharedPreferences and Supabase. Only call from `@visibleForTesting` paths.
   @visibleForTesting
   DailyRewardsNotifier.testOnly() : super(const DailyRewardsState());
+
+  StreamSubscription<EconomyEvent>? _econSub;
 
   Future<void> reload() async {
     // Reconcile local SharedPrefs cache from server before reading state.
@@ -26,6 +43,12 @@ class DailyRewardsNotifier extends StateNotifier<DailyRewardsState> {
     final result = await claimDailyReward();
     state = await getDailyRewards();
     return result;
+  }
+
+  @override
+  void dispose() {
+    _econSub?.cancel();
+    super.dispose();
   }
 }
 

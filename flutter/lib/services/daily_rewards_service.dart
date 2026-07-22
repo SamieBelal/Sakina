@@ -15,8 +15,20 @@ import 'package:sakina/services/token_service.dart';
 enum RewardType { tokens, streakFreeze, tierUpScroll }
 
 /// Premium subscribers receive base token / scroll amounts multiplied by this
-/// value. Streak freeze rewards are not multiplied (the slot remains binary).
+/// value. Streak-freeze rewards are not multiplied by cadence — the premium
+/// differentiator is a larger HOLD cap (see below), not more per day-4 grant.
 const int premiumRewardMultiplier = 5;
+
+/// Per-tier ceiling on how many unused streak freezes a user may hold. Mirrors
+/// the server's `streak_freeze_cap()`
+/// (supabase/migrations/20260722000000_streak_freeze_premium_tier.sql) — the
+/// server is authoritative (enforced in `claim_daily_reward` /
+/// `grant_premium_monthly` via `has_active_premium_entitlement`); these
+/// constants exist for client-side display and the unauthenticated local path
+/// only. A premium user accumulating a larger freeze buffer is what backs
+/// paywall benefit5 ("Streak protection so you never lose progress").
+const int freeStreakFreezeCap = 1;
+const int premiumStreakFreezeCap = 3;
 
 class DayReward {
   final int day;
@@ -122,29 +134,35 @@ class DailyRewardsState {
   /// ISO date (YYYY-MM-DD) of last claimed reward
   final String? lastClaimDate;
 
-  /// Whether user owns an unused streak freeze
-  final bool streakFreezeOwned;
+  /// Number of unused streak freezes the user holds. Free users cap at
+  /// [freeStreakFreezeCap]; premium at [premiumStreakFreezeCap]. Cap is
+  /// enforced server-side — this is a client mirror.
+  final int streakFreezeCount;
 
   /// Whether today's reward has already been claimed
   final bool claimedToday;
 
+  /// True when at least one freeze is held. Derived getter so the many read
+  /// sites that only care about "has a freeze at all" stay unchanged.
+  bool get streakFreezeOwned => streakFreezeCount > 0;
+
   const DailyRewardsState({
     this.currentDay = 0,
     this.lastClaimDate,
-    this.streakFreezeOwned = false,
+    this.streakFreezeCount = 0,
     this.claimedToday = false,
   });
 
   DailyRewardsState copyWith({
     int? currentDay,
     String? lastClaimDate,
-    bool? streakFreezeOwned,
+    int? streakFreezeCount,
     bool? claimedToday,
   }) {
     return DailyRewardsState(
       currentDay: currentDay ?? this.currentDay,
       lastClaimDate: lastClaimDate ?? this.lastClaimDate,
-      streakFreezeOwned: streakFreezeOwned ?? this.streakFreezeOwned,
+      streakFreezeCount: streakFreezeCount ?? this.streakFreezeCount,
       claimedToday: claimedToday ?? this.claimedToday,
     );
   }
@@ -206,6 +224,16 @@ int _readRpcInt(Map<String, dynamic> payload, String key) {
   return value as int;
 }
 
+/// Reads the freeze count from a server row / RPC payload, tolerating the
+/// legacy shape: prefer `streak_freeze_count`, fall back to the boolean
+/// `streak_freeze_owned` (true → 1) for any pre-migration source.
+int _freezeCountFromRow(Map<String, dynamic> row) {
+  final count = row['streak_freeze_count'];
+  if (count is num) return count.toInt();
+  final owned = row['streak_freeze_owned'] as bool? ?? false;
+  return owned ? 1 : 0;
+}
+
 Future<String?> _getCachedRewardsRaw(SharedPreferences prefs) async {
   return supabaseSyncService.migrateLegacyStringCache(prefs, _rewardsKey);
 }
@@ -242,18 +270,21 @@ Future<DailyRewardsState> getDailyRewards() async {
   final data = jsonDecode(raw) as Map<String, dynamic>;
   final lastClaim = data['lastClaimDate'] as String?;
   final currentDay = data['currentDay'] as int? ?? 0;
-  final freezeOwned = data['streakFreezeOwned'] as bool? ?? false;
+  // Read the new count; fall back to the legacy boolean for caches written by
+  // a pre-count build (owned → 1, otherwise 0).
+  final freezeCount = data['streakFreezeCount'] as int? ??
+      ((data['streakFreezeOwned'] as bool? ?? false) ? 1 : 0);
 
   final today = _today();
   final yesterday = _yesterday();
 
   // Check if calendar should reset
   if (lastClaim != null && lastClaim != today && lastClaim != yesterday) {
-    // Missed more than a day — reset calendar (but keep freeze if owned)
+    // Missed more than a day — reset calendar (but keep freezes if held)
     return DailyRewardsState(
       currentDay: 0,
       lastClaimDate: lastClaim,
-      streakFreezeOwned: freezeOwned,
+      streakFreezeCount: freezeCount,
       claimedToday: false,
     );
   }
@@ -261,7 +292,7 @@ Future<DailyRewardsState> getDailyRewards() async {
   return DailyRewardsState(
     currentDay: currentDay,
     lastClaimDate: lastClaim,
-    streakFreezeOwned: freezeOwned,
+    streakFreezeCount: freezeCount,
     claimedToday: lastClaim == today,
   );
 }
@@ -273,7 +304,7 @@ Future<void> _persist(DailyRewardsState state) async {
     jsonEncode({
       'currentDay': state.currentDay,
       'lastClaimDate': state.lastClaimDate,
-      'streakFreezeOwned': state.streakFreezeOwned,
+      'streakFreezeCount': state.streakFreezeCount,
     }),
   );
 }
@@ -331,7 +362,7 @@ Future<void> reconcileDailyRewardsFromServer() async {
   final row = await supabaseSyncService.fetchRow(
     'user_daily_rewards',
     userId,
-    columns: 'current_day,last_claim_date,streak_freeze_owned',
+    columns: 'current_day,last_claim_date,streak_freeze_owned,streak_freeze_count',
   );
 
   // No row on server. Clear the local rewards cache so the next read
@@ -349,13 +380,13 @@ Future<void> reconcileDailyRewardsFromServer() async {
 
   final serverDay = row['current_day'] as int? ?? 0;
   final serverLastClaim = row['last_claim_date'] as String?;
-  final serverFreeze = row['streak_freeze_owned'] as bool? ?? false;
+  final serverFreezeCount = _freezeCountFromRow(row);
 
   await _persist(
     DailyRewardsState(
       currentDay: serverDay,
       lastClaimDate: serverLastClaim,
-      streakFreezeOwned: serverFreeze,
+      streakFreezeCount: serverFreezeCount,
       claimedToday: serverLastClaim == _today(),
     ),
   );
@@ -371,15 +402,35 @@ Future<void> reconcileDailyRewardsFromServer() async {
 Future<void> hydrateDailyRewardsCache({
   required int currentDay,
   String? lastClaimDate,
-  required bool streakFreezeOwned,
+  required int streakFreezeCount,
 }) async {
   await _persist(
     DailyRewardsState(
       currentDay: currentDay,
       lastClaimDate: lastClaimDate,
-      streakFreezeOwned: streakFreezeOwned,
+      streakFreezeCount: streakFreezeCount,
       claimedToday: lastClaimDate == _today(),
     ),
+  );
+}
+
+/// Update ONLY the persisted freeze count, leaving the daily-reward calendar
+/// (currentDay / lastClaimDate) untouched. Used by the monthly premium grant,
+/// which tops the freeze buffer up to the premium cap server-side and needs the
+/// client cache to reflect the new count immediately.
+Future<void> hydrateStreakFreezeCount(int count) async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = await _getCachedRewardsRaw(prefs);
+  final data = raw == null
+      ? <String, dynamic>{}
+      : jsonDecode(raw) as Map<String, dynamic>;
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_rewardsKey),
+    jsonEncode({
+      'currentDay': data['currentDay'] ?? 0,
+      'lastClaimDate': data['lastClaimDate'],
+      'streakFreezeCount': count < 0 ? 0 : count,
+    }),
   );
 }
 
@@ -387,16 +438,21 @@ Future<void> grantStreakFreeze() async {
   final state = await getDailyRewards();
   final userId = supabaseSyncService.currentUserId;
 
+  // "Ensure at least one freeze" — never REDUCE an existing (possibly premium)
+  // buffer. Uses the cached count as the basis so a direct upsert can't clobber
+  // a premium holder of 3 down to 1.
+  final target = state.streakFreezeCount < 1 ? 1 : state.streakFreezeCount;
+
   if (userId != null) {
     final ok = await supabaseSyncService.upsertRow(
       'user_daily_rewards',
       userId,
-      {'streak_freeze_owned': true},
+      {'streak_freeze_count': target, 'streak_freeze_owned': true},
     );
     if (!ok) return; // Server failed — don't update local either
   }
 
-  final newState = state.copyWith(streakFreezeOwned: true);
+  final newState = state.copyWith(streakFreezeCount: target);
   await _persist(newState);
 }
 
@@ -411,14 +467,16 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
     final row = await supabaseSyncService.fetchRow(
       'user_daily_rewards',
       userId,
-      columns: 'current_day,last_claim_date,streak_freeze_owned',
+      columns: 'current_day,last_claim_date,streak_freeze_owned,streak_freeze_count',
     );
     if (row != null) {
       final serverDay = row['current_day'] as int? ?? state.currentDay;
       final serverLastClaim =
           row['last_claim_date'] as String? ?? state.lastClaimDate;
-      final serverFreeze =
-          row['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned;
+      final serverFreezeCount = row['streak_freeze_count'] == null &&
+              row['streak_freeze_owned'] == null
+          ? state.streakFreezeCount
+          : _freezeCountFromRow(row);
 
       // Apply the same calendar reset logic as getDailyRewards():
       // if lastClaimDate is older than yesterday, reset to day 0.
@@ -430,7 +488,7 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
       state = DailyRewardsState(
         currentDay: needsReset ? 0 : serverDay,
         lastClaimDate: serverLastClaim,
-        streakFreezeOwned: serverFreeze,
+        streakFreezeCount: serverFreezeCount,
         claimedToday: serverLastClaim == today,
       );
     }
@@ -458,8 +516,10 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
           ? state.currentDay
           : _readRpcInt(rpcResult, 'current_day'),
       lastClaimDate: rpcResult['last_claim_date'] as String? ?? today,
-      streakFreezeOwned:
-          rpcResult['streak_freeze_owned'] as bool? ?? state.streakFreezeOwned,
+      streakFreezeCount: rpcResult['streak_freeze_count'] == null &&
+              rpcResult['streak_freeze_owned'] == null
+          ? state.streakFreezeCount
+          : _freezeCountFromRow(rpcResult),
       claimedToday: true,
     );
 
@@ -532,7 +592,7 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
   var newState = DailyRewardsState(
     currentDay: nextDay,
     lastClaimDate: today,
-    streakFreezeOwned: state.streakFreezeOwned,
+    streakFreezeCount: state.streakFreezeCount,
     claimedToday: true,
   );
 
@@ -541,8 +601,14 @@ Future<DailyRewardClaimResult> claimDailyReward() async {
 
   switch (reward.type) {
     case RewardType.streakFreeze:
-      newState = newState.copyWith(streakFreezeOwned: true);
-      earnedFreeze = true;
+      // Unauthenticated users are never premium (the monthly grant + premium
+      // entitlement both require auth), so the free cap applies. Capped
+      // increment mirrors the server's claim_daily_reward logic.
+      if (state.streakFreezeCount < freeStreakFreezeCap) {
+        newState =
+            newState.copyWith(streakFreezeCount: state.streakFreezeCount + 1);
+        earnedFreeze = true;
+      }
       break;
     case RewardType.tierUpScroll:
       earnedScroll = true;
@@ -599,14 +665,20 @@ Future<bool> consumeStreakFreeze() async {
     );
     if (consumed != true) return false;
 
-    final newState = state.copyWith(streakFreezeOwned: false);
+    // Server decremented one freeze; mirror locally (clamp at 0). A premium
+    // holder with a buffer keeps the rest.
+    final newState = state.copyWith(
+      streakFreezeCount:
+          state.streakFreezeCount > 0 ? state.streakFreezeCount - 1 : 0,
+    );
     await _persist(newState);
     return true;
   }
 
-  if (!state.streakFreezeOwned) return false;
+  if (state.streakFreezeCount <= 0) return false;
 
-  final newState = state.copyWith(streakFreezeOwned: false);
+  final newState =
+      state.copyWith(streakFreezeCount: state.streakFreezeCount - 1);
   await _persist(newState);
   return true;
 }

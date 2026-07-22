@@ -108,12 +108,14 @@ abstract final class AppStrings {
   // (see gating_service.dart); benefit2's 5× applies to token/scroll daily
   // rewards (daily_rewards_service.dart), not the streak-freeze day.
   //
-  // ⚠️ SHIPPED AHEAD OF MECHANIC (owner-approved 2026-07-20): benefit5
-  // (streak protection) is NOT premium-exclusive (free users get the same
-  // freeze), so the claim is still unbacked. Must be backed before/at the
-  // next App Store submission — tracked in TODO.md ("Back the paywall's
-  // premium-benefit claims"). 3.1.1 exposure until then. (benefit3, Emerald
-  // cards, is now backed: premium tier ceiling + server-side grant RPC.)
+  // benefit5 (streak protection) is now BACKED (2026-07-22): the streak freeze
+  // is a per-tier HOLD cap — free holds 1, premium holds up to
+  // premiumStreakFreezeCap (3) and is topped up each month by
+  // grant_premium_monthly. Enforced server-side in claim_daily_reward /
+  // grant_premium_monthly via has_active_premium_entitlement (see
+  // 20260722000000_streak_freeze_premium_tier.sql + daily_rewards_service.dart).
+  // (benefit3, Emerald cards, is likewise backed: premium tier ceiling +
+  // server-side grant RPC.)
   static const paywallPremiumBenefitsHeader = 'Everything premium unlocks';
   static const paywallPremiumBenefit1 =
       'Unlimited reflections, duʿās & Name discoveries';
@@ -121,8 +123,11 @@ abstract final class AppStrings {
   static const paywallPremiumBenefit3 =
       'Exclusive Emerald cards for every Name';
   static const paywallPremiumBenefit4 = 'A monthly gift of tokens & scrolls';
+  // Kept tight to match the sibling benefits' length (they wrap poorly on the
+  // paywall). Keeps both value hooks: the concrete premium differentiator (3,
+  // vs free's 1) and the "never lose progress" promise.
   static const paywallPremiumBenefit5 =
-      'Streak protection so you never lose progress';
+      '3 streak freezes so you never lose progress';
   static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
   static const paywallAnnualLabel = 'Yearly';

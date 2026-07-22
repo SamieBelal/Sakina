@@ -282,7 +282,7 @@ class _PremiumCelebrationOverlayState extends State<PremiumCelebrationOverlay>
                         const SizedBox(height: 10),
                         _perkPill(
                           icon: Icons.ac_unit_rounded,
-                          label: 'Streak Freeze',
+                          label: '3 Streak Freezes',
                           color: const Color(0xFF60A5FA),
                           delayMs: 400,
                         ),

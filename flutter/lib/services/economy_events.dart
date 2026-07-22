@@ -58,6 +58,15 @@ class CardCollectionChanged extends EconomyEvent {
   const CardCollectionChanged({required super.source});
 }
 
+/// Emitted when the streak-freeze count cache is mutated out-of-band — e.g. the
+/// monthly premium grant ([checkPremiumMonthlyGrant]) tops the freeze buffer up
+/// to the premium cap and writes straight to the daily-rewards cache. Lets
+/// [DailyRewardsNotifier] refresh reactively so the progress-screen freeze badge
+/// reflects the new count immediately instead of a stale value until relaunch.
+class StreakFreezeChanged extends EconomyEvent {
+  const StreakFreezeChanged({required super.source});
+}
+
 /// Broadcaster: late subscribers do NOT receive replays. UI state is loaded
 /// from the cache at startup; live events are for in-session refresh only.
 ///

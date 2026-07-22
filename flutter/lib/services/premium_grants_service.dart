@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -101,6 +102,19 @@ Future<void> _hydratePremiumGrantResult(Map<String, dynamic> rpcResult) async {
   await hydratePremiumGrantCache(
     lastGrantMonth: rpcResult['grant_month'] as String?,
   );
+
+  // The grant tops the streak-freeze buffer up to the premium cap server-side;
+  // mirror the new count into the local daily-rewards cache so the UI reflects
+  // it without waiting for the next full batch sync. Emit an out-of-band change
+  // event so DailyRewardsNotifier refreshes reactively (mirrors the
+  // CardCollectionChanged / Emerald-retro-bump pattern).
+  final freezeCount = _intValue(rpcResult['streak_freeze_count']);
+  if (freezeCount != null) {
+    await hydrateStreakFreezeCount(freezeCount);
+    EconomyEvents.publish(
+      const StreakFreezeChanged(source: EconomyEventSource.iap),
+    );
+  }
 
   final newTokenBalance = _intValue(rpcResult['new_token_balance']);
   if (newTokenBalance != null) {

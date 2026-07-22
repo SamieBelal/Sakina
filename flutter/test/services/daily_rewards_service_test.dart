@@ -43,12 +43,63 @@ void main() {
     await hydrateDailyRewardsCache(
       currentDay: 3,
       lastClaimDate: todayStr,
-      streakFreezeOwned: true,
+      streakFreezeCount: 1,
     );
 
     final state = await getDailyRewards();
     expect(state.currentDay, 3);
     expect(state.streakFreezeOwned, isTrue);
+    expect(state.streakFreezeCount, 1);
+  });
+
+  test('getDailyRewards reads legacy streakFreezeOwned cache as count', () async {
+    final today = DateTime.now().toUtc();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    SharedPreferences.setMockInitialValues({
+      'sakina_daily_rewards': jsonEncode({
+        'currentDay': 4,
+        'lastClaimDate': todayStr,
+        'streakFreezeOwned': true, // pre-count build wrote the boolean
+      }),
+    });
+    fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+
+    final state = await getDailyRewards();
+    expect(state.streakFreezeCount, 1);
+    expect(state.streakFreezeOwned, isTrue);
+  });
+
+  test('hydrateStreakFreezeCount updates only the count, keeps calendar',
+      () async {
+    final today = DateTime.now().toUtc();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    await hydrateDailyRewardsCache(
+      currentDay: 5,
+      lastClaimDate: todayStr,
+      streakFreezeCount: 0,
+    );
+
+    await hydrateStreakFreezeCount(3);
+
+    final state = await getDailyRewards();
+    expect(state.streakFreezeCount, 3);
+    expect(state.currentDay, 5, reason: 'calendar must be untouched');
+    expect(state.lastClaimDate, todayStr);
+  });
+
+  test('consumeStreakFreeze decrements a premium buffer one at a time',
+      () async {
+    fakeSync.rpcHandlers['consume_streak_freeze'] = (_) async => true;
+    await hydrateStreakFreezeCount(3);
+
+    expect(await consumeStreakFreeze(), isTrue);
+    expect((await getDailyRewards()).streakFreezeCount, 2);
+
+    expect(await consumeStreakFreeze(), isTrue);
+    expect((await getDailyRewards()).streakFreezeCount, 1);
   });
 
   test('grantStreakFreeze updates local cache and remote row', () async {

@@ -1260,7 +1260,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
                   const Icon(Icons.ac_unit, color: Color(0xFF60A5FA), size: 14),
                   const SizedBox(width: 4),
                   Text(
-                    'Streak Freeze active',
+                    rewards.streakFreezeCount > 1
+                        ? 'Streak Freeze active ×${rewards.streakFreezeCount}'
+                        : 'Streak Freeze active',
                     style: AppTypography.labelSmall.copyWith(
                       color: const Color(0xFF60A5FA),
                     ),

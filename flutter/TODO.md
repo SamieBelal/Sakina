@@ -133,30 +133,6 @@ Recipe:
 
 ---
 
-## Back the paywall's premium-benefit claims (streak protection)
-
-**Trigger:** before the next App Store submission that ships the updated
-onboarding paywall (commit on `feat/paywall-benefits`). One of the five
-advertised premium benefits is NOT yet backed by a real entitlement. Shipping
-the copy ahead of the mechanic is a deliberate, owner-approved call
-(2026-07-20), but it's **App Store 3.1.1 exposure** (advertising IAP benefits
-that don't function) and a trust risk for paying users. De-risk soon.
-(The Emerald-cards claim is now backed — premium tier ceiling + server-side
-grant RPC — so it's dropped from this list.)
-
-### 1. Streak protection — advertised "so you never lose progress", not premium-exclusive
-
-Free users already get the same single streak-freeze slot
-(`lib/services/streak_service.dart:296`; `daily_rewards_service.dart:85` returns
-the freeze reward unchanged for premium). To make the claim true, make streak
-protection a genuine premium differentiator — e.g. premium-only auto-freeze, a
-larger / refilling freeze allowance for premium — then wire + test it. (Or
-reword the benefit.)
-
-**Surfaced by:** `/review` claim-accuracy pass (Codex adversarial), 2026-07-20.
-
----
-
 ## Duʿā Rain Window (Phase 2) — PARKED
 
 This is a deliberately **PARKED** plan (eng-reviewed 2026-07-16), NOT committed

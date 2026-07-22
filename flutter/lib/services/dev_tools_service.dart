@@ -120,8 +120,10 @@ Future<void> devSetStreakGap(int current, int longest, int daysAgo) async {
     lastActive: past,
   );
   await clearLapseCache();
-  // Clear any owned freeze so an EXPIRED test isn't silently bridged by it.
-  await consumeStreakFreeze();
+  // Clear ALL held freezes so an EXPIRED test isn't silently bridged by one.
+  // A premium buffer can hold several, so drain until none remain (each
+  // consume decrements one).
+  while (await consumeStreakFreeze()) {}
   final userId = supabaseSyncService.currentUserId;
   if (userId != null) {
     await supabaseSyncService.upsertRow('user_streaks', userId, {
@@ -204,7 +206,7 @@ Future<void> devResetDailyRewards() async {
   await hydrateDailyRewardsCache(
     currentDay: 0,
     lastClaimDate: null,
-    streakFreezeOwned: false,
+    streakFreezeCount: 0,
   );
 }
 
@@ -212,7 +214,7 @@ Future<void> devAdvanceDailyRewardDay(int day) async {
   await hydrateDailyRewardsCache(
     currentDay: day,
     lastClaimDate: _yesterdayString(),
-    streakFreezeOwned: false,
+    streakFreezeCount: 0,
   );
 }
 

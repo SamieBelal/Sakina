@@ -105,12 +105,17 @@ Future<void> hydrateUserDataFromBatchRpc() async {
 
   final dailyRewards = payload.objectSection('daily_rewards');
   final currentDay = _intValue(dailyRewards?['current_day']);
+  // Prefer the freeze COUNT; fall back to the legacy boolean (true → 1) for a
+  // server still on the pre-count schema.
+  final streakFreezeCount = _intValue(dailyRewards?['streak_freeze_count']);
   final streakFreezeOwned = _boolValue(dailyRewards?['streak_freeze_owned']);
-  if (currentDay != null && streakFreezeOwned != null) {
+  final resolvedFreezeCount = streakFreezeCount ??
+      (streakFreezeOwned == null ? null : (streakFreezeOwned ? 1 : 0));
+  if (currentDay != null && resolvedFreezeCount != null) {
     await hydrateDailyRewardsCache(
       currentDay: currentDay,
       lastClaimDate: _stringValue(dailyRewards?['last_claim_date']),
-      streakFreezeOwned: streakFreezeOwned,
+      streakFreezeCount: resolvedFreezeCount,
     );
   }
   if (dailyRewards != null &&
