@@ -20,7 +20,8 @@ class TourRouteObserver extends NavigatorObserver {
   /// The route names that should hide the tour overlay while on top of the
   /// navigator. These are full-screen modals that own the user's attention.
   static const Set<String> blockingRouteNames = {
-    'NameRevealOverlay',
+    'NameRevealOverlay', // legacy reveal — still used by collection + onboarding
+    'CardRevealOverlay', // tiered muḥāsabah reveal (replaced NameRevealOverlay there)
     'LevelUpOverlay',
     'LapsedTrialSheet',
     'FirstStepsOverlay',
