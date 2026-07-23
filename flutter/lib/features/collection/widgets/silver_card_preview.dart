@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/services/card_collection_service.dart';
 
 /// Preview screen — Hearthstone-inspired dark ornate silver card design.
 class SilverCardPreviewScreen extends StatelessWidget {
@@ -847,4 +848,21 @@ class _OrnateDividerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Public tile for use in the card-reveal flow and anywhere that has a
+/// [CollectibleName] but no raw Arabic/transliteration strings.
+class SilverOrnateTile extends StatelessWidget {
+  const SilverOrnateTile({
+    super.key,
+    required this.card,
+    this.unseen = false,
+  });
+
+  final CollectibleName card;
+  final bool unseen;
+
+  @override
+  Widget build(BuildContext context) =>
+      _OrnateTile(arabic: card.arabic, transliteration: card.transliteration, unseen: unseen);
 }
