@@ -11,7 +11,8 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
-import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
+import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
@@ -103,13 +104,19 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // Identity comparison is sufficient: every discoverName call
       // constructs a new CardEngageResult, so back-to-back discoveries
       // (Seek Another Name) still trigger because instances differ.
+      //
+      // Intentional skip: `isDuplicate` pulls (no tier change) never push the
+      // reveal overlay. discoverName() leaves `cardEngageResult` null when
+      // `!tierChanged` (it awards a token instead, see daily_loop_provider.dart),
+      // so both the null guard and the `tierChanged` gate keep the tiered
+      // CardRevealOverlay strictly on new-card / tier-up outcomes.
       final prevResult = prev?.cardEngageResult;
       final nextResult = next.cardEngageResult;
       if (nextResult != null &&
           nextResult.tierChanged &&
           !next.checkinLoading &&
           !identical(prevResult, nextResult)) {
-        _pushNameRevealOverlay(next);
+        _pushCardRevealOverlay(next);
       }
     });
 
@@ -266,25 +273,33 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     );
   }
 
-  Future<void> _pushNameRevealOverlay(DailyLoopState state) async {
+  Future<void> _pushCardRevealOverlay(DailyLoopState state) async {
     if (!mounted) return;
     ref.read(questsProvider.notifier).updateMonthlyStreak(state.streakCount);
+    // The tiered reveal derives all display text from the engaged card, so we
+    // only need the CollectibleName + its outcome tier. Both come from the
+    // daily-loop state that discoverName() just wrote. Guard the (already
+    // gated) non-null values: the ref.listen only fires when
+    // cardEngageResult.tierChanged is set, and discoverName always writes
+    // engagedCard alongside it.
+    final engagedCard = state.engagedCard;
+    final engageResult = state.cardEngageResult;
+    if (engagedCard == null || engageResult == null) return;
     final rootNav = Navigator.of(context, rootNavigator: true);
     await rootNav.push(
       PageRouteBuilder(
-        settings: const RouteSettings(name: 'NameRevealOverlay'),
+        settings: const RouteSettings(name: 'CardRevealOverlay'),
         opaque: true,
         barrierDismissible: false,
-        pageBuilder: (_, __, ___) => NameRevealOverlay(
-          nameArabic:
-              state.engagedCard?.arabic ?? state.checkinNameArabic ?? '',
-          nameEnglish:
-              state.engagedCard?.transliteration ?? state.checkinName ?? '',
-          nameEnglishMeaning: state.engagedCard?.english ?? '',
-          teaching: state.engagedCard?.lesson ?? '',
-          card: state.engagedCard,
-          engageResult: state.cardEngageResult,
+        pageBuilder: (_, __, ___) => CardRevealOverlay(
+          card: engagedCard,
+          spec: revealSpecFor(engageResult.tier),
+          // Continue pops the reveal route, returning to the muhasabah screen
+          // which then shows the check-in result → "Go Deeper" hand-off into
+          // BeatRevealFlow. Identical to the legacy NameRevealOverlay pop.
           onContinue: rootNav.pop,
+          onEvent: (name, props) =>
+              DailyLoopNotifier.onAnalyticsEvent?.call(name, props),
         ),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
