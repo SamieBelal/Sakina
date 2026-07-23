@@ -737,8 +737,11 @@ class _CardFace extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Static ornate tile — rasterised once so the spin only re-composites.
-        RepaintBoundary(
+        // Breathing outer glow — kept OUTSIDE the tile's RepaintBoundary so its
+        // per-frame alpha animation (glowBreath) doesn't invalidate the cached
+        // ornate-tile raster. Drawn behind the (opaque, rounded) tile, so the
+        // visual is identical to a shadow on the tile's own decoration.
+        Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -750,8 +753,13 @@ class _CardFace extends StatelessWidget {
                 ),
               ],
             ),
-            child: revealCardTile(card, tier),
           ),
+        ),
+        // Static ornate tile — rasterised once (its inputs don't animate) so the
+        // spin only re-composites the cached raster instead of re-painting the
+        // Arabic/geometry each frame.
+        RepaintBoundary(
+          child: revealCardTile(card, tier),
         ),
         // Holographic foil + rotation-synced specular glint. Skipped entirely on
         // tiers with no foil AND no spin (nothing would draw).
