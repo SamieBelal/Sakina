@@ -18,8 +18,6 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
-import 'features/daily/models/reveal_spec.dart';
-import 'features/daily/widgets/card_reveal_overlay.dart';
 import 'features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'features/dua_times/providers/dua_window_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
@@ -42,7 +40,6 @@ import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
-import 'widgets/achievement_toast.dart';
 import 'widgets/billing_issue_banner.dart';
 import 'widgets/iap_to_sub_upsell_banner.dart';
 
@@ -428,31 +425,6 @@ class _SakinaAppState extends State<SakinaApp> {
   void initState() {
     super.initState();
     _widgetLinks.start();
-
-    // ── TEMP-REVEAL-DEBUG: open the Emerald reveal spike idle on top so it can
-    // be tapped directly during iteration. REMOVE after sign-off. ──
-    if (kDebugMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(seconds: 2), () {
-          final nav = rootNavigatorKey.currentState;
-          if (nav == null) return;
-          nav.push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => CardRevealOverlay(
-                card: allCollectibleNames.first,
-                spec: revealSpecFor(CardTier.emerald),
-                autoStart: true,
-                onContinue: nav.pop,
-              ),
-              transitionsBuilder: (_, a, __, c) =>
-                  FadeTransition(opacity: a, child: c),
-            ),
-          );
-        });
-      });
-    }
-    // ── END TEMP-REVEAL-DEBUG ──
   }
 
   @override
