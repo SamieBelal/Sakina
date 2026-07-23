@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/widgets/reveal_card_tile.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -62,7 +62,6 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // Total length of the reveal — spectacle length IS the rarity signal
   // (Clash Royale principle); Emerald is the longest by design.
   Duration get _revealDuration => widget.spec.duration;
-  int get _spinTurns => widget.spec.spinTurns; // full Y rotations before settle
 
   // Tier signature colours (used only in OUR fx layers, never the lantern flame).
   Color get _tColor => widget.spec.palette.color;
@@ -396,25 +395,32 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     final cardW = math.min(248.0, size.width * 0.64);
     final cardH = cardW / 0.72;
 
+    final spec = widget.spec;
     final appear = Curves.easeOutBack.transform(_seg(t, 0.46, 0.58));
-    final spinT = Curves.easeOutCubic.transform(_seg(t, 0.49, 0.86));
 
-    // Settle overshoot — a small decaying wobble past 0 so the landing has weight.
-    final land = _seg(t, 0.86, 1.0);
-    final wobble = math.sin(land * math.pi * 2.4) * (1 - land) * 0.11;
-    final angle = (1 - spinT) * _spinTurns * 2 * math.pi + wobble;
+    // Motion is spec-gated. Spinning tiers (Silver/Gold/Emerald) run the tuned
+    // decelerating Y-spin with a settle overshoot + front/back swap. Bronze
+    // (spinTurns == 0) just scales/fades in from the burst — no rotation, its
+    // back is never shown, and the foil phase drifts on the ambient loop only.
+    double angle = 0;
+    bool facingFront = true;
+    double spinTilt = 0; // -1..1, drives the specular sweep
+    double foilPhase = _ambient.value;
+    if (spec.spins) {
+      final spinT = Curves.easeOutCubic.transform(_seg(t, 0.49, 0.86));
+      // Settle overshoot — a small decaying wobble past 0 so the landing has weight.
+      final land = _seg(t, 0.86, 1.0);
+      final wobble = math.sin(land * math.pi * 2.4) * (1 - land) * 0.11;
+      angle = (1 - spinT) * spec.spinTurns * 2 * math.pi + wobble;
+      facingFront = math.cos(angle) >= 0;
+      spinTilt = math.sin(angle);
+      foilPhase = ((angle / (2 * math.pi)) + _ambient.value) % 1.0;
+    }
 
     // Landing scale pop + rise, then a gentle idle bob.
     final pop = _bell(_seg(t, 0.84, 0.94)) * 0.05;
     final settleY = -_seg(t, 0.84, 0.94) * 8;
     final bob = t >= 0.95 ? math.sin(_ambient.value * 2 * math.pi) * 4 : 0.0;
-
-    // "Forged from light" — a white overexposure that cools into the emerald art.
-    final birth = (1 - _seg(t, 0.47, 0.62)).clamp(0.0, 1.0);
-
-    final facingFront = math.cos(angle) >= 0;
-    final spinTilt = math.sin(angle); // -1..1, drives the specular sweep
-    final foilPhase = ((angle / (2 * math.pi)) + _ambient.value) % 1.0;
 
     final matrix = Matrix4.identity()
       ..setEntry(3, 2, 0.0012) // perspective
@@ -435,16 +441,20 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
               child: facingFront
                   ? _CardFace(
                       card: widget.card,
-                      shine: _seg(t, 0.87, 0.97),
-                      birth: birth,
+                      tier: spec.tier,
+                      shine: spec.shineSweep ? _seg(t, 0.87, 0.97) : 0,
+                      birth: spec.forgeBirth
+                          ? (1 - _seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
+                          : 0,
+                      foil: spec.foil,
                       foilPhase: foilPhase,
                       spinTilt: spinTilt,
-                      flare: _bell(_seg(t, 0.86, 0.95)),
+                      flare: _bell(_seg(t, 0.86, 0.95)) * spec.lensFlare,
                       glowBreath: breath,
                       glow: _tGlow,
                       bright: _tBright,
                     )
-                  : _CardBack(glow: _tGlow, bright: _tBright),
+                  : RevealCardBack(tier: spec.tier),
             ),
           ),
         ),
@@ -642,8 +652,10 @@ List<_Mote> _buildMotes(int n) {
 class _CardFace extends StatelessWidget {
   const _CardFace({
     required this.card,
+    required this.tier,
     required this.shine,
     required this.birth,
+    required this.foil,
     required this.foilPhase,
     required this.spinTilt,
     required this.flare,
@@ -653,11 +665,13 @@ class _CardFace extends StatelessWidget {
   });
 
   final CollectibleName card;
-  final double shine; // 0→1 diagonal sweep
-  final double birth; // 1→0 white overexposure at forge
+  final CardTier tier; // selects the ornate face tile
+  final double shine; // 0→1 diagonal sweep (0 = skip)
+  final double birth; // 1→0 white overexposure at forge (0 = skip)
+  final double foil; // 0-1 holographic foil intensity (0 = skip)
   final double foilPhase; // 0→1 holographic hue drift
   final double spinTilt; // -1..1 specular position
-  final double flare; // 0→1→0 lens-flare at land
+  final double flare; // 0→1→0 lens-flare at land (0 = skip)
   final double glowBreath; // 0..1 breathing outer glow
   final Color glow; // tier additive glow accent (outer shadow)
   final Color bright; // tier lighter accent (foil/flare)
@@ -680,19 +694,25 @@ class _CardFace extends StatelessWidget {
                 ),
               ],
             ),
-            child: EmeraldOrnateTile(card: card),
+            child: revealCardTile(card, tier),
           ),
         ),
-        // Holographic foil + rotation-synced specular glint.
-        Positioned.fill(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CustomPaint(
-              painter: _FoilPainter(
-                  foilPhase: foilPhase, tilt: spinTilt, bright: bright),
+        // Holographic foil + rotation-synced specular glint. Skipped entirely on
+        // tiers with no foil AND no spin (nothing would draw).
+        if (foil > 0 || spinTilt != 0)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CustomPaint(
+                painter: _FoilPainter(
+                  foilPhase: foilPhase,
+                  tilt: spinTilt,
+                  bright: bright,
+                  intensity: foil,
+                ),
+              ),
             ),
           ),
-        ),
         if (shine > 0 && shine < 1)
           Positioned.fill(
             child: ClipRRect(
@@ -722,10 +742,14 @@ class _CardFace extends StatelessWidget {
 // tracks the card's Y-rotation, so a highlight sweeps across as it turns.
 class _FoilPainter extends CustomPainter {
   _FoilPainter(
-      {required this.foilPhase, required this.tilt, required this.bright});
+      {required this.foilPhase,
+      required this.tilt,
+      required this.bright,
+      this.intensity = 1.0});
   final double foilPhase;
   final double tilt;
   final Color bright;
+  final double intensity; // 0-1 scales the holographic sheen (1.0 = Emerald)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -733,24 +757,27 @@ class _FoilPainter extends CustomPainter {
     final p = foilPhase;
 
     // Diagonal hue-shift sheen, band travels with the rotation phase.
-    final sheen = LinearGradient(
-      begin: Alignment(-1 + 2 * p, -1),
-      end: Alignment(1, 1 - 2 * p),
-      colors: [
-        bright.withValues(alpha: 0.0),
-        _goldBright.withValues(alpha: 0.16),
-        Colors.white.withValues(alpha: 0.10),
-        bright.withValues(alpha: 0.14),
-        bright.withValues(alpha: 0.0),
-      ],
-      stops: const [0.0, 0.38, 0.5, 0.62, 1.0],
-    ).createShader(rect);
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = sheen
-        ..blendMode = BlendMode.plus,
-    );
+    // Alpha scaled by [intensity] so lower tiers get a subtler (or no) foil.
+    if (intensity > 0) {
+      final sheen = LinearGradient(
+        begin: Alignment(-1 + 2 * p, -1),
+        end: Alignment(1, 1 - 2 * p),
+        colors: [
+          bright.withValues(alpha: 0.0),
+          _goldBright.withValues(alpha: 0.16 * intensity),
+          Colors.white.withValues(alpha: 0.10 * intensity),
+          bright.withValues(alpha: 0.14 * intensity),
+          bright.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.38, 0.5, 0.62, 1.0],
+      ).createShader(rect);
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = sheen
+          ..blendMode = BlendMode.plus,
+      );
+    }
 
     // Specular band — brightest mid-turn, position tracks the tilt.
     final strength = tilt.abs();
@@ -778,7 +805,8 @@ class _FoilPainter extends CustomPainter {
   bool shouldRepaint(covariant _FoilPainter old) =>
       old.foilPhase != foilPhase ||
       old.tilt != tilt ||
-      old.bright != bright;
+      old.bright != bright ||
+      old.intensity != intensity;
 }
 
 // A horizontal anamorphic lens-flare that flashes across the card as it lands.
@@ -827,83 +855,6 @@ class _LensFlarePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LensFlarePainter old) =>
       old.flare != flare || old.bright != bright;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Card back — symmetric emerald geometric motif (shown while facing away).
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _CardBack extends StatelessWidget {
-  const _CardBack({required this.glow, required this.bright});
-
-  final Color glow; // tier additive glow accent (outer shadow)
-  final Color bright; // tier lighter accent (motif strokes)
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: const RadialGradient(
-          center: Alignment(0, -0.1),
-          radius: 1.1,
-          colors: [Color(0xFF1A3328), Color(0xFF0F1F16)],
-        ),
-        border: Border.all(color: _gold.withValues(alpha: 0.6), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: glow.withValues(alpha: 0.4),
-            blurRadius: 40,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: CustomPaint(painter: _CardBackPainter(bright)),
-    );
-  }
-}
-
-class _CardBackPainter extends CustomPainter {
-  const _CardBackPainter(this.bright);
-
-  final Color bright;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.shortestSide * 0.30;
-
-    final gold = Paint()
-      ..color = _goldBright.withValues(alpha: 0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
-    final accent = Paint()
-      ..color = bright.withValues(alpha: 0.7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // Two overlaid squares → 8-point star (khatam), plus concentric rings.
-    for (final rot in [0.0, math.pi / 4]) {
-      final p = Path();
-      for (int i = 0; i < 4; i++) {
-        final a = rot + i * math.pi / 2;
-        final pt = c + Offset(math.cos(a), math.sin(a)) * r;
-        if (i == 0) {
-          p.moveTo(pt.dx, pt.dy);
-        } else {
-          p.lineTo(pt.dx, pt.dy);
-        }
-      }
-      p.close();
-      canvas.drawPath(p, gold);
-    }
-    canvas.drawCircle(c, r * 0.62, accent);
-    canvas.drawCircle(c, r * 0.34, gold);
-    canvas.drawCircle(c, 3, Paint()..color = bright);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CardBackPainter oldDelegate) => false;
 }
 
 class _ShineSweepPainter extends CustomPainter {
