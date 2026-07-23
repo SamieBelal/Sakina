@@ -608,6 +608,15 @@ abstract final class AnalyticsEvents {
   static const String tierUp = 'tier_up';
   static const String collectionCompleted = 'collection_completed';
 
+  // Tiered card-reveal overlay (Bronze→Emerald gacha hero moment). Emitted from
+  // CardRevealOverlay via its `onEvent` callback (no Riverpod in the pushed
+  // route widget — the muḥāsabah caller wires the dispatch). `card_reveal_shown`
+  // fires when the sequence starts; `card_reveal_completed` fires when the user
+  // continues. Props: `tier` (bronze/silver/gold/emerald), `dwell_ms` (elapsed
+  // since shown), `auto` (true only for the dev/preview auto-loop).
+  static const String cardRevealShown = 'card_reveal_shown';
+  static const String cardRevealCompleted = 'card_reveal_completed';
+
   // Duas + Journal (2026-06-15 — instrument the two guided-tour features the
   // 6/19 reassessment can't otherwise evaluate; see the onboarding-paywall ADR).
   // dua_built = a Build-a-Dua call that returned a real dua (non-empty

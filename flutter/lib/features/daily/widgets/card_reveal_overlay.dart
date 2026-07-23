@@ -7,6 +7,7 @@ import 'package:sakina/features/daily/models/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/reveal_card_tile.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/card_collection_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,12 +43,18 @@ class CardRevealOverlay extends StatefulWidget {
     required this.card,
     required this.spec,
     this.onContinue,
+    this.onEvent,
     this.autoStart = false,
   });
 
   final CollectibleName card;
   final RevealSpec spec;
   final VoidCallback? onContinue;
+
+  /// Analytics dispatch hook (no Riverpod in this pushed-route widget). The
+  /// muḥāsabah caller wires this to the app's analytics track; dev/preview
+  /// callers pass nothing, so no events fire from the debug loop.
+  final void Function(String name, Map<String, Object?> props)? onEvent;
 
   /// Debug/verification only: begin the sequence without a tap, and loop it so
   /// screenshots can catch every beat. Never set from the real reveal flow.
@@ -73,6 +80,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
 
   bool _started = false;
   bool _dismissed = false;
+  // Measures dwell (shown → continued) for the reveal telemetry. Started in
+  // _open(); read in _continue().
+  final Stopwatch _dwell = Stopwatch();
   late final List<_Spark> _sparks = _buildSparks(widget.spec.sparkCount);
   final List<_Mote> _motes = _buildMotes(14);
 
@@ -112,6 +122,14 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   void _open() {
     if (_started) return;
     setState(() => _started = true);
+    _dwell
+      ..reset()
+      ..start();
+    widget.onEvent?.call(AnalyticsEvents.cardRevealShown, {
+      'tier': widget.spec.tier.label,
+      'dwell_ms': 0,
+      'auto': widget.autoStart,
+    });
     HapticFeedback.mediumImpact();
     _reveal.forward();
     _scheduleHaptics();
@@ -180,6 +198,11 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   void _continue() {
     if (_dismissed) return;
     _dismissed = true;
+    widget.onEvent?.call(AnalyticsEvents.cardRevealCompleted, {
+      'tier': widget.spec.tier.label,
+      'dwell_ms': _dwell.elapsedMilliseconds,
+      'auto': widget.autoStart,
+    });
     HapticFeedback.lightImpact();
     if (widget.onContinue != null) {
       widget.onContinue!();
