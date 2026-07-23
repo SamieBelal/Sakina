@@ -8,6 +8,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/daily/widgets/emerald_reveal_spike.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
 import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
@@ -184,6 +185,9 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection(
                         'Toast Previews', _buildToastPreviewButtons()),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildSection(
+                        'Reveal Previews (spike)', _buildRevealPreviewButtons()),
                     const SizedBox(height: AppSpacing.lg),
                     _buildSection(
                         'Duʿā Times preview', _buildDuaTimesPreviewButtons()),
@@ -514,6 +518,37 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
               ));
         }),
       ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Reveal Previews (Clash-Royale-style spike) — feel the choreography on-device
+  // without needing a real gacha pull. Emerald = the "legendary" hero moment.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildRevealPreviewButtons() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _actionChip('Emerald (legendary)', _previewEmeraldReveal),
+      ],
+    );
+  }
+
+  void _previewEmeraldReveal() {
+    // Use a card with full content (id 1 = Allah) as the placeholder face.
+    final card = allCollectibleNames.first;
+    final nav = Navigator.of(context, rootNavigator: true);
+    nav.push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) =>
+            EmeraldRevealSpike(card: card, onContinue: nav.pop),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 250),
+      ),
     );
   }
 
