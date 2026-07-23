@@ -80,6 +80,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
 
   bool _started = false;
   bool _dismissed = false;
+  // OS "reduce animation" — resolved in _open() (MediaQuery isn't safe in
+  // initState). When true the spectacle collapses to an instant settle and the
+  // long haptic ratchet / autoStart restart loop are skipped (no timers linger).
+  bool _reduceMotion = false;
   // Measures dwell (shown → continued) for the reveal telemetry. Started in
   // _open(); read in _continue().
   final Stopwatch _dwell = Stopwatch();
@@ -98,7 +102,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     if (widget.autoStart) {
       // Loop the whole sequence so timed screenshots catch every beat.
       _reveal.addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
+        // Under reduced motion the reveal is a static settle — don't loop it
+        // (would leave a pending restart timer + defeats the a11y intent).
+        if (status == AnimationStatus.completed && mounted && !_reduceMotion) {
           Future.delayed(const Duration(milliseconds: 1400), () {
             if (!mounted) return;
             _reveal.forward(from: 0);
@@ -121,6 +127,16 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
 
   void _open() {
     if (_started) return;
+    // Reduced motion (OS "reduce animation"): collapse the whole normalized
+    // timeline into a short fade so it resolves straight to the settled card +
+    // Continue, skipping the long spin/particle spectacle. All _seg windows
+    // still resolve — just fast. MediaQuery is safe to read here (called from a
+    // tap or a post-frame callback, never initState). The default
+    // (disableAnimations false) path is untouched.
+    _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (_reduceMotion) {
+      _reveal.duration = const Duration(milliseconds: 500);
+    }
     setState(() => _started = true);
     _dwell
       ..reset()
@@ -131,8 +147,17 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
       'auto': widget.autoStart,
     });
     HapticFeedback.mediumImpact();
-    _reveal.forward();
-    _scheduleHaptics();
+    if (_reduceMotion) {
+      // Reduced motion: skip the spin/particle spectacle AND the long haptic
+      // ratchet. Snap the shared timeline to the settle so the card + "Tap to
+      // continue" are present immediately (a plain cut to the settled card,
+      // wrapped in the overlay's own route fade). No dependence on ticker
+      // elapsed time and no lingering timers.
+      _reveal.value = 1.0;
+    } else {
+      _reveal.forward();
+      _scheduleHaptics();
+    }
   }
 
   // Haptic tattoo tuned to the beats, escalating with the tier's [HapticProfile].
@@ -191,8 +216,16 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
       _open();
       return;
     }
-    if (_interactive) _continue();
-    // taps mid-reveal are intentionally swallowed
+    if (_interactive) {
+      _continue();
+      return;
+    }
+    // Tap-to-skip (all tiers): a mid-reveal tap snaps the timeline to the
+    // settle so the card + Continue appear immediately. A subsequent tap (now
+    // _interactive) continues — so this never double-fires onContinue.
+    _reveal
+      ..stop()
+      ..value = 1.0;
   }
 
   void _continue() {
