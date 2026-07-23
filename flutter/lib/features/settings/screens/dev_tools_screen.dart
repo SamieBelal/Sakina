@@ -8,7 +8,8 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
-import 'package:sakina/features/daily/widgets/emerald_reveal_spike.dart';
+import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
+import 'package:sakina/features/daily/models/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
 import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';
@@ -527,29 +528,22 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildRevealPreviewButtons() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _actionChip('Emerald (legendary)', _previewEmeraldReveal),
-      ],
-    );
+    return Wrap(spacing: 8, runSpacing: 8, children: [
+      for (final tier in CardTier.values)
+        _actionChip(tier.label, () => _previewReveal(tier)),
+    ]);
   }
 
-  void _previewEmeraldReveal() {
-    // Use a card with full content (id 1 = Allah) as the placeholder face.
+  void _previewReveal(CardTier tier) {
     final card = allCollectibleNames.first;
     final nav = Navigator.of(context, rootNavigator: true);
-    nav.push(
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (_, __, ___) =>
-            EmeraldRevealSpike(card: card, onContinue: nav.pop),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 250),
-      ),
-    );
+    nav.push(PageRouteBuilder(
+      opaque: false,
+      pageBuilder: (_, __, ___) => CardRevealOverlay(
+          card: card, spec: revealSpecFor(tier), onContinue: nav.pop),
+      transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+      transitionDuration: const Duration(milliseconds: 250),
+    ));
   }
 
   // ─────────────────────────────────────────────────────────────────────────
