@@ -18,7 +18,8 @@ import 'core/env.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/daily/providers/daily_loop_provider.dart';
-import 'features/daily/widgets/emerald_reveal_spike.dart';
+import 'features/daily/models/reveal_spec.dart';
+import 'features/daily/widgets/card_reveal_overlay.dart';
 import 'features/dua_times/providers/dua_notification_scheduler_provider.dart';
 import 'features/dua_times/providers/dua_window_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
@@ -438,8 +439,10 @@ class _SakinaAppState extends State<SakinaApp> {
           nav.push(
             PageRouteBuilder(
               opaque: false,
-              pageBuilder: (_, __, ___) => EmeraldRevealSpike(
+              pageBuilder: (_, __, ___) => CardRevealOverlay(
                 card: allCollectibleNames.first,
+                spec: revealSpecFor(CardTier.emerald),
+                autoStart: true,
                 onContinue: nav.pop,
               ),
               transitionsBuilder: (_, a, __, c) =>

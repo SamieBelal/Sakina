@@ -4,43 +4,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
+import 'package:sakina/features/daily/models/reveal_spec.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/services/card_collection_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EMERALD REVEAL SPIKE — the "legendary" hero moment prototype.
+// CARD REVEAL OVERLAY — the tiered gacha hero moment (Bronze→Emerald).
 //
 // Self-contained, native (no new Lottie yet) so every beat is tunable live via
 // the _seg() windows below. Choreography (single controller, D = _revealDuration):
 //   idle          → unlit lantern, waits for a tap
-//   ignite        → tier colour + green god-rays gather around the lamp
+//   ignite        → tier colour + god-rays gather around the lamp
 //   burst         → flash + radial shafts + expanding rings + sparks (heavy haptic)
 //   forge/spin    → card is forged white-hot from the nūr, cools, spins 360°×N
-//   settle        → overshoot land, shine + lens-flare, EMERALD badge staggers in
+//   settle        → overshoot land, shine + lens-flare, TIER badge staggers in
 //   rest          → breathing aurora + floating embers keep it alive
 //
-// In production the FX layers move to authored Lottie; the CARD + spin stay
-// native (data-driven Arabic). Tier colour is currently hardcoded emerald.
+// The choreography (normalized 0→1 _seg windows) is SHARED across tiers; only
+// the wall-clock `duration`, feature intensities/toggles, spin turns, spark
+// count and haptics change — all driven by the injected [RevealSpec]. Emerald's
+// spec sets every toggle to max (all 1.0, halo true, 30 sparks, 3 spins,
+// legendary haptics) so it reproduces the approved Emerald spike exactly.
+//
+// In production the FX layers may move to authored Lottie; the CARD + spin stay
+// native (data-driven Arabic). Tier colour lives only in OUR fx layers.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Emerald palette (mirrors emerald_ornate_card.dart's private constants).
-const _emeraldBright = Color(0xFF7EEAAF);
-const _emeraldCore = Color(0xFF3CB371);
-const _glow = Color(0xFF4AE68A);
+// Tier-neutral shared warm accents + canvas.
 const _gold = Color(0xFFC8985E);
 const _goldBright = Color(0xFFEDD9A3);
 const _canvas = Color(0xFF05100A);
 
-class EmeraldRevealSpike extends StatefulWidget {
-  const EmeraldRevealSpike({
+class CardRevealOverlay extends StatefulWidget {
+  const CardRevealOverlay({
     super.key,
     required this.card,
+    required this.spec,
     this.onContinue,
     this.autoStart = false,
   });
 
   final CollectibleName card;
+  final RevealSpec spec;
   final VoidCallback? onContinue;
 
   /// Debug/verification only: begin the sequence without a tap, and loop it so
@@ -48,22 +54,27 @@ class EmeraldRevealSpike extends StatefulWidget {
   final bool autoStart;
 
   @override
-  State<EmeraldRevealSpike> createState() => _EmeraldRevealSpikeState();
+  State<CardRevealOverlay> createState() => _CardRevealOverlayState();
 }
 
-class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
+class _CardRevealOverlayState extends State<CardRevealOverlay>
     with TickerProviderStateMixin {
-  // Total length of the "legendary" reveal. Emerald is the longest tier by
-  // design — spectacle length IS the rarity signal (Clash Royale principle).
-  static const Duration _revealDuration = Duration(milliseconds: 7000);
-  static const int _spinTurns = 3; // full Y rotations before it settles
+  // Total length of the reveal — spectacle length IS the rarity signal
+  // (Clash Royale principle); Emerald is the longest by design.
+  Duration get _revealDuration => widget.spec.duration;
+  int get _spinTurns => widget.spec.spinTurns; // full Y rotations before settle
+
+  // Tier signature colours (used only in OUR fx layers, never the lantern flame).
+  Color get _tColor => widget.spec.palette.color;
+  Color get _tBright => widget.spec.palette.bright;
+  Color get _tGlow => widget.spec.palette.glow;
 
   late final AnimationController _reveal; // one-shot, driven on tap
   late final AnimationController _ambient; // looping (breathing + drift)
 
   bool _started = false;
   bool _dismissed = false;
-  final List<_Spark> _sparks = _buildSparks(30);
+  late final List<_Spark> _sparks = _buildSparks(widget.spec.sparkCount);
   final List<_Mote> _motes = _buildMotes(14);
 
   @override
@@ -107,9 +118,10 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
     _scheduleHaptics();
   }
 
-  // Haptic tattoo tuned to the beats. The spin fires a RATCHET of clicks that
-  // widen as it decelerates (fast→slow), so it feels mechanical/weighty even
-  // though we're haptics-only. Guarded by mounted.
+  // Haptic tattoo tuned to the beats, escalating with the tier's [HapticProfile].
+  // The `legendary` (Emerald) case fires a RATCHET of clicks that widen as the
+  // spin decelerates (fast→slow), so it feels mechanical/weighty even though
+  // we're haptics-only — unchanged from the approved spike. Guarded by mounted.
   void _scheduleHaptics() {
     void at(double frac, VoidCallback fn) {
       Future.delayed(_revealDuration * frac, () {
@@ -117,18 +129,42 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
       });
     }
 
-    at(0.18, HapticFeedback.selectionClick); // rays gathering
-    at(0.30, HapticFeedback.selectionClick);
-    at(0.42, HapticFeedback.heavyImpact); // the burst
-    // Ratchet across the spin — widening gaps as it slows.
-    at(0.50, HapticFeedback.selectionClick);
-    at(0.56, HapticFeedback.selectionClick);
-    at(0.62, HapticFeedback.selectionClick);
-    at(0.68, HapticFeedback.selectionClick);
-    at(0.74, HapticFeedback.lightImpact);
-    at(0.80, HapticFeedback.lightImpact);
-    at(0.86, HapticFeedback.heavyImpact); // card lands
-    at(0.96, HapticFeedback.lightImpact); // name settles
+    switch (widget.spec.haptics) {
+      case HapticProfile.light:
+        at(0.30, HapticFeedback.selectionClick);
+        at(0.55, HapticFeedback.mediumImpact); // small pop
+        at(0.90, HapticFeedback.lightImpact);
+        break;
+      case HapticProfile.medium:
+        at(0.25, HapticFeedback.selectionClick);
+        at(0.48, HapticFeedback.heavyImpact); // burst
+        at(0.70, HapticFeedback.selectionClick);
+        at(0.90, HapticFeedback.lightImpact);
+        break;
+      case HapticProfile.rich:
+        at(0.22, HapticFeedback.selectionClick);
+        at(0.44, HapticFeedback.heavyImpact);
+        for (final f in [0.56, 0.64, 0.72, 0.80]) {
+          at(f, HapticFeedback.selectionClick);
+        }
+        at(0.88, HapticFeedback.heavyImpact);
+        at(0.96, HapticFeedback.lightImpact);
+        break;
+      case HapticProfile.legendary:
+        // the tuned Emerald ratchet (unchanged from the approved spike)
+        at(0.18, HapticFeedback.selectionClick); // rays gathering
+        at(0.30, HapticFeedback.selectionClick);
+        at(0.42, HapticFeedback.heavyImpact); // the burst
+        // Ratchet across the spin — widening gaps as it slows.
+        for (final f in [0.50, 0.56, 0.62, 0.68]) {
+          at(f, HapticFeedback.selectionClick);
+        }
+        at(0.74, HapticFeedback.lightImpact);
+        at(0.80, HapticFeedback.lightImpact);
+        at(0.86, HapticFeedback.heavyImpact); // card lands
+        at(0.96, HapticFeedback.lightImpact); // name settles
+        break;
+    }
   }
 
   bool get _interactive => _reveal.value >= 0.95;
@@ -165,11 +201,12 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
             final t = _reveal.value;
             final breath = 0.5 + 0.5 * math.sin(_ambient.value * 2 * math.pi);
             final spin = _ambient.value * 2 * math.pi;
+            final spec = widget.spec;
             return SizedBox.expand(
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // 1 ── Atmosphere: darken + emerald pool + focus vignette.
+                  // 1 ── Atmosphere: darken + tier-coloured pool + focus vignette.
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
@@ -177,20 +214,21 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                           darken: _seg(t, 0.34, 0.58),
                           pool: _seg(t, 0.50, 0.92),
                           breath: breath,
+                          color: _tColor,
                         ),
                       ),
                     ),
                   ),
 
-                  // 2 ── Emerald god-rays growing out of the lantern (the tease).
+                  // 2 ── Tier god-rays growing out of the lantern (the tease).
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
                         painter: _LanternRaysPainter(
-                          grow: _seg(t, 0.05, 0.34),
+                          grow: _seg(t, 0.05, 0.34) * spec.godRays,
                           fade: 1 - _seg(t, 0.40, 0.50),
                           rotation: spin,
-                          color: _glow,
+                          color: _tGlow,
                         ),
                       ),
                     ),
@@ -205,7 +243,9 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                           rotation: spin,
                           opacity: _seg(t, 0.42, 0.56) *
                               (1 - 0.55 * _seg(t, 0.88, 1.0)) *
-                              (0.9 + 0.1 * breath),
+                              (0.9 + 0.1 * breath) *
+                              spec.aurora,
+                          bright: _tBright,
                         ),
                       ),
                     ),
@@ -218,8 +258,10 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                         painter: _BurstPainter(
                           rings: _seg(t, 0.38, 0.66),
                           flash: _bell(_seg(t, 0.38, 0.52)),
-                          shafts: _bell(_seg(t, 0.40, 0.56)),
+                          shafts: _bell(_seg(t, 0.40, 0.56)) * spec.radialShafts,
                           rotation: spin,
+                          color: _tBright,
+                          glow: _tGlow,
                         ),
                       ),
                     ),
@@ -232,33 +274,36 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                         painter: _SparkPainter(
                           sparks: _sparks,
                           progress: _seg(t, 0.40, 0.78),
+                          bright: _tBright,
                         ),
                       ),
                     ),
                   ),
 
                   // 6 ── Halo ring behind the settled card (emerald-only flourish).
-                  if (t > 0.80)
+                  if (spec.halo && t > 0.80)
                     Positioned.fill(
                       child: RepaintBoundary(
                         child: CustomPaint(
                           painter: _HaloPainter(
                             rotation: spin,
                             opacity: _seg(t, 0.82, 0.96) * (0.85 + 0.15 * breath),
+                            bright: _tBright,
                           ),
                         ),
                       ),
                     ),
 
                   // 7 ── Floating embers around the rested card (persistent life).
-                  if (t > 0.80)
+                  if (spec.restMotes > 0 && t > 0.80)
                     Positioned.fill(
                       child: RepaintBoundary(
                         child: CustomPaint(
                           painter: _MotePainter(
                             motes: _motes,
                             phase: _ambient.value,
-                            opacity: _seg(t, 0.84, 0.97),
+                            opacity: _seg(t, 0.84, 0.97) * spec.restMotes,
+                            bright: _tBright,
                           ),
                         ),
                       ),
@@ -322,9 +367,9 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                       gradient: RadialGradient(
                         colors: [
                           Colors.white.withValues(alpha: 0.45 * charge),
-                          _emeraldBright.withValues(alpha: 0.42 * charge),
-                          _glow.withValues(alpha: 0.12 * charge),
-                          _glow.withValues(alpha: 0.0),
+                          _tBright.withValues(alpha: 0.42 * charge),
+                          _tGlow.withValues(alpha: 0.12 * charge),
+                          _tGlow.withValues(alpha: 0.0),
                         ],
                         stops: const [0.0, 0.32, 0.6, 1.0],
                       ),
@@ -396,8 +441,10 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                       spinTilt: spinTilt,
                       flare: _bell(_seg(t, 0.86, 0.95)),
                       glowBreath: breath,
+                      glow: _tGlow,
+                      bright: _tBright,
                     )
-                  : const _CardBack(),
+                  : _CardBack(glow: _tGlow, bright: _tBright),
             ),
           ),
         ),
@@ -435,14 +482,14 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _emeraldCore.withValues(alpha: 0.15),
+                  color: _tColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: _gold.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  'EMERALD',
+                  widget.spec.tier.label.toUpperCase(),
                   style: AppTypography.labelSmall.copyWith(
-                    color: _emeraldBright,
+                    color: _tBright,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 3.5,
                     fontSize: 11,
@@ -503,7 +550,7 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
               color: _goldBright.withValues(alpha: 0.55 + 0.4 * breath),
               boxShadow: [
                 BoxShadow(
-                  color: _glow.withValues(alpha: 0.5 * breath),
+                  color: _tGlow.withValues(alpha: 0.5 * breath),
                   blurRadius: 12,
                   spreadRadius: 1,
                 ),
@@ -520,7 +567,7 @@ class _EmeraldRevealSpikeState extends State<EmeraldRevealSpike>
                 letterSpacing: 4,
                 fontWeight: FontWeight.w500,
                 shadows: [
-                  Shadow(color: _glow.withValues(alpha: 0.35), blurRadius: 18),
+                  Shadow(color: _tGlow.withValues(alpha: 0.35), blurRadius: 18),
                 ],
               ),
             ),
@@ -601,6 +648,8 @@ class _CardFace extends StatelessWidget {
     required this.spinTilt,
     required this.flare,
     required this.glowBreath,
+    required this.glow,
+    required this.bright,
   });
 
   final CollectibleName card;
@@ -610,6 +659,8 @@ class _CardFace extends StatelessWidget {
   final double spinTilt; // -1..1 specular position
   final double flare; // 0→1→0 lens-flare at land
   final double glowBreath; // 0..1 breathing outer glow
+  final Color glow; // tier additive glow accent (outer shadow)
+  final Color bright; // tier lighter accent (foil/flare)
 
   @override
   Widget build(BuildContext context) {
@@ -623,7 +674,7 @@ class _CardFace extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: _glow.withValues(alpha: 0.42 + 0.16 * glowBreath),
+                  color: glow.withValues(alpha: 0.42 + 0.16 * glowBreath),
                   blurRadius: 48,
                   spreadRadius: 6,
                 ),
@@ -637,7 +688,8 @@ class _CardFace extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: CustomPaint(
-              painter: _FoilPainter(foilPhase: foilPhase, tilt: spinTilt),
+              painter: _FoilPainter(
+                  foilPhase: foilPhase, tilt: spinTilt, bright: bright),
             ),
           ),
         ),
@@ -650,7 +702,7 @@ class _CardFace extends StatelessWidget {
           ),
         if (flare > 0.01)
           Positioned.fill(
-            child: CustomPaint(painter: _LensFlarePainter(flare)),
+            child: CustomPaint(painter: _LensFlarePainter(flare, bright)),
           ),
         if (birth > 0.01)
           Positioned.fill(
@@ -669,9 +721,11 @@ class _CardFace extends StatelessWidget {
 // Holographic foil sheen (a travelling diagonal rainbow) + a specular band that
 // tracks the card's Y-rotation, so a highlight sweeps across as it turns.
 class _FoilPainter extends CustomPainter {
-  _FoilPainter({required this.foilPhase, required this.tilt});
+  _FoilPainter(
+      {required this.foilPhase, required this.tilt, required this.bright});
   final double foilPhase;
   final double tilt;
+  final Color bright;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -683,11 +737,11 @@ class _FoilPainter extends CustomPainter {
       begin: Alignment(-1 + 2 * p, -1),
       end: Alignment(1, 1 - 2 * p),
       colors: [
-        _emeraldBright.withValues(alpha: 0.0),
+        bright.withValues(alpha: 0.0),
         _goldBright.withValues(alpha: 0.16),
         Colors.white.withValues(alpha: 0.10),
-        _emeraldBright.withValues(alpha: 0.14),
-        _emeraldBright.withValues(alpha: 0.0),
+        bright.withValues(alpha: 0.14),
+        bright.withValues(alpha: 0.0),
       ],
       stops: const [0.0, 0.38, 0.5, 0.62, 1.0],
     ).createShader(rect);
@@ -722,13 +776,16 @@ class _FoilPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FoilPainter old) =>
-      old.foilPhase != foilPhase || old.tilt != tilt;
+      old.foilPhase != foilPhase ||
+      old.tilt != tilt ||
+      old.bright != bright;
 }
 
 // A horizontal anamorphic lens-flare that flashes across the card as it lands.
 class _LensFlarePainter extends CustomPainter {
-  _LensFlarePainter(this.flare);
+  _LensFlarePainter(this.flare, this.bright);
   final double flare;
+  final Color bright;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -736,9 +793,9 @@ class _LensFlarePainter extends CustomPainter {
     final streak = LinearGradient(
       colors: [
         Colors.white.withValues(alpha: 0.0),
-        _emeraldBright.withValues(alpha: 0.5 * flare),
+        bright.withValues(alpha: 0.5 * flare),
         Colors.white.withValues(alpha: 0.85 * flare),
-        _emeraldBright.withValues(alpha: 0.5 * flare),
+        bright.withValues(alpha: 0.5 * flare),
         Colors.white.withValues(alpha: 0.0),
       ],
       stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
@@ -768,7 +825,8 @@ class _LensFlarePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _LensFlarePainter old) => old.flare != flare;
+  bool shouldRepaint(covariant _LensFlarePainter old) =>
+      old.flare != flare || old.bright != bright;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -776,7 +834,10 @@ class _LensFlarePainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CardBack extends StatelessWidget {
-  const _CardBack();
+  const _CardBack({required this.glow, required this.bright});
+
+  final Color glow; // tier additive glow accent (outer shadow)
+  final Color bright; // tier lighter accent (motif strokes)
 
   @override
   Widget build(BuildContext context) {
@@ -791,19 +852,21 @@ class _CardBack extends StatelessWidget {
         border: Border.all(color: _gold.withValues(alpha: 0.6), width: 2),
         boxShadow: [
           BoxShadow(
-            color: _glow.withValues(alpha: 0.4),
+            color: glow.withValues(alpha: 0.4),
             blurRadius: 40,
             spreadRadius: 4,
           ),
         ],
       ),
-      child: const CustomPaint(painter: _CardBackPainter()),
+      child: CustomPaint(painter: _CardBackPainter(bright)),
     );
   }
 }
 
 class _CardBackPainter extends CustomPainter {
-  const _CardBackPainter();
+  const _CardBackPainter(this.bright);
+
+  final Color bright;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -814,8 +877,8 @@ class _CardBackPainter extends CustomPainter {
       ..color = _goldBright.withValues(alpha: 0.85)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
-    final emerald = Paint()
-      ..color = _emeraldBright.withValues(alpha: 0.7)
+    final accent = Paint()
+      ..color = bright.withValues(alpha: 0.7)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 
@@ -834,9 +897,9 @@ class _CardBackPainter extends CustomPainter {
       p.close();
       canvas.drawPath(p, gold);
     }
-    canvas.drawCircle(c, r * 0.62, emerald);
+    canvas.drawCircle(c, r * 0.62, accent);
     canvas.drawCircle(c, r * 0.34, gold);
-    canvas.drawCircle(c, 3, Paint()..color = _emeraldBright);
+    canvas.drawCircle(c, 3, Paint()..color = bright);
   }
 
   @override
@@ -910,10 +973,12 @@ class _AtmospherePainter extends CustomPainter {
     required this.darken,
     required this.pool,
     required this.breath,
+    required this.color,
   });
   final double darken; // 0→1
-  final double pool; // 0→1 emerald glow behind the card
+  final double pool; // 0→1 tier-coloured glow behind the card
   final double breath;
+  final Color color; // tier signature colour for the pool
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -933,9 +998,9 @@ class _AtmospherePainter extends CustomPainter {
           ..blendMode = BlendMode.plus
           ..shader = RadialGradient(
             colors: [
-              _emeraldCore.withValues(alpha: 0.16 * pool),
-              _emeraldCore.withValues(alpha: 0.05 * pool),
-              _emeraldCore.withValues(alpha: 0.0),
+              color.withValues(alpha: 0.16 * pool),
+              color.withValues(alpha: 0.05 * pool),
+              color.withValues(alpha: 0.0),
             ],
             stops: const [0.0, 0.5, 1.0],
           ).createShader(Rect.fromCircle(center: c, radius: r)),
@@ -961,7 +1026,10 @@ class _AtmospherePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AtmospherePainter old) =>
-      old.darken != darken || old.pool != pool || old.breath != breath;
+      old.darken != darken ||
+      old.pool != pool ||
+      old.breath != breath ||
+      old.color != color;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -969,9 +1037,11 @@ class _AtmospherePainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _HaloPainter extends CustomPainter {
-  _HaloPainter({required this.rotation, required this.opacity});
+  _HaloPainter(
+      {required this.rotation, required this.opacity, required this.bright});
   final double rotation;
   final double opacity;
+  final Color bright;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -984,7 +1054,7 @@ class _HaloPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.4
-        ..color = _emeraldBright.withValues(alpha: 0.22 * opacity)
+        ..color = bright.withValues(alpha: 0.22 * opacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2)
         ..blendMode = BlendMode.plus,
     );
@@ -1012,7 +1082,9 @@ class _HaloPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _HaloPainter old) =>
-      old.rotation != rotation || old.opacity != opacity;
+      old.rotation != rotation ||
+      old.opacity != opacity ||
+      old.bright != bright;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1020,10 +1092,15 @@ class _HaloPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MotePainter extends CustomPainter {
-  _MotePainter({required this.motes, required this.phase, required this.opacity});
+  _MotePainter(
+      {required this.motes,
+      required this.phase,
+      required this.opacity,
+      required this.bright});
   final List<_Mote> motes;
   final double phase;
   final double opacity;
+  final Color bright; // tier accent (alternated with the warm gold accent)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1041,7 +1118,7 @@ class _MotePainter extends CustomPainter {
         Offset(x, y),
         m.size * (0.7 + 0.5 * twinkle),
         Paint()
-          ..color = (m.seed > 0.5 ? _goldBright : _emeraldBright)
+          ..color = (m.seed > 0.5 ? _goldBright : bright)
               .withValues(alpha: a.clamp(0.0, 0.7))
           ..blendMode = BlendMode.plus
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
@@ -1051,7 +1128,9 @@ class _MotePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MotePainter old) =>
-      old.phase != phase || old.opacity != opacity;
+      old.phase != phase ||
+      old.opacity != opacity ||
+      old.bright != bright;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1145,9 +1224,11 @@ class _LanternRaysPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AuroraPainter extends CustomPainter {
-  _AuroraPainter({required this.rotation, required this.opacity});
+  _AuroraPainter(
+      {required this.rotation, required this.opacity, required this.bright});
   final double rotation;
   final double opacity;
+  final Color bright; // tier accent, alternated with the warm gold accent
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1161,7 +1242,7 @@ class _AuroraPainter extends CustomPainter {
     const rays = 12;
     for (int i = 0; i < rays; i++) {
       final a = (i / rays) * 2 * math.pi;
-      final color = i.isEven ? _emeraldBright : _goldBright;
+      final color = i.isEven ? bright : _goldBright;
       final paint = Paint()
         ..shader = _gradientForRay(color, len, opacity)
         ..blendMode = BlendMode.plus;
@@ -1191,7 +1272,9 @@ class _AuroraPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _AuroraPainter old) =>
-      old.rotation != rotation || old.opacity != opacity;
+      old.rotation != rotation ||
+      old.opacity != opacity ||
+      old.bright != bright;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1204,11 +1287,15 @@ class _BurstPainter extends CustomPainter {
     required this.flash,
     required this.shafts,
     required this.rotation,
+    required this.color,
+    required this.glow,
   });
   final double rings;
   final double flash;
   final double shafts; // 0→1→0 sharp light shafts at the impact
   final double rotation;
+  final Color color; // tier accent (flash + shafts)
+  final Color glow; // tier additive glow accent (rings)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1222,7 +1309,7 @@ class _BurstPainter extends CustomPainter {
         ..shader = RadialGradient(
           colors: [
             Colors.white.withValues(alpha: 0.9 * flash),
-            _emeraldBright.withValues(alpha: 0.4 * flash),
+            color.withValues(alpha: 0.4 * flash),
             Colors.white.withValues(alpha: 0.0),
           ],
           stops: const [0.0, 0.4, 1.0],
@@ -1246,7 +1333,7 @@ class _BurstPainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             Colors.white.withValues(alpha: 0.55 * shafts),
-            _emeraldBright.withValues(alpha: 0.25 * shafts),
+            color.withValues(alpha: 0.25 * shafts),
             Colors.white.withValues(alpha: 0.0),
           ],
           stops: const [0.0, 0.4, 1.0],
@@ -1278,7 +1365,7 @@ class _BurstPainter extends CustomPainter {
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.5 * (1 - p) + 0.5
-            ..color = _glow.withValues(alpha: alpha)
+            ..color = glow.withValues(alpha: alpha)
             ..blendMode = BlendMode.plus,
         );
       }
@@ -1290,7 +1377,9 @@ class _BurstPainter extends CustomPainter {
       old.rings != rings ||
       old.flash != flash ||
       old.shafts != shafts ||
-      old.rotation != rotation;
+      old.rotation != rotation ||
+      old.color != color ||
+      old.glow != glow;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1298,9 +1387,11 @@ class _BurstPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter({required this.sparks, required this.progress});
+  _SparkPainter(
+      {required this.sparks, required this.progress, required this.bright});
   final List<_Spark> sparks;
   final double progress;
+  final Color bright; // tier accent (alternated with the warm gold accent)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1315,7 +1406,7 @@ class _SparkPainter extends CustomPainter {
       final pos = c + dir * dist;
       final alpha = (1 - p) * 0.9;
       final color =
-          (s.size > 3 ? _goldBright : _emeraldBright).withValues(alpha: alpha);
+          (s.size > 3 ? _goldBright : bright).withValues(alpha: alpha);
 
       // Motion trail — a short streak behind the head, longer while fast.
       final trail = dir * (12 + 26 * (1 - p)) * s.size * 0.25;
@@ -1342,5 +1433,5 @@ class _SparkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SparkPainter old) =>
-      old.progress != progress;
+      old.progress != progress || old.bright != bright;
 }
