@@ -4,8 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/daily/reveal/reveal_spec.dart';
+import 'package:sakina/features/daily/reveal/painters/background_painters.dart';
+import 'package:sakina/features/daily/reveal/painters/card_fx_painters.dart';
 import 'package:sakina/features/daily/reveal/reveal_card_tile.dart';
+import 'package:sakina/features/daily/reveal/reveal_geometry.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -15,7 +18,8 @@ import 'package:sakina/services/card_collection_service.dart';
 // CARD REVEAL OVERLAY — the tiered gacha hero moment (Bronze→Emerald).
 //
 // Self-contained, native (no new Lottie yet) so every beat is tunable live via
-// the _seg() windows below. Choreography (single controller, D = _revealDuration):
+// the seg() windows in reveal_geometry.dart. Choreography (single controller,
+// D = _revealDuration):
 //   idle          → unlit lantern, waits for a tap
 //   ignite        → tier colour + god-rays gather around the lamp
 //   burst         → flash + radial shafts + expanding rings + sparks (heavy haptic)
@@ -23,20 +27,20 @@ import 'package:sakina/services/card_collection_service.dart';
 //   settle        → overshoot land, shine + lens-flare, TIER badge staggers in
 //   rest          → breathing aurora + floating embers keep it alive
 //
-// The choreography (normalized 0→1 _seg windows) is SHARED across tiers; only
-// the wall-clock `duration`, feature intensities/toggles, spin turns, spark
-// count and haptics change — all driven by the injected [RevealSpec]. Emerald's
-// spec sets every toggle to max (all 1.0, halo true, 30 sparks, 3 spins,
-// legendary haptics) so it reproduces the approved Emerald spike exactly.
+// The choreography (normalized 0→1 seg windows) is SHARED across tiers; only the
+// wall-clock `duration`, feature intensities/toggles, spin turns, spark count
+// and haptics change — all driven by the injected [RevealSpec]. Emerald's spec
+// sets every toggle to max (all 1.0, halo true, 30 sparks, 3 spins, legendary
+// haptics) so it reproduces the approved Emerald spike exactly.
+//
+// The pure choreography math (card motion, seg/bell, phase constants, the
+// ray-fan idiom, the particle field) lives in reveal_geometry.dart; the FX
+// painters live in reveal/painters/. This file keeps only the widget, its State,
+// and the caption/card-face/shimmer sub-widgets.
 //
 // In production the FX layers may move to authored Lottie; the CARD + spin stay
 // native (data-driven Arabic). Tier colour lives only in OUR fx layers.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Tier-neutral shared warm accents + canvas.
-const _gold = Color(0xFFC8985E);
-const _goldBright = Color(0xFFEDD9A3);
-const _canvas = Color(0xFF05100A);
 
 class CardRevealOverlay extends StatefulWidget {
   /// Route name used both for the push `RouteSettings` and the tour's
@@ -76,11 +80,6 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // (Clash Royale principle); Emerald is the longest by design.
   Duration get _revealDuration => widget.spec.duration;
 
-  // Tier signature colours (used only in OUR fx layers, never the lantern flame).
-  Color get _tColor => widget.spec.palette.color;
-  Color get _tBright => widget.spec.palette.bright;
-  Color get _tGlow => widget.spec.palette.glow;
-
   late final AnimationController _reveal; // one-shot, driven on tap
   late final AnimationController _ambient; // looping (breathing + drift)
 
@@ -93,8 +92,8 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // Measures dwell (shown → continued) for the reveal telemetry. Started in
   // _open(); read in _continue().
   final Stopwatch _dwell = Stopwatch();
-  late final List<_Spark> _sparks = _buildSparks(widget.spec.sparkCount);
-  late final List<_Mote> _motes = _buildMotes(widget.spec.moteCount);
+  late final List<Spark> _sparks = buildSparks(widget.spec.sparkCount);
+  late final List<Mote> _motes = buildMotes(widget.spec.moteCount);
 
   @override
   void initState() {
@@ -153,7 +152,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     if (_started) return;
     // Reduced motion (OS "reduce animation"): collapse the whole normalized
     // timeline into a short fade so it resolves straight to the settled card +
-    // Continue, skipping the long spin/particle spectacle. All _seg windows
+    // Continue, skipping the long spin/particle spectacle. All seg() windows
     // still resolve — just fast. MediaQuery is safe to read here (called from a
     // tap or a post-frame callback, never initState). The default
     // (disableAnimations false) path is untouched.
@@ -277,7 +276,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _canvas,
+      backgroundColor: revealCanvas,
       body: GestureDetector(
         onTap: _handleTap,
         child: AnimatedBuilder(
@@ -287,6 +286,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
             final breath = 0.5 + 0.5 * math.sin(_ambient.value * 2 * math.pi);
             final spin = _ambient.value * 2 * math.pi;
             final spec = widget.spec;
+            final palette = spec.palette;
             return SizedBox.expand(
               child: Stack(
                 alignment: Alignment.center,
@@ -295,11 +295,11 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _AtmospherePainter(
-                          darken: _seg(t, 0.34, 0.58),
-                          pool: _seg(t, 0.50, 0.92),
+                        painter: AtmospherePainter(
+                          darken: seg(t, 0.34, 0.58),
+                          pool: seg(t, 0.50, 0.92),
                           breath: breath,
-                          color: _tColor,
+                          color: palette.color,
                         ),
                       ),
                     ),
@@ -309,11 +309,11 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _LanternRaysPainter(
-                          grow: _seg(t, 0.05, 0.34) * spec.godRays,
-                          fade: 1 - _seg(t, 0.40, 0.50),
+                        painter: LanternRaysPainter(
+                          grow: seg(t, 0.05, 0.34) * spec.godRays,
+                          fade: 1 - seg(t, 0.40, 0.50),
                           rotation: spin,
-                          color: _tGlow,
+                          color: palette.glow,
                           rayCount: spec.godRayCount,
                         ),
                       ),
@@ -325,13 +325,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _AuroraPainter(
+                        painter: AuroraPainter(
                           rotation: spin,
-                          opacity: _seg(t, 0.42, 0.56) *
-                              (1 - 0.55 * _seg(t, 0.88, 1.0)) *
+                          opacity: seg(t, 0.42, 0.56) *
+                              (1 - 0.55 * seg(t, 0.88, 1.0)) *
                               (0.9 + 0.1 * breath) *
                               spec.aurora,
-                          bright: _tBright,
+                          bright: palette.bright,
                         ),
                       ),
                     ),
@@ -341,13 +341,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _BurstPainter(
-                          rings: _seg(t, 0.38, 0.66),
-                          flash: _bell(_seg(t, 0.38, 0.52)),
-                          shafts: _bell(_seg(t, 0.40, 0.56)) * spec.radialShafts,
+                        painter: BurstPainter(
+                          rings: seg(t, 0.38, 0.66),
+                          flash: bell(seg(t, 0.38, 0.52)),
+                          shafts: bell(seg(t, 0.40, 0.56)) * spec.radialShafts,
                           rotation: spin,
-                          color: _tBright,
-                          glow: _tGlow,
+                          color: palette.bright,
+                          glow: palette.glow,
                           shaftCount: spec.shaftCount,
                         ),
                       ),
@@ -358,10 +358,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                   Positioned.fill(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _SparkPainter(
+                        painter: SparkPainter(
                           sparks: _sparks,
-                          progress: _seg(t, 0.40, 0.78),
-                          bright: _tBright,
+                          progress: seg(t, 0.40, 0.78),
+                          bright: palette.bright,
                         ),
                       ),
                     ),
@@ -372,10 +372,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                     Positioned.fill(
                       child: RepaintBoundary(
                         child: CustomPaint(
-                          painter: _HaloPainter(
+                          painter: HaloPainter(
                             rotation: spin,
-                            opacity: _seg(t, 0.82, 0.96) * (0.85 + 0.15 * breath),
-                            bright: _tBright,
+                            opacity: seg(t, 0.82, 0.96) * (0.85 + 0.15 * breath),
+                            bright: palette.bright,
                           ),
                         ),
                       ),
@@ -386,24 +386,24 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                     Positioned.fill(
                       child: RepaintBoundary(
                         child: CustomPaint(
-                          painter: _MotePainter(
+                          painter: MotePainter(
                             motes: _motes,
                             phase: _ambient.value,
-                            opacity: _seg(t, 0.84, 0.97) * spec.restMotes,
-                            bright: _tBright,
+                            opacity: seg(t, 0.84, 0.97) * spec.restMotes,
+                            bright: palette.bright,
                           ),
                         ),
                       ),
                     ),
 
                   // 8 ── The vessel (lantern) OR the card.
-                  if (t < 0.46)
+                  if (t < kCardSwap)
                     _buildLantern(t)
                   else
                     _buildCard(t, breath),
 
                   // 9 ── Name + badge + continue (staggered in after settle).
-                  if (t > 0.85) _buildCaption(t),
+                  if (t > kCaptionIn) _buildCaption(t),
 
                   // 10 ── Idle hint.
                   if (!_started) _buildHint(),
@@ -420,8 +420,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // Starts UNLIT (no flame, no aura, no colour); on tap the tier colour floods
   // in AROUND it, the flame catches, and it erupts + dissolves into the burst.
   Widget _buildLantern(double t) {
-    final swell = _seg(t, 0.0, 0.30); // extended: tier colour + rays gather
-    final flare = _seg(t, 0.34, 0.46); // erupts + dissolves into the burst
+    final palette = widget.spec.palette;
+    final swell = seg(t, 0.0, 0.30); // extended: tier colour + rays gather
+    final flare = seg(t, 0.34, kCardSwap); // erupts + dissolves into the burst
     final shiver = _started ? math.sin(t * 70) * swell * 2.2 : 0.0;
     final scale = 1.0 + swell * 0.12 + flare * 0.6;
     final opacity = (1.0 - flare).clamp(0.0, 1.0);
@@ -454,9 +455,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       gradient: RadialGradient(
                         colors: [
                           Colors.white.withValues(alpha: 0.45 * charge),
-                          _tBright.withValues(alpha: 0.42 * charge),
-                          _tGlow.withValues(alpha: 0.12 * charge),
-                          _tGlow.withValues(alpha: 0.0),
+                          palette.bright.withValues(alpha: 0.42 * charge),
+                          palette.glow.withValues(alpha: 0.12 * charge),
+                          palette.glow.withValues(alpha: 0.0),
                         ],
                         stops: const [0.0, 0.32, 0.6, 1.0],
                       ),
@@ -488,63 +489,46 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     final cardH = cardW / 0.72;
 
     final spec = widget.spec;
-    final appear = Curves.easeOutBack.transform(_seg(t, 0.46, 0.58));
+    final palette = spec.palette;
 
-    // Motion is spec-gated. Spinning tiers (Silver/Gold/Emerald) run the tuned
-    // decelerating Y-spin with a settle overshoot + front/back swap. Bronze
-    // (spinTurns == 0) just scales/fades in from the burst — no rotation, its
-    // back is never shown, and the foil phase drifts on the ambient loop only.
-    double angle = 0;
-    bool facingFront = true;
-    double spinTilt = 0; // -1..1, drives the specular sweep
-    double foilPhase = _ambient.value;
-    if (spec.spins) {
-      final spinT = Curves.easeOutCubic.transform(_seg(t, 0.49, 0.86));
-      // Settle overshoot — a small decaying wobble past 0 so the landing has weight.
-      final land = _seg(t, 0.86, 1.0);
-      final wobble = math.sin(land * math.pi * 2.4) * (1 - land) * 0.11;
-      angle = (1 - spinT) * spec.spinTurns * 2 * math.pi + wobble;
-      facingFront = math.cos(angle) >= 0;
-      spinTilt = math.sin(angle);
-      foilPhase = ((angle / (2 * math.pi)) + _ambient.value) % 1.0;
-    }
+    // All timeline-driven transform inputs come from the pure choreography fn.
+    final m = revealCardMotion(spec, t, _ambient.value);
 
-    // Landing scale pop + rise, then a gentle idle bob.
-    final pop = _bell(_seg(t, 0.84, 0.94)) * 0.05;
-    final settleY = -_seg(t, 0.84, 0.94) * 8;
+    // Idle bob depends only on the ambient loop (not the reveal timeline), so it
+    // stays here rather than in the pure motion fn.
     final bob = t >= 0.95 ? math.sin(_ambient.value * 2 * math.pi) * 4 : 0.0;
 
     final matrix = Matrix4.identity()
       ..setEntry(3, 2, 0.0012) // perspective
-      ..rotateY(angle);
+      ..rotateY(m.angle);
 
     return Transform.translate(
-      offset: Offset(0, settleY + bob),
+      offset: Offset(0, m.settleY + bob),
       child: Opacity(
-        opacity: appear.clamp(0.0, 1.0),
+        opacity: m.appear.clamp(0.0, 1.0),
         child: Transform.scale(
-          scale: (0.2 + appear * 0.8).clamp(0.0, 1.1) + pop,
+          scale: (0.2 + m.appear * 0.8).clamp(0.0, 1.1) + m.pop,
           child: Transform(
             alignment: Alignment.center,
             transform: matrix,
             child: SizedBox(
               width: cardW,
               height: cardH,
-              child: facingFront
+              child: m.facingFront
                   ? _CardFace(
                       card: widget.card,
                       tier: spec.tier,
-                      shine: spec.shineSweep ? _seg(t, 0.87, 0.97) : 0,
+                      shine: spec.shineSweep ? seg(t, 0.87, 0.97) : 0,
                       birth: spec.forgeBirth
-                          ? (1 - _seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
+                          ? (1 - seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
                           : 0,
                       foil: spec.foil,
-                      foilPhase: foilPhase,
-                      spinTilt: spinTilt,
-                      flare: _bell(_seg(t, 0.86, 0.95)) * spec.lensFlare,
+                      foilPhase: m.foilPhase,
+                      spinTilt: m.spinTilt,
+                      flare: bell(seg(t, 0.86, 0.95)) * spec.lensFlare,
                       glowBreath: breath,
-                      glow: _tGlow,
-                      bright: _tBright,
+                      glow: palette.glow,
+                      bright: palette.bright,
                     )
                   : RevealCardBack(tier: spec.tier),
             ),
@@ -555,10 +539,12 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   }
 
   Widget _buildCaption(double t) {
-    // Staggered reveal — badge, then name, then meaning.
-    final aBadge = _seg(t, 0.85, 0.92);
-    final aName = _seg(t, 0.89, 0.96);
-    final aMeaning = _seg(t, 0.93, 1.0);
+    final palette = widget.spec.palette;
+    // Staggered reveal — badge, then name, then meaning. The badge window opens
+    // at kCaptionIn (the same gate that mounts this whole caption).
+    final aBadge = seg(t, kCaptionIn, 0.92);
+    final aName = seg(t, 0.89, 0.96);
+    final aMeaning = seg(t, 0.93, 1.0);
     final shimmer = _ambient.value; // drives the wordmark sheen
 
     Widget rise(double a, Widget child) => Opacity(
@@ -584,14 +570,14 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _tColor.withValues(alpha: 0.15),
+                  color: palette.color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _gold.withValues(alpha: 0.5)),
+                  border: Border.all(color: gold.withValues(alpha: 0.5)),
                 ),
                 child: Text(
                   widget.spec.tier.label.toUpperCase(),
                   style: AppTypography.labelSmall.copyWith(
-                    color: _tBright,
+                    color: palette.bright,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 3.5,
                     fontSize: 11,
@@ -638,6 +624,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   }
 
   Widget _buildHint() {
+    final palette = widget.spec.palette;
     final breath = 0.5 + 0.5 * math.sin(_ambient.value * 2 * math.pi);
     return Positioned(
       bottom: 128,
@@ -649,10 +636,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
             height: 5,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _goldBright.withValues(alpha: 0.55 + 0.4 * breath),
+              color: goldBright.withValues(alpha: 0.55 + 0.4 * breath),
               boxShadow: [
                 BoxShadow(
-                  color: _tGlow.withValues(alpha: 0.5 * breath),
+                  color: palette.glow.withValues(alpha: 0.5 * breath),
                   blurRadius: 12,
                   spreadRadius: 1,
                 ),
@@ -665,11 +652,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
             child: Text(
               'Tap to unveil',
               style: AppTypography.labelLarge.copyWith(
-                color: _goldBright,
+                color: goldBright,
                 letterSpacing: 4,
                 fontWeight: FontWeight.w500,
                 shadows: [
-                  Shadow(color: _tGlow.withValues(alpha: 0.35), blurRadius: 18),
+                  Shadow(
+                      color: palette.glow.withValues(alpha: 0.35),
+                      blurRadius: 18),
                 ],
               ),
             ),
@@ -678,61 +667,6 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Normalised 0→1 progress of `t` within the window [a, b], clamped.
-double _seg(double t, double a, double b) =>
-    ((t - a) / (b - a)).clamp(0.0, 1.0);
-
-/// A 0→1→0 bell over a 0→1 input (for flashes).
-double _bell(double x) => math.sin(x.clamp(0.0, 1.0) * math.pi);
-
-class _Spark {
-  const _Spark(this.angle, this.distance, this.size, this.speed);
-  final double angle;
-  final double distance;
-  final double size;
-  final double speed;
-}
-
-List<_Spark> _buildSparks(int n) {
-  final rng = math.Random(7);
-  return List.generate(n, (i) {
-    final angle = (i / n) * 2 * math.pi + rng.nextDouble() * 0.5;
-    return _Spark(
-      angle,
-      0.28 + rng.nextDouble() * 0.5,
-      1.5 + rng.nextDouble() * 3.0,
-      0.7 + rng.nextDouble() * 0.6,
-    );
-  });
-}
-
-class _Mote {
-  const _Mote(this.x, this.y, this.size, this.speed, this.seed);
-  final double x; // -1..1 around centre (fraction of half-width)
-  final double y; // -1..1 around centre (fraction of half-height)
-  final double size;
-  final double speed;
-  final double seed;
-}
-
-List<_Mote> _buildMotes(int n) {
-  final rng = math.Random(19);
-  return List.generate(
-    n,
-    (i) => _Mote(
-      (rng.nextDouble() * 2 - 1) * 0.9,
-      (rng.nextDouble() * 2 - 1) * 0.7,
-      1.0 + rng.nextDouble() * 2.2,
-      0.4 + rng.nextDouble() * 0.7,
-      rng.nextDouble(),
-    ),
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -804,7 +738,7 @@ class _CardFace extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: CustomPaint(
-                painter: _FoilPainter(
+                painter: FoilPainter(
                   foilPhase: foilPhase,
                   tilt: spinTilt,
                   bright: bright,
@@ -817,12 +751,12 @@ class _CardFace extends StatelessWidget {
           Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: CustomPaint(painter: _ShineSweepPainter(shine)),
+              child: CustomPaint(painter: ShineSweepPainter(shine)),
             ),
           ),
         if (flare > 0.01)
           Positioned.fill(
-            child: CustomPaint(painter: _LensFlarePainter(flare, bright)),
+            child: CustomPaint(painter: LensFlarePainter(flare, bright)),
           ),
         if (birth > 0.01)
           Positioned.fill(
@@ -836,155 +770,6 @@ class _CardFace extends StatelessWidget {
       ],
     );
   }
-}
-
-// Holographic foil sheen (a travelling diagonal rainbow) + a specular band that
-// tracks the card's Y-rotation, so a highlight sweeps across as it turns.
-class _FoilPainter extends CustomPainter {
-  _FoilPainter(
-      {required this.foilPhase,
-      required this.tilt,
-      required this.bright,
-      this.intensity = 1.0});
-  final double foilPhase;
-  final double tilt;
-  final Color bright;
-  final double intensity; // 0-1 scales the holographic sheen (1.0 = Emerald)
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final p = foilPhase;
-
-    // Diagonal hue-shift sheen, band travels with the rotation phase.
-    // Alpha scaled by [intensity] so lower tiers get a subtler (or no) foil.
-    if (intensity > 0) {
-      final sheen = LinearGradient(
-        begin: Alignment(-1 + 2 * p, -1),
-        end: Alignment(1, 1 - 2 * p),
-        colors: [
-          bright.withValues(alpha: 0.0),
-          _goldBright.withValues(alpha: 0.16 * intensity),
-          Colors.white.withValues(alpha: 0.10 * intensity),
-          bright.withValues(alpha: 0.14 * intensity),
-          bright.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.38, 0.5, 0.62, 1.0],
-      ).createShader(rect);
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = sheen
-          ..blendMode = BlendMode.plus,
-      );
-    }
-
-    // Specular band — brightest mid-turn, position tracks the tilt.
-    final strength = tilt.abs();
-    if (strength > 0.02) {
-      final sx = (0.5 + tilt.clamp(-1.0, 1.0) * 0.55) * size.width;
-      final band = size.width * 0.30;
-      final spec = LinearGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.0),
-          Colors.white.withValues(alpha: 0.34 * strength),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromLTWH(sx - band, 0, band * 2, size.height));
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = spec
-          ..blendMode = BlendMode.plus,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _FoilPainter old) =>
-      old.foilPhase != foilPhase ||
-      old.tilt != tilt ||
-      old.bright != bright ||
-      old.intensity != intensity;
-}
-
-// A horizontal anamorphic lens-flare that flashes across the card as it lands.
-class _LensFlarePainter extends CustomPainter {
-  _LensFlarePainter(this.flare, this.bright);
-  final double flare;
-  final Color bright;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cy = size.height * 0.42;
-    final streak = LinearGradient(
-      colors: [
-        Colors.white.withValues(alpha: 0.0),
-        bright.withValues(alpha: 0.5 * flare),
-        Colors.white.withValues(alpha: 0.85 * flare),
-        bright.withValues(alpha: 0.5 * flare),
-        Colors.white.withValues(alpha: 0.0),
-      ],
-      stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-    ).createShader(
-        Rect.fromLTWH(-size.width * 0.4, 0, size.width * 1.8, size.height));
-    final h = size.height * 0.10 * (0.6 + flare * 0.6);
-    canvas.drawRect(
-      Rect.fromLTWH(-size.width * 0.4, cy - h / 2, size.width * 1.8, h),
-      Paint()
-        ..shader = streak
-        ..blendMode = BlendMode.plus
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.4),
-    );
-    // Bright core.
-    canvas.drawCircle(
-      Offset(size.width / 2, cy),
-      size.width * 0.10 * flare,
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = RadialGradient(colors: [
-          Colors.white.withValues(alpha: 0.9 * flare),
-          Colors.white.withValues(alpha: 0.0),
-        ]).createShader(Rect.fromCircle(
-            center: Offset(size.width / 2, cy),
-            radius: size.width * 0.10 * flare)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _LensFlarePainter old) =>
-      old.flare != flare || old.bright != bright;
-}
-
-class _ShineSweepPainter extends CustomPainter {
-  const _ShineSweepPainter(this.progress);
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final band = size.width * 0.4;
-    final x = -band + progress * (size.width + band * 2);
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Colors.white.withValues(alpha: 0.0),
-        Colors.white.withValues(alpha: 0.38),
-        Colors.white.withValues(alpha: 0.0),
-      ],
-      stops: const [0.35, 0.5, 0.65],
-    );
-    final shader = gradient.createShader(
-      Rect.fromLTWH(x - band, 0, band * 2, size.height),
-    );
-    canvas.drawRect(rect, Paint()..shader = shader);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ShineSweepPainter old) =>
-      old.progress != progress;
 }
 
 // A gold sheen that travels across a child (used on the EMERALD wordmark).
@@ -1013,482 +798,4 @@ class _ShimmerText extends StatelessWidget {
       child: child,
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Atmosphere — darken + a warm emerald pool the card rests in + focus vignette.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AtmospherePainter extends CustomPainter {
-  _AtmospherePainter({
-    required this.darken,
-    required this.pool,
-    required this.breath,
-    required this.color,
-  });
-  final double darken; // 0→1
-  final double pool; // 0→1 tier-coloured glow behind the card
-  final double breath;
-  final Color color; // tier signature colour for the pool
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final c = Offset(size.width / 2, size.height / 2);
-
-    canvas.drawRect(
-      rect,
-      Paint()..color = Color.lerp(_canvas, Colors.black, darken * 0.72)!,
-    );
-
-    if (pool > 0.01) {
-      final r = size.shortestSide * (0.62 + 0.03 * breath);
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..blendMode = BlendMode.plus
-          ..shader = RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.16 * pool),
-              color.withValues(alpha: 0.05 * pool),
-              color.withValues(alpha: 0.0),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ).createShader(Rect.fromCircle(center: c, radius: r)),
-      );
-    }
-
-    if (darken > 0.01) {
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [
-              Colors.black.withValues(alpha: 0.0),
-              Colors.black.withValues(alpha: 0.0),
-              Colors.black.withValues(alpha: 0.5 * darken),
-            ],
-            stops: const [0.0, 0.55, 1.0],
-          ).createShader(
-              Rect.fromCircle(center: c, radius: size.longestSide * 0.72)),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _AtmospherePainter old) =>
-      old.darken != darken ||
-      old.pool != pool ||
-      old.breath != breath ||
-      old.color != color;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Halo — a slow, faint emerald/gold ring behind the settled card (emerald flex).
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _HaloPainter extends CustomPainter {
-  _HaloPainter(
-      {required this.rotation, required this.opacity, required this.bright});
-  final double rotation;
-  final double opacity;
-  final Color bright;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (opacity <= 0.01) return;
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.shortestSide * 0.46;
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4
-        ..color = bright.withValues(alpha: 0.22 * opacity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2)
-        ..blendMode = BlendMode.plus,
-    );
-    canvas.drawCircle(
-      c,
-      r * 1.08,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..color = _goldBright.withValues(alpha: 0.12 * opacity),
-    );
-    // A ring of ticks turning slowly around the card.
-    const ticks = 16;
-    final tick = Paint()
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..color = _goldBright.withValues(alpha: 0.28 * opacity)
-      ..blendMode = BlendMode.plus;
-    for (var i = 0; i < ticks; i++) {
-      final a = i * 2 * math.pi / ticks + rotation * 0.3;
-      final dir = Offset(math.cos(a), math.sin(a));
-      canvas.drawLine(c + dir * r * 1.02, c + dir * r * 1.06, tick);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HaloPainter old) =>
-      old.rotation != rotation ||
-      old.opacity != opacity ||
-      old.bright != bright;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Motes — floating embers/kirakira around the rested card (persistent life).
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MotePainter extends CustomPainter {
-  _MotePainter(
-      {required this.motes,
-      required this.phase,
-      required this.opacity,
-      required this.bright});
-  final List<_Mote> motes;
-  final double phase;
-  final double opacity;
-  final Color bright; // tier accent (alternated with the warm gold accent)
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (opacity <= 0.01) return;
-    final c = Offset(size.width / 2, size.height / 2);
-    final spread = size.shortestSide * 0.5;
-
-    for (final m in motes) {
-      final rise = (phase * m.speed + m.seed) % 1.0; // 0→1 slow drift up
-      final twinkle = 0.5 + 0.5 * math.sin(phase * 2 * math.pi * 2 + m.seed * 6);
-      final x = c.dx + m.x * spread + math.sin(phase * 6 + m.seed * 6) * 6;
-      final y = c.dy + m.y * spread - rise * size.shortestSide * 0.25;
-      final a = opacity * (0.25 + 0.6 * twinkle) * (1 - rise * 0.6);
-      canvas.drawCircle(
-        Offset(x, y),
-        m.size * (0.7 + 0.5 * twinkle),
-        Paint()
-          ..color = (m.seed > 0.5 ? _goldBright : bright)
-              .withValues(alpha: a.clamp(0.0, 0.7))
-          ..blendMode = BlendMode.plus
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MotePainter old) =>
-      old.phase != phase ||
-      old.opacity != opacity ||
-      old.bright != bright;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Lantern god-rays — soft tier-coloured wedges that GROW out of the lantern
-// during the extended ignite, then fade as the burst hits.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _LanternRaysPainter extends CustomPainter {
-  _LanternRaysPainter({
-    required this.grow,
-    required this.fade,
-    required this.rotation,
-    required this.color,
-    required this.rayCount,
-  });
-  final double grow;
-  final double fade;
-  final double rotation;
-  final Color color;
-  final int rayCount; // spec-driven: Emerald 16, lower tiers fewer
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final vis = grow * fade;
-    if (vis <= 0.01) return;
-    final c = Offset(size.width / 2, size.height / 2);
-    final maxLen = size.longestSide * 0.5;
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.rotate(rotation);
-
-    final rays = rayCount;
-    final reach = Curves.easeOutCubic.transform(grow);
-    for (var i = 0; i < rays; i++) {
-      final long = i.isEven;
-      final len = maxLen * (long ? 0.95 : 0.62) * reach;
-      final halfW = size.shortestSide * (long ? 0.05 : 0.035);
-      canvas.save();
-      canvas.rotate(i * 2 * math.pi / rays);
-      final shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          color.withValues(alpha: 0.28 * vis),
-          color.withValues(alpha: 0.10 * vis),
-          color.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromLTWH(-halfW, 0, halfW * 2, len));
-      final path = Path()
-        ..moveTo(0, 0)
-        ..lineTo(-halfW, len)
-        ..lineTo(halfW, len)
-        ..close();
-      canvas.drawPath(
-        path,
-        Paint()
-          ..shader = shader
-          ..blendMode = BlendMode.plus
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, halfW * 0.7),
-      );
-      canvas.restore();
-    }
-
-    canvas.drawCircle(
-      Offset.zero,
-      size.shortestSide * 0.22 * reach,
-      Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = RadialGradient(
-          colors: [
-            color.withValues(alpha: 0.30 * vis),
-            color.withValues(alpha: 0.0),
-          ],
-        ).createShader(
-          Rect.fromCircle(
-              center: Offset.zero, radius: size.shortestSide * 0.22 * reach),
-        ),
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _LanternRaysPainter old) =>
-      old.grow != grow ||
-      old.fade != fade ||
-      old.rotation != rotation ||
-      old.color != color ||
-      old.rayCount != rayCount;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Aurora rays — a rotating radial fan of emerald/gold light behind the card.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AuroraPainter extends CustomPainter {
-  _AuroraPainter(
-      {required this.rotation, required this.opacity, required this.bright});
-  final double rotation;
-  final double opacity;
-  final Color bright; // tier accent, alternated with the warm gold accent
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (opacity <= 0) return;
-    final c = Offset(size.width / 2, size.height / 2);
-    final len = size.longestSide;
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.rotate(rotation);
-
-    const rays = 12;
-    for (int i = 0; i < rays; i++) {
-      final a = (i / rays) * 2 * math.pi;
-      final color = i.isEven ? bright : _goldBright;
-      final paint = Paint()
-        ..shader = _gradientForRay(color, len, opacity)
-        ..blendMode = BlendMode.plus;
-      canvas.save();
-      canvas.rotate(a);
-      final path = Path()
-        ..moveTo(0, 0)
-        ..lineTo(-len * 0.06, len)
-        ..lineTo(len * 0.06, len)
-        ..close();
-      canvas.drawPath(path, paint);
-      canvas.restore();
-    }
-    canvas.restore();
-  }
-
-  Shader _gradientForRay(Color color, double len, double opacity) {
-    return LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        color.withValues(alpha: 0.10 * opacity),
-        color.withValues(alpha: 0.0),
-      ],
-    ).createShader(Rect.fromLTWH(-len * 0.06, 0, len * 0.12, len));
-  }
-
-  @override
-  bool shouldRepaint(covariant _AuroraPainter old) =>
-      old.rotation != rotation ||
-      old.opacity != opacity ||
-      old.bright != bright;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Burst — central flash + hard radial shafts (percussive) + expanding rings.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _BurstPainter extends CustomPainter {
-  _BurstPainter({
-    required this.rings,
-    required this.flash,
-    required this.shafts,
-    required this.rotation,
-    required this.color,
-    required this.glow,
-    required this.shaftCount,
-  });
-  final double rings;
-  final double flash;
-  final double shafts; // 0→1→0 sharp light shafts at the impact
-  final double rotation;
-  final Color color; // tier accent (flash + shafts)
-  final Color glow; // tier additive glow accent (rings)
-  final int shaftCount; // spec-driven: Emerald 20, lower tiers fewer
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final maxR = size.longestSide * 0.6;
-
-    if (flash > 0) {
-      final r = maxR * (0.1 + flash * 0.6);
-      final paint = Paint()
-        ..blendMode = BlendMode.plus
-        ..shader = RadialGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.9 * flash),
-            color.withValues(alpha: 0.4 * flash),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-          stops: const [0.0, 0.4, 1.0],
-        ).createShader(Rect.fromCircle(center: c, radius: r));
-      canvas.drawCircle(c, r, paint);
-    }
-
-    // Hard, thin light-shafts snapping out at the impact — the "crack".
-    if (shafts > 0.01) {
-      canvas.save();
-      canvas.translate(c.dx, c.dy);
-      canvas.rotate(rotation * 0.5);
-      final n = shaftCount;
-      final len = maxR * (0.4 + 0.7 * shafts);
-      for (var i = 0; i < n; i++) {
-        canvas.save();
-        canvas.rotate(i * 2 * math.pi / n);
-        final w = size.shortestSide * (i.isEven ? 0.012 : 0.006);
-        final shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white.withValues(alpha: 0.55 * shafts),
-            color.withValues(alpha: 0.25 * shafts),
-            Colors.white.withValues(alpha: 0.0),
-          ],
-          stops: const [0.0, 0.4, 1.0],
-        ).createShader(Rect.fromLTWH(-w, 0, w * 2, len));
-        canvas.drawPath(
-          Path()
-            ..moveTo(0, 0)
-            ..lineTo(-w, len)
-            ..lineTo(w, len)
-            ..close(),
-          Paint()
-            ..shader = shader
-            ..blendMode = BlendMode.plus,
-        );
-        canvas.restore();
-      }
-      canvas.restore();
-    }
-
-    if (rings > 0 && rings < 1) {
-      for (final delay in [0.0, 0.18, 0.36]) {
-        final p = (rings - delay).clamp(0.0, 1.0);
-        if (p <= 0) continue;
-        final radius = maxR * p;
-        final alpha = (1 - p) * 0.6;
-        canvas.drawCircle(
-          c,
-          radius,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5 * (1 - p) + 0.5
-            ..color = glow.withValues(alpha: alpha)
-            ..blendMode = BlendMode.plus,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BurstPainter old) =>
-      old.rings != rings ||
-      old.flash != flash ||
-      old.shafts != shafts ||
-      old.rotation != rotation ||
-      old.color != color ||
-      old.glow != glow ||
-      old.shaftCount != shaftCount;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sparks — small motes flung radially outward with a motion trail, fading out.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SparkPainter extends CustomPainter {
-  _SparkPainter(
-      {required this.sparks, required this.progress, required this.bright});
-  final List<_Spark> sparks;
-  final double progress;
-  final Color bright; // tier accent (alternated with the warm gold accent)
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0 || progress >= 1) return;
-    final c = Offset(size.width / 2, size.height / 2);
-    final half = size.longestSide * 0.5;
-
-    for (final s in sparks) {
-      final p = (progress * s.speed).clamp(0.0, 1.0);
-      final dir = Offset(math.cos(s.angle), math.sin(s.angle));
-      final dist = half * s.distance * Curves.easeOut.transform(p);
-      final pos = c + dir * dist;
-      final alpha = (1 - p) * 0.9;
-      final color =
-          (s.size > 3 ? _goldBright : bright).withValues(alpha: alpha);
-
-      // Motion trail — a short streak behind the head, longer while fast.
-      final trail = dir * (12 + 26 * (1 - p)) * s.size * 0.25;
-      canvas.drawLine(
-        pos - trail,
-        pos,
-        Paint()
-          ..color = color.withValues(alpha: alpha * 0.5)
-          ..strokeWidth = s.size * 0.6 * (1 - p * 0.4)
-          ..strokeCap = StrokeCap.round
-          ..blendMode = BlendMode.plus
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.0),
-      );
-      canvas.drawCircle(
-        pos,
-        s.size * (1 - p * 0.5),
-        Paint()
-          ..color = color
-          ..blendMode = BlendMode.plus
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SparkPainter old) =>
-      old.progress != progress || old.bright != bright;
 }
