@@ -82,6 +82,12 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
 
   late final AnimationController _reveal; // one-shot, driven on tap
   late final AnimationController _ambient; // looping (breathing + drift)
+  // Single slow rest-breath. _ambient is stopped at settle (Batch 1 perf win),
+  // so the settled card would otherwise be fully frozen. This ONE cheap 4s
+  // oscillator drives only the settled card's outer glow (in its own
+  // AnimatedBuilder + RepaintBoundary), keeping aurora/halo/motes frozen.
+  late final AnimationController _restBreath;
+  bool _resting = false; // true once settled → rest glow reads from _restBreath
 
   bool _started = false;
   bool _dismissed = false;
@@ -107,6 +113,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
       vsync: this,
       duration: const Duration(seconds: 8),
     );
+    _restBreath = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    );
 
     // Rest-state freeze: once the reveal has fully settled we no longer need the
     // ambient ticker for the interactive path — freeze breath/rotation/motes at
@@ -127,6 +137,8 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     if (widget.autoStart && kDebugMode && !_reduceMotion) {
       // Loop the whole sequence so timed screenshots catch every beat. Restart
       // BOTH controllers (the ambient was stopped at the previous settle).
+      _resting = false;
+      _restBreath.stop();
       Future.delayed(const Duration(milliseconds: 1400), () {
         if (!mounted) return;
         if (!_ambient.isAnimating) _ambient.repeat();
@@ -137,6 +149,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
       // Interactive / reduced-motion path: settle → stop the ambient loop so the
       // rested FX stack no longer repaints every frame.
       _ambient.stop();
+      // Add ONE gentle rest-breath on the settled card's glow (only element that
+      // repaints at rest — aurora/halo/motes stay frozen). Skipped under reduced
+      // motion so the card is fully static there.
+      if (!_reduceMotion) {
+        _resting = true;
+        _restBreath.repeat(reverse: true);
+      }
     }
   }
 
@@ -145,6 +164,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     _reveal.removeStatusListener(_onRevealStatus);
     _reveal.dispose();
     _ambient.dispose();
+    _restBreath.dispose();
     super.dispose();
   }
 
@@ -373,7 +393,6 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       child: RepaintBoundary(
                         child: CustomPaint(
                           painter: HaloPainter(
-                            rotation: spin,
                             opacity: seg(t, 0.82, 0.96) * (0.85 + 0.15 * breath),
                             bright: palette.bright,
                           ),
@@ -485,8 +504,12 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // lands with a lens-flare and a breathing glow.
   Widget _buildCard(double t, double breath) {
     final size = MediaQuery.of(context).size;
-    final cardW = math.min(248.0, size.width * 0.64);
+    // Larger settled card for legibility (was min(248, w*0.64)). Nudge the
+    // card's centre up so the bigger tile leaves room for the bottom caption
+    // (Positioned bottom:64) and never overlaps it.
+    final cardW = math.min(300.0, size.width * 0.76);
     final cardH = cardW / 0.72;
+    const centreLift = -36.0;
 
     final spec = widget.spec;
     final palette = spec.palette;
@@ -498,16 +521,20 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     // stays here rather than in the pure motion fn.
     final bob = t >= 0.95 ? math.sin(_ambient.value * 2 * math.pi) * 4 : 0.0;
 
+    // Subtle "present" grow on settle — stacks on the existing entrance scale so
+    // the landed card eases from 1.0 → ~1.05 as it lands (land = seg to 1.0).
+    final present = 1.0 + seg(t, kSpinSettle, 1.0) * 0.05;
+
     final matrix = Matrix4.identity()
       ..setEntry(3, 2, 0.0012) // perspective
       ..rotateY(m.angle);
 
     return Transform.translate(
-      offset: Offset(0, m.settleY + bob),
+      offset: Offset(0, m.settleY + bob + centreLift),
       child: Opacity(
         opacity: m.appear.clamp(0.0, 1.0),
         child: Transform.scale(
-          scale: (0.2 + m.appear * 0.8).clamp(0.0, 1.1) + m.pop,
+          scale: ((0.2 + m.appear * 0.8).clamp(0.0, 1.1) + m.pop) * present,
           child: Transform(
             alignment: Alignment.center,
             transform: matrix,
@@ -515,20 +542,43 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
               width: cardW,
               height: cardH,
               child: m.facingFront
-                  ? _CardFace(
-                      card: widget.card,
-                      tier: spec.tier,
-                      shine: spec.shineSweep ? seg(t, 0.87, 0.97) : 0,
-                      birth: spec.forgeBirth
-                          ? (1 - seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
-                          : 0,
-                      foil: spec.foil,
-                      foilPhase: m.foilPhase,
-                      spinTilt: m.spinTilt,
-                      flare: bell(seg(t, 0.86, 0.95)) * spec.lensFlare,
-                      glowBreath: breath,
-                      glow: palette.glow,
-                      bright: palette.bright,
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Breathing outer glow — the ONLY element that keeps
+                        // moving once settled. While animating it breathes on
+                        // _ambient; at rest _ambient is frozen so it reads from
+                        // _restBreath. Its own AnimatedBuilder + RepaintBoundary
+                        // means at rest ONLY this glow repaints (aurora/halo/
+                        // motes stay frozen — Batch 1 perf win preserved).
+                        RepaintBoundary(
+                          child: AnimatedBuilder(
+                            animation: _restBreath,
+                            builder: (context, _) {
+                              final restB = 0.5 +
+                                  0.5 *
+                                      math.sin(
+                                          _restBreath.value * 2 * math.pi);
+                              final gb = _resting ? restB : breath;
+                              return _CardGlow(glow: palette.glow, breath: gb);
+                            },
+                          ),
+                        ),
+                        _CardFace(
+                          card: widget.card,
+                          tier: spec.tier,
+                          shine: spec.shineSweep ? seg(t, 0.87, 0.97) : 0,
+                          birth: spec.forgeBirth
+                              ? (1 - seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
+                              : 0,
+                          foil: spec.foil,
+                          foilPhase: m.foilPhase,
+                          spinTilt: m.spinTilt,
+                          flare: bell(seg(t, 0.86, 0.95)) * spec.lensFlare,
+                          glow: palette.glow,
+                          bright: palette.bright,
+                        ),
+                      ],
                     )
                   : RevealCardBack(tier: spec.tier),
             ),
@@ -675,6 +725,33 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
 // diagonal shine sweep, a settle lens-flare, and a "forged" white overexposure.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The card's breathing outer glow, split out from _CardFace so it can live in
+// its own AnimatedBuilder(_restBreath) + RepaintBoundary. Drawn behind the
+// (opaque, rounded) tile, so the visual is identical to a shadow on the tile's
+// own decoration. `breath` is 0..1 (from _ambient while animating, _restBreath
+// at rest).
+class _CardGlow extends StatelessWidget {
+  const _CardGlow({required this.glow, required this.breath});
+  final Color glow;
+  final double breath;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: glow.withValues(alpha: 0.42 + 0.16 * breath),
+            blurRadius: 48,
+            spreadRadius: 6,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CardFace extends StatelessWidget {
   const _CardFace({
     required this.card,
@@ -685,7 +762,6 @@ class _CardFace extends StatelessWidget {
     required this.foilPhase,
     required this.spinTilt,
     required this.flare,
-    required this.glowBreath,
     required this.glow,
     required this.bright,
   });
@@ -698,7 +774,6 @@ class _CardFace extends StatelessWidget {
   final double foilPhase; // 0→1 holographic hue drift
   final double spinTilt; // -1..1 specular position
   final double flare; // 0→1→0 lens-flare at land (0 = skip)
-  final double glowBreath; // 0..1 breathing outer glow
   final Color glow; // tier additive glow accent (outer shadow)
   final Color bright; // tier lighter accent (foil/flare)
 
@@ -707,24 +782,9 @@ class _CardFace extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Breathing outer glow — kept OUTSIDE the tile's RepaintBoundary so its
-        // per-frame alpha animation (glowBreath) doesn't invalidate the cached
-        // ornate-tile raster. Drawn behind the (opaque, rounded) tile, so the
-        // visual is identical to a shadow on the tile's own decoration.
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: glow.withValues(alpha: 0.42 + 0.16 * glowBreath),
-                  blurRadius: 48,
-                  spreadRadius: 6,
-                ),
-              ],
-            ),
-          ),
-        ),
+        // NOTE: the breathing outer glow is now drawn as a sibling ([_CardGlow])
+        // in _buildCard, wrapped in its own AnimatedBuilder(_restBreath) +
+        // RepaintBoundary, so at rest ONLY the glow repaints.
         // Static ornate tile — rasterised once (its inputs don't animate) so the
         // spin only re-composites the cached raster instead of re-painting the
         // Arabic/geometry each frame.
