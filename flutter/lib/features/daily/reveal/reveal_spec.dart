@@ -99,7 +99,7 @@ RevealSpec revealSpecFor(CardTier tier) {
         burstAt: 0.34,
         spinTurns: 0, godRays: 0.25, radialShafts: 0.0, aurora: 0.0,
         halo: false, foil: 0.0, restMotes: 0.15, lensFlare: 0.0,
-        shineSweep: false, forgeBirth: false, sparkCount: 8,
+        shineSweep: true, forgeBirth: false, sparkCount: 8,
         godRayCount: 8, shaftCount: 10, moteCount: 6,
         haptics: HapticProfile.light,
       );

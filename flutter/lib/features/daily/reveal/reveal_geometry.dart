@@ -74,9 +74,11 @@ typedef RevealCardMotion = ({
 
 RevealCardMotion revealCardMotion(RevealSpec spec, double t, double ambient) {
   // Card entrance is anchored to the tier's burst point (lower tiers ignite
-  // earlier). Emerald (burstAt 0.46) reproduces the original [0.46, 0.58].
+  // earlier). Monotonic easeOutCubic so it owns NO overshoot — the settle
+  // spring + landing pop are the single bounce owner (#004 / #005). Emerald
+  // (burstAt 0.46) reproduces the original [0.46, 0.58] window.
   final appear =
-      Curves.easeOutBack.transform(seg(t, spec.burstAt, spec.burstAt + 0.12));
+      Curves.easeOutCubic.transform(seg(t, spec.burstAt, spec.burstAt + 0.12));
 
   // Motion is spec-gated. Spinning tiers (Silver/Gold/Emerald) run the tuned
   // decelerating Y-spin with a settle overshoot + front/back swap. Bronze
@@ -88,20 +90,28 @@ RevealCardMotion revealCardMotion(RevealSpec spec, double t, double ambient) {
   double foilPhase = ambient;
   if (spec.spins) {
     // Spin window pivots on the burst point (Emerald 0.46 → [0.49, 0.86]).
+    // easeOutQuint holds high speed longer then decelerates hard in the tail —
+    // the "will-it-land" tension lives in that terminal decel (#004).
     final spinT =
-        Curves.easeOutCubic.transform(seg(t, spec.burstAt + 0.03, kSpinSettle));
-    // Settle overshoot — a small decaying wobble past 0 so the landing has weight.
+        Curves.easeOutQuint.transform(seg(t, spec.burstAt + 0.03, kSpinSettle));
+    // Settle overshoot — a SINGLE asymmetric damped overshoot in the spin
+    // direction (a weighted landing, not a symmetric jelly rock). Overshoots
+    // once past the final angle (negative = spin direction) then decays to ~0 by
+    // land=1: sin(land·π) is one hump (no inner zero-crossing → one overshoot)
+    // and is exactly 0 at land=1 so angle collapses to 0 at t=1.0 (#004).
     final land = seg(t, kSpinSettle, 1.0);
-    final wobble = math.sin(land * math.pi * 2.4) * (1 - land) * 0.11;
+    final wobble = -math.sin(land * math.pi) * math.exp(-3.2 * land) * 0.13;
     angle = (1 - spinT) * spec.spinTurns * 2 * math.pi + wobble;
     facingFront = math.cos(angle) >= 0;
     spinTilt = math.sin(angle);
     foilPhase = ((angle / (2 * math.pi)) + ambient) % 1.0;
   }
 
-  // Landing scale pop + rise, then a gentle idle bob (bob stays in the widget
-  // since it depends only on the ambient loop, not the reveal timeline).
-  final pop = bell(seg(t, 0.84, 0.94)) * 0.05;
+  // Landing scale pop synced to the spin's face-arrival: the bell peaks at
+  // kSpinSettle so the pop coincides with the card landing face-front (#004).
+  // The rise + idle bob (bob stays in the widget since it depends only on the
+  // ambient loop, not the reveal timeline) keep their original window.
+  final pop = bell(seg(t, kSpinSettle - 0.06, kSpinSettle + 0.06)) * 0.05;
   final settleY = -seg(t, 0.84, 0.94) * 8;
 
   return (

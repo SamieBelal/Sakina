@@ -454,9 +454,10 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     final palette = spec.palette;
     final swell = seg(t, 0.0, 0.30); // extended: tier colour + rays gather
     // Erupts + dissolves into the burst. Window pivots on the tier's burst
-    // point (Emerald 0.46 → [0.34, 0.46]) so each tier flares within its own
-    // vessel-render window (the vessel is only shown while t < spec.burstAt).
-    final flare = seg(t, spec.burstAt - 0.12, spec.burstAt);
+    // point and ends a HAIR past it (burstAt + 0.02) so the lantern's dissolving
+    // glow overlaps the card's first fade-in frames rather than hard-cutting
+    // (the card emerges from where the lantern was). Emerald 0.46 → [0.34, 0.48].
+    final flare = seg(t, spec.burstAt - 0.12, spec.burstAt + 0.02);
     final shiver = _started ? math.sin(t * 70) * swell * 2.2 : 0.0;
     final scale = 1.0 + swell * 0.12 + flare * 0.6;
     final opacity = (1.0 - flare).clamp(0.0, 1.0);
@@ -583,8 +584,16 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                           card: widget.card,
                           tier: spec.tier,
                           shine: spec.shineSweep ? seg(t, 0.87, 0.97) : 0,
+                          // Forge white-hot overexposure. Its cooling ramp is
+                          // pivoted PAST the burst flash (starts at burstAt+0.01)
+                          // so the white-hot birth is visible against the
+                          // darkening atmosphere rather than lost inside the
+                          // flash whiteout. Emerald 0.46 → [0.47, 0.62].
                           birth: spec.forgeBirth
-                              ? (1 - seg(t, 0.47, 0.62)).clamp(0.0, 1.0)
+                              ? (1 -
+                                      seg(t, spec.burstAt + 0.01,
+                                          spec.burstAt + 0.16))
+                                  .clamp(0.0, 1.0)
                               : 0,
                           foil: spec.foil,
                           foilPhase: m.foilPhase,
