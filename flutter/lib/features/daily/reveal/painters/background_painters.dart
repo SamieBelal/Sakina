@@ -81,9 +81,7 @@ class AtmospherePainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HaloPainter extends CustomPainter {
-  HaloPainter(
-      {required this.rotation, required this.opacity, required this.bright});
-  final double rotation;
+  HaloPainter({required this.opacity, required this.bright});
   final double opacity;
   final Color bright;
 
@@ -92,6 +90,8 @@ class HaloPainter extends CustomPainter {
     if (opacity <= 0.01) return;
     final c = Offset(size.width / 2, size.height / 2);
     final r = size.shortestSide * 0.46;
+
+    // Soft blurred outer glow ring — the liked part; kept as-is.
     canvas.drawCircle(
       c,
       r,
@@ -102,31 +102,57 @@ class HaloPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2)
         ..blendMode = BlendMode.plus,
     );
-    canvas.drawCircle(
-      c,
-      r * 1.08,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..color = goldBright.withValues(alpha: 0.12 * opacity),
-    );
-    // A ring of ticks turning slowly around the card.
-    const ticks = 16;
-    final tick = Paint()
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..color = goldBright.withValues(alpha: 0.28 * opacity)
+
+    // Thin double-rule ring (two concentric hairline strokes) — a quiet mushaf
+    // rule rather than a HUD reticle. Non-rotating.
+    final rule = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..color = goldBright.withValues(alpha: 0.10 * opacity);
+    canvas.drawCircle(c, r * 1.06, rule);
+    canvas.drawCircle(c, r * 1.10, rule);
+
+    // Faint STATIC 8-point khatam star — two overlaid squares rotated 45°.
+    // Islamic-geometry motif at ~6% opacity, non-rotating (replaces the old
+    // marching tick-ring). Static — no rotation input.
+    final star = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..strokeJoin = StrokeJoin.round
+      ..color = goldBright.withValues(alpha: 0.14 * opacity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.6)
       ..blendMode = BlendMode.plus;
-    for (var i = 0; i < ticks; i++) {
-      final a = i * 2 * math.pi / ticks + rotation * 0.3;
+    final starR = r * 0.9;
+    for (final base in const [math.pi / 4, math.pi / 2]) {
+      final square = Path();
+      for (var i = 0; i < 4; i++) {
+        final a = base + i * math.pi / 2;
+        final p = c + Offset(math.cos(a), math.sin(a)) * starR;
+        if (i == 0) {
+          square.moveTo(p.dx, p.dy);
+        } else {
+          square.lineTo(p.dx, p.dy);
+        }
+      }
+      square.close();
+      canvas.drawPath(square, star);
+    }
+
+    // Small floral corner accents — soft dots at the four cardinal points on the
+    // outer rule, a gentle floron in place of ticks.
+    final floron = Paint()
+      ..color = goldBright.withValues(alpha: 0.18 * opacity)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4)
+      ..blendMode = BlendMode.plus;
+    for (var i = 0; i < 4; i++) {
+      final a = i * math.pi / 2 - math.pi / 2; // top, right, bottom, left
       final dir = Offset(math.cos(a), math.sin(a));
-      canvas.drawLine(c + dir * r * 1.02, c + dir * r * 1.06, tick);
+      canvas.drawCircle(c + dir * r * 1.08, 1.6, floron);
     }
   }
 
   @override
-  bool shouldRepaint(covariant HaloPainter old) =>
-      old.rotation != rotation || old.opacity != opacity;
+  bool shouldRepaint(covariant HaloPainter old) => old.opacity != opacity;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
