@@ -1,4 +1,10 @@
-// lib/features/daily/models/reveal_spec.dart
+// lib/features/daily/reveal/reveal_spec.dart
+//
+// Deliberately NOT a Freezed model: these are compile-time `const` reveal
+// *config* (one immutable spec per tier, built by revealSpecFor), not runtime
+// data. They never need JSON (de)serialization, and value `==`/`copyWith` add
+// no value for a fixed const table — so this lives under reveal/ rather than
+// models/, which is reserved for Freezed data models (see CLAUDE.md).
 import 'package:flutter/material.dart';
 import 'package:sakina/services/card_collection_service.dart';
 

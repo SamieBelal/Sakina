@@ -9,7 +9,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/utils/invalidate_providers.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
-import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/level_up_overlay.dart';
 import 'package:sakina/features/dua_times/data/dua_window_debug_scenarios.dart';
 import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_provider.dart';

@@ -1,6 +1,6 @@
 // test/features/daily/reveal_spec_test.dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/services/card_collection_service.dart';
 
 void main() {

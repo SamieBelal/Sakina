@@ -11,7 +11,7 @@ import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dar
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
-import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';

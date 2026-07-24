@@ -4,7 +4,7 @@ import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/silver_card_preview.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
-import 'package:sakina/features/daily/models/reveal_spec.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/services/card_collection_service.dart';
 
 /// The card FACE for a reveal — the tier's real collection tile.
