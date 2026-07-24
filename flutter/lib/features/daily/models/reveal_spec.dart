@@ -47,6 +47,9 @@ class RevealSpec {
     required this.shineSweep,
     required this.forgeBirth,
     required this.sparkCount,
+    required this.godRayCount,
+    required this.shaftCount,
+    required this.moteCount,
     required this.haptics,
   });
 
@@ -63,6 +66,9 @@ class RevealSpec {
   final bool shineSweep;
   final bool forgeBirth; // white-hot "forged from light" entrance
   final int sparkCount;
+  final int godRayCount; // lantern-ignite ray wedges (Emerald 16)
+  final int shaftCount; // burst radial shafts (Emerald 20)
+  final int moteCount; // floating rest embers (Emerald 14)
   final HapticProfile haptics;
 
   bool get spins => spinTurns > 0;
@@ -79,6 +85,7 @@ RevealSpec revealSpecFor(CardTier tier) {
         spinTurns: 0, godRays: 0.25, radialShafts: 0.0, aurora: 0.0,
         halo: false, foil: 0.0, restMotes: 0.15, lensFlare: 0.0,
         shineSweep: false, forgeBirth: false, sparkCount: 8,
+        godRayCount: 8, shaftCount: 10, moteCount: 6,
         haptics: HapticProfile.light,
       );
     case CardTier.silver:
@@ -88,6 +95,7 @@ RevealSpec revealSpecFor(CardTier tier) {
         spinTurns: 1, godRays: 0.5, radialShafts: 0.0, aurora: 0.25,
         halo: false, foil: 0.0, restMotes: 0.4, lensFlare: 0.3,
         shineSweep: true, forgeBirth: true, sparkCount: 14,
+        godRayCount: 10, shaftCount: 12, moteCount: 8,
         haptics: HapticProfile.medium,
       );
     case CardTier.gold:
@@ -97,6 +105,7 @@ RevealSpec revealSpecFor(CardTier tier) {
         spinTurns: 2, godRays: 0.75, radialShafts: 0.6, aurora: 0.6,
         halo: false, foil: 0.5, restMotes: 0.7, lensFlare: 0.7,
         shineSweep: true, forgeBirth: true, sparkCount: 22,
+        godRayCount: 14, shaftCount: 16, moteCount: 12,
         haptics: HapticProfile.rich,
       );
     case CardTier.emerald:
@@ -106,6 +115,7 @@ RevealSpec revealSpecFor(CardTier tier) {
         spinTurns: 3, godRays: 1.0, radialShafts: 1.0, aurora: 1.0,
         halo: true, foil: 1.0, restMotes: 1.0, lensFlare: 1.0,
         shineSweep: true, forgeBirth: true, sparkCount: 30,
+        godRayCount: 16, shaftCount: 20, moteCount: 14,
         haptics: HapticProfile.legendary,
       );
   }

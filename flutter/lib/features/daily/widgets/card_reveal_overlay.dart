@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/theme/app_typography.dart';
@@ -88,38 +89,56 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // _open(); read in _continue().
   final Stopwatch _dwell = Stopwatch();
   late final List<_Spark> _sparks = _buildSparks(widget.spec.sparkCount);
-  final List<_Mote> _motes = _buildMotes(14);
+  late final List<_Mote> _motes = _buildMotes(widget.spec.moteCount);
 
   @override
   void initState() {
     super.initState();
     _reveal = AnimationController(vsync: this, duration: _revealDuration);
+    // NOT started here: the ambient loop is kicked off in _open() (once
+    // _reduceMotion is resolved) and — critically — STOPPED again the moment the
+    // reveal settles, so the full-screen blurred/additive FX stack stops
+    // repainting at rest (real on-device battery/GPU win). See #001.
     _ambient = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
-    )..repeat();
+    );
 
-    if (widget.autoStart) {
-      // Loop the whole sequence so timed screenshots catch every beat.
-      _reveal.addStatusListener((status) {
-        // Under reduced motion the reveal is a static settle — don't loop it
-        // (would leave a pending restart timer + defeats the a11y intent).
-        if (status == AnimationStatus.completed && mounted && !_reduceMotion) {
-          Future.delayed(const Duration(milliseconds: 1400), () {
-            if (!mounted) return;
-            _reveal.forward(from: 0);
-            _scheduleHaptics();
-          });
-        }
-      });
+    // Rest-state freeze: once the reveal has fully settled we no longer need the
+    // ambient ticker for the interactive path — freeze breath/rotation/motes at
+    // their current values (the settled frame is calm). autoStart's debug loop
+    // restarts both controllers, so it keeps animating.
+    _reveal.addStatusListener(_onRevealStatus);
+
+    if (widget.autoStart && kDebugMode) {
+      // Debug/verification only: open without a tap.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _open();
       });
     }
   }
 
+  void _onRevealStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) return;
+    if (widget.autoStart && kDebugMode && !_reduceMotion) {
+      // Loop the whole sequence so timed screenshots catch every beat. Restart
+      // BOTH controllers (the ambient was stopped at the previous settle).
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (!mounted) return;
+        if (!_ambient.isAnimating) _ambient.repeat();
+        _reveal.forward(from: 0);
+        _scheduleHaptics();
+      });
+    } else {
+      // Interactive / reduced-motion path: settle → stop the ambient loop so the
+      // rested FX stack no longer repaints every frame.
+      _ambient.stop();
+    }
+  }
+
   @override
   void dispose() {
+    _reveal.removeStatusListener(_onRevealStatus);
     _reveal.dispose();
     _ambient.dispose();
     super.dispose();
@@ -134,8 +153,12 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     // tap or a post-frame callback, never initState). The default
     // (disableAnimations false) path is untouched.
     _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (_reduceMotion) {
-      _reveal.duration = const Duration(milliseconds: 500);
+    // Ambient loop (breath/drift/rotation) only runs under normal motion. Under
+    // reduced motion the reveal snaps to a static settle, so there's nothing to
+    // drive (and starting it would contradict the a11y intent + leave a ticker
+    // running). See #001 / #014.
+    if (!_reduceMotion) {
+      _ambient.repeat();
     }
     setState(() => _started = true);
     _dwell
@@ -231,9 +254,11 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   void _continue() {
     if (_dismissed) return;
     _dismissed = true;
+    final dwellMs = _dwell.elapsedMilliseconds;
+    _dwell.stop();
     widget.onEvent?.call(AnalyticsEvents.cardRevealCompleted, {
       'tier': widget.spec.tier.label,
-      'dwell_ms': _dwell.elapsedMilliseconds,
+      'dwell_ms': dwellMs,
       'auto': widget.autoStart,
     });
     HapticFeedback.lightImpact();
@@ -284,6 +309,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                           fade: 1 - _seg(t, 0.40, 0.50),
                           rotation: spin,
                           color: _tGlow,
+                          rayCount: spec.godRayCount,
                         ),
                       ),
                     ),
@@ -317,6 +343,7 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                           rotation: spin,
                           color: _tBright,
                           glow: _tGlow,
+                          shaftCount: spec.shaftCount,
                         ),
                       ),
                     ),
@@ -430,10 +457,14 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       ),
                     ),
                   ),
-                CompanionMedallion(
-                  state: lampState,
-                  size: 190,
-                  ambient: false,
+                // Illustrated geometry is static; only the outer Transform /
+                // Opacity animate, so cache its raster (#014).
+                RepaintBoundary(
+                  child: CompanionMedallion(
+                    state: lampState,
+                    size: 190,
+                    ambient: false,
+                  ),
                 ),
               ],
             ),
@@ -1159,11 +1190,13 @@ class _LanternRaysPainter extends CustomPainter {
     required this.fade,
     required this.rotation,
     required this.color,
+    required this.rayCount,
   });
   final double grow;
   final double fade;
   final double rotation;
   final Color color;
+  final int rayCount; // spec-driven: Emerald 16, lower tiers fewer
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1175,7 +1208,7 @@ class _LanternRaysPainter extends CustomPainter {
     canvas.translate(c.dx, c.dy);
     canvas.rotate(rotation);
 
-    const rays = 16;
+    final rays = rayCount;
     final reach = Curves.easeOutCubic.transform(grow);
     for (var i = 0; i < rays; i++) {
       final long = i.isEven;
@@ -1231,7 +1264,8 @@ class _LanternRaysPainter extends CustomPainter {
       old.grow != grow ||
       old.fade != fade ||
       old.rotation != rotation ||
-      old.color != color;
+      old.color != color ||
+      old.rayCount != rayCount;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1304,6 +1338,7 @@ class _BurstPainter extends CustomPainter {
     required this.rotation,
     required this.color,
     required this.glow,
+    required this.shaftCount,
   });
   final double rings;
   final double flash;
@@ -1311,6 +1346,7 @@ class _BurstPainter extends CustomPainter {
   final double rotation;
   final Color color; // tier accent (flash + shafts)
   final Color glow; // tier additive glow accent (rings)
+  final int shaftCount; // spec-driven: Emerald 20, lower tiers fewer
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1337,7 +1373,7 @@ class _BurstPainter extends CustomPainter {
       canvas.save();
       canvas.translate(c.dx, c.dy);
       canvas.rotate(rotation * 0.5);
-      const n = 20;
+      final n = shaftCount;
       final len = maxR * (0.4 + 0.7 * shafts);
       for (var i = 0; i < n; i++) {
         canvas.save();
@@ -1394,7 +1430,8 @@ class _BurstPainter extends CustomPainter {
       old.shafts != shafts ||
       old.rotation != rotation ||
       old.color != color ||
-      old.glow != glow;
+      old.glow != glow ||
+      old.shaftCount != shaftCount;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
