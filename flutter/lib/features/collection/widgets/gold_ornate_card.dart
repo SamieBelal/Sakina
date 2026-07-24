@@ -126,13 +126,18 @@ class GoldOrnateTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // Diamond-shaped frame around medallion
-                              CustomPaint(
-                                size:
-                                    Size(medallionSize + 8, medallionSize + 8),
-                                painter: _DiamondFramePainter(
-                                  color: _goldCore.withValues(alpha: 0.5),
-                                  gemColor: _gemBlue.withValues(alpha: 0.6),
+                              // Diamond-shaped frame around medallion — enlarged
+                              // and vertically stretched for the reveal hero look.
+                              Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.diagonal3Values(1.15, 1.3, 1.0),
+                                child: CustomPaint(
+                                  size: Size(
+                                      medallionSize + 8, medallionSize + 8),
+                                  painter: _DiamondFramePainter(
+                                    color: _goldCore.withValues(alpha: 0.5),
+                                    gemColor: _gemBlue.withValues(alpha: 0.6),
+                                  ),
                                 ),
                               ),
                               // Gold ring

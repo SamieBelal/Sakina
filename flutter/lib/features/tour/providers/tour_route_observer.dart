@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
+
 /// Tracks the topmost route's `settings.name` on the root navigator so the
 /// tour overlay host can decide whether to render or hide.
 ///
@@ -20,7 +22,8 @@ class TourRouteObserver extends NavigatorObserver {
   /// The route names that should hide the tour overlay while on top of the
   /// navigator. These are full-screen modals that own the user's attention.
   static const Set<String> blockingRouteNames = {
-    'NameRevealOverlay',
+    'NameRevealOverlay', // legacy reveal — still used by collection + onboarding
+    CardRevealOverlay.routeName, // tiered muḥāsabah reveal (replaced NameRevealOverlay there)
     'LevelUpOverlay',
     'LapsedTrialSheet',
     'FirstStepsOverlay',
