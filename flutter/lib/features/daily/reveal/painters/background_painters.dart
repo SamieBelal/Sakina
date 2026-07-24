@@ -428,8 +428,13 @@ class SparkPainter extends CustomPainter {
     final c = Offset(size.width / 2, size.height / 2);
     final half = size.longestSide * 0.5;
 
-    for (final s in sparks) {
-      final p = (progress * s.speed).clamp(0.0, 1.0);
+    for (var i = 0; i < sparks.length; i++) {
+      final s = sparks[i];
+      // Stagger each spark's effective launch by a small per-index delay so they
+      // stream out as a spray rather than one uniformly-expanding shell. Kept
+      // subtle (max ~0.12 of the window across the field).
+      final delay = (i % 8) * 0.015;
+      final p = ((progress - delay) * s.speed).clamp(0.0, 1.0);
       final dir = Offset(math.cos(s.angle), math.sin(s.angle));
       final dist = half * s.distance * Curves.easeOut.transform(p);
       final pos = c + dir * dist;

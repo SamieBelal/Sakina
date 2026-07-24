@@ -615,11 +615,14 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   Widget _buildCaption(double t) {
     final palette = widget.spec.palette;
     // Staggered reveal — badge, then name, then meaning. The badge window opens
-    // at kCaptionIn (the same gate that mounts this whole caption).
-    final aBadge = seg(t, kCaptionIn, 0.92);
-    final aName = seg(t, 0.89, 0.96);
+    // at kCaptionIn (the same gate that mounts this whole caption). ~0.07 gaps
+    // give a clear badge → name → meaning cadence, even on short tiers.
+    final aBadge = seg(t, kCaptionIn, 0.90);
+    final aName = seg(t, 0.88, 0.95);
     final aMeaning = seg(t, 0.93, 1.0);
-    final shimmer = _ambient.value; // drives the wordmark sheen
+    // One deterministic left→right sheen tied to the badge rising (not the
+    // free-running ambient loop, which randomly misses the entrance).
+    final shimmer = seg(t, 0.85, 1.0);
 
     Widget rise(double a, Widget child) => Opacity(
           opacity: a,
@@ -702,9 +705,23 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
     final breath = 0.5 + 0.5 * math.sin(_ambient.value * 2 * math.pi);
     return Positioned(
       bottom: 128,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      // Short fade + rise entrance (~350ms) when the overlay first appears, so
+      // the idle hint settles in rather than popping. The breathing below is
+      // preserved (driven by _ambient).
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOut,
+        builder: (context, entrance, child) => Opacity(
+          opacity: entrance,
+          child: Transform.translate(
+            offset: Offset(0, (1 - entrance) * 12),
+            child: child,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Container(
             width: 5,
             height: 5,
@@ -737,7 +754,8 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

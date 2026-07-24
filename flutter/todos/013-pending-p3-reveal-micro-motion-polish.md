@@ -34,6 +34,26 @@ _(blank — triage)_
 
 ## Work Log
 - 2026-07-23: Found via /code-review (impeccable animation pass P2-2, P3-1/2/3/4).
+- 2026-07-23: Applied on `feat/reveal-everywhere` (4 of 5 items; spin-count SKIPPED):
+  - Caption cadence widened (`_buildCaption`): badge `seg(t, kCaptionIn, 0.90)`,
+    name `seg(t, 0.88, 0.95)`, meaning `seg(t, 0.93, 1.0)` — clear ~0.07 gaps.
+    `kCaptionIn` lowered 0.85 → 0.83 (it gates `t > kCaptionIn` in build() AND is
+    the badge stagger start) so the badge isn't clipped. No test asserts
+    kCaptionIn's value; `reveal_motion_test.dart:96` uses 0.89 as a t input,
+    unaffected.
+  - One-shot badge sheen: `_ShimmerText.phase` on the tier badge now driven by
+    `seg(t, 0.85, 1.0)` (one deterministic 0→1 left→right sweep as the badge
+    rises) instead of the free-running `_ambient.value`.
+  - Spark launch stagger (`SparkPainter.paint`): indexed loop, per-spark
+    `delay = (i % 8) * 0.015`, `p = ((progress - delay) * s.speed).clamp(...)` —
+    a subtle spray, not a ring. (Spark has no seed field, so delay is
+    index-derived.)
+  - Idle hint entrance (`_buildHint`): wrapped in a `TweenAnimationBuilder<double>`
+    (0→1 over 350ms, easeOut) driving opacity + a 12px rise; existing breathing
+    preserved.
+  - SKIPPED (per batch instructions): Emerald 3× → 2.5× spin. `spinTurns` in
+    reveal_spec.dart is unchanged — Emerald's spin feel is user-approved.
+  - flutter analyze: 0 errors. flutter test test/features/daily/: 67 passed.
 
 ## Resources
 - —
