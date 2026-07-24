@@ -25,9 +25,12 @@ const revealCanvas = Color(0xFF05100A);
 // can't desync its partner. Purely-local one-off _seg windows stay as literals.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Lantern → card swap. The build gates the vessel with `t < kCardSwap` and the
-/// card's `appear` window starts at exactly this value — they must match or the
-/// vessel vanishes a frame before the card fades in (or vice versa).
+/// Lantern → card swap — the Emerald/default burst point. Per-tier the swap is
+/// now driven by `spec.burstAt` (lower tiers ignite earlier): the build gates
+/// the vessel with `t < spec.burstAt` and the card's `appear` window opens at
+/// exactly `spec.burstAt`, so the vessel never vanishes a frame before the card
+/// fades in. This const is Emerald's value (`revealSpecFor(emerald).burstAt`),
+/// kept as the shared default anchor + the interlock reference for the tests.
 const double kCardSwap = 0.46;
 
 /// Caption gate. The name/badge/continue stack is mounted only for
@@ -70,7 +73,10 @@ typedef RevealCardMotion = ({
 });
 
 RevealCardMotion revealCardMotion(RevealSpec spec, double t, double ambient) {
-  final appear = Curves.easeOutBack.transform(seg(t, kCardSwap, 0.58));
+  // Card entrance is anchored to the tier's burst point (lower tiers ignite
+  // earlier). Emerald (burstAt 0.46) reproduces the original [0.46, 0.58].
+  final appear =
+      Curves.easeOutBack.transform(seg(t, spec.burstAt, spec.burstAt + 0.12));
 
   // Motion is spec-gated. Spinning tiers (Silver/Gold/Emerald) run the tuned
   // decelerating Y-spin with a settle overshoot + front/back swap. Bronze
@@ -81,7 +87,9 @@ RevealCardMotion revealCardMotion(RevealSpec spec, double t, double ambient) {
   double spinTilt = 0; // -1..1, drives the specular sweep
   double foilPhase = ambient;
   if (spec.spins) {
-    final spinT = Curves.easeOutCubic.transform(seg(t, 0.49, kSpinSettle));
+    // Spin window pivots on the burst point (Emerald 0.46 → [0.49, 0.86]).
+    final spinT =
+        Curves.easeOutCubic.transform(seg(t, spec.burstAt + 0.03, kSpinSettle));
     // Settle overshoot — a small decaying wobble past 0 so the landing has weight.
     final land = seg(t, kSpinSettle, 1.0);
     final wobble = math.sin(land * math.pi * 2.4) * (1 - land) * 0.11;

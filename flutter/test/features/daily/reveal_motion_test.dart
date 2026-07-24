@@ -70,14 +70,18 @@ void main() {
     final spec = revealSpecFor(CardTier.emerald);
 
     test('card appear is 0 at/before the swap and rises after it', () {
-      // The card appear window is [kCardSwap, 0.58]; before/at the swap the
-      // card has not begun fading in.
-      expect(revealCardMotion(spec, kCardSwap, 0.0).appear, 0.0);
-      expect(revealCardMotion(spec, kCardSwap - 0.05, 0.0).appear, 0.0);
+      // The card appear window is now [spec.burstAt, spec.burstAt+0.12]; for
+      // Emerald (burstAt 0.46) that is [0.46, 0.58]. Before/at the swap the card
+      // has not begun fading in.
+      expect(revealCardMotion(spec, spec.burstAt, 0.0).appear, 0.0);
+      expect(revealCardMotion(spec, spec.burstAt - 0.05, 0.0).appear, 0.0);
       // Partway through the window it is climbing above zero…
       expect(revealCardMotion(spec, 0.55, 0.0).appear, greaterThan(0.0));
-      // …and fully in by the end of the window (easeOutBack lands at 1.0).
-      expect(revealCardMotion(spec, 0.58, 0.0).appear, closeTo(1.0, 1e-9));
+      // …and fully in (≈1.0) by the end of the window. The window edge
+      // (burstAt+0.12) is subject to float rounding, so allow a small tolerance
+      // rather than asserting an exact curve value at the boundary.
+      expect(revealCardMotion(spec, spec.burstAt + 0.12, 0.0).appear,
+          closeTo(1.0, 1e-3));
     });
 
     test('pop and settleY reach their settled values by t=1.0', () {

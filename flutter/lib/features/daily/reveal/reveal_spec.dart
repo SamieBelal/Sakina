@@ -42,6 +42,7 @@ class RevealSpec {
   const RevealSpec({
     required this.tier,
     required this.duration,
+    required this.burstAt,
     required this.spinTurns,
     required this.godRays,
     required this.radialShafts,
@@ -61,6 +62,13 @@ class RevealSpec {
 
   final CardTier tier;
   final Duration duration;
+
+  /// Normalized t where the burst fires / lantern→card swap happens. Lower
+  /// tiers ignite earlier (snappier build) so more of their short runtime is
+  /// spent on burst+land+rest; Emerald keeps the original 0.46 so its feel is
+  /// unchanged. Every window that pivots around the swap in the overlay and in
+  /// revealCardMotion is expressed RELATIVE to this value.
+  final double burstAt;
   final int spinTurns; // 0 = fade/scale in (no rotation)
   final double godRays; // 0-1 lantern ignite ray intensity
   final double radialShafts; // 0-1 burst shafts
@@ -88,6 +96,7 @@ RevealSpec revealSpecFor(CardTier tier) {
       return const RevealSpec(
         tier: CardTier.bronze,
         duration: Duration(milliseconds: 2400),
+        burstAt: 0.34,
         spinTurns: 0, godRays: 0.25, radialShafts: 0.0, aurora: 0.0,
         halo: false, foil: 0.0, restMotes: 0.15, lensFlare: 0.0,
         shineSweep: false, forgeBirth: false, sparkCount: 8,
@@ -98,6 +107,7 @@ RevealSpec revealSpecFor(CardTier tier) {
       return const RevealSpec(
         tier: CardTier.silver,
         duration: Duration(milliseconds: 3600),
+        burstAt: 0.42,
         spinTurns: 1, godRays: 0.5, radialShafts: 0.0, aurora: 0.25,
         halo: false, foil: 0.0, restMotes: 0.4, lensFlare: 0.3,
         shineSweep: true, forgeBirth: true, sparkCount: 14,
@@ -108,6 +118,7 @@ RevealSpec revealSpecFor(CardTier tier) {
       return const RevealSpec(
         tier: CardTier.gold,
         duration: Duration(milliseconds: 5000),
+        burstAt: 0.46,
         spinTurns: 2, godRays: 0.75, radialShafts: 0.6, aurora: 0.6,
         halo: false, foil: 0.5, restMotes: 0.7, lensFlare: 0.7,
         shineSweep: true, forgeBirth: true, sparkCount: 22,
@@ -118,6 +129,7 @@ RevealSpec revealSpecFor(CardTier tier) {
       return const RevealSpec(
         tier: CardTier.emerald,
         duration: Duration(milliseconds: 7000),
+        burstAt: 0.46, // KEEP at today's value — Emerald pacing unchanged.
         spinTurns: 3, godRays: 1.0, radialShafts: 1.0, aurora: 1.0,
         halo: true, foil: 1.0, restMotes: 1.0, lensFlare: 1.0,
         shineSweep: true, forgeBirth: true, sparkCount: 30,

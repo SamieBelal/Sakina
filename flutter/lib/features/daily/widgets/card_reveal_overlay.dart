@@ -331,7 +331,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       child: CustomPaint(
                         painter: LanternRaysPainter(
                           grow: seg(t, 0.05, 0.34) * spec.godRays,
-                          fade: 1 - seg(t, 0.40, 0.50),
+                          // Rays fade out INTO the burst — window pivots on the
+                          // tier's burst point (Emerald 0.46 → [0.40, 0.50]).
+                          fade: 1 - seg(t, spec.burstAt - 0.06, spec.burstAt + 0.04),
                           rotation: spin,
                           color: palette.glow,
                           rayCount: spec.godRayCount,
@@ -362,9 +364,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                     child: RepaintBoundary(
                       child: CustomPaint(
                         painter: BurstPainter(
-                          rings: seg(t, 0.38, 0.66),
-                          flash: bell(seg(t, 0.38, 0.52)),
-                          shafts: bell(seg(t, 0.40, 0.56)) * spec.radialShafts,
+                          // Burst peak windows pivot on spec.burstAt (same
+                          // widths as before). Emerald 0.46 reproduces the
+                          // original literals [0.38,0.66]/[0.38,0.52]/[0.40,0.56].
+                          rings: seg(t, spec.burstAt - 0.08, spec.burstAt + 0.20),
+                          flash: bell(seg(t, spec.burstAt - 0.08, spec.burstAt + 0.06)),
+                          shafts: bell(seg(t, spec.burstAt - 0.06, spec.burstAt + 0.10)) *
+                              spec.radialShafts,
                           rotation: spin,
                           color: palette.bright,
                           glow: palette.glow,
@@ -380,7 +386,9 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       child: CustomPaint(
                         painter: SparkPainter(
                           sparks: _sparks,
-                          progress: seg(t, 0.40, 0.78),
+                          // Sparks fling from the break — pivots on burstAt,
+                          // same width (Emerald 0.46 → [0.40, 0.78]).
+                          progress: seg(t, spec.burstAt - 0.06, spec.burstAt + 0.32),
                           bright: palette.bright,
                         ),
                       ),
@@ -415,8 +423,11 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                       ),
                     ),
 
-                  // 8 ── The vessel (lantern) OR the card.
-                  if (t < kCardSwap)
+                  // 8 ── The vessel (lantern) OR the card. The swap pivots on
+                  //      the tier's burst point; the card's `appear` window in
+                  //      revealCardMotion opens at exactly spec.burstAt so the
+                  //      vessel never vanishes a frame before the card fades in.
+                  if (t < spec.burstAt)
                     _buildLantern(t)
                   else
                     _buildCard(t, breath),
@@ -439,9 +450,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
   // Starts UNLIT (no flame, no aura, no colour); on tap the tier colour floods
   // in AROUND it, the flame catches, and it erupts + dissolves into the burst.
   Widget _buildLantern(double t) {
-    final palette = widget.spec.palette;
+    final spec = widget.spec;
+    final palette = spec.palette;
     final swell = seg(t, 0.0, 0.30); // extended: tier colour + rays gather
-    final flare = seg(t, 0.34, kCardSwap); // erupts + dissolves into the burst
+    // Erupts + dissolves into the burst. Window pivots on the tier's burst
+    // point (Emerald 0.46 → [0.34, 0.46]) so each tier flares within its own
+    // vessel-render window (the vessel is only shown while t < spec.burstAt).
+    final flare = seg(t, spec.burstAt - 0.12, spec.burstAt);
     final shiver = _started ? math.sin(t * 70) * swell * 2.2 : 0.0;
     final scale = 1.0 + swell * 0.12 + flare * 0.6;
     final opacity = (1.0 - flare).clamp(0.0, 1.0);
