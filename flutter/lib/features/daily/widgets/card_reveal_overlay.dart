@@ -39,6 +39,11 @@ const _goldBright = Color(0xFFEDD9A3);
 const _canvas = Color(0xFF05100A);
 
 class CardRevealOverlay extends StatefulWidget {
+  /// Route name used both for the push `RouteSettings` and the tour's
+  /// `blockingRouteNames` guard. Keep these in lockstep via this single const —
+  /// a mismatch silently breaks the guided-tour "don't punch through" guard.
+  static const String routeName = 'CardRevealOverlay';
+
   const CardRevealOverlay({
     super.key,
     required this.card,

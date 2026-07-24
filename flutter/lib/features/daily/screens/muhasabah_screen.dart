@@ -288,7 +288,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     final rootNav = Navigator.of(context, rootNavigator: true);
     await rootNav.push(
       PageRouteBuilder(
-        settings: const RouteSettings(name: 'CardRevealOverlay'),
+        settings: const RouteSettings(name: CardRevealOverlay.routeName),
         opaque: true,
         barrierDismissible: false,
         pageBuilder: (_, __, ___) => CardRevealOverlay(
