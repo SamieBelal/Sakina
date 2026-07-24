@@ -776,6 +776,11 @@ class _CardGlow extends StatelessWidget {
   }
 }
 
+// The intrinsic width the ornate tile is rendered at before the reveal's
+// FittedBox upscales it. Smaller = larger effective calligraphy on the settled
+// card (upscale factor ≈ cardW / this). ~160 gives ~1.9× on a phone.
+const double _kRevealTileDesignWidth = 160.0;
+
 class _CardFace extends StatelessWidget {
   const _CardFace({
     required this.card,
@@ -812,8 +817,20 @@ class _CardFace extends StatelessWidget {
         // Static ornate tile — rasterised once (its inputs don't animate) so the
         // spin only re-composites the cached raster instead of re-painting the
         // Arabic/geometry each frame.
-        RepaintBoundary(
-          child: revealCardTile(card, tier),
+        //
+        // The ornate tiles are the COLLECTION-GRID thumbnails: their calligraphy
+        // is hardcoded small (Arabic ~18pt, transliteration ~8pt) and uses a
+        // shrink-only FittedBox, so blowing the card box up just adds empty
+        // patterned space around tiny text. To make the reveal legible we render
+        // the tile at its natural design size and let a FittedBox upscale the
+        // WHOLE tile uniformly (calligraphy, pattern, border all grow together).
+        FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: _kRevealTileDesignWidth,
+            height: _kRevealTileDesignWidth / 0.72,
+            child: RepaintBoundary(child: revealCardTile(card, tier)),
+          ),
         ),
         // Holographic foil + rotation-synced specular glint. Skipped entirely on
         // tiers with no foil AND no spin (nothing would draw).
