@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/tour/providers/tour_route_observer.dart';
 
 void main() {
@@ -22,9 +23,9 @@ void main() {
       expect(obs.topRouteName.value, 'Foo');
     });
 
-    test('isBlockingRouteOnTop true for NameRevealOverlay', () {
+    test('isBlockingRouteOnTop true for CardRevealOverlay', () {
       final obs = TourRouteObserver();
-      obs.didPush(_FakeRoute('NameRevealOverlay'), null);
+      obs.didPush(_FakeRoute(CardRevealOverlay.routeName), null);
       expect(obs.isBlockingRouteOnTop, true);
     });
 
@@ -36,7 +37,7 @@ void main() {
 
     test('blockingRouteNames matches expected set', () {
       expect(TourRouteObserver.blockingRouteNames, {
-        'NameRevealOverlay',
+        CardRevealOverlay.routeName,
         'LevelUpOverlay',
         'LapsedTrialSheet',
         'FirstStepsOverlay',
