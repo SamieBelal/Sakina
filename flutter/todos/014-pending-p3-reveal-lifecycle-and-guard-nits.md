@@ -44,6 +44,15 @@ _(blank — triage)_
   - SKIPPED (intentional, per batch instructions): deriving `TierPalette.color` from
     `CardTier.colorValue` — risks touching reveal_spec.dart color values / Emerald
     parity. The hand-copied hex stays; revisit separately if desired.
+- 2026-07-23: Followed up on the previously-skipped item on `feat/reveal-everywhere`:
+  - `tierPalette(tier).color` now derives from `Color(tier.colorValue)` (single
+    source of truth via CardTierX, already imported). `bright`/`glow` stay
+    hand-specified (reveal-fx accents). `const` dropped on the four returns since
+    `Color(tier.colorValue)` isn't const (inner Colors kept `const`).
+  - VERIFIED the derived values equal the old hand-copied hex exactly: bronze
+    0xFFCD7F32, silver 0xFFA8A9AD, gold 0xFFC8985E, emerald 0xFF50C878 — nothing
+    changes visually. `reveal_spec_test.dart:28`
+    (`tierColor.toARGB32() == colorValue`) still passes.
 
 ## Resources
 - Several overlap with #001 (rest state) — batch where sensible.

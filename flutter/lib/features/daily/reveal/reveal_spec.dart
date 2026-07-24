@@ -20,19 +20,22 @@ class TierPalette {
 }
 
 TierPalette tierPalette(CardTier tier) {
+  // `color` is derived from CardTier.colorValue (single source of truth) so the
+  // base signature can never drift from the collection tier colour. `bright` and
+  // `glow` stay hand-specified — they're reveal-fx-only accents.
   switch (tier) {
     case CardTier.bronze:
-      return const TierPalette(
-        color: Color(0xFFCD7F32), bright: Color(0xFFE8A154), glow: Color(0xFFF0B36A));
+      return TierPalette(
+        color: Color(tier.colorValue), bright: const Color(0xFFE8A154), glow: const Color(0xFFF0B36A));
     case CardTier.silver:
-      return const TierPalette(
-        color: Color(0xFFA8A9AD), bright: Color(0xFFD8DBE0), glow: Color(0xFFEDEFF3));
+      return TierPalette(
+        color: Color(tier.colorValue), bright: const Color(0xFFD8DBE0), glow: const Color(0xFFEDEFF3));
     case CardTier.gold:
-      return const TierPalette(
-        color: Color(0xFFC8985E), bright: Color(0xFFEDD9A3), glow: Color(0xFFE8C56D));
+      return TierPalette(
+        color: Color(tier.colorValue), bright: const Color(0xFFEDD9A3), glow: const Color(0xFFE8C56D));
     case CardTier.emerald:
-      return const TierPalette(
-        color: Color(0xFF50C878), bright: Color(0xFF7EEAAF), glow: Color(0xFF4AE68A));
+      return TierPalette(
+        color: Color(tier.colorValue), bright: const Color(0xFF7EEAAF), glow: const Color(0xFF4AE68A));
   }
 }
 
