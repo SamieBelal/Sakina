@@ -139,8 +139,12 @@ class BronzeOrnateTile extends StatelessWidget {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Diamond shaped frame (rotated square)
-                              Transform.rotate(
+                              // Diamond shaped frame (rotated square) — enlarged
+                              // and vertically stretched for the reveal hero look.
+                              Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.diagonal3Values(1.15, 1.3, 1.0),
+                                child: Transform.rotate(
                                 angle: pi / 4,
                                 child: Container(
                                   width: medallionSize * 0.75,
@@ -159,6 +163,7 @@ class BronzeOrnateTile extends StatelessWidget {
                                       ),
                                     ],
                                   ),
+                                ),
                                 ),
                               ),
                               // Inner ruby glow

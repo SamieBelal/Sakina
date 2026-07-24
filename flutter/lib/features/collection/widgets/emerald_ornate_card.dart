@@ -362,13 +362,20 @@ class EmeraldOrnateTile extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // Trefoil frame around medallion
-                              CustomPaint(
-                                size:
-                                    Size(medallionSize + 8, medallionSize + 8),
-                                painter: _TrefoilFramePainter(
-                                  color: _goldAccent.withValues(alpha: 0.5),
-                                  gemColor: _emeraldCore.withValues(alpha: 0.6),
+                              // Trefoil frame around medallion — enlarged and
+                              // vertically stretched for the reveal hero look.
+                              Transform(
+                                alignment: Alignment.center,
+                                transform:
+                                    Matrix4.diagonal3Values(1.15, 1.3, 1.0),
+                                child: CustomPaint(
+                                  size: Size(
+                                      medallionSize + 8, medallionSize + 8),
+                                  painter: _TrefoilFramePainter(
+                                    color: _goldAccent.withValues(alpha: 0.5),
+                                    gemColor:
+                                        _emeraldCore.withValues(alpha: 0.6),
+                                  ),
                                 ),
                               ),
                               // Gold ring

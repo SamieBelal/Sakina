@@ -168,7 +168,9 @@ class _OrnateTile extends StatelessWidget {
               Positioned.fill(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final medallionSize = constraints.maxWidth * 0.55;
+                    // Silver has a ring emblem (no diamond) — enlarged to match
+                    // the other tiers' bigger reveal emblems.
+                    final medallionSize = constraints.maxWidth * 0.66;
                     final glowSize = medallionSize + 16;
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.center,

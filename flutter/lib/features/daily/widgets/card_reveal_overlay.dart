@@ -779,7 +779,7 @@ class _CardGlow extends StatelessWidget {
 // The intrinsic width the ornate tile is rendered at before the reveal's
 // FittedBox upscales it. Smaller = larger effective calligraphy on the settled
 // card (upscale factor ≈ cardW / this). ~160 gives ~1.9× on a phone.
-const double _kRevealTileDesignWidth = 160.0;
+const double _kRevealTileDesignWidth = 132.0;
 
 class _CardFace extends StatelessWidget {
   const _CardFace({
