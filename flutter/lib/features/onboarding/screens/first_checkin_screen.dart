@@ -14,7 +14,9 @@ import '../../../services/analytics_events.dart';
 import '../widgets/demo_result_card.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
-import '../../daily/widgets/name_reveal_overlay.dart';
+import '../../daily/reveal/reveal_spec.dart';
+import '../../daily/widgets/card_reveal_overlay.dart';
+import '../../../services/card_collection_service.dart';
 
 class FirstCheckinScreen extends ConsumerStatefulWidget {
   const FirstCheckinScreen({
@@ -292,18 +294,31 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
     if (_hasShownReveal) return;
     _hasShownReveal = true;
     final navigator = Navigator.of(context, rootNavigator: true);
+    // Resolve the real collectible card for this starter Name from the catalog
+    // (so the tiered reveal shows the ornate tile). Falls back to a constructed
+    // card from the demo data if the catalog id has no match.
+    final card = allCollectibleNames.firstWhere(
+      (c) => c.id == data.catalogId,
+      orElse: () => CollectibleName(
+        id: data.catalogId,
+        arabic: data.nameArabic,
+        transliteration: data.nameTransliteration,
+        english: data.nameEnglish,
+        meaning: '',
+        lesson: data.verseTranslation,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       navigator.push(
         PageRouteBuilder(
+          settings: const RouteSettings(name: CardRevealOverlay.routeName),
           opaque: false,
-          pageBuilder: (_, __, ___) => NameRevealOverlay(
-            nameArabic: data.nameArabic,
-            nameEnglish: data.nameTransliteration,
-            nameEnglishMeaning: data.nameEnglish,
-            teaching: data.verseTranslation,
-            card: null,
-            engageResult: null,
+          pageBuilder: (_, __, ___) => CardRevealOverlay(
+            card: card,
+            // First discovery in onboarding → Bronze reveal.
+            spec: revealSpecFor(CardTier.bronze),
+            onContinue: navigator.pop,
           ),
           transitionsBuilder: (_, anim, __, child) =>
               FadeTransition(opacity: anim, child: child),

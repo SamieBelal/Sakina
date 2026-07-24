@@ -18,7 +18,8 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/silver_card_preview.dart';
-import 'package:sakina/features/daily/widgets/name_reveal_overlay.dart';
+import 'package:sakina/features/daily/reveal/reveal_spec.dart';
+import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:go_router/go_router.dart';
@@ -1092,15 +1093,13 @@ class _CardDetailSheet extends ConsumerWidget {
                           Navigator.of(context).pop();
                           rootNav.push(
                             PageRouteBuilder(
+                              settings: const RouteSettings(
+                                  name: CardRevealOverlay.routeName),
                               opaque: true,
                               barrierDismissible: false,
-                              pageBuilder: (_, __, ___) => NameRevealOverlay(
-                                nameArabic: card.arabic,
-                                nameEnglish: card.transliteration,
-                                nameEnglishMeaning: card.english,
-                                teaching: card.lesson,
+                              pageBuilder: (_, __, ___) => CardRevealOverlay(
                                 card: card,
-                                engageResult: engageResult,
+                                spec: revealSpecFor(engageResult.tier),
                                 onContinue: rootNav.pop,
                               ),
                               transitionsBuilder: (_, anim, __, child) =>

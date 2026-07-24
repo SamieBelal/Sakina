@@ -36,7 +36,7 @@ const double kCardSwap = 0.46;
 /// Caption gate. The name/badge/continue stack is mounted only for
 /// `t > kCaptionIn`; the badge stagger's first window (`aBadge`) also opens here,
 /// so the caption never mounts before its first child has anything to show.
-const double kCaptionIn = 0.85;
+const double kCaptionIn = 0.83;
 
 /// Spin-settle handoff. The decelerating Y-spin's easing window ENDS here and
 /// the overshoot wobble window BEGINS here — they must match exactly or the
