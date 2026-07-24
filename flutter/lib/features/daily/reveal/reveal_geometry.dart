@@ -25,13 +25,12 @@ const revealCanvas = Color(0xFF05100A);
 // can't desync its partner. Purely-local one-off _seg windows stay as literals.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Lantern → card swap — the Emerald/default burst point. Per-tier the swap is
-/// now driven by `spec.burstAt` (lower tiers ignite earlier): the build gates
-/// the vessel with `t < spec.burstAt` and the card's `appear` window opens at
-/// exactly `spec.burstAt`, so the vessel never vanishes a frame before the card
-/// fades in. This const is Emerald's value (`revealSpecFor(emerald).burstAt`),
-/// kept as the shared default anchor + the interlock reference for the tests.
-const double kCardSwap = 0.46;
+// Lantern → card swap: intentionally NOT a shared constant. The swap is driven
+// per-tier by `spec.burstAt` (lower tiers ignite earlier). The build gates the
+// vessel with `t < spec.burstAt` and the card's `appear` window opens at exactly
+// `spec.burstAt`, so the two are one source of truth (the vessel never vanishes a
+// frame before the card fades in) without needing a separate literal to keep in
+// lockstep. Emerald's value is 0.46.
 
 /// Caption gate. The name/badge/continue stack is mounted only for
 /// `t > kCaptionIn`; the badge stagger's first window (`aBadge`) also opens here,
