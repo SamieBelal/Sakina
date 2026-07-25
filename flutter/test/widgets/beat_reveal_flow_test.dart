@@ -31,9 +31,10 @@ ReflectResponse _response({List<ReflectVerse> verses = const []}) =>
 
 void main() {
   group('buildBeatScreens', () {
-    test('produces key/reframe/2 story/takeaway/dua = 6 screens', () {
+    test('produces name/key/reframe/2 story/takeaway/dua = 7 screens', () {
       final screens = buildBeatScreens(_response());
       expect(screens.map((s) => s.kind).toList(), [
+        BeatKind.name,
         BeatKind.keyLine,
         BeatKind.reframe,
         BeatKind.story,
@@ -41,6 +42,17 @@ void main() {
         BeatKind.takeaway,
         BeatKind.dua,
       ]);
+      // The name hero carries the Arabic + transliteration + meaning.
+      expect(screens.first.arabic, 'اللطيف');
+      expect(screens.first.label, 'Al-Lateef');
+    });
+
+    test('includeName:false omits the name hero (muḥāsabah — gacha showed it)',
+        () {
+      final screens = buildBeatScreens(_response(), includeName: false);
+      expect(screens.where((s) => s.kind == BeatKind.name), isEmpty);
+      // Flow now opens on the key line instead.
+      expect(screens.first.kind, BeatKind.keyLine);
     });
 
     test('verses added between takeaway and dua only when includeVerses', () {
@@ -86,10 +98,16 @@ void main() {
       ));
       await t.pumpAndSettle();
 
-      expect(find.text('Allah was gentle with you tonight'), findsOneWidget);
+      // Beat 0 is the Name-of-Allah hero.
+      expect(find.text('Al-Lateef'), findsOneWidget);
 
       final size = t.getSize(find.byType(BeatRevealFlow));
-      // Right 60% → advance.
+      // Right 60% → advance off the name hero onto the key line.
+      await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
+      await t.pumpAndSettle();
+      expect(find.text('Allah was gentle with you tonight'), findsOneWidget);
+
+      // Right again → reframe body.
       await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
       await t.pumpAndSettle();
       expect(find.text('Allah was gentle with you tonight'), findsNothing);
@@ -97,7 +115,7 @@ void main() {
           find.text('Even unseen, His kindness arranged what you could not.'),
           findsOneWidget);
 
-      // Left 40% → back.
+      // Left 40% → back to the key line.
       await t.tapAt(Offset(size.width * 0.2, size.height * 0.5));
       await t.pumpAndSettle();
       expect(find.text('Allah was gentle with you tonight'), findsOneWidget);

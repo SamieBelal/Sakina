@@ -3,7 +3,7 @@ import 'package:sakina/services/ai_service.dart';
 
 /// The kind of a single beat screen — drives rendering, the analytics
 /// `beat_kind` property, and the screen-reader label prefix.
-enum BeatKind { keyLine, reframe, story, verse, takeaway, dua }
+enum BeatKind { name, keyLine, reframe, story, verse, takeaway, dua }
 
 /// One screen in the tap-through reflection flow. Built by [buildBeatScreens]
 /// from a [ReflectResponse]; the widget renders per [kind].
@@ -19,6 +19,10 @@ class BeatScreen {
   /// Attribution line (story source, verse reference); '' when none.
   final String source;
 
+  /// Arabic display text — populated only for [BeatKind.name] (the Name of
+  /// Allah in Arabic script, rendered in the mihrab arch hero).
+  final String arabic;
+
   /// Populated only for [BeatKind.dua] — the full dua stack + Ameen.
   final ReflectResponse? dua;
 
@@ -27,6 +31,7 @@ class BeatScreen {
     this.label = '',
     this.primary = '',
     this.source = '',
+    this.arabic = '',
     this.dua,
   });
 
@@ -58,11 +63,28 @@ class BeatScreen {
 ///
 /// [includeVerses] adds one screen per complete catalog verse between the
 /// takeaway and the duʿa (Reflect surfaces only; muḥāsabah passes false).
+///
+/// [includeName] prepends the Name-of-Allah mihrab hero. Reflect passes true
+/// (the hero opens the flow); muḥāsabah passes false because the gacha card
+/// reveal already showed the Name moments earlier — see the "skip step 0"
+/// decision in `daily_loop_provider.dart`.
 List<BeatScreen> buildBeatScreens(
   ReflectResponse r, {
   bool includeVerses = false,
+  bool includeName = true,
 }) {
   final screens = <BeatScreen>[];
+
+  // ── Name of Allah hero ── (mihrab arch; opens the flow). The transliteration
+  // rides on `label`, the meaning on `source`; screen readers announce both.
+  if (includeName && r.nameArabic.isNotEmpty) {
+    screens.add(BeatScreen(
+      kind: BeatKind.name,
+      arabic: r.nameArabic,
+      label: r.name,
+      source: r.meaning,
+    ));
+  }
 
   // ── Reframe ──
   if (r.reframeKey.isNotEmpty) {

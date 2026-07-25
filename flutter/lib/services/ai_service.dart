@@ -35,6 +35,10 @@ class RelatedName {
 class ReflectResponse {
   final String name;
   final String nameArabic;
+
+  /// The English epithet / meaning of the Name (e.g. "The Giver of Death"),
+  /// resolved from the canonical catalog. Empty for legacy/demo responses.
+  final String meaning;
   final String reframe;
   final String story;
   final List<ReflectVerse> verses;
@@ -60,6 +64,7 @@ class ReflectResponse {
   const ReflectResponse({
     required this.name,
     required this.nameArabic,
+    this.meaning = '',
     required this.reframe,
     required this.story,
     this.verses = const [],
@@ -439,6 +444,7 @@ ReflectResponse? parseReflectResponse(String text) {
   return ReflectResponse(
     name: canonicalName,
     nameArabic: canonical?.nameArabic ?? nameArabic ?? '',
+    meaning: canonical?.meaning ?? '',
     reframe: reframeForLegacy,
     story: storyForLegacy,
     reframeKey: beats.reframeKey,
@@ -809,6 +815,7 @@ Future<ReflectResponse> reflectWithOpenAI(
     return ReflectResponse(
       name: demo.name,
       nameArabic: demo.nameArabic,
+      meaning: demo.meaning,
       reframe: demo.reframe,
       story: demo.story,
       verses: demo.verses,
@@ -874,6 +881,7 @@ ReflectResponse getDemoResponse() {
   return const ReflectResponse(
     name: 'Al-Lateef',
     nameArabic: 'اللطيف',
+    meaning: 'The Subtle One',
     reframe:
         'What you\'re feeling right now — that quiet ache, that sense that things aren\'t quite '
         'right — Allah sees it, even the parts you can\'t put into words. Al-Lateef is The Subtle '

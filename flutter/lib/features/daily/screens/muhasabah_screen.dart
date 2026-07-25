@@ -19,8 +19,10 @@ import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/features/tour/providers/deferred_celebrations_provider.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -183,8 +185,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     return BeatRevealFlow(
       status: status,
       response: state.reflectResult,
+      // The gacha card reveal already showed the Name; don't repeat it as the
+      // opening hero beat (see daily_loop_provider "skip step 0" decision).
+      includeName: false,
       showFirstRunHint: showHint,
       onFirstAdvance: _bumpHintAdvances,
+      onShare: () => _shareCurrentMuhasabah(state.reflectResult),
       onAmeen: () {
         HapticFeedback.mediumImpact();
         final tieredUp = state.cardEngageResult?.tierChanged == true;
@@ -247,6 +253,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         child: child,
       ),
     );
+  }
+
+  /// Shares the muḥāsabah takeaway as the emerald mihrab card (Name + meaning +
+  /// key line + takeaway). Only fires from the takeaway beat's share icon.
+  Future<void> _shareCurrentMuhasabah(ReflectResponse? result) async {
+    if (result == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await shareTakeawayCard(
+        context: context,
+        nameArabic: result.nameArabic,
+        nameEnglish: result.name,
+        meaning: result.meaning,
+        reframeKey: result.reframeKey,
+        takeaway: result.takeaway,
+      );
+    } catch (e) {
+      debugPrint('[SHARE ERROR] $e');
+      showShareErrorSnackBar(messenger);
+    }
   }
 
   void _pushStreakMilestoneOverlay(DailyLoopState state) {

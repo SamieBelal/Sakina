@@ -31,6 +31,11 @@ class BeatRevealFlow extends StatefulWidget {
   /// Reflect passes true (verse beats between takeaway and duʿa); muḥāsabah false.
   final bool includeVerses;
 
+  /// Whether to open with the Name-of-Allah mihrab hero beat. Reflect passes
+  /// true; muḥāsabah passes false because the gacha card reveal already showed
+  /// the Name (avoids showing it twice back-to-back).
+  final bool includeName;
+
   /// Whether to show the first-run "tap to continue" hint (the host computes
   /// this from the persisted lifetime-advance counter OR an active tour).
   final bool showFirstRunHint;
@@ -58,6 +63,7 @@ class BeatRevealFlow extends StatefulWidget {
     required this.response,
     required this.onAmeen,
     this.includeVerses = false,
+    this.includeName = true,
     this.showFirstRunHint = false,
     this.onRetry,
     this.onReturnHome,
@@ -79,10 +85,15 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   bool _forward = true;
   bool _completing = false;
   bool _firstAdvanceFired = false;
+  bool _nameEntrancePlayed = false;
 
   List<BeatScreen> get _screens => widget.response == null
       ? const <BeatScreen>[]
-      : buildBeatScreens(widget.response!, includeVerses: widget.includeVerses);
+      : buildBeatScreens(
+          widget.response!,
+          includeVerses: widget.includeVerses,
+          includeName: widget.includeName,
+        );
 
   bool get _reducedMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -148,6 +159,17 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
     );
     if (!mounted) return;
     widget.onAmeen();
+  }
+
+  /// The Name hero plays its draw-on entrance only the first time it's shown —
+  /// back-navigating to beat 0 afterwards renders it static (the flag is set
+  /// after the first frame that displays it).
+  bool _playNameEntrance(BeatScreen screen) {
+    if (screen.kind != BeatKind.name || _nameEntrancePlayed) return false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _nameEntrancePlayed = true;
+    });
+    return true;
   }
 
   @override
@@ -249,7 +271,10 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               transitionBuilder: _transition,
               child: KeyedSubtree(
                 key: ValueKey<int>(_index),
-                child: BeatScreenView(screen: screen),
+                child: BeatScreenView(
+                  screen: screen,
+                  playNameEntrance: _playNameEntrance(screen),
+                ),
               ),
             ),
             ),

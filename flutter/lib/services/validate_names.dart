@@ -65,12 +65,18 @@ bool isValidAllahName(String name) {
 }
 
 /// Given a name string returned by Claude, find the closest canonical match.
-/// Returns a record with name and nameArabic if found, null if it's a hallucination.
-({String name, String nameArabic})? findCanonicalName(String name) {
+/// Returns a record with name, nameArabic, and the English epithet (meaning)
+/// if found, null if it's a hallucination.
+({String name, String nameArabic, String meaning})? findCanonicalName(
+    String name) {
   final key = _normalise(name);
   final entry = _canonicalMap[key];
   if (entry != null) {
-    return (name: entry.transliteration, nameArabic: entry.arabic);
+    return (
+      name: entry.transliteration,
+      nameArabic: entry.arabic,
+      meaning: entry.english,
+    );
   }
   return null;
 }

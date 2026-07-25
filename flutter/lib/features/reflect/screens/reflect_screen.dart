@@ -251,6 +251,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           context: context,
           nameArabic: result.nameArabic,
           nameEnglish: result.name,
+          meaning: result.meaning,
           reframeKey: result.reframeKey,
           takeaway: result.takeaway,
         );

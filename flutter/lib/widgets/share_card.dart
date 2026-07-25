@@ -9,6 +9,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
+import 'package:sakina/widgets/beat_reveal/mihrab_arch_frame.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,32 @@ Future<void> _exportAndShare({
     text: shareText,
     sharePositionOrigin: sharePositionOrigin,
   );
+}
+
+/// The Sakina brand mark for share cards: the calligraphic **س** glyph
+/// (recolored from the transparent glyph asset via `srcIn`). A pure monogram —
+/// no wordmark — pinned top-left as a corner brand tag (off the center axis so
+/// it doesn't stack under the Arabic name).
+class ShareBrandLockup extends StatelessWidget {
+  const ShareBrandLockup({
+    required this.preview,
+    required this.markColor,
+    super.key,
+  });
+
+  final bool preview;
+  final Color markColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/sakina_mark.png',
+      height: preview ? 15 : 32,
+      color: markColor,
+      colorBlendMode: BlendMode.srcIn,
+      filterQuality: FilterQuality.high,
+    );
+  }
 }
 
 // Shows a uniform "couldn't share" SnackBar. Called by every share IconButton's
@@ -148,6 +175,7 @@ typedef ShareTakeawayFn = Future<void> Function({
   required String nameEnglish,
   required String reframeKey,
   required String takeaway,
+  String meaning,
   Rect? sharePositionOrigin,
 });
 
@@ -159,11 +187,13 @@ Future<void> _defaultShareTakeawayCard({
   required String nameEnglish,
   required String reframeKey,
   required String takeaway,
+  String meaning = '',
   Rect? sharePositionOrigin,
 }) async {
   Widget card(bool preview) => TakeawayShareCard(
         nameArabic: nameArabic,
         nameEnglish: nameEnglish,
+        meaning: meaning,
         reframeKey: reframeKey,
         takeaway: takeaway,
         preview: preview,
@@ -204,12 +234,17 @@ class TakeawayShareCard extends StatelessWidget {
     required this.nameEnglish,
     required this.reframeKey,
     required this.takeaway,
+    this.meaning = '',
     this.preview = false,
     super.key,
   });
 
   final String nameArabic;
   final String nameEnglish;
+
+  /// English epithet / meaning shown under the transliteration (e.g. "The
+  /// Giver of Death"). Empty for legacy responses — the line is omitted.
+  final String meaning;
   final String reframeKey;
   final String takeaway;
   final bool preview;
@@ -217,13 +252,14 @@ class TakeawayShareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double w = preview ? 380 : 1080;
-    final double pad = preview ? 32 : 88;
-    final double padV = preview ? 40 : 104;
-    final double brandSize = preview ? 11 : 16;
-    final double arabicSize = preview ? 46 : 96;
-    final double englishSize = preview ? 16 : 28;
-    final double keySize = preview ? 24 : 46;
+    final double pad = preview ? 26 : 74;
+    final double padV = preview ? 34 : 92;
+    final double arabicSize = preview ? 52 : 118;
+    final double englishSize = preview ? 20 : 40;
+    final double meaningSize = preview ? 14 : 26;
+    final double keySize = preview ? 22 : 44;
     final double takeawaySize = preview ? 15 : 26;
+    final double crest = preview ? 24 : 52;
 
     return Material(
       color: Colors.transparent,
@@ -236,79 +272,109 @@ class TakeawayShareCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'SAKINA',
-              style: AppTypography.labelLarge.copyWith(
-                fontSize: brandSize,
-                color: AppColors.sacredInk.withValues(alpha: 0.7),
-                letterSpacing: 6,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ShareBrandLockup(
+                preview: preview,
+                markColor: AppColors.secondary,
               ),
             ),
-            SizedBox(height: preview ? 28 : 68),
-            Text(
-              nameArabic,
-              style: AppTypography.nameOfAllahDisplay.copyWith(
-                fontSize: arabicSize,
-                color: AppColors.secondary, // gold: non-text-critical accent
-              ),
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: preview ? 6 : 12),
-            Text(
-              nameEnglish,
-              style: AppTypography.headlineLarge.copyWith(
-                fontSize: englishSize,
-                color: AppColors.sacredInk,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: preview ? 28 : 64),
-            Container(
-              width: preview ? 40 : 80,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            SizedBox(height: preview ? 24 : 56),
-            if (reframeKey.trim().isNotEmpty) ...[
-              Text(
-                reframeKey,
-                style: AppTypography.bodyLarge.copyWith(
-                  fontSize: keySize,
-                  height: 1.32,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.sacredInk,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: preview ? 24 : 56),
-            ],
-            if (takeaway.trim().isNotEmpty)
-              Text(
-                takeaway,
-                style: AppTypography.bodyLarge.copyWith(
-                  fontSize: takeawaySize,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.sacredInk.withValues(alpha: 0.85),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            SizedBox(height: preview ? 32 : 72),
-            Container(
-              width: preview ? 24 : 40,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(2),
+            SizedBox(height: preview ? 12 : 28),
+            MihrabArchFrame(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MihrabCrestOrnament(size: crest),
+                  SizedBox(height: preview ? 18 : 40),
+                  Text(
+                    nameArabic,
+                    style: AppTypography.nameOfAllahDisplay.copyWith(
+                      fontSize: arabicSize,
+                      color: AppColors.sacredInk,
+                    ),
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: preview ? 14 : 32),
+                  Text(
+                    nameEnglish,
+                    style: AppTypography.headlineLarge.copyWith(
+                      fontSize: englishSize,
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (meaning.trim().isNotEmpty) ...[
+                    SizedBox(height: preview ? 4 : 8),
+                    Text(
+                      meaning,
+                      style: AppTypography.bodyLarge.copyWith(
+                        fontSize: meaningSize,
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.sacredInk,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  SizedBox(height: preview ? 20 : 48),
+                  _shareDivider(preview),
+                  SizedBox(height: preview ? 20 : 48),
+                  if (reframeKey.trim().isNotEmpty) ...[
+                    Text(
+                      reframeKey,
+                      style: AppTypography.bodyLarge.copyWith(
+                        fontSize: keySize,
+                        height: 1.32,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.sacredInk,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: preview ? 20 : 48),
+                  ],
+                  if (takeaway.trim().isNotEmpty)
+                    Text(
+                      takeaway,
+                      style: AppTypography.bodyLarge.copyWith(
+                        fontSize: takeawaySize,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.sacredInk.withValues(alpha: 0.85),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  static Widget _shareDivider(bool preview) {
+    Widget line() => Container(
+          width: preview ? 34 : 74,
+          height: preview ? 1 : 2,
+          color: AppColors.secondary.withValues(alpha: 0.5),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line(),
+        SizedBox(width: preview ? 8 : 16),
+        Transform.rotate(
+          angle: 0.785398,
+          child: Container(
+            width: preview ? 5 : 10,
+            height: preview ? 5 : 10,
+            color: AppColors.secondary,
+          ),
+        ),
+        SizedBox(width: preview ? 8 : 16),
+        line(),
+      ],
     );
   }
 }
@@ -576,7 +642,6 @@ class ReflectionShareCard extends StatelessWidget {
     final double duaArabicSize = preview ? 22 : 38;
     final double translationSize = preview ? 14 : 22;
     final double sourceSize = preview ? 11 : 15;
-    final double brandSize = preview ? 11 : 16;
 
     return Material(
       color: Colors.transparent,
@@ -590,12 +655,11 @@ class ReflectionShareCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Top branding
-            Text(
-              'SAKINA',
-              style: AppTypography.labelLarge.copyWith(
-                fontSize: brandSize,
-                color: _emerald.withValues(alpha: 0.6),
-                letterSpacing: 6,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ShareBrandLockup(
+                preview: preview,
+                markColor: _emerald,
               ),
             ),
             SizedBox(height: preview ? 20 : 48),
@@ -777,7 +841,6 @@ class _BuiltDuaShareCard extends StatelessWidget {
     final double w = preview ? 380 : 1080;
     final double pad = preview ? 24 : 72;
     final double padV = preview ? 20 : 56;
-    final double brandSize = preview ? 11 : 16;
     final double titleSize = preview ? 16 : 26;
     final double labelSize = preview ? 10 : 14;
     final double arabicSize = preview ? 20 : 34;
@@ -793,12 +856,11 @@ class _BuiltDuaShareCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Branding
-            Text(
-              'SAKINA',
-              style: AppTypography.labelLarge.copyWith(
-                fontSize: brandSize,
-                color: _emerald.withValues(alpha: 0.6),
-                letterSpacing: 6,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ShareBrandLockup(
+                preview: preview,
+                markColor: _emerald,
               ),
             ),
             SizedBox(height: preview ? 16 : 36),
