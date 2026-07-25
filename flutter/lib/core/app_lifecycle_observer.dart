@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/daily/providers/daily_rewards_provider.dart';
+import '../features/dua_times/providers/dua_window_provider.dart';
 import '../features/tour/providers/onboarding_tour_controller.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
@@ -80,6 +81,21 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
       _session?.addListener(_onSessionChanged);
     } catch (_) {
       _session = null;
+    }
+
+    // Keep the duʿā-times schedule alive for the whole app session. The
+    // `duaWindowProvider` notifier is lazy and its only card lives on the
+    // Progress screen, so a user who opens the app to Home never constructs it —
+    // meaning the schedule is never rebuilt and the home/lock-screen widget
+    // keeps rendering a stale (e.g. yesterday's Friday) payload. Reading
+    // `.notifier` here (this observer is always mounted at app root) forces the
+    // notifier to exist from launch: its constructor auto-builds + pushes on
+    // cold start, and its own lifecycle observer re-pushes on every foreground.
+    // Best-effort — the notifier degrades silently on any build failure.
+    try {
+      ref.read(duaWindowProvider.notifier);
+    } catch (_) {
+      // Never let widget-refresh wiring block the app-root observer.
     }
   }
 
