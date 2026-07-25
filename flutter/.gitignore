@@ -52,3 +52,6 @@ env.json
 
 # Coverage
 coverage/
+
+# Reflect repro harness scratch output (regenerated on demand)
+test/.repro_out/

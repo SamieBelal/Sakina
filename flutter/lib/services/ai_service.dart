@@ -204,6 +204,7 @@ Respond with EXACTLY these markers, each on its own line, followed by the conten
 
 Rules:
 - Write for a phone screen: one idea per line, warm, empathetic, grounded in Islamic theology. No fluff. NEVER exceed the word caps above.
+- Write plain, flowing prose. Do NOT insert parenthetical asides, translations, or transliterations into any narrative line — write "Ayyub" not "Ayyub (Job)", and "the Prophet ﷺ" not "the Prophet (peace be upon him)". Parentheses may appear ONLY inside ##STORY_SOURCE## citations and the Arabic spellings in ##RELATED##; nowhere else.
 - The story must be authentic — from Quran or sahih hadith. NEVER fabricate. Breaking it into beats changes the PACKAGING, never the source: do not embellish, invent detail, or distort to fit the word cap.
 - The dua must be real — from Quran or authenticated hadith collections. NEVER fabricate.
 - Related names must come from the canonical list above.
@@ -297,24 +298,52 @@ class _ParsedBeats {
   });
 }
 
+/// Matches an inline parenthetical gloss whose content STARTS with a letter —
+/// e.g. " (Job)", " (Moses)", " (peace be upon him)". Numeric citations like
+/// "(12:100)" or "(20:25-28)" start with a digit and are deliberately left
+/// alone. Leading whitespace is consumed so removal doesn't leave double spaces.
+final RegExp _inlineGloss = RegExp(r'\s*\(\s*[A-Za-z][^)]*\)');
+
+/// Defense-in-depth for the "disjointed / parenthetical" reflect symptom: the
+/// model intermittently sprinkles translation/honorific glosses into narrative
+/// lines ("Ayoub (Job) faced…"), which read as choppy asides on the beat canvas.
+/// The prompt forbids this and the low temperature makes it rare, but strip any
+/// that slip through so the UI never renders them. Applied ONLY to narrative
+/// fields — never to sources/citations/Arabic, which legitimately use parens.
+///
+/// No-op when the field has no gloss, so text is never mutated needlessly. When
+/// a gloss IS removed, only horizontal runs are collapsed ([ \t], not \s) so
+/// intentional newlines survive — important because legacy ##STORY## prose is
+/// split into beats downstream and must keep its structure.
+String _stripInlineGlosses(String s) {
+  if (!_inlineGloss.hasMatch(s)) return s;
+  return s
+      .replaceAll(_inlineGloss, '')
+      .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+      .trim();
+}
+
 /// Resolves beat fields from a model response, walking the robustness ladder
 /// (see [parseReflectResponse]). Never throws; missing pieces come back empty.
 _ParsedBeats _parseBeats(String text) {
   String get(String marker) => _parseSection(text, marker)?.trim() ?? '';
+  // Narrative fields get glosses stripped; sources/citations do NOT (they use
+  // parens legitimately, e.g. "Qur'an (20:25-28)").
+  String getNarrative(String marker) => _stripInlineGlosses(get(marker));
 
-  final reframeKey = get('##REFRAME_KEY##');
-  final reframeBody = get('##REFRAME_BODY##');
-  final storyTitle = get('##STORY_TITLE##');
+  final reframeKey = getNarrative('##REFRAME_KEY##');
+  final reframeBody = getNarrative('##REFRAME_BODY##');
+  final storyTitle = getNarrative('##STORY_TITLE##');
   final structuredBeats = [
-    get('##STORY_BEAT_1##'),
-    get('##STORY_BEAT_2##'),
-    get('##STORY_BEAT_3##'),
+    getNarrative('##STORY_BEAT_1##'),
+    getNarrative('##STORY_BEAT_2##'),
+    getNarrative('##STORY_BEAT_3##'),
   ].where((b) => b.isNotEmpty).toList();
   final storySource = get('##STORY_SOURCE##');
-  final takeaway = get('##TAKEAWAY##');
+  final takeaway = getNarrative('##TAKEAWAY##');
 
-  final legacyReframe = get('##REFRAME##');
-  final legacyStory = get('##STORY##');
+  final legacyReframe = getNarrative('##REFRAME##');
+  final legacyStory = getNarrative('##STORY##');
 
   final hasAnyBeatMarker = reframeKey.isNotEmpty ||
       reframeBody.isNotEmpty ||
@@ -571,11 +600,11 @@ Future<void> _logUnknownNameFallback(String aiReturnedName) async {
   // user_id can never be inserted from the app — skip to avoid the wasted
   // round-trip. (The column itself is nullable so server-side cascade can
   // null out user_id when an account is deleted.)
-  final userId = supabaseSyncService.currentUserId;
-  if (userId == null) return;
-  // In-session dedup: skip if we've already logged this name this run.
-  if (!debugUnknownNameSessionCache.add(aiReturnedName)) return;
   try {
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null) return;
+    // In-session dedup: skip if we've already logged this name this run.
+    if (!debugUnknownNameSessionCache.add(aiReturnedName)) return;
     await supabaseSyncService.insertRow('reflect_unknown_name_log', {
       'user_id': userId,
       'ai_returned_name': aiReturnedName,
@@ -631,6 +660,7 @@ Future<Map<String, dynamic>?> _callOpenAiChat({
   required String systemPrompt,
   required String userMessage,
   required int maxCompletionTokens,
+  double? temperature,
 }) async {
   const apiKey = Env.openAiApiKey;
   if (apiKey.isEmpty) return null;
@@ -644,6 +674,9 @@ Future<Map<String, dynamic>?> _callOpenAiChat({
     body: jsonEncode({
       'model': _chatModel,
       'max_completion_tokens': maxCompletionTokens,
+      // Lower temperature => far less run-to-run variance in format adherence.
+      // Omitted (null) preserves OpenAI's default of 1.0 for callers that want it.
+      if (temperature != null) 'temperature': temperature,
       'messages': [
         {'role': 'system', 'content': systemPrompt},
         {'role': 'user', 'content': userMessage},
@@ -810,6 +843,12 @@ Future<ReflectResponse> reflectWithOpenAI(
     systemPrompt: systemPrompt,
     userMessage: userText,
     maxCompletionTokens: 1500,
+    // Reflect renders as fixed-format beats on the sacred canvas. 0.7 is the
+    // knee of the temp/variety curve: a sweep (test/reflect_temp_sweep_test.dart)
+    // showed 0% parenthetical-gloss and 0% word-cap-overrun through 0.9, so 0.7
+    // keeps first-call output coherent while giving good Name variety, with a
+    // margin below the 1.0 max-variance region where the disjointedness lived.
+    temperature: 0.7,
   );
 
   if (response == null) {

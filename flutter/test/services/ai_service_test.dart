@@ -150,4 +150,104 @@ void main() {
     expect(parsed!.duaArabic, 'دعاء صحيح');
     expect(parsed.duaTransliteration, 'duaun saheeh');
   });
+
+  group('inline parenthetical gloss stripping (disjointed-reflect fix)', () {
+    // The model intermittently sprinkles translation/honorific glosses into
+    // narrative beats ("Ayoub (Job) faced…"), which read as choppy asides on
+    // the beat canvas. parseReflectResponse strips them from narrative fields.
+    test('strips glosses from story beats, reframe, title, and takeaway', () {
+      final parsed = parseReflectResponse('''
+##NAME## As-Sabur
+##NAME_AR## الصبور
+##REFRAME_KEY## Patience (sabr) carries you through.
+##REFRAME_BODY## Ayoub (Job) endured, and Allah (the Most Kind) restored him.
+##STORY_TITLE## Ayoub (Job) and Patience
+##STORY_BEAT_1## Ayoub (Job) faced immense loss.
+##STORY_BEAT_2## The Prophet Muhammad (peace be upon him) taught patience.
+##STORY_SOURCE## Qur'an (21:83-84)
+##TAKEAWAY## Like Musa (Moses), turn to Allah in hardship.
+##DUA_AR## دعاء
+##DUA_TR## dua
+##DUA_EN## supplication
+##DUA_SOURCE## source
+##RELATED## Al-Lateef (اللطيف)
+''');
+
+      expect(parsed, isNotNull);
+      // Narrative fields: glosses removed, spacing repaired.
+      expect(parsed!.reframeKey, 'Patience carries you through.');
+      expect(parsed.reframeBody, 'Ayoub endured, and Allah restored him.');
+      expect(parsed.storyTitle, 'Ayoub and Patience');
+      expect(parsed.storyBeats, <String>[
+        'Ayoub faced immense loss.',
+        'The Prophet Muhammad taught patience.',
+      ]);
+      expect(parsed.takeaway, 'Like Musa, turn to Allah in hardship.');
+      // Citation fields keep their parentheses — they are NOT narrative.
+      expect(parsed.storySource, "Qur'an (21:83-84)");
+      // Related "Name (Arabic)" parens are parsed, not gloss-stripped: the name
+      // survives (Arabic is canonicalized to the diacritized catalog spelling).
+      expect(parsed.relatedNames.single.name, 'Al-Lateef');
+      expect(parsed.relatedNames.single.nameArabic, isNotEmpty);
+    });
+
+    test('numeric parenthetical refs inside a beat are preserved', () {
+      final parsed = parseReflectResponse('''
+##NAME## Al-Lateef
+##NAME_AR## اللطيف
+##REFRAME_KEY## He is gentle with you.
+##REFRAME_BODY## Yusuf trusted Him (12:100) through every trial.
+##STORY_BEAT_1## Every hardship was placed with care.
+##DUA_AR## دعاء
+##DUA_TR## dua
+##DUA_EN## supplication
+##DUA_SOURCE## source
+##RELATED## As-Sabur (الصبور)
+''');
+
+      expect(parsed, isNotNull);
+      // "(12:100)" starts with a digit → kept; only letter-led glosses go.
+      expect(parsed!.reframeBody, 'Yusuf trusted Him (12:100) through every trial.');
+    });
+
+    test('gloss-free text is returned unmutated, incl. blank-line breaks', () {
+      // The exact regression the `\s{2,}`→' ' collapse would have caused: a
+      // gloss-free field containing a blank line must survive untouched (no
+      // gloss => no-op; newlines are never collapsed).
+      final parsed = parseReflectResponse('''
+##NAME## As-Salam
+##NAME_AR## السلام
+##REFRAME_KEY## Peace can return.
+##REFRAME_BODY## First thought here.
+
+Second thought here.
+##STORY_BEAT_1## A calm beat that is long enough.
+##DUA_AR## دعاء
+##DUA_TR## dua
+##DUA_EN## supplication
+##DUA_SOURCE## source
+##RELATED## Al-Lateef (اللطيف)
+''');
+
+      expect(parsed, isNotNull);
+      expect(parsed!.reframeBody, 'First thought here.\n\nSecond thought here.');
+    });
+
+    test('gloss removal on legacy prose strips the aside, keeps the sentence', () {
+      final parsed = parseReflectResponse('''
+##NAME## As-Sabur
+##NAME_AR## الصبور
+##REFRAME## Ayoub (Job) endured his trials.
+##STORY## A story of patience unfolds.
+##DUA_AR## دعاء
+##DUA_TR## dua
+##DUA_EN## supplication
+##DUA_SOURCE## source
+##RELATED## Al-Lateef (اللطيف)
+''');
+
+      expect(parsed, isNotNull);
+      expect(parsed!.reframe, 'Ayoub endured his trials.');
+    });
+  });
 }
