@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sakina — Hook Screen Mock (One Ship, W2 spec)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Amiri&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FBF7F2;          /* backgroundLight */
+    --surface: #FFFFFF;     /* surfaceLight */
+    --surface-alt: #F3EDE4; /* surfaceAltLight */
+    --primary: #1B6B4A;     /* emerald */
+    --primary-tint: #E8F5EE;/* primaryLight */
+    --gold: #C8985E;        /* secondary */
+    --ink: #1A1A2E;         /* textPrimaryLight */
+    --ink-2: #6B7280;       /* textSecondaryLight */
+    --ink-3: #9CA3AF;       /* textTertiaryLight */
+    --border: #E5E0D8;      /* borderLight */
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: #2c2a27;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    padding: 40px;
+    flex-wrap: wrap;
+  }
+  .note {
+    color: #b8b2a8; max-width: 260px; font-size: 14px; line-height: 1.65; font-weight: 300;
+  }
+  .note strong { color: #e8e2d8; font-weight: 500; }
+  .note ul { margin: 12px 0 0 16px; }
+  .note li { margin-bottom: 8px; }
+
+  /* ---- phone frame (iPhone 14/15-ish, 390x844) ---- */
+  .phone {
+    width: 390px; height: 844px;
+    background: var(--bg);
+    border-radius: 54px;
+    border: 10px solid #0e0d0c;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .dynamic-island {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 34px; background: #0e0d0c; border-radius: 20px; z-index: 10;
+  }
+  .screen {
+    height: 100%;
+    display: flex; flex-direction: column;
+    padding: 62px 24px 24px;
+    overflow-y: auto;
+  }
+
+  /* ---- ornament (small — replaces the 19%-height illustration) ---- */
+  .ornament {
+    text-align: center;
+    color: var(--gold);
+    font-family: 'Amiri', serif;
+    font-size: 17px;
+    opacity: .8;
+    margin-bottom: 10px;
+    animation: fadeSlide .6s ease both;
+  }
+
+  /* ---- header ---- */
+  h1 {
+    font-size: 27px; font-weight: 600; color: var(--ink);
+    line-height: 1.25; letter-spacing: -0.01em;
+    animation: fadeSlide .6s ease both;
+  }
+  .sub {
+    margin-top: 5px; margin-bottom: 16px;
+    font-size: 15px; font-weight: 300; color: var(--ink-2);
+    animation: fadeSlide .6s .1s ease both;
+  }
+
+  /* ---- selection cards ---- */
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    min-height: 62px;
+    display: flex; align-items: center;
+    padding: 12px 20px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    font-size: 16.5px; font-weight: 400; color: var(--ink);
+    line-height: 1.35;
+    cursor: pointer;
+    transition: transform .15s ease, border-color .2s, background .2s, box-shadow .2s;
+    opacity: 0;
+    animation: fadeSlide .45s ease forwards;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .card:nth-child(1) { animation-delay: .15s }
+  .card:nth-child(2) { animation-delay: .21s }
+  .card:nth-child(3) { animation-delay: .27s }
+  .card:nth-child(4) { animation-delay: .33s }
+  .card:nth-child(5) { animation-delay: .39s }
+  .card:nth-child(6) { animation-delay: .45s }
+  .card:active { transform: scale(.98); }
+  .card.selected {
+    background: var(--primary-tint);
+    border-color: var(--primary);
+    box-shadow: 0 2px 14px rgba(27,107,74,.14);
+  }
+
+  /* ---- sign card: identical surface + spacing; distinction via type only ---- */
+  .card.sign {
+    font-weight: 300;
+    color: var(--ink-2);
+    animation-delay: .51s;
+  }
+  .card.sign.selected { color: var(--ink); }
+
+  /* ---- free-text link (demoted) ---- */
+  .freetext {
+    margin-top: 14px; text-align: center;
+    font-size: 14.5px; font-weight: 300; color: var(--ink-2);
+    text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 4px;
+    cursor: pointer; opacity: 0;
+    animation: fadeSlide .45s .65s ease forwards;
+  }
+  .freetext-box {
+    display: none; margin-top: 14px;
+    animation: fadeSlide .3s ease both;
+  }
+  .freetext-box.open { display: block; }
+  .freetext-box textarea {
+    width: 100%; min-height: 64px; resize: none;
+    font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 300; color: var(--ink);
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; outline: none;
+  }
+  .freetext-box textarea:focus { border-color: var(--primary); }
+
+  .spacer { flex: 1; }
+
+  /* ---- advance simulation ---- */
+  .advance-veil {
+    position: absolute; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    opacity: 0; pointer-events: none; transition: opacity .5s ease; z-index: 5;
+  }
+  .advance-veil.show { opacity: 1; pointer-events: auto; }
+  .dots { display: flex; gap: 8px; }
+  .dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); animation: pulse 1.2s infinite; }
+  .dots span:nth-child(2) { animation-delay: .2s } .dots span:nth-child(3) { animation-delay: .4s }
+  .veil-bismillah { font-family: 'Amiri', serif; font-size: 34px; color: var(--gold); opacity: .8; }
+  .veil-copy { font-size: 16px; color: var(--ink-2); font-weight: 300; }
+  .veil-reset { margin-top: 8px; font-size: 13px; color: var(--ink-3); cursor: pointer; text-decoration: underline; }
+
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+  @keyframes pulse { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+</style>
+</head>
+<body>
+
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="ornament">﷽</div>
+      <h1>What's weighing on you right&nbsp;now?</h1>
+      <div class="sub">Take your time.</div>
+
+      <div class="cards" id="cards">
+        <div class="card" data-key="anxiety">My mind won't stop racing</div>
+        <div class="card" data-key="heavy">Everything feels heavy</div>
+        <div class="card" data-key="sin_guilt">I keep sinning and going back</div>
+        <div class="card" data-key="far_from_allah">I feel far from Allah</div>
+        <div class="card" data-key="rizq">I'm worried about providing</div>
+        <div class="card" data-key="unseen">No one sees what I'm carrying</div>
+        <div class="card sign" data-key="sign">I can't put it into words — everything just feels heavy</div>
+      </div>
+
+      <div class="freetext" id="freetextLink">Or say it in your own words…</div>
+      <div class="freetext-box" id="freetextBox">
+        <textarea placeholder="Whatever it is, you can name it here."></textarea>
+      </div>
+
+      <div class="spacer"></div>
+    </div>
+
+    <div class="advance-veil" id="veil">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="veil-bismillah">بِسْمِ اللَّهِ</div>
+      <div class="veil-copy">Finding the Names that answer this…</div>
+      <div class="veil-reset" onclick="resetMock()">↺ tap to reset mock</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Hook screen — W2 spec mock</strong>
+    <ul>
+      <li><strong>Tap any card:</strong> it selects, holds a ~450&nbsp;ms beat, then advances into the reveal loader (simulated here) — no Continue button, one decision.</li>
+      <li>Cards are ≥64pt, full-width, one per row — one scan direction.</li>
+      <li>No progress bar, no timer; header says <em>Take your time</em>.</li>
+      <li>Sign card: identical surface + spacing to the others; distinguished only by lighter type in a quieter ink (founder feedback 2026-07-25 — a tinted surface collided with the selected state).</li>
+      <li>Free text is a quiet link that expands below — never competes with the cards.</li>
+      <li>Illustration replaced by a small basmala ornament.</li>
+    </ul>
+  </div>
+
+<script>
+  const cards = document.querySelectorAll('.card');
+  const veil = document.getElementById('veil');
+  let locked = false;
+
+  cards.forEach(c => c.addEventListener('click', () => {
+    if (locked) return;
+    locked = true;
+    c.classList.add('selected');
+    if (navigator.vibrate) navigator.vibrate(10);
+    setTimeout(() => veil.classList.add('show'), 450);
+  }));
+
+  document.getElementById('freetextLink').addEventListener('click', () => {
+    const box = document.getElementById('freetextBox');
+    box.classList.toggle('open');
+    if (box.classList.contains('open')) {
+      const ta = box.querySelector('textarea');
+      requestAnimationFrame(() => {
+        box.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        ta.focus();
+      });
+    }
+  });
+
+  function resetMock() {
+    veil.classList.remove('show');
+    cards.forEach(c => c.classList.remove('selected'));
+    locked = false;
+  }
+</script>
+</body>
+</html>

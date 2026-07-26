@@ -33,10 +33,10 @@ enum TourSurface {
 /// - [auto]: a read-only teach step that advances on a timer ([autoAdvance]).
 enum TourAdvanceTrigger { tapTarget, navigate, auto }
 
-/// Which guided-tour variant a user sees. The slim-vs-full A/B (2026-06-15)
-/// runs `slim` (the 7-step Muḥāsabah → Duas tour) against `full` (the original
-/// 13-step tour) to measure whether the shorter tour actually lifts retention.
-/// See `assignTourVariant` + the `tour_ab_enabled` `app_config` flag.
+/// Which guided-tour variant a user sees. The slim-vs-full A/B concluded and
+/// its `tour_ab_enabled` config key was deleted 2026-07-25 — everyone gets
+/// `slim`. `assignTourVariant`/`tourBucket` remain: the salted bucket is
+/// load-bearing for `assignPaywallArm` until the reverse-trial close-out.
 enum TourVariant { full, slim }
 
 @immutable
@@ -433,7 +433,8 @@ int tourBucket(String userId) {
 }
 
 /// 50/50 split: lower half of the bucket space → slim, upper half → full.
-/// Stable per [userId]. Caller only invokes this when `tour_ab_enabled` is on.
+/// Stable per [userId]. No live caller since the tour A/B concluded (2026-07-25);
+/// kept because [tourBucket] backs `assignPaywallArm` and tests pin the hash.
 TourVariant assignTourVariant(String userId) =>
     tourBucket(userId) < 50 ? TourVariant.slim : TourVariant.full;
 

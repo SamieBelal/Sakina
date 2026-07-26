@@ -1,14 +1,23 @@
 import { assertEquals } from "jsr:@std/assert@1";
 
 import {
+  checkedInWithinDays,
+  cleanAnchor,
+  cleanTransliteration,
+  COPY_VERSION,
   dedupeDuaByUser,
   DUA_WINDOW_DATA_TYPE,
   DUA_WINDOW_DEEP_LINK,
   type DuaPreciseRow,
   isAuthorized,
+  NOTIFICATION_TYPES,
   processStreakFamily,
+  type RecentNameRow,
   runFixedCadenceLoop,
   selectDueDuaNotifications,
+  type StreakDecision,
+  streakFamilyBody,
+  streakFamilyTemplateId,
 } from "./index.ts";
 
 // ── Auth guard (code-review finding P2-2) ────────────────────────────────────
@@ -561,5 +570,409 @@ Deno.test(
       true,
       `Expected push for userId2 (should not be skipped) but got none`,
     );
+  },
+);
+
+// ── Notification Phase A: reel-voice templates (plan 2026-07-23 §0.3) ─────────
+//
+// Binding copy rules pinned here:
+//   • Transliteration only — NEVER Arabic script in title/body.
+//   • Never interpolate null/undefined — missing Name → generic fallback.
+//   • Weekly "the Name you met this week" only when the check-in is ≤7d old.
+
+const RENDER_NOW = new Date("2026-07-24T18:00:00.000Z");
+
+const eligibleRow = {
+  user_id: "user-1",
+  timezone: "UTC",
+  display_name: null,
+  current_streak: 3,
+  last_active: null,
+};
+
+function recentName(overrides: Partial<RecentNameRow> = {}): RecentNameRow {
+  return {
+    user_id: "user-1",
+    checked_in_at: new Date(RENDER_NOW.getTime() - 24 * 60 * 60 * 1000)
+      .toISOString(), // yesterday
+    name_transliteration: "Al-Fattah",
+    name_anchor: "Doors will open that you cannot open yourself.",
+    ...overrides,
+  };
+}
+
+function typeByKey(key: string) {
+  const t = NOTIFICATION_TYPES.find((n) => n.key === key);
+  if (!t) throw new Error(`missing NOTIFICATION_TYPES entry: ${key}`);
+  return t;
+}
+
+const ARABIC_SCRIPT = /[؀-ۿݐ-ݿࢠ-ࣿ]/u;
+
+Deno.test("daily render: recent Name + anchor → reel-voice named template", () => {
+  const copy = typeByKey("daily").render(eligibleRow, recentName(), RENDER_NOW);
+  assertEquals(
+    copy.message,
+    "Al-Fattah — Doors will open that you cannot open yourself. Today's Name is waiting.",
+  );
+  assertEquals(copy.templateId, "daily_recent_name_v1");
+  // Anchor's trailing period must not double up ("..").
+  assertEquals(copy.message.includes(".."), false);
+  assertEquals(ARABIC_SCRIPT.test(copy.title + copy.message), false);
+});
+
+Deno.test("daily render: no check-in history → generic fallback, no null interpolation", () => {
+  const noHistory = recentName({
+    checked_in_at: null,
+    name_transliteration: null,
+    name_anchor: null,
+  });
+  const copy = typeByKey("daily").render(eligibleRow, noHistory, RENDER_NOW);
+  assertEquals(copy.message, "Today's Name is waiting.");
+  assertEquals(copy.templateId, "daily_generic_v1");
+});
+
+Deno.test("daily render: missing recent-name row entirely (RPC failed) → generic fallback", () => {
+  const copy = typeByKey("daily").render(eligibleRow, null, RENDER_NOW);
+  assertEquals(copy.templateId, "daily_generic_v1");
+  assertEquals(copy.message.includes("null"), false);
+  assertEquals(copy.message.includes("undefined"), false);
+});
+
+// REVERENCE REGRESSION (review F1): `name_returned = 'Allah'` is a live data
+// path (card id 1 is in the gacha pool) and has NO name_anchors row, so the
+// RPC returns anchor=null. EVERY named variant must anchor-gate — otherwise
+// pushes render stance claims about Allah Himself ("You paused at Allah",
+// "the Name you met this week was Allah"), which is banned copy.
+Deno.test("F1 regression: translit 'Allah' with null anchor NEVER interpolates — all templates fall back", () => {
+  const allahRow = recentName({ name_transliteration: "Allah", name_anchor: null });
+  for (const key of ["daily", "reengagement", "weekly_reflection"]) {
+    const copy = typeByKey(key).render(eligibleRow, allahRow, RENDER_NOW);
+    assertEquals(
+      copy.message.includes("Allah is") || copy.message.includes("at Allah") ||
+        copy.message.includes("was Allah"),
+      false,
+      `${key} interpolated 'Allah' into: "${copy.message}"`,
+    );
+    assertEquals(copy.templateId.includes("generic"), true, `${key} must fall back`);
+  }
+});
+
+Deno.test("daily render: stale check-in (>7d) → generic, a months-old Name is not fresh context", () => {
+  const stale = recentName({
+    checked_in_at: new Date(RENDER_NOW.getTime() - 8 * 24 * 60 * 60 * 1000)
+      .toISOString(),
+  });
+  const copy = typeByKey("daily").render(eligibleRow, stale, RENDER_NOW);
+  assertEquals(copy.templateId, "daily_generic_v1");
+});
+
+Deno.test("daily render: Name without anchor (e.g. unmapped legacy spelling) → generic, never half a sentence", () => {
+  const anchorless = recentName({ name_anchor: null });
+  const copy = typeByKey("daily").render(eligibleRow, anchorless, RENDER_NOW);
+  assertEquals(copy.templateId, "daily_generic_v1");
+});
+
+Deno.test("daily render: display name still personalizes the title", () => {
+  const named = { ...eligibleRow, display_name: "Aisha" };
+  const copy = typeByKey("daily").render(named, null, RENDER_NOW);
+  assertEquals(copy.title, "Assalamu Alaikum, Aisha");
+});
+
+Deno.test("reengagement render: recent Name → 'You paused at …' template", () => {
+  const copy = typeByKey("reengagement").render(
+    eligibleRow,
+    recentName(),
+    RENDER_NOW,
+  );
+  assertEquals(
+    copy.message,
+    "You paused at Al-Fattah. Its story is still open.",
+  );
+  assertEquals(copy.templateId, "reengagement_recent_name_v1");
+});
+
+Deno.test("reengagement render: no Name → generic fallback", () => {
+  const copy = typeByKey("reengagement").render(eligibleRow, null, RENDER_NOW);
+  assertEquals(copy.message, "Your next Name is ready.");
+  assertEquals(copy.templateId, "reengagement_generic_v1");
+});
+
+Deno.test("weekly render: check-in within 7 days → 'Name you met this week'", () => {
+  const copy = typeByKey("weekly_reflection").render(
+    eligibleRow,
+    recentName(),
+    RENDER_NOW,
+  );
+  assertEquals(
+    copy.message,
+    "The hour of Jumu'ah — the Name you met this week was Al-Fattah.",
+  );
+  assertEquals(copy.templateId, "weekly_recent_name_v1");
+});
+
+Deno.test("weekly render: check-in OLDER than 7 days → fallback ('this week' would be a false claim)", () => {
+  const stale = recentName({
+    checked_in_at: new Date(RENDER_NOW.getTime() - 8 * 24 * 60 * 60 * 1000)
+      .toISOString(),
+  });
+  const copy = typeByKey("weekly_reflection").render(
+    eligibleRow,
+    stale,
+    RENDER_NOW,
+  );
+  assertEquals(copy.templateId, "weekly_generic_v1");
+  assertEquals(
+    copy.message,
+    "The hour of Jumu'ah — a quiet hour to meet your next Name.",
+  );
+});
+
+Deno.test("weekly render: no check-in ever → fallback, never interpolates null", () => {
+  const copy = typeByKey("weekly_reflection").render(
+    eligibleRow,
+    null,
+    RENDER_NOW,
+  );
+  assertEquals(copy.templateId, "weekly_generic_v1");
+  assertEquals(copy.message.includes("null"), false);
+});
+
+Deno.test("streak saver body: recent Name → named lantern line; none → locked fallback", () => {
+  const saver: StreakDecision = {
+    user_id: "user-1",
+    timezone: "UTC",
+    display_name: null,
+    current_streak: 3,
+    kind: "saver",
+  };
+  // Phase A: the saver does NOT personalize — locked streak-retention-v2 copy
+  // only (a named saver would promise the wrong Name; queue semantics = Phase B).
+  assertEquals(
+    streakFamilyBody(saver),
+    "Your lantern rests tonight — one reflection keeps it lit.",
+  );
+  assertEquals(streakFamilyTemplateId("saver"), "streak_saver_v1");
+});
+
+Deno.test("streak milestone/winback bodies: locked streak-retention-v2 vocabulary UNCHANGED by Phase A", () => {
+  const base = {
+    user_id: "user-1",
+    timezone: "UTC",
+    display_name: null,
+    current_streak: 6,
+  };
+  assertEquals(
+    streakFamilyBody({ ...base, kind: "milestone" }),
+    "Tomorrow is your 7-day flame — one reflection away.",
+  );
+  assertEquals(
+    streakFamilyBody({ ...base, kind: "winback" }),
+    "Your lantern is resting. Relight it whenever you're ready.",
+  );
+  assertEquals(streakFamilyTemplateId("milestone"), "streak_milestone_v1");
+  assertEquals(streakFamilyTemplateId("winback"), "streak_winback_v1");
+});
+
+Deno.test("null-safety helpers: blank / whitespace / missing → null", () => {
+  assertEquals(cleanTransliteration(null), null);
+  assertEquals(cleanTransliteration(recentName({ name_transliteration: "  " })), null);
+  assertEquals(cleanTransliteration(recentName({ name_transliteration: null })), null);
+  assertEquals(cleanAnchor(recentName({ name_anchor: "" })), null);
+  // Trailing sentence punctuation stripped so composition can add its own.
+  assertEquals(
+    cleanAnchor(recentName({ name_anchor: "He sees you." })),
+    "He sees you",
+  );
+  // Unparseable / future timestamps never count as "within N days".
+  assertEquals(
+    checkedInWithinDays(recentName({ checked_in_at: "garbage" }), 7, RENDER_NOW),
+    false,
+  );
+  assertEquals(
+    checkedInWithinDays(
+      recentName({
+        checked_in_at: new Date(RENDER_NOW.getTime() + 60_000).toISOString(),
+      }),
+      7,
+      RENDER_NOW,
+    ),
+    false,
+  );
+});
+
+Deno.test("no rendered template ever contains Arabic script (transliteration-only rule)", () => {
+  const variants: string[] = [];
+  for (const t of NOTIFICATION_TYPES) {
+    for (const recent of [recentName(), null]) {
+      const copy = t.render(eligibleRow, recent, RENDER_NOW);
+      variants.push(copy.title, copy.message);
+    }
+  }
+  const saver: StreakDecision = {
+    user_id: "u",
+    timezone: "UTC",
+    display_name: null,
+    current_streak: 1,
+    kind: "saver",
+  };
+  variants.push(streakFamilyBody(saver));
+  for (const text of variants) {
+    assertEquals(
+      ARABIC_SCRIPT.test(text),
+      false,
+      `Arabic script leaked into template text: "${text}"`,
+    );
+  }
+});
+
+// ── Phase A: two-step RPC wiring + payload/analytics stamping ────────────────
+//
+// End-to-end through runFixedCadenceLoop with stubs:
+//   • get_eligible_notification_users → one eligible user (daily only; the
+//     other types return empty so exactly one push fires).
+//   • get_recent_checkin_names → the named row for that user, and we assert it
+//     was called with p_user_ids (the two-step contract — no FK embed).
+//   • The OneSignal payload must carry data.template_id + data.copy_version
+//     and the NAMED daily copy.
+
+Deno.test(
+  "runFixedCadenceLoop: two-step Name lookup renders named copy and stamps template_id/copy_version into the payload",
+  async () => {
+    const userId = crypto.randomUUID();
+    const eligible = { ...eligibleRow, user_id: userId };
+
+    let recentNamesCalledWith: unknown = null;
+    const capturedPayloads: Array<Record<string, unknown>> = [];
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+      if (url.includes("onesignal.com/notifications")) {
+        capturedPayloads.push(JSON.parse((init?.body as string) ?? "{}"));
+        return new Response(JSON.stringify({ id: crypto.randomUUID() }), {
+          status: 200,
+        });
+      }
+      return new Response("{}", { status: 200 });
+    };
+
+    const supabaseStub = {
+      rpc: (name: string, args: Record<string, unknown>) => {
+        if (name === "get_recent_checkin_names") {
+          recentNamesCalledWith = args;
+          return Promise.resolve({
+            data: [recentName({ user_id: userId })],
+            error: null,
+          });
+        }
+        // Eligibility RPC: only the daily type gets a user.
+        const isDaily = args.p_pref_column === "notify_daily";
+        return Promise.resolve({
+          data: isDaily ? [eligible] : [],
+          error: null,
+        });
+      },
+      from: (_table: string) => ({
+        update: (_vals: unknown) => ({
+          in: (_col: string, _ids: string[]) => Promise.resolve({ error: null }),
+        }),
+      }),
+    };
+
+    await runFixedCadenceLoop(
+      supabaseStub,
+      "test-app-id",
+      "test-rest-key",
+      new Set<string>(),
+    );
+    globalThis.fetch = originalFetch;
+
+    // Two-step contract: the companion RPC was called with the user-id array.
+    assertEquals(recentNamesCalledWith, { p_user_ids: [userId] });
+
+    assertEquals(capturedPayloads.length, 1);
+    const payload = capturedPayloads[0];
+    const contents = (payload.contents as Record<string, string>).en;
+    assertEquals(
+      contents,
+      "Al-Fattah — Doors will open that you cannot open yourself. Today's Name is waiting.",
+    );
+    const data = payload.data as Record<string, unknown>;
+    assertEquals(data.type, "daily_reminder");
+    assertEquals(data.template_id, "daily_recent_name_v1");
+    assertEquals(data.copy_version, COPY_VERSION);
+  },
+);
+
+Deno.test(
+  "runFixedCadenceLoop: get_recent_checkin_names FAILURE degrades to generic copy — the cron never stops sending",
+  async () => {
+    const userId = crypto.randomUUID();
+    const eligible = { ...eligibleRow, user_id: userId };
+    const capturedPayloads: Array<Record<string, unknown>> = [];
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+      if (url.includes("onesignal.com/notifications")) {
+        capturedPayloads.push(JSON.parse((init?.body as string) ?? "{}"));
+        return new Response(JSON.stringify({ id: crypto.randomUUID() }), {
+          status: 200,
+        });
+      }
+      return new Response("{}", { status: 200 });
+    };
+
+    const supabaseStub = {
+      rpc: (name: string, args: Record<string, unknown>) => {
+        if (name === "get_recent_checkin_names") {
+          // e.g. the migration hasn't been applied yet.
+          return Promise.resolve({
+            data: null,
+            error: new Error("function get_recent_checkin_names does not exist"),
+          });
+        }
+        const isDaily = args.p_pref_column === "notify_daily";
+        return Promise.resolve({
+          data: isDaily ? [eligible] : [],
+          error: null,
+        });
+      },
+      from: (_table: string) => ({
+        update: (_vals: unknown) => ({
+          in: (_col: string, _ids: string[]) => Promise.resolve({ error: null }),
+        }),
+      }),
+    };
+
+    await runFixedCadenceLoop(
+      supabaseStub,
+      "test-app-id",
+      "test-rest-key",
+      new Set<string>(),
+    );
+    globalThis.fetch = originalFetch;
+
+    assertEquals(capturedPayloads.length, 1);
+    const payload = capturedPayloads[0];
+    const contents = (payload.contents as Record<string, string>).en;
+    assertEquals(contents, "Today's Name is waiting.");
+    const data = payload.data as Record<string, unknown>;
+    assertEquals(data.template_id, "daily_generic_v1");
   },
 );

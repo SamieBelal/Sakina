@@ -31,7 +31,7 @@ void main() {
     id: 9,
     arabic: 'الْجَبَّارُ',
     transliteration: 'Al-Jabbar',
-    english: 'The Compeller',
+    english: 'The Compeller — Restorer of the Broken',
     meaning: 'The mender of broken things.',
     lesson: 'He restores what life has shattered.',
   );
@@ -46,7 +46,7 @@ void main() {
     expect(hero.label, 'Your Starting Name');
     expect(hero.arabic, 'الْجَبَّارُ');
     expect(hero.transliteration, 'Al-Jabbar');
-    expect(hero.english, 'The Compeller');
+    expect(hero.english, 'The Compeller — Restorer of the Broken');
     expect(hero.lesson, 'He restores what life has shattered.');
   });
 

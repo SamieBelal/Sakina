@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sakina — Paywall Mock (One Ship gate, decision ⑥)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Aref+Ruqaa&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FBF7F2;--surface:#FFF;--alt:#F3EDE4;--em:#1B6B4A;--emt:#E8F5EE;--gold:#C8985E;--ink:#1A1A2E;--ink2:#6B7280;--ink3:#9CA3AF;--bd:#E5E0D8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Outfit',sans-serif;background:#2c2a27;min-height:100vh;display:flex;align-items:center;justify-content:center;gap:44px;padding:40px;flex-wrap:wrap}
+.note{color:#b8b2a8;max-width:250px;font-size:14px;line-height:1.6;font-weight:300}
+.note strong{color:#e8e2d8;font-weight:500}.note ul{margin:10px 0 0 16px}.note li{margin-bottom:7px}
+.toggle{margin-top:14px;display:inline-block;background:#3a3733;color:#e8e2d8;border:1px solid #55504a;border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:54px;border:10px solid #0e0d0c;box-shadow:0 30px 80px rgba(0,0,0,.5);overflow:hidden;position:relative;flex-shrink:0}
+.di{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:34px;background:#0e0d0c;border-radius:20px;z-index:10}
+.page{position:absolute;inset:0;padding:64px 26px 30px;display:none;flex-direction:column}
+.page.on{display:flex}
+.x{position:absolute;top:54px;right:18px;width:44px;height:44px;border-radius:50%;background:var(--alt);color:var(--ink2);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;z-index:5}
+.dots{display:flex;gap:6px;justify-content:center;margin-bottom:18px}
+.dots span{width:6px;height:6px;border-radius:50%;background:var(--bd)}.dots span.a{background:var(--em)}
+h1{font-size:26px;font-weight:600;color:var(--ink);line-height:1.28;letter-spacing:-.01em}
+.sub{margin-top:10px;font-size:15.5px;font-weight:300;color:var(--ink2);line-height:1.5}
+.card-art{margin:22px auto 6px;width:150px;height:200px;border-radius:16px;background:linear-gradient(160deg,#1B6B4A,#0F4630);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;box-shadow:0 10px 30px rgba(27,107,74,.3)}
+.card-art .ar{font-family:'Aref Ruqaa',serif;font-size:40px;color:#F6EFE4}
+.card-art .tr{font-size:13px;color:#D9C9A5;letter-spacing:.06em}
+.bullets{margin-top:20px;display:flex;flex-direction:column;gap:14px}
+.b{display:flex;gap:12px;align-items:flex-start}
+.b .ic{width:26px;height:26px;border-radius:8px;background:var(--emt);color:var(--em);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.b .t{font-size:15.5px;color:var(--ink);font-weight:400;line-height:1.4}
+.tl{margin-top:26px;display:flex;flex-direction:column}
+.tli{display:flex;gap:14px}
+.tli .rail{display:flex;flex-direction:column;align-items:center}
+.tli .dot{width:14px;height:14px;border-radius:50%;background:var(--em);flex-shrink:0}
+.tli .dot.o{background:var(--gold)}.tli .dot.g{background:var(--ink3)}
+.tli .line{width:2px;flex:1;background:var(--bd);min-height:34px}
+.tli .tx{padding-bottom:22px}
+.tli .h{font-size:15.5px;font-weight:600;color:var(--ink)}
+.tli .d{font-size:14px;font-weight:300;color:var(--ink2);margin-top:2px;line-height:1.45}
+.fn{margin-top:4px;text-align:center;font-size:14px;color:var(--em);font-weight:500}
+.plans{margin-top:20px;display:flex;flex-direction:column;gap:12px}
+.plan{border:2px solid var(--bd);border-radius:16px;padding:16px 18px;background:var(--surface);cursor:pointer;position:relative}
+.plan.sel{border-color:var(--em);background:var(--emt)}
+.plan .nm{font-size:16px;font-weight:600;color:var(--ink)}
+.plan .pr{font-size:14px;color:var(--ink2);font-weight:300;margin-top:2px}
+.badge{position:absolute;top:-10px;right:14px;background:var(--em);color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:8px}
+.spacer{flex:1}
+.cta{margin-top:16px;background:var(--em);color:#fff;border:none;border-radius:16px;padding:17px;font-family:'Outfit';font-size:16.5px;font-weight:600;cursor:pointer;width:100%}
+.terms{margin-top:10px;text-align:center;font-size:12.5px;color:var(--ink2);font-weight:300;line-height:1.5}
+.freefoot{margin-top:8px;text-align:center;font-size:12.5px;color:var(--ink2);font-weight:300;font-style:italic}
+.dcard{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;gap:16px;z-index:20}
+.dcard.on{display:flex}
+.dcard .orn{font-family:'Aref Ruqaa',serif;font-size:30px;color:var(--gold);opacity:.8}
+.dcard p{font-size:17px;color:var(--ink);font-weight:300;line-height:1.6}
+.dcard .r{font-size:13px;color:var(--ink3);cursor:pointer;text-decoration:underline;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="di"></div>
+
+  <!-- PAGE 1: value_depth -->
+  <div class="page on" id="p1">
+    <div class="x" onclick="dismiss()">✕</div>
+    <div class="dots"><span class="a"></span><span></span><span></span></div>
+    <h1 id="h1">You've met As-Salam.</h1>
+    <div class="sub"><span id="sub1">Premium goes deeper into what you named:</span></div>
+    <div class="card-art"><div class="ar" id="cardAr">السَّلَامُ</div><div class="tr" id="cardTr">AS-SALAM</div></div>
+    <div class="bullets">
+      <div class="b"><div class="ic">☾</div><div class="t" id="b1">A personal reflection on the weight you named, every day</div></div>
+      <div class="b"><div class="ic">🤲</div><div class="t" id="b2">Your own duʿā, built for what you carry</div></div>
+      <div class="b"><div class="ic">✎</div><div class="t">Every reflection and duʿā, kept in your journal</div></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="cta" onclick="go(2)">Continue</button>
+  </div>
+
+  <!-- PAGE 2: trial_timeline -->
+  <div class="page" id="p2">
+    <div class="x" onclick="dismiss()">✕</div>
+    <div class="dots"><span></span><span class="a"></span><span></span></div>
+    <h1>Try everything free for 7 days.</h1>
+    <div class="tl">
+      <div class="tli"><div class="rail"><div class="dot"></div><div class="line"></div></div><div class="tx"><div class="h">Today</div><div class="d">Everything unlocks: daily reflections and your own duʿās, saved to your journal.</div></div></div>
+      <div class="tli"><div class="rail"><div class="dot o"></div><div class="line"></div></div><div class="tx"><div class="h">Day 6</div><div class="d">Apple reminds you before your trial ends.</div></div></div>
+      <div class="tli"><div class="rail"><div class="dot g"></div></div><div class="tx"><div class="h">Day 7</div><div class="d">Your plan begins. Cancel anytime before — no charge.</div></div></div>
+    </div>
+    <div class="fn">No charge today.</div>
+    <div class="spacer"></div>
+    <button class="cta" onclick="go(3)">Continue</button>
+  </div>
+
+  <!-- PAGE 3: plan_select -->
+  <div class="page" id="p3">
+    <div class="x" onclick="dismiss()">✕</div>
+    <div class="dots"><span></span><span></span><span class="a"></span></div>
+    <h1>Choose how you continue.</h1>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink);font-weight:300">
+      <div>✓ Unlimited reflections, duʿās &amp; Name discoveries</div>
+      <div>✓ 5× daily rewards, every single day</div>
+      <div>✓ Exclusive Emerald cards for every Name</div>
+      <div>✓ A monthly gift of tokens &amp; scrolls</div>
+      <div>✓ 3 streak freezes so you never lose progress</div>
+    </div>
+    <div class="plans">
+      <div class="plan sel" onclick="pick(this,'a')"><div class="badge">7 days free first</div><div class="nm">Yearly</div><div class="pr">$59.99/year · $1.15 a week</div></div>
+      <div class="plan" onclick="pick(this,'w')" style="border-width:1px;padding:11px 18px;background:transparent"><div class="nm" style="font-size:14px;font-weight:400;color:var(--ink2)">Weekly — {RC price}/week · 7 days free first</div></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="cta">Start my 7 days free</button>
+    <div class="terms" id="terms">Free for 7 days, then $59.99/year. Cancel anytime in Settings.</div>
+    <div class="freefoot">The 99 Names, your daily Name and its story, and your streak stay free — always.</div>
+  </div>
+
+  <!-- dismissal card -->
+  <div class="dcard" id="dc">
+    <div class="orn">﷽</div>
+    <p>The 99 Names, your daily Name and its story, and your streak are yours — always free.</p>
+    <p style="font-size:14px;color:var(--ink2)">(then → Home)</p>
+    <div class="r" onclick="resetAll()">↺ reset mock</div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Paywall mock — 3 pages (spec: 2026-07-25-paywall-DRAFT.md)</strong>
+  <ul>
+    <li><strong>✕ visible from page 1</strong> — tap it to see the dismissal card (→ home).</li>
+    <li>Page 1 echoes the revealed Name + chip; Continue → trial timeline → plan select.</li>
+    <li>No countdowns, no offers, no arc-count; terms plain under the CTA.</li>
+    <li>Weekly price shown is a placeholder — RC live price at build.</li>
+  </ul>
+  <div class="toggle" onclick="toggleContract()">Toggle contract: <span id="cName">problem</span></div>
+</div>
+
+<script>
+let contract='problem';
+function go(n){document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('p'+n).classList.add('on')}
+function dismiss(){document.getElementById('dc').classList.add('on')}
+function resetAll(){document.getElementById('dc').classList.remove('on');go(1)}
+function pick(el,k){document.querySelectorAll('.plan').forEach(p=>p.classList.remove('sel'));el.classList.add('sel');
+document.getElementById('terms').textContent = k==='a' ? 'Free for 7 days, then $59.99/year. Cancel anytime in Settings.' : 'Free for 7 days, then $4.99/week. Cancel anytime in Settings.'}
+function toggleContract(){
+  contract = contract==='problem' ? 'sign' : 'problem';
+  document.getElementById('cName').textContent=contract;
+  if(contract==='sign'){
+    document.getElementById('h1').textContent="You've met Ar-Rahman — the first Name of your journey.";
+    document.getElementById('sub1').textContent='Premium goes deeper, every day:';
+    document.getElementById('b1').textContent='A personal reflection to sit with, every day';
+    document.getElementById('b2').textContent="Your own duʿā — even when you can't find the words";
+    document.getElementById('cardAr').textContent='الرَّحْمَنُ';
+    document.getElementById('cardTr').textContent='AR-RAHMAN';
+  } else {
+    document.getElementById('h1').textContent="You've met As-Salam.";
+    document.getElementById('sub1').textContent='Premium goes deeper into what you named:';
+    document.getElementById('b1').textContent='A personal reflection on {chip phrase}, every day';
+    document.getElementById('b2').textContent='Your own duʿā, built for what you carry';
+    document.getElementById('cardAr').textContent='السَّلَامُ';
+    document.getElementById('cardTr').textContent='AS-SALAM';
+  }
+}
+</script>
+</body>
+</html>
