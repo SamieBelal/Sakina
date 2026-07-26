@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -323,4 +324,64 @@ Future<void> _creditNoorCache(int amount) async {
   final key = supabaseSyncService.scopedKey(_noorBalanceKey);
   final current = prefs.getInt(key) ?? 0;
   await prefs.setInt(key, current + amount);
+}
+
+/// Equips [itemId] via the Lane A `equip_cosmetic` RPC, which verifies
+/// ownership server-side (raises "cannot equip unowned item" → null here).
+/// On success, mirrors the equipped column into the cache so the Companion
+/// stage / Home medallion re-render without a round-trip.
+Future<CosmeticActionResult> equipCosmetic({
+  required String itemType,
+  required String itemId,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+
+  final ok = await supabaseSyncService.callRpc<bool>(
+    'equip_cosmetic',
+    {'p_item_type': itemType, 'p_item_id': itemId},
+  );
+  if (ok != true) return CosmeticActionResult.failed;
+
+  final prefs = await SharedPreferences.getInstance();
+  final key =
+      itemType == itemTypeBackdrop ? _equippedBackdropKey : _equippedSkinKey;
+  await prefs.setString(supabaseSyncService.scopedKey(key), itemId);
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticEquipped, {
+    AnalyticsEvents.propItemType: itemType,
+    AnalyticsEvents.propItemId: itemId,
+  });
+  return CosmeticActionResult.ok;
+}
+
+/// Client-side predicate for whether the Equip button should be shown for a
+/// catalog row (spec §13 item 6 / OQ-1 — the single premium definition seam).
+///
+/// Rules (conservative — the spec is silent on whether trial/gift/referral
+/// users PERMANENTLY keep premium-exclusive skins, so we never convert them to
+/// ownership here; see OQ-1):
+///   • Owned (in user_cosmetics or the always-owned default) → equippable.
+///   • Premium-exclusive AND the caller is premium (any source: sub, trial,
+///     gift, referral — [PurchaseService.isPremium] ORs over all) → equippable
+///     WHILE premium is active. The server `equip_cosmetic` remains the final
+///     authority; this only decides whether to surface the button.
+///   • Otherwise → NOT equippable (the user must unlock/buy it first).
+///
+/// [purchaseService] is injectable for tests; production passes the default
+/// `PurchaseService()`.
+Future<bool> canEquip({
+  required CosmeticsState state,
+  required String itemType,
+  required String itemId,
+  required bool isPremiumExclusive,
+  PurchaseService? purchaseService,
+}) async {
+  if (state.owns(itemType, itemId)) return true;
+  if (isPremiumExclusive) {
+    final svc = purchaseService ?? PurchaseService();
+    return svc.isPremium();
+  }
+  return false;
 }

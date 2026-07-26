@@ -1,9 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../support/fake_supabase_sync_service.dart';
+
+class StubPurchaseService extends PurchaseService {
+  StubPurchaseService(this.premium) : super.test();
+  final bool premium;
+  @override
+  Future<bool> isPremium() async => premium;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -276,6 +284,150 @@ void main() {
           await awardNoor(reason: 'daily', reasonKey: 'daily:2026-07-25');
       expect(granted, 0);
       expect(fakeSync.rpcCalls, isEmpty);
+    });
+  });
+
+  group('equipCosmetic', () {
+    test('success: mirrors equipped cache + emits analytics', () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [
+          {'item_type': 'lantern_skin', 'item_id': 'emerald_jade'},
+        ],
+      );
+      fakeSync.rpcHandlers['equip_cosmetic'] = (params) async => true;
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await equipCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'emerald_jade',
+      );
+
+      expect(result.success, isTrue);
+      expect(fakeSync.rpcCalls.single['params'],
+          {'p_item_type': 'lantern_skin', 'p_item_id': 'emerald_jade'});
+      final state = await getCosmeticsState();
+      expect(state.equippedLanternSkin, 'emerald_jade');
+      expect(events.single.$1, 'cosmetic_equipped');
+      expect(events.single.$2,
+          {'item_type': 'lantern_skin', 'item_id': 'emerald_jade'});
+    });
+
+    test('backdrop success updates the backdrop slot, not the skin slot',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [
+          {'item_type': 'backdrop', 'item_id': 'laylat_night'},
+        ],
+      );
+      fakeSync.rpcHandlers['equip_cosmetic'] = (params) async => true;
+
+      await equipCosmetic(itemType: 'backdrop', itemId: 'laylat_night');
+      final state = await getCosmeticsState();
+      expect(state.equippedBackdrop, 'laylat_night');
+      expect(state.equippedLanternSkin, 'classic_gold'); // untouched
+    });
+
+    test('rejection (unowned → RPC raises → null): equipped cache unchanged',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+      // No handler → null (server raised "cannot equip unowned item").
+      final result = await equipCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'obsidian_gold',
+      );
+      expect(result.success, isFalse);
+      final state = await getCosmeticsState();
+      expect(state.equippedLanternSkin, 'classic_gold');
+    });
+  });
+
+  group('canEquip (premium-exclusive resolution — OQ-1 conservative)', () {
+    test('owned item is always equippable', () async {
+      const state = CosmeticsState(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        ownedLanternSkins: {'moonlit_silver'},
+        ownedBackdrops: {},
+      );
+      final can = await canEquip(
+        state: state,
+        itemType: 'lantern_skin',
+        itemId: 'moonlit_silver',
+        isPremiumExclusive: false,
+        purchaseService: StubPurchaseService(false),
+      );
+      expect(can, isTrue);
+    });
+
+    test('premium-exclusive + premium user (not owned) IS equippable', () async {
+      const state = CosmeticsState(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        ownedLanternSkins: {},
+        ownedBackdrops: {},
+      );
+      final can = await canEquip(
+        state: state,
+        itemType: 'lantern_skin',
+        itemId: 'ramadan_royal',
+        isPremiumExclusive: true,
+        purchaseService: StubPurchaseService(true),
+      );
+      expect(can, isTrue);
+    });
+
+    test('premium-exclusive + NON-premium user (not owned) is NOT equippable',
+        () async {
+      const state = CosmeticsState(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        ownedLanternSkins: {},
+        ownedBackdrops: {},
+      );
+      final can = await canEquip(
+        state: state,
+        itemType: 'lantern_skin',
+        itemId: 'ramadan_royal',
+        isPremiumExclusive: true,
+        purchaseService: StubPurchaseService(false),
+      );
+      expect(can, isFalse);
+    });
+
+    test('non-exclusive + not owned is NOT equippable (must unlock first)',
+        () async {
+      const state = CosmeticsState(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        ownedLanternSkins: {},
+        ownedBackdrops: {},
+      );
+      final can = await canEquip(
+        state: state,
+        itemType: 'lantern_skin',
+        itemId: 'moonlit_silver',
+        isPremiumExclusive: false,
+        purchaseService: StubPurchaseService(true),
+      );
+      expect(can, isFalse);
     });
   });
 }
