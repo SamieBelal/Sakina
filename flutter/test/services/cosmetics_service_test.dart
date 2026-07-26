@@ -183,118 +183,76 @@ void main() {
     });
   });
 
-  group('awardMilestoneNoor (single atomic claim-and-mint RPC)', () {
-    test('credits the server-derived noor_awarded from the single claim call',
-        () async {
-      // The claim RPC now mints the milestone Noor atomically and returns the
-      // credited amount in noor_awarded — there is NO separate award_noor call.
-      fakeSync.rpcHandlers['claim_streak_milestone'] =
-          (params) async => {'newly_claimed': true, 'noor_awarded': 150};
-
+  group('creditMintedMilestoneNoor (mirrors a server-minted milestone grant)',
+      () {
+    test('credits the cache and emits noor_earned exactly once', () async {
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
 
-      final granted = await awardMilestoneNoor(30);
+      await creditMintedMilestoneNoor(day: 30, amount: 150);
 
-      expect(granted, 150);
-      // Exactly one RPC: the atomic claim. award_noor is NEVER called here.
-      final fns = fakeSync.rpcCalls.map((c) => c['fn']).toList();
-      expect(fns, ['claim_streak_milestone']);
-      expect(fakeSync.rpcCalls.single['params'], {'p_day': 30});
-      // Analytics label the mint with the server-shaped reason.
+      final state = await getCosmeticsState();
+      expect(state.noorBalance, 150);
+      expect(events, hasLength(1));
       expect(events.single.$1, 'noor_earned');
+      // The property shape must stay identical to awardNoor's emit so the
+      // analytics schema does not fork.
       expect(events.single.$2, {'amount': 150, 'reason': 'milestone:30'});
     });
 
-    test('does NOT credit when claim reports already-claimed '
-        '(newly=false, noor_awarded=0)', () async {
-      fakeSync.rpcHandlers['claim_streak_milestone'] =
-          (params) async => {'newly_claimed': false, 'noor_awarded': 0};
-
-      final events = <(String, Map<String, dynamic>)>[];
-      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
-      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
-
-      final granted = await awardMilestoneNoor(30);
-
-      expect(granted, 0);
-      // Only the single claim call — no second RPC to double-award.
-      expect(fakeSync.rpcCalls.map((c) => c['fn']),
-          ['claim_streak_milestone']);
-      expect(events, isEmpty); // nothing minted → nothing emitted
-    });
-
-    test('does NOT credit when the claim RPC fails (null)', () async {
-      // No handler → callRpc returns null (RPC unavailable / raised).
-      final granted = await awardMilestoneNoor(7);
-
-      expect(granted, 0);
-      // The single claim was attempted; nothing else.
-      expect(fakeSync.rpcCalls.map((c) => c['fn']),
-          ['claim_streak_milestone']);
-    });
-
-    test('no double-award on replay: a second call with noor_awarded=0 mints '
-        'nothing and emits nothing', () async {
-      // First call mints; a replay (server dedupes) returns noor_awarded=0.
-      var calls = 0;
-      fakeSync.rpcHandlers['claim_streak_milestone'] = (params) async {
-        calls += 1;
-        return calls == 1
-            ? {'newly_claimed': true, 'noor_awarded': 40}
-            : {'newly_claimed': false, 'noor_awarded': 0};
-      };
-
-      final events = <(String, Map<String, dynamic>)>[];
-      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
-      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
-
-      final first = await awardMilestoneNoor(7);
-      final second = await awardMilestoneNoor(7);
-
-      expect(first, 40);
-      expect(second, 0); // replay credits nothing (idempotent server-side)
-      // The credit + emit happened exactly once, for the first call.
-      expect(events, hasLength(1));
-      expect(events.single.$2, {'amount': 40, 'reason': 'milestone:7'});
-      final state = await getCosmeticsState();
-      expect(state.noorBalance, 40); // credited once, not twice
-    });
-
-    test('unrecognized milestone day is refused client-side (no RPC calls)',
+    test('mirrors ONLY — it never calls an RPC (the server already minted)',
         () async {
-      final granted = await awardMilestoneNoor(999);
-      expect(granted, 0);
-      expect(fakeSync.rpcCalls, isEmpty);
+      await creditMintedMilestoneNoor(day: 7, amount: 25);
+      expect(fakeSync.rpcCalls, isEmpty,
+          reason: 'the credit path must not re-invoke claim_streak_milestone '
+              '— that would issue the RPC a second time');
     });
 
-    test('day 90 is the top mintable milestone — it reaches the RPC and 100 '
-        'does not', () async {
-      // The allowlist must match streakMilestones (7/14/30/60/90/180/365) and
-      // the RPC's award arms. 100 was a stray no client could ever send; a real
-      // 90-day streak used to be refused client-side and (had it got through)
-      // rejected server-side as 'unrecognized milestone day 90'.
+    test('amount 0 (replay / already-claimed / non-mintable day) credits '
+        'nothing and emits nothing', () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 60,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await creditMintedMilestoneNoor(day: 30, amount: 0);
+
+      expect((await getCosmeticsState()).noorBalance, 60); // untouched
+      expect(events, isEmpty);
+    });
+
+    test('a negative amount is refused (the client never debits here)',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 60,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await creditMintedMilestoneNoor(day: 30, amount: -50);
+
+      expect((await getCosmeticsState()).noorBalance, 60);
+      expect(events, isEmpty);
+    });
+
+    test('day 90 is the top mintable milestone (client mirror of the RPC set)',
+        () async {
+      // Pins the client-side mirror of the server mint arms against drift.
+      // 100 was a stray no client could ever send; a real 90-day streak used to
+      // be rejected server-side as 'unrecognized milestone day 90'.
       expect(awardableMilestoneDays, {7, 14, 30, 60, 90});
-
-      fakeSync.rpcHandlers['claim_streak_milestone'] =
-          (params) async => {'newly_claimed': true, 'noor_awarded': 400};
-
-      final granted = await awardMilestoneNoor(90);
-
-      expect(granted, 400);
-      expect(fakeSync.rpcCalls.single['params'], {'p_day': 90});
-
-      fakeSync.rpcCalls.clear();
-      expect(await awardMilestoneNoor(100), 0);
-      expect(fakeSync.rpcCalls, isEmpty); // 100 never reaches the server
-    });
-
-    test('unauthenticated: no RPC calls, returns 0', () async {
-      fakeSync.userId = null;
-      final granted = await awardMilestoneNoor(30);
-      expect(granted, 0);
-      expect(fakeSync.rpcCalls, isEmpty);
     });
   });
 

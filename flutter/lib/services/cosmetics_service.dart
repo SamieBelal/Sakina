@@ -240,64 +240,60 @@ Future<void> _debitNoorCache(int amount) async {
   await prefs.setInt(key, (current - amount).clamp(0, 1 << 31));
 }
 
-/// The streak-milestone days that `award_noor` recognizes (the RPC's `case`
-/// arms are `milestone:7|14|30|60|90`). Client-side allowlist so an
-/// unrecognized day never reaches the RPC (which would `raise 'unknown noor
-/// reason'`). Kept in lockstep with the RPC body in
-/// `20260726000800_align_milestone_day_90.sql` — which aligned the server on
-/// 90, the day [streakMilestones] has always used. (The original arm was a
-/// stray `100`: no client could ever send it, while a genuine 90-day streak was
-/// rejected as an unrecognized milestone day.)
+/// The streak-milestone days for which `claim_streak_milestone` actually MINTS
+/// Noor (its guarded `p_day in (7,14,30,60,90)` arm, matching `award_noor`'s
+/// `milestone:7|14|30|60|90` cases). Client-side mirror of the server contract,
+/// kept in lockstep with `20260726000800_align_milestone_day_90.sql` — which
+/// aligned the server on 90, the day [streakMilestones] has always used. (The
+/// original arm was a stray `100`: no client could ever send it, while a
+/// genuine 90-day streak was rejected as an unrecognized milestone day.)
+///
+/// Documentation + drift guard only — [creditMintedMilestoneNoor] deliberately
+/// does NOT filter on it. The server is the sole minter and reports what it
+/// credited; re-deriving that set client-side would silently drop a real grant
+/// if the two ever diverge again.
 const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 90};
 
-/// Awards milestone Noor for reaching [day] via a SINGLE atomic
-/// `claim_streak_milestone(day)` call. As of the 20260726000700 migration the
-/// milestone Noor is minted INSIDE that RPC, in the same transaction as the
-/// claim record — so the claim and the award commit-or-roll-back together.
-/// This structurally guarantees the "claim fails → no award" property (there
-/// is no longer a separate `award_noor` call that can fail after the claim
-/// committed and be lost on retry — the old two-RPC race, §13 item P1).
+/// Mirrors a milestone Noor grant the SERVER already minted inside
+/// `claim_streak_milestone`. Call this with the `noor_awarded` that RPC
+/// returned — NEVER award speculatively; the client is not a minter.
 ///
-/// The server decides both authority and amount: the RPC recognizes + reaches
-/// the day (guards), mints `milestone:<day>` idempotently per (user, day) so a
-/// streak rebuild can never re-mint, and returns the credited amount in
-/// `noor_awarded` (0 on a replay / non-mintable day). The client only mirrors
-/// that amount into the cache + labels analytics.
+/// As of the 20260726000700 migration the milestone Noor is minted INSIDE
+/// `claim_streak_milestone`, in the same transaction as the claim record, so
+/// the claim and the award commit-or-roll-back together (the "claim fails → no
+/// award" property is now structural — §13 item P1). By the time this is
+/// called the money already exists server-side; the client half is purely
+/// observational:
+///   • credit the local balance cache so the wardrobe updates without a
+///     round-trip (the next full sync reconciles the authoritative value), and
+///   • emit `noor_earned` so the milestone-Noor funnel is visible.
 ///
-/// Returns the Noor amount minted (server-derived `noor_awarded`), or 0 when
-/// the claim was not newly recorded, the day is unrecognized, the user is
-/// unauthenticated, or it was an idempotent replay.
-Future<int> awardMilestoneNoor(int day) async {
-  if (supabaseSyncService.currentUserId == null) return 0;
-  if (!awardableMilestoneDays.contains(day)) return 0;
+/// No-ops when [amount] <= 0 — a replay, an already-claimed day, a
+/// recognized-but-non-mintable day (180/365), or a claim that never committed
+/// all report 0, and none of those may move the cache or the funnel.
+///
+/// SINGLE production call site: `streak_service.checkStreakMilestones` (both
+/// its claim paths), which already holds the RPC response. Do not re-issue
+/// `claim_streak_milestone` here — that would invoke the RPC twice per
+/// milestone.
+Future<void> creditMintedMilestoneNoor({
+  required int day,
+  required int amount,
+}) async {
+  if (amount <= 0) return;
 
-  // Single atomic claim-and-mint. The RPC mints the milestone Noor inside its
-  // own transaction; `noor_awarded` is the server-derived credited amount.
-  final claim = await supabaseSyncService.callRpc<Map<String, dynamic>>(
-    'claim_streak_milestone',
-    {'p_day': day},
-  );
-  if (claim == null) return 0; // RPC unavailable / raised
-
-  final awarded = claim['noor_awarded'];
-  final amount = awarded is int ? awarded : 0;
-  if (amount <= 0) return 0; // already-claimed / non-mintable / replay
-
-  // Mirror the mint into the cache so the wardrobe balance updates without a
-  // round-trip; the next full sync reconciles the authoritative value.
   await _creditNoorCache(amount);
 
   CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
     AnalyticsEvents.propAmount: amount,
     AnalyticsEvents.propReason: 'milestone:$day',
   });
-  return amount;
 }
 
 /// The coarse `reason` values `award_noor` recognizes for NON-milestone grants
-/// (its `case` arms). Milestone grants go through [awardMilestoneNoor], which
-/// enforces the claim-first ordering, so `'milestone:*'` is intentionally NOT
-/// accepted here.
+/// (its `case` arms). Milestone grants are minted server-side inside
+/// `claim_streak_milestone` and only mirrored by [creditMintedMilestoneNoor],
+/// so `'milestone:*'` is intentionally NOT accepted here.
 const Set<String> awardableNoorReasons = {'daily', 'quest'};
 
 /// Awards Noor for a non-milestone earned event (daily muḥāsabah completion,

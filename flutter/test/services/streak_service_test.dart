@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -481,6 +482,110 @@ void main() {
       }
       expect(pendingDays, isEmpty,
           reason: 'pending set must be cleared after a successful flush');
+    });
+  });
+
+  // The live milestone-Noor path. `claim_streak_milestone` mints the milestone
+  // Noor atomically and returns it as `noor_awarded`; this flow is the ONLY
+  // production caller, so it must consume that value — credit the wardrobe
+  // balance cache and emit `noor_earned`. Without this the funnel is invisible
+  // and the cached balance is stale until the next full sync.
+  group('milestone Noor is credited + instrumented from the claim response',
+      () {
+    test('noor_awarded:150 credits the cache by 150 and emits noor_earned once',
+        () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true, 'noor_awarded': 150};
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final newly = await checkStreakMilestones(7);
+
+      expect(newly, hasLength(1));
+      expect((await getCosmeticsState()).noorBalance, 150);
+      expect(events, hasLength(1));
+      expect(events.single.$1, 'noor_earned');
+      expect(events.single.$2, {'amount': 150, 'reason': 'milestone:7'});
+
+      // The RPC that minted it must be called exactly ONCE — the credit path
+      // consumes the response it already has, it does not re-claim.
+      expect(
+        fakeSync.rpcCalls.where((c) => c['fn'] == 'claim_streak_milestone'),
+        hasLength(1),
+      );
+    });
+
+    test('noor_awarded:0 (replay / already-claimed) credits nothing and emits '
+        'nothing', () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': false, 'noor_awarded': 0};
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await checkStreakMilestones(7);
+
+      expect((await getCosmeticsState()).noorBalance, 0);
+      expect(events, isEmpty);
+    });
+
+    test('a failed claim (RPC null) credits nothing and emits nothing',
+        () async {
+      // No handler registered → callRpc returns null, exactly like callRpc
+      // swallowing a server RAISE. The claim never committed, so nothing may
+      // be credited.
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await checkStreakMilestones(7);
+
+      expect((await getCosmeticsState()).noorBalance, 0);
+      expect(events, isEmpty);
+    });
+
+    test('a jsonb num (not int) noor_awarded is tolerated', () async {
+      // jsonb numerics can decode as double/num over the wire; a stricter
+      // `as int?` cast would silently drop a real grant.
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true, 'noor_awarded': 150.0};
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await checkStreakMilestones(7);
+
+      expect((await getCosmeticsState()).noorBalance, 150);
+      expect(events.single.$2, {'amount': 150, 'reason': 'milestone:7'});
+    });
+
+    test('flushing an offline-granted claim also credits the minted Noor',
+        () async {
+      // Phase A: offline grant records a pending claim (no server call).
+      fakeSync.userId = null;
+      SupabaseSyncService.debugSetInstance(fakeSync);
+      await checkStreakMilestones(7);
+
+      // Phase B: back online — the flush claims day 7, and the RPC mints.
+      fakeSync.userId = 'user-1';
+      SupabaseSyncService.debugSetInstance(fakeSync);
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true, 'noor_awarded': 100};
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      await checkStreakMilestones(7);
+
+      expect((await getCosmeticsState()).noorBalance, 100,
+          reason: 'the flush path mints server-side too — it must credit');
+      expect(events, hasLength(1));
+      expect(events.single.$2, {'amount': 100, 'reason': 'milestone:7'});
     });
   });
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -142,14 +143,29 @@ Future<void> _flushPendingServerClaims(
   for (final day in pending.toList()) {
     // Ignore newly_claimed — local grant was already given, this is just for
     // server recordkeeping (prevents re-grant on cache-clear / new device).
-    await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
       'claim_streak_milestone',
       {'p_day': day},
     );
+    // …but `noor_awarded` must NOT be ignored: this flush can be the FIRST
+    // server-side claim for the day, in which case the RPC just minted the
+    // milestone Noor atomically. Mirror it (0 on a replay → no-op).
+    await creditMintedMilestoneNoor(day: day, amount: _noorAwarded(res));
   }
 
   // Clear only after all RPCs succeed (if any throw, the next call retries).
   await _savePendingServerClaims(prefs, {});
+}
+
+/// The Noor `claim_streak_milestone` minted in the same transaction as the
+/// claim, read defensively off its jsonb response: absent / null (failed or
+/// pre-migration RPC) and non-numeric both read as 0, and a `num` that decoded
+/// as a double is truncated rather than dropped by a strict `as int?` cast.
+int _noorAwarded(Map<String, dynamic>? res) {
+  final raw = res?['noor_awarded'];
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  return 0;
 }
 
 /// Check which milestones were just reached. Returns only newly claimed ones.
@@ -182,6 +198,14 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
         {'p_day': milestone.days},
       );
       isNew = res == null ? true : (res['newly_claimed'] as bool? ?? true);
+      // The SAME call also minted the milestone Noor (atomic, since the
+      // 20260726000700 migration). Mirror the amount it reports — this is the
+      // only production path that sees it, so skipping it leaves the wardrobe
+      // balance stale and the noor_earned funnel blind.
+      await creditMintedMilestoneNoor(
+        day: milestone.days,
+        amount: _noorAwarded(res),
+      );
     } else {
       // Offline grant: record in the pending set so the next online session
       // writes it to the server, preventing double-grant on a new device.
