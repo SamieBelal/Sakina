@@ -2,8 +2,12 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
   buildConsumableClawback,
+  buildCosmeticClawback,
+  buildCosmeticGrant,
   buildUserSubscriptionUpsert,
   type ConsumableClawbackPayload,
+  type CosmeticClawbackPayload,
+  type CosmeticGrantPayload,
   handleRevenueCatWebhook,
   hasActivePremiumAccess,
   type RevenueCatEvent,
@@ -722,4 +726,115 @@ Deno.test("trackSubscriptionEvent failure does NOT fail the webhook (isolation)"
   // Billing sync succeeded; the analytics hiccup must not become a 500.
   assertEquals(response.status, 200);
   assertEquals(await response.json(), { status: "ok" });
+});
+
+// ── À-la-carte skin IAP grant + refund (Lane A-bis) ───────────────────────
+//
+// Skin purchases arrive as NON_RENEWING_PURCHASE with a skin SKU; refunds as
+// CANCELLATION with a skin SKU. Neither carries the premium entitlement and
+// neither SKU is in CONSUMABLE_SKU_TO_AMOUNT, so they never collide with the
+// subscription/consumable paths.
+
+function skinPurchaseEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "NON_RENEWING_PURCHASE",
+    id: "rc-event-skin-1",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [],
+    product_id: "sakina.skin.obsidian",
+    transaction_id: "apple-skin-txn-1",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+function skinRefundEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "CANCELLATION",
+    id: "rc-event-skin-refund-1",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [],
+    product_id: "sakina.skin.obsidian",
+    transaction_id: "apple-skin-txn-1",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+Deno.test("buildCosmeticGrant maps a known skin SKU on NON_RENEWING_PURCHASE", () => {
+  const payload = buildCosmeticGrant(skinPurchaseEvent());
+  assert(payload);
+  assertEquals(payload.user_id, userId);
+  assertEquals(payload.product_id, "sakina.skin.obsidian");
+  assertEquals(payload.item_id, "obsidian_gold");
+  assertEquals(payload.transaction_id, "apple-skin-txn-1");
+});
+
+Deno.test("buildCosmeticGrant returns null for a subscription event", () => {
+  assertEquals(buildCosmeticGrant(baseEvent()), null);
+});
+
+Deno.test("buildCosmeticGrant returns null for an unknown SKU", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({ product_id: "sakina.tokens_100" })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant returns null for anonymous user", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({
+      app_user_id: "$RCAnonymousID:anon-a",
+      original_app_user_id: "$RCAnonymousID:anon-b",
+      aliases: ["$RCAnonymousID:anon-c"],
+    })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant returns null when transaction id AND event id are missing", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({ transaction_id: null, id: null })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant falls back to event id when transaction_id missing", () => {
+  const payload = buildCosmeticGrant(
+    skinPurchaseEvent({ transaction_id: null, id: "rc-fallback-skin" }),
+  );
+  assert(payload);
+  assertEquals(payload.transaction_id, "rc-fallback-skin");
+});
+
+Deno.test("buildCosmeticClawback maps a known skin SKU on CANCELLATION", () => {
+  const payload = buildCosmeticClawback(skinRefundEvent());
+  assert(payload);
+  assertEquals(payload.transaction_id, "apple-skin-txn-1");
+});
+
+Deno.test("buildCosmeticClawback returns null for a non-CANCELLATION type", () => {
+  assertEquals(
+    buildCosmeticClawback(skinRefundEvent({ type: "NON_RENEWING_PURCHASE" })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticClawback returns null for an unknown SKU", () => {
+  assertEquals(
+    buildCosmeticClawback(skinRefundEvent({ product_id: "sakina_tokens_100" })),
+    null,
+  );
 });

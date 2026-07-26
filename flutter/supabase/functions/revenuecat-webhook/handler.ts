@@ -37,6 +37,22 @@ export const CONSUMABLE_SKU_TO_AMOUNT: Record<
   "sakina_scrolls_25": { kind: "scrolls", amount: 25 },
 };
 
+// Skin SKU -> catalog item_id. Mirrors the `iap_product_id` column in
+// `20260726000100_seed_cosmetic_catalog.sql` AND the Flutter map in
+// `lib/services/cosmetics_service.dart` (skinIapProductToItem). When SKUs
+// change, ALL THREE must update. The SERVER RPC re-verifies product->item
+// against cosmetic_catalog, so this map is only a routing filter (which
+// transactions are skin purchases) — it never grants on its own.
+//
+// A NON_RENEWING_PURCHASE for one of these product ids is an à-la-carte skin
+// buy → grant_cosmetic_iap. A CANCELLATION for one is a refund →
+// clawback_cosmetic_iap (mirrors the consumable clawback pattern).
+export const COSMETIC_SKU_TO_ITEM: Record<string, string> = {
+  "sakina.skin.obsidian": "obsidian_gold",
+  "sakina.skin.masjid": "masjid_brass",
+  "sakina.skin.crystal": "crystal_star",
+};
+
 export interface RevenueCatEvent {
   type?: string | null;
   id?: string | null;
@@ -64,6 +80,19 @@ export interface ConsumableClawbackPayload {
   sku: string;
   kind: "tokens" | "scrolls";
   amount: number;
+  transaction_id: string;
+  event_timestamp: string;
+}
+
+export interface CosmeticGrantPayload {
+  user_id: string;
+  item_id: string;
+  product_id: string;
+  transaction_id: string;
+  event_timestamp: string;
+}
+
+export interface CosmeticClawbackPayload {
   transaction_id: string;
   event_timestamp: string;
 }
@@ -121,6 +150,12 @@ interface HandleWebhookOptions {
     payload: UserSubscriptionUpsert,
     meta: { eventId: string | null; eventTimestampMs: number | null },
   ) => Promise<void>;
+  // Grants an à-la-carte skin on a NON_RENEWING_PURCHASE for a skin SKU.
+  // Implementation calls grant_cosmetic_iap (idempotent on transaction_id).
+  grantCosmetic?: (payload: CosmeticGrantPayload) => Promise<void>;
+  // Revokes an à-la-carte skin on a CANCELLATION for a skin SKU. Implementation
+  // calls clawback_cosmetic_iap (idempotent on transaction_id).
+  clawbackCosmetic?: (payload: CosmeticClawbackPayload) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -289,6 +324,93 @@ export function buildConsumableClawback(
     sku: productId,
     kind: mapping.kind,
     amount: mapping.amount,
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+  };
+}
+
+/**
+ * Builds a skin-IAP grant payload from a NON_RENEWING_PURCHASE whose product_id
+ * is a known skin SKU. Returns null for anything else (subscriptions,
+ * consumables, unknown SKUs, anonymous users, or a missing transaction id).
+ *
+ * Detection:
+ *   - type must be "NON_RENEWING_PURCHASE"
+ *   - product_id must be in COSMETIC_SKU_TO_ITEM
+ *   - user must resolve to a UUID (not anonymous)
+ *   - a transaction id (or the event id fallback) must be present
+ *
+ * The server RPC re-verifies product->item against the catalog, so item_id here
+ * is only a hint; a tampered/unknown SKU never reaches the RPC because it fails
+ * the COSMETIC_SKU_TO_ITEM lookup first.
+ */
+export function buildCosmeticGrant(
+  event: RevenueCatEvent,
+): CosmeticGrantPayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "NON_RENEWING_PURCHASE") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+
+  const itemId = COSMETIC_SKU_TO_ITEM[productId];
+  if (itemId == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
+    user_id: userId,
+    item_id: itemId,
+    product_id: productId,
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+  };
+}
+
+/**
+ * Builds a skin-IAP clawback payload from a CANCELLATION whose product_id is a
+ * known skin SKU (a refund). Returns null otherwise. Only the transaction id +
+ * timestamp are needed — the clawback RPC looks up the ledger row by
+ * transaction id to find the user/item, so we never trust client-supplied
+ * ownership here.
+ */
+export function buildCosmeticClawback(
+  event: RevenueCatEvent,
+): CosmeticClawbackPayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "CANCELLATION") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+  if (COSMETIC_SKU_TO_ITEM[productId] == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
     transaction_id: transactionId,
     event_timestamp: eventTimestamp,
   };
