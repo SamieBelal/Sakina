@@ -1,6 +1,6 @@
 # Deck Drafts — Anxiety Pair ("My mind won't stop racing")
 
-**Status: DRAFT v2 — awaiting founder review** (protocol: [`../../specs/2026-07-25-name-stories-deck-format.md`](../../specs/2026-07-25-name-stories-deck-format.md)). Author: Claude, 2026-07-25. v2 incorporates the independent adversarial review (all blockers/should-fixes applied — changelog at bottom). All sources verified at draft time (quran.com live-fetch; sunnah.com via Wayback archives of the exact URLs). Scripture quoted exactly from the verified pages; story beats paraphrase only what the cited source carries.
+**Status: APPROVED (founder, 2026-07-26 — v2 confirmed)** (protocol: [`../../specs/2026-07-25-name-stories-deck-format.md`](../../specs/2026-07-25-name-stories-deck-format.md)). Author: Claude, 2026-07-25. v2 incorporates the independent adversarial review (all blockers/should-fixes applied — changelog at bottom). All sources verified at draft time (quran.com live-fetch; sunnah.com via Wayback archives of the exact URLs). Scripture quoted exactly from the verified pages; story beats paraphrase only what the cited source carries.
 
 **Implementation note (binding):** every beat below stores Arabic / transliteration / translation as **separate fields** — the inline em-dash formatting here is markdown shorthand only, never a single mixed-direction `Text`.
 
@@ -41,7 +41,7 @@
 | Post-prayer dhikr (full dua text) | [Sahih Muslim 591](https://sunnah.com/muslim:591) (sahih) | ✅ verified (archive) |
 | "Source of Serenity" rendering | [Qur'an 59:23](https://quran.com/59/23) | ✅ verified |
 
-**Review:** `reviewed_by: founder · reviewed_at: 2026-07-25 · verdict: good` *(open sub-item: Peace vs Serenity rendering for As-Salam — undecided)*
+**Review:** `reviewed_by: founder · reviewed_at: 2026-07-25 · verdict: good` *(sub-item resolved 2026-07-25: "The Source of Serenity" shipped in catalog + prod)*
 
 ---
 
@@ -79,7 +79,7 @@
 | Same phrase spoken by Ibrahim at the fire + the Prophet ﷺ | [Sahih al-Bukhari 4563](https://sunnah.com/bukhari:4563) (sahih) | ✅ verified (archive) |
 | Trust clause (excerpt; verse begins mid-sentence) | [Qur'an 65:3](https://quran.com/65/3) | ✅ verified |
 
-**Review:** `reviewed_by: founder · reviewed_at: 2026-07-25 · verdict: good` *(open sub-item: Peace vs Serenity rendering for As-Salam — undecided)*
+**Review:** `reviewed_by: founder · reviewed_at: 2026-07-25 · verdict: good` *(sub-item resolved 2026-07-25: "The Source of Serenity" shipped in catalog + prod)*
 
 ---
 
