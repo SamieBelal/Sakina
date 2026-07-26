@@ -712,7 +712,16 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     if (userId == null) return;
 
     try {
-      await supabaseSyncService.deleteRow('user_reflections', 'id', id);
+      final deleted =
+          await supabaseSyncService.deleteRow('user_reflections', 'id', id);
+      // deleteRow swallows exceptions and returns false rather than throwing,
+      // so a failed server delete must be handled explicitly. Otherwise the
+      // local removal silently diverges from the server and the "deleted" row
+      // resurrects on the next batch sync (hydrateReflectionCacheFromRows
+      // overwrites the local cache with server rows).
+      if (!deleted) {
+        throw Exception('deleteRow(user_reflections) returned false');
+      }
     } catch (_) {
       state = state.copyWith(
         savedReflections: previous,

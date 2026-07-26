@@ -761,7 +761,15 @@ class DuasNotifier extends StateNotifier<DuasState>
     if (userId == null) return;
 
     try {
-      await supabaseSyncService.deleteRow('user_built_duas', 'id', id);
+      final deleted =
+          await supabaseSyncService.deleteRow('user_built_duas', 'id', id);
+      // deleteRow swallows exceptions and returns false rather than throwing,
+      // so a failed server delete must be handled explicitly — otherwise the
+      // local removal silently diverges from the server and the row resurrects
+      // on the next batch sync.
+      if (!deleted) {
+        throw Exception('deleteRow(user_built_duas) returned false');
+      }
     } catch (_) {
       state = state.copyWith(
         savedBuiltDuas: previous,
