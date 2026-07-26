@@ -815,6 +815,12 @@ abstract final class AnalyticsEvents {
   /// The wardrobe was opened. Props: `tab` ('lantern_skin' | 'backdrop').
   static const String wardrobeOpened = 'wardrobe_opened';
 
+  /// The wardrobe's axis was switched. Props: `tab` ('lantern_skin' |
+  /// 'backdrop'). Distinct from [wardrobeOpened] on purpose: emitting the open
+  /// event on every tab tap inflated the open count and understated the
+  /// open → preview → unlock funnel.
+  static const String wardrobeTabChanged = 'wardrobe_tab_changed';
+
   /// A wardrobe tile was tapped to preview it on the stage. Props: `item_type`,
   /// `item_id`.
   static const String cosmeticPreviewed = 'cosmetic_previewed';

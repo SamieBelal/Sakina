@@ -145,8 +145,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     if (_tabs.indexIsChanging) return;
     final tab = _tabs.index == 0 ? itemTypeLanternSkin : itemTypeBackdrop;
     ref.read(wardrobePreviewProvider.notifier).setTab(tab);
+    // NOT wardrobeOpened (I9): re-emitting the open event per tab tap inflated
+    // the open count and understated open → preview → unlock, which is exactly
+    // the funnel this feature is judged on. The axis still travels on `tab`.
     CosmeticsAnalytics.emit(
-        AnalyticsEvents.wardrobeOpened, {AnalyticsEvents.propTab: tab});
+        AnalyticsEvents.wardrobeTabChanged, {AnalyticsEvents.propTab: tab});
   }
 
   @override
