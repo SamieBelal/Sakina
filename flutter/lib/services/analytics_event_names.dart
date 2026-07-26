@@ -763,4 +763,46 @@ abstract final class AnalyticsEvents {
   /// callers in onboarding_screen.dart pick the correct labels at runtime.
   static Map<int, String> stepNamesFor({required bool trimmed}) =>
       trimmed ? trimmedStepNames : stepNames;
+
+  // ── Lantern Cosmetics (Noor economy + skins/backdrops) ──────────────────
+  // Spec §7. Emitted from cosmetics_service.dart via the static
+  // CosmeticsAnalytics.onAnalyticsEvent hook (no Riverpod in the service).
+  // These exact strings are the Mixpanel dashboard contract — renames must be
+  // a deliberate analytics-team coordination (pinned by
+  // cosmetics_analytics_names_test).
+
+  /// Noor was minted for the user. Props: `amount`, `reason`
+  /// (daily|milestone:N|quest). Fired only on a NON-idempotent-replay grant
+  /// (award_noor returns the granted amount; a deduped replay returns 0 and
+  /// emits nothing).
+  static const String noorEarned = 'noor_earned';
+
+  /// A cosmetic was unlocked by spending Noor. Props: `item_type`, `item_id`,
+  /// `via` ('noor').
+  static const String cosmeticUnlocked = 'cosmetic_unlocked';
+
+  /// A cosmetic was equipped. Props: `item_type`, `item_id`.
+  static const String cosmeticEquipped = 'cosmetic_equipped';
+
+  /// An à-la-carte skin was purchased with real money and granted
+  /// server-side. Props: `item_id`, `product_id`.
+  static const String cosmeticIapPurchased = 'cosmetic_iap_purchased';
+
+  /// A milestone-gated skin was auto-unlocked after a confirmed
+  /// claim_streak_milestone. Props: `item_id`, `milestone_day`.
+  static const String milestoneSkinUnlocked = 'milestone_skin_unlocked';
+
+  /// An unlock/equip RPC was rejected (insufficient noor, unowned, inactive,
+  /// premium-exclusive). Props: `item_type`, `item_id`, `reason`.
+  static const String cosmeticUnlockRejected = 'cosmetic_unlock_rejected';
+
+  // Property keys + values for the cosmetics events.
+  static const String propItemType = 'item_type';
+  static const String propItemId = 'item_id';
+  static const String propAmount = 'amount';
+  static const String propVia = 'via';
+  static const String propProductId = 'product_id';
+  static const String propMilestoneDay = 'milestone_day';
+  static const String cosmeticViaNoor = 'noor';
+  static const String cosmeticViaIap = 'iap';
 }
