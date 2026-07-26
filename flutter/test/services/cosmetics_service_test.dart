@@ -575,4 +575,40 @@ void main() {
       expect(syncCalls, 0);
     });
   });
+
+  group('syncPremiumCosmetics (deferred — OQ-2/§13.7)', () {
+    test('non-premium: no RPC call, returns 0', () async {
+      final n = await syncPremiumCosmetics(
+        purchaseService: StubPurchaseService(false),
+      );
+      expect(n, 0);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+
+    test('premium but RPC absent (null): graceful 0, mirrors nothing',
+        () async {
+      // grant_premium_cosmetics not registered → callRpc returns null.
+      final n = await syncPremiumCosmetics(
+        purchaseService: StubPurchaseService(true),
+      );
+      expect(n, 0);
+      final state = await getCosmeticsState();
+      expect(state.ownedLanternSkins, isEmpty);
+    });
+
+    test('premium + RPC grants rows: mirrors granted skins into ownership cache',
+        () async {
+      fakeSync.rpcHandlers['grant_premium_cosmetics'] = (params) async => {
+            'granted': [
+              {'item_type': 'lantern_skin', 'item_id': 'ramadan_royal'},
+            ],
+          };
+      final n = await syncPremiumCosmetics(
+        purchaseService: StubPurchaseService(true),
+      );
+      expect(n, 1);
+      final state = await getCosmeticsState();
+      expect(state.owns('lantern_skin', 'ramadan_royal'), isTrue);
+    });
+  });
 }

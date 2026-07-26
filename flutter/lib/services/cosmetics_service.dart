@@ -478,3 +478,44 @@ Future<CosmeticActionResult> restoreSkinIaps({
 Future<void> _defaultRestorePurchases() async {
   await Purchases.restorePurchases();
 }
+
+/// DEFERRED (OQ-2 / spec §13 item 7, §14 rollout P4/P5): reconciles the
+/// premium-only cosmetic grants (monthly-exclusive skin + seasonal auto-grant)
+/// on sync while the subscription is active.
+///
+/// There is NO `grant_premium_cosmetics` RPC in the merged Lane A migrations
+/// yet, and the entitlement-period backfill (granting a subscriber who did NOT
+/// open during the drop month) is inherently server-side — a client cannot
+/// reconcile a window the server never granted. So this is a THIN forward hook:
+/// it calls the future RPC when it exists and no-ops (returns 0) until then,
+/// giving the app a single stable call site to wire on sync now.
+///
+/// When Lane A ships `grant_premium_cosmetics()` (SECURITY DEFINER; grants
+/// premium-exclusive/seasonal rows `ON CONFLICT DO NOTHING` when premium is
+/// active and the drop_month / islamic_occasions window matches), this hook
+/// mirrors any newly-granted rows into the ownership cache. Returns the count
+/// of rows granted this sync.
+Future<int> syncPremiumCosmetics({PurchaseService? purchaseService}) async {
+  if (supabaseSyncService.currentUserId == null) return 0;
+  final svc = purchaseService ?? PurchaseService();
+  if (!await svc.isPremium()) return 0;
+
+  final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    'grant_premium_cosmetics',
+  );
+  if (res == null) return 0; // RPC not shipped yet — graceful no-op.
+
+  final granted = res['granted'];
+  if (granted is! List) return 0;
+
+  var count = 0;
+  for (final row in granted) {
+    if (row is! Map) continue;
+    final type = row['item_type'];
+    final id = row['item_id'];
+    if (id is! String || type is! String) continue;
+    await _addOwnedToCache(type, id);
+    count += 1;
+  }
+  return count;
+}
