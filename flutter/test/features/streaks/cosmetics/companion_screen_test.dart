@@ -13,6 +13,7 @@ import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/screens/companion_screen.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/lantern_name_sheet.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -68,5 +69,21 @@ void main() {
     final medallion =
         tester.widget<CompanionMedallion>(find.byType(CompanionMedallion));
     expect(medallion.skin.id, defaultLanternSkin);
+  });
+
+  testWidgets('E3: the lantern name defaults and opens the rename sheet',
+      (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Prefs are unavailable in this harness — the read must degrade to the
+    // default rather than take the stage down.
+    expect(find.text(defaultLanternName), findsOneWidget);
+
+    // The stage animates forever, so settle explicitly rather than pumpAndSettle.
+    await tester.tap(find.text(defaultLanternName));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Name your lantern'), findsOneWidget);
   });
 }

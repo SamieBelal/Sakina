@@ -11,6 +11,7 @@ import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_catalog_ui.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/lantern_name_sheet.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/lantern_share_card.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -27,12 +28,34 @@ class CompanionScreen extends ConsumerStatefulWidget {
 }
 
 class _CompanionScreenState extends ConsumerState<CompanionScreen> {
+  /// E3 — client-only today (OQ-D2). Falls back to [defaultLanternName] while
+  /// loading and whenever the pref store is unavailable.
+  String _lanternName = defaultLanternName;
+
   @override
   void initState() {
     super.initState();
+    _loadLanternName();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       CosmeticsAnalytics.emit(AnalyticsEvents.companionScreenOpened, const {});
     });
+  }
+
+  Future<void> _loadLanternName() async {
+    final saved = await readLanternName();
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() => _lanternName = saved);
+    }
+  }
+
+  Future<void> _rename() async {
+    final saved = await showLanternNameSheet(
+      context,
+      current: _lanternName == defaultLanternName ? null : _lanternName,
+    );
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() => _lanternName = saved);
+    }
   }
 
   @override
@@ -80,11 +103,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
               child: CompanionMedallion(state: state, size: 220, skin: skin),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'Your lantern',
-              style: AppTypography.headlineMedium
-                  .copyWith(color: AppColors.sacredInk),
-            ),
+            _lanternNameLabel(),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -111,6 +130,35 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
     );
   }
 
+  /// The lantern's name, tappable to rename (E3).
+  Widget _lanternNameLabel() {
+    return InkWell(
+      onTap: _rename,
+      borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                _lanternName,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.headlineMedium
+                    .copyWith(color: AppColors.sacredInk),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            const Icon(Icons.edit_outlined,
+                size: 18, color: AppColors.sacredInkFaint),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _topBar(BuildContext context, CosmeticsState cs) {
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -129,7 +177,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
               context: context,
               skinId: _renderableSkinId(cs),
               backdropId: cs.equippedBackdrop,
-              lanternName: 'Your lantern',
+              lanternName: _lanternName,
             ),
             icon: const Icon(Icons.share_rounded, color: AppColors.sacredInk),
           ),
