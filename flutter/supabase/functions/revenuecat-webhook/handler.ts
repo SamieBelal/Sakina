@@ -459,8 +459,21 @@ export async function handleRevenueCatWebhook(
   // both filter independently, so we dispatch each non-null payload.
   const subscriptionPayload = buildUserSubscriptionUpsert(event);
   const clawbackPayload = buildConsumableClawback(event);
+  const cosmeticGrantPayload = buildCosmeticGrant(event);
+  const cosmeticClawbackPayload = buildCosmeticClawback(event);
 
-  if (subscriptionPayload == null && clawbackPayload == null) {
+  // A cosmetic payload is only actionable if the matching option is wired
+  // (grant/clawback are optional). Treat "built but unwired" as no-op so a
+  // skin event on an old deploy 200-skips instead of throwing.
+  const hasCosmeticGrant = cosmeticGrantPayload != null &&
+    options.grantCosmetic != null;
+  const hasCosmeticClawback = cosmeticClawbackPayload != null &&
+    options.clawbackCosmetic != null;
+
+  if (
+    subscriptionPayload == null && clawbackPayload == null &&
+    !hasCosmeticGrant && !hasCosmeticClawback
+  ) {
     return jsonResponse(200, { status: "skipped" });
   }
 
@@ -473,6 +486,24 @@ export async function handleRevenueCatWebhook(
         500,
         { error: "Failed to process consumable refund" },
       );
+    }
+  }
+
+  if (hasCosmeticGrant) {
+    try {
+      await options.grantCosmetic!(cosmeticGrantPayload!);
+    } catch (error) {
+      console.error("revenuecat-webhook cosmetic grant failed", error);
+      return jsonResponse(500, { error: "Failed to grant cosmetic" });
+    }
+  }
+
+  if (hasCosmeticClawback) {
+    try {
+      await options.clawbackCosmetic!(cosmeticClawbackPayload!);
+    } catch (error) {
+      console.error("revenuecat-webhook cosmetic clawback failed", error);
+      return jsonResponse(500, { error: "Failed to revoke cosmetic" });
     }
   }
 

@@ -838,3 +838,96 @@ Deno.test("buildCosmeticClawback returns null for an unknown SKU", () => {
     null,
   );
 });
+
+Deno.test("Skin NON_RENEWING_PURCHASE triggers grantCosmetic, not subscription/consumable", async () => {
+  const grants: CosmeticGrantPayload[] = [];
+  let upsertCalls = 0;
+  let consumableClawbacks = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {
+        consumableClawbacks += 1;
+      },
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      grantCosmetic: async (payload) => {
+        grants.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(grants.length, 1);
+  assertEquals(grants[0].item_id, "obsidian_gold");
+  assertEquals(grants[0].transaction_id, "apple-skin-txn-1");
+  assertEquals(upsertCalls, 0, "skin buy must NOT touch subscriptions");
+  assertEquals(consumableClawbacks, 0, "skin buy is not a consumable");
+});
+
+Deno.test("Skin CANCELLATION triggers clawbackCosmetic, not subscription upsert", async () => {
+  const clawbacks: CosmeticClawbackPayload[] = [];
+  let upsertCalls = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinRefundEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      clawbackCosmetic: async (payload) => {
+        clawbacks.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(clawbacks.length, 1);
+  assertEquals(clawbacks[0].transaction_id, "apple-skin-txn-1");
+  assertEquals(upsertCalls, 0, "skin refund must NOT touch subscriptions");
+});
+
+Deno.test("Skin grant RPC failure returns 500 so RC retries", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+      grantCosmetic: async () => {
+        throw new Error("rpc boom");
+      },
+    },
+  );
+
+  assertEquals(response.status, 500);
+});
+
+Deno.test("Skin purchase with grantCosmetic omitted is a 200 skip (no dispatch)", async () => {
+  // Belt-and-suspenders: an event that only builds a cosmetic payload, but the
+  // option is not wired, must still 200 (skipped) rather than throw.
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
+});
