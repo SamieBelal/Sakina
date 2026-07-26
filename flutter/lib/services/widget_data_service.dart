@@ -114,6 +114,7 @@ class WidgetNamePayload {
     required this.checkedInToday,
     required this.streak,
     required this.updatedAtIso,
+    required this.lanternSkin,
   });
 
   /// `personalized` = show [nameKey]; `daily` = extension picks the daily Name.
@@ -128,6 +129,12 @@ class WidgetNamePayload {
   final int streak;
   final String updatedAtIso;
 
+  /// The equipped lantern skin id, already filtered through
+  /// [widgetEligibleSkinId] by the writer — the companion widget loads
+  /// `companion_<lanternSkin>_<brightness>.png`. Additive key: widget builds
+  /// older than Lane E decode the blob fine and ignore it.
+  final String lanternSkin;
+
   Map<String, dynamic> toJson() => {
         'mode': mode,
         'name_key': nameKey,
@@ -139,7 +146,26 @@ class WidgetNamePayload {
         'checked_in_today': checkedInToday,
         'streak': streak,
         'updated_at': updatedAtIso,
+        'lantern_skin': lanternSkin,
       };
+
+  /// Same payload with a new skin + timestamp. Lets [WidgetDataService] re-push
+  /// on equip without a read-modify-write (the [HomeWidgetClient] seam has no
+  /// read).
+  WidgetNamePayload withLanternSkin(String skinId, String newUpdatedAtIso) =>
+      WidgetNamePayload(
+        mode: mode,
+        nameKey: nameKey,
+        name: name,
+        nameEnglish: nameEnglish,
+        arabic: arabic,
+        transliteration: transliteration,
+        anchor: anchor,
+        checkedInToday: checkedInToday,
+        streak: streak,
+        updatedAtIso: newUpdatedAtIso,
+        lanternSkin: skinId,
+      );
 
   String encode() => jsonEncode(toJson());
 }
@@ -196,6 +222,12 @@ class WidgetDataService {
   /// ~40-70/day reload budget is easy to burn on every foreground rebuild).
   String? _lastDuaTimesWritten;
 
+  /// Last equipped lantern skin this process knows about, already filtered to a
+  /// bundled id. Remembered so an equip (which knows the skin but not the Name)
+  /// and a sync (which knows the Name but may not pass a skin) can't clobber
+  /// each other.
+  String _equippedSkin = kDefaultWidgetLanternSkinId;
+
   /// Register the App Group. Call once from `main()` before `runApp`.
   Future<void> initialize() async {
     await _client.setAppGroupId(kWidgetAppGroupId);
@@ -207,13 +239,20 @@ class WidgetDataService {
   /// [personalized] true means [name] is the Name the user received in today's
   /// muḥāsabah; false means it's the deterministic daily Name (a hint — the
   /// extension may recompute it offline).
+  ///
+  /// [lanternSkinId] is the user's equipped skin; pass null to keep the last
+  /// known one (an equip may have set it since the previous sync).
   Future<void> syncWidget({
     required AllahName name,
     required String anchor,
     required int streak,
     required bool checkedInToday,
     required bool personalized,
+    String? lanternSkinId,
   }) async {
+    if (lanternSkinId != null) {
+      _equippedSkin = widgetEligibleSkinId(lanternSkinId);
+    }
     final payload = WidgetNamePayload(
       mode: personalized ? 'personalized' : 'daily',
       nameKey: widgetNameKeyFor(name),
@@ -227,6 +266,7 @@ class WidgetDataService {
       // UTC + trailing 'Z' so the Swift ISO8601DateFormatter can parse it; the
       // extension compares it against the current LOCAL day (§10.7).
       updatedAtIso: _clock().toUtc().toIso8601String(),
+      lanternSkin: _equippedSkin,
     );
     await _write(payload.encode());
   }

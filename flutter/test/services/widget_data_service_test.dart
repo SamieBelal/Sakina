@@ -97,6 +97,70 @@ void main() {
         reason: 'two distinct syncs × two widgets (Name + companion)');
   });
 
+  test('payload carries the default lantern skin when none is supplied',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold');
+  });
+
+  test('payload carries a bundled equipped skin', () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+      lanternSkinId: 'emerald_jade',
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'emerald_jade');
+  });
+
+  test('a skin with no bundled frames is written as the default, never raw',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+      lanternSkinId: 'skin_from_a_future_catalog',
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold',
+        reason: 'an unbundled id would make the widget look for a missing PNG');
+  });
+
+  test('changing only the skin busts the perf guard', () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 3,
+        checkedInToday: true,
+        personalized: true);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 3,
+        checkedInToday: true,
+        personalized: true,
+        lanternSkinId: 'moonlit_silver');
+    expect(client.updates, 4,
+        reason: 'two distinct payloads × two widgets (Name + companion)');
+  });
+
   test('saveDuaTimesSchedule: identical JSON does not re-save or reload',
       () async {
     final client = _FakeHomeWidgetClient();
