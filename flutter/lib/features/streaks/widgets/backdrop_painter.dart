@@ -13,21 +13,35 @@ import 'package:flutter/material.dart';
 
 import '../models/backdrop.dart';
 
+/// Which layer this painter renders. Splitting lets the static scene raster-
+/// cache (painted once) while only the animated layer repaints per pulse.
+enum BackdropLayer { static_, animated }
+
 class BackdropPainter extends CustomPainter {
-  BackdropPainter({required this.backdrop, this.pulse = 0.0});
+  BackdropPainter({
+    required this.backdrop,
+    this.pulse = 0.0,
+    this.layer = BackdropLayer.static_,
+  });
 
   final Backdrop backdrop;
   final double pulse;
+  final BackdropLayer layer;
 
   @override
   void paint(Canvas canvas, Size size) {
     switch (backdrop.theme) {
       case BackdropTheme.plain:
-        _plain(canvas, size);
+        // Plain is fully static; the animated layer is a no-op.
+        if (layer == BackdropLayer.static_) _plain(canvas, size);
       case BackdropTheme.laylatNight:
-        _laylatNight(canvas, size);
+        layer == BackdropLayer.static_
+            ? _laylatNightStatic(canvas, size)
+            : _laylatNightAnimated(canvas, size);
       case BackdropTheme.emeraldSanctuary:
-        _emeraldSanctuary(canvas, size);
+        layer == BackdropLayer.static_
+            ? _emeraldSanctuaryStatic(canvas, size)
+            : _emeraldSanctuaryAnimated(canvas, size);
     }
   }
 
@@ -75,9 +89,10 @@ class BackdropPainter extends CustomPainter {
   }
 
   // ── Laylat Night ────────────────────────────────────────────────────────────
-  void _laylatNight(Canvas canvas, Size size) {
+  // Static layer: everything geometrically fixed — sky gradient, khatam wash,
+  // moon + halo, skyline, floor sheen, vignette. Painted once, raster-cacheable.
+  void _laylatNightStatic(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
-    final phase = pulse * 2 * math.pi;
     final rect = Offset.zero & size;
 
     // 1. Sky: deep night → dusk → a warm horizon band → darker ground.
@@ -104,6 +119,44 @@ class BackdropPainter extends CustomPainter {
     // accent), drifting almost imperceptibly.
     _skyPattern(canvas, size);
 
+    // 4. Crescent moon, upper area, with a broad soft halo.
+    final moonC = Offset(w * 0.72, h * 0.185);
+    final moonR = w * 0.10;
+    canvas.drawCircle(
+      moonC,
+      moonR * 3.1,
+      Paint()
+        ..shader = ui.Gradient.radial(moonC, moonR * 3.1, [
+          const Color(0xFFF4E8C6).withValues(alpha: 0.20),
+          const Color(0xFFF4E8C6).withValues(alpha: 0.0),
+        ])
+        ..blendMode = BlendMode.plus,
+    );
+    _crescent(canvas, moonC, moonR);
+
+    // 5. Backlit mosque skyline sitting on the warm horizon band.
+    _skyline(canvas, size, h * 0.825);
+
+    // 7. A faint reflective floor sheen under the lantern.
+    final floorY = h * 0.80;
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: Offset(w / 2, floorY), width: w * 0.62, height: h * 0.05),
+      Paint()
+        ..color = const Color(0xFFE7A24E).withValues(alpha: 0.10)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04)
+        ..blendMode = BlendMode.plus,
+    );
+
+    _vignette(canvas, size, 0.30);
+  }
+
+  // Animated layer: the only pulse-driven strokes — the 64-star twinkle loop
+  // and the warm ground-glow whose radius drifts on math.sin(phase).
+  void _laylatNightAnimated(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final phase = pulse * 2 * math.pi;
+
     // 3. Stars in the upper sky.
     final starTop = h * 0.62;
     for (var i = 0; i < 64; i++) {
@@ -125,24 +178,6 @@ class BackdropPainter extends CustomPainter {
       }
     }
 
-    // 4. Crescent moon, upper area, with a broad soft halo.
-    final moonC = Offset(w * 0.72, h * 0.185);
-    final moonR = w * 0.10;
-    canvas.drawCircle(
-      moonC,
-      moonR * 3.1,
-      Paint()
-        ..shader = ui.Gradient.radial(moonC, moonR * 3.1, [
-          const Color(0xFFF4E8C6).withValues(alpha: 0.20),
-          const Color(0xFFF4E8C6).withValues(alpha: 0.0),
-        ])
-        ..blendMode = BlendMode.plus,
-    );
-    _crescent(canvas, moonC, moonR);
-
-    // 5. Backlit mosque skyline sitting on the warm horizon band.
-    _skyline(canvas, size, h * 0.825);
-
     // 6. Warm ground-glow where the lantern will stand (centre, lower third).
     final glowC = Offset(w / 2, h * 0.72);
     canvas.drawCircle(
@@ -156,25 +191,13 @@ class BackdropPainter extends CustomPainter {
         ], const [0.0, 0.5, 1.0])
         ..blendMode = BlendMode.plus,
     );
-
-    // 7. A faint reflective floor sheen under the lantern.
-    final floorY = h * 0.80;
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(w / 2, floorY), width: w * 0.62, height: h * 0.05),
-      Paint()
-        ..color = const Color(0xFFE7A24E).withValues(alpha: 0.10)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04)
-        ..blendMode = BlendMode.plus,
-    );
-
-    _vignette(canvas, size, 0.30);
   }
 
   // ── Emerald Sanctuary ────────────────────────────────────────────────────────
-  void _emeraldSanctuary(Canvas canvas, Size size) {
+  // Static layer: base fill + radial wash, khatam wash, mihrab arch, floor
+  // sheen, vignette. All geometrically fixed → painted once.
+  void _emeraldSanctuaryStatic(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
-    final phase = pulse * 2 * math.pi;
     final rect = Offset.zero & size;
 
     // Deep sacred-green radial wash, brightest around the niche centre.
@@ -195,6 +218,25 @@ class BackdropPainter extends CustomPainter {
     // A large pointed mihrab arch framing the lantern, in faint gold.
     _mihrabArch(canvas, size);
 
+    // Floor sheen.
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: Offset(w / 2, h * 0.80), width: w * 0.6, height: h * 0.045),
+      Paint()
+        ..color = const Color(0xFFE7C06A).withValues(alpha: 0.10)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04)
+        ..blendMode = BlendMode.plus,
+    );
+
+    _vignette(canvas, size, 0.42);
+  }
+
+  // Animated layer: only the warm inner-light circle whose radius drifts on
+  // math.sin(phase) — the emerald scene's one pulse-driven piece.
+  void _emeraldSanctuaryAnimated(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final phase = pulse * 2 * math.pi;
+
     // Warm inner light where the lantern sits.
     final glowC = Offset(w / 2, h * 0.70);
     canvas.drawCircle(
@@ -207,18 +249,6 @@ class BackdropPainter extends CustomPainter {
         ])
         ..blendMode = BlendMode.plus,
     );
-
-    // Floor sheen.
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(w / 2, h * 0.80), width: w * 0.6, height: h * 0.045),
-      Paint()
-        ..color = const Color(0xFFE7C06A).withValues(alpha: 0.10)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04)
-        ..blendMode = BlendMode.plus,
-    );
-
-    _vignette(canvas, size, 0.42);
   }
 
   // ── Shared helpers ───────────────────────────────────────────────────────────
@@ -448,6 +478,12 @@ class BackdropPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(BackdropPainter old) =>
-      old.backdrop != backdrop || old.pulse != pulse;
+  bool shouldRepaint(BackdropPainter old) {
+    if (old.backdrop != backdrop || old.layer != layer) return true;
+    // The static layer is pulse-independent; only the animated layer cares.
+    if (layer == BackdropLayer.static_) return false;
+    // Plain has no animated content → never repaints on pulse.
+    if (backdrop.theme == BackdropTheme.plain) return false;
+    return old.pulse != pulse;
+  }
 }
