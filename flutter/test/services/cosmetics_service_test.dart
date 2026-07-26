@@ -154,6 +154,33 @@ void main() {
       expect(result.success, isFalse);
       expect(fakeSync.rpcCalls, isEmpty);
     });
+
+    test('unknown item type does NOT pollute the skins set on cache add',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 200,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+      // Server (untrustworthy for the client cache-side symmetry) claims
+      // success for a malformed/unknown item_type. The read side
+      // (hydrateCosmeticsFromSync) drops unknown types; the write side must
+      // be symmetric and NOT silently file it under skins.
+      fakeSync.rpcHandlers['unlock_cosmetic'] = (params) async => true;
+
+      final result = await unlockCosmetic(
+        itemType: 'not_a_real_type',
+        itemId: 'weird_item',
+        noorPrice: 10,
+      );
+
+      expect(result.success, isTrue); // RPC path still succeeds
+      final state = await getCosmeticsState();
+      // The unknown type is dropped — it must not land in skins OR backdrops.
+      expect(state.ownedLanternSkins, isEmpty);
+      expect(state.ownedBackdrops, isEmpty);
+    });
   });
 
   group('awardMilestoneNoor (ordered after claim_streak_milestone)', () {

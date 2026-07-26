@@ -214,9 +214,19 @@ Future<CosmeticActionResult> unlockCosmetic({
 }
 
 Future<void> _addOwnedToCache(String itemType, String itemId) async {
+  // Symmetric with the read side (hydrateCosmeticsFromSync): explicitly handle
+  // the two valid types and DROP anything else, so a malformed/unknown
+  // item_type never silently lands in the skins set.
+  final String baseKey;
+  switch (itemType) {
+    case itemTypeLanternSkin:
+      baseKey = _ownedSkinsKey;
+    case itemTypeBackdrop:
+      baseKey = _ownedBackdropsKey;
+    default:
+      return; // unknown type — ignore, do not pollute skins.
+  }
   final prefs = await SharedPreferences.getInstance();
-  final baseKey =
-      itemType == itemTypeBackdrop ? _ownedBackdropsKey : _ownedSkinsKey;
   final set = await _readOwnedSet(prefs, baseKey);
   set.add(itemId);
   await prefs.setString(
