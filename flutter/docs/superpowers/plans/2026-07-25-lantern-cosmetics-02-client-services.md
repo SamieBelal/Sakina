@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Flutter service layer for the Lantern Cosmetics economy — a `CosmeticsService` that reads Noor + owned + equipped cosmetics from `sync_all_user_data()`, calls the Lane A `unlock_cosmetic` / `equip_cosmetic` RPCs, awards milestone Noor **only after** a confirmed `claim_streak_milestone`, grants à-la-carte skin IAP ownership server-side with refund/restore reconciliation, and resolves a single premium definition for subscriber-perk skins.
+**Goal:** Build the Flutter service layer for the Lantern Cosmetics economy — a `CosmeticsService` that reads Noor + owned + equipped cosmetics from `sync_all_user_data()`, calls the Lane A `unlock_cosmetic` / `equip_cosmetic` RPCs, awards milestone Noor **only after** a confirmed `claim_streak_milestone`, surfaces à-la-carte skin IAP ownership that the RevenueCat **webhook** grants server-side (the client purchases via RC then re-syncs — it never calls a grant RPC, per the 2026-07-25 security-driven contract change), and resolves a single premium definition for subscriber-perk skins.
 
-**Architecture:** Pure service layer, no Riverpod, no direct table writes (all mutation via SECURITY DEFINER RPCs per the CLAUDE.md hard rule). State is hydrated from the additive `noor` / `equipped` / `cosmetics` sections of `sync_all_user_data()` into user-scoped SharedPreferences caches — mirroring `premium_grants_service.dart` / `gating_service.dart` exactly. Analytics fire through a static `onAnalyticsEvent` hook (like `GatingService.onAnalyticsEvent` / `StreakAnalytics.onAnalyticsEvent`), with new event-name constants added to the import-free `analytics_event_names.dart` leaf. The IAP grant path mirrors `ConsumableGrantsService` but makes ownership **server-authoritative** (a new `grant_cosmetic_iap` RPC — a Lane A dependency, see Risks) so it is cross-device and refund-reconcilable, which the SharedPreferences-only consumable dedup is not.
+**Architecture:** Pure service layer, no Riverpod, no direct table writes (all mutation via SECURITY DEFINER RPCs per the CLAUDE.md hard rule). State is hydrated from the additive `noor` / `equipped` / `cosmetics` sections of `sync_all_user_data()` into user-scoped SharedPreferences caches — mirroring `premium_grants_service.dart` / `gating_service.dart` exactly. Analytics fire through a static `onAnalyticsEvent` hook (like `GatingService.onAnalyticsEvent` / `StreakAnalytics.onAnalyticsEvent`), with new event-name constants added to the import-free `analytics_event_names.dart` leaf. The IAP ownership path is **server-authoritative and webhook-only** (2026-07-25 security-driven contract change): the client completes the RevenueCat purchase, then re-syncs, and the RevenueCat **webhook** (service_role) performs the `grant_cosmetic_iap` grant — the client never calls a grant RPC (`grant_cosmetic_iap` is revoked from `authenticated`). This keeps ownership cross-device and refund/restore-reconcilable server-side, which the SharedPreferences-only consumable dedup is not, while closing the self-grant exploit an à-la-carte client RPC would open (see DEP-1/DEP-2 and the ADR `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`).
 
 **Tech Stack:** Dart / Flutter, Riverpod-free service layer, Supabase RPCs via `SupabaseSyncService.callRpc`, RevenueCat (`purchases_flutter`), SharedPreferences (user-scoped via `scopedKey`), `flutter_test` with `FakeSupabaseSyncService` + `StubPurchaseService` mocking.
 
@@ -14,26 +14,29 @@
 
 These are surfaced to the controller. Tasks below that depend on unbuilt infra are **clearly labeled** and include the exact contract the client codes against; where the server side belongs to Lane A, it is called out as a dependency, not built here.
 
-### DEP-1 (Lane A / webhook) — `grant_cosmetic_iap` RPC does NOT exist yet
-Spec §4 names `grant_cosmetic_iap(item_id, …)`, but the four merged Lane A migrations (`20260726000000`, `…000100`, `…000300`, `…000400`) define only `award_noor`, `unlock_cosmetic`, `equip_cosmetic`. **There is no à-la-carte IAP grant RPC and no non-consumable path in `revenuecat-webhook/handler.ts`** (it handles subscriptions + consumable clawbacks only). Spec §13 item 4 explicitly says this is net-new work. **Lane B codes the client against the contract below and gates the grant behind a null-tolerant `callRpc` so the app degrades gracefully until the RPC ships.** The RPC + webhook reconciliation are a Lane A dependency the controller must schedule before IAP is user-visible.
-
-Client-assumed contract for the RPC (Task 6 codes to this — Lane A must match or the controller updates this plan):
+### DEP-1 (Lane A / webhook) — `grant_cosmetic_iap` is service_role-ONLY; the client NEVER calls it (contract changed 2026-07-25)
+Spec §4 originally named a client-callable `grant_cosmetic_iap(item_id, …)`. **That contract was replaced.** An independent security review found the à-la-carte, client-callable grant RPC design was exploitable — any authenticated client could self-grant a paid skin by calling the RPC directly — and it was also unusable by the RevenueCat webhook (which acts on a `p_user_id`, not the caller's `auth.uid()`). The maintainer chose a **webhook-only** design. The RPC is now:
 ```
-grant_cosmetic_iap(p_item_id text, p_product_id text, p_transaction_id text)
-  returns jsonb  -- { "granted": bool, "already_owned": bool, "item_id": text }
+grant_cosmetic_iap(p_user_id uuid, p_item_id text, p_product_id text, p_transaction_id text)
+  -- SECURITY DEFINER, EXECUTE granted to service_role ONLY (REVOKED from authenticated)
 ```
-- Reads `cosmetic_catalog` to verify `p_product_id == iap_product_id` for `p_item_id` (server never trusts the client's item↔product mapping).
-- Inserts `user_cosmetics(user_id, 'lantern_skin', item_id, 'iap')` `ON CONFLICT DO NOTHING`.
-- Idempotent on `p_transaction_id` (a server-side ledger, mirroring `noor_grants`), so a replay from the RC listener + the synchronous purchase path can't double-insert.
+**The Flutter client can NO LONGER call `grant_cosmetic_iap` — it is revoked from `authenticated`, so a client `callRpc` would fail permission-denied.** The server-side grant is performed by the RevenueCat **webhook** (running as service_role, passing the resolved `p_user_id`) on the `INITIAL_PURCHASE` / `NON_RENEWING_PURCHASE` / `TRANSFER` events for a skin SKU. See `docs/superpowers/plans/2026-07-25-lantern-cosmetics-01b-iap-grant-webhook.md` and the ADR `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`.
 
-### DEP-2 (Lane A / webhook) — refund + restore reconciliation is server-authoritative
-Because ownership lives in `user_cosmetics` (server), a **refund** must remove the row and a **restore** must re-grant it. The client cannot do either safely from SharedPreferences (that's the exact `ConsumableGrantsService` limitation §13 item 4 forbids repeating). The webhook needs a `CANCELLATION`-on-skin-SKU → `clawback_cosmetic_iap` path (mirroring `buildConsumableClawback`). Lane B's client role is limited to: (a) calling `grant_cosmetic_iap` on purchase AND on `restorePurchases`, and (b) re-syncing so a server-side clawback is reflected. Flagged for Lane A.
+Server-side behaviour (Lane A / webhook — Lane B does NOT build or call this):
+- Reads `cosmetic_catalog` to verify `p_product_id == iap_product_id` for `p_item_id` (server never trusts any client-supplied item↔product mapping).
+- Inserts `user_cosmetics(p_user_id, 'lantern_skin', item_id, 'iap')` `ON CONFLICT DO NOTHING`.
+- Idempotent on `p_transaction_id` (a server-side ledger, mirroring `noor_grants`), so RC webhook redelivery can't double-insert.
+
+**Lane B's new client contract (Task 7 codes to this):** on a successful RevenueCat skin purchase, the client simply **re-syncs** (`sync_all_user_data()`); the webhook does the grant server-side and ownership appears in the next sync's `cosmetics` section. The client does NOT call any grant RPC. It MAY keep a small `skinIapProductToItem` map only to recognize/label which RC products are skins for UI — it performs NO grant with it.
+
+### DEP-2 (Lane A / webhook) — refund + restore reconciliation is entirely server-authoritative; restore is webhook-driven
+Because ownership lives in `user_cosmetics` (server), a **refund** must remove the row and a **restore** must re-grant it — and (per the 2026-07-25 contract change) **both are webhook-driven, never client-driven.** The client cannot grant from SharedPreferences or reconcile from `CustomerInfo` (that's the exact `ConsumableGrantsService` limitation §13 item 4 forbids repeating, and it's now also blocked by the service_role-only revoke). The webhook needs a `CANCELLATION`-on-skin-SKU → `clawback_cosmetic_iap` path (mirroring `buildConsumableClawback`) and re-fires its non-consumable / `TRANSFER` grant event on restore. **Lane B's client role is limited to: (a) `Purchases.restorePurchases()` — which makes RC re-fire its non-consumable/TRANSFER event to the webhook, which grants server-side — followed by (b) a full re-sync so the server-side grant (or a clawback) is reflected in the caches.** The client calls NO grant RPC and does NOT reconcile from `CustomerInfo` by granting. Flagged for Lane A; cross-reference `docs/superpowers/plans/2026-07-25-lantern-cosmetics-01b-iap-grant-webhook.md`.
 
 ### DEP-3 (Lane A, item 3 of §13) — `claim_streak_milestone(p_day)` is exploitable
 §13 item 3: the existing `claim_streak_milestone` verifies neither that the day is recognized nor reached. Lane B's award-Noor ordering (Task 4) is **correct only if** Lane A has fixed that RPC so a successful claim genuinely means the milestone was reached. Lane B depends on that fix; it does not build it. Documented in Task 4.
 
 ### OQ-1 — RULED 2026-07-25: premium-exclusive skins are equippable WHILE PREMIUM ACTIVE, never converted
-§13 item 6. **Maintainer ruling (2026-07-25):** premium-exclusive (subscriber-perk) catalog rows are **equippable while any premium source is active** (readable/previewable always) and are **NEVER converted to permanent `user_cosmetics` ownership** — trial/gift/referral users do **not** keep the monthly exclusive after premium lapses; when premium ends the perk is no longer equippable and the equipped slot falls back to an owned default (`classic_gold`). This is exactly the conservative behavior Task 6/7 already implement, so **no plan change is needed** — the ruling confirms it. À-la-carte IAP purchases (Task 7) are the *distinct* permanent-ownership path. Recorded in the superseding ADR `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`.
+§13 item 6. **Maintainer ruling (2026-07-25):** premium-exclusive (subscriber-perk) catalog rows are **equippable while any premium source is active** (readable/previewable always) and are **NEVER converted to permanent `user_cosmetics` ownership** — trial/gift/referral users do **not** keep the monthly exclusive after premium lapses; when premium ends the perk is no longer equippable and the equipped slot falls back to an owned default (`classic_gold`). This is exactly the conservative behavior Task 6/7 already implement, so **no plan change is needed for the equip/premium path** — the ruling confirms it. À-la-carte IAP purchases (Task 7) are the *distinct* permanent-ownership path — now granted server-side by the RevenueCat webhook (service_role), not by the client (see DEP-1/DEP-2, changed 2026-07-25). Recorded in the superseding ADR `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`.
 
 ### OQ-2 (open question — deferred per §14 rollout) — entitlement-period reconciliation for subscriber grants
 §13 item 7 wants "grant on sync while active" reconciled over the entitlement period (a subscriber who didn't open during the drop month). §14 rollout ships the **free loop first** (P0–P3) and layers premium perks in **P4/P5**. There is no premium-grant-on-sync RPC in the merged Lane A migrations. **Lane B defers this** with a documented note (Task 8): the client will call a future `grant_premium_cosmetics()` RPC on sync when it exists; the entitlement-period backfill is server-side (Lane A) and out of Lane B's scope. No client code can reconcile a window the server doesn't grant.
@@ -45,7 +48,7 @@ Because ownership lives in `user_cosmetics` (server), a **refund** must remove t
 | File | Responsibility |
 |---|---|
 | `lib/services/analytics_event_names.dart` (modify) | Add cosmetics event-name + property constants to the import-free leaf. |
-| `lib/services/cosmetics_service.dart` (create) | The whole Lane B service: read Noor/owned/equipped from sync; hydrate caches; `unlock` / `equip` RPC calls; milestone Noor award (ordered after claim); IAP grant + restore reconciliation; premium-equippable resolution. Top-level functions + a small `CosmeticsService` class with a static `onAnalyticsEvent` hook, matching the codebase split (`streak_service.dart` uses top-level fns + `StreakAnalytics`; `premium_grants_service.dart` uses top-level fns). |
+| `lib/services/cosmetics_service.dart` (create) | The whole Lane B service: read Noor/owned/equipped from sync; hydrate caches; `unlock` / `equip` RPC calls; milestone Noor award (ordered after claim); webhook-driven IAP ownership (purchase → re-sync; restore → `restorePurchases()` → re-sync; NO client grant RPC per the 2026-07-25 contract change); premium-equippable resolution. Top-level functions + a small `CosmeticsService` class with a static `onAnalyticsEvent` hook, matching the codebase split (`streak_service.dart` uses top-level fns + `StreakAnalytics`; `premium_grants_service.dart` uses top-level fns). |
 | `lib/services/user_data_batch_sync_service.dart` (modify) | Hydrate the three new sync sections (`noor`, `equipped`, `cosmetics`) into the cosmetics caches, alongside the existing hydrate calls. |
 | `test/services/cosmetics_service_test.dart` (create) | Unit tests for read/unlock/equip/milestone-award/IAP-grant using `FakeSupabaseSyncService` + `StubPurchaseService`. |
 | `test/services/user_data_batch_sync_cosmetics_test.dart` (create) | Pins the batch-sync hydration of the three new sections. |
@@ -274,8 +277,11 @@ import 'package:sakina/services/supabase_sync_service.dart';
 // Cosmetics Service (Lane B)
 //
 // Server-authoritative Lantern Cosmetics economy client. NEVER writes economy
-// tables directly — all mutation flows through the Lane A SECURITY DEFINER
-// RPCs (award_noor / unlock_cosmetic / equip_cosmetic / grant_cosmetic_iap).
+// tables directly — all client mutation flows through the Lane A SECURITY
+// DEFINER RPCs (award_noor / unlock_cosmetic / equip_cosmetic). Skin IAP
+// ownership is granted by the RevenueCat WEBHOOK server-side (service_role-only
+// grant_cosmetic_iap, revoked from authenticated; 2026-07-25 contract change),
+// NOT by this client — the client purchases via RC then re-syncs (see Task 7).
 // State is read from the additive noor / equipped / cosmetics sections of
 // sync_all_user_data() and mirrored into user-scoped SharedPreferences so the
 // wardrobe renders synchronously (mirrors TokenState / premium_grants_service).
@@ -1191,106 +1197,116 @@ git commit -m "feat(cosmetics): equip_cosmetic call + premium-exclusive equippab
 
 ---
 
-## Task 7: À-la-carte skin IAP grant + restore reconciliation (DEP-1 / DEP-2)
+## Task 7: À-la-carte skin IAP — webhook-granted ownership via purchase→sync / restore→sync (DEP-1 / DEP-2)
 
 **Files:**
 - Modify: `lib/services/cosmetics_service.dart`
 - Test: `test/services/cosmetics_service_test.dart`
 
-**Spec §13 item 4 — non-consumable IAP infra is net-new, NOT reused.** Unlike `ConsumableGrantsService` (SharedPreferences dedup, not cross-device), skin ownership MUST be server-authoritative. The client's job: after a RevenueCat purchase (and on `restorePurchases`), call the server `grant_cosmetic_iap` RPC (**DEP-1** — the RPC does not exist yet; client codes to the contract and degrades gracefully on null) with the transaction id so the server verifies the receipt-derived product↔item mapping and inserts `user_cosmetics(... 'iap')` idempotently. **Refund/restore reconciliation is server-side (DEP-2):** a refund clawback is a webhook `CANCELLATION`-on-skin path (Lane A); the client only re-syncs to reflect it. On `restorePurchases`, the client re-drives `grant_cosmetic_iap` for each owned skin transaction so a reinstalled/second-device user regains ownership.
+**Spec §13 item 4 — non-consumable IAP infra is net-new, NOT reused; and per the 2026-07-25 security-driven contract change, ownership is granted by the RevenueCat webhook, NEVER by the client.** Unlike `ConsumableGrantsService` (SharedPreferences dedup, not cross-device), skin ownership MUST be server-authoritative. A security review found the à-la-carte, client-callable `grant_cosmetic_iap` RPC was exploitable (any authenticated client could self-grant a paid skin); the RPC is now **`grant_cosmetic_iap(p_user_id, p_item_id, p_product_id, p_transaction_id)`, service_role-ONLY (revoked from `authenticated`)** and is invoked by the RC **webhook**, not the app. See DEP-1/DEP-2, `docs/superpowers/plans/2026-07-25-lantern-cosmetics-01b-iap-grant-webhook.md`, and the ADR `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`.
 
-The à-la-carte SKUs (from the seed catalog `iap_product_id` column): `sakina.skin.obsidian` → `obsidian_gold`, `sakina.skin.masjid` → `masjid_brass`, `sakina.skin.crystal` → `crystal_star`. The client keeps a SKU→item map ONLY to know which transactions are skin purchases; the **server** re-verifies the mapping (never trust the client).
+**The client's job is now purchase-then-sync, and restore-then-sync — no grant RPC:**
+- **Purchase:** the UI/purchase layer completes the RevenueCat purchase (`Purchases.purchase...`) as usual. On success the client calls this task's `completeSkinIapPurchase(...)`, which triggers a **full sync** (`hydrateUserDataFromBatchRpc()` — the same `sync_all_user_data()` path Task 9 wires the `cosmetics` section into). The webhook has (or imminently will have) granted `user_cosmetics(... 'iap')` server-side, so the post-sync `cosmetics` section carries the new skin and the caches now report it owned. The client calls NO grant RPC.
+- **Restore:** the client calls `Purchases.restorePurchases()`, which makes RevenueCat re-fire its non-consumable / `TRANSFER` event to the webhook (the webhook grants server-side), then triggers a **full sync** so the restored ownership surfaces from the `cosmetics` section. Again NO grant RPC and NO reconcile-from-`CustomerInfo`-by-granting.
+- **Refund** reconciliation is entirely server-side (webhook `CANCELLATION`-on-skin clawback, DEP-2); the client only re-syncs to reflect the removed row.
+
+The à-la-carte SKUs (from the seed catalog `iap_product_id` column): `sakina.skin.obsidian` → `obsidian_gold`, `sakina.skin.masjid` → `masjid_brass`, `sakina.skin.crystal` → `crystal_star`. The client keeps `skinIapProductToItem` ONLY to recognize/label which RC products are skins for UI and to name the just-purchased item in the `cosmetic_iap_purchased` analytics event — it performs NO grant with it; the **server** re-verifies the mapping.
+
+**Injectable seams (for TDD).** So the service stays Riverpod-free and unit-testable without real RC / real network, the two entry points accept:
+- `syncNow` — a `Future<void> Function()` that runs the full sync (production default: `hydrateUserDataFromBatchRpc`).
+- `restore` — a `Future<void> Function()` that runs `Purchases.restorePurchases()` (production default wraps `purchases_flutter`).
+Tests inject fakes: `syncNow` is faked to run `hydrateCosmeticsFromSync(...)` with a `cosmetics` payload that now includes the skin (simulating the webhook grant), and `restore` is a no-op spy. The assertion is that ownership is surfaced **via the sync**, and that **no `grant_cosmetic_iap` RPC is ever called from the client**.
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `test/services/cosmetics_service_test.dart`:
 
 ```dart
-  group('grantSkinIap (server-authoritative, DEP-1 contract)', () {
-    test('success: calls grant_cosmetic_iap with product+txn, mirrors ownership'
-        ', emits analytics', () async {
-      fakeSync.rpcHandlers['grant_cosmetic_iap'] = (params) async => {
-            'granted': true,
-            'already_owned': false,
-            'item_id': 'obsidian_gold',
-          };
+  group('completeSkinIapPurchase (webhook-granted; purchase→sync, NO client '
+      'grant RPC)', () {
+    test('success: triggers a full sync that reflects webhook-granted ownership'
+        ', emits analytics, calls NO grant RPC', () async {
+      // Simulate the webhook having granted server-side: the injected sync
+      // hydrates the cosmetics section WITH the new skin, exactly as the
+      // post-purchase sync_all_user_data() would return it. (Named `fakeSyncNow`
+      // to avoid confusion with the ambient `fakeSync` FakeSupabaseSyncService.)
+      var syncCalls = 0;
+      Future<void> fakeSyncNow() async {
+        syncCalls += 1;
+        await hydrateCosmeticsFromSync(
+          noorBalance: 0,
+          equippedLanternSkin: 'classic_gold',
+          equippedBackdrop: 'default',
+          owned: const [
+            {'item_type': 'lantern_skin', 'item_id': 'obsidian_gold'},
+          ],
+        );
+      }
 
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
 
-      final result = await grantSkinIap(
+      final result = await completeSkinIapPurchase(
         productId: 'sakina.skin.obsidian',
-        transactionId: 'txn-abc',
+        syncNow: fakeSyncNow,
       );
 
       expect(result.success, isTrue);
-      expect(fakeSync.rpcCalls.single['fn'], 'grant_cosmetic_iap');
-      expect(fakeSync.rpcCalls.single['params'], {
-        'p_item_id': 'obsidian_gold',
-        'p_product_id': 'sakina.skin.obsidian',
-        'p_transaction_id': 'txn-abc',
-      });
+      expect(syncCalls, 1);
+      // The client grants NOTHING — no grant_cosmetic_iap RPC anywhere.
+      // (`fakeSync` is the ambient FakeSupabaseSyncService from setUp; the
+      // injected fakeSync() closure above only writes caches, never an RPC.)
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+      // Ownership is surfaced by the SYNC, not by a client grant.
       final state = await getCosmeticsState();
       expect(state.owns('lantern_skin', 'obsidian_gold'), isTrue);
+      // Fresh-purchase analytics (client-observed RC success + item label).
       expect(events.single.$1, 'cosmetic_iap_purchased');
       expect(events.single.$2,
           {'item_id': 'obsidian_gold', 'product_id': 'sakina.skin.obsidian'});
     });
 
-    test('unknown product id is refused client-side (no RPC, no grant)',
+    test('unknown product id is refused client-side (no sync, no analytics)',
         () async {
-      final result = await grantSkinIap(
-        productId: 'sakina.tokens_100',
-        transactionId: 'txn-1',
-      );
-      expect(result.success, isFalse);
-      expect(fakeSync.rpcCalls, isEmpty);
-    });
-
-    test('RPC unavailable (DEP-1 not shipped → null): graceful failure',
-        () async {
-      // No handler registered → callRpc returns null.
-      final result = await grantSkinIap(
-        productId: 'sakina.skin.masjid',
-        transactionId: 'txn-2',
-      );
-      expect(result.success, isFalse);
-      final state = await getCosmeticsState();
-      expect(state.owns('lantern_skin', 'masjid_brass'), isFalse);
-    });
-
-    test('already_owned (idempotent replay / restore): success, no double '
-        'analytics', () async {
-      fakeSync.rpcHandlers['grant_cosmetic_iap'] = (params) async => {
-            'granted': false,
-            'already_owned': true,
-            'item_id': 'crystal_star',
-          };
+      var syncCalls = 0;
+      Future<void> fakeSyncNow() async => syncCalls += 1;
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
 
-      final result = await grantSkinIap(
-        productId: 'sakina.skin.crystal',
-        transactionId: 'txn-3',
+      final result = await completeSkinIapPurchase(
+        productId: 'sakina.tokens_100',
+        syncNow: fakeSyncNow,
       );
 
-      // Ownership is still ensured in the cache, but no fresh-purchase event.
-      expect(result.success, isTrue);
-      final state = await getCosmeticsState();
-      expect(state.owns('lantern_skin', 'crystal_star'), isTrue);
+      expect(result.success, isFalse);
+      expect(syncCalls, 0);
       expect(events, isEmpty);
     });
 
-    test('unauthenticated: no RPC call', () async {
+    test('never calls grant_cosmetic_iap on the client (revoked contract)',
+        () async {
+      Future<void> fakeSyncNow() async {} // webhook grant not yet reflected
+      await completeSkinIapPurchase(
+        productId: 'sakina.skin.masjid',
+        syncNow: fakeSyncNow,
+      );
+      // `fakeSync` here is the ambient FakeSupabaseSyncService from setUp.
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+    });
+
+    test('unauthenticated: no sync, returns failure', () async {
       fakeSync.userId = null;
-      final result = await grantSkinIap(
+      var syncCalls = 0;
+      final result = await completeSkinIapPurchase(
         productId: 'sakina.skin.obsidian',
-        transactionId: 'txn-x',
+        syncNow: () async => syncCalls += 1,
       );
       expect(result.success, isFalse);
-      expect(fakeSync.rpcCalls, isEmpty);
+      expect(syncCalls, 0);
     });
   });
 
@@ -1302,135 +1318,169 @@ Append to `test/services/cosmetics_service_test.dart`:
   });
 ```
 
+> Note: every test above asserts on the ambient `fakeSync.rpcCalls` (the `FakeSupabaseSyncService` created in `setUp`) that the client makes **no** `grant_cosmetic_iap` call — that RPC is service_role-only (webhook-driven) and must never appear in the client's RPC log. The injected `syncNow` / `restore` closures write caches / spy only; they never issue an RPC.
+
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `flutter test test/services/cosmetics_service_test.dart`
-Expected: FAIL — `grantSkinIap` / `skinIapProductToItem` undefined.
+Expected: FAIL — `completeSkinIapPurchase` / `skinIapProductToItem` undefined.
 
-- [ ] **Step 3: Implement `grantSkinIap` + the SKU map**
+- [ ] **Step 3: Implement `completeSkinIapPurchase` + `restoreSkinIaps` + the SKU map**
 
 Add to `lib/services/cosmetics_service.dart`:
 
 ```dart
 /// À-la-carte skin IAP SKUs → catalog item_id. Mirrors the `iap_product_id`
 /// column in `20260726000100_seed_cosmetic_catalog.sql`. The client uses this
-/// ONLY to recognize which RC transactions are skin purchases and to pass the
-/// item_id to the server; the SERVER re-verifies product↔item against the
-/// catalog (never trust the client mapping). When SKUs change, this map AND
-/// the seed migration must both update.
+/// ONLY to recognize which RC products are skin purchases and to LABEL the
+/// analytics event with the item_id; it performs NO grant with it. The SERVER
+/// (RC webhook, service_role) re-verifies product↔item against the catalog and
+/// is the sole granter. When SKUs change, this map AND the seed migration must
+/// both update.
 const Map<String, String> skinIapProductToItem = {
   'sakina.skin.obsidian': 'obsidian_gold',
   'sakina.skin.masjid': 'masjid_brass',
   'sakina.skin.crystal': 'crystal_star',
 };
 
-/// Grants a purchased à-la-carte skin server-side (spec §13 item 4 — this is
-/// net-new, NOT the SharedPreferences-dedup consumable path). Called from the
-/// synchronous purchase path AND from the restore path.
+/// Completes an à-la-carte skin purchase from the CLIENT side (spec §13 item 4;
+/// 2026-07-25 security-driven contract change). The caller has already run the
+/// RevenueCat purchase (`Purchases.purchase...`) successfully; this function
+/// does the post-purchase reconciliation.
 ///
-/// DEP-1: `grant_cosmetic_iap` does not exist in the merged Lane A migrations
-/// yet. The client codes to the contract:
-///   grant_cosmetic_iap(p_item_id, p_product_id, p_transaction_id)
-///     returns jsonb { granted, already_owned, item_id }
-/// and treats a null (RPC missing / raised) as a clean failure so the app
-/// degrades gracefully until Lane A ships it. Idempotency + receipt
-/// verification + refund clawback are server-side (DEP-2).
+/// The client does NOT grant ownership — `grant_cosmetic_iap` is service_role-
+/// ONLY (revoked from `authenticated`) and is called by the RC WEBHOOK. Here we
+/// simply re-sync via [syncNow] (default: `hydrateUserDataFromBatchRpc`, i.e.
+/// `sync_all_user_data()`), so the webhook's server-side grant shows up in the
+/// `cosmetics` section and the caches report the skin owned. See DEP-1/DEP-2.
 ///
-/// Returns success when the server confirms ownership (granted OR
-/// already_owned). Emits `cosmetic_iap_purchased` ONLY on a fresh grant
-/// (`granted == true`) so a restore/replay doesn't double-count revenue.
-Future<CosmeticActionResult> grantSkinIap({
+/// Emits `cosmetic_iap_purchased` on a recognized skin SKU (client-observed RC
+/// success). Idempotency / refund clawback / receipt verification are all
+/// server-side. Returns failure for a non-skin SKU, an unauthenticated caller,
+/// or when the sync throws.
+Future<CosmeticActionResult> completeSkinIapPurchase({
   required String productId,
-  required String transactionId,
+  Future<void> Function()? syncNow,
 }) async {
   if (supabaseSyncService.currentUserId == null) {
     return CosmeticActionResult.failed;
   }
   final itemId = skinIapProductToItem[productId];
   if (itemId == null) {
-    // Not a skin SKU — refuse client-side (consumables go through
-    // ConsumableGrantsService, not here).
+    // Not a skin SKU — refuse (consumables go through ConsumableGrantsService).
     return CosmeticActionResult.failed;
   }
 
-  final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
-    'grant_cosmetic_iap',
-    {
-      'p_item_id': itemId,
-      'p_product_id': productId,
-      'p_transaction_id': transactionId,
-    },
-  );
-  if (res == null) return CosmeticActionResult.failed;
+  // Re-sync so the webhook's server-side grant is reflected. NO grant RPC here.
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await sync();
+  } catch (_) {
+    return CosmeticActionResult.failed;
+  }
 
-  final granted = res['granted'] == true;
-  final alreadyOwned = res['already_owned'] == true;
-  if (!granted && !alreadyOwned) return CosmeticActionResult.failed;
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticIapPurchased, {
+    AnalyticsEvents.propItemId: itemId,
+    AnalyticsEvents.propProductId: productId,
+  });
+  return CosmeticActionResult.ok;
+}
 
-  // Server confirmed ownership — mirror into the cache so the wardrobe shows
-  // "Equip" immediately; the next sync reconciles.
-  await _addOwnedToCache(itemTypeLanternSkin, itemId);
-
-  if (granted) {
-    CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticIapPurchased, {
-      AnalyticsEvents.propItemId: itemId,
-      AnalyticsEvents.propProductId: productId,
-    });
+/// Restores previously-purchased skins (spec §13 item 4; DEP-2). Calls
+/// [restore] (default: `Purchases.restorePurchases()`), which makes RevenueCat
+/// re-fire its non-consumable / TRANSFER event to the WEBHOOK — the webhook
+/// re-grants ownership server-side — then re-syncs via [syncNow] so the
+/// restored rows surface from the `cosmetics` section.
+///
+/// The client grants NOTHING and does NOT reconcile from `CustomerInfo` by
+/// granting (the revoked, service_role-only contract forbids it). Callers: the
+/// explicit "Restore purchases" action and app-launch recovery. Returns success
+/// when both the restore and the sync complete without throwing.
+Future<CosmeticActionResult> restoreSkinIaps({
+  Future<void> Function()? restore,
+  Future<void> Function()? syncNow,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+  final doRestore = restore ?? _defaultRestorePurchases;
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await doRestore(); // RC re-fires non-consumable/TRANSFER → webhook grants.
+    await sync(); // Surface the server-side (re)grant from the sync payload.
+  } catch (_) {
+    return CosmeticActionResult.failed;
   }
   return CosmeticActionResult.ok;
 }
 
-/// Re-drives [grantSkinIap] for every skin transaction in a RevenueCat
-/// [CustomerInfo] — the restore / reinstall / second-device recovery path
-/// (DEP-2). Idempotent server-side (`already_owned`), so replaying the full
-/// non-subscription transaction history is safe. Returns the count of
-/// transactions processed (granted OR already-owned).
-///
-/// Callers: the RC `customerInfoUpdateListener` (wired in main.dart) and the
-/// explicit "Restore purchases" action. Best-effort — a single failed grant
-/// does not abort the loop.
-Future<int> reconcileSkinIapsFromCustomerInfo(
-  List<({String productId, String transactionId})> transactions,
-) async {
-  var processed = 0;
-  for (final txn in transactions) {
-    if (!skinIapProductToItem.containsKey(txn.productId)) continue;
-    final result = await grantSkinIap(
-      productId: txn.productId,
-      transactionId: txn.transactionId,
-    );
-    if (result.success) processed += 1;
-  }
-  return processed;
+/// Production default for [restoreSkinIaps.restore]. Thin wrapper over
+/// `purchases_flutter` so the service stays trivially unit-testable (tests
+/// inject a fake and never touch RevenueCat).
+Future<void> _defaultRestorePurchases() async {
+  await Purchases.restorePurchases();
 }
 ```
 
-- [ ] **Step 4: Write the failing test for `reconcileSkinIapsFromCustomerInfo`**
+Add the imports at the top of `lib/services/cosmetics_service.dart` (with the other imports):
+
+```dart
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:sakina/services/user_data_batch_sync_service.dart';
+```
+
+- [ ] **Step 4: Write the failing test for `restoreSkinIaps`**
 
 Append to `test/services/cosmetics_service_test.dart`:
 
 ```dart
-  group('reconcileSkinIapsFromCustomerInfo (restore path, DEP-2)', () {
-    test('grants each skin txn, skips non-skin txns, returns processed count',
-        () async {
-      fakeSync.rpcHandlers['grant_cosmetic_iap'] = (params) async => {
-            'granted': false,
-            'already_owned': true,
-            'item_id': params!['p_item_id'],
-          };
+  group('restoreSkinIaps (restore→webhook→sync, NO client grant RPC)', () {
+    test('runs restore then a full sync that surfaces restored ownership; '
+        'client calls NO grant RPC', () async {
+      var restoreCalls = 0;
+      var syncCalls = 0;
+      Future<void> fakeRestore() async => restoreCalls += 1;
+      // The injected sync stands in for sync_all_user_data() AFTER the webhook
+      // re-granted on the RC restore re-fire: the cosmetics section now carries
+      // the restored skin.
+      Future<void> fakeSyncNow() async {
+        syncCalls += 1;
+        await hydrateCosmeticsFromSync(
+          noorBalance: 0,
+          equippedLanternSkin: 'classic_gold',
+          equippedBackdrop: 'default',
+          owned: const [
+            {'item_type': 'lantern_skin', 'item_id': 'crystal_star'},
+          ],
+        );
+      }
 
-      final processed = await reconcileSkinIapsFromCustomerInfo(const [
-        (productId: 'sakina.skin.obsidian', transactionId: 't1'),
-        (productId: 'sakina.tokens_100', transactionId: 't2'), // skipped
-        (productId: 'sakina.skin.crystal', transactionId: 't3'),
-      ]);
+      final result = await restoreSkinIaps(
+        restore: fakeRestore,
+        syncNow: fakeSyncNow,
+      );
 
-      expect(processed, 2);
-      final fns = fakeSync.rpcCalls.map((c) => c['fn']).toList();
-      expect(fns, ['grant_cosmetic_iap', 'grant_cosmetic_iap']);
+      expect(result.success, isTrue);
+      expect(restoreCalls, 1);
+      expect(syncCalls, 1);
+      // Restore surfaces ownership VIA THE SYNC, not a client grant RPC.
       final state = await getCosmeticsState();
-      expect(state.owns('lantern_skin', 'obsidian_gold'), isTrue);
       expect(state.owns('lantern_skin', 'crystal_star'), isTrue);
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+    });
+
+    test('unauthenticated: neither restore nor sync runs', () async {
+      fakeSync.userId = null;
+      var restoreCalls = 0;
+      var syncCalls = 0;
+      final result = await restoreSkinIaps(
+        restore: () async => restoreCalls += 1,
+        syncNow: () async => syncCalls += 1,
+      );
+      expect(result.success, isFalse);
+      expect(restoreCalls, 0);
+      expect(syncCalls, 0);
     });
   });
 ```
@@ -1438,13 +1488,13 @@ Append to `test/services/cosmetics_service_test.dart`:
 - [ ] **Step 5: Run tests to verify pass**
 
 Run: `flutter test test/services/cosmetics_service_test.dart`
-Expected: PASS (all IAP grant + reconcile tests).
+Expected: PASS (all purchase + restore tests; no client grant RPC asserted).
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add lib/services/cosmetics_service.dart test/services/cosmetics_service_test.dart
-git commit -m "feat(cosmetics): server-authoritative skin IAP grant + restore reconcile (§13.4, DEP-1/2)"
+git commit -m "feat(cosmetics): webhook-granted skin IAP — purchase→sync + restore→sync, no client grant RPC (§13.4, DEP-1/2)"
 ```
 
 ---
@@ -1738,7 +1788,7 @@ git commit -m "chore(cosmetics): flutter analyze cleanups for Lane B service"
 | Calls `unlock_cosmetic` / `equip_cosmetic`, surfaces errors via result → snackbar pattern | Tasks 3, 6 (`CosmeticActionResult`, no UI in service) |
 | Emits analytics via static `onAnalyticsEvent` hook; constants in `analytics_event_names.dart` | Task 1 + `CosmeticsAnalytics` in Task 2, emitted in 3/4/5/6/7 |
 | `award_noor('milestone:N')` ONLY after successful `claim_streak_milestone(N)`, server-shaped reason_key | Task 4 (CRITICAL — explicit ordering + reason_key `milestone:N`) |
-| Non-consumable IAP grant path + RC reconciliation (refund/restore); called out as net-new/DEP | Task 7 (`grantSkinIap`, `reconcileSkinIapsFromCustomerInfo`) + DEP-1/DEP-2 |
+| Non-consumable IAP ownership + RC reconciliation (refund/restore); server-authoritative, webhook-granted (client never grants — 2026-07-25 contract change); called out as net-new/DEP | Task 7 (`completeSkinIapPurchase` = purchase→sync, `restoreSkinIaps` = `restorePurchases()`→sync) + DEP-1/DEP-2 |
 | Single premium definition; premium-exclusive equippable vs owned; no client conversion to ownership | Task 6 (`canEquip`) + OQ-1 |
 | Entitlement-period reconciliation for subscriber grants (or documented defer) | Task 8 (`syncPremiumCosmetics` deferred hook) + OQ-2 |
 | Never write economy tables directly (RPC-only) | All mutations via `callRpc`; no `.from(...).upsert` in the service |
@@ -1748,14 +1798,15 @@ git commit -m "chore(cosmetics): flutter analyze cleanups for Lane B service"
 
 Analytics events from spec §7 covered: `cosmetic_equipped`, `noor_earned`, `cosmetic_unlocked{via:noor}`, `cosmetic_iap_purchased`, `milestone_skin_unlocked` (constant added; emission of `milestone_skin_unlocked` specifically is a Lane D concern when the milestone-skin unlock UI lands — the constant is provided so Lane D wires it; Lane B does the Noor-grant + generic unlock). `companion_screen_opened`, `wardrobe_opened`, `cosmetic_previewed`, `premium_exclusive_granted`, `seasonal_granted` are **Lane D/UI + Lane A** concerns (screen/grant surfaces), intentionally out of Lane B scope — noted so the controller doesn't expect them here.
 
-**2. Placeholder scan:** No `TBD` / `implement later` / "add error handling" / "write tests for the above" — every code + test step contains complete content. The deferred hooks (Task 8 `syncPremiumCosmetics`, DEP-1 `grant_cosmetic_iap`) are fully-implemented client code that degrades on `null`, NOT placeholders; their server counterparts are explicitly labeled cross-lane dependencies with contracts.
+**2. Placeholder scan:** No `TBD` / `implement later` / "add error handling" / "write tests for the above" — every code + test step contains complete content. Task 8 `syncPremiumCosmetics` is fully-implemented client code that degrades on `null`, NOT a placeholder; its server counterpart is an explicitly labeled cross-lane dependency with a contract. Task 7 (`completeSkinIapPurchase` / `restoreSkinIaps`) contains NO client grant RPC — ownership is granted by the RC webhook (service_role-only `grant_cosmetic_iap`, revoked from `authenticated`; DEP-1/DEP-2, 2026-07-25 contract change) and surfaced by re-sync; the client code is complete and testable via the injected `syncNow` / `restore` seams.
 
 **3. Type consistency:**
 - `CosmeticActionResult` (fields `success`; statics `ok`/`failed`) — defined Task 3, reused Tasks 6, 7 identically.
 - `CosmeticsState` (fields `noorBalance`, `equippedLanternSkin`, `equippedBackdrop`, `ownedLanternSkins`, `ownedBackdrops`; method `owns`) — defined Task 2, constructed in Task 6/8 tests with the same named params.
 - `CosmeticsAnalytics.emit` / `onAnalyticsEvent` — defined Task 2, used 3/4/5/6/7.
 - Cache key constants (`_noorBalanceKey` etc.) + helpers (`_addOwnedToCache`, `_creditNoorCache`, `_debitNoorCache`, `_readOwnedSet`) — each defined once, referenced consistently.
-- RPC param names match Lane A signatures exactly: `unlock_cosmetic`/`equip_cosmetic` use `p_item_type`+`p_item_id`; `award_noor` uses `p_reason`+`p_reason_key`; `claim_streak_milestone` uses `p_day` (matches `streak_service.dart`).
+- RPC param names match Lane A signatures exactly: `unlock_cosmetic`/`equip_cosmetic` use `p_item_type`+`p_item_id`; `award_noor` uses `p_reason`+`p_reason_key`; `claim_streak_milestone` uses `p_day` (matches `streak_service.dart`). Task 7 names **no client RPC** — `grant_cosmetic_iap` is service_role-only (revoked from `authenticated`; 2026-07-25 contract change), so the client never calls it; every Task 7 test asserts `fakeSync.rpcCalls` contains no `grant_cosmetic_iap`.
+- Task 7 injectable seams are typed `Future<void> Function()`: `syncNow` (production default `hydrateUserDataFromBatchRpc`) and `restore` (production default `_defaultRestorePurchases` → `Purchases.restorePurchases()`). Both `completeSkinIapPurchase` and `restoreSkinIaps` return the shared `CosmeticActionResult`. New imports added to `cosmetics_service.dart`: `package:purchases_flutter/purchases_flutter.dart` and `package:sakina/services/user_data_batch_sync_service.dart` (the latter provides `hydrateUserDataFromBatchRpc`; no import cycle — `user_data_batch_sync_service.dart` already imports `cosmetics_service.dart` in Task 9 only for the top-level hydrate functions, and Dart permits mutual library imports).
 - `StubPurchaseService` uses `super.test()` — matches `PurchaseService.test()` constructor and the `premium_grants_service_test.dart` pattern.
 - `UserDataBatchPayload` (`fromRpc`, `objectSection`, `listSection`) — reused from the existing sync service, not redefined.
 
