@@ -8,6 +8,7 @@ import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_data_batch_sync_service.dart';
+import 'package:sakina/services/widget_data_service.dart';
 
 // ---------------------------------------------------------------------------
 // Cosmetics Service (Lane B)
@@ -343,9 +344,14 @@ Future<void> _creditNoorCache(int amount) async {
 /// ownership server-side (raises "cannot equip unowned item" → null here).
 /// On success, mirrors the equipped column into the cache so the Companion
 /// stage / Home medallion re-render without a round-trip.
+///
+/// On a successful `lantern_skin` equip it also pushes the skin to the iOS
+/// companion widget ([WidgetDataService.setEquippedLanternSkin]); [widgetData]
+/// is injectable for tests, production uses the global `widgetDataService`.
 Future<CosmeticActionResult> equipCosmetic({
   required String itemType,
   required String itemId,
+  WidgetDataService? widgetData,
 }) async {
   if (supabaseSyncService.currentUserId == null) {
     return CosmeticActionResult.failed;
@@ -370,6 +376,18 @@ Future<CosmeticActionResult> equipCosmetic({
   final key =
       itemType == itemTypeBackdrop ? _equippedBackdropKey : _equippedSkinKey;
   await prefs.setString(supabaseSyncService.scopedKey(key), itemId);
+
+  // Push the new lantern to the iOS home-screen widget right away, so the
+  // cosmetic promise doesn't visibly break on the home screen until the next
+  // sync. Skins only — backdrops are in-app surfaces and never reach the widget
+  // (spec §5). Best-effort: a widget failure must never fail the equip.
+  if (itemType == itemTypeLanternSkin) {
+    try {
+      await (widgetData ?? widgetDataService).setEquippedLanternSkin(itemId);
+    } catch (_) {
+      // Widget refresh is cosmetic; the next syncHomeWidget will catch up.
+    }
+  }
 
   CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticEquipped, {
     AnalyticsEvents.propItemType: itemType,
