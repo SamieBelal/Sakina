@@ -111,6 +111,15 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
   /// mutation rather than waiting for the screen to be reopened.
   bool _isPremium = false;
 
+  /// A mutation (equip / unlock / buy) is in flight. Guards re-entry AND
+  /// disables the CTA (I6): the build-time `CosmeticsState` cannot see an
+  /// unlock that is still resolving — `ref.invalidate` has not fired yet — so
+  /// `state.owns(...)` alone lets a second tap through, and `unlockCosmetic`
+  /// mirrors the Noor debit on every `true` even though the server charges
+  /// once. Two taps therefore under-reported the balance and stacked two
+  /// reveal overlays.
+  bool _mutating = false;
+
   @override
   void initState() {
     super.initState();
@@ -227,6 +236,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
       action: action,
       priceLabel: _priceLabel(entry, action),
       teaser: _teaser(entry, action),
+      busy: _mutating,
       onEquip: () => _equip(entry),
       onUnlock: () => _unlock(entry, state),
       onBuy: () => _buy(entry),
@@ -258,25 +268,43 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     return null;
   }
 
-  Future<void> _equip(CosmeticCatalogEntry e) async {
-    final res = await equipCosmetic(itemType: e.itemType, itemId: e.itemId);
-    _afterMutation(res.success, res.success ? 'Equipped' : "Couldn't equip");
+  /// Runs [body] as THE mutation in flight, or drops it if one already is.
+  /// The flag is held until [body] fully completes — including the unlock
+  /// reveal, so two overlays can never stack.
+  Future<void> _mutate(Future<void> Function() body) async {
+    if (_mutating) return;
+    setState(() => _mutating = true);
+    try {
+      await body();
+    } finally {
+      if (mounted) setState(() => _mutating = false);
+    }
   }
 
-  Future<void> _unlock(CosmeticCatalogEntry e, CosmeticsState state) async {
-    // Runtime double-debit guard: an owned item can never be re-unlocked, even
-    // if a stale action bar somehow offered it.
-    if (state.owns(e.itemType, e.itemId)) return;
-    final res = await unlockCosmetic(
-        itemType: e.itemType, itemId: e.itemId, noorPrice: e.noorPrice ?? 0);
-    if (!res.success) {
-      _afterMutation(false, 'Not enough Noor');
-      return;
-    }
-    // E2: the earned-it moment replaces the snackbar on the success path.
-    _afterMutation(true, null);
-    if (mounted) await showCosmeticUnlockReveal(context, e.itemType, e.itemId);
-  }
+  Future<void> _equip(CosmeticCatalogEntry e) => _mutate(() async {
+        final res = await equipCosmetic(itemType: e.itemType, itemId: e.itemId);
+        _afterMutation(res.success, res.success ? 'Equipped' : "Couldn't equip");
+      });
+
+  Future<void> _unlock(CosmeticCatalogEntry e, CosmeticsState state) =>
+      _mutate(() async {
+        // Runtime double-debit guard: an owned item can never be re-unlocked,
+        // even if a stale action bar somehow offered it. This catches the
+        // ALREADY-owned case only — an unlock still resolving is caught by
+        // [_mutate], since `state` here is the build-time snapshot.
+        if (state.owns(e.itemType, e.itemId)) return;
+        final res = await unlockCosmetic(
+            itemType: e.itemType, itemId: e.itemId, noorPrice: e.noorPrice ?? 0);
+        if (!res.success) {
+          _afterMutation(false, 'Not enough Noor');
+          return;
+        }
+        // E2: the earned-it moment replaces the snackbar on the success path.
+        _afterMutation(true, null);
+        if (mounted) {
+          await showCosmeticUnlockReveal(context, e.itemType, e.itemId);
+        }
+      });
 
   /// Unreachable while [kSkinIapEnabled] is false — `resolveWardrobeAction`
   /// never returns [WardrobeAction.buy] — and inert on purpose if it ever is.
@@ -293,9 +321,8 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
   ///      to re-sync (the RC webhook is the sole granter server-side; the
   ///      client never calls a grant RPC), then report its result
   /// and label the CTA with `pkg.storeProduct.priceString` (see [_priceLabel]).
-  Future<void> _buy(CosmeticCatalogEntry e) async {
-    _afterMutation(false, 'Not available yet');
-  }
+  Future<void> _buy(CosmeticCatalogEntry e) =>
+      _mutate(() async => _afterMutation(false, 'Not available yet'));
 
   /// Re-reads the Lane-B-mirrored cache after a successful mutation. A null
   /// [msg] suppresses the snackbar (the unlock reveal is the feedback instead).

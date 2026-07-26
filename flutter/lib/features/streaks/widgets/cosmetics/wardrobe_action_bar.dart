@@ -50,6 +50,7 @@ class WardrobeActionBar extends StatelessWidget {
     required this.onUnlock,
     required this.onBuy,
     this.teaser,
+    this.busy = false,
   });
 
   final WardrobeAction action;
@@ -64,6 +65,13 @@ class WardrobeActionBar extends StatelessWidget {
   final VoidCallback onEquip;
   final VoidCallback onUnlock;
   final VoidCallback onBuy;
+
+  /// A mutation is in flight — the CTA renders disabled. Unlock is the reason
+  /// this exists: the server is idempotent, but the client mirrors the Noor
+  /// debit locally on every `true`, so a second tap before the first resolves
+  /// would debit the displayed balance twice (I6). The screen ALSO refuses
+  /// re-entry; this is the half the user can see.
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -81,18 +89,21 @@ class WardrobeActionBar extends StatelessWidget {
           ),
         );
       case WardrobeAction.equip:
-        return _button(context, 'Equip', AppColors.primary, onEquip);
+        return _button(context, 'Equip', AppColors.primary, _live(onEquip));
       case WardrobeAction.unlock:
         return _button(context, 'Unlock · ${priceLabel ?? ''}',
-            AppColors.secondary, onUnlock);
+            AppColors.secondary, _live(onUnlock));
       case WardrobeAction.unlockUnaffordable:
         return _button(
             context, 'Unlock · ${priceLabel ?? ''}', AppColors.secondary, null);
       case WardrobeAction.buy:
         return _button(
-            context, 'Get · ${priceLabel ?? ''}', AppColors.primary, onBuy);
+            context, 'Get · ${priceLabel ?? ''}', AppColors.primary, _live(onBuy));
     }
   }
+
+  /// The handler, or null while [busy] — a disabled `FilledButton`.
+  VoidCallback? _live(VoidCallback onTap) => busy ? null : onTap;
 
   Widget _button(
       BuildContext context, String label, Color color, VoidCallback? onTap) {
