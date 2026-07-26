@@ -1,0 +1,110 @@
+import 'package:flutter/material.dart';
+
+import 'package:sakina/core/constants/app_colors.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/theme/app_typography.dart';
+
+/// The single resolved primary action for the previewed item.
+///
+/// The wardrobe screen resolves exactly one of these per item and passes it
+/// down; the bar itself renders and dispatches, it never re-derives gating.
+/// The gating contract the resolver must honour:
+///
+/// - [equip] only when `await CosmeticsService.canEquip(...)` returned true
+///   (async — it resolves premium-exclusive rows against live premium).
+/// - [unlock] only when the item is NOT owned and Noor covers the price.
+///   Offering unlock for an already-owned item would double-debit the local
+///   cache (`unlock_cosmetic` returns true without charging when already
+///   owned), so an owned item must never resolve to [unlock].
+/// - [unlockUnaffordable] — not owned, priced, but the balance falls short:
+///   the price stays visible, the button is inert.
+/// - [buy] only for à-la-carte skins (`iapProductId != null`) that are not
+///   owned.
+/// - [premiumTeaser] / [milestoneTeaser] — visible-but-locked. No action;
+///   the item reads as reachable later, not purchasable now.
+enum WardrobeAction {
+  equip,
+  unlock,
+  unlockUnaffordable,
+  buy,
+  premiumTeaser,
+  milestoneTeaser,
+}
+
+/// The wardrobe's bottom action bar. Pure and callback-driven: the *screen*
+/// owns the service calls, so this stays unit-testable and free of Supabase.
+class WardrobeActionBar extends StatelessWidget {
+  const WardrobeActionBar({
+    super.key,
+    required this.action,
+    required this.priceLabel,
+    required this.onEquip,
+    required this.onUnlock,
+    required this.onBuy,
+    this.teaser,
+  });
+
+  final WardrobeAction action;
+
+  /// '120 Noor' or a store-formatted price like r'$2.99'.
+  final String? priceLabel;
+
+  /// Copy for the premium/milestone locked states, e.g.
+  /// 'Unlock at a 30-day streak'.
+  final String? teaser;
+
+  final VoidCallback onEquip;
+  final VoidCallback onUnlock;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (action) {
+      case WardrobeAction.premiumTeaser:
+      case WardrobeAction.milestoneTeaser:
+        return Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            teaser ?? 'Locked',
+            textAlign: TextAlign.center,
+            style: AppTypography.bodyMedium
+                .copyWith(color: AppColors.textSecondaryLight),
+          ),
+        );
+      case WardrobeAction.equip:
+        return _button(context, 'Equip', AppColors.primary, onEquip);
+      case WardrobeAction.unlock:
+        return _button(context, 'Unlock · ${priceLabel ?? ''}',
+            AppColors.secondary, onUnlock);
+      case WardrobeAction.unlockUnaffordable:
+        return _button(
+            context, 'Unlock · ${priceLabel ?? ''}', AppColors.secondary, null);
+      case WardrobeAction.buy:
+        return _button(
+            context, 'Get · ${priceLabel ?? ''}', AppColors.primary, onBuy);
+    }
+  }
+
+  Widget _button(
+      BuildContext context, String label, Color color, VoidCallback? onTap) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: FilledButton(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+            ),
+            textStyle: AppTypography.labelLarge,
+          ),
+          child: Text(label),
+        ),
+      ),
+    );
+  }
+}
