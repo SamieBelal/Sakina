@@ -1404,7 +1404,7 @@ All consistent. Plan is complete and Lane-B-contract-compatible.
 ## Open questions for the maintainer
 
 1. **RC event type for non-consumable skin purchases.** This plan routes on `NON_RENEWING_PURCHASE` (RevenueCat's canonical event type for non-subscription, non-consumable one-time products, and the type the superseded monetization ADR deleted a handler for — spec §13.5). If the skin products are configured in RevenueCat/App Store Connect as a different product class (e.g. genuinely "non-consumable" surfaced under a different RC event type), the `buildCosmeticGrant` type filter in Task 3 must match. **Confirm the exact RC event `type` string the skin SKUs emit** before deploy (Task 6 Step 4 sandbox test will reveal it if unsure). Low-risk to change: it is one string constant in one builder + its test.
-2. **ADR supersession (spec §13.5) is a prerequisite, tracked separately.** À-la-carte skins reverse `docs/decisions/monetization-model.md` (which deleted the `NON_RENEWING_PURCHASE` handler). This plan builds the handler; the superseding ADR should be written before shipping IAP to users. Out of this plan's code scope (docs task), flagged so it isn't lost.
+2. **ADR supersession (spec §13.5) — RESOLVED 2026-07-25.** Maintainer chose to keep direct skin IAP; the superseding ADR is written: `docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md` (clarifies premium-entitlement stays subscription-only, sanctions non-consumable *cosmetic* IAP, and pins clean refund semantics — a skin refund revokes a cosmetic entitlement, not consumables). It must land (be committed) before shipping IAP to users. No longer an open question.
 
 ---
 
