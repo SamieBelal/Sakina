@@ -65,6 +65,14 @@ class AnalyticsService {
     _mixpanel?.registerSuperPropertiesOnce(props);
   }
 
+  /// Removes a super property from Mixpanel's persisted on-device store.
+  /// Needed when retiring a flag: registerSuperProperties MERGES, so simply
+  /// omitting a key keeps stamping the old persisted value on upgraded
+  /// installs until it is explicitly unregistered (or a sign-out reset).
+  void removeSuperProperty(String name) {
+    _mixpanel?.unregisterSuperProperty(name);
+  }
+
   void setUserProperties(Map<String, dynamic> props) {
     final people = _mixpanel?.getPeople();
     if (people == null) return;

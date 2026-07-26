@@ -73,7 +73,6 @@ void main() {
         appVersion: '1.2.0+1',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: false,
         flagGuidedTour: true,
         flagReverseTrialExp: true,
         isPremium: false,
@@ -92,7 +91,6 @@ void main() {
         appVersion: '1.2.0+1',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: false,
         flagGuidedTour: true,
         isPremium: false,
       );

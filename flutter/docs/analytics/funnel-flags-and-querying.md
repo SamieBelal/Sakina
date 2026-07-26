@@ -1,7 +1,7 @@
 # Funnel analytics: feature-flag dimensions & how to query
 
 **Audience:** anyone (human or AI agent) querying Mixpanel for the onboarding → guided tour → paywall funnel.
-**Last updated:** 2026-06-15 (Phases 1–3 of the funnel-instrumentation plan shipped).
+**Last updated:** 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
 **Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md).
 **Mixpanel project:** `4013350`. **RevenueCat project:** `proje6681c8c`.
 
@@ -27,8 +27,8 @@ Registered at app boot (`lib/main.dart`) + tour start, so they ride on **every**
 |---|---|---|---|
 | `flag_onboarding_trim` | bool | `onboarding_trim_enabled` (default true) | trimmed 20-page onboarding (true) vs legacy 27-page (false) |
 | `flag_hard_paywall` | bool | `hard_paywall_after_tour_enabled` | hard post-tour wall + suppressed onboarding paywall (true) vs soft onboarding paywall (false) |
-| `flag_tour_ab` | bool | `tour_ab_enabled` (default false) | whether the slim-vs-full tour A/B is running |
-| `tour_variant` | string | `assignTourVariant` (50/50 when `flag_tour_ab`) | `slim` (7-step) vs `full` (13-step) guided tour |
+| `flag_tour_ab` ⚠️ RETIRED 2026-07-25 | bool | ~~`tour_ab_enabled`~~ (key deleted) | historical events only — the slim-vs-full tour A/B concluded; everyone gets slim |
+| `tour_variant` | string | always `slim` since 2026-07-25 (A/B retired) | `slim` (7-step) vs `full` (13-step, historical) guided tour |
 | `flag_guided_tour` | bool | `guided_tour_enabled` (default true) | tour shown at all |
 | `app_version` | string | `package_info_plus` (e.g. `1.1.0+2`) | release-over-release comparison |
 | `platform` | string | `defaultTargetPlatform` | iOS / Android |
@@ -65,7 +65,7 @@ Every event also carries the super properties above. Build funnels by chaining t
 
 **Slim vs full tour, full funnel** (the A/B read):
 - Funnel: `tour_started` → `tour_completed` → `paywall_viewed` → `trial_started`.
-- Break down by **`tour_variant`**. Filter to dates `flag_tour_ab=true`.
+- Break down by **`tour_variant`**. Filter to dates `flag_tour_ab=true` (historical windows only — the A/B retired 2026-07-25).
 - For per-step tour drop-off, funnel `tour_step_viewed` chained by **`step_id`** (not `step_index`) and break down by `tour_variant`.
 
 **Hard vs soft paywall conversion:**
