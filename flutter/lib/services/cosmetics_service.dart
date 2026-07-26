@@ -354,7 +354,16 @@ Future<CosmeticActionResult> equipCosmetic({
     'equip_cosmetic',
     {'p_item_type': itemType, 'p_item_id': itemId},
   );
-  if (ok != true) return CosmeticActionResult.failed;
+  if (ok != true) {
+    // A failed equip is observable — `cosmeticUnlockRejected` covers equip
+    // rejections too (doc). Mirrors unlockCosmetic's rejection emit shape.
+    CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlockRejected, {
+      AnalyticsEvents.propItemType: itemType,
+      AnalyticsEvents.propItemId: itemId,
+      AnalyticsEvents.propReason: 'rpc_declined',
+    });
+    return CosmeticActionResult.failed;
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final key =

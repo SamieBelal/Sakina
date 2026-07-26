@@ -363,14 +363,19 @@ void main() {
       expect(state.equippedLanternSkin, 'classic_gold'); // untouched
     });
 
-    test('rejection (unowned → RPC raises → null): equipped cache unchanged',
-        () async {
+    test('rejection (unowned → RPC raises → null): equipped cache unchanged, '
+        'emits rejected exactly once', () async {
       await hydrateCosmeticsFromSync(
         noorBalance: 0,
         equippedLanternSkin: 'classic_gold',
         equippedBackdrop: 'default',
         owned: const [],
       );
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
       // No handler → null (server raised "cannot equip unowned item").
       final result = await equipCosmetic(
         itemType: 'lantern_skin',
@@ -379,6 +384,40 @@ void main() {
       expect(result.success, isFalse);
       final state = await getCosmeticsState();
       expect(state.equippedLanternSkin, 'classic_gold');
+
+      // A failed equip is observable — emits cosmetic_unlock_rejected once.
+      final rejected =
+          events.where((e) => e.$1 == 'cosmetic_unlock_rejected').toList();
+      expect(rejected, hasLength(1));
+      expect(rejected.single.$2, {
+        'item_type': 'lantern_skin',
+        'item_id': 'obsidian_gold',
+        'reason': 'rpc_declined',
+      });
+    });
+
+    test('success path does NOT emit the rejected event', () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 0,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [
+          {'item_type': 'lantern_skin', 'item_id': 'emerald_jade'},
+        ],
+      );
+      fakeSync.rpcHandlers['equip_cosmetic'] = (params) async => true;
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await equipCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'emerald_jade',
+      );
+      expect(result.success, isTrue);
+      expect(events.where((e) => e.$1 == 'cosmetic_unlock_rejected'), isEmpty);
+      expect(events.single.$1, 'cosmetic_equipped');
     });
   });
 
