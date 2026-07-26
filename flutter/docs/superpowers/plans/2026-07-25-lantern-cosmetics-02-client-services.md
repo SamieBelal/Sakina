@@ -1822,3 +1822,15 @@ Plan complete and saved to `docs/superpowers/plans/2026-07-25-lantern-cosmetics-
 2. **Inline Execution** — execute tasks in this session using superpowers:executing-plans, batch execution with checkpoints.
 
 **Before executing, the controller must resolve OQ-1 (premium-exclusive permanent ownership policy) and schedule the Lane A dependencies DEP-1 (`grant_cosmetic_iap` RPC), DEP-2 (webhook skin clawback/restore), and DEP-3 (fix `claim_streak_milestone`).**
+
+---
+
+## Post-execution follow-ups (from final independent /review + codex, 2026-07-26)
+
+Lane B was executed subagent-driven (Tasks 1–10) and **APPROVED FOR MERGE** — 54 tests green, analyze clean, all hard invariants verified (no direct table writes, no client `grant_cosmetic_iap` call, null-as-failure, no premium-exclusive→ownership conversion, old-server-safe hydration, self-healing optimistic cache). OQ-1 was ruled (premium-exclusive = equippable while premium active, never converted); DEP-1/DEP-2 shipped as Lane A-bis; DEP-3 shipped in Lane A (`20260726000200`). The following are non-blocking follow-ups:
+
+- **[server, P1] Milestone claim+award atomicity.** `awardMilestoneNoor` (`cosmetics_service.dart` ~L263) calls `claim_streak_milestone` then `award_noor` as two RPCs. If the claim commits but `award_noor` then fails (null), the retry sees `newly_claimed=false` and the (idempotent) Noor grant is never re-attempted → a one-time grant can be lost. The client correctly implements the mandated claim-first ordering; the fix is server-side — fold the Noor grant into `claim_streak_milestone` (a combined RPC) so it can't be invoked independently. Fails closed (under-grant, never over-grant / never a security issue).
+- **[client, P2] `unlockCosmetic` double-debits the cache on replay.** `unlock_cosmetic` returns `true` for an already-owned item without charging, but the client always `_debitNoorCache(noorPrice)` (`~L191/205`). A double-tap locally under-counts Noor until the next sync corrects it (self-healing). Fix: have `unlock_cosmetic` return `{newly_unlocked, balance}` and debit only on `newly_unlocked` (mirror the authoritative balance), or gate the UI on `!owns(...)` (Lane D intends this).
+- **[client, accepted] Purchase/restore return success before the webhook grant lands.** A completed sync that doesn't yet reflect the async webhook grant still returns success (`~L434/466`) — the accepted eventual-consistency contract of webhook-only IAP. A stricter UX could poll until `itemId` appears / show a "pending" state (Lane D).
+- **[client, nice-to-have] `_addOwnedToCache` type asymmetry** (`~L218`): any non-`backdrop` type maps into the skins set, whereas the read-side hydrator drops unknown types via explicit `else if`. Only reachable on a malformed server payload — tighten to explicit `lantern_skin`/`backdrop`/else-reject.
+- **[client, nice-to-have] Equip rejection emits no analytics** (`~L347`): `cosmeticUnlockRejected` is documented to also cover equip rejections; emit it before returning, or narrow the doc comment.
