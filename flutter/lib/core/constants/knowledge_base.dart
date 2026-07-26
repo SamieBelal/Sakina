@@ -1162,7 +1162,7 @@ const List<NameTeaching> nameTeachings = [
   ),
 
   // ─────────────────────────────────────────────
-  // 34: AS-SALAM — The Source of Peace (Mikaeel)
+  // 34: AS-SALAM — The Source of Serenity (Mikaeel)
   // Source: Sheikh Mikaeel Smith, "The Name I Need" series, Class 12
   // ─────────────────────────────────────────────
   NameTeaching(

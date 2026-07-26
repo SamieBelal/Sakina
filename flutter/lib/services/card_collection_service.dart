@@ -263,7 +263,7 @@ const List<CollectibleName> allCollectibleNames = [
     id: 6,
     arabic: 'السَّلَامُ',
     transliteration: 'As-Salam',
-    english: 'The Source of Peace',
+    english: 'The Source of Serenity',
     meaning: 'The One from whom all peace flows and in whom all peace rests.',
     lesson:
         'True peace is not the absence of struggle — it is As-Salam dwelling in your heart.',
@@ -307,7 +307,7 @@ const List<CollectibleName> allCollectibleNames = [
     id: 9,
     arabic: 'الْجَبَّارُ',
     transliteration: 'Al-Jabbar',
-    english: 'The Compeller',
+    english: 'The Compeller — Restorer of the Broken',
     meaning: 'The One who mends what is broken and compels all to His will.',
     lesson: 'Al-Jabbar heals broken hearts. Bring Him your shattered pieces.',
     hadith:

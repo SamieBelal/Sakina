@@ -31,7 +31,7 @@ class StarterNameData {
   static const asSalam = StarterNameData(
     catalogId: 6,
     nameArabic: 'السلام',
-    nameEnglish: 'The Source of Peace',
+    nameEnglish: 'The Source of Serenity',
     nameTransliteration: 'As-Salam',
     verseArabic:
         'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
