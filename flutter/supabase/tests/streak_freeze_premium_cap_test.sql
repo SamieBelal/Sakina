@@ -103,12 +103,18 @@ begin
   -- =========================================================================
   -- 2. PREMIUM user accumulates up to 3
   -- =========================================================================
+  -- Seed premium as the OWNER: user_subscriptions has a SELECT-only RLS
+  -- policy (webhook/service writes only), so an authenticated INSERT always
+  -- violates RLS — this aborted the whole sql-tests CI job from 2026-07-22.
+  -- Mirrors the reset_auth/set_auth seed pattern step 3 below already uses.
+  perform pg_temp.reset_auth();
   insert into public.user_subscriptions
     (user_id, entitlement, product_id, expires_at, last_event_type, last_event_at)
     values (uid, 'premium', 'test_premium_freeze', now() + interval '30 days',
             'INITIAL_PURCHASE', now())
     on conflict (user_id, entitlement) do update set
       expires_at = now() + interval '30 days';
+  perform pg_temp.set_auth(uid);
   perform pg_temp.expect(public.has_active_premium_entitlement(uid),
     '2pre. server sees premium');
 
