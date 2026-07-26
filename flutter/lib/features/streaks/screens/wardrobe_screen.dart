@@ -14,8 +14,9 @@ import 'package:sakina/services/purchase_service.dart';
 
 /// Pure resolution of the primary action for a previewed item.
 ///
-/// [equippable] is the resolved `canEquip` result (async — the screen awaits it
-/// before calling this). Ordering matters:
+/// [equippable] is [entryEquippable] against the screen's premium snapshot —
+/// the same snapshot the grid badges use, so the two can never disagree.
+/// Ordering matters:
 ///   • owned OR currently equippable → Equip.
 ///   • premium-exclusive (and not equippable) → a teaser, never a purchase.
 ///   • affordable with Noor → Unlock. This precedes Buy deliberately: the
@@ -102,10 +103,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
         ref.read(wardrobePreviewProvider).tab == itemTypeBackdrop ? 1 : 0,
   )..addListener(_onTabChanged);
 
-  /// `canEquip` for the CURRENT preview (async, per-preview).
-  bool _equippable = false;
-
-  /// Premium, resolved once for the whole grid (see [resolveWardrobeTileStatus]).
+  /// The ONE premium snapshot this screen renders from: the grid badges
+  /// ([resolveWardrobeTileStatus]), the stage ([renderableSkinId]) and the
+  /// action button ([entryEquippable]) all read it, so they cannot disagree
+  /// about entitlement. Refreshed on open and on every state re-read (I5) —
+  /// a subscription that starts elsewhere mid-session lands on the next
+  /// mutation rather than waiting for the screen to be reopened.
   bool _isPremium = false;
 
   @override
@@ -143,7 +146,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     super.dispose();
   }
 
-  Future<void> _preview(CosmeticCatalogEntry entry, CosmeticsState state) async {
+  /// Synchronous by design. The equip gate is now derived from [_isPremium]
+  /// (see [entryEquippable]), so there is no per-tap future whose out-of-order
+  /// completion could apply one tile's answer to the tile actually on screen.
+  void _preview(CosmeticCatalogEntry entry) {
     ref
         .read(wardrobePreviewProvider.notifier)
         .preview(entry.itemType, entry.itemId);
@@ -151,13 +157,6 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
       AnalyticsEvents.propItemType: entry.itemType,
       AnalyticsEvents.propItemId: entry.itemId,
     });
-    final can = await canEquip(
-      state: state,
-      itemType: entry.itemType,
-      itemId: entry.itemId,
-      isPremiumExclusive: entry.isPremiumExclusive,
-    );
-    if (mounted) setState(() => _equippable = can);
   }
 
   @override
@@ -209,7 +208,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
             statusFor: (e) => resolveWardrobeTileStatus(
                 entry: e, state: state, isPremium: _isPremium),
             previewedId: previewedId,
-            onPreview: (e) => _preview(e, state),
+            onPreview: _preview,
           ),
         ),
         if (previewedEntry != null) _actionBar(previewedEntry, state),
@@ -219,7 +218,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
 
   Widget _actionBar(CosmeticCatalogEntry entry, CosmeticsState state) {
     final action = resolveWardrobeAction(
-        state: state, entry: entry, equippable: _equippable);
+      state: state,
+      entry: entry,
+      equippable:
+          entryEquippable(entry: entry, state: state, isPremium: _isPremium),
+    );
     return WardrobeActionBar(
       action: action,
       priceLabel: _priceLabel(entry, action),
@@ -303,6 +306,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(msg)));
     }
-    if (ok) ref.invalidate(cosmeticsStateProvider);
+    if (!ok) return;
+    ref.invalidate(cosmeticsStateProvider);
+    // Re-read entitlement with the state (I5): premium can be granted anywhere
+    // in the app, and a snapshot frozen at initState would leave the badges
+    // describing an entitlement the user no longer (or now does) hold.
+    _resolvePremium();
   }
 }

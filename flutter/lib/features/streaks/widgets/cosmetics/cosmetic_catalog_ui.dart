@@ -172,6 +172,27 @@ String renderableSkinId(CosmeticsState state, {required bool isPremium}) {
   return defaultLanternSkin;
 }
 
+/// Whether [entry] can be equipped RIGHT NOW, resolved against the premium
+/// snapshot the caller already holds.
+///
+/// Same rule as `CosmeticsService.canEquip` — `owned || (premium-exclusive &&
+/// premium)` — minus its own async premium read. Sharing ONE snapshot with
+/// [resolveWardrobeTileStatus] and [renderableSkinId] is the point (I5): the
+/// per-tap async gate resolved premium independently of the badges, so a
+/// mid-session entitlement change left badge and action button disagreeing —
+/// and because its answer landed in a single shared field, two taps whose
+/// futures completed out of order applied one tile's answer to another.
+///
+/// A premium-exclusive item stays equippable-but-NOT-owned: the perk lasts
+/// while premium is active and never converts to permanent ownership.
+bool entryEquippable({
+  required CosmeticCatalogEntry entry,
+  required CosmeticsState state,
+  required bool isPremium,
+}) =>
+    state.owns(entry.itemType, entry.itemId) ||
+    (entry.isPremiumExclusive && isPremium);
+
 /// Resolve a backdrop id to its [Backdrop]; 'default'/unknown → Backdrop.none.
 Backdrop resolveBackdrop(String id) {
   if (id == defaultBackdrop) return Backdrop.none;
