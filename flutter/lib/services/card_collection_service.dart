@@ -2052,7 +2052,11 @@ Future<CardEngageResult> engageCard(int cardId, {int maxTier = 3}) async {
     tierUpDates = {};
   }
 
-  final today = DateTime.now();
+  // UTC, not local: these date strings are compared against the quests
+  // provider's UTC week/month boundaries and against the UTC date prefix of
+  // server-hydrated discovered_at — a local date disagrees with both near
+  // midnight for non-UTC users.
+  final today = DateTime.now().toUtc();
   final todayStr = today.toIso8601String().substring(0, 10);
   final bool isNew = !ids.contains(cardId);
   final int currentTier = tiers[cardId] ?? 0;
