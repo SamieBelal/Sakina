@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/user_data_batch_sync_service.dart';
 
 // ---------------------------------------------------------------------------
 // Cosmetics Service (Lane B)
@@ -384,4 +386,95 @@ Future<bool> canEquip({
     return svc.isPremium();
   }
   return false;
+}
+
+/// À-la-carte skin IAP SKUs → catalog item_id. Mirrors the `iap_product_id`
+/// column in `20260726000100_seed_cosmetic_catalog.sql`. The client uses this
+/// ONLY to recognize which RC products are skin purchases and to LABEL the
+/// analytics event with the item_id; it performs NO grant with it. The SERVER
+/// (RC webhook, service_role) re-verifies product↔item against the catalog and
+/// is the sole granter. When SKUs change, this map AND the seed migration must
+/// both update.
+const Map<String, String> skinIapProductToItem = {
+  'sakina.skin.obsidian': 'obsidian_gold',
+  'sakina.skin.masjid': 'masjid_brass',
+  'sakina.skin.crystal': 'crystal_star',
+};
+
+/// Completes an à-la-carte skin purchase from the CLIENT side (spec §13 item 4;
+/// 2026-07-25 security-driven contract change). The caller has already run the
+/// RevenueCat purchase (`Purchases.purchase...`) successfully; this function
+/// does the post-purchase reconciliation.
+///
+/// The client does NOT grant ownership — `grant_cosmetic_iap` is service_role-
+/// ONLY (revoked from `authenticated`) and is called by the RC WEBHOOK. Here we
+/// simply re-sync via [syncNow] (default: `hydrateUserDataFromBatchRpc`, i.e.
+/// `sync_all_user_data()`), so the webhook's server-side grant shows up in the
+/// `cosmetics` section and the caches report the skin owned. See DEP-1/DEP-2.
+///
+/// Emits `cosmetic_iap_purchased` on a recognized skin SKU (client-observed RC
+/// success). Idempotency / refund clawback / receipt verification are all
+/// server-side. Returns failure for a non-skin SKU, an unauthenticated caller,
+/// or when the sync throws.
+Future<CosmeticActionResult> completeSkinIapPurchase({
+  required String productId,
+  Future<void> Function()? syncNow,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+  final itemId = skinIapProductToItem[productId];
+  if (itemId == null) {
+    // Not a skin SKU — refuse (consumables go through ConsumableGrantsService).
+    return CosmeticActionResult.failed;
+  }
+
+  // Re-sync so the webhook's server-side grant is reflected. NO grant RPC here.
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await sync();
+  } catch (_) {
+    return CosmeticActionResult.failed;
+  }
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticIapPurchased, {
+    AnalyticsEvents.propItemId: itemId,
+    AnalyticsEvents.propProductId: productId,
+  });
+  return CosmeticActionResult.ok;
+}
+
+/// Restores previously-purchased skins (spec §13 item 4; DEP-2). Calls
+/// [restore] (default: `Purchases.restorePurchases()`), which makes RevenueCat
+/// re-fire its non-consumable / TRANSFER event to the WEBHOOK — the webhook
+/// re-grants ownership server-side — then re-syncs via [syncNow] so the
+/// restored rows surface from the `cosmetics` section.
+///
+/// The client grants NOTHING and does NOT reconcile from `CustomerInfo` by
+/// granting (the revoked, service_role-only contract forbids it). Callers: the
+/// explicit "Restore purchases" action and app-launch recovery. Returns success
+/// when both the restore and the sync complete without throwing.
+Future<CosmeticActionResult> restoreSkinIaps({
+  Future<void> Function()? restore,
+  Future<void> Function()? syncNow,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+  final doRestore = restore ?? _defaultRestorePurchases;
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await doRestore(); // RC re-fires non-consumable/TRANSFER → webhook grants.
+    await sync(); // Surface the server-side (re)grant from the sync payload.
+  } catch (_) {
+    return CosmeticActionResult.failed;
+  }
+  return CosmeticActionResult.ok;
+}
+
+/// Production default for [restoreSkinIaps.restore]. Thin wrapper over
+/// `purchases_flutter` so the service stays trivially unit-testable (tests
+/// inject a fake and never touch RevenueCat).
+Future<void> _defaultRestorePurchases() async {
+  await Purchases.restorePurchases();
 }

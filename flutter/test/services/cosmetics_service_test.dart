@@ -430,4 +430,149 @@ void main() {
       expect(can, isFalse);
     });
   });
+
+  group('completeSkinIapPurchase (webhook-granted; purchase→sync, NO client '
+      'grant RPC)', () {
+    test('success: triggers a full sync that reflects webhook-granted ownership'
+        ', emits analytics, calls NO grant RPC', () async {
+      // Simulate the webhook having granted server-side: the injected sync
+      // hydrates the cosmetics section WITH the new skin, exactly as the
+      // post-purchase sync_all_user_data() would return it. (Named `fakeSyncNow`
+      // to avoid confusion with the ambient `fakeSync` FakeSupabaseSyncService.)
+      var syncCalls = 0;
+      Future<void> fakeSyncNow() async {
+        syncCalls += 1;
+        await hydrateCosmeticsFromSync(
+          noorBalance: 0,
+          equippedLanternSkin: 'classic_gold',
+          equippedBackdrop: 'default',
+          owned: const [
+            {'item_type': 'lantern_skin', 'item_id': 'obsidian_gold'},
+          ],
+        );
+      }
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await completeSkinIapPurchase(
+        productId: 'sakina.skin.obsidian',
+        syncNow: fakeSyncNow,
+      );
+
+      expect(result.success, isTrue);
+      expect(syncCalls, 1);
+      // The client grants NOTHING — no grant_cosmetic_iap RPC anywhere.
+      // (`fakeSync` is the ambient FakeSupabaseSyncService from setUp; the
+      // injected fakeSync() closure above only writes caches, never an RPC.)
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+      // Ownership is surfaced by the SYNC, not by a client grant.
+      final state = await getCosmeticsState();
+      expect(state.owns('lantern_skin', 'obsidian_gold'), isTrue);
+      // Fresh-purchase analytics (client-observed RC success + item label).
+      expect(events.single.$1, 'cosmetic_iap_purchased');
+      expect(events.single.$2,
+          {'item_id': 'obsidian_gold', 'product_id': 'sakina.skin.obsidian'});
+    });
+
+    test('unknown product id is refused client-side (no sync, no analytics)',
+        () async {
+      var syncCalls = 0;
+      Future<void> fakeSyncNow() async => syncCalls += 1;
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await completeSkinIapPurchase(
+        productId: 'sakina.tokens_100',
+        syncNow: fakeSyncNow,
+      );
+
+      expect(result.success, isFalse);
+      expect(syncCalls, 0);
+      expect(events, isEmpty);
+    });
+
+    test('never calls grant_cosmetic_iap on the client (revoked contract)',
+        () async {
+      Future<void> fakeSyncNow() async {} // webhook grant not yet reflected
+      await completeSkinIapPurchase(
+        productId: 'sakina.skin.masjid',
+        syncNow: fakeSyncNow,
+      );
+      // `fakeSync` here is the ambient FakeSupabaseSyncService from setUp.
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+    });
+
+    test('unauthenticated: no sync, returns failure', () async {
+      fakeSync.userId = null;
+      var syncCalls = 0;
+      final result = await completeSkinIapPurchase(
+        productId: 'sakina.skin.obsidian',
+        syncNow: () async => syncCalls += 1,
+      );
+      expect(result.success, isFalse);
+      expect(syncCalls, 0);
+    });
+  });
+
+  test('skinIapProductToItem maps the three à-la-carte SKUs', () {
+    expect(skinIapProductToItem['sakina.skin.obsidian'], 'obsidian_gold');
+    expect(skinIapProductToItem['sakina.skin.masjid'], 'masjid_brass');
+    expect(skinIapProductToItem['sakina.skin.crystal'], 'crystal_star');
+    expect(skinIapProductToItem.containsKey('sakina.tokens_100'), isFalse);
+  });
+
+  group('restoreSkinIaps (restore→webhook→sync, NO client grant RPC)', () {
+    test('runs restore then a full sync that surfaces restored ownership; '
+        'client calls NO grant RPC', () async {
+      var restoreCalls = 0;
+      var syncCalls = 0;
+      Future<void> fakeRestore() async => restoreCalls += 1;
+      // The injected sync stands in for sync_all_user_data() AFTER the webhook
+      // re-granted on the RC restore re-fire: the cosmetics section now carries
+      // the restored skin.
+      Future<void> fakeSyncNow() async {
+        syncCalls += 1;
+        await hydrateCosmeticsFromSync(
+          noorBalance: 0,
+          equippedLanternSkin: 'classic_gold',
+          equippedBackdrop: 'default',
+          owned: const [
+            {'item_type': 'lantern_skin', 'item_id': 'crystal_star'},
+          ],
+        );
+      }
+
+      final result = await restoreSkinIaps(
+        restore: fakeRestore,
+        syncNow: fakeSyncNow,
+      );
+
+      expect(result.success, isTrue);
+      expect(restoreCalls, 1);
+      expect(syncCalls, 1);
+      // Restore surfaces ownership VIA THE SYNC, not a client grant RPC.
+      final state = await getCosmeticsState();
+      expect(state.owns('lantern_skin', 'crystal_star'), isTrue);
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('grant_cosmetic_iap')));
+    });
+
+    test('unauthenticated: neither restore nor sync runs', () async {
+      fakeSync.userId = null;
+      var restoreCalls = 0;
+      var syncCalls = 0;
+      final result = await restoreSkinIaps(
+        restore: () async => restoreCalls += 1,
+        syncNow: () async => syncCalls += 1,
+      );
+      expect(result.success, isFalse);
+      expect(restoreCalls, 0);
+      expect(syncCalls, 0);
+    });
+  });
 }
