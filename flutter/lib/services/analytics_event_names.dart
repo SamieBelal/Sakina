@@ -805,4 +805,17 @@ abstract final class AnalyticsEvents {
   static const String propMilestoneDay = 'milestone_day';
   static const String cosmeticViaNoor = 'noor';
   static const String cosmeticViaIap = 'iap';
+
+  /// The Companion stage was opened (Home medallion tap → /companion). No props.
+  static const String companionScreenOpened = 'companion_screen_opened';
+
+  /// The wardrobe was opened. Props: `tab` ('lantern_skin' | 'backdrop').
+  static const String wardrobeOpened = 'wardrobe_opened';
+
+  /// A wardrobe tile was tapped to preview it on the stage. Props: `item_type`,
+  /// `item_id`.
+  static const String cosmeticPreviewed = 'cosmetic_previewed';
+
+  /// Which wardrobe axis/tab. Value is an item_type ('lantern_skin'|'backdrop').
+  static const String propTab = 'tab';
 }

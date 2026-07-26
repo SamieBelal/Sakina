@@ -16,4 +16,11 @@ void main() {
     expect(AnalyticsEvents.cosmeticViaNoor, 'noor');
     expect(AnalyticsEvents.cosmeticViaIap, 'iap');
   });
+
+  test('lane D screen/preview event names match the Mixpanel contract', () {
+    expect(AnalyticsEvents.companionScreenOpened, 'companion_screen_opened');
+    expect(AnalyticsEvents.wardrobeOpened, 'wardrobe_opened');
+    expect(AnalyticsEvents.cosmeticPreviewed, 'cosmetic_previewed');
+    expect(AnalyticsEvents.propTab, 'tab');
+  });
 }
