@@ -153,3 +153,27 @@ begin
 end $$;
 revoke execute on function public.unlock_cosmetic(text,text) from public, anon;
 grant  execute on function public.unlock_cosmetic(text,text) to authenticated;
+
+-- equip_cosmetic: set the equipped cosmetic for a slot, but ONLY if the caller
+-- owns it. Ownership is checked against user_cosmetics; the guarded equipped_*
+-- columns are written under the RPC GUC flag.
+create or replace function public.equip_cosmetic(p_item_type text, p_item_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated'; end if;
+  if not exists (select 1 from public.user_cosmetics
+                 where user_id=v_uid and item_type=p_item_type and item_id=p_item_id) then
+    raise exception 'cannot equip unowned item';
+  end if;
+  perform set_config('app.cosmetics_rpc','on', true);
+  if p_item_type = 'lantern_skin' then
+    update public.user_profiles set equipped_lantern_skin=p_item_id where id=v_uid;
+  elsif p_item_type = 'backdrop' then
+    update public.user_profiles set equipped_backdrop=p_item_id where id=v_uid;
+  else raise exception 'unknown item_type %', p_item_type; end if;
+  return true;
+end $$;
+revoke execute on function public.equip_cosmetic(text,text) from public, anon;
+grant  execute on function public.equip_cosmetic(text,text) to authenticated;

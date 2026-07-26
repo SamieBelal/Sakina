@@ -7,6 +7,11 @@
 --      (balance stays put) — idempotent, no double-spend.
 --   3. Unlocking with insufficient funds raises 'insufficient noor'.
 --
+-- equip_cosmetic invariants under test:
+--   4. Equipping an OWNED lantern skin returns true and sets
+--      user_profiles.equipped_lantern_skin.
+--   5. Equipping a NOT-OWNED item raises 'cannot equip unowned item'.
+--
 -- auth.uid() is driven the same way cosmetics_award_noor_test.sql does it:
 --   set local role authenticated + request.jwt.claims with a 'sub' uuid.
 --
@@ -14,7 +19,7 @@
 -- pgTAP style (plan/is/finish), matching the project's pgtap harness.
 
 begin;
-select plan(6);
+select plan(9);
 
 -- Seed a purchasable catalog row.
 insert into public.cosmetic_catalog(item_type, item_id, noor_price, active)
@@ -109,6 +114,37 @@ select throws_ok(
   $$ select public.unlock_cosmetic('lantern_skin', 'obsidian_gold') $$,
   'insufficient noor',
   'unlock_cosmetic raises insufficient noor when balance < price');
+
+-- ---------------------------------------------------------------------------
+-- equip_cosmetic — buyer (who now owns obsidian_gold) equips it
+-- ---------------------------------------------------------------------------
+reset role;
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  jsonb_build_object(
+    'sub',  '00000000-0000-0000-0000-0000000000c1',
+    'role', 'authenticated')::text,
+  true);
+
+-- (7) Equipping the owned obsidian_gold skin returns true.
+select is(
+  public.equip_cosmetic('lantern_skin', 'obsidian_gold'),
+  true,
+  'equip_cosmetic returns true for an owned skin');
+
+-- (8) equipped_lantern_skin is now set to obsidian_gold.
+select is(
+  (select equipped_lantern_skin from public.user_profiles
+     where id = '00000000-0000-0000-0000-0000000000c1'),
+  'obsidian_gold',
+  'equipped_lantern_skin is set to obsidian_gold after equip');
+
+-- (9) Equipping a NOT-owned skin raises 'cannot equip unowned item'.
+select throws_ok(
+  $$ select public.equip_cosmetic('lantern_skin', 'crystal_star') $$,
+  'cannot equip unowned item',
+  'equip_cosmetic raises when equipping an unowned item');
 
 reset role;
 select set_config('request.jwt.claims', '', true);
