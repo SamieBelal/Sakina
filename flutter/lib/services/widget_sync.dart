@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../core/constants/allah_names.dart';
 import 'checkin_history_service.dart';
+import 'cosmetics_service.dart';
 import 'streak_service.dart';
 import 'widget_analytics.dart';
 import 'widget_data_service.dart';
@@ -73,6 +74,22 @@ class WidgetAnchorCatalog {
 
 final WidgetAnchorCatalog _anchorCatalog = WidgetAnchorCatalog();
 
+/// The lantern skin the widget payload should carry. Reads the cosmetics cache
+/// (hydrated from `sync_all_user_data`); a failed read must never stop a widget
+/// refresh, so it degrades to the widget default rather than throwing.
+///
+/// [readCosmetics] is injectable for tests; production uses [getCosmeticsState].
+Future<String> resolveWidgetLanternSkin({
+  Future<CosmeticsState> Function()? readCosmetics,
+}) async {
+  try {
+    final state = await (readCosmetics ?? getCosmeticsState)();
+    return state.equippedLanternSkin;
+  } catch (_) {
+    return kDefaultWidgetLanternSkinId;
+  }
+}
+
 /// Compose current widget state from caches and push it. Fire-and-forget from
 /// the data-sync completion (§10.4); never throws into the caller.
 Future<void> syncHomeWidget({DateTime Function()? clock}) async {
@@ -86,12 +103,14 @@ Future<void> syncHomeWidget({DateTime Function()? clock}) async {
       now: now,
     );
     final anchor = await _anchorCatalog.anchorFor(inputs.name);
+    final lanternSkinId = await resolveWidgetLanternSkin();
     await widgetDataService.syncWidget(
       name: inputs.name,
       anchor: anchor,
       streak: streak,
       checkedInToday: inputs.checkedInToday,
       personalized: inputs.personalized,
+      lanternSkinId: lanternSkinId,
     );
     // Adoption snapshot (once per session) — piggybacks on the sync that runs
     // on foreground, so we learn who has the widget without an extra trigger.
