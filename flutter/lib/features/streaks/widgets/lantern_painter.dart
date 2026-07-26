@@ -186,6 +186,13 @@ class LanternPainter extends CustomPainter {
     final bodyTop = -s * 0.10;
     final bodyBot = s * 0.22;
     final body = _barrel(w, bodyTop, bodyBot, s * 0.028, s * 0.04);
+    // For arched-window skins the glass arch apex rises ABOVE the barrel's top
+    // edge, so stroking the FULL barrel outline would draw a horizontal line
+    // across the arch interior (the seam Task 1 targeted). Build a top-open
+    // outline (no top edge / top corners) — the arch's own `panel.path` stroke
+    // supplies that top boundary. The FILL still uses the closed `body`.
+    final bodyOutlinePath =
+        skin.form.archedWindow ? _barrelOpenTop(w, bodyTop, bodyBot, s * 0.028, s * 0.04) : body;
     final dome = _domeFor(skin.form.dome, s, w, bodyTop);
     final base = _base(s, w, bodyBot);
     final panelRect =
@@ -407,7 +414,8 @@ class LanternPainter extends CustomPainter {
     canvas.drawPath(panel.path, outline);
 
     // Body outline + two facet lines flanking the panel (multi-panel hint).
-    canvas.drawPath(body, outline);
+    // For arched skins this omits the barrel's top edge (the arch supplies it).
+    canvas.drawPath(bodyOutlinePath, outline);
     final facet = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = s * 0.006
@@ -465,6 +473,22 @@ class LanternPainter extends CustomPainter {
       ..quadraticBezierTo(-w, b, -w, b - rad)
       ..quadraticBezierTo(-w - bulge, (t + b) / 2, -w, t + rad)
       ..close();
+  }
+
+  // The barrel outline with its TOP edge (and both top corners) omitted — an
+  // OPEN contour used only for the outline stroke on arched-window skins, where
+  // the glass arch apex rises above the barrel top and the arch's own outline
+  // supplies the top boundary. Traces left side → bottom → right side, ending
+  // at the top-right just below the corner. Geometry is otherwise identical to
+  // `_barrel`, so the sides/bottom stroke byte-for-byte the same.
+  Path _barrelOpenTop(double w, double t, double b, double bulge, double rad) {
+    return Path()
+      ..moveTo(-w, t + rad)
+      ..quadraticBezierTo(-w - bulge, (t + b) / 2, -w, b - rad)
+      ..quadraticBezierTo(-w, b, -w + rad, b)
+      ..lineTo(w - rad, b)
+      ..quadraticBezierTo(w, b, w, b - rad)
+      ..quadraticBezierTo(w + bulge, (t + b) / 2, w, t + rad);
   }
 
   Path _domeFor(DomeShape shape, double s, double w, double baseY) =>
