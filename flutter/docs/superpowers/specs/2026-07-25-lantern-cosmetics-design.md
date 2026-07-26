@@ -211,8 +211,11 @@ Full scope held, so these correctness gaps (Claude review + Codex outside voice)
 11. **Real golden coverage.** The spike writes 4 cherry-picked lit PNGs. Replace with goldens over skin × backdrop × representative states.
 12. **Fix `Backdrop.none`** — it currently maps to `emeraldSanctuary` (renders the emerald scene); make it a genuinely plain surface.
 
+13. **[Lane B client gating — from Lane A code review]** `award_noor('milestone:N', …)` is idempotent but does NOT itself verify the milestone was reached — that authority lives in `claim_streak_milestone(N)`. The client MUST call `award_noor('milestone:N')` ONLY after a successful `claim_streak_milestone(N)`, with a server-shaped `reason_key` (e.g. `milestone:N`), never a client-arbitrary one. Consider folding the Noor grant directly into `claim_streak_milestone` in a later migration so it cannot be invoked independently. (Lane A hardening already gated `unlock_cosmetic` on availability + premium-exclusive, and added amount/price CHECKs — migration `20260726000400`.)
+
 **Separate, pre-existing (NOT this feature's scope):**
 - **Shariah boundary** ruled acceptable by the maintainer (see §3) — documented, no fix required.
+- **Guard is UPDATE-only** (accepted posture, mirrors `guard_user_profiles_freemium_fields`) — safe because the profile row is created once server-side; a client INSERT never wins post-signup.
 
 ## 15. Implementation parallelization
 
