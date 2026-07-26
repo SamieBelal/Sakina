@@ -5,7 +5,8 @@
 //   • An owned item is always Equip, never Unlock (the recorded P2 double-debit).
 //   • Premium-exclusive is a teaser unless it is currently equippable; it is
 //     never offered as a Noor unlock or a purchase.
-//   • Buy is the à-la-carte fallback only — Noor first when affordable.
+//   • Buy is the à-la-carte fallback only — Noor first when affordable — and
+//     only while the skin IAP is actually live (kSkinIapEnabled).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/streaks/screens/wardrobe_screen.dart';
@@ -128,10 +129,15 @@ void main() {
           state: _state(noor: 200), entry: obsidian, equippable: false),
       WardrobeAction.unlock,
     );
+    // The real-money fallback is gated on kSkinIapEnabled: while the SKUs are
+    // not live it degrades to an inert teaser rather than a CTA that cannot
+    // charge (see wardrobe_iap_disabled_test.dart).
     expect(
       resolveWardrobeAction(
           state: _state(noor: 10), entry: obsidian, equippable: false),
-      WardrobeAction.buy,
+      kSkinIapEnabled
+          ? WardrobeAction.buy
+          : WardrobeAction.comingSoonTeaser,
     );
     // Owned still wins over both.
     expect(

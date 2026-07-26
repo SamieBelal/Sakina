@@ -21,7 +21,9 @@ import 'package:sakina/services/purchase_service.dart';
 ///   • affordable with Noor → Unlock. This precedes Buy deliberately: the
 ///     à-la-carte skins ALSO carry a noor_price and `unlock_cosmetic` accepts
 ///     them, so a user who can pay in Noor is never pushed to real money.
-///   • à-la-carte and not affordable in Noor → Buy.
+///   • à-la-carte and not affordable in Noor → Buy, but ONLY while
+///     [kSkinIapEnabled]; the IAP is not live, so today this is an inert
+///     "Coming soon" teaser instead of a CTA that cannot actually charge.
 ///   • priced but unaffordable → the disabled Unlock (price stays visible).
 WardrobeAction resolveWardrobeAction({
   required CosmeticsState state,
@@ -36,7 +38,11 @@ WardrobeAction resolveWardrobeAction({
   if (price != null && price > 0 && state.noorBalance >= price) {
     return WardrobeAction.unlock;
   }
-  if (entry.isAlaCarte) return WardrobeAction.buy;
+  if (entry.isAlaCarte) {
+    return kSkinIapEnabled
+        ? WardrobeAction.buy
+        : WardrobeAction.comingSoonTeaser;
+  }
   if (price != null && price > 0) return WardrobeAction.unlockUnaffordable;
   return WardrobeAction.milestoneTeaser;
 }
@@ -200,7 +206,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     return WardrobeActionBar(
       action: action,
       priceLabel: _priceLabel(entry, action),
-      teaser: _teaser(entry),
+      teaser: _teaser(entry, action),
       onEquip: () => _equip(entry),
       onUnlock: () => _unlock(entry, state),
       onBuy: () => _buy(entry),
@@ -211,17 +217,22 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
       ? resolveBackdrop(e.itemId).name
       : resolveSkin(e.itemId).name;
 
+  // Noor prices come from the catalog mirror. Real-money prices do NOT: they
+  // must be the localized `StoreProduct.priceString` from the matched
+  // RevenueCat package, so `buy` carries no label until that is wired (see
+  // [_buy]). A hardcoded literal is wrong in every non-USD storefront.
   String? _priceLabel(CosmeticCatalogEntry e, WardrobeAction action) =>
       switch (action) {
         WardrobeAction.unlock ||
         WardrobeAction.unlockUnaffordable =>
           e.noorPrice == null ? null : '${e.noorPrice} Noor',
-        // TODO(lane-d): read the real RC StoreProduct.priceString.
-        WardrobeAction.buy => r'$2.99',
         _ => null,
       };
 
-  String? _teaser(CosmeticCatalogEntry e) {
+  String? _teaser(CosmeticCatalogEntry e, WardrobeAction action) {
+    // Deliberately priceless: quoting a figure we cannot localize is exactly
+    // what the à-la-carte teaser exists to avoid.
+    if (action == WardrobeAction.comingSoonTeaser) return 'Coming soon';
     if (e.isPremiumExclusive) return 'Premium · this month';
     if (e.milestoneDay != null) return 'Unlock at a ${e.milestoneDay}-day streak';
     return null;
@@ -247,13 +258,23 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     if (mounted) await showCosmeticUnlockReveal(context, e.itemType, e.itemId);
   }
 
+  /// Unreachable while [kSkinIapEnabled] is false — `resolveWardrobeAction`
+  /// never returns [WardrobeAction.buy] — and inert on purpose if it ever is.
+  /// It must NEVER report success: the only thing the client can do today is
+  /// re-sync, and a re-sync is not a purchase.
+  ///
+  /// TODO(lane-d): to enable, wire this IN THIS ORDER, then flip
+  /// `kSkinIapEnabled`:
+  ///   1. `final offerings = await Purchases.getOfferings();`
+  ///   2. find the `Package` whose `storeProduct.identifier == e.iapProductId`
+  ///   3. `await Purchases.purchasePackage(pkg)` — the money moves HERE, and
+  ///      the App Store sheet appears here or nowhere
+  ///   4. only on RC success: `await completeSkinIapPurchase(productId: ...)`
+  ///      to re-sync (the RC webhook is the sole granter server-side; the
+  ///      client never calls a grant RPC), then report its result
+  /// and label the CTA with `pkg.storeProduct.priceString` (see [_priceLabel]).
   Future<void> _buy(CosmeticCatalogEntry e) async {
-    // TODO(lane-d): run the real RevenueCat purchase (getOfferings() → package)
-    // BEFORE this call. completeSkinIapPurchase only RE-SYNCS — the RC webhook
-    // is the sole granter server-side; the client never calls a grant RPC.
-    final res = await completeSkinIapPurchase(productId: e.iapProductId!);
-    _afterMutation(
-        res.success, res.success ? 'Purchased' : "Purchase didn't complete");
+    _afterMutation(false, 'Not available yet');
   }
 
   /// Re-reads the Lane-B-mirrored cache after a successful mutation. A null

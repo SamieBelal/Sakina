@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_catalog_ui.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tile.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -37,7 +38,11 @@ void main() {
     expect(find.text('Premium'), findsOneWidget);
   });
 
-  testWidgets('à-la-carte tile shows the Buy badge', (tester) async {
+  // The badge only invites a purchase once the SKUs are live; until then it
+  // must not say "Buy" for something nothing can buy (see
+  // wardrobe_iap_disabled_test.dart).
+  testWidgets('à-la-carte tile badges Buy only while the skin IAP is live',
+      (tester) async {
     await tester.pumpWidget(host(const WardrobeTile(
       itemType: 'lantern_skin',
       itemId: 'masjid_brass',
@@ -46,7 +51,7 @@ void main() {
       onTap: _noop,
     )));
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Buy'), findsOneWidget);
+    expect(find.text(kSkinIapEnabled ? 'Buy' : 'Soon'), findsOneWidget);
   });
 
   // Monetization ruling: a premium-exclusive item is equippable WHILE premium is

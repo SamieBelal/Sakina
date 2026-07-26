@@ -57,11 +57,13 @@ class WardrobeTile extends StatelessWidget {
   final bool selected;
 
   // `owned` and `equippable` deliberately carry no badge: the first is the
-  // quiet default, the second must not read as ownership.
+  // quiet default, the second must not read as ownership. `alaCarteLocked`
+  // only invites a purchase once the SKUs are live — until then it reads
+  // "Soon", matching the action bar's Coming soon teaser.
   String? get _badge => switch (status) {
         WardrobeTileStatus.equipped => 'Equipped',
         WardrobeTileStatus.premiumLocked => 'Premium',
-        WardrobeTileStatus.alaCarteLocked => 'Buy',
+        WardrobeTileStatus.alaCarteLocked => kSkinIapEnabled ? 'Buy' : 'Soon',
         WardrobeTileStatus.locked => 'Locked',
         _ => null,
       };

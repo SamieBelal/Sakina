@@ -13,6 +13,24 @@ import 'package:sakina/features/streaks/models/backdrop.dart';
 import 'package:sakina/features/streaks/models/lantern_skin.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 
+/// Whether the à-la-carte skin IAP is live. THE single source of truth for it.
+///
+/// While false the wardrobe must not offer a Buy CTA for an à-la-carte skin:
+/// the SKUs (`sakina.skin.obsidian` / `.masjid` / `.crystal`) do not exist in
+/// App Store Connect yet, and the client-side RevenueCat purchase call is not
+/// written. `completeSkinIapPurchase` only RE-SYNCS — the RC webhook is the
+/// sole server-side granter — so a "Buy" button wired straight to it moves no
+/// money, grants nothing, and would still report success.
+///
+/// Flip to true ONLY when BOTH hold:
+///   1. the three SKUs are live in App Store Connect / RevenueCat, AND
+///   2. `_buy` in `wardrobe_screen.dart` actually runs the purchase
+///      (`getOfferings()` → matching package → `purchasePackage`) BEFORE
+///      `completeSkinIapPurchase`, and the button's price comes from
+///      `StoreProduct.priceString` rather than a hardcoded literal.
+/// Until then à-la-carte skins are reachable with Noor and read "Coming soon".
+const bool kSkinIapEnabled = false;
+
 /// One catalog row's display + gating metadata.
 @immutable
 class CosmeticCatalogEntry {

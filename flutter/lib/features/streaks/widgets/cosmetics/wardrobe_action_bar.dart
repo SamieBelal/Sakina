@@ -19,9 +19,11 @@ import 'package:sakina/core/theme/app_typography.dart';
 /// - [unlockUnaffordable] — not owned, priced, but the balance falls short:
 ///   the price stays visible, the button is inert.
 /// - [buy] only for à-la-carte skins (`iapProductId != null`) that are not
-///   owned.
-/// - [premiumTeaser] / [milestoneTeaser] — visible-but-locked. No action;
-///   the item reads as reachable later, not purchasable now.
+///   owned, AND only while `kSkinIapEnabled` is true — the caller must have a
+///   real RevenueCat purchase behind `onBuy`.
+/// - [premiumTeaser] / [milestoneTeaser] / [comingSoonTeaser] —
+///   visible-but-locked. No action; the item reads as reachable later, not
+///   purchasable now.
 enum WardrobeAction {
   equip,
   unlock,
@@ -29,6 +31,12 @@ enum WardrobeAction {
   buy,
   premiumTeaser,
   milestoneTeaser,
+
+  /// À-la-carte, unowned, and the skin IAP is not live yet
+  /// (`kSkinIapEnabled == false`). Same inert teaser shape as the other two —
+  /// deliberately NOT a button, and it asserts no price, because there is no
+  /// localized `StoreProduct.priceString` to quote until the SKUs exist.
+  comingSoonTeaser,
 }
 
 /// The wardrobe's bottom action bar. Pure and callback-driven: the *screen*
@@ -62,6 +70,7 @@ class WardrobeActionBar extends StatelessWidget {
     switch (action) {
       case WardrobeAction.premiumTeaser:
       case WardrobeAction.milestoneTeaser:
+      case WardrobeAction.comingSoonTeaser:
         return Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Text(
