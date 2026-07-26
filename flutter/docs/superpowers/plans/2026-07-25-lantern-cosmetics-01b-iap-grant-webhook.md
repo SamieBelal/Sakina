@@ -1555,6 +1555,38 @@ All consistent. Plan is complete, security-fixed (service_role-only, explicit us
 
 ---
 
+## Pre-store-enablement follow-ups (from independent /review 2026-07-26)
+
+An independent `/review` (gstack + codex) of this merged Lane A-bis work (branch `feat/lantern-cosmetics`) **approved it for merge** but flagged the following edge cases that matter **only once real refunds flow on live store SKUs**. The à-la-carte cosmetic IAP feature is **not yet enabled on the App Store** (the SKUs are not live), so none of these are live-user-facing today. **None are client-exploitable, and none regress the existing subscription or consumable handling** — the entire cosmetic grant/clawback surface is gated behind the SKUs being live on the store. The P1 items below MUST be closed before those SKUs are enabled; the P2 items are cleanups.
+
+### P1 — fix before enabling the IAP SKUs on the store
+
+- [ ] **I-1 — `created_inventory` tracks row-creation, not entitlement provenance.** `clawback_cosmetic_iap` deletes the `user_cosmetics` row whenever the matched ledger (`cosmetic_iap_grants`) row's `created_inventory = true`. That flag records only "this grant was the INSERT that first created the inventory row," which is **not** the same as "this IAP is the sole reason the user owns the skin." Two break sequences:
+  - (a) IAP-A creates the `user_cosmetics` row → the user *later* earns the same skin legitimately via Noor/milestone (`unlock_cosmetic`, `acquired_via <> 'iap'`) → refunding IAP-A deletes the now-legitimately-earned ownership.
+  - (b) IAP-A creates the row (`created_inventory=true`) → a *later* IAP-B for the **same** skin records `created_inventory=false` (row already existed) → refunding IAP-A deletes ownership even though IAP-B is paid-for and unrefunded.
+  - **Fix:** before the delete in `clawback_cosmetic_iap`, **skip the delete** if EITHER (i) any *other* non-revoked `cosmetic_iap_grants` row exists for the same `(user_id, item_id)`, OR (ii) any `user_cosmetics` row for that `(user_id, item_id)` has `acquired_via <> 'iap'`. (Still clear the ledger row's `revoked_at`/reset the equipped column as today — only the *ownership delete* becomes conditional.)
+  - **Risk today:** low — one SKU per skin and refunds are rare, so shipping as-is is defensible. Must be closed before scale / before multiple SKUs can map to one skin.
+
+- [ ] **I-2 — refund-before-grant is permanently lost (no tombstone).** If a `CANCELLATION`/refund webhook arrives *before* the corresponding grant has been recorded, `clawback_cosmetic_iap` finds no ledger row, returns `not_found`, and **writes nothing**. A later grant retry (RC redelivery of the purchase) then succeeds normally, so the item stays owned **after** a refund — the refund is silently dropped.
+  - **Fix:** on the `not_found` branch, **insert a tombstone ledger row** (`revoked_at` set, `created_inventory = false`) keyed by the refunded `transaction_id`, and have the grant path **consult/honor** that tombstone (a grant for a tombstoned transaction id must not re-grant ownership). This makes clawback and grant order-independent.
+
+- [ ] **N-1 — `REFUND_REVERSED` is unhandled** (Apple reinstating a previously refunded purchase). The dispatcher currently treats it as an unknown/irrelevant event → `200 skipped`, leaving the user's ownership **revoked** after Apple has un-refunded them. A naive "just re-grant" does NOT fix it: the revoked `cosmetic_iap_grants` row makes `grant_cosmetic_iap` return `already_owned` and insert nothing, so ownership is never restored.
+  - **Fix (track — dedicated reinstatement path):** add an explicit `REFUND_REVERSED` handler that **reinstates** the revoked grant (clear `revoked_at`, re-insert the `user_cosmetics` ownership row) rather than routing through the ordinary grant path. Until then, the only recovery is a **same-transaction re-purchase**.
+
+### P2 / nice-to-have
+
+- [ ] **I-3 — `transaction_id` falls back to `event.id` when a real store transaction id is missing** (`supabase/functions/revenuecat-webhook/handler.ts`, ~lines 99–100 in the grant builder and ~lines 139–140 in the clawback builder). A purchase and its later cancellation carry **different** `event.id`s, so if a real store `transaction_id` is ever absent, a refund cannot correlate back to its grant (they hash to different ledger keys). This **mirrors the pre-existing consumable-clawback pattern** and is therefore **NOT a regression** — but on a *permanent* grant (a skin the user keeps) a missed refund is far more visible than on a consumable. **Consider:** quarantine/skip events that have no real store `transaction_id` (log + `200 skipped`) instead of substituting `event.id`.
+
+- [ ] **N-2 — inventory insert isn't rolled back on a ledger `unique_violation`** in `grant_cosmetic_iap`. Only the ledger-insert savepoint rolls back on a concurrent duplicate; the earlier `user_cosmetics` insert is not unwound. **Harmless today:** that inventory insert is `ON CONFLICT DO NOTHING`, and producing an orphan requires the *same* `transaction_id` mapping to *different* `(user_id, item_id)` rows concurrently — effectively impossible with real RevenueCat transaction ids. **Cleanest fix:** make the RPC **ledger-first** — `INSERT INTO cosmetic_iap_grants … ON CONFLICT DO NOTHING RETURNING …`, and only the row that wins the ledger claim proceeds to touch `user_cosmetics`.
+
+- [ ] **N-3 — grant-side guard GUC (`app.cosmetics_rpc`) is unnecessary dead code.** There is **no trigger on `user_cosmetics`** — the `cosmetics_guard()` trigger fires on `user_profiles` **only**. So `grant_cosmetic_iap` setting/resetting `app.cosmetics_rpc` around its `user_cosmetics` insert guards nothing and can be removed. The **clawback-side** GUC **is** needed (clawback writes `equipped_*` on `user_profiles`, which the guard trigger covers) — keep it. Secondary nit: both paths **reset the GUC to `'off'`** rather than restoring the prior value; latent only if these RPCs are ever nested inside an outer trusted operation that relied on the flag being set.
+
+- [ ] **N-4 — `event_timestamp` is built into `CosmeticGrantPayload` but never reaches `grant_cosmetic_iap`.** The grant RPC has no timestamp parameter and uses `now()`, so `cosmetic_iap_grants.granted_at` records **DB-processing time, not the RevenueCat event time**. (Contrast: `clawback_cosmetic_iap` correctly threads `p_event_timestamp`.) **Fix:** either thread the timestamp through to the grant RPC (add a `p_event_timestamp` param, as clawback does) OR **drop the dead `event_timestamp` field** from `CosmeticGrantPayload`.
+
+- [ ] **N-5 — doc-accuracy nit.** The `handler.ts` header comment (~lines 9–14) states that `COSMETIC_SKU_TO_ITEM` mirrors a Flutter map `skinIapProductToItem` in `lib/services/cosmetics_service.dart` — but **that symbol does not exist there yet**; it lands with **Lane B Task 7**. Update the comment once Task 7 adds the map (or, until then, note that the Flutter mirror is *pending Lane B Task 7*).
+
+---
+
 ## Execution Handoff
 
 Plan complete and saved to `docs/superpowers/plans/2026-07-25-lantern-cosmetics-01b-iap-grant-webhook.md`. Two execution options:
