@@ -283,6 +283,41 @@ Future<int> awardMilestoneNoor(int day) async {
   return amount;
 }
 
+/// The coarse `reason` values `award_noor` recognizes for NON-milestone grants
+/// (its `case` arms). Milestone grants go through [awardMilestoneNoor], which
+/// enforces the claim-first ordering, so `'milestone:*'` is intentionally NOT
+/// accepted here.
+const Set<String> awardableNoorReasons = {'daily', 'quest'};
+
+/// Awards Noor for a non-milestone earned event (daily muḥāsabah completion,
+/// quest completion — spec §3). The [reason] is the coarse value the RPC maps
+/// to an amount (server-derived); the [reasonKey] is the per-occurrence dedup
+/// key (e.g. `daily:2026-07-25`, `quest:<id>:<period>`) so re-running the loop
+/// the same day cannot double-mint.
+///
+/// Returns the amount minted, or 0 on a deduped replay / unrecognized reason /
+/// unauthenticated caller.
+Future<int> awardNoor({
+  required String reason,
+  required String reasonKey,
+}) async {
+  if (supabaseSyncService.currentUserId == null) return 0;
+  if (!awardableNoorReasons.contains(reason)) return 0;
+
+  final amount = await supabaseSyncService.callRpc<int>(
+    'award_noor',
+    {'p_reason': reason, 'p_reason_key': reasonKey},
+  );
+  if (amount == null || amount <= 0) return 0;
+
+  await _creditNoorCache(amount);
+  CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
+    AnalyticsEvents.propAmount: amount,
+    AnalyticsEvents.propReason: reason,
+  });
+  return amount;
+}
+
 Future<void> _creditNoorCache(int amount) async {
   final prefs = await SharedPreferences.getInstance();
   final key = supabaseSyncService.scopedKey(_noorBalanceKey);

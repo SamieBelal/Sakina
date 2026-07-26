@@ -227,4 +227,55 @@ void main() {
       expect(fakeSync.rpcCalls, isEmpty);
     });
   });
+
+  group('awardNoor (daily / quest — reason vs reason_key split)', () {
+    test('daily: coarse reason drives amount, scoped reason_key dedupes',
+        () async {
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 10;
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final granted = await awardNoor(
+        reason: 'daily',
+        reasonKey: 'daily:2026-07-25',
+      );
+
+      expect(granted, 10);
+      expect(fakeSync.rpcCalls.single['params'],
+          {'p_reason': 'daily', 'p_reason_key': 'daily:2026-07-25'});
+      expect(events.single.$1, 'noor_earned');
+      expect(events.single.$2, {'amount': 10, 'reason': 'daily'});
+    });
+
+    test('idempotent replay (returns 0) mints nothing + emits nothing',
+        () async {
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 0;
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final granted =
+          await awardNoor(reason: 'daily', reasonKey: 'daily:2026-07-25');
+
+      expect(granted, 0);
+      expect(events, isEmpty);
+    });
+
+    test('refuses a reason the RPC does not recognize (no RPC call)', () async {
+      final granted =
+          await awardNoor(reason: 'bogus', reasonKey: 'bogus:1');
+      expect(granted, 0);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+
+    test('unauthenticated: no RPC call', () async {
+      fakeSync.userId = null;
+      final granted =
+          await awardNoor(reason: 'daily', reasonKey: 'daily:2026-07-25');
+      expect(granted, 0);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+  });
 }
