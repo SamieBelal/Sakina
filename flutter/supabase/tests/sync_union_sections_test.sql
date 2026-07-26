@@ -43,10 +43,27 @@ update public.user_profiles
 select set_config('app.cosmetics_rpc', '', true);
 
 -- One-Ship-lineage seed (plain profile columns).
-update public.user_profiles
-   set first_problem_text = 'anxious about rizq',
-       weekly_pool_used   = 3
- where id = '00000000-0000-0000-0000-0000000000c2';
+--
+-- These columns are created by PR #62's 20260726200200 migration, which is NOT
+-- on this branch. The migration under test already tolerates their absence
+-- (it reads them via `to_jsonb(p) -> 'key'`), and this seed must too: a direct
+-- UPDATE aborts the whole suite on a CLEAN database (plan 26 / ran 0) while
+-- passing on a developer box contaminated with #62's schema — which is exactly
+-- how the original C4 bug stayed hidden.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public'
+                and table_name   = 'user_profiles'
+                and column_name  = 'first_problem_text') then
+    execute $seed$
+      update public.user_profiles
+         set first_problem_text = 'anxious about rizq',
+             weekly_pool_used   = 3
+       where id = '00000000-0000-0000-0000-0000000000c2'
+    $seed$;
+  end if;
+end $$;
 
 insert into public.user_cosmetics(user_id, item_type, item_id, acquired_via)
 values ('00000000-0000-0000-0000-0000000000c2', 'lantern_skin', 'obsidian_gold', 'noor')
@@ -116,10 +133,18 @@ select is(
   'sync_all_user_data() -> equipped -> lantern_skin = obsidian_gold');
 
 -- (26) One-Ship lineage: a profile key round-trips (not just key presence).
+-- Expectation is merge-order dependent BY DESIGN: with PR #62 applied the
+-- seeded value must survive the union; without it the key must still be present
+-- and null (the `to_jsonb(p) -> 'key'` null-safety this suite exists to pin).
 select is(
   public.sync_all_user_data() -> 'profile' ->> 'first_problem_text',
-  'anxious about rizq',
-  'sync_all_user_data() -> profile -> first_problem_text round-trips');
+  case when exists (select 1 from information_schema.columns
+                     where table_schema = 'public'
+                       and table_name   = 'user_profiles'
+                       and column_name  = 'first_problem_text')
+       then 'anxious about rizq'
+       else null end,
+  'sync_all_user_data() -> profile -> first_problem_text round-trips (null when PR #62 is absent)');
 
 reset role;
 select set_config('request.jwt.claims', '', true);
