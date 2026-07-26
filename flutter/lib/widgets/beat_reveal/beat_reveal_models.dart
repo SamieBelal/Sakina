@@ -1,9 +1,57 @@
 import 'package:sakina/core/utils/beat_splitter.dart';
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 
 /// The kind of a single beat screen — drives rendering, the analytics
 /// `beat_kind` property, and the screen-reader label prefix.
-enum BeatKind { name, keyLine, reframe, story, verse, takeaway, dua }
+enum BeatKind {
+  name,
+  keyLine,
+  reframe,
+  story,
+  verse,
+  takeaway,
+  dua,
+  // ── Deck-native kinds (onboarding reveal) ──
+  /// Opens the sign deck: "you didn't find this by accident". Styled as a key
+  /// line.
+  recognition,
+
+  /// The steadying verse that follows [recognition] before the deck's own
+  /// bridge. Styled as a verse.
+  comfortVerse,
+}
+
+/// The value `beat_kind` carries in analytics.
+///
+/// New kinds are snake_case. [BeatKind.keyLine] is the one exception: it has
+/// been emitting `keyLine` (from `.name`) since the beat flow shipped, so it
+/// keeps that value — renaming it would split every existing beat funnel in
+/// two. Exhaustive by design: a new kind must decide its wire value here.
+extension BeatKindWireName on BeatKind {
+  String get wireName {
+    switch (this) {
+      case BeatKind.name:
+        return 'name';
+      case BeatKind.keyLine:
+        return 'keyLine'; // historical value — do not snake_case (see above)
+      case BeatKind.reframe:
+        return 'reframe';
+      case BeatKind.story:
+        return 'story';
+      case BeatKind.verse:
+        return 'verse';
+      case BeatKind.takeaway:
+        return 'takeaway';
+      case BeatKind.dua:
+        return 'dua';
+      case BeatKind.recognition:
+        return 'recognition';
+      case BeatKind.comfortVerse:
+        return 'comfort_verse';
+    }
+  }
+}
 
 /// One screen in the tap-through reflection flow. Built by [buildBeatScreens]
 /// from a [ReflectResponse]; the widget renders per [kind].
@@ -23,8 +71,18 @@ class BeatScreen {
   /// Allah in Arabic script, rendered in the mihrab arch hero).
   final String arabic;
 
-  /// Populated only for [BeatKind.dua] — the full dua stack + Ameen.
+  /// Populated only for [BeatKind.dua] on the AI path — the full dua stack.
+  /// Deck-built screens leave this null and carry the four `dua*` fields below
+  /// instead; read them through [duaArabicText] and friends, never directly.
   final ReflectResponse? dua;
+
+  /// Standalone duʿa fields for [BeatKind.dua] screens that have no
+  /// [ReflectResponse] behind them (the deck path). Kept as four separate
+  /// fields so Arabic and Latin never share a widget.
+  final String duaArabic;
+  final String duaTransliteration;
+  final String duaTranslation;
+  final String duaSource;
 
   const BeatScreen({
     required this.kind,
@@ -33,19 +91,37 @@ class BeatScreen {
     this.source = '',
     this.arabic = '',
     this.dua,
+    this.duaArabic = '',
+    this.duaTransliteration = '',
+    this.duaTranslation = '',
+    this.duaSource = '',
   });
+
+  // ── Effective duʿa text ──
+  // The standalone field wins; the legacy response is the fallback. Renderers
+  // and semantics both go through these so a deck screen can never fall into
+  // the `dua == null` branch and render blank.
+  String get duaArabicText =>
+      duaArabic.isNotEmpty ? duaArabic : (dua?.duaArabic ?? '');
+  String get duaTransliterationText => duaTransliteration.isNotEmpty
+      ? duaTransliteration
+      : (dua?.duaTransliteration ?? '');
+  String get duaTranslationText =>
+      duaTranslation.isNotEmpty ? duaTranslation : (dua?.duaTranslation ?? '');
+  String get duaSourceText =>
+      duaSource.isNotEmpty ? duaSource : (dua?.duaSource ?? '');
 
   /// The full text a screen reader announces for this beat.
   String get semanticText {
     switch (kind) {
       case BeatKind.dua:
-        final d = dua;
-        if (d == null) return 'Duʿa';
-        return [
-          if (d.duaTransliteration.isNotEmpty) d.duaTransliteration,
-          if (d.duaTranslation.isNotEmpty) d.duaTranslation,
-          if (d.duaSource.isNotEmpty) d.duaSource,
-        ].join('. ');
+        final parts = [
+          if (duaTransliterationText.isNotEmpty) duaTransliterationText,
+          if (duaTranslationText.isNotEmpty) duaTranslationText,
+          if (duaSourceText.isNotEmpty) duaSourceText,
+        ];
+        if (parts.isEmpty) return 'Duʿa';
+        return parts.join('. ');
       default:
         return [
           if (label.isNotEmpty) label,
@@ -131,6 +207,84 @@ List<BeatScreen> buildBeatScreens(
 
   // ── Duʿa ── always last; carries the Ameen CTA.
   screens.add(BeatScreen(kind: BeatKind.dua, dua: r));
+
+  return screens;
+}
+
+/// Builds the screen list for a bundled Name-story deck (the onboarding
+/// reveal). The deck's beat order IS the screen order — decks are authored and
+/// founder-reviewed as a sequence, so nothing is reordered, merged or dropped
+/// here beyond the optional pair-synergy beat.
+///
+/// [includePairSynergy] false drops the Name₁ closing beat that names Name₂ —
+/// for surfaces that reveal a deck outside its pair.
+///
+/// Field mapping is per-kind because the asset's fields are per-kind (see the
+/// table on [NameStoryBeat]). Two consequences worth stating out loud:
+///  * `label` reaches the screen ONLY for story beats. Every other kind uses it
+///    for an editorial note ("catalog id 6, verbatim", "pair synergy") that must
+///    never be rendered.
+///  * verse/comfort_verse/dua beats hold their ENGLISH translation in `primary`
+///    (Arabic, when present, is in `arabic`) — the inverse of the
+///    [BeatKind.verse] screen convention, where `primary` is the Arabic.
+List<BeatScreen> buildBeatScreensFromDeck(
+  NameStoryDeck deck, {
+  bool includePairSynergy = true,
+}) {
+  final screens = <BeatScreen>[];
+
+  for (final beat in deck.beats) {
+    if (!includePairSynergy && beat.isPairSynergy) continue;
+
+    switch (beat.kind) {
+      case 'bridge':
+        screens.add(BeatScreen(kind: BeatKind.keyLine, primary: beat.primary));
+      case 'recognition':
+        screens.add(
+          BeatScreen(kind: BeatKind.recognition, primary: beat.primary),
+        );
+      case 'name_intro':
+        // Mihrab hero: Arabic name, transliteration on `label`, meaning on
+        // `source` — the same slots the AI path fills.
+        screens.add(BeatScreen(
+          kind: BeatKind.name,
+          arabic: beat.arabic,
+          label: beat.transliteration,
+          source: beat.primary,
+        ));
+      case 'story':
+        screens.add(BeatScreen(
+          kind: BeatKind.story,
+          label: beat.label, // the story title — the one displayed label
+          primary: beat.primary,
+          source: beat.source,
+        ));
+      case 'verse':
+      case 'comfort_verse':
+        screens.add(BeatScreen(
+          kind: beat.kind == 'verse' ? BeatKind.verse : BeatKind.comfortVerse,
+          primary: beat.arabic, // may be empty — the view then shows only the
+          label: beat.primary, // translation + citation
+          source: beat.source,
+        ));
+      case 'dua':
+        screens.add(BeatScreen(
+          kind: BeatKind.dua,
+          duaArabic: beat.arabic,
+          duaTransliteration: beat.transliteration,
+          duaTranslation: beat.primary,
+          duaSource: beat.source,
+        ));
+      case 'takeaway':
+      case 'pair_synergy':
+        screens.add(BeatScreen(kind: BeatKind.takeaway, primary: beat.primary));
+      default:
+        // Unknown kind: the ship gate rejects these at build time, so reaching
+        // here means a hand-edited asset. Skip the beat rather than crash the
+        // reveal.
+        continue;
+    }
+  }
 
   return screens;
 }

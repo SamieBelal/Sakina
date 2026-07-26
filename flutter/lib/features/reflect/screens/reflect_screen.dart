@@ -14,6 +14,7 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:sakina/widgets/beat_reveal/beat_reveal_models.dart';
 import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
@@ -227,7 +228,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           {
             AnalyticsEvents.propSurface: AnalyticsEvents.surfaceReflect,
             AnalyticsEvents.propBeatIndex: index,
-            AnalyticsEvents.propBeatKind: kind.name,
+            AnalyticsEvents.propBeatKind: kind.wireName,
           },
         );
       },

@@ -82,7 +82,9 @@ class BeatScreenView extends StatelessWidget {
           animate: playNameEntrance && !reduce,
         );
 
+      // The deck's opening `recognition` beat reads as a key line.
       case BeatKind.keyLine:
+      case BeatKind.recognition:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -137,7 +139,9 @@ class BeatScreenView extends StatelessWidget {
           ],
         );
 
+      // Deck comfort verses render exactly like catalog verses.
       case BeatKind.verse:
+      case BeatKind.comfortVerse:
         final arabic = SizedBox(
           width: double.infinity,
           child: Text(
@@ -152,14 +156,18 @@ class BeatScreenView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // The Arabic soft-settles in (fade + gentle scale) — a calmer,
-            // scripture-appropriate entrance than the pull-quote sweep.
-            reduce
-                ? arabic
-                : arabic
-                    .animate()
-                    .fadeIn(duration: 420.ms)
-                    .scaleXY(begin: 0.96, end: 1, duration: 460.ms, curve: Curves.easeOut),
-            const SizedBox(height: AppSpacing.lg),
+            // scripture-appropriate entrance than the pull-quote sweep. Deck
+            // verses may carry translation only; then the block is omitted
+            // rather than leaving an empty gap above the translation.
+            if (screen.primary.isNotEmpty) ...[
+              reduce
+                  ? arabic
+                  : arabic
+                      .animate()
+                      .fadeIn(duration: 420.ms)
+                      .scaleXY(begin: 0.96, end: 1, duration: 460.ms, curve: Curves.easeOut),
+              const SizedBox(height: AppSpacing.lg),
+            ],
             Text(
               screen.label, // translation
               style: AppTypography.bodyLarge.copyWith(
@@ -196,13 +204,19 @@ class BeatScreenView extends StatelessWidget {
         );
 
       case BeatKind.dua:
-        final d = screen.dua;
-        if (d == null) return const SizedBox.shrink();
+        // Standalone fields (deck path) win over the legacy response; the
+        // getters resolve both, so a deck duʿa never renders blank.
+        final arabic = screen.duaArabicText;
+        final transliteration = screen.duaTransliterationText;
+        final translation = screen.duaTranslationText;
+        if (arabic.isEmpty && transliteration.isEmpty && translation.isEmpty) {
+          return const SizedBox.shrink();
+        }
         return DuaTextBlock(
-          arabic: d.duaArabic,
-          transliteration: d.duaTransliteration,
-          translation: d.duaTranslation,
-          source: d.duaSource,
+          arabic: arabic,
+          transliteration: transliteration,
+          translation: translation,
+          source: screen.duaSourceText,
           onSacredCanvas: true,
         );
     }

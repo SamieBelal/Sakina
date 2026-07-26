@@ -43,6 +43,14 @@ abstract final class AnalyticsEvents {
   static const propFromBeatIndex = 'from_beat_index';
   static const surfaceMuhasabah = 'muhasabah';
   static const surfaceReflect = 'reflect';
+  // The onboarding story-deck reveal (One Ship W2). It reuses the beat-flow
+  // events above — `surface` is what separates it from the two AI surfaces in
+  // every beat funnel. `reveal_deck_completed` fires on Ameen,
+  // `reveal_deck_abandoned` when the deck is left unfinished. Constants only in
+  // W2-A4; the emitters land with the reveal screen.
+  static const surfaceOnboardingReveal = 'onboarding_reveal';
+  static const revealDeckCompleted = 'reveal_deck_completed';
+  static const revealDeckAbandoned = 'reveal_deck_abandoned';
   // Re-engagement: fired when a user taps a push notification (client). Pairs
   // with a future server-side `notification_sent` to compute push CTR and
   // notification→session lift.

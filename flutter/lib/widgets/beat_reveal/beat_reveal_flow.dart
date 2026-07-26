@@ -28,6 +28,12 @@ class BeatRevealFlow extends StatefulWidget {
   final BeatFlowStatus status;
   final ReflectResponse? response;
 
+  /// Pre-built screens, used INSTEAD of building from [response] when non-null
+  /// — the deck path (`buildBeatScreensFromDeck`), which has no AI response
+  /// behind it. [includeVerses] / [includeName] don't apply: a deck's beat list
+  /// is already the final screen order.
+  final List<BeatScreen>? screens;
+
   /// Reflect passes true (verse beats between takeaway and duʿa); muḥāsabah false.
   final bool includeVerses;
 
@@ -62,6 +68,7 @@ class BeatRevealFlow extends StatefulWidget {
     required this.status,
     required this.response,
     required this.onAmeen,
+    this.screens,
     this.includeVerses = false,
     this.includeName = true,
     this.showFirstRunHint = false,
@@ -87,13 +94,17 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   bool _firstAdvanceFired = false;
   bool _nameEntrancePlayed = false;
 
-  List<BeatScreen> get _screens => widget.response == null
-      ? const <BeatScreen>[]
-      : buildBeatScreens(
-          widget.response!,
-          includeVerses: widget.includeVerses,
-          includeName: widget.includeName,
-        );
+  List<BeatScreen> get _screens {
+    final prebuilt = widget.screens;
+    if (prebuilt != null) return prebuilt;
+    final response = widget.response;
+    if (response == null) return const <BeatScreen>[];
+    return buildBeatScreens(
+      response,
+      includeVerses: widget.includeVerses,
+      includeName: widget.includeName,
+    );
+  }
 
   bool get _reducedMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
