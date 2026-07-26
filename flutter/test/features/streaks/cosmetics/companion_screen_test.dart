@@ -14,6 +14,7 @@ import 'package:sakina/features/streaks/screens/companion_screen.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/lantern_name_sheet.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/lantern_share_card.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -34,6 +35,7 @@ void main() {
         overrides: [
           companionStateProvider.overrideWith((ref) => const CompanionState(
               brightness: CompanionBrightness.glowing, protected: false)),
+          companionStreakProvider.overrideWith((ref) => 12),
           cosmeticsStateProvider.overrideWith((ref) async => CosmeticsState(
                 noorBalance: 130,
                 equippedLanternSkin: equippedSkin,
@@ -85,5 +87,39 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Name your lantern'), findsOneWidget);
+  });
+
+  testWidgets('E1: share hands off the equipped ids, the name, and the streak',
+      (tester) async {
+    Map<String, Object?>? captured;
+    final original = shareLanternCard;
+    shareLanternCard = ({
+      required BuildContext context,
+      required String skinId,
+      required String backdropId,
+      required String lanternName,
+      int streak = 0,
+    }) async {
+      captured = {
+        'skinId': skinId,
+        'backdropId': backdropId,
+        'lanternName': lanternName,
+        'streak': streak,
+      };
+    };
+    addTearDown(() => shareLanternCard = original);
+
+    await tester.pumpWidget(harness());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byIcon(Icons.share_rounded));
+    await tester.pump();
+
+    expect(captured, {
+      'skinId': 'emerald_jade',
+      'backdropId': 'laylat_night',
+      'lanternName': defaultLanternName,
+      'streak': 12,
+    });
   });
 }

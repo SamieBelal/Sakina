@@ -178,6 +178,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
               skinId: _renderableSkinId(cs),
               backdropId: cs.equippedBackdrop,
               lanternName: _lanternName,
+              streak: ref.read(companionStreakProvider),
             ),
             icon: const Icon(Icons.share_rounded, color: AppColors.sacredInk),
           ),

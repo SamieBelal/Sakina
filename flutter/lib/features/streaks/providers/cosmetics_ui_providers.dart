@@ -6,12 +6,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 
 /// The user's cosmetics economy state (Noor + owned + equipped). Re-read after
 /// every successful equip/unlock/buy via `ref.invalidate(cosmeticsStateProvider)`.
 final cosmeticsStateProvider = FutureProvider<CosmeticsState>((ref) async {
   return getCosmeticsState();
+});
+
+/// The streak count the Companion stage and the E1 share card display. Derived
+/// from the same atomic companion snapshot the medallion renders from, so the
+/// shared card can never show a streak that disagrees with the lantern beside
+/// it. Reads 0 until the snapshot hydrates.
+final companionStreakProvider = Provider<int>((ref) {
+  return ref.watch(companionInputsProvider).maybeWhen(
+        data: (inputs) => inputs.streak.currentStreak,
+        orElse: () => 0,
+      );
 });
 
 /// Transient wardrobe UI state: which axis is showing + which item is previewed
