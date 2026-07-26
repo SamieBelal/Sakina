@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_catalog_ui.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_unlock_reveal.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_action_bar.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_grid.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_preview_stage.dart';
@@ -237,7 +238,13 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     if (state.owns(e.itemType, e.itemId)) return;
     final res = await unlockCosmetic(
         itemType: e.itemType, itemId: e.itemId, noorPrice: e.noorPrice ?? 0);
-    _afterMutation(res.success, res.success ? 'Unlocked' : 'Not enough Noor');
+    if (!res.success) {
+      _afterMutation(false, 'Not enough Noor');
+      return;
+    }
+    // E2: the earned-it moment replaces the snackbar on the success path.
+    _afterMutation(true, null);
+    if (mounted) await showCosmeticUnlockReveal(context, e.itemType, e.itemId);
   }
 
   Future<void> _buy(CosmeticCatalogEntry e) async {
@@ -249,11 +256,15 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
         res.success, res.success ? 'Purchased' : "Purchase didn't complete");
   }
 
-  void _afterMutation(bool ok, String msg) {
+  /// Re-reads the Lane-B-mirrored cache after a successful mutation. A null
+  /// [msg] suppresses the snackbar (the unlock reveal is the feedback instead).
+  void _afterMutation(bool ok, String? msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+    if (msg != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(msg)));
+    }
     if (ok) ref.invalidate(cosmeticsStateProvider);
   }
 }
