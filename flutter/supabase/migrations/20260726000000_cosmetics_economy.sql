@@ -81,3 +81,41 @@ alter table public.cosmetic_catalog enable row level security;
 drop policy if exists cosmetic_catalog_read on public.cosmetic_catalog;
 create policy cosmetic_catalog_read on public.cosmetic_catalog
   for select using (true);
+
+-- award_noor: grant earned Noor with a SERVER-DERIVED amount (never trust a
+-- client amount), idempotent per (user, reason_key) via the noor_grants ledger
+-- so a grant can never double-credit (stops streak-rebuild farming).
+create or replace function public.award_noor(p_reason text, p_reason_key text)
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  v_uid uuid := auth.uid();
+  v_amount integer;
+begin
+  if v_uid is null then raise exception 'not authenticated'; end if;
+  v_amount := case
+    when p_reason = 'daily'          then 10
+    when p_reason = 'milestone:7'    then 40
+    when p_reason = 'milestone:14'   then 75
+    when p_reason = 'milestone:30'   then 150
+    when p_reason = 'milestone:60'   then 250
+    when p_reason = 'milestone:100'  then 400
+    when p_reason = 'quest'          then 15
+    else null end;
+  if v_amount is null then raise exception 'unknown noor reason: %', p_reason; end if;
+
+  insert into public.noor_grants(user_id, reason_key, amount)
+    values (v_uid, p_reason_key, v_amount)
+    on conflict (user_id, reason_key) do nothing;
+  if not found then return 0; end if;
+
+  perform set_config('app.cosmetics_rpc','on', true);
+  update public.user_profiles
+     set noor_balance = noor_balance + v_amount,
+         noor_total_earned = noor_total_earned + v_amount
+   where id = v_uid;
+  return v_amount;
+end $$;
+
+revoke execute on function public.award_noor(text,text) from public, anon;
+grant  execute on function public.award_noor(text,text) to authenticated;
