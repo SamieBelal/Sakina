@@ -183,6 +183,48 @@ accessoryRectangular (Lock Screen = text-only, tint-safe).
   lantern is pre-rendered PNGs — `companion_<brightness>.png` in this folder
   (auto-bundled by the synced group). Regenerate after art changes:
   `flutter test test/widgets/gen_companion_widget_frames_test.dart`
+
+### Lantern skins on the widget (Lane E, 2026-07-26)
+
+- The widget renders the **equipped lantern skin**, read from the `lantern_skin`
+  key of the shared `sakina_widget_payload` blob. Backdrops are in-app only and
+  never reach the widget (spec §5).
+- Frames are named `companion_<skinId>_<brightness>.png` (e.g.
+  `companion_obsidian_gold_fullyLit.png`), 360 px, six brightnesses per skin —
+  `dormant` is excluded because `resolveCompanion` can never emit it.
+- Regenerate after any skin palette/form change or `LanternPainter` geometry
+  change, then commit the PNGs:
+
+  ```bash
+  GEN_WIDGET_FRAMES=1 flutter test test/widgets/gen_companion_skin_frames_test.dart
+  ```
+
+  The generator is env-gated so a normal `flutter test` doesn't churn the
+  binaries. `test/widgets/companion_widget_frame_set_test.dart` runs in every
+  suite and fails if a bundled skin is missing frames.
+- Which skins are widget-eligible is the hand-maintained `kWidgetBundledSkinIds`
+  in `lib/services/widget_data_service.dart`. Adding a skin to `LanternSkin` or
+  to the server `cosmetic_catalog` does NOT make it widget-eligible — export and
+  commit its frames, then add the id. An equipped-but-unbundled skin is written
+  to the payload as `classic_gold`, so an installed build can never be asked for
+  a PNG it doesn't have.
+- **Only four skins are bundled today**: `classic_gold` (default) plus the three
+  à-la-carte real-money skins `obsidian_gold`, `masjid_brass`, `crystal_star`.
+  All nine skins measured 4,349,953 B (4.15 MiB) of PNG, over the 4.0 MB asset
+  budget; the curated four are 1,974,727 B (1.88 MiB). A paid skin must never
+  silently fall back — earned skins fall back to `classic_gold` on the widget
+  only, and still render fully in-app.
+- Asset lookup falls back `companion_<skin>_<b>` → `companion_classic_gold_<b>` →
+  `companion_<b>` (`CompanionSkinResolver.swift`), so the widget can't render
+  blank. The legacy un-prefixed 660 px frames are kept as that last resort.
+- Swift-side unit tests (no XCTest target exists for the extension):
+
+  ```bash
+  swiftc ios/SakinaWidget/CompanionSkinResolver.swift \
+         ios/SakinaWidgetTests/CompanionSkin/main.swift \
+         -o /tmp/companion_skin_tests && /tmp/companion_skin_tests
+  ```
+
 - **Data**: reads the SAME App-Group blob as `SakinaWidget`
   (`sakina_widget_payload`) — no new payload fields. The Swift brightness map
   mirrors `lib/features/streaks/companion_state_mapper.dart` as closely as the
