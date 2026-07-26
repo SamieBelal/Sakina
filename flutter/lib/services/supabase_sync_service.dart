@@ -5,6 +5,47 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// How an RPC call ended. See [SupabaseSyncService.callRpcResult].
+enum RpcStatus {
+  /// Postgres executed the function and returned normally.
+  ok,
+
+  /// Postgres answered, and the answer was an error (a `RAISE` inside the
+  /// function, a permission denial, a constraint violation). The server
+  /// deliberately said no — callers must NOT fall back to optimism.
+  refused,
+
+  /// We never got an answer (offline, socket/TLS failure, timeout). The
+  /// server's verdict is unknown.
+  unavailable,
+}
+
+/// The outcome of a [SupabaseSyncService.callRpcResult] call: the decoded
+/// value plus WHY it is missing when it is.
+@immutable
+class RpcResult<T> {
+  const RpcResult._(this.status, this.value, this.message);
+
+  const RpcResult.ok(T? value) : this._(RpcStatus.ok, value, null);
+  const RpcResult.refused([String? message])
+      : this._(RpcStatus.refused, null, message);
+  const RpcResult.unavailable([String? message])
+      : this._(RpcStatus.unavailable, null, message);
+
+  final RpcStatus status;
+
+  /// The decoded RPC payload. Non-null only when [isOk] — and even then the
+  /// function may legitimately have returned SQL NULL.
+  final T? value;
+
+  /// Diagnostic detail for a non-ok status (never shown to users).
+  final String? message;
+
+  bool get isOk => status == RpcStatus.ok;
+  bool get isRefused => status == RpcStatus.refused;
+  bool get isUnavailable => status == RpcStatus.unavailable;
+}
+
 class SupabaseSyncService {
   static SupabaseSyncService instance = SupabaseSyncService();
 
@@ -330,6 +371,47 @@ class SupabaseSyncService {
       debugPrint('[callRpc] $fn failed: $e');
       return null;
     }
+  }
+
+  /// [callRpc] with the failure mode preserved.
+  ///
+  /// [callRpc] collapses "the server ran the function and REFUSED" and "we
+  /// never reached the server" into the same `null`. That is fine for callers
+  /// that treat any failure the same way, but it is dangerous for callers that
+  /// are offline-tolerant: they read the `null` as "assume it worked", and a
+  /// deliberate server-side rejection (a `RAISE` in a SECURITY DEFINER RPC)
+  /// then grants exactly what the server refused. Use this variant wherever a
+  /// refusal must be honored.
+  ///
+  /// Additive: [callRpc] keeps its signature and semantics for every existing
+  /// call site.
+  Future<RpcResult<T>> callRpcResult<T>(
+    String fn, [
+    Map<String, dynamic>? params,
+  ]) async {
+    try {
+      final result = await Supabase.instance.client.rpc(fn, params: params);
+      return RpcResult<T>.ok(_castRpcValue<T>(result));
+    } on PostgrestException catch (e) {
+      // The request reached PostgREST and Postgres answered with an error —
+      // a `RAISE` in the function, a permission denial, a constraint failure.
+      // The server made a decision: REFUSED.
+      debugPrint('[callRpcResult] $fn refused by server: ${e.message}');
+      return RpcResult<T>.refused(e.message);
+    } catch (e) {
+      // Socket / TLS / timeout / client-side decode: we do not know what the
+      // server would have said, so the caller must not assume either answer.
+      debugPrint('[callRpcResult] $fn unavailable: $e');
+      return RpcResult<T>.unavailable('$e');
+    }
+  }
+
+  static T? _castRpcValue<T>(dynamic result) {
+    if (result == null) return null;
+    // PostgreSQL integer types may deserialize as num (double) rather than
+    // int. Cast through num first so `num as int` doesn't throw a TypeError.
+    if (T == int && result is num) return result.toInt() as T;
+    return result as T;
   }
 
   /// Migration rule: legacy unscoped keys are copied to the *current* user's

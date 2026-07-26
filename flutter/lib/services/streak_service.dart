@@ -140,21 +140,28 @@ Future<void> _flushPendingServerClaims(
   final pending = await _getPendingServerClaims(prefs);
   if (pending.isEmpty) return;
 
+  final stillPending = <int>{};
   for (final day in pending.toList()) {
     // Ignore newly_claimed — local grant was already given, this is just for
     // server recordkeeping (prevents re-grant on cache-clear / new device).
-    final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    final res = await supabaseSyncService.callRpcResult<Map<String, dynamic>>(
       'claim_streak_milestone',
       {'p_day': day},
     );
-    // …but `noor_awarded` must NOT be ignored: this flush can be the FIRST
+    // A day we could not reach the server about stays pending so the next
+    // online session retries it; a day the server REFUSED is dropped (it will
+    // refuse forever, and the local grant is already spent).
+    if (res.isUnavailable) {
+      stillPending.add(day);
+      continue;
+    }
+    // `noor_awarded` must NOT be ignored: this flush can be the FIRST
     // server-side claim for the day, in which case the RPC just minted the
     // milestone Noor atomically. Mirror it (0 on a replay → no-op).
-    await creditMintedMilestoneNoor(day: day, amount: _noorAwarded(res));
+    await creditMintedMilestoneNoor(day: day, amount: _noorAwarded(res.value));
   }
 
-  // Clear only after all RPCs succeed (if any throw, the next call retries).
-  await _savePendingServerClaims(prefs, {});
+  await _savePendingServerClaims(prefs, stillPending);
 }
 
 /// The Noor `claim_streak_milestone` minted in the same transaction as the
@@ -189,22 +196,34 @@ Future<List<StreakMilestoneResult>> checkStreakMilestones(
 
     // Server-authoritative claim (§2f): the server decides whether this is
     // genuinely new, so a cache-clear / new device can't re-fire + re-grant.
-    // If the RPC is unavailable (offline / local-only), fall back to granting
-    // — preserving the prior local-prefs behavior.
+    //
+    // FAIL CLOSED for an authenticated caller. `claim_streak_milestone` RAISEs
+    // on a claim it does not believe (migration 20260726200700 rejects a
+    // milestone older than the account itself — i.e. a forged
+    // `update user_streaks set current_streak = 7`). `callRpc` maps that RAISE
+    // to the same `null` as a dead socket, and the old optimistic default
+    // (`isNew = true`) then granted the XP, the tier-up scrolls, the title and
+    // the celebration for a claim the server had just denied. `callRpcResult`
+    // keeps the two apart; neither of them may grant. `continue` skips the
+    // claimed-set write too, so a genuine milestone lost to a network blip is
+    // simply retried on the next call.
     bool isNew = true;
     if (userId != null) {
-      final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+      final res =
+          await supabaseSyncService.callRpcResult<Map<String, dynamic>>(
         'claim_streak_milestone',
         {'p_day': milestone.days},
       );
-      isNew = res == null ? true : (res['newly_claimed'] as bool? ?? true);
+      final claim = res.value;
+      if (!res.isOk || claim == null) continue; // refused OR unreachable
+      isNew = claim['newly_claimed'] as bool? ?? false;
       // The SAME call also minted the milestone Noor (atomic, since the
       // 20260726000700 migration). Mirror the amount it reports — this is the
       // only production path that sees it, so skipping it leaves the wardrobe
       // balance stale and the noor_earned funnel blind.
       await creditMintedMilestoneNoor(
         day: milestone.days,
-        amount: _noorAwarded(res),
+        amount: _noorAwarded(claim),
       );
     } else {
       // Offline grant: record in the pending set so the next online session

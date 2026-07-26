@@ -305,6 +305,16 @@ void main() {
   });
 
   group('checkStreakMilestones', () {
+    // A healthy authenticated server: the claim RPC runs and confirms the
+    // claim. Registered for the whole group because the authenticated path is
+    // now FAIL-CLOSED — without a server answer nothing is granted, so a test
+    // about scoping / idempotency / batching needs the server to say yes
+    // before it can observe anything at all.
+    setUp(() {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true};
+    });
+
     test('crossing day-7 returns the day-7 milestone exactly once', () async {
       final newly = await checkStreakMilestones(7);
 
@@ -532,11 +542,10 @@ void main() {
       expect(events, isEmpty);
     });
 
-    test('a failed claim (RPC null) credits nothing and emits nothing',
+    test('a failed claim (no server answer) credits nothing and emits nothing',
         () async {
-      // No handler registered → callRpc returns null, exactly like callRpc
-      // swallowing a server RAISE. The claim never committed, so nothing may
-      // be credited.
+      // No handler registered → the RPC never resolved. The claim never
+      // committed, so nothing may be credited.
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
@@ -586,6 +595,101 @@ void main() {
           reason: 'the flush path mints server-side too — it must credit');
       expect(events, hasLength(1));
       expect(events.single.$2, {'amount': 100, 'reason': 'milestone:7'});
+    });
+  });
+
+  // A denied milestone claim must NOT be readable as a granted one.
+  //
+  // `claim_streak_milestone` RAISEs when the account is younger than the
+  // milestone it is claiming (migration 20260726200700), which is exactly what
+  // a forged `update user_streaks set current_streak = 7` looks like. The old
+  // client collapsed that refusal into the same `null` as "phone is offline"
+  // and applied the offline-tolerant default (`isNew = true`) — so the server
+  // denied the Noor while the client handed out 100 XP, 2 tier-up scrolls and
+  // the 'Consistent' title anyway.
+  //
+  // The authenticated path is now FAIL-CLOSED: no server confirmation, no
+  // milestone. The optimistic default survives only where it is warranted —
+  // the genuinely offline branch (userId == null).
+  group('a denied claim fails CLOSED (authenticated)', () {
+    test('server REFUSED → no milestone, no claimed-set entry, no Noor',
+        () async {
+      fakeSync.rpcStatuses['claim_streak_milestone'] = RpcStatus.refused;
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final newly = await checkStreakMilestones(7);
+
+      expect(newly, isEmpty,
+          reason: 'a refused claim must not be reported as newly reached — '
+              'the caller grants XP/scrolls/title off this list');
+      expect(await getClaimedMilestones(), isNot(contains(7)),
+          reason: 'a refused day must stay unclaimed so a later legitimate '
+              'claim can still succeed');
+      expect((await getCosmeticsState()).noorBalance, 0);
+      expect(events, isEmpty);
+    });
+
+    test('forged streak: every milestone day is refused → nothing granted',
+        () async {
+      // The repro: a day-old account sets current_streak = 90 locally. The
+      // server refuses 7/14/30/60/90; the client must grant none of them.
+      fakeSync.rpcStatuses['claim_streak_milestone'] = RpcStatus.refused;
+
+      final newly = await checkStreakMilestones(90);
+
+      expect(newly, isEmpty);
+      expect(await getClaimedMilestones(), isEmpty);
+    });
+
+    test('server UNAVAILABLE while authenticated → also fails closed',
+        () async {
+      // We cannot tell "the server would have refused" from "the socket died",
+      // and an authenticated user gets no benefit of the doubt: the claim is
+      // simply retried on the next call.
+      fakeSync.rpcStatuses['claim_streak_milestone'] = RpcStatus.unavailable;
+
+      final newly = await checkStreakMilestones(7);
+
+      expect(newly, isEmpty);
+      expect(await getClaimedMilestones(), isNot(contains(7)));
+
+      // …and it is genuinely retried once the server is reachable again.
+      fakeSync.rpcStatuses.remove('claim_streak_milestone');
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (_) async => {'newly_claimed': true};
+
+      final retried = await checkStreakMilestones(7);
+      expect(retried, hasLength(1),
+          reason: 'failing closed must not permanently swallow a real '
+              'milestone — the next reachable call claims it');
+    });
+
+    test('offline (userId == null) keeps the optimistic grant', () async {
+      fakeSync.userId = null;
+      SupabaseSyncService.debugSetInstance(fakeSync);
+
+      final newly = await checkStreakMilestones(7);
+
+      expect(newly, hasLength(1),
+          reason: 'the offline branch never asked a server, so the prior '
+              'local-only behavior is preserved');
+      expect(newly.first.isNew, isTrue);
+      expect(await getClaimedMilestones(), contains(7));
+    });
+
+    test('a refused claim is not left pending as if it were an offline grant',
+        () async {
+      fakeSync.rpcStatuses['claim_streak_milestone'] = RpcStatus.refused;
+
+      await checkStreakMilestones(7);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('sakina_streak_milestones_pending_server'), isNull,
+          reason: 'the pending set is for grants already given offline; a '
+              'refused claim was never granted');
     });
   });
 

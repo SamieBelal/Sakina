@@ -245,11 +245,52 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     });
     final handler = rpcHandlers[fn];
     if (handler == null) return null;
-    final result = await handler(params);
-    if (result == null) return null;
-    if (T == int && result is num) {
-      return result.toInt() as T;
+    return _cast<T>(await handler(params));
+  }
+
+  /// Forces the outcome of [callRpcResult] for a function name, regardless of
+  /// [rpcHandlers]. Use to exercise the refused-vs-unavailable split:
+  ///   `rpcStatuses['claim_streak_milestone'] = RpcStatus.refused;`
+  ///
+  /// Applies to [callRpcResult] ONLY. [callRpc] keeps its original behavior
+  /// (handler or null, throws propagate) because several suites drive their
+  /// error paths by registering a throwing handler.
+  final Map<String, RpcStatus> rpcStatuses = {};
+
+  /// Mirrors production's failure split:
+  ///   • [rpcStatuses] override wins, then
+  ///   • a handler that THROWS → [RpcStatus.refused] (server RAISEd), then
+  ///   • no handler at all → [RpcStatus.unavailable] (we never reached it).
+  @override
+  Future<RpcResult<T>> callRpcResult<T>(
+    String fn, [
+    Map<String, dynamic>? params,
+  ]) async {
+    rpcCalls.add({
+      'fn': fn,
+      'params': params ?? <String, dynamic>{},
+    });
+    final forced = rpcStatuses[fn];
+    if (forced == RpcStatus.refused) {
+      return RpcResult<T>.refused('forced by FakeSupabaseSyncService');
     }
+    if (forced == RpcStatus.unavailable) {
+      return RpcResult<T>.unavailable('forced by FakeSupabaseSyncService');
+    }
+    final handler = rpcHandlers[fn];
+    if (handler == null) {
+      return RpcResult<T>.unavailable('no handler registered');
+    }
+    try {
+      return RpcResult<T>.ok(_cast<T>(await handler(params)));
+    } catch (e) {
+      return RpcResult<T>.refused('$e');
+    }
+  }
+
+  static T? _cast<T>(dynamic result) {
+    if (result == null) return null;
+    if (T == int && result is num) return result.toInt() as T;
     return result as T;
   }
 

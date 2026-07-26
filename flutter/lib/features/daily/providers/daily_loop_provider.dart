@@ -864,6 +864,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
 
+  /// Test seam — runs the milestone reward loop (XP + tier-up scrolls +
+  /// celebration state) for [currentStreak] without driving discoverName's
+  /// card/AI machinery. Used to pin that a claim the SERVER refused grants
+  /// nothing here: this is the code that turns `checkStreakMilestones`'
+  /// return value into real economy writes.
+  @visibleForTesting
+  Future<void> debugHandleStreakMilestones(int currentStreak) =>
+      _handleStreakMilestones(currentStreak);
+
   /// Test seam — sets streakMilestoneReached + the milestone counts directly
   /// on state, simulating the rising-edge that muhasabah_screen's ref.listen
   /// triggers off. Used by the race-ordering regression test to fire streak +

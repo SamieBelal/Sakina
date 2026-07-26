@@ -93,6 +93,11 @@ void main() {
 
   test('checkStreakMilestones emits streak_milestone for a newly crossed day',
       () async {
+    // The authenticated claim path fails CLOSED — the server must confirm the
+    // claim before anything (including this event) fires.
+    fakeSync.rpcHandlers['claim_streak_milestone'] =
+        (_) async => {'newly_claimed': true};
+
     final reached = await checkStreakMilestones(7);
 
     expect(reached, isNotEmpty);
@@ -103,6 +108,9 @@ void main() {
 
   test('checkStreakMilestones does not re-emit an already-claimed milestone',
       () async {
+    fakeSync.rpcHandlers['claim_streak_milestone'] =
+        (_) async => {'newly_claimed': true};
+
     await checkStreakMilestones(7);
     events.clear();
 
