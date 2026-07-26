@@ -16,6 +16,7 @@ import 'package:sakina/features/streaks/widgets/cosmetics/lantern_share_card.dar
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 
 /// The Companion "stage": the equipped backdrop + the live equipped-skin
 /// medallion as the hero, a Noor chip, and entry to the wardrobe + share.
@@ -32,13 +33,31 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
   /// loading and whenever the pref store is unavailable.
   String _lanternName = defaultLanternName;
 
+  /// Premium, resolved ONCE per screen open (never per build — an async read in
+  /// a build would refire forever). Feeds [renderableSkinId]: a premium-
+  /// exclusive skin is equippable-not-owned, so ownership alone cannot decide
+  /// what to draw.
+  bool _isPremium = false;
+
   @override
   void initState() {
     super.initState();
     _loadLanternName();
+    _resolvePremium();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       CosmeticsAnalytics.emit(AnalyticsEvents.companionScreenOpened, const {});
     });
+  }
+
+  Future<void> _resolvePremium() async {
+    var premium = false;
+    try {
+      premium = await PurchaseService().isPremium();
+    } catch (_) {
+      // Unresolvable premium reads as NOT premium — the conservative default
+      // (it can only cost an active subscriber one frame of classic gold).
+    }
+    if (mounted) setState(() => _isPremium = premium);
   }
 
   Future<void> _loadLanternName() async {
@@ -73,14 +92,11 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
     );
   }
 
-  /// DEP-D2 (premium lapse): the equipped id is only RENDERED when it is owned.
-  /// A premium-exclusive skin that was equipped while premium was active is not
-  /// owned, so once premium lapses the stage falls back to the always-owned
-  /// classic gold. The server slot is left untouched — that is a sync concern.
+  /// The skin the stage actually draws: owned, or premium-exclusive while
+  /// premium is active. See [renderableSkinId] — shared with the wardrobe so
+  /// the two stages can never disagree.
   String _renderableSkinId(CosmeticsState cs) =>
-      cs.owns(itemTypeLanternSkin, cs.equippedLanternSkin)
-          ? cs.equippedLanternSkin
-          : defaultLanternSkin;
+      renderableSkinId(cs, isPremium: _isPremium);
 
   Widget _buildStage(
       BuildContext context, CosmeticsState cs, CompanionState? companion) {

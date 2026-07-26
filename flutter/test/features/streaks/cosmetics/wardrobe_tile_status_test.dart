@@ -111,4 +111,32 @@ void main() {
       WardrobeTileStatus.owned,
     );
   });
+
+  // I2 (mirror image of the stage bug): the equipped SLOT alone does not earn
+  // an "Equipped" badge. A premium-exclusive skin is never owned, so a lapsed
+  // subscriber keeps it in the server slot while the stage renders classic
+  // gold — the badge must agree with what is actually on screen.
+  group('the equipped badge tracks entitlement, not just the slot', () {
+    test('an ACTIVE subscriber\'s equipped premium-exclusive reads equipped',
+        () {
+      expect(
+        _status(royal, state: _state(skin: 'ramadan_royal'), isPremium: true),
+        WardrobeTileStatus.equipped,
+      );
+    });
+
+    test('a LAPSED subscriber\'s equipped premium-exclusive does not', () {
+      expect(
+        _status(royal, state: _state(skin: 'ramadan_royal'), isPremium: false),
+        WardrobeTileStatus.premiumLocked,
+      );
+    });
+
+    test('an equipped-but-unowned ordinary skin does not read equipped', () {
+      expect(
+        _status(jade, state: _state(skin: 'emerald_jade'), isPremium: true),
+        WardrobeTileStatus.locked,
+      );
+    });
+  });
 }

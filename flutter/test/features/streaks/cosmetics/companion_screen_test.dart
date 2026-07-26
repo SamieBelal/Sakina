@@ -17,13 +17,25 @@ import 'package:sakina/features/streaks/widgets/cosmetics/lantern_name_sheet.dar
 import 'package:sakina/features/streaks/widgets/cosmetics/lantern_share_card.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+class _StubPurchaseService extends PurchaseService {
+  _StubPurchaseService(this.premium) : super.test();
+  final bool premium;
+  @override
+  Future<bool> isPremium() async => premium;
+}
 
 void main() {
   // CompanionStage / CompanionMedallion both wrap a VisibilityDetector whose
   // default 500ms debounce would outlive the test tree.
-  setUp(() =>
-      VisibilityDetectorController.instance.updateInterval = Duration.zero);
+  setUp(() {
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+    PurchaseService.debugSetOverride(_StubPurchaseService(false));
+  });
+
+  tearDown(PurchaseService.debugClearOverride);
 
   Widget harness({
     String equippedSkin = 'emerald_jade',
@@ -64,6 +76,40 @@ void main() {
       (tester) async {
     await tester.pumpWidget(harness(
       equippedSkin: 'ramadan_royal', // premium-exclusive, premium lapsed
+      ownedSkins: const {},
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final medallion =
+        tester.widget<CompanionMedallion>(find.byType(CompanionMedallion));
+    expect(medallion.skin.id, defaultLanternSkin);
+  });
+
+  // I2: premium-exclusive skins are NEVER written to the owned set (the perk
+  // lasts only while the subscription does), so gating the RENDER on ownership
+  // alone fired the lapse fallback for ACTIVE subscribers too — a paying user
+  // who equipped Ramadan Royal saw a Classic Brass lantern.
+  testWidgets('an ACTIVE subscriber sees their equipped premium-exclusive skin',
+      (tester) async {
+    PurchaseService.debugSetOverride(_StubPurchaseService(true));
+
+    await tester.pumpWidget(harness(
+      equippedSkin: 'ramadan_royal',
+      ownedSkins: const {}, // correct: never converts to ownership
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final medallion =
+        tester.widget<CompanionMedallion>(find.byType(CompanionMedallion));
+    expect(medallion.skin.id, 'ramadan_royal');
+  });
+
+  testWidgets('premium does NOT render an ordinary unowned skin',
+      (tester) async {
+    PurchaseService.debugSetOverride(_StubPurchaseService(true));
+
+    await tester.pumpWidget(harness(
+      equippedSkin: 'emerald_jade', // not premium-exclusive, not owned
       ownedSkins: const {},
     ));
     await tester.pump(const Duration(milliseconds: 100));

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/screens/wardrobe_screen.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_preview_stage.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tile.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
@@ -44,14 +45,14 @@ void main() {
     SupabaseSyncService.debugReset();
   });
 
-  Widget harness() => ProviderScope(
+  Widget harness({String equippedSkin = 'classic_gold'}) => ProviderScope(
         overrides: [
-          cosmeticsStateProvider.overrideWith((ref) async => const CosmeticsState(
+          cosmeticsStateProvider.overrideWith((ref) async => CosmeticsState(
                 noorBalance: 130,
-                equippedLanternSkin: 'classic_gold',
+                equippedLanternSkin: equippedSkin,
                 equippedBackdrop: 'default',
-                ownedLanternSkins: {},
-                ownedBackdrops: {},
+                ownedLanternSkins: const {},
+                ownedBackdrops: const {},
               )),
         ],
         child: const MaterialApp(home: WardrobeScreen()),
@@ -61,6 +62,12 @@ void main() {
   /// 800x600 default fits barely one row of 2-up tiles).
   Future<void> phoneSurface(WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+  }
+
+  /// Tall enough that the last grid row (Ramadan Royal, sort 7) is laid out.
+  Future<void> tallSurface(WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(500, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
   }
 
@@ -101,5 +108,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Unlock · 120 Noor'), findsOneWidget);
+  });
+
+  // I2: the preview stage and the tile badge must agree with each other AND
+  // with entitlement — a premium-exclusive skin is never in the owned set, so
+  // ownership alone is the wrong render gate.
+  group('an equipped premium-exclusive skin', () {
+    testWidgets('renders on the stage and reads equipped for an ACTIVE sub',
+        (tester) async {
+      PurchaseService.debugSetOverride(_StubPurchaseService(true));
+      await tallSurface(tester);
+      await tester.pumpWidget(harness(equippedSkin: 'ramadan_royal'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final stage = tester.widget<WardrobePreviewStage>(
+          find.byType(WardrobePreviewStage));
+      expect(stage.skinId, 'ramadan_royal');
+
+      final tile = find.widgetWithText(WardrobeTile, 'Ramadan Royal');
+      expect(
+          find.descendant(of: tile, matching: find.text('Equipped')),
+          findsOneWidget);
+    });
+
+    testWidgets('falls back to classic and drops the badge once premium lapses',
+        (tester) async {
+      PurchaseService.debugSetOverride(_StubPurchaseService(false));
+      await tallSurface(tester);
+      await tester.pumpWidget(harness(equippedSkin: 'ramadan_royal'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final stage = tester.widget<WardrobePreviewStage>(
+          find.byType(WardrobePreviewStage));
+      expect(stage.skinId, defaultLanternSkin);
+
+      final tile = find.widgetWithText(WardrobeTile, 'Ramadan Royal');
+      expect(find.descendant(of: tile, matching: find.text('Equipped')),
+          findsNothing);
+      expect(find.descendant(of: tile, matching: find.text('Premium')),
+          findsOneWidget);
+    });
   });
 }

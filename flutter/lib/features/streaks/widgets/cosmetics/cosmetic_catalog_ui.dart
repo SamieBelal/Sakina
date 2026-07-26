@@ -149,6 +149,29 @@ final Map<String, LanternSkin> _skinsById = {
 /// (mirrors CosmeticsState.owns treating classic_gold as the always-owned base).
 LanternSkin resolveSkin(String id) => _skinsById[id] ?? LanternSkin.classicGold;
 
+/// The lantern skin id that should actually be RENDERED for the equipped slot.
+///
+/// The gate is `owned || (premium-exclusive && premium)` — the same rule as
+/// `CosmeticsService.canEquip`, minus the async premium read (each screen
+/// resolves premium ONCE and passes the snapshot in). Both the Companion stage
+/// and the Wardrobe preview stage go through here so they cannot drift apart.
+///
+/// Gating on ownership ALONE would be wrong: a premium-exclusive skin is never
+/// written to the owned cache (the perk lasts while the subscription does and
+/// never converts to permanent ownership), so the lapse fallback would fire for
+/// ACTIVE subscribers too and render their equipped skin as classic gold.
+///
+/// DEP-D2 is preserved: without premium, an equipped premium-exclusive skin
+/// still falls back to the always-owned [defaultLanternSkin]. The server slot is
+/// left untouched — that is a sync concern.
+String renderableSkinId(CosmeticsState state, {required bool isPremium}) {
+  final id = state.equippedLanternSkin;
+  if (state.owns(itemTypeLanternSkin, id)) return id;
+  final entry = catalogEntryFor(itemTypeLanternSkin, id);
+  if (entry != null && entry.isPremiumExclusive && isPremium) return id;
+  return defaultLanternSkin;
+}
+
 /// Resolve a backdrop id to its [Backdrop]; 'default'/unknown → Backdrop.none.
 Backdrop resolveBackdrop(String id) {
   if (id == defaultBackdrop) return Backdrop.none;

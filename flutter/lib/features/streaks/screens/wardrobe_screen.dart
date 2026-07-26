@@ -56,6 +56,12 @@ WardrobeAction resolveWardrobeAction({
 /// A premium-exclusive item held by an active subscriber is `equippable`, NOT
 /// `owned`: the perk lasts while premium is active and never converts to
 /// permanent ownership.
+///
+/// The equipped SLOT alone does not earn the "Equipped" badge — entitlement is
+/// checked first. A lapsed subscriber keeps a premium-exclusive skin in the
+/// server slot while the stage renders classic gold (see [renderableSkinId]),
+/// and a badge claiming "Equipped" over a lantern that is visibly NOT equipped
+/// is the same bug seen from the other side.
 WardrobeTileStatus resolveWardrobeTileStatus({
   required CosmeticCatalogEntry entry,
   required CosmeticsState state,
@@ -64,8 +70,10 @@ WardrobeTileStatus resolveWardrobeTileStatus({
   final equippedId = entry.itemType == itemTypeBackdrop
       ? state.equippedBackdrop
       : state.equippedLanternSkin;
-  if (entry.itemId == equippedId) return WardrobeTileStatus.equipped;
-  if (state.owns(entry.itemType, entry.itemId)) return WardrobeTileStatus.owned;
+  final owned = state.owns(entry.itemType, entry.itemId);
+  final entitled = owned || (entry.isPremiumExclusive && isPremium);
+  if (entry.itemId == equippedId && entitled) return WardrobeTileStatus.equipped;
+  if (owned) return WardrobeTileStatus.owned;
   if (entry.isPremiumExclusive && isPremium) {
     return WardrobeTileStatus.equippable;
   }
@@ -173,11 +181,9 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     final previewedEntry =
         previewedId == null ? null : catalogEntryFor(tab, previewedId);
 
-    // DEP-D2: an equipped-but-unowned (lapsed premium) skin renders as classic.
-    final equippedSkinId =
-        state.owns(itemTypeLanternSkin, state.equippedLanternSkin)
-            ? state.equippedLanternSkin
-            : defaultLanternSkin;
+    // Shared with the Companion stage so the two can never disagree: owned, or
+    // premium-exclusive while premium is active; classic gold once it lapses.
+    final equippedSkinId = renderableSkinId(state, isPremium: _isPremium);
 
     return Column(
       children: [
