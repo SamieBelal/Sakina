@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
 // ---------------------------------------------------------------------------
@@ -152,4 +153,76 @@ Future<void> hydrateCosmeticsFromSync({
       supabaseSyncService.scopedKey(_ownedSkinsKey), jsonEncode(skins));
   await prefs.setString(
       supabaseSyncService.scopedKey(_ownedBackdropsKey), jsonEncode(backdrops));
+}
+
+/// Outcome of an unlock / equip / grant action. [success] drives whether the
+/// caller shows a confirmation or an error snackbar (spec §UI). The service
+/// itself surfaces nothing — it returns this so the widget layer owns the
+/// snackbar (services never show UI).
+@immutable
+class CosmeticActionResult {
+  const CosmeticActionResult({required this.success});
+  final bool success;
+
+  static const CosmeticActionResult ok = CosmeticActionResult(success: true);
+  static const CosmeticActionResult failed =
+      CosmeticActionResult(success: false);
+}
+
+/// Spends Noor to unlock [itemId]. Delegates ALL price/availability/gating to
+/// the Lane A `unlock_cosmetic` RPC (server never trusts the client price —
+/// [noorPrice] is used ONLY to optimistically mirror the debit into the cache
+/// on success; the next sync reconciles the authoritative balance). Returns
+/// [CosmeticActionResult.failed] when the RPC raises (insufficient noor,
+/// inactive, premium-exclusive, out-of-window) — `callRpc` maps the raise to
+/// null.
+Future<CosmeticActionResult> unlockCosmetic({
+  required String itemType,
+  required String itemId,
+  required int noorPrice,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+
+  final ok = await supabaseSyncService.callRpc<bool>(
+    'unlock_cosmetic',
+    {'p_item_type': itemType, 'p_item_id': itemId},
+  );
+
+  if (ok != true) {
+    CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlockRejected, {
+      AnalyticsEvents.propItemType: itemType,
+      AnalyticsEvents.propItemId: itemId,
+      AnalyticsEvents.propReason: 'rpc_declined',
+    });
+    return CosmeticActionResult.failed;
+  }
+
+  await _addOwnedToCache(itemType, itemId);
+  await _debitNoorCache(noorPrice);
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlocked, {
+    AnalyticsEvents.propItemType: itemType,
+    AnalyticsEvents.propItemId: itemId,
+    AnalyticsEvents.propVia: AnalyticsEvents.cosmeticViaNoor,
+  });
+  return CosmeticActionResult.ok;
+}
+
+Future<void> _addOwnedToCache(String itemType, String itemId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final baseKey =
+      itemType == itemTypeBackdrop ? _ownedBackdropsKey : _ownedSkinsKey;
+  final set = await _readOwnedSet(prefs, baseKey);
+  set.add(itemId);
+  await prefs.setString(
+      supabaseSyncService.scopedKey(baseKey), jsonEncode(set.toList()));
+}
+
+Future<void> _debitNoorCache(int amount) async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = supabaseSyncService.scopedKey(_noorBalanceKey);
+  final current = prefs.getInt(key) ?? 0;
+  await prefs.setInt(key, (current - amount).clamp(0, 1 << 31));
 }

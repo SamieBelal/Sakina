@@ -70,4 +70,81 @@ void main() {
     expect(state.equippedLanternSkin, 'classic_gold');
     expect(state.ownedLanternSkins, isEmpty);
   });
+
+  group('unlockCosmetic', () {
+    test('success: mirrors ownership + debits noor cache + emits analytics',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 200,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+      fakeSync.rpcHandlers['unlock_cosmetic'] = (params) async => true;
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent =
+          (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await unlockCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'moonlit_silver',
+        noorPrice: 120,
+      );
+
+      expect(result.success, isTrue);
+      expect(fakeSync.rpcCalls.single['fn'], 'unlock_cosmetic');
+      expect(fakeSync.rpcCalls.single['params'],
+          {'p_item_type': 'lantern_skin', 'p_item_id': 'moonlit_silver'});
+
+      final state = await getCosmeticsState();
+      expect(state.owns('lantern_skin', 'moonlit_silver'), isTrue);
+      expect(state.noorBalance, 80); // 200 - 120
+
+      expect(events.single.$1, 'cosmetic_unlocked');
+      expect(events.single.$2,
+          {'item_type': 'lantern_skin', 'item_id': 'moonlit_silver',
+           'via': 'noor'});
+    });
+
+    test('rejection (RPC raises → null): no cache mutation, emits rejected',
+        () async {
+      await hydrateCosmeticsFromSync(
+        noorBalance: 10,
+        equippedLanternSkin: 'classic_gold',
+        equippedBackdrop: 'default',
+        owned: const [],
+      );
+      // No handler registered → FakeSupabaseSyncService.callRpc returns null,
+      // exactly like callRpc swallowing a server RAISE.
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final result = await unlockCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'masjid_brass',
+        noorPrice: 300,
+      );
+
+      expect(result.success, isFalse);
+      final state = await getCosmeticsState();
+      expect(state.owns('lantern_skin', 'masjid_brass'), isFalse);
+      expect(state.noorBalance, 10); // untouched
+      expect(events.single.$1, 'cosmetic_unlock_rejected');
+    });
+
+    test('unauthenticated: returns failure without an RPC call', () async {
+      fakeSync.userId = null;
+      final result = await unlockCosmetic(
+        itemType: 'lantern_skin',
+        itemId: 'moonlit_silver',
+        noorPrice: 120,
+      );
+      expect(result.success, isFalse);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+  });
 }
