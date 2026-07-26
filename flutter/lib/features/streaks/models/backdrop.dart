@@ -8,7 +8,7 @@
 
 import 'package:flutter/material.dart';
 
-enum BackdropTheme { laylatNight, emeraldSanctuary }
+enum BackdropTheme { plain, laylatNight, emeraldSanctuary }
 
 @immutable
 class Backdrop {
@@ -29,7 +29,7 @@ class Backdrop {
     id: 'default',
     name: 'None',
     blurb: 'A plain, quiet surface.',
-    theme: BackdropTheme.emeraldSanctuary,
+    theme: BackdropTheme.plain,
   );
 
   /// A mosque skyline beneath a crescent moon and a field of stars.

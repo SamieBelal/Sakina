@@ -22,6 +22,8 @@ class BackdropPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     switch (backdrop.theme) {
+      case BackdropTheme.plain:
+        _plain(canvas, size);
       case BackdropTheme.laylatNight:
         _laylatNight(canvas, size);
       case BackdropTheme.emeraldSanctuary:
@@ -33,6 +35,43 @@ class BackdropPainter extends CustomPainter {
   double _r(int i, double salt) {
     final v = math.sin((i + 1) * 12.9898 + salt * 78.233) * 43758.5453;
     return v - v.floorToDouble();
+  }
+
+  // ── Plain ─────────────────────────────────────────────────────────────────
+  // The genuine "no backdrop": the app's warm cream surface with a soft warm
+  // pool where the lantern stands. No scene — quiet, so it reads as "none".
+  void _plain(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final rect = Offset.zero & size;
+    // Warm cream base (light-mode canvas), a touch deeper toward the floor.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(w / 2, 0),
+          Offset(w / 2, h),
+          const [Color(0xFFFBF7F2), Color(0xFFF3ECE1)],
+        ),
+    );
+    // A soft warm pool under the lantern (no blend-plus needed on a light base).
+    final glowC = Offset(w / 2, h * 0.66);
+    canvas.drawCircle(
+      glowC,
+      w * 0.46,
+      Paint()
+        ..shader = ui.Gradient.radial(glowC, w * 0.46, [
+          const Color(0xFFE9C88A).withValues(alpha: 0.16),
+          const Color(0xFFE9C88A).withValues(alpha: 0.0),
+        ]),
+    );
+    // Faint floor sheen so the lantern feels grounded, not floating.
+    canvas.drawOval(
+      Rect.fromCenter(
+          center: Offset(w / 2, h * 0.80), width: w * 0.5, height: h * 0.04),
+      Paint()
+        ..color = const Color(0xFFCBA76A).withValues(alpha: 0.10)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.05),
+    );
   }
 
   // ── Laylat Night ────────────────────────────────────────────────────────────
