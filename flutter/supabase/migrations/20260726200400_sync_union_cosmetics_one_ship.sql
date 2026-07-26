@@ -137,12 +137,21 @@ begin
             'iap_upsell_banner_dismissed_at', p.iap_upsell_banner_dismissed_at,
             'onboarding_paywall_cleared', p.onboarding_paywall_cleared,
             'tour_step_index', p.tour_step_index,
-            'acquisition_promise', p.acquisition_promise,
-            'first_problem_text', p.first_problem_text,
-            'onboarding_flow', p.onboarding_flow,
-            'free_tier_cohort', p.free_tier_cohort,
-            'weekly_pool_used', p.weekly_pool_used,
-            'weekly_pool_week_start', p.weekly_pool_week_start)
+            -- One-Ship (PR #62) columns, read via to_jsonb so this migration is
+            -- MERGE-ORDER INDEPENDENT. The columns are created by #62's
+            -- 20260726200200_free_tier_cohort_weekly_pool.sql, which is NOT on
+            -- this branch. A direct `p.acquisition_promise` reference compiles
+            -- fine (plpgsql resolves columns at RUNTIME, not at CREATE) and then
+            -- raises undefined_column on EVERY call — i.e. total sync failure —
+            -- if this branch merges first. `to_jsonb(p) -> 'key'` instead yields
+            -- SQL NULL for an absent column, and null is exactly #62's
+            -- documented "NULL predates activation" legacy signal.
+            'acquisition_promise', to_jsonb(p) -> 'acquisition_promise',
+            'first_problem_text', to_jsonb(p) -> 'first_problem_text',
+            'onboarding_flow', to_jsonb(p) -> 'onboarding_flow',
+            'free_tier_cohort', to_jsonb(p) -> 'free_tier_cohort',
+            'weekly_pool_used', to_jsonb(p) -> 'weekly_pool_used',
+            'weekly_pool_week_start', to_jsonb(p) -> 'weekly_pool_week_start')
          from public.user_profiles p where p.id = current_user_id),
         jsonb_build_object(
           'selected_title', null,
