@@ -49,4 +49,17 @@ class Backdrop {
   );
 
   static const all = <Backdrop>[laylatNight, emeraldSanctuary];
+
+  // Value equality (id + theme is the semantic identity) so that a Backdrop
+  // constructed from wardrobe/server data compares equal to its value-twin.
+  // Without this, BackdropPainter.shouldRepaint (which tests `old.backdrop !=
+  // backdrop`) would fall back to identity equality and needlessly repaint the
+  // static layer on every rebuild, defeating the raster cache.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Backdrop && other.id == id && other.theme == theme);
+
+  @override
+  int get hashCode => Object.hash(id, theme);
 }
