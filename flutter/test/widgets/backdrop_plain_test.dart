@@ -1,5 +1,4 @@
 // Backdrop.none must be a plain surface, NOT the emerald sanctuary scene.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/streaks/models/backdrop.dart';
 

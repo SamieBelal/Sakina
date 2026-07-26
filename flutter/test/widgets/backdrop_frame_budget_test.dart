@@ -1,12 +1,11 @@
 // Frame-budget guard for the backdrop stage. The static layer must be
 // pulse-independent (raster-cacheable); only the animated layer repaints.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/streaks/models/backdrop.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_painter.dart';
 
 void main() {
-  final b = Backdrop.laylatNight;
+  const b = Backdrop.laylatNight;
 
   test('static layer ignores pulse (never repaints as it animates)', () {
     final a = BackdropPainter(backdrop: b, pulse: 0.0, layer: BackdropLayer.static_);
