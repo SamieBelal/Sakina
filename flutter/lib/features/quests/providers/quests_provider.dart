@@ -523,30 +523,36 @@ class QuestsState {
 // Date helpers
 // ---------------------------------------------------------------------------
 
+// All label + rotation-seed helpers read `debugQuestBoundariesClock()` (UTC)
+// — the SAME clock `_periodStartFor` uses for persistence. They previously
+// used local `DateTime.now()`, so a user west of UTC near midnight got quest
+// IDs whose date (and pool selection) disagreed with the persisted
+// `period_start`, orphaning in-progress rows (One Ship W1, decision 0.1.4).
+
 String _todayLabel() {
-  final n = DateTime.now();
+  final n = debugQuestBoundariesClock();
   return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
 }
 
 String _weekLabel() {
-  final n = DateTime.now();
+  final n = debugQuestBoundariesClock();
   final monday = n.subtract(Duration(days: n.weekday - 1));
   return '${monday.year}-W${monday.month.toString().padLeft(2, '0')}-${monday.day.toString().padLeft(2, '0')}';
 }
 
 String _monthLabel() {
-  final n = DateTime.now();
+  final n = debugQuestBoundariesClock();
   return '${n.year}-${n.month.toString().padLeft(2, '0')}';
 }
 
 int _dayOfYear() {
-  final now = DateTime.now();
-  return now.difference(DateTime(now.year, 1, 1)).inDays;
+  final now = debugQuestBoundariesClock();
+  return now.difference(DateTime.utc(now.year, 1, 1)).inDays;
 }
 
 int _isoWeekNumber() {
-  final now = DateTime.now();
-  final jan1 = DateTime(now.year, 1, 1);
+  final now = debugQuestBoundariesClock();
+  final jan1 = DateTime.utc(now.year, 1, 1);
   return ((now.difference(jan1).inDays + jan1.weekday - 1) / 7).ceil();
 }
 
@@ -580,6 +586,25 @@ DateTime debugQuestWeekStart() => _weekStart();
 /// Test seam — exposes `_monthStart()` for the regression test.
 @visibleForTesting
 DateTime debugQuestMonthStart() => _monthStart();
+
+/// Test seams — expose the rotation labels + pool-selection seeds for the
+/// One Ship W1 alignment regression: quest IDs (label + pool index) must
+/// derive from the SAME clock as `_periodStartFor` persistence, or in-flight
+/// rows orphan near midnight for users west of UTC.
+@visibleForTesting
+String debugQuestTodayLabel() => _todayLabel();
+
+@visibleForTesting
+String debugQuestWeekLabel() => _weekLabel();
+
+@visibleForTesting
+String debugQuestMonthLabel() => _monthLabel();
+
+@visibleForTesting
+int debugQuestDailySeed() => _dayOfYear();
+
+@visibleForTesting
+int debugQuestWeeklySeed() => _isoWeekNumber();
 
 // ---------------------------------------------------------------------------
 // Rotation logic
@@ -721,7 +746,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
 
     // ── Rotate monthly: pick 3 from 8 ────────────────────────────────────────
     final monthIndices = _rotateIndices(
-      DateTime.now().month,
+      debugQuestBoundariesClock().month,
       _monthlyPool.length,
       3,
     );
