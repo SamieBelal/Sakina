@@ -91,8 +91,16 @@ class WardrobeScreen extends ConsumerStatefulWidget {
 
 class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this)
-    ..addListener(_onTabChanged);
+  /// The initial index is sourced from [wardrobePreviewProvider] — the SAME
+  /// state the body reads to pick a grid — so the TabBar's underline and the
+  /// rendered axis can never disagree (I4). Created lazily on first build, by
+  /// which point `ref.read` is legal.
+  late final TabController _tabs = TabController(
+    length: 2,
+    vsync: this,
+    initialIndex:
+        ref.read(wardrobePreviewProvider).tab == itemTypeBackdrop ? 1 : 0,
+  )..addListener(_onTabChanged);
 
   /// `canEquip` for the CURRENT preview (async, per-preview).
   bool _equippable = false;
@@ -154,6 +162,10 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watched HERE, not inside the loaded branch: the preview state is
+    // autoDispose, and it must live exactly as long as the screen — including
+    // while the cosmetics read is still loading or has errored.
+    final preview = ref.watch(wardrobePreviewProvider);
     final asyncState = ref.watch(cosmeticsStateProvider);
     return Scaffold(
       appBar: AppBar(
@@ -167,13 +179,12 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) =>
             const Center(child: Text('Could not load the wardrobe')),
-        data: _body,
+        data: (state) => _body(state, preview),
       ),
     );
   }
 
-  Widget _body(CosmeticsState state) {
-    final preview = ref.watch(wardrobePreviewProvider);
+  Widget _body(CosmeticsState state, WardrobePreview preview) {
     final tab = preview.tab;
     final previewedId = tab == itemTypeBackdrop
         ? preview.previewedBackdropId

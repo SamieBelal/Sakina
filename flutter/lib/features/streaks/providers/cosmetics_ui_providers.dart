@@ -52,7 +52,7 @@ class WardrobePreview {
       );
 }
 
-class WardrobePreviewNotifier extends Notifier<WardrobePreview> {
+class WardrobePreviewNotifier extends AutoDisposeNotifier<WardrobePreview> {
   @override
   WardrobePreview build() => const WardrobePreview();
 
@@ -68,6 +68,19 @@ class WardrobePreviewNotifier extends Notifier<WardrobePreview> {
   }
 }
 
+/// AutoDispose is load-bearing, not an optimization. This state is transient
+/// per-visit UI state, and [WardrobePreview.copyWith] treats `null` as "keep",
+/// so there is no way to CLEAR a preview once set. App-scoped, it leaked across
+/// visits two visible ways (I4):
+///   • the tab: a reopened screen builds a fresh TabController, so the TabBar
+///     underlined "Lanterns" while the body still read `tab == 'backdrop'` and
+///     rendered the backdrop grid — and tapping "Lanterns" fired no change
+///     event (index already 0), stranding the user.
+///   • the previewed item: a previously-previewed LOCKED skin came back on the
+///     stage as if it were equipped.
+/// Disposing with the screen resets both. The screen watches this in `build`
+/// (not only in the loaded branch) so it lives exactly as long as the screen,
+/// and sources the TabController's initial index from the SAME state.
 final wardrobePreviewProvider =
-    NotifierProvider<WardrobePreviewNotifier, WardrobePreview>(
+    NotifierProvider.autoDispose<WardrobePreviewNotifier, WardrobePreview>(
         WardrobePreviewNotifier.new);
