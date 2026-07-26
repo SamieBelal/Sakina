@@ -772,9 +772,12 @@ abstract final class AnalyticsEvents {
   // cosmetics_analytics_names_test).
 
   /// Noor was minted for the user. Props: `amount`, `reason`
-  /// (daily|milestone:N|quest). Fired only on a NON-idempotent-replay grant
-  /// (award_noor returns the granted amount; a deduped replay returns 0 and
-  /// emits nothing).
+  /// (daily|milestone:N). Fired only on a NON-idempotent-replay grant (the
+  /// server returns the granted amount; a deduped replay — or an ineligible
+  /// caller — returns 0 and emits nothing). `quest` is reserved but not
+  /// currently emitted: the quest earn path is disabled because quest
+  /// completion has no server-authoritative record to verify (see
+  /// 20260726200600_lock_down_award_noor.sql).
   static const String noorEarned = 'noor_earned';
 
   /// A cosmetic was unlocked by spending Noor. Props: `item_type`, `item_id`,

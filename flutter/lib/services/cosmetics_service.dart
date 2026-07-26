@@ -14,7 +14,10 @@ import 'package:sakina/services/user_data_batch_sync_service.dart';
 //
 // Server-authoritative Lantern Cosmetics economy client. NEVER writes economy
 // tables directly — all client mutation flows through the Lane A SECURITY
-// DEFINER RPCs (award_noor / unlock_cosmetic / equip_cosmetic). Skin IAP
+// DEFINER RPCs (award_daily_noor / unlock_cosmetic / equip_cosmetic). The
+// underlying `award_noor` is NOT client-callable: EXECUTE was revoked from
+// `authenticated` in 20260726200600_lock_down_award_noor.sql because it let the
+// caller pick both the amount (via p_reason) and the dedupe key. Skin IAP
 // ownership is granted by the RevenueCat WEBHOOK server-side (service_role-only
 // grant_cosmetic_iap, revoked from authenticated; 2026-07-25 contract change),
 // NOT by this client — the client purchases via RC then re-syncs (see Task 7).
@@ -290,37 +293,41 @@ Future<void> creditMintedMilestoneNoor({
   });
 }
 
-/// The coarse `reason` values `award_noor` recognizes for NON-milestone grants
-/// (its `case` arms). Milestone grants are minted server-side inside
-/// `claim_streak_milestone` and only mirrored by [creditMintedMilestoneNoor],
-/// so `'milestone:*'` is intentionally NOT accepted here.
-const Set<String> awardableNoorReasons = {'daily', 'quest'};
-
-/// Awards Noor for a non-milestone earned event (daily muḥāsabah completion,
-/// quest completion — spec §3). The [reason] is the coarse value the RPC maps
-/// to an amount (server-derived); the [reasonKey] is the per-occurrence dedup
-/// key (e.g. `daily:2026-07-25`, `quest:<id>:<period>`) so re-running the loop
-/// the same day cannot double-mint.
+/// Awards the daily-muḥāsabah Noor (spec §3) via `award_daily_noor()`.
 ///
-/// Returns the amount minted, or 0 on a deduped replay / unrecognized reason /
-/// unauthenticated caller.
-Future<int> awardNoor({
-  required String reason,
-  required String reasonKey,
-}) async {
+/// Takes NO arguments, deliberately. This replaces the old
+/// `awardNoor(reason:, reasonKey:)`, which called `award_noor(p_reason,
+/// p_reason_key)` directly — a function that derived the AMOUNT from the
+/// client's `reason` and deduped on the client's `reason_key`. A dedupe key the
+/// caller picks is not a dedupe key: any authenticated user could send
+/// `('milestone:90', <fresh key>)` in a loop and mint unlimited Noor, then spend
+/// it on à-la-carte skins that also carry a real-money `iap_product_id`.
+/// `20260726200600_lock_down_award_noor.sql` revoked EXECUTE on `award_noor`
+/// from `authenticated` (it stays reachable by `service_role` and by the
+/// SECURITY DEFINER callers), so this is now the only client earn path, and both
+/// the amount and the dedupe key are derived server-side. The server also
+/// verifies the caller actually has a `user_checkin_history` row for today
+/// before minting.
+///
+/// Returns the amount minted, or 0 on a deduped replay (already granted today),
+/// a caller with no checkin recorded for today, or an unauthenticated caller.
+///
+/// NOTE — the quest earn path is intentionally absent. `user_quest_progress` is
+/// written directly by the client with a free-form `quest_id` and a
+/// client-asserted `completed` flag, so no server-side verification is possible
+/// and an `award_quest_noor` would be exactly as forgeable as what it replaced.
+/// Nothing regresses: the quest→Noor hook had no production call site. See the
+/// migration header for what re-enabling it requires.
+Future<int> awardDailyNoor() async {
   if (supabaseSyncService.currentUserId == null) return 0;
-  if (!awardableNoorReasons.contains(reason)) return 0;
 
-  final amount = await supabaseSyncService.callRpc<int>(
-    'award_noor',
-    {'p_reason': reason, 'p_reason_key': reasonKey},
-  );
+  final amount = await supabaseSyncService.callRpc<int>('award_daily_noor');
   if (amount == null || amount <= 0) return 0;
 
   await _creditNoorCache(amount);
   CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
     AnalyticsEvents.propAmount: amount,
-    AnalyticsEvents.propReason: reason,
+    AnalyticsEvents.propReason: 'daily',
   });
   return amount;
 }

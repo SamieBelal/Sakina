@@ -196,7 +196,7 @@ void main() {
       expect(state.noorBalance, 150);
       expect(events, hasLength(1));
       expect(events.single.$1, 'noor_earned');
-      // The property shape must stay identical to awardNoor's emit so the
+      // The property shape must stay identical to awardDailyNoor's emit so the
       // analytics schema does not fork.
       expect(events.single.$2, {'amount': 150, 'reason': 'milestone:30'});
     });
@@ -256,52 +256,55 @@ void main() {
     });
   });
 
-  group('awardNoor (daily / quest — reason vs reason_key split)', () {
-    test('daily: coarse reason drives amount, scoped reason_key dedupes',
-        () async {
-      fakeSync.rpcHandlers['award_noor'] = (params) async => 10;
+  group('awardDailyNoor (server-derived amount AND dedupe key)', () {
+    test('calls award_daily_noor with NO params at all', () async {
+      // THE REGRESSION THIS PINS: the old awardNoor(reason:, reasonKey:) hit
+      // `award_noor(p_reason, p_reason_key)` directly, letting the caller pick
+      // both the amount (via the reason) and the dedupe key — so any
+      // authenticated user could mint unlimited Noor by looping
+      // ('milestone:90', <fresh key>) and spend it on à-la-carte skins.
+      // 20260726200600_lock_down_award_noor.sql revoked award_noor from
+      // `authenticated`; the client must now send NOTHING and let the server
+      // derive both halves. An empty params map is the assertion.
+      fakeSync.rpcHandlers['award_daily_noor'] = (params) async => 10;
 
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
 
-      final granted = await awardNoor(
-        reason: 'daily',
-        reasonKey: 'daily:2026-07-25',
-      );
+      final granted = await awardDailyNoor();
 
       expect(granted, 10);
-      expect(fakeSync.rpcCalls.single['params'],
-          {'p_reason': 'daily', 'p_reason_key': 'daily:2026-07-25'});
+      expect(fakeSync.rpcCalls.single['fn'], 'award_daily_noor');
+      expect(fakeSync.rpcCalls.single['params'], isEmpty);
       expect(events.single.$1, 'noor_earned');
       expect(events.single.$2, {'amount': 10, 'reason': 'daily'});
     });
 
+    test('never calls the revoked award_noor RPC', () async {
+      fakeSync.rpcHandlers['award_daily_noor'] = (params) async => 10;
+      await awardDailyNoor();
+      expect(fakeSync.rpcCalls.where((c) => c['fn'] == 'award_noor'), isEmpty);
+    });
+
     test('idempotent replay (returns 0) mints nothing + emits nothing',
         () async {
-      fakeSync.rpcHandlers['award_noor'] = (params) async => 0;
+      // 0 is also what the server returns when the caller has no checkin
+      // recorded for today — the anti-forgery path. Same client handling.
+      fakeSync.rpcHandlers['award_daily_noor'] = (params) async => 0;
       final events = <(String, Map<String, dynamic>)>[];
       CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
       addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
 
-      final granted =
-          await awardNoor(reason: 'daily', reasonKey: 'daily:2026-07-25');
+      final granted = await awardDailyNoor();
 
       expect(granted, 0);
       expect(events, isEmpty);
     });
 
-    test('refuses a reason the RPC does not recognize (no RPC call)', () async {
-      final granted =
-          await awardNoor(reason: 'bogus', reasonKey: 'bogus:1');
-      expect(granted, 0);
-      expect(fakeSync.rpcCalls, isEmpty);
-    });
-
     test('unauthenticated: no RPC call', () async {
       fakeSync.userId = null;
-      final granted =
-          await awardNoor(reason: 'daily', reasonKey: 'daily:2026-07-25');
+      final granted = await awardDailyNoor();
       expect(granted, 0);
       expect(fakeSync.rpcCalls, isEmpty);
     });

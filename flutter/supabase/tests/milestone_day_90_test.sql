@@ -108,10 +108,18 @@ select throws_ok(
   NULL,
   '4a. claim(100) throws — 100 is no longer a recognized milestone day');
 
+-- 4b calls award_noor DIRECTLY, so it must not run as `authenticated`: as of
+-- 20260726200600_lock_down_award_noor.sql that role gets 42501 before reaching
+-- the body, which would make this throws_ok pass for the wrong reason. Run it
+-- as the owner — the privilege position of the SECURITY DEFINER callers that
+-- are now the only ways in — so the raise under test is the real
+-- 'unknown noor reason: milestone:100'. (auth.uid() comes from the GUC, which
+-- the role switch does not affect.)
+reset role;
 select throws_ok(
   $$ select public.award_noor('milestone:100', 'milestone:100') $$,
-  NULL,
-  NULL,
+  'P0001',
+  'unknown noor reason: milestone:100',
   '4b. award_noor(milestone:100) throws — the 100 arm is gone');
 
 -- ── D2: impersonate (streak 50) ──────────────────────────────────────────────
@@ -131,6 +139,8 @@ select throws_ok(
   NULL,
   '5a. claim(90) throws when the streak (50) has not reached it');
 
+-- 5b also calls award_noor directly — same reason as 4b, run it as the owner.
+reset role;
 select is(
   public.award_noor('milestone:90', 'milestone:90'),
   400,

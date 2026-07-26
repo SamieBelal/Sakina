@@ -8,8 +8,15 @@
 --      award_noor again with the SAME reason_key returns 0 and leaves the
 --      balance unchanged (this is what stops streak-rebuild farming).
 --
--- auth.uid() is driven the same way the project's backend_rls_test.sql does it:
---   set local role authenticated + request.jwt.claims with a 'sub' uuid.
+-- auth.uid() is driven by request.jwt.claims with a 'sub' uuid. This file does
+-- NOT `set local role authenticated` around the award_noor calls: as of
+-- 20260726200600_lock_down_award_noor.sql, EXECUTE on award_noor is revoked
+-- from `authenticated`, so the client role gets 42501 and can never reach the
+-- body these assertions are about. The calls therefore run as the owner — the
+-- privilege position of the SECURITY DEFINER callers (claim_streak_milestone,
+-- award_daily_noor) that are now the only ways in. award_noor is SECURITY
+-- DEFINER and reads auth.uid() from the GUC, so the body behaves identically.
+-- The revoke itself is asserted in award_noor_lockdown_test.sql.
 --
 -- Run via:  psql "$SUPABASE_DB_URL" -f supabase/tests/cosmetics_award_noor_test.sql
 -- pgTAP style (plan/is/finish), matching the project's pgtap harness.
@@ -28,7 +35,6 @@ values ('00000000-0000-0000-0000-0000000000b1')
 on conflict do nothing;
 
 -- Impersonate the seeded user so auth.uid() resolves inside the RPC.
-set local role authenticated;
 select set_config(
   'request.jwt.claims',
   jsonb_build_object(
@@ -62,7 +68,6 @@ select is(
   10,
   'noor_balance stays 10 after idempotent duplicate grant');
 
-reset role;
 select set_config('request.jwt.claims', '', true);
 
 select * from finish();
