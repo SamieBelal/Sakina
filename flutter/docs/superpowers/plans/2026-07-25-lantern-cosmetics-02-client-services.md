@@ -734,11 +734,13 @@ Add to `lib/services/cosmetics_service.dart`:
 
 ```dart
 /// The streak-milestone days that `award_noor` recognizes (the RPC's `case`
-/// arms are `milestone:7|14|30|60|100`). Client-side allowlist so an
+/// arms are `milestone:7|14|30|60|90`). Client-side allowlist so an
 /// unrecognized day never reaches the RPC (which would `raise 'unknown noor
 /// reason'`). Kept in lockstep with the RPC body in
-/// `20260726000000_cosmetics_economy.sql`.
-const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 100};
+/// `20260726000800_align_milestone_day_90.sql`.
+// NOTE: as planned this set ended in 100; the shipped set ends in 90 to match
+// streakMilestones — see migration 20260726000800_align_milestone_day_90.sql.
+const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 90};
 
 /// Awards milestone Noor for reaching [day], but ONLY after a successful,
 /// newly-recorded `claim_streak_milestone(day)`. This ordering is spec §13

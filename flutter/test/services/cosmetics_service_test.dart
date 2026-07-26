@@ -269,6 +269,27 @@ void main() {
       expect(fakeSync.rpcCalls, isEmpty);
     });
 
+    test('day 90 is the top mintable milestone — it reaches the RPC and 100 '
+        'does not', () async {
+      // The allowlist must match streakMilestones (7/14/30/60/90/180/365) and
+      // the RPC's award arms. 100 was a stray no client could ever send; a real
+      // 90-day streak used to be refused client-side and (had it got through)
+      // rejected server-side as 'unrecognized milestone day 90'.
+      expect(awardableMilestoneDays, {7, 14, 30, 60, 90});
+
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (params) async => {'newly_claimed': true, 'noor_awarded': 400};
+
+      final granted = await awardMilestoneNoor(90);
+
+      expect(granted, 400);
+      expect(fakeSync.rpcCalls.single['params'], {'p_day': 90});
+
+      fakeSync.rpcCalls.clear();
+      expect(await awardMilestoneNoor(100), 0);
+      expect(fakeSync.rpcCalls, isEmpty); // 100 never reaches the server
+    });
+
     test('unauthenticated: no RPC calls, returns 0', () async {
       fakeSync.userId = null;
       final granted = await awardMilestoneNoor(30);

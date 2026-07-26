@@ -3,7 +3,9 @@
 -- writes a claim row. Without these guards any authenticated user can claim an
 -- arbitrary day (an exploit we're about to hang valuable Noor/cosmetic grants off).
 --
--- Recognized milestone days: 7,14,30,60,100,180,365.
+-- Recognized milestone days: 7,14,30,60,90,180,365 (aligned on the client's
+-- streakMilestones list by 20260726000800_align_milestone_day_90.sql — 100 was
+-- a stray the client could never send and is no longer recognized).
 --
 -- Invariants under test:
 --   1. Claiming a recognized + reached day (7, streak=7) succeeds (lives_ok).

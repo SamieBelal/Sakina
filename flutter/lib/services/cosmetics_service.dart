@@ -241,11 +241,14 @@ Future<void> _debitNoorCache(int amount) async {
 }
 
 /// The streak-milestone days that `award_noor` recognizes (the RPC's `case`
-/// arms are `milestone:7|14|30|60|100`). Client-side allowlist so an
+/// arms are `milestone:7|14|30|60|90`). Client-side allowlist so an
 /// unrecognized day never reaches the RPC (which would `raise 'unknown noor
 /// reason'`). Kept in lockstep with the RPC body in
-/// `20260726000000_cosmetics_economy.sql`.
-const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 100};
+/// `20260726000800_align_milestone_day_90.sql` — which aligned the server on
+/// 90, the day [streakMilestones] has always used. (The original arm was a
+/// stray `100`: no client could ever send it, while a genuine 90-day streak was
+/// rejected as an unrecognized milestone day.)
+const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 90};
 
 /// Awards milestone Noor for reaching [day] via a SINGLE atomic
 /// `claim_streak_milestone(day)` call. As of the 20260726000700 migration the

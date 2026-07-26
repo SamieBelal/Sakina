@@ -15,7 +15,7 @@
 --      unchanged, exactly ONE noor_grants row (idempotent replay awards 0).
 --   3. Claiming a recognized-but-NON-mintable day (180 — award_noor has no arm)
 --      → newly_claimed=true, noor_awarded=0, and NO raise (the perform is
---      guarded to {7,14,30,60,100}).
+--      guarded to {7,14,30,60,90}).
 --   4. An unreached / unrecognized day is still rejected exactly as before
 --      (backward-compat with the hardening guards).
 --

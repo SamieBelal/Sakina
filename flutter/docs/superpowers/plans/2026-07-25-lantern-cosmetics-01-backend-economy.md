@@ -300,7 +300,9 @@ begin
     when p_reason = 'milestone:14'   then 75
     when p_reason = 'milestone:30'   then 150
     when p_reason = 'milestone:60'   then 250
-    when p_reason = 'milestone:100'  then 400
+    when p_reason = 'milestone:90'   then 400  -- was 'milestone:100' as planned;
+                                               -- corrected by 20260726000800 to
+                                               -- match streakMilestones (90).
     when p_reason = 'quest'          then 15
     else null end;
   if v_amount is null then raise exception 'unknown noor reason: %', p_reason; end if;
@@ -526,7 +528,9 @@ declare v_uid uuid := auth.uid(); v_streak int;
 begin
   if v_uid is null then raise exception 'not authenticated'; end if;
   -- Guard 1: recognized milestone day only.
-  if p_day not in (7,14,30,60,100,180,365) then
+  -- NOTE: as planned this read 100; the shipped guard uses 90 to match
+  -- streakMilestones (migration 20260726000800_align_milestone_day_90.sql).
+  if p_day not in (7,14,30,60,90,180,365) then
     raise exception 'unrecognized milestone day %', p_day;
   end if;
   -- Guard 2: user must have actually reached it.

@@ -35,9 +35,11 @@ These exist in-tree as the validated spike. All additive; production rendering i
 | Source | Grant (indicative, to tune) |
 |---|---|
 | Daily muḥāsabah completion | +10 |
-| Streak milestones (7/14/30/60/100…) | +40 / +75 / +150 / … |
+| Streak milestones (7/14/30/60/90) | +40 / +75 / +150 / +250 / +400 |
 | Achievements / quests / first-time actions | one-off |
 | **Premium multiplier** | **~2×** all earning |
+
+Mintable days must match `streakMilestones` in `lib/services/streak_service.dart` exactly — the recognized set is `{7,14,30,60,90,180,365}` and the mintable subset is `{7,14,30,60,90}` (180/365 are recognized-but-non-mintable). An earlier draft wrote `100`, which no client could ever send while a genuine 90-day streak was rejected; migration `20260726000800_align_milestone_day_90.sql` aligned the server on 90.
 
 Prices tuned so a recolor skin ≈ **1–2 weeks** of daily use (goal-gradient pull without grind). Sculpted heroes cost more Noor **or** are bought outright via IAP.
 
