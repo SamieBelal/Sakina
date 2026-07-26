@@ -153,3 +153,34 @@ file. Build/share that proxy pattern rather than duplicating it.
 **Plan:** `docs/superpowers/plans/2026-07-16-dua-rain-window.md`
 
 ---
+
+## Re-enable push_enabled_last_verified_at cron freshness filter (defense-in-depth)
+
+**Trigger:** a second `push_enabled`-drift incident, OR before relying on the
+cron freshness filter as a defense-in-depth layer.
+
+**Status:** The `push_enabled_last_verified_at` column + its partial index exist
+in prod and are now also captured in a committed migration
+(`20260726120000_reconcile_push_enabled_verified_at_column.sql`). BUT the cron
+RPC `get_eligible_notification_users` has **no freshness filter** — it was
+clobbered by `20260512212403_daily_reminder_uses_user_reminder_time` and never
+restored. As of 2026-07-26 only **37 of 1,239** push-enabled users have a fresh
+`verified_at` (1,106 are NULL), so re-adding
+`AND push_enabled_last_verified_at > now() - interval '7 days'` today would drop
+eligibility to 37 and **silently suppress pushes for ~1,200 users**. The filter
+must not be re-added until the column is broadly populated.
+
+**Steps when ready:**
+
+1. **Broaden client stamping** in `notification_service.dart` to stamp
+   `verified_at` on every `AppLifecycleState.resumed` (currently it only stamps
+   on optIn success + one reconcile branch).
+2. **Backfill** all existing `push_enabled = true` rows' `verified_at = now()`
+   via a migration, so the freshness window starts from a populated baseline.
+3. **Only THEN** `CREATE OR REPLACE get_eligible_notification_users` re-adding
+   the `AND push_enabled_last_verified_at > now() - interval '7 days'` clause.
+4. Add a pgtap test asserting stale rows are excluded and fresh rows included.
+
+**Surfaced by:** push_enabled-drift QA finding, 2026-07-26.
+
+---
