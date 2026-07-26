@@ -110,5 +110,29 @@ serve((request) =>
         throw error;
       }
     },
+    grantCosmetic: async (payload) => {
+      // Idempotent on transaction_id server-side, so RC retries are safe.
+      // Errors propagate → 500 → RC retries.
+      const { error } = await supabase.rpc("grant_cosmetic_iap", {
+        p_user_id: payload.user_id,
+        p_item_id: payload.item_id,
+        p_product_id: payload.product_id,
+        p_transaction_id: payload.transaction_id,
+      });
+      if (error != null) {
+        throw error;
+      }
+    },
+    clawbackCosmetic: async (payload) => {
+      // Idempotent on transaction_id server-side. Errors propagate → 500 → RC
+      // retries.
+      const { error } = await supabase.rpc("clawback_cosmetic_iap", {
+        p_transaction_id: payload.transaction_id,
+        p_event_timestamp: payload.event_timestamp,
+      });
+      if (error != null) {
+        throw error;
+      }
+    },
   })
 );
