@@ -55,3 +55,6 @@ coverage/
 
 # Reflect repro harness scratch output (regenerated on demand)
 test/.repro_out/
+
+# cosmetics spike: throwaway downscaled view copies
+docs/superpowers/specs/skin-previews/*_view.*

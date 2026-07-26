@@ -16,15 +16,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../models/lantern_skin.dart';
+
 // ── Palette ──────────────────────────────────────────────────────────────────
+// The skinnable colors (metal gradient, glow, highlight, ember, glass, dusty
+// tarnish) now live on `LanternSkin`; only the shared, non-skinnable colors
+// remain here — the illustrated outline, the freeze-shield blue, and the whole
+// cold "dormant" lapse palette (a snuffed lamp reads the same in every skin).
 const _outline = Color(0xFF241810); // thick warm-dark outline (illustrated look)
-const _goldTop = Color(0xFFF0D8A0);
-const _goldMid = Color(0xFFD9A968);
-const _goldBot = Color(0xFFB07E45);
-const _goldDark = Color(0xFF6E4F28);
-const _glass = Color(0xFF0C3120);
-const _lightGold = Color(0xFFFBE7BE);
-const _amber = Color(0xFFE8A154);
 const _shield = Color(0xFFAFD8EC);
 const _muted = Color(0xFF5C5A50);
 // Negative-state palette (dormant/lapsed) — cold, drained of warmth.
@@ -35,13 +34,7 @@ const _dreadHaze = Color(0xFF0A131C); // vignette that drains the edges
 const _dread = Color(0xFF05090E); // cold shadow pooling beneath
 const _smoke = Color(0xFF9AA6B2); // wisp from the snuffed wick
 const _coldOutline = Color(0xFF11171D);
-// Positive-state accent — rising embers on a strong streak.
-const _ember = Color(0xFFFFD089);
-// Worn/dusty gold — the metal tarnishes as the light weakens (neglect), short
-// of the fully-cold dormant palette.
-const _dustyGoldTop = Color(0xFFAFA07C);
-const _dustyGoldBot = Color(0xFF6B5F44);
-// Flame layers.
+// Flame layers (shared — fire reads as fire in every skin).
 const _flameBlue = Color(0xFF6FA0C8); // cool base of a real flame
 const _flameCore = Color(0xFFFFF6E2); // hot white-gold core
 
@@ -58,6 +51,7 @@ class LanternPainter extends CustomPainter {
     this.wear,
     this.ambientShader,
     this.ambient = true,
+    this.skin = LanternSkin.classicGold,
   });
 
   final double illumination;
@@ -65,6 +59,10 @@ class LanternPainter extends CustomPainter {
   final bool dormant;
   final bool protected;
   final double pulse;
+
+  /// The cosmetic material palette. Defaults to the original brass look, so
+  /// existing call sites render exactly as before.
+  final LanternSkin skin;
 
   /// Whether to paint the full-canvas ambient background (the lit aura / the
   /// dormant cold vignette). True on immersive dark surfaces (home, sacred
@@ -187,7 +185,7 @@ class LanternPainter extends CustomPainter {
     final bodyTop = -s * 0.10;
     final bodyBot = s * 0.22;
     final body = _barrel(w, bodyTop, bodyBot, s * 0.028, s * 0.04);
-    final dome = _dome(s, w, bodyTop);
+    final dome = _domeFor(skin.form.dome, s, w, bodyTop);
     final base = _base(s, w, bodyBot);
     final panel = RRect.fromRectAndRadius(
       Rect.fromLTRB(-w * 0.66, bodyTop + s * 0.028, w * 0.66, bodyBot - s * 0.03),
@@ -202,7 +200,7 @@ class LanternPainter extends CustomPainter {
             width: s * (0.4 + 0.32 * g),
             height: s * 0.06),
         Paint()
-          ..color = _amber.withValues(alpha: 0.26 * g)
+          ..color = skin.glow.withValues(alpha: 0.26 * g)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.03),
       );
       // JOY (fully-lit): radiating warmth — soft god-rays + rising embers.
@@ -217,7 +215,7 @@ class LanternPainter extends CustomPainter {
           Offset(0, s * 0.02),
           s * (0.34 + 0.06 * breath),
           Paint()
-            ..color = _amber.withValues(alpha: 0.24 * joy)
+            ..color = skin.glow.withValues(alpha: 0.24 * joy)
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.13)
             ..blendMode = BlendMode.plus,
         );
@@ -232,7 +230,7 @@ class LanternPainter extends CustomPainter {
             Offset(0, s * 0.02),
             s * rr,
             Paint()
-              ..color = _amber.withValues(alpha: 0.13 * g)
+              ..color = skin.glow.withValues(alpha: 0.13 * g)
               ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.07)
               ..blendMode = BlendMode.plus,
           );
@@ -268,7 +266,7 @@ class LanternPainter extends CustomPainter {
       canvas.drawPath(
         body,
         Paint()
-          ..color = _amber.withValues(alpha: 0.30 * g)
+          ..color = skin.glow.withValues(alpha: 0.30 * g)
           ..maskFilter =
               MaskFilter.blur(BlurStyle.normal, s * (0.04 + 0.05 * g)),
       );
@@ -338,9 +336,9 @@ class LanternPainter extends CustomPainter {
         dormant
             ? [_coldMetalTop, _coldMetalBot]
             : [
-                Color.lerp(_goldTop, _dustyGoldTop, neglect)!,
-                Color.lerp(_goldMid, _dustyGoldBot, neglect * 0.9)!,
-                Color.lerp(_goldBot, _dustyGoldBot, neglect)!,
+                Color.lerp(skin.metalTop, skin.dustyTop, neglect)!,
+                Color.lerp(skin.metalMid, skin.dustyBot, neglect * 0.9)!,
+                Color.lerp(skin.metalBot, skin.dustyBot, neglect)!,
               ],
         dormant ? const [0.0, 1.0] : const [0.0, 0.55, 1.0],
       );
@@ -368,8 +366,10 @@ class LanternPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(panel);
     canvas.drawRRect(
-        panel, Paint()..color = dormant ? const Color(0xFF0A1116) : _glass);
+        panel, Paint()..color = dormant ? const Color(0xFF0A1116) : skin.glass);
     if (!dormant) {
+      // Mashrabiya screen — a faint geometric lattice behind the light.
+      if (skin.form.lattice) _mashrabiya(canvas, panel.outerRect);
       // The FLAME — the lantern's living "face". Sits in the emblem's open
       // centre; its height/steadiness/colour carry the emotion, and the khatam
       // frames it. (Journey/Sky/candle technique: light IS the expression.)
@@ -402,12 +402,17 @@ class LanternPainter extends CustomPainter {
     canvas.restore();
     canvas.drawRRect(panel, outline);
 
+    // Arched mihrab cap over the window (sculpted skins).
+    if (skin.form.archedWindow) {
+      _archedWindow(canvas, s, panel.outerRect, g, metal, outline);
+    }
+
     // Body outline + two facet lines flanking the panel (multi-panel hint).
     canvas.drawPath(body, outline);
     final facet = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = s * 0.006
-      ..color = (dormant ? _muted : _goldDark).withValues(alpha: 0.6);
+      ..color = (dormant ? _muted : skin.metalDark).withValues(alpha: 0.6);
     for (final x in [-w * 0.82, w * 0.82]) {
       canvas.drawLine(Offset(x, bodyTop + s * 0.02),
           Offset(x, bodyBot - s * 0.02), facet);
@@ -420,25 +425,15 @@ class LanternPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = s * 0.008
-        ..color = (dormant ? _coldGlow : _lightGold)
+        ..color = (dormant ? _coldGlow : skin.highlight)
             .withValues(alpha: dormant ? 0.28 : 0.35)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.004)
         ..blendMode = BlendMode.plus,
     );
 
-    // Finial + hanging ring on top of the dome.
-    final apex = -s * 0.30;
-    canvas.drawCircle(Offset(0, apex + s * 0.012), s * 0.018,
-        metal(apex, apex + s * 0.03));
-    canvas.drawCircle(Offset(0, apex + s * 0.012), s * 0.018, outline);
-    canvas.drawCircle(
-      Offset(0, apex - s * 0.028),
-      s * 0.022,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = outlineW
-        ..color = dormant ? _coldOutline : _goldMid,
-    );
+    // Finial crowning the dome — ring / crescent / star / crescent-and-star.
+    final apex = skin.form.dome == DomeShape.onion ? -s * 0.30 : -s * 0.315;
+    _drawFinial(canvas, s, apex, outlineW, metal, outline);
 
     // Particle layer — the object's aftermath / vitality.
     if (dormant) {
@@ -449,6 +444,10 @@ class LanternPainter extends CustomPainter {
     } else if (g > 0.6 && !protected) {
       // Kirakira: joy-sparkles twinkling around a strong, radiant streak.
       _sparkles(canvas, s, g, phase);
+    }
+
+    if (skin.form.tassel && !dormant) {
+      _tassel(canvas, s, bodyBot, metal, outline, phase);
     }
 
     canvas.restore(); // close posture transform
@@ -469,6 +468,13 @@ class LanternPainter extends CustomPainter {
       ..close();
   }
 
+  Path _domeFor(DomeShape shape, double s, double w, double baseY) =>
+      switch (shape) {
+        DomeShape.onion => _dome(s, w, baseY),
+        DomeShape.ogee => _ogeeDome(s, w, baseY),
+        DomeShape.tiered => _tieredDome(s, w, baseY),
+      };
+
   // An onion dome tapering to a point.
   Path _dome(double s, double w, double baseY) {
     final dw = w * 0.82;
@@ -478,6 +484,109 @@ class LanternPainter extends CustomPainter {
       ..cubicTo(-dw * 1.18, baseY - s * 0.05, -s * 0.06, apex + s * 0.055, 0, apex)
       ..cubicTo(s * 0.06, apex + s * 0.055, dw * 1.18, baseY - s * 0.05, dw, baseY)
       ..close();
+  }
+
+  // A pointed ogee (keel) dome — bulges out low, then tucks to a sharp apex.
+  Path _ogeeDome(double s, double w, double baseY) {
+    final dw = w * 0.80;
+    final apex = -s * 0.315;
+    return Path()
+      ..moveTo(-dw, baseY)
+      ..cubicTo(-dw * 1.24, baseY - s * 0.055, -dw * 0.34, apex + s * 0.11,
+          -s * 0.006, apex)
+      ..cubicTo(dw * 0.34, apex + s * 0.11, dw * 1.24, baseY - s * 0.055, dw,
+          baseY)
+      ..close();
+  }
+
+  // A tiered "minaret" cap — two stacked tapering steps to a small point.
+  Path _tieredDome(double s, double w, double baseY) {
+    final dw = w * 0.86;
+    final apex = -s * 0.315;
+    final midY = baseY + (apex - baseY) * 0.46; // top of the lower tier
+    final lw = dw * 0.66; // lower-tier top half-width
+    final uw = dw * 0.44; // upper-tier base half-width
+    return Path()
+      ..moveTo(-dw, baseY)
+      ..lineTo(-lw, midY + s * 0.012)
+      ..lineTo(-lw, midY) // small ledge
+      ..lineTo(-uw, midY)
+      ..lineTo(-uw * 0.62, apex + s * 0.028)
+      ..quadraticBezierTo(0, apex, uw * 0.62, apex + s * 0.028)
+      ..lineTo(uw, midY)
+      ..lineTo(lw, midY)
+      ..lineTo(lw, midY + s * 0.012)
+      ..lineTo(dw, baseY)
+      ..close();
+  }
+
+  // The crown above the dome. `metal` fills with the skin gradient; `outline`
+  // is the illustrated stroke. Default `ring` reproduces the original finial.
+  void _drawFinial(Canvas canvas, double s, double apex, double outlineW,
+      Paint Function(double, double) metal, Paint outline) {
+    switch (skin.form.finial) {
+      case FinialType.ring:
+        canvas.drawCircle(Offset(0, apex + s * 0.012), s * 0.018,
+            metal(apex, apex + s * 0.03));
+        canvas.drawCircle(Offset(0, apex + s * 0.012), s * 0.018, outline);
+        canvas.drawCircle(
+          Offset(0, apex - s * 0.028),
+          s * 0.022,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = outlineW
+            ..color = dormant ? _coldOutline : skin.metalMid,
+        );
+      case FinialType.crescent:
+        _stem(canvas, s, apex, metal, outline);
+        _crescent(canvas, Offset(0, apex - s * 0.05), s * 0.046, metal, outline);
+      case FinialType.star:
+        _stem(canvas, s, apex, metal, outline);
+        _starFinial(canvas, Offset(0, apex - s * 0.052), s * 0.05, metal, outline);
+      case FinialType.crescentStar:
+        _stem(canvas, s, apex, metal, outline);
+        _crescent(canvas, Offset(0, apex - s * 0.055), s * 0.05, metal, outline);
+        _starFinial(
+            canvas, Offset(s * 0.03, apex - s * 0.052), s * 0.022, metal, outline);
+    }
+  }
+
+  // A short neck joining the dome apex to a finial ornament.
+  void _stem(Canvas canvas, double s, double apex,
+      Paint Function(double, double) metal, Paint outline) {
+    final knob = Offset(0, apex + s * 0.006);
+    final neck = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+          center: Offset(0, apex - s * 0.012), width: s * 0.02, height: s * 0.032),
+      Radius.circular(s * 0.007),
+    );
+    canvas.drawRRect(neck, metal(apex - s * 0.03, apex));
+    canvas.drawRRect(neck, outline);
+    canvas.drawCircle(knob, s * 0.016, metal(apex, apex + s * 0.03));
+    canvas.drawCircle(knob, s * 0.016, outline);
+  }
+
+  // A crescent moon opening up-right (a boolean difference of two discs).
+  void _crescent(Canvas canvas, Offset c, double r,
+      Paint Function(double, double) metal, Paint outline) {
+    final outer = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    final inner = Path()
+      ..addOval(Rect.fromCircle(
+          center: c.translate(r * 0.42, -r * 0.18), radius: r * 0.86));
+    final crescent = Path.combine(ui.PathOperation.difference, outer, inner);
+    canvas.drawPath(crescent, metal(c.dy - r, c.dy + r));
+    canvas.drawPath(crescent, outline);
+  }
+
+  // A small five-point star.
+  void _starFinial(Canvas canvas, Offset c, double r,
+      Paint Function(double, double) metal, Paint outline) {
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    final star = _starPoly(r, r * 0.44, 5, -math.pi / 2);
+    canvas.drawPath(star, metal(-r, r));
+    canvas.drawPath(star, outline);
+    canvas.restore();
   }
 
   // A plinth base widening below the body.
@@ -493,6 +602,94 @@ class LanternPainter extends CustomPainter {
       ..close();
   }
 
+  // A faint diamond lattice (mashrabiya screen) across the glass, behind the
+  // flame. Clipped to the panel by the caller.
+  void _mashrabiya(Canvas canvas, Rect r) {
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r.width * 0.011
+      ..strokeCap = StrokeCap.round
+      ..color = skin.metalMid.withValues(alpha: 0.16);
+    final step = r.width / 4.0;
+    for (var x = r.left - r.height; x < r.right + r.height; x += step) {
+      canvas.drawLine(Offset(x, r.top), Offset(x + r.height, r.bottom), p);
+      canvas.drawLine(Offset(x, r.top), Offset(x - r.height, r.bottom), p);
+    }
+  }
+
+  // A pointed mihrab arch capping the glass window — carved into the metal above
+  // the rectangular panel, with a faint light rising into it.
+  void _archedWindow(Canvas canvas, double s, Rect panel, double g,
+      Paint Function(double, double) metal, Paint outline) {
+    final pl = panel.left, pr = panel.right, pt = panel.top;
+    final h = panel.height;
+    final apexY = pt - h * 0.24;
+    final arch = Path()
+      ..moveTo(pl, pt)
+      ..quadraticBezierTo(pl, pt - h * 0.30, 0, apexY)
+      ..quadraticBezierTo(pr, pt - h * 0.30, pr, pt)
+      ..close();
+    canvas.drawPath(
+        arch, Paint()..color = dormant ? const Color(0xFF0A1116) : skin.glass);
+    if (!dormant && g > 0.05) {
+      canvas.save();
+      canvas.clipPath(arch);
+      canvas.drawCircle(
+        Offset(0, pt),
+        h * 0.5,
+        Paint()
+          ..color = skin.glow.withValues(alpha: 0.22 * g)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.28)
+          ..blendMode = BlendMode.plus,
+      );
+      canvas.restore();
+    }
+    canvas.drawPath(
+      arch,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.018
+        ..strokeJoin = StrokeJoin.round
+        ..color = dormant ? _coldMetalTop : skin.metalMid,
+    );
+    canvas.drawPath(arch, outline);
+    // A small keystone dot at the apex.
+    canvas.drawCircle(
+        Offset(0, apexY + s * 0.006), s * 0.009, metal(apexY, apexY + s * 0.02));
+    canvas.drawCircle(Offset(0, apexY + s * 0.006), s * 0.009, outline);
+  }
+
+  // A decorative tassel hanging beneath the base — a cord, a bead, and a fanned
+  // silk skirt that sways on `phase`.
+  void _tassel(Canvas canvas, double s, double bodyBot,
+      Paint Function(double, double) metal, Paint outline, double phase) {
+    final swing = math.sin(phase) * s * 0.008;
+    final topY = bodyBot + s * 0.075;
+    final headY = topY + s * 0.05;
+    final tipY = headY + s * 0.06;
+    final cx = swing;
+    canvas.drawLine(
+      Offset(0, topY),
+      Offset(cx, headY - s * 0.02),
+      Paint()
+        ..strokeWidth = s * 0.006
+        ..strokeCap = StrokeCap.round
+        ..color = skin.metalDark,
+    );
+    // Bead cap.
+    canvas.drawCircle(Offset(cx, headY), s * 0.019, metal(headY - s * 0.02, headY + s * 0.02));
+    canvas.drawCircle(Offset(cx, headY), s * 0.019, outline);
+    // Silk skirt — a fan of fine threads.
+    final thread = Paint()
+      ..strokeWidth = s * 0.0055
+      ..strokeCap = StrokeCap.round
+      ..color = skin.glow.withValues(alpha: 0.85);
+    for (var i = -3; i <= 3; i++) {
+      final tx = cx + i * s * 0.008 + swing * 0.6;
+      canvas.drawLine(Offset(cx, headY + s * 0.012), Offset(tx, tipY), thread);
+    }
+  }
+
   Path _outlinePath(List<Path> ps) {
     final p = Path();
     for (final x in ps) {
@@ -505,7 +702,7 @@ class LanternPainter extends CustomPainter {
   void _rays(Canvas canvas, double s, double g, double phase) {
     final ray = Paint()
       ..blendMode = BlendMode.plus
-      ..color = _amber.withValues(alpha: 0.18 * g)
+      ..color = skin.glow.withValues(alpha: 0.18 * g)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.02);
     for (var k = 0; k < 12; k++) {
       // phase/6 advances exactly two ray slots (2·π/6) per loop → seamless
@@ -537,7 +734,7 @@ class LanternPainter extends CustomPainter {
         Offset(x, y),
         s * 0.007 * (1 - t * 0.4),
         Paint()
-          ..color = _ember.withValues(alpha: a.clamp(0.0, 0.72))
+          ..color = skin.ember.withValues(alpha: a.clamp(0.0, 0.72))
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.004)
           ..blendMode = BlendMode.plus,
       );
@@ -585,7 +782,7 @@ class LanternPainter extends CustomPainter {
       Offset(cx, baseY - h * 0.42),
       h * (0.72 + 0.06 * breath),
       Paint()
-        ..color = _amber.withValues(alpha: 0.32 * g)
+        ..color = skin.glow.withValues(alpha: 0.32 * g)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.5)
         ..blendMode = BlendMode.plus,
     );
@@ -593,7 +790,7 @@ class LanternPainter extends CustomPainter {
     canvas.drawPath(
       flame(1.0, 1.0, lean),
       Paint()
-        ..color = _amber.withValues(alpha: 0.92)
+        ..color = skin.glow.withValues(alpha: 0.92)
         ..blendMode = BlendMode.plus
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.16),
     );
@@ -601,7 +798,7 @@ class LanternPainter extends CustomPainter {
     canvas.drawPath(
       flame(0.6, 0.82, lean * 0.72),
       Paint()
-        ..color = _lightGold.withValues(alpha: 0.95)
+        ..color = skin.highlight.withValues(alpha: 0.95)
         ..blendMode = BlendMode.plus,
     );
     // 4. Hot white-gold core near the base (brighter with the streak).
@@ -771,7 +968,7 @@ class LanternPainter extends CustomPainter {
         Offset(pts[i].dx * s, pts[i].dy * s),
         r,
         Paint()
-          ..color = _lightGold.withValues(alpha: a.clamp(0.0, 0.85))
+          ..color = skin.highlight.withValues(alpha: a.clamp(0.0, 0.85))
           ..blendMode = BlendMode.plus,
       );
     }
@@ -885,7 +1082,7 @@ class LanternPainter extends CustomPainter {
         ..strokeWidth = r * 0.016
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = _lightGold.withValues(alpha: 0.05 + 0.08 * g),
+        ..color = skin.highlight.withValues(alpha: 0.05 + 0.08 * g),
     );
 
     // The full emblem (no central seed): inner octagon + 8-point khatam star —
@@ -903,7 +1100,7 @@ class LanternPainter extends CustomPainter {
             ..strokeWidth = r * 0.05
             ..strokeCap = StrokeCap.round
             ..blendMode = BlendMode.plus
-            ..color = _amber.withValues(alpha: (0.5 * g).clamp(0.0, 0.85))
+            ..color = skin.glow.withValues(alpha: (0.5 * g).clamp(0.0, 0.85))
             ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.06),
         );
       }
@@ -915,7 +1112,7 @@ class LanternPainter extends CustomPainter {
           ..strokeWidth = r * 0.03
           ..strokeCap = StrokeCap.round
           ..color =
-              _lightGold.withValues(alpha: (0.34 + 0.56 * g).clamp(0.0, 0.95)),
+              skin.highlight.withValues(alpha: (0.34 + 0.56 * g).clamp(0.0, 0.95)),
       );
     }
     canvas.restore();
@@ -983,5 +1180,7 @@ class LanternPainter extends CustomPainter {
       old.pulse != pulse ||
       old.wear != wear ||
       old.ambientShader != ambientShader ||
-      old.ambient != ambient;
+      old.ambient != ambient ||
+      old.skin != skin ||
+      old.skin.form != skin.form;
 }
