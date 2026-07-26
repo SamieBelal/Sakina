@@ -119,10 +119,10 @@ void main() {
       streak: 3,
       checkedInToday: true,
       personalized: true,
-      lanternSkinId: 'emerald_jade',
+      lanternSkinId: 'obsidian_gold',
     );
     final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
-    expect(json['lantern_skin'], 'emerald_jade');
+    expect(json['lantern_skin'], 'obsidian_gold');
   });
 
   test('a skin with no bundled frames is written as the default, never raw',
@@ -156,7 +156,7 @@ void main() {
         streak: 3,
         checkedInToday: true,
         personalized: true,
-        lanternSkinId: 'moonlit_silver');
+        lanternSkinId: 'masjid_brass');
     expect(client.updates, 4,
         reason: 'two distinct payloads × two widgets (Name + companion)');
   });
@@ -173,10 +173,10 @@ void main() {
         personalized: true);
     expect(client.updates, 2);
 
-    await svc.setEquippedLanternSkin('emerald_jade');
+    await svc.setEquippedLanternSkin('obsidian_gold');
 
     final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
-    expect(json['lantern_skin'], 'emerald_jade');
+    expect(json['lantern_skin'], 'obsidian_gold');
     expect(json['streak'], 7, reason: 'the rest of the payload is preserved');
     expect(json['name_key'], 'al-malik');
     expect(client.updates, 4, reason: 'the equip re-pushed and reloaded');
@@ -191,8 +191,8 @@ void main() {
         streak: 7,
         checkedInToday: true,
         personalized: true);
-    await svc.setEquippedLanternSkin('emerald_jade');
-    await svc.setEquippedLanternSkin('emerald_jade');
+    await svc.setEquippedLanternSkin('obsidian_gold');
+    await svc.setEquippedLanternSkin('obsidian_gold');
     expect(client.updates, 4, reason: 'the second equip must not reload');
   });
 
@@ -206,7 +206,7 @@ void main() {
         streak: 7,
         checkedInToday: true,
         personalized: true,
-        lanternSkinId: 'emerald_jade');
+        lanternSkinId: 'obsidian_gold');
     await svc.setEquippedLanternSkin('skin_from_a_future_catalog');
     final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
     expect(json['lantern_skin'], 'classic_gold');
@@ -215,7 +215,7 @@ void main() {
   test('an equip before the first sync is carried by the next sync', () async {
     final client = _FakeHomeWidgetClient();
     final svc = build(client);
-    await svc.setEquippedLanternSkin('moonlit_silver');
+    await svc.setEquippedLanternSkin('masjid_brass');
     expect(client.saved, isEmpty, reason: 'nothing to patch yet');
 
     await svc.syncWidget(
@@ -225,7 +225,7 @@ void main() {
         checkedInToday: true,
         personalized: true);
     final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
-    expect(json['lantern_skin'], 'moonlit_silver');
+    expect(json['lantern_skin'], 'masjid_brass');
   });
 
   test('clearWidget resets the skin so the next user starts on classic_gold',
@@ -239,7 +239,7 @@ void main() {
         streak: 7,
         checkedInToday: true,
         personalized: true,
-        lanternSkinId: 'emerald_jade');
+        lanternSkinId: 'obsidian_gold');
     await svc.clearWidget();
 
     await svc.syncWidget(

@@ -72,15 +72,15 @@ const List<CompanionBrightness> kWidgetCompanionBrightnesses =
 /// blank widget on already-installed builds — an equipped skin that isn't in
 /// this set is silently rendered as [kDefaultWidgetLanternSkinId].
 const Set<String> kWidgetBundledSkinIds = <String>{
+  // Trimmed to fit the widget-asset budget (see the Lane E plan, Task 7): all
+  // nine skins measured 4,349,953 B (4.15 MiB), over the 4.0 MB gate.
+  // The default plus the three a-la-carte real-money skins: a paid skin must
+  // never silently fall back. Earned skins fall back to classic_gold on the
+  // widget only; they still render fully in-app.
   'classic_gold',
-  'moonlit_silver',
-  'emerald_jade',
   'obsidian_gold',
-  'rose_quartz',
-  'ramadan_gold',
   'masjid_brass',
   'crystal_star',
-  'ramadan_royal',
 };
 
 /// File name of the exported frame for [skinId] at [brightness]. Mirrored by

@@ -30,13 +30,13 @@ void main() {
 
   test('frame asset name is <skinId>_<brightness>', () {
     expect(
-      companionWidgetFrameAsset('emerald_jade', CompanionBrightness.fullyLit),
-      'companion_emerald_jade_fullyLit.png',
+      companionWidgetFrameAsset('obsidian_gold', CompanionBrightness.fullyLit),
+      'companion_obsidian_gold_fullyLit.png',
     );
   });
 
   test('a bundled skin id passes the eligibility filter unchanged', () {
-    expect(widgetEligibleSkinId('emerald_jade'), 'emerald_jade');
+    expect(widgetEligibleSkinId('obsidian_gold'), 'obsidian_gold');
   });
 
   test('an unbundled or malformed skin id falls back to the default', () {
