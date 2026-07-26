@@ -11,7 +11,17 @@ import 'package:sakina/services/cosmetics_service.dart';
 
 /// The user's cosmetics economy state (Noor + owned + equipped). Re-read after
 /// every successful equip/unlock/buy via `ref.invalidate(cosmeticsStateProvider)`.
-final cosmeticsStateProvider = FutureProvider<CosmeticsState>((ref) async {
+///
+/// AutoDispose because the resolution is USER-scoped and nothing outside the
+/// wardrobe ever invalidated it (I8). App-scoped, a same-session sign-out →
+/// sign-in served the PREVIOUS user's resolved state on the next /companion
+/// open — their Noor balance, their equipped lantern. (The underlying prefs are
+/// user-scoped via `SupabaseSyncService.scopedKey`, so this was display
+/// staleness, not a data leak — but it is indistinguishable from one on
+/// screen.) Both consumers are screens, so the state dies with the last one
+/// and the next open re-reads under whoever is signed in now.
+final cosmeticsStateProvider =
+    FutureProvider.autoDispose<CosmeticsState>((ref) async {
   return getCosmeticsState();
 });
 

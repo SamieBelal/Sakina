@@ -86,6 +86,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     mounted.value = true;
+    // Two frames: cosmeticsStateProvider is autoDispose too, so a reopened
+    // screen genuinely re-resolves rather than replaying a cached value.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
   }
 
