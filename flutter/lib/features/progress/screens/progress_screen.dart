@@ -747,7 +747,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             child: companion == null
                 ? null
                 : Center(
-                    child: CompanionMedallion(state: companion, size: 152),
+                    // Tap the lamp → the Companion stage (and from there the
+                    // wardrobe). The medallion itself stays a pure painter.
+                    child: GestureDetector(
+                      onTap: () => GoRouter.of(context).push('/companion'),
+                      child: CompanionMedallion(state: companion, size: 152),
+                    ),
                   ),
           ),
           const SizedBox(height: 8),

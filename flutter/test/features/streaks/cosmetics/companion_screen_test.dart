@@ -1,0 +1,72 @@
+// The Companion stage screen: equipped backdrop + live equipped-skin medallion,
+// the Noor chip, and the entry points (Customize → wardrobe, share).
+//
+// DB-free: cosmeticsStateProvider and companionStateProvider are both
+// overridden, so nothing touches Supabase / SharedPreferences / RevenueCat.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/streaks/models/companion_state.dart';
+import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
+import 'package:sakina/features/streaks/screens/companion_screen.dart';
+import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
+import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
+import 'package:sakina/services/cosmetics_service.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+
+void main() {
+  // CompanionStage / CompanionMedallion both wrap a VisibilityDetector whose
+  // default 500ms debounce would outlive the test tree.
+  setUp(() =>
+      VisibilityDetectorController.instance.updateInterval = Duration.zero);
+
+  Widget harness({
+    String equippedSkin = 'emerald_jade',
+    String equippedBackdrop = 'laylat_night',
+    Set<String> ownedSkins = const {'emerald_jade'},
+    Set<String> ownedBackdrops = const {'laylat_night'},
+  }) =>
+      ProviderScope(
+        overrides: [
+          companionStateProvider.overrideWith((ref) => const CompanionState(
+              brightness: CompanionBrightness.glowing, protected: false)),
+          cosmeticsStateProvider.overrideWith((ref) async => CosmeticsState(
+                noorBalance: 130,
+                equippedLanternSkin: equippedSkin,
+                equippedBackdrop: equippedBackdrop,
+                ownedLanternSkins: ownedSkins,
+                ownedBackdrops: ownedBackdrops,
+              )),
+        ],
+        child: const MaterialApp(home: CompanionScreen()),
+      );
+
+  testWidgets('renders the stage, Noor chip, and Customize entry',
+      (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(CompanionStage), findsOneWidget);
+    expect(find.byType(NoorBalanceChip), findsOneWidget);
+    expect(find.text('130'), findsOneWidget);
+    expect(find.text('Customize'), findsOneWidget);
+    expect(find.byIcon(Icons.share_rounded), findsOneWidget);
+  });
+
+  testWidgets(
+      'DEP-D2: an equipped-but-unowned skin falls back to classic gold',
+      (tester) async {
+    await tester.pumpWidget(harness(
+      equippedSkin: 'ramadan_royal', // premium-exclusive, premium lapsed
+      ownedSkins: const {},
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final medallion =
+        tester.widget<CompanionMedallion>(find.byType(CompanionMedallion));
+    expect(medallion.skin.id, defaultLanternSkin);
+  });
+}

@@ -12,6 +12,8 @@ import '../features/quests/screens/quests_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/collection/screens/collection_screen.dart';
 import '../features/daily/screens/muhasabah_screen.dart';
+import '../features/streaks/screens/companion_screen.dart';
+import '../features/streaks/screens/wardrobe_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/onboarding_stage.dart';
 import '../features/onboarding/screens/hook_screen.dart';
@@ -242,6 +244,19 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         path: '/muhasabah',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const MuhasabahScreen(),
+      ),
+
+      // Companion stage (full screen, no bottom nav). Tapping the Home
+      // medallion pushes here; the wardrobe is pushed on top of it.
+      GoRoute(
+        path: '/companion',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CompanionScreen(),
+      ),
+      GoRoute(
+        path: '/wardrobe',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const WardrobeScreen(),
       ),
 
       // My Referrals (full screen, no bottom nav). Settings → "Refer a friend"
