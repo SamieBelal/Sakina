@@ -4,8 +4,10 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../core/constants/allah_names.dart';
+import '../features/streaks/widgets/cosmetics/cosmetic_catalog_ui.dart';
 import 'checkin_history_service.dart';
 import 'cosmetics_service.dart';
+import 'purchase_service.dart';
 import 'streak_service.dart';
 import 'widget_analytics.dart';
 import 'widget_data_service.dart';
@@ -78,13 +80,27 @@ final WidgetAnchorCatalog _anchorCatalog = WidgetAnchorCatalog();
 /// (hydrated from `sync_all_user_data`); a failed read must never stop a widget
 /// refresh, so it degrades to the widget default rather than throwing.
 ///
-/// [readCosmetics] is injectable for tests; production uses [getCosmeticsState].
+/// Resolved through the SHARED [renderableSkinId] — the same
+/// `owned || (premium-exclusive && premium)` gate the Companion stage and the
+/// Wardrobe preview use. The home-screen widget is a third render surface for
+/// the equipped lantern, and reading `equippedLanternSkin` raw made it the one
+/// surface with no entitlement check: a lapsed subscriber's widget would keep
+/// showing a premium-exclusive skin indefinitely. (Not reachable today only
+/// because no premium-exclusive skin is in [kWidgetBundledSkinIds] — luck, not
+/// design.) [widgetEligibleSkinId] still runs after this, as the separate
+/// bundled-frames budget filter it is.
+///
+/// [readCosmetics] / [readPremium] are injectable for tests; production uses
+/// [getCosmeticsState] and [PurchaseService.isPremium].
 Future<String> resolveWidgetLanternSkin({
   Future<CosmeticsState> Function()? readCosmetics,
+  Future<bool> Function()? readPremium,
 }) async {
   try {
     final state = await (readCosmetics ?? getCosmeticsState)();
-    return state.equippedLanternSkin;
+    final isPremium =
+        await (readPremium ?? () => PurchaseService().isPremium())();
+    return renderableSkinId(state, isPremium: isPremium);
   } catch (_) {
     return kDefaultWidgetLanternSkinId;
   }
