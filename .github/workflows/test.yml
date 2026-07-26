@@ -131,18 +131,19 @@ jobs:
         # fail now with "permission denied for table" (app_config, user_tokens,
         # user_profiles, …) purely from that change. Re-apply the table +
         # sequence grants post-migration so role-scoped pgtap tests match
-        # production. RLS still gates row access. Function EXECUTE grants are
-        # intentionally NOT touched here — migrations revoke specific ones and
-        # the negative execute-denial tests must stay valid.
+        # production. RLS still gates row access.
+        #
+        # The SQL lives in scripts/restore_local_role_grants.sql so this job and
+        # scripts/run_sql_tests_clean.sh share ONE definition. See that file's
+        # header for what it deliberately does NOT restore: function EXECUTE
+        # grants (migrations revoke specific ones and the negative
+        # execute-denial tests must stay valid) and table grants a migration
+        # purposely revoked.
         run: |
           set -euo pipefail
           PGPASSWORD=postgres psql \
             "host=127.0.0.1 port=54322 user=postgres dbname=postgres" \
-            -v ON_ERROR_STOP=1 <<'SQL'
-          grant usage on schema public to anon, authenticated, service_role;
-          grant all on all tables in schema public to anon, authenticated, service_role;
-          grant all on all sequences in schema public to anon, authenticated, service_role;
-          SQL
+            -v ON_ERROR_STOP=1 -f scripts/restore_local_role_grants.sql
 
       - name: Run SQL tests
         env:

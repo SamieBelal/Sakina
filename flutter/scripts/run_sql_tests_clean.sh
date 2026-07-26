@@ -159,19 +159,10 @@ if [ -n "$NEWEST" ]; then
   fi
 fi
 
-# Mirrors the "Restore standard role table grants" step in
-# .github/workflows/test.yml: recent Supabase CLI/image releases stopped handing
-# the client roles the table-level grants the hosted platform provides, so
-# role-scoped suites fail with "permission denied for table" for reasons that
-# have nothing to do with the code under test. Function EXECUTE grants are
-# deliberately NOT touched — migrations revoke specific ones and the negative
-# execute-denial tests must stay valid.
+# Same file the CI sql-tests job runs, so the two environments can't drift. See
+# its header for why local/CI needs it and what it deliberately does NOT restore.
 echo "==> restoring standard role table grants"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
-grant usage on schema public to anon, authenticated, service_role;
-grant all on all tables in schema public to anon, authenticated, service_role;
-grant all on all sequences in schema public to anon, authenticated, service_role;
-SQL
+psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f scripts/restore_local_role_grants.sql
 
 echo "==> running suites against the CLEAN database"
 echo
