@@ -34,6 +34,7 @@ import 'services/app_config_service.dart';
 import 'services/auth_service.dart';
 import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
+import 'services/cosmetics_service.dart';
 import 'services/gating_service.dart';
 import 'services/streak_service.dart';
 import 'features/paywall/widgets/daily_cap_sheet.dart';
@@ -356,6 +357,11 @@ Future<void> main() async {
   CardCollectionAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   StreakAnalytics.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // Lantern cosmetics: Noor grants + unlock/equip/IAP from the top-level
+  // cosmetics service, and the Companion/wardrobe screen + preview events the
+  // UI emits through the same static hook (services never touch Riverpod).
+  CosmeticsAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // Home-screen widget telemetry: `widget_opened` (taps → app) from the
   // deep-link handler, and `widget_installed_state` (adoption snapshot) from
