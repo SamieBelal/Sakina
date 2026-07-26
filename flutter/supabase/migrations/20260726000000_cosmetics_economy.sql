@@ -48,3 +48,36 @@ create table if not exists public.noor_grants (
 );
 
 create index if not exists idx_user_cosmetics_user on public.user_cosmetics(user_id);
+
+-- Guard: economy columns are writable ONLY by trusted RPCs (which set the GUC flag).
+create or replace function public.cosmetics_guard() returns trigger
+language plpgsql as $$
+begin
+  if current_setting('app.cosmetics_rpc', true) = 'on' then
+    return NEW;
+  end if;
+  if NEW.noor_balance is distinct from OLD.noor_balance
+     or NEW.noor_total_earned is distinct from OLD.noor_total_earned
+     or NEW.noor_total_spent  is distinct from OLD.noor_total_spent
+     or NEW.equipped_lantern_skin is distinct from OLD.equipped_lantern_skin
+     or NEW.equipped_backdrop     is distinct from OLD.equipped_backdrop then
+    raise exception 'cosmetics columns are RPC-only';
+  end if;
+  return NEW;
+end $$;
+
+drop trigger if exists trg_cosmetics_guard on public.user_profiles;
+create trigger trg_cosmetics_guard before update on public.user_profiles
+  for each row execute function public.cosmetics_guard();
+
+alter table public.user_cosmetics enable row level security;
+alter table public.noor_grants     enable row level security;
+drop policy if exists user_cosmetics_read on public.user_cosmetics;
+create policy user_cosmetics_read on public.user_cosmetics
+  for select using ((select auth.uid()) = user_id);
+-- no insert/update/delete policy → clients cannot write; RPCs are SECURITY DEFINER
+
+alter table public.cosmetic_catalog enable row level security;
+drop policy if exists cosmetic_catalog_read on public.cosmetic_catalog;
+create policy cosmetic_catalog_read on public.cosmetic_catalog
+  for select using (true);
