@@ -37,17 +37,40 @@ void main() {
       expect(debugQuestTodayLabel(), '2026-07-25');
     });
 
-    test('labels and seeds are stable across every instant of a UTC day', () {
+    test('labels and seeds derive from the injected clock (literal pins)', () {
+      // Literal expected values, NOT two injected reads compared to each
+      // other — the pre-fix code read the real wall clock on both sides, so
+      // a self-comparison passes vacuously on broken code (review P2-5).
       debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 25, 0, 1);
-      final earlyLabel = debugQuestTodayLabel();
-      final earlyDaily = debugQuestDailySeed();
-      final earlyWeekly = debugQuestWeeklySeed();
+      expect(debugQuestTodayLabel(), '2026-07-25');
+      expect(debugQuestDailySeed(), 205,
+          reason: 'day-of-year of 2026-07-25 from the injected clock');
+      expect(debugQuestWeeklySeed(), 28,
+          reason: 'Mondays-since-Jan-1 for the week of 2026-07-20');
 
       debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 25, 23, 59);
-      expect(debugQuestTodayLabel(), earlyLabel);
-      expect(debugQuestDailySeed(), earlyDaily,
+      expect(debugQuestTodayLabel(), '2026-07-25');
+      expect(debugQuestDailySeed(), 205,
           reason: 'pool selection must not flip mid-UTC-day');
-      expect(debugQuestWeeklySeed(), earlyWeekly);
+      expect(debugQuestWeeklySeed(), 28);
+    });
+
+    test('weekly seed rolls on MONDAY, together with the label — not Tuesday',
+        () {
+      // Review P1: the old ceil() week formula incremented every Tuesday, so
+      // pool selection changed mid-week while the label (and the persisted
+      // period_start) stayed on Monday, orphaning two of three weekly quests.
+      debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 20, 0, 1);
+      final mondaySeed = debugQuestWeeklySeed(); // Mon Jul 20, week start
+      debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 21, 12, 0);
+      expect(debugQuestWeeklySeed(), mondaySeed,
+          reason: 'TUESDAY must not roll the weekly seed (the old bug)');
+      debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 26, 23, 59);
+      expect(debugQuestWeeklySeed(), mondaySeed,
+          reason: 'Sunday night is still the same quest week');
+      debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 27, 0, 1);
+      expect(debugQuestWeeklySeed(), mondaySeed + 1,
+          reason: 'the seed rolls exactly when the label/weekStart roll');
     });
 
     test('daily seed advances exactly with the UTC day', () {
@@ -74,10 +97,12 @@ void main() {
       debugQuestBoundariesClock = () => DateTime.utc(2026, 7, 31, 23, 59);
       expect(debugQuestMonthLabel(), '2026-07');
       expect(debugQuestMonthStart(), DateTime.utc(2026, 7, 1));
+      expect(debugQuestMonthlySeed(), 7);
 
       debugQuestBoundariesClock = () => DateTime.utc(2026, 8, 1, 0, 1);
       expect(debugQuestMonthLabel(), '2026-08');
       expect(debugQuestMonthStart(), DateTime.utc(2026, 8, 1));
+      expect(debugQuestMonthlySeed(), 8);
     });
   });
 }

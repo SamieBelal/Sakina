@@ -13,7 +13,7 @@
 --    shipped discoverName posture; Name choice carries no tier/economy value).
 --    BINDING for W2/W3: unseal must never directly grant tokens/XP/tier.
 
-create table public.user_name_queue (
+create table if not exists public.user_name_queue (
   user_id     uuid not null references auth.users(id) on delete cascade,
   position    int  not null check (position between 1 and 7),
   name_id     int  not null references public.collectible_names(id),
@@ -25,6 +25,7 @@ create table public.user_name_queue (
 
 alter table public.user_name_queue enable row level security;
 
+drop policy if exists "Users can view own name queue" on public.user_name_queue;
 create policy "Users can view own name queue" on public.user_name_queue
   for select to authenticated
   using ((select auth.uid()) = user_id);

@@ -197,6 +197,14 @@ begin
       using errcode = 'check_violation';
   end if;
 
+  -- One-way latch (review P3-10): without this, a client could flip
+  -- onboarding_completed false, rewrite the "frozen" fields below, and
+  -- re-complete. Mirrors the had_trial latch above.
+  if old.onboarding_completed = true and new.onboarding_completed = false then
+    raise exception 'cannot reset onboarding_completed (true -> false is forbidden)'
+      using errcode = 'check_violation';
+  end if;
+
   -- Freeze-after-completion (NOT naive write-once: persistOnboardingToSupabase
   -- runs 2-4x per signup with swallowed errors — same-value re-sends and
   -- back-nav edits during onboarding must pass; post-onboarding rewrites raise).
@@ -215,6 +223,43 @@ begin
 end
 $$;
 
+-- 4b. INSERT-path guard (review P2-3) ------------------------------------------
+-- The UPDATE guard above enforces "server-assigned only", but user_profiles
+-- has an authenticated INSERT policy ("Users can insert own profile"). Not
+-- reachable today (handle_new_user creates the row in the signup txn and the
+-- delete guard blocks removal, so a client INSERT hits the PK) — but the
+-- cohort invariant must not be one policy change away from void. Block any
+-- non-exempt INSERT that asserts the server-owned columns.
+
+create or replace function public.guard_user_profiles_insert_server_columns()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+begin
+  if current_user in ('service_role', 'postgres', 'supabase_admin') then
+    return new;
+  end if;
+
+  if new.free_tier_cohort is not null
+     or new.weekly_pool_used <> 0
+     or new.weekly_pool_week_start is not null
+     or new.weekly_pool_reset_at is not null
+     or new.softener_notice_ends_at is not null then
+    raise exception
+      'cannot INSERT server-assigned columns (free_tier_cohort / weekly_pool_* / softener_notice_ends_at)'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists guard_user_profiles_insert_server_columns on public.user_profiles;
+create trigger guard_user_profiles_insert_server_columns
+  before insert on public.user_profiles
+  for each row execute function public.guard_user_profiles_insert_server_columns();
+
 -- 5. consume_weekly_allowance -------------------------------------------------
 -- Server authority for the 3-combined weekly pool (Reflect + Build-a-Dua).
 -- Reset is (a) MONOTONIC: only a strictly LATER local Monday counts — hopping
@@ -224,6 +269,13 @@ $$;
 -- anchor so an honest first week still resets on its first real Monday.
 -- No refund path by design (founder decision 2026-07-26): a consumed use that
 -- errors client-side is eaten, matching the warmup posture.
+--
+-- ACCEPTED BOUNDS (review P3-8/P3-9, quantified so "3/week" is read honestly):
+--   * the anchor-free init means one dateline hop right after the FIRST call
+--     ever can yield one extra pool — once per account lifetime;
+--   * the 6-day anchor (vs 7-day weeks) lets a determined caller converge to
+--     a reset every ~6.1 days ≈ +14% allowance, no tz tricks needed.
+-- Both are deliberate trades for never denying an honest user their Monday.
 
 create or replace function public.consume_weekly_allowance(p_feature text)
 returns jsonb
@@ -277,11 +329,9 @@ begin
                       where key = 'weekly_pool_size'), 3);
 
   if v_used >= v_pool then
-    update public.user_profiles
-    set weekly_pool_used       = v_used,
-        weekly_pool_week_start = v_stored_week,
-        weekly_pool_reset_at   = v_reset_at
-    where id = v_uid;
+    -- No write on the rejected path (review P3-11): a reset or init above
+    -- always leaves v_used = 0 < pool, so reaching here means nothing
+    -- changed — writing would only produce a dead tuple + updated_at bump.
     return jsonb_build_object(
       'allowed', false, 'remaining', 0, 'week_start', v_stored_week);
   end if;

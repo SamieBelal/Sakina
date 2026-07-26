@@ -216,7 +216,37 @@ Regression tests: fixed clock at `2026-07-25T03:00Z` (11pm ET July 24) → label
 
 **Coordination hazard:** lantern-cosmetics session shares the prod DB and may redefine shared functions. Before EVERY apply: `list_migrations` + drift probes on `sync_all_user_data`, `guard_user_profiles_freemium_fields`, `handle_new_user`.
 
-## Review record (2026-07-26)
+## Review record — round 2, post-build Opus /review (2026-07-26)
+
+Full-branch review (SQL + quests + tests + drift), all findings fixed same day:
+**P1-a** `sync_all_user_data` collision with lantern's unmerged `20260726000300`
+(whichever CREATE OR REPLACE runs last clobbers the other's keys; CI vs prod
+order differs) → migrations renumbered `20260727*` (always last in version
+order) + Migration D now carries the **union body** (W1 keys + lantern's
+noor/equipped/cosmetics sections verbatim) + sync-payload tripwire tests
+(34/35). ⚠️ OPEN COORDINATION ITEM: when lantern PR #61 merges, its
+`20260726000300` must be dropped or re-emitted as the same union, or applying
+it to prod after W1 strips the W1 keys there. **P1-b** weekly quest *seed*
+rolled every Tuesday (old ceil formula) while label/period rolled Monday →
+`_isoWeekNumber` now derives from `_weekStart()`; Monday-roll test added.
+**P2** tz trigger now validates only actual timezone changes (poisoned legacy
+row can't brick the cron batch); INSERT-path guard trigger for server-owned
+profile columns; `onboarding_completed` one-way latch (freeze was bypassable
+via un-complete); UTC `Z`-parse for collection-visit + discovery date strings
+(east-of-UTC undercount) + UTC writer in card_collection_service; stale-pool
+`_reloadIfStale()` in `_tryComplete`/`_updateProgress` (UTC midnight lands in
+US peak hours); `period_start` fallback UTC-ified; vacuous clock test replaced
+with literal pins; deterministic 20h-floor test (computed near-midnight zone);
+`safe_user_tz` invalid-stored-value test; sync-payload key tests. **P3**
+rejected pool path no longer writes; accepted-bounds comment (~+14% worst-case
+weekly allowance, once-ever init hop); `create table if not exists`/policy
+hygiene; UTC Z-suffixed event logs; monthly-seed seam+test; anon
+select/execute tests; NULL-element seed test; cohort NULL→value pin.
+Post-fix: 52 SQL assertions + full suite pass, 1810 Flutter tests pass,
+analyze clean. (Observed pre-existing, not W1: `push_on_referral_confirm_test`
+pgtap `not ok 5` on local dev DB — pgtap failures don't fail CI's runner.)
+
+## Review record — round 1, plan-level (2026-07-26)
 
 Two adversarial passes (eng-correctness + security). Blockers folded in: **F1** weekly-pool tz ping-pong → monotonic `>` reset + 6-day wall-clock anchor; **F2** client-asserted cohort → server-assigned in `handle_new_user` via `new_signup_cohort` config, all client writes blocked, warmups set at insert. Majors: **F3** unseal tz-walk → 20h floor; **F4** client-chosen deck → FK + accepted-residual-risk note + binding no-economy-on-unseal rule for W2/W3; **F5** tz as unauthenticated input → Migration A; **eng-1** quest fix widened to the pool-selection seeds; **eng-2** write-once → freeze-after-completion; **eng-4** grants convention. Minors: eng-6 cardinality, eng-7 FK target `collectible_names`, eng-8 cast form, eng-9 `first_problem_text` in sync, F7 fallback keys, F8 staged-script role assert. Verified-clean claims retained in "Verified baseline."
 

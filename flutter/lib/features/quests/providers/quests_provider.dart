@@ -551,9 +551,13 @@ int _dayOfYear() {
 }
 
 int _isoWeekNumber() {
-  final now = debugQuestBoundariesClock();
-  final jan1 = DateTime.utc(now.year, 1, 1);
-  return ((now.difference(jan1).inDays + jan1.weekday - 1) / 7).ceil();
+  // Derived from the SAME Monday the weekly label/period use (review P1):
+  // the old ceil() formula rolled every TUESDAY (algebraically, in every
+  // year), so two of three weekly quests swapped mid-week while the label —
+  // and the persisted period_start — stayed on Monday, orphaning progress.
+  // Seed and label must roll together, at UTC Monday midnight.
+  final monday = _weekStart();
+  return monday.difference(DateTime.utc(monday.year, 1, 1)).inDays ~/ 7;
 }
 
 /// Test seam — replace in tests via `debugQuestBoundariesClock = ...` to drive
@@ -605,6 +609,11 @@ int debugQuestDailySeed() => _dayOfYear();
 
 @visibleForTesting
 int debugQuestWeeklySeed() => _isoWeekNumber();
+
+@visibleForTesting
+int debugQuestMonthlySeed() => _monthlySeed();
+
+int _monthlySeed() => debugQuestBoundariesClock().month;
 
 // ---------------------------------------------------------------------------
 // Rotation logic
@@ -746,7 +755,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
 
     // ── Rotate monthly: pick 3 from 8 ────────────────────────────────────────
     final monthIndices = _rotateIndices(
-      debugQuestBoundariesClock().month,
+      _monthlySeed(),
       _monthlyPool.length,
       3,
     );
@@ -1022,7 +1031,22 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   }
 
   /// Try to complete a quest by pool index + cadence if it's active today.
+  /// Rebuild the quest lists if the UTC day rolled while state was live
+  /// (review P2-4): the trigger paths compute fresh labels but match them
+  /// against pools built at load time — after midnight (17:00 PDT, a peak
+  /// hour) a stale pool silently awards nothing. The daily label check
+  /// subsumes weekly/monthly (the day always rolls first).
+  Future<void> _reloadIfStale() async {
+    final daily = state.daily;
+    if (daily.isEmpty) return;
+    if (!daily.first.id.endsWith('_${_todayLabel()}')) {
+      await reload();
+    }
+  }
+
   Future<void> _tryComplete(QuestCadence cadence, int poolIndex) async {
+    await _reloadIfStale();
+
     final String prefix;
     final String datePart;
     final List<Quest> pool;
@@ -1119,6 +1143,8 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   /// Update progress for a threshold quest and complete if target reached.
   Future<void> _updateProgress(
       QuestCadence cadence, int poolIndex, int count) async {
+    await _reloadIfStale();
+
     final String prefix;
     final String datePart;
     final List<Quest> pool;
@@ -1259,7 +1285,9 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final raw = prefs.getString(key);
     final List<String> log =
         raw == null ? <String>[] : (jsonDecode(raw) as List).cast<String>();
-    log.add(DateTime.now().toIso8601String());
+    // UTC (Z-suffixed) so stored instants survive a device timezone change
+    // when re-parsed against the UTC week/month starts.
+    log.add(DateTime.now().toUtc().toIso8601String());
     // Cap log size to avoid unbounded growth — 90 days of tier-ups is plenty
     // for any monthly window.
     if (log.length > 200) {
@@ -1286,7 +1314,9 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final raw = prefs.getString(key);
     final List<String> log =
         raw == null ? <String>[] : (jsonDecode(raw) as List).cast<String>();
-    log.add(DateTime.now().toIso8601String());
+    // UTC (Z-suffixed) so stored instants survive a device timezone change
+    // when re-parsed against the UTC week/month starts.
+    log.add(DateTime.now().toUtc().toIso8601String());
     if (log.length > 200) {
       log.removeRange(0, log.length - 200);
     }
@@ -1330,7 +1360,10 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
     final dates = (jsonDecode(raw) as List).cast<String>();
     final weekStart = _weekStart();
     return dates.where((d) {
-      final parsed = DateTime.tryParse(d);
+      // The stored labels are UTC YYYY-MM-DD (from _todayLabel); parse with an
+      // explicit Z so a date-only string isn't read as LOCAL midnight and
+      // compared against the UTC weekStart (east-of-UTC users lost Monday).
+      final parsed = DateTime.tryParse('${d}T00:00:00Z');
       return parsed != null && !parsed.isBefore(weekStart);
     }).length;
   }
@@ -1453,7 +1486,10 @@ Future<void> seedQuestProgressToSupabaseFromLocalCache() async {
     return;
   }
 
-  final todayStr = _formatLocalDate(DateTime.now());
+  // UTC via the shared clock seam: this is the period_start fallback for
+  // malformed quest ids — a local date here diverges from _periodStartFor's
+  // UTC date and duplicates the (user_id, quest_id, period_start) row.
+  final todayStr = _formatUtcDate(debugQuestBoundariesClock());
 
   final questIds = {
     ...localCompleted,
@@ -1556,10 +1592,6 @@ bool _isFirstStepsQuestId(String questId) {
 String _formatUtcDate(DateTime date) {
   final utc = date.toUtc();
   return '${utc.year}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')}';
-}
-
-String _formatLocalDate(DateTime date) {
-  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
 // ---------------------------------------------------------------------------
@@ -1791,7 +1823,10 @@ Future<void> recomputeQuestProgress(WidgetRef ref) async {
   int discoveriesThisWeek = 0;
   int discoveriesThisMonth = 0;
   for (final entry in collection.discoveryDates.entries) {
-    final t = DateTime.tryParse(entry.value);
+    // Date-only strings must be pinned to UTC before comparing against the
+    // UTC week/month starts — a bare parse reads them as LOCAL midnight and
+    // drops the first UTC day of each period for east-of-UTC users.
+    final t = DateTime.tryParse('${entry.value}T00:00:00Z');
     if (t == null) continue;
     if (!t.isBefore(weekStart)) discoveriesThisWeek++;
     if (!t.isBefore(monthStart)) discoveriesThisMonth++;

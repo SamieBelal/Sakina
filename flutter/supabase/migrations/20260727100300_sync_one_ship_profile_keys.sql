@@ -1,10 +1,27 @@
 -- One Ship W1 / Migration D — surface the new profile columns via sync
 -- (docs/superpowers/plans/2026-07-26-one-ship-01-data-layer.md §Migration D)
 --
--- Re-emitted verbatim from 20260722000000_streak_freeze_premium_tier.sql §6
--- (pre-flight 2026-07-26: prod == repo via marker probe; re-diff
--- pg_get_functiondef immediately before applying) with six keys added to
--- BOTH the populated and fallback profile objects:
+-- ⚠️ UNION BODY — SUPERSEDES the lantern branch's 20260726000300
+-- sync_cosmetics_sections migration (review P1). Both W1 and the lantern
+-- cosmetics branch re-emit this function; whichever CREATE OR REPLACE runs
+-- last wins, and version order (fresh reset) differs from wall-clock order
+-- (prod). This file therefore carries BOTH key sets:
+--   * W1: six profile keys (below) in populated + fallback objects
+--   * lantern: the noor / equipped / cosmetics sections, reproduced verbatim
+--     from feat/lantern-cosmetics 20260726000300 (columns + user_cosmetics
+--     table come from 20260726000000_cosmetics_economy.sql, already in master
+--     and version-ordered before this file)
+-- This file is numbered 20260727* so it sorts AFTER the entire lantern set —
+-- a fresh reset always lands this union last. WHEN THE LANTERN PR MERGES:
+-- its 20260726000300 must be dropped or re-emitted as this same union,
+-- otherwise applying it to prod AFTER this file strips the W1 keys there.
+-- The one_ship_w1_data_layer_test asserts both key sets so CI fails loudly
+-- if either side is ever dropped.
+--
+-- Base body re-emitted verbatim from 20260722000000_streak_freeze_premium_tier
+-- §6 (pre-flight 2026-07-26: prod == repo via pg_get_functiondef diff; re-diff
+-- immediately before applying). W1 keys added to BOTH the populated and
+-- fallback profile objects:
 --   acquisition_promise, first_problem_text, onboarding_flow,
 --   free_tier_cohort, weekly_pool_used, weekly_pool_week_start
 -- (weekly_pool_reset_at stays server-internal — the client never needs the
@@ -21,12 +38,13 @@ create or replace function public.sync_all_user_data()
 as $function$
 declare
   current_user_id uuid := auth.uid();
+  result jsonb;
 begin
   if current_user_id is null then
     raise exception 'Not authenticated';
   end if;
 
-  return jsonb_build_object(
+  result := jsonb_build_object(
     'xp',
       coalesce(
         (select jsonb_build_object('total_xp', x.total_xp)
@@ -174,6 +192,29 @@ begin
         '[]'::jsonb
       )
   );
+
+  -- Cosmetics-economy sections (additive) — reproduced verbatim from the
+  -- lantern branch's 20260726000300_sync_cosmetics_sections.sql (see header).
+  result := result
+    || jsonb_build_object('noor', (
+         select jsonb_build_object(
+           'balance', noor_balance,
+           'total_earned', noor_total_earned,
+           'total_spent', noor_total_spent)
+         from public.user_profiles where id = current_user_id))
+    || jsonb_build_object('equipped', (
+         select jsonb_build_object(
+           'lantern_skin', equipped_lantern_skin,
+           'backdrop', equipped_backdrop)
+         from public.user_profiles where id = current_user_id))
+    || jsonb_build_object('cosmetics', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'item_type', item_type,
+           'item_id', item_id,
+           'acquired_via', acquired_via))
+         from public.user_cosmetics where user_id = current_user_id), '[]'::jsonb));
+
+  return result;
 end;
 $function$;
 

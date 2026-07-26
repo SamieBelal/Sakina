@@ -19,7 +19,14 @@ language plpgsql
 set search_path = public, pg_temp
 as $$
 begin
-  if new.timezone is not null
+  -- Validate ONLY when the value actually changes (review P2-2): on an UPDATE
+  -- that doesn't mention timezone, NEW inherits OLD — validating it would make
+  -- a row holding a legacy-invalid value permanently un-updatable (all roles),
+  -- and one such row aborts the notification cron's whole batch sent-column
+  -- UPDATE. A future tzdata rename (e.g. Pacific/Enderbury→Kanton) must
+  -- degrade to safe_user_tz's UTC fallback, never brick the scheduler.
+  if (tg_op = 'INSERT' or new.timezone is distinct from old.timezone)
+     and new.timezone is not null
      and btrim(new.timezone) <> ''
      and not exists (select 1 from pg_timezone_names where name = new.timezone) then
     raise exception 'invalid timezone: %', new.timezone using errcode = 'check_violation';
