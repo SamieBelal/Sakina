@@ -228,6 +228,11 @@ class WidgetDataService {
   /// each other.
   String _equippedSkin = kDefaultWidgetLanternSkinId;
 
+  /// The last payload written this process. Kept so [setEquippedLanternSkin]
+  /// can re-push with only the skin changed — the [HomeWidgetClient] seam is
+  /// write-only, so there is nothing to read back.
+  WidgetNamePayload? _lastPayload;
+
   /// Register the App Group. Call once from `main()` before `runApp`.
   Future<void> initialize() async {
     await _client.setAppGroupId(kWidgetAppGroupId);
@@ -268,6 +273,7 @@ class WidgetDataService {
       updatedAtIso: _clock().toUtc().toIso8601String(),
       lanternSkin: _equippedSkin,
     );
+    _lastPayload = payload;
     await _write(payload.encode());
   }
 
@@ -290,6 +296,29 @@ class WidgetDataService {
     await _client.updateWidget(name: kDuaTimesWidgetName);
   }
 
+  /// Push the newly equipped lantern skin to the companion widget immediately.
+  ///
+  /// Called by `equipCosmetic` on a successful `lantern_skin` equip so the
+  /// home-screen lantern changes while the user is still looking at the
+  /// wardrobe, instead of waiting for the next sync. Unbundled ids are filtered
+  /// to [kDefaultWidgetLanternSkinId] — the widget can only render frames this
+  /// build actually ships.
+  ///
+  /// Before the first [syncWidget] of the process there is no payload to patch;
+  /// the skin is remembered and the next sync carries it.
+  Future<void> setEquippedLanternSkin(String skinId) async {
+    final eligible = widgetEligibleSkinId(skinId);
+    if (eligible == _equippedSkin) return;
+    _equippedSkin = eligible;
+
+    final last = _lastPayload;
+    if (last == null) return;
+    final patched =
+        last.withLanternSkin(eligible, _clock().toUtc().toIso8601String());
+    _lastPayload = patched;
+    await _write(patched.encode());
+  }
+
   /// Wipe personalized state from the shared container and revert the widgets to
   /// their daily/calendar fallbacks. MUST run on sign-out and account deletion.
   ///
@@ -305,6 +334,9 @@ class WidgetDataService {
     await _location.clearCache();
     _lastWritten = null;
     _lastDuaTimesWritten = null;
+    // A second user on this device must not inherit the first user's lantern.
+    _equippedSkin = kDefaultWidgetLanternSkinId;
+    _lastPayload = null;
     await _client.updateWidget(name: kWidgetName);
     await _client.updateWidget(name: kCompanionWidgetName);
     await _client.updateWidget(name: kDuaTimesWidgetName);
