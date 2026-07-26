@@ -226,3 +226,66 @@ Future<void> _debitNoorCache(int amount) async {
   final current = prefs.getInt(key) ?? 0;
   await prefs.setInt(key, (current - amount).clamp(0, 1 << 31));
 }
+
+/// The streak-milestone days that `award_noor` recognizes (the RPC's `case`
+/// arms are `milestone:7|14|30|60|100`). Client-side allowlist so an
+/// unrecognized day never reaches the RPC (which would `raise 'unknown noor
+/// reason'`). Kept in lockstep with the RPC body in
+/// `20260726000000_cosmetics_economy.sql`.
+const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 100};
+
+/// Awards milestone Noor for reaching [day], but ONLY after a successful,
+/// newly-recorded `claim_streak_milestone(day)`. This ordering is spec §13
+/// item 13: `award_noor` is idempotent but does NOT verify the milestone was
+/// reached — that authority is `claim_streak_milestone`. We therefore claim
+/// first and award only when the claim reports `newly_claimed=true`.
+///
+/// DEP-3: correctness assumes Lane A fixed the exploitable `claim_streak_
+/// milestone` (§13 item 3) so a `newly_claimed=true` genuinely means the day
+/// was recognized AND reached. Lane B depends on that fix; it does not build it.
+///
+/// The reason + reason_key are BOTH the server-shaped `'milestone:<day>'` so
+/// the `noor_grants` ledger dedupes per (user, day) forever — a streak rebuild
+/// can never re-mint the same milestone's Noor (kills the farming exploit).
+///
+/// Returns the Noor amount minted (server-derived), or 0 when the claim was
+/// not newly recorded, the day is unrecognized, the user is unauthenticated,
+/// or the grant was an idempotent replay (award_noor returns 0).
+Future<int> awardMilestoneNoor(int day) async {
+  if (supabaseSyncService.currentUserId == null) return 0;
+  if (!awardableMilestoneDays.contains(day)) return 0;
+
+  // 1. Claim FIRST — the server decides whether the milestone is genuinely
+  //    new + reached. Only proceed to award on a fresh claim.
+  final claim = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    'claim_streak_milestone',
+    {'p_day': day},
+  );
+  final newlyClaimed = claim?['newly_claimed'] == true;
+  if (!newlyClaimed) return 0;
+
+  // 2. THEN award, with the server-shaped reason_key so the ledger dedupes.
+  final reasonKey = 'milestone:$day';
+  final amount = await supabaseSyncService.callRpc<int>(
+    'award_noor',
+    {'p_reason': reasonKey, 'p_reason_key': reasonKey},
+  );
+  if (amount == null || amount <= 0) return 0; // deduped replay or failure
+
+  // Mirror the mint into the cache so the wardrobe balance updates without a
+  // round-trip; the next full sync reconciles the authoritative value.
+  await _creditNoorCache(amount);
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
+    AnalyticsEvents.propAmount: amount,
+    AnalyticsEvents.propReason: reasonKey,
+  });
+  return amount;
+}
+
+Future<void> _creditNoorCache(int amount) async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = supabaseSyncService.scopedKey(_noorBalanceKey);
+  final current = prefs.getInt(key) ?? 0;
+  await prefs.setInt(key, current + amount);
+}

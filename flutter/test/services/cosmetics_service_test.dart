@@ -147,4 +147,84 @@ void main() {
       expect(fakeSync.rpcCalls, isEmpty);
     });
   });
+
+  group('awardMilestoneNoor (ordered after claim_streak_milestone)', () {
+    test('awards Noor ONLY after a confirmed claim; correct reason_key shape',
+        () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (params) async => {'newly_claimed': true};
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 150; // milestone:30
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final granted = await awardMilestoneNoor(30);
+
+      expect(granted, 150);
+      // Ordering: claim BEFORE award.
+      final fns = fakeSync.rpcCalls.map((c) => c['fn']).toList();
+      expect(fns, ['claim_streak_milestone', 'award_noor']);
+      // Server-shaped reason_key.
+      expect(fakeSync.rpcCalls[1]['params'],
+          {'p_reason': 'milestone:30', 'p_reason_key': 'milestone:30'});
+      // Analytics.
+      expect(events.single.$1, 'noor_earned');
+      expect(events.single.$2, {'amount': 150, 'reason': 'milestone:30'});
+    });
+
+    test('does NOT award when claim reports already-claimed (newly=false)',
+        () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (params) async => {'newly_claimed': false};
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 150;
+
+      final granted = await awardMilestoneNoor(30);
+
+      expect(granted, 0);
+      final fns = fakeSync.rpcCalls.map((c) => c['fn']).toList();
+      expect(fns, ['claim_streak_milestone']); // award_noor NEVER called
+    });
+
+    test('does NOT award when claim RPC fails (null)', () async {
+      // No claim handler → returns null (RPC unavailable / raised).
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 150;
+
+      final granted = await awardMilestoneNoor(7);
+
+      expect(granted, 0);
+      expect(fakeSync.rpcCalls.map((c) => c['fn']),
+          isNot(contains('award_noor')));
+    });
+
+    test('idempotent-replay: award_noor returns 0 → no analytics, no crash',
+        () async {
+      fakeSync.rpcHandlers['claim_streak_milestone'] =
+          (params) async => {'newly_claimed': true};
+      fakeSync.rpcHandlers['award_noor'] = (params) async => 0; // deduped
+
+      final events = <(String, Map<String, dynamic>)>[];
+      CosmeticsAnalytics.onAnalyticsEvent = (e, p) => events.add((e, p));
+      addTearDown(() => CosmeticsAnalytics.onAnalyticsEvent = null);
+
+      final granted = await awardMilestoneNoor(30);
+
+      expect(granted, 0);
+      expect(events, isEmpty); // a 0-amount replay emits nothing
+    });
+
+    test('unrecognized milestone day is refused client-side (no RPC calls)',
+        () async {
+      final granted = await awardMilestoneNoor(999);
+      expect(granted, 0);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+
+    test('unauthenticated: no RPC calls, returns 0', () async {
+      fakeSync.userId = null;
+      final granted = await awardMilestoneNoor(30);
+      expect(granted, 0);
+      expect(fakeSync.rpcCalls, isEmpty);
+    });
+  });
 }
