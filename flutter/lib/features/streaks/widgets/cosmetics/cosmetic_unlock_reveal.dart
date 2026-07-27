@@ -96,7 +96,11 @@ class _CosmeticUnlockRevealState extends State<_CosmeticUnlockReveal>
                   CurvedAnimation(
                       parent: _controller, curve: Curves.easeOutBack),
                 ),
-                child: _body(skin: skin, name: name),
+                child: _body(
+                  skin: skin,
+                  name: name,
+                  onLight: backdrop.isLightSurface,
+                ),
               ),
             ),
           ),
@@ -105,7 +109,34 @@ class _CosmeticUnlockRevealState extends State<_CosmeticUnlockReveal>
     );
   }
 
-  Widget _body({required LanternSkin skin, required String name}) {
+  /// A SKIN unlock always stages on `Backdrop.none` (see build), which paints
+  /// the plain WARM CREAM surface — so the sacredInk ramp, which is cream, was
+  /// rendering cream-on-cream at ~1.03:1 and the skin name was invisible for
+  /// every one of the nine skins. `Backdrop.isLightSurface` exists precisely to
+  /// flag this ("anything drawing chrome over a backdrop must branch on this
+  /// rather than assuming a dark canvas"); this widget was not consulting it.
+  ///
+  /// A BACKDROP unlock stages on the newly-owned scene, which is dark, so it
+  /// keeps the cream ramp it was designed for.
+  ///
+  /// Contrast on the cream stage (#FBF7F2 -> #F3ECE1, measured at the darker
+  /// end): name 14.54:1, eyebrow and hint 4.12:1 — against 1.03:1 before.
+  /// The gold hairline is untouched: it stays a non-text accent either way.
+  Widget _body({
+    required LanternSkin skin,
+    required String name,
+    required bool onLight,
+  }) {
+    final inkStrong =
+        onLight ? AppColors.textPrimaryLight : AppColors.sacredInk;
+    // One step down from `inkStrong` on light. `textTertiaryLight` would be the
+    // literal analogue of sacredInkFaint but only reaches 2.16:1 here, so the
+    // eyebrow and the hint share the secondary tone rather than fading further.
+    final inkMuted =
+        onLight ? AppColors.textSecondaryLight : AppColors.sacredInkSoft;
+    final inkFaint =
+        onLight ? AppColors.textSecondaryLight : AppColors.sacredInkFaint;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -125,7 +156,7 @@ class _CosmeticUnlockRevealState extends State<_CosmeticUnlockReveal>
         Text(
           'Unlocked',
           style: AppTypography.labelLarge
-              .copyWith(color: AppColors.sacredInkSoft, letterSpacing: 3),
+              .copyWith(color: inkMuted, letterSpacing: 3),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(width: 44, height: 1.5, color: AppColors.secondary),
@@ -135,15 +166,13 @@ class _CosmeticUnlockRevealState extends State<_CosmeticUnlockReveal>
           child: Text(
             name,
             textAlign: TextAlign.center,
-            style: AppTypography.headlineMedium
-                .copyWith(color: AppColors.sacredInk),
+            style: AppTypography.headlineMedium.copyWith(color: inkStrong),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
         Text(
           'Tap to continue',
-          style: AppTypography.bodySmall
-              .copyWith(color: AppColors.sacredInkFaint),
+          style: AppTypography.bodySmall.copyWith(color: inkFaint),
         ),
       ],
     );
