@@ -133,17 +133,16 @@ void main() {
   });
 
   group('BeatRevealFlow driven by pre-built screens', () {
-    testWidgets('renders a deck and reaches its duʿa with the Ameen pill',
+    testWidgets('renders a deck and reaches its duʿa with its text intact',
         (t) async {
       final screens = buildBeatScreensFromDeck(await deck('as-salam@1'));
-      var ameens = 0;
 
       await t.pumpWidget(MaterialApp(
         home: BeatRevealFlow(
           status: BeatFlowStatus.ready,
           response: null,
           screens: screens,
-          onAmeen: () => ameens++,
+          onAmeen: () {},
         ),
       ));
       await t.pumpAndSettle();
@@ -156,7 +155,37 @@ void main() {
       await t.pumpAndSettle();
       expect(find.textContaining('O Allah, You are Peace'), findsOneWidget);
       expect(find.textContaining('Allahumma Antas-Salam'), findsOneWidget);
+      // …and its citation, now that dua beats carry one.
+      expect(find.textContaining('Sahih Muslim 591'), findsOneWidget);
+    });
 
+    testWidgets('a real deck can be walked to its last beat and completed',
+        (t) async {
+      // A deck ends `…dua → takeaway`, so the completion CTA cannot key on the
+      // duʿa: it belongs to the LAST beat or the user strands on the takeaway.
+      final screens = buildBeatScreensFromDeck(await deck('as-salam@1'));
+      expect(screens.last.kind, BeatKind.takeaway);
+      var ameens = 0;
+
+      await t.pumpWidget(MaterialApp(
+        home: BeatRevealFlow(
+          status: BeatFlowStatus.ready,
+          response: null,
+          screens: screens,
+          onAmeen: () => ameens++,
+        ),
+      ));
+      await t.pumpAndSettle();
+
+      final size = t.getSize(find.byType(BeatRevealFlow));
+      for (var i = 1; i < screens.length; i++) {
+        expect(find.text('Ameen'), findsNothing,
+            reason: 'the pill must not appear before the last beat (at $i)');
+        await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
+        await t.pumpAndSettle();
+      }
+
+      expect(find.textContaining('As-Salam — peace itself'), findsOneWidget);
       await t.tap(find.text('Ameen'));
       await t.pump(); // enter the completion beat
       await t.pump(const Duration(milliseconds: 1200)); // delayed exit fires
@@ -164,6 +193,38 @@ void main() {
       // Dispose the tree so the completion-beat animation leaves no pending
       // timer at teardown (the app pops the route here).
       await t.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('swapping the deck under a live flow restarts at beat 0',
+        (t) async {
+      final first = buildBeatScreensFromDeck(await deck('as-salam@1'));
+      final shorter = buildBeatScreensFromDeck(await deck('al-wakeel@1'))
+          .take(3)
+          .toList();
+
+      Widget flow(List<BeatScreen> screens) => MaterialApp(
+            home: BeatRevealFlow(
+              status: BeatFlowStatus.ready,
+              response: null,
+              screens: screens,
+              onAmeen: () {},
+            ),
+          );
+
+      await t.pumpWidget(flow(first));
+      await t.pumpAndSettle();
+      final size = t.getSize(find.byType(BeatRevealFlow));
+      for (var i = 1; i < first.length; i++) {
+        await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
+        await t.pumpAndSettle();
+      }
+      expect(find.text('Ameen'), findsOneWidget); // on the last beat
+
+      // The old index (7) is out of range for a 3-screen deck.
+      await t.pumpWidget(flow(shorter));
+      await t.pumpAndSettle();
+      expect(t.takeException(), isNull); // no RangeError from the stale index
+      expect(find.textContaining('A racing mind'), findsOneWidget);
     });
   });
 }

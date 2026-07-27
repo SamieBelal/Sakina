@@ -99,9 +99,11 @@ class NameStoryDeck {
 /// "pair synergy") and must never reach the screen.
 class NameStoryBeat {
   /// Deck-native wire kind (`bridge`, `name_intro`, `story`, `verse`, `dua`,
-  /// `takeaway`, `recognition`, `comfort_verse`, `pair_synergy`). Kept as a
-  /// String so the asset stays the single source of truth for the kind
-  /// vocabulary; `buildBeatScreensFromDeck` maps it to a `BeatKind`.
+  /// `takeaway`, `recognition`, `comfort_verse`). Kept as a String so the asset
+  /// stays the single source of truth for the kind vocabulary;
+  /// `buildBeatScreensFromDeck` maps it to a `BeatKind`. The pair-synergy beat
+  /// is a `takeaway` with a `synergy` label — there is no `pair_synergy` kind
+  /// (the ship gate rejects one).
   final String kind;
   final String label;
   final String primary;

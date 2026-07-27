@@ -24,6 +24,10 @@ void main() {
     'unseen',
   };
 
+  // `pair_synergy` is deliberately NOT a kind: the shipped convention is a
+  // `takeaway` beat carrying a `synergy` label (see the pair-synergy test at the
+  // bottom), and no deck has ever used the kind. Keeping it allowed would let a
+  // second, unrendered spelling of the same beat into the asset.
   const allowedKinds = {
     'bridge',
     'name_intro',
@@ -33,12 +37,25 @@ void main() {
     'takeaway',
     'recognition',
     'comfort_verse',
-    'pair_synergy',
+  };
+
+  // Duʿa provenance that RENDERS (`DuaTextBlock` shows the source line). Only
+  // these three decks cite the duʿa itself — their sources table names the exact
+  // verse/hadith the words come from. Pinned so the attribution can never be
+  // silently dropped. The other eleven duʿas are catalog invocations with no
+  // citation anywhere in their deck; the gate will not accept an invented one,
+  // and byte-identity with the verified catalog (below) is their provenance.
+  const renderedDuaSources = {
+    'as-salam@1': 'Sahih Muslim 591',
+    'al-wakeel@1': "Qur'an 3:173",
+    'ash-shafi@1': 'cf. Sahih al-Bukhari 5743',
   };
 
   late List<dynamic> decks;
   late Set<int> catalogIds;
   late Map<int, String> catalogDuaArabic;
+  late Map<int, String> catalogDuaTransliteration;
+  late Map<int, String> catalogDuaTranslation;
 
   setUpAll(() {
     decks = jsonDecode(
@@ -50,6 +67,14 @@ void main() {
     catalogIds = catalog.map<int>((n) => n['id'] as int).toSet();
     catalogDuaArabic = {
       for (final n in catalog) n['id'] as int: (n['dua_arabic'] ?? '') as String,
+    };
+    catalogDuaTransliteration = {
+      for (final n in catalog)
+        n['id'] as int: (n['dua_transliteration'] ?? '') as String,
+    };
+    catalogDuaTranslation = {
+      for (final n in catalog)
+        n['id'] as int: (n['dua_translation'] ?? '') as String,
     };
   });
 
@@ -87,15 +112,27 @@ void main() {
   });
 
   test('no field mixes Arabic body text with Latin text (RTL-bleed rule)', () {
-    // Arabic BODY blocks. Deliberately excludes Arabic Presentation Forms
-    // (U+FB50-FDFF, U+FE70-FEFF): the ﷺ honorific (U+FDFA) appears inline in
-    // English hadith renderings by design and is not Arabic body text.
-    final arabicBody = RegExp(r'[؀-ۿݐ-ݿ]');
+    // Full Arabic coverage: Arabic (U+0600-06FF), Supplement (U+0750-077F),
+    // Extended-A (U+08A0-08FF) and BOTH Presentation Forms blocks (U+FB50-FDFF,
+    // U+FE70-FEFF) — a deck pasted from a source that uses presentation forms
+    // would otherwise slip Arabic body text into a Latin field unnoticed.
+    // The three composite honorifics are stripped first: ﷺ (U+FDFA), ﷻ
+    // (U+FDFB) and ﷽ (U+FDFD) appear inline in English renderings by design.
+    final arabicBody = RegExp(r'[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]');
+    String strip(String s) => s.replaceAll(RegExp(r'[ﷺﷻ﷽]'), '');
     final latin = RegExp(r'[A-Za-z]');
     for (final d in decks) {
       for (final b in d['beats'] as List) {
-        for (final field in ['primary', 'translation', 'transliteration']) {
-          final v = (b[field] ?? '') as String;
+        // `source` renders; `label` renders for story beats and is read by
+        // reviewers everywhere else — both must stay single-script.
+        for (final field in [
+          'primary',
+          'translation',
+          'transliteration',
+          'label',
+          'source',
+        ]) {
+          final v = strip((b[field] ?? '') as String);
           expect(arabicBody.hasMatch(v), isFalse,
               reason:
                   '${d['deck_id']} $field contains Arabic body text — Arabic '
@@ -147,19 +184,44 @@ void main() {
               reason: '${d['deck_id']} $kind beat missing transliteration');
         }
         if (kind == 'dua') {
-          // Duas are never authored — they come from the verified catalog.
-          // (Provenance lives in the catalog + the deck's sources table, so
-          // no inline source is required; identity with the catalog is the
-          // real scripture-safety invariant.)
+          // Duas are never authored — all three scripts come from the verified
+          // catalog, byte for byte. The deck holds the translation on `primary`
+          // (see the field table on NameStoryBeat), so that is what the catalog
+          // translation is compared against.
           expect(b['arabic'], catalogDuaArabic[d['name_id']],
               reason:
                   '${d['deck_id']} dua arabic diverges from the verified '
                   'catalog — decks must never carry non-catalog scripture');
+          expect(b['transliteration'],
+              catalogDuaTransliteration[d['name_id']],
+              reason: '${d['deck_id']} dua transliteration diverges from the '
+                  'verified catalog');
+          expect(b['primary'], catalogDuaTranslation[d['name_id']],
+              reason: '${d['deck_id']} dua translation diverges from the '
+                  'verified catalog');
+          final pinned = renderedDuaSources[d['deck_id']];
+          if (pinned != null) {
+            expect(b['source'], pinned,
+                reason: '${d['deck_id']} dropped the duʿa citation its own '
+                    'sources table carries — attribution renders, so losing '
+                    'it is a content regression');
+          }
         }
         if (kind == 'verse' || kind == 'comfort_verse') {
           expect(((b['source'] ?? '') as String).isNotEmpty, isTrue,
               reason: '${d['deck_id']} $kind beat missing source citation');
         }
+      }
+    }
+  });
+
+  test('every beat carries body text', () {
+    // `primary` is the one field every kind renders. An empty one ships a blank
+    // screen the user has to tap past.
+    for (final d in decks) {
+      for (final b in d['beats'] as List) {
+        expect(((b['primary'] ?? '') as String).trim().isNotEmpty, isTrue,
+            reason: '${d['deck_id']} ${b['kind']} beat has no primary text');
       }
     }
   });

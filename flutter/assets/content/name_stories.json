@@ -69,7 +69,7 @@
         "arabic": "اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ",
         "transliteration": "Allahumma Antas-Salam wa minkas-salam tabarakta ya Dhal-Jalali wal-Ikram",
         "translation": "",
-        "source": ""
+        "source": "Sahih Muslim 591"
       },
       {
         "kind": "takeaway",
@@ -184,11 +184,11 @@
       {
         "kind": "dua",
         "label": "catalog id 35, verbatim — the same words the believers spoke at Uhud, and Ibrahim at the fire",
-        "primary": "Allah is enough for us, and he is the best disposer of affairs.",
+        "primary": "Allah is enough for us, and He is the best disposer of affairs.",
         "arabic": "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",
         "transliteration": "Hasbunallahu wa ni'mal-Wakil",
         "translation": "",
-        "source": ""
+        "source": "Qur'an 3:173"
       },
       {
         "kind": "takeaway",
@@ -878,7 +878,7 @@
         "arabic": "اللَّهُمَّ رَبَّ النَّاسِ أَذْهِبِ الْبَأْسَ اشْفِ أَنتَ الشَّافِي لَا شِفَاءَ إِلَّا شِفَاؤُكَ شِفَاءً لَا يُغَادِرُ سَقَمًا",
         "transliteration": "Allahumma Rabban-nasi, adhhib il-ba's, ishfi anta'sh-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama",
         "translation": "",
-        "source": ""
+        "source": "cf. Sahih al-Bukhari 5743"
       },
       {
         "kind": "takeaway",
@@ -1167,7 +1167,7 @@
       },
       {
         "kind": "comfort_verse",
-        "label": "✅ DECIDED, founder 2026-07-25: Saheeh International rendering — closest cadence to the phrase the reel audience carries. Verified verbatim via quran.com API resource 20. Build task: confirm the tagged entry in `reflection_verse_catalog.dart` displays THIS rendering — if it carries a different translation, the beat sources the SI text with attribution.",
+        "label": "✅ DECIDED, founder 2026-07-25: Saheeh International rendering — closest cadence to the phrase the reel audience carries. Verified verbatim via quran.com API resource 20.",
         "primary": "Allāh does not charge a soul except [with that within] its capacity.",
         "arabic": "",
         "transliteration": "",

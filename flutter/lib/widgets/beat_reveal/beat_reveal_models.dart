@@ -276,7 +276,8 @@ List<BeatScreen> buildBeatScreensFromDeck(
           duaSource: beat.source,
         ));
       case 'takeaway':
-      case 'pair_synergy':
+        // Includes the pair-synergy beat: it is a takeaway carrying a `synergy`
+        // label, not a kind of its own.
         screens.add(BeatScreen(kind: BeatKind.takeaway, primary: beat.primary));
       default:
         // Unknown kind: the ship gate rejects these at build time, so reaching

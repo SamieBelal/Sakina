@@ -109,6 +109,31 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   bool get _reducedMotion =>
       MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
+  @override
+  void didUpdateWidget(BeatRevealFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A host that swaps the content under a live flow (deck → deck, or a retry
+    // that lands a different response) would otherwise keep an index that is
+    // now out of range for the new screen list. Restart from its first beat.
+    //
+    // Compared by content, not list identity: a host that rebuilds its screen
+    // list inline in `build()` hands us a new list every frame, and an identity
+    // check would reset the flow under the user's thumb.
+    final old = oldWidget.screens;
+    final now = widget.screens;
+    final swapped = old?.length != now?.length ||
+        (old != null &&
+            now != null &&
+            old.isNotEmpty &&
+            now.isNotEmpty &&
+            old.first.semanticText != now.first.semanticText) ||
+        !identical(widget.response, oldWidget.response);
+    if (swapped) {
+      _index = 0;
+      _nameEntrancePlayed = false;
+    }
+  }
+
   void _announce(String message) {
     // ignore: deprecated_member_use
     SemanticsService.announce(message, TextDirection.ltr);
@@ -247,6 +272,11 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
     final screen = screens[_index];
     final isDua = screen.kind == BeatKind.dua;
     final isTakeaway = screen.kind == BeatKind.takeaway;
+    // The completion CTA belongs to the LAST beat, whatever its kind. On the AI
+    // path the duʿa is last, so this is the duʿa screen as before; deck decks
+    // end `…dua → takeaway`, and keying on the duʿa would strand the user on the
+    // takeaway with no way to complete.
+    final isLast = _index == screens.length - 1;
 
     return Stack(
       children: [
@@ -263,7 +293,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         // view (center-until-overflow) via the gesture arena.
         Positioned.fill(
           top: 44,
-          bottom: isDua ? 96 : 56,
+          bottom: isLast ? 96 : 56,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTapUp: (details) {
@@ -323,9 +353,9 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
           ),
         ),
 
-        if (isTakeaway && widget.onShare != null) _shareButton(),
-        if (isDua) _ameenPill(),
-        if (widget.showFirstRunHint && _index <= 1 && !isDua) _tapHint(),
+        if (isTakeaway && widget.onShare != null && !isLast) _shareButton(),
+        if (isLast) _ameenPill(),
+        if (widget.showFirstRunHint && _index <= 1 && !isLast) _tapHint(),
         if (_completing) const Positioned.fill(child: _CompletionBeat()),
       ],
     );

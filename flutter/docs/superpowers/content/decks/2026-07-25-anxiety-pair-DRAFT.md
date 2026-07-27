@@ -65,7 +65,7 @@
 **Beat 7 · dua** *(catalog id 35, verbatim — the same words the believers spoke at Uhud, and Ibrahim at the fire)*:
 > حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ
 > *Hasbunallahu wa ni'mal-Wakil*
-> "Allah is enough for us, and he is the best disposer of affairs."
+> "Allah is enough for us, and He is the best disposer of affairs."
 
 **Beat 8 · takeaway:**
 > You were never asked to hold every outcome. Handing them over is not giving up — it is trust, placed with the One who holds them.

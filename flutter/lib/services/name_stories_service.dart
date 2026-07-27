@@ -4,6 +4,13 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:sakina/models/name_story_deck.dart';
 
+// TODO(content): ar-rahman@1's comfort_verse quotes 2:286 in the Saheeh
+// International rendering (founder-decided 2026-07-25). Confirm the tagged
+// entry in `reflection_verse_catalog.dart` displays THAT rendering — if it
+// carries a different translation, the beat must source the SI text with
+// attribution. Tracked here rather than in the asset's editorial label, which
+// ships as content.
+
 /// Reads the bundled Name-story decks (`assets/content/name_stories.json`).
 ///
 /// Asset-only by design: there is no `name_stories` table, so there is no
@@ -63,11 +70,12 @@ class NameStoriesService {
   /// missing partner yields a short list, and the caller falls back to
   /// [comfortPair] rather than revealing half a pair.
   Future<List<NameStoryDeck>> decksForChip(String chipKey) async {
+    // `where().toList()` is already a fresh list, so sorting it in place can
+    // never reorder the cached list shared with every other caller.
     final pair = (await decks())
         .where((d) => d.chipKeys.contains(chipKey))
         .toList(growable: false);
-    // Copy before sorting — the cached list is shared with every other caller.
-    return [...pair]..sort((a, b) => a.positionInPair.compareTo(b.positionInPair));
+    return pair..sort((a, b) => a.positionInPair.compareTo(b.positionInPair));
   }
 
   /// The deck teaching the Name with [nameId], or null when none is approved.
