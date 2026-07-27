@@ -177,6 +177,26 @@ void main() {
     expect(find.text('surface'), findsOneWidget);
   });
 
+  testWidgets('a reversal that is itself reversed lands on the canvas',
+      (t) async {
+    // enter → flip back → flip forward again, all mid-flight. The controller
+    // changes direction twice without restarting, so the tree that ends up
+    // displayed must still match the final flag.
+    await t.pumpWidget(_host(onCanvas: false));
+    await t.pumpWidget(_host(onCanvas: true));
+    await t.pump(const Duration(milliseconds: 250));
+
+    await t.pumpWidget(_host(onCanvas: false));
+    await t.pump(const Duration(milliseconds: 80));
+
+    await t.pumpWidget(_host(onCanvas: true));
+    await t.pumpAndSettle();
+
+    expect(find.text('canvas'), findsOneWidget);
+    expect(find.text('surface'), findsNothing);
+    expect(_canvasInits, 1, reason: 'and without remounting the canvas');
+  });
+
   testWidgets('reversing unwinds the bloom in place rather than restarting',
       (t) async {
     await t.pumpWidget(_host(onCanvas: false));
