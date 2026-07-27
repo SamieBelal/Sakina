@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:sakina/features/streaks/models/companion_state.dart';
+import 'package:sakina/features/streaks/models/lantern_skin.dart';
 import 'package:sakina/features/streaks/widgets/lantern_painter.dart';
 
 /// The living lantern companion, driven by a resolved [CompanionState].
@@ -19,12 +20,17 @@ class CompanionMedallion extends StatefulWidget {
     super.key,
     required this.state,
     required this.size,
+    this.skin = LanternSkin.classicGold,
     this.animate = true,
     this.ambient = true,
   });
 
   final CompanionState state;
   final double size;
+
+  /// The cosmetic material palette + form. Defaults to the production classic
+  /// gold so existing call sites (which omit it) render exactly as before.
+  final LanternSkin skin;
 
   /// When false the pulse never runs (a static frame — e.g. tests / thumbnails).
   final bool animate;
@@ -151,6 +157,7 @@ class _CompanionMedallionState extends State<CompanionMedallion>
                   pulse: _pulse.value,
                   ambientShader: _shader,
                   ambient: widget.ambient,
+                  skin: widget.skin,
                 ),
               );
             },

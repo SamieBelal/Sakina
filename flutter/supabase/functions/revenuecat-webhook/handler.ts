@@ -49,6 +49,22 @@ export const CONSUMABLE_SKU_TO_AMOUNT: Record<
   "sakina_scrolls_25": { kind: "scrolls", amount: 25 },
 };
 
+// Skin SKU -> catalog item_id. Mirrors the `iap_product_id` column in
+// `20260726000100_seed_cosmetic_catalog.sql` AND the Flutter map in
+// `lib/services/cosmetics_service.dart` (skinIapProductToItem). When SKUs
+// change, ALL THREE must update. The SERVER RPC re-verifies product->item
+// against cosmetic_catalog, so this map is only a routing filter (which
+// transactions are skin purchases) — it never grants on its own.
+//
+// A NON_RENEWING_PURCHASE for one of these product ids is an à-la-carte skin
+// buy → grant_cosmetic_iap. A CANCELLATION for one is a refund →
+// clawback_cosmetic_iap (mirrors the consumable clawback pattern).
+export const COSMETIC_SKU_TO_ITEM: Record<string, string> = {
+  "sakina.skin.obsidian": "obsidian_gold",
+  "sakina.skin.masjid": "masjid_brass",
+  "sakina.skin.crystal": "crystal_star",
+};
+
 export interface RevenueCatEvent {
   type?: string | null;
   id?: string | null;
@@ -76,6 +92,34 @@ export interface ConsumableClawbackPayload {
   sku: string;
   kind: "tokens" | "scrolls";
   amount: number;
+  transaction_id: string;
+  event_timestamp: string;
+}
+
+export interface CosmeticGrantPayload {
+  user_id: string;
+  item_id: string;
+  product_id: string;
+  transaction_id: string;
+  event_timestamp: string;
+}
+
+export interface CosmeticClawbackPayload {
+  transaction_id: string;
+  event_timestamp: string;
+  // Identity of the refunded purchase. Used ONLY to attribute the tombstone the
+  // RPC writes when the refund arrives before its grant (I-2) — when a real
+  // ledger row exists the RPC reads the user/item from THAT row, so nothing
+  // here can widen a revocation.
+  user_id: string;
+  item_id: string;
+  product_id: string;
+}
+
+// N-1: Apple can reinstate a purchase it previously refunded (REFUND_REVERSED).
+// This is not a re-grant: the revoked ledger row short-circuits
+// grant_cosmetic_iap, so reinstatement gets its own RPC and its own payload.
+export interface CosmeticReinstatePayload {
   transaction_id: string;
   event_timestamp: string;
 }
@@ -133,6 +177,17 @@ interface HandleWebhookOptions {
     payload: UserSubscriptionUpsert,
     meta: { eventId: string | null; eventTimestampMs: number | null },
   ) => Promise<void>;
+  // Grants an à-la-carte skin on a NON_RENEWING_PURCHASE for a skin SKU.
+  // Implementation calls grant_cosmetic_iap (idempotent on transaction_id).
+  grantCosmetic?: (payload: CosmeticGrantPayload) => Promise<void>;
+  // Revokes an à-la-carte skin on a CANCELLATION for a skin SKU. Implementation
+  // calls clawback_cosmetic_iap (idempotent on transaction_id).
+  clawbackCosmetic?: (payload: CosmeticClawbackPayload) => Promise<void>;
+  // Reverses a refund on a REFUND_REVERSED for a skin SKU. Implementation calls
+  // reinstate_cosmetic_iap (idempotent on transaction_id). Deliberately NOT the
+  // grant path — a revoked ledger row makes grant_cosmetic_iap a no-op, so a
+  // naive re-grant would leave the user's ownership revoked forever.
+  reinstateCosmetic?: (payload: CosmeticReinstatePayload) => Promise<void>;
 }
 
 function jsonResponse(status: number, body: Record<string, unknown>): Response {
@@ -306,6 +361,144 @@ export function buildConsumableClawback(
   };
 }
 
+/**
+ * Builds a skin-IAP grant payload from a NON_RENEWING_PURCHASE whose product_id
+ * is a known skin SKU. Returns null for anything else (subscriptions,
+ * consumables, unknown SKUs, anonymous users, or a missing transaction id).
+ *
+ * Detection:
+ *   - type must be "NON_RENEWING_PURCHASE"
+ *   - product_id must be in COSMETIC_SKU_TO_ITEM
+ *   - user must resolve to a UUID (not anonymous)
+ *   - a transaction id (or the event id fallback) must be present
+ *
+ * The server RPC re-verifies product->item against the catalog, so item_id here
+ * is only a hint; a tampered/unknown SKU never reaches the RPC because it fails
+ * the COSMETIC_SKU_TO_ITEM lookup first.
+ */
+export function buildCosmeticGrant(
+  event: RevenueCatEvent,
+): CosmeticGrantPayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "NON_RENEWING_PURCHASE") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+
+  const itemId = COSMETIC_SKU_TO_ITEM[productId];
+  if (itemId == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
+    user_id: userId,
+    item_id: itemId,
+    product_id: productId,
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+  };
+}
+
+/**
+ * Builds a skin-IAP clawback payload from a CANCELLATION whose product_id is a
+ * known skin SKU (a refund). Returns null otherwise.
+ *
+ * Revocation itself is driven entirely by the ledger: the RPC looks the row up
+ * by transaction id and reads the user/item from there, so client-supplied
+ * ownership is never trusted. The user/item/product carried here are used only
+ * to ATTRIBUTE the tombstone the RPC writes when a refund arrives before its
+ * grant (I-2) — a tombstone that can name the buyer and the SKU is far easier
+ * to reconcile in support than a bare transaction id.
+ */
+export function buildCosmeticClawback(
+  event: RevenueCatEvent,
+): CosmeticClawbackPayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "CANCELLATION") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+  const itemId = COSMETIC_SKU_TO_ITEM[productId];
+  if (itemId == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+    user_id: userId,
+    item_id: itemId,
+    product_id: productId,
+  };
+}
+
+/**
+ * Builds a skin-IAP reinstatement payload from a REFUND_REVERSED whose
+ * product_id is a known skin SKU — Apple un-refunding a purchase (N-1).
+ * Returns null otherwise.
+ *
+ * Same filters as the clawback builder. Only the transaction id + timestamp are
+ * needed: reinstate_cosmetic_iap restores exactly what the matching clawback
+ * removed, which it reads off the ledger row.
+ *
+ * REFUND_REVERSED is intentionally NOT added to HANDLED_EVENT_TYPES — the
+ * subscription path must keep ignoring it, so a subscription reversal still
+ * 200-skips exactly as before.
+ */
+export function buildCosmeticReinstate(
+  event: RevenueCatEvent,
+): CosmeticReinstatePayload | null {
+  const eventType = nonEmptyString(event.type);
+  if (eventType !== "REFUND_REVERSED") return null;
+
+  const productId = nonEmptyString(event.product_id);
+  if (productId == null) return null;
+  if (COSMETIC_SKU_TO_ITEM[productId] == null) return null;
+
+  const userId = resolveStableUserId(event);
+  if (
+    userId == null || isAnonymousRevenueCatUserId(userId) || !isUuid(userId)
+  ) {
+    return null;
+  }
+
+  const transactionId = nonEmptyString(event.transaction_id) ??
+    nonEmptyString(event.id);
+  if (transactionId == null) return null;
+
+  const eventTimestamp = msToIsoString(event.event_timestamp_ms) ??
+    new Date().toISOString();
+
+  return {
+    transaction_id: transactionId,
+    event_timestamp: eventTimestamp,
+  };
+}
+
 export function hasActivePremiumAccess(
   subscription: Pick<UserSubscriptionUpsert, "expires_at">,
   now: Date = new Date(),
@@ -349,8 +542,24 @@ export async function handleRevenueCatWebhook(
   // both filter independently, so we dispatch each non-null payload.
   const subscriptionPayload = buildUserSubscriptionUpsert(event);
   const clawbackPayload = buildConsumableClawback(event);
+  const cosmeticGrantPayload = buildCosmeticGrant(event);
+  const cosmeticClawbackPayload = buildCosmeticClawback(event);
+  const cosmeticReinstatePayload = buildCosmeticReinstate(event);
 
-  if (subscriptionPayload == null && clawbackPayload == null) {
+  // A cosmetic payload is only actionable if the matching option is wired
+  // (grant/clawback/reinstate are optional). Treat "built but unwired" as no-op
+  // so a skin event on an old deploy 200-skips instead of throwing.
+  const hasCosmeticGrant = cosmeticGrantPayload != null &&
+    options.grantCosmetic != null;
+  const hasCosmeticClawback = cosmeticClawbackPayload != null &&
+    options.clawbackCosmetic != null;
+  const hasCosmeticReinstate = cosmeticReinstatePayload != null &&
+    options.reinstateCosmetic != null;
+
+  if (
+    subscriptionPayload == null && clawbackPayload == null &&
+    !hasCosmeticGrant && !hasCosmeticClawback && !hasCosmeticReinstate
+  ) {
     return jsonResponse(200, { status: "skipped" });
   }
 
@@ -363,6 +572,33 @@ export async function handleRevenueCatWebhook(
         500,
         { error: "Failed to process consumable refund" },
       );
+    }
+  }
+
+  if (hasCosmeticGrant) {
+    try {
+      await options.grantCosmetic!(cosmeticGrantPayload!);
+    } catch (error) {
+      console.error("revenuecat-webhook cosmetic grant failed", error);
+      return jsonResponse(500, { error: "Failed to grant cosmetic" });
+    }
+  }
+
+  if (hasCosmeticClawback) {
+    try {
+      await options.clawbackCosmetic!(cosmeticClawbackPayload!);
+    } catch (error) {
+      console.error("revenuecat-webhook cosmetic clawback failed", error);
+      return jsonResponse(500, { error: "Failed to revoke cosmetic" });
+    }
+  }
+
+  if (hasCosmeticReinstate) {
+    try {
+      await options.reinstateCosmetic!(cosmeticReinstatePayload!);
+    } catch (error) {
+      console.error("revenuecat-webhook cosmetic reinstate failed", error);
+      return jsonResponse(500, { error: "Failed to reinstate cosmetic" });
     }
   }
 

@@ -23,6 +23,7 @@ import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/collection/widgets/gold_ornate_card.dart';
 import 'package:sakina/features/collection/widgets/emerald_ornate_card.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
   const CollectionScreen({super.key});
@@ -1066,7 +1067,7 @@ class _CardDetailSheet extends ConsumerWidget {
                           }
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            SnackBar(duration: kSnackBarErrorDuration, 
                               content: Text(
                                 refund.success
                                     ? "Couldn't upgrade. Your scrolls were refunded."

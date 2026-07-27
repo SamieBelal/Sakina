@@ -10,6 +10,7 @@ import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
@@ -864,6 +865,15 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   @visibleForTesting
   Future<void> debugHandleXpAward(int amount) => _handleXpAward(amount);
 
+  /// Test seam — runs the milestone reward loop (XP + tier-up scrolls +
+  /// celebration state) for [currentStreak] without driving discoverName's
+  /// card/AI machinery. Used to pin that a claim the SERVER refused grants
+  /// nothing here: this is the code that turns `checkStreakMilestones`'
+  /// return value into real economy writes.
+  @visibleForTesting
+  Future<void> debugHandleStreakMilestones(int currentStreak) =>
+      _handleStreakMilestones(currentStreak);
+
   /// Test seam — sets streakMilestoneReached + the milestone counts directly
   /// on state, simulating the rising-edge that muhasabah_screen's ref.listen
   /// triggers off. Used by the race-ordering regression test to fire streak +
@@ -1130,7 +1140,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// stepping now and calls this once at "Ameen" — so quest/economy hooks fire
   /// exactly once. Mirrors the old [advanceReflectStep] step-3 branch:
   /// muḥāsabah is its own reward (no XP / tokens here), this only flips the
-  /// lifecycle to completed and persists.
+  /// lifecycle to completed, persists, and opens the daily Noor faucet.
   Future<void> completeDeeper() async {
     if (state.currentStep == DailyLoopStep.completed) return; // idempotent
     state = state.copyWith(
@@ -1139,6 +1149,28 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       currentStep: DailyLoopStep.completed,
     );
     await _persistTodayState();
+    await _awardDailyNoor();
+  }
+
+  /// The daily-muḥāsabah Noor grant (spec §3). THE earn path for the wardrobe
+  /// currency — milestone Noor aside, this is the only way a user accumulates
+  /// Noor by using the app.
+  ///
+  /// Deliberately fired from the completion transition and nowhere else: the
+  /// server verifies a `user_checkin_history` row exists for its own UTC date
+  /// before minting, so calling it speculatively (on entry, on a partial flow)
+  /// would just be refused. It is also idempotent server-side — it dedupes on
+  /// `daily:<server date>` and reports 0 on a replay, which
+  /// [awardDailyNoor] mirrors by crediting nothing and emitting nothing.
+  ///
+  /// Best-effort: completion is the user-visible contract and must survive a
+  /// faucet that cannot reach the server.
+  Future<void> _awardDailyNoor() async {
+    try {
+      await awardDailyNoor();
+    } catch (_) {
+      // The next completion (or the next full sync) reconciles the balance.
+    }
   }
 
   Future<void> advanceReflectStep() async {

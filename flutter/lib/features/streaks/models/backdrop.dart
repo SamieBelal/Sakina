@@ -8,7 +8,11 @@
 
 import 'package:flutter/material.dart';
 
-enum BackdropTheme { laylatNight, emeraldSanctuary }
+/// `emeraldSanctuary` keeps its id for continuity with rows already in
+/// `cosmetic_catalog` and `user_cosmetics`, but now paints the far richer
+/// Emerald Mihrab interior — the original flat wash was rejected for having no
+/// depth. Renaming the enum would orphan live ownership rows for no gain.
+enum BackdropTheme { plain, laylatNight, emeraldSanctuary, desertNight, fajrCourtyard }
 
 @immutable
 class Backdrop {
@@ -29,7 +33,7 @@ class Backdrop {
     id: 'default',
     name: 'None',
     blurb: 'A plain, quiet surface.',
-    theme: BackdropTheme.emeraldSanctuary,
+    theme: BackdropTheme.plain,
   );
 
   /// A mosque skyline beneath a crescent moon and a field of stars.
@@ -40,13 +44,58 @@ class Backdrop {
     theme: BackdropTheme.laylatNight,
   );
 
-  /// A quiet mihrab niche bathed in green sanctuary light.
+  /// The prayer-hall interior. Keeps the `emerald_sanctuary` id (live rows
+  /// reference it) but is now a receding arcade with muqarnas and hanging
+  /// lamps rather than the flat wash it replaced.
   static const emeraldSanctuary = Backdrop(
     id: 'emerald_sanctuary',
-    name: 'Emerald Sanctuary',
-    blurb: 'A quiet mihrab bathed in sacred green light.',
+    name: 'Emerald Mihrab',
+    blurb: 'Lamplight in a still prayer hall.',
     theme: BackdropTheme.emeraldSanctuary,
   );
 
-  static const all = <Backdrop>[laylatNight, emeraldSanctuary];
+  /// Vast, architecture-free counterpoint to the city skyline.
+  static const desertNight = Backdrop(
+    id: 'desert_night',
+    name: 'Desert Night',
+    blurb: 'The Milky Way over silent dunes.',
+    theme: BackdropTheme.desertNight,
+  );
+
+  /// Dawn — the emotional counterpart to Laylat Night.
+  static const fajrCourtyard = Backdrop(
+    id: 'fajr_courtyard',
+    name: 'Fajr Courtyard',
+    blurb: 'First light behind the arcade.',
+    theme: BackdropTheme.fajrCourtyard,
+  );
+
+  static const all = <Backdrop>[
+    laylatNight,
+    emeraldSanctuary,
+    desertNight,
+    fajrCourtyard,
+  ];
+
+  /// True when this backdrop paints a LIGHT surface, so foreground text and
+  /// icons need dark ink.
+  ///
+  /// `AppColors.sacredInk` is CREAM — it is "primary text on canvas", correct
+  /// against the emerald/night scenes and invisible against the plain warm
+  /// cream surface. Anything drawing chrome over a backdrop must branch on
+  /// this rather than assuming a dark canvas.
+  bool get isLightSurface => theme == BackdropTheme.plain;
+
+  // Value equality (id + theme is the semantic identity) so that a Backdrop
+  // constructed from wardrobe/server data compares equal to its value-twin.
+  // Without this, BackdropPainter.shouldRepaint (which tests `old.backdrop !=
+  // backdrop`) would fall back to identity equality and needlessly repaint the
+  // static layer on every rebuild, defeating the raster cache.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Backdrop && other.id == id && other.theme == theme);
+
+  @override
+  int get hashCode => Object.hash(id, theme);
 }

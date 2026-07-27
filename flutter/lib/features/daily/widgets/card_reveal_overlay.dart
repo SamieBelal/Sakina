@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/reveal/painters/background_painters.dart';
@@ -11,6 +12,7 @@ import 'package:sakina/features/daily/reveal/reveal_geometry.dart';
 import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/card_collection_service.dart';
 
@@ -501,10 +503,13 @@ class _CardRevealOverlayState extends State<CardRevealOverlay>
                 // Illustrated geometry is static; only the outer Transform /
                 // Opacity animate, so cache its raster (#014).
                 RepaintBoundary(
-                  child: CompanionMedallion(
-                    state: lampState,
-                    size: 190,
-                    ambient: false,
+                  child: Consumer(
+                    builder: (_, ref, __) => CompanionMedallion(
+                      skin: ref.watch(renderableLanternSkinProvider),
+                      state: lampState,
+                      size: 190,
+                      ambient: false,
+                    ),
                   ),
                 ),
               ],

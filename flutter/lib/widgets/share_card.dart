@@ -11,6 +11,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/reflect/models/reflect_verse.dart';
 import 'package:sakina/widgets/beat_reveal/mihrab_arch_frame.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 // ---------------------------------------------------------------------------
 // Image export helper — shared by both reflection and dua share flows
@@ -71,7 +72,7 @@ void showShareErrorSnackBar(ScaffoldMessengerState messenger) {
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
-      const SnackBar(content: Text("Couldn't share. Please try again.")),
+      const SnackBar(duration: kSnackBarDuration, content: Text("Couldn't share. Please try again.")),
     );
 }
 

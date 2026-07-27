@@ -131,6 +131,58 @@ Recipe:
 
 **Surfaced by:** Duʿā Times feature (PR #51), 2026-07-16.
 
+## Milestone cosmetic unlocks (streak → free skin)
+
+**Trigger:** whenever streak retention is next worked on. Not blocking any
+release — nothing is broken today, this is an unbuilt feature, not a defect.
+
+**What:** award a *specific* cosmetic free when the user reaches a streak
+milestone, and show it visible-but-locked in the wardrobe beforehand
+("Unlock at a 30-day streak") so it pulls the user toward the streak.
+
+**Why it matters:** the lantern-cosmetics spec
+(`docs/superpowers/specs/2026-07-25-lantern-cosmetics-design.md` §49) named this
+"the streak-coupling; **strongest retention lever**". It is the one part of the
+cosmetics design that never shipped.
+
+**What exists instead:** the Noor economy. Milestones mint *currency*
+(40/75/150/250/400 at days 7/14/30/60/90 via `claim_streak_milestone` →
+`award_noor`) and Noor buys cosmetics. So the streak does pay out — fungibly,
+not as a specific item, and with no "you're 4 days from earning THIS lantern"
+pull.
+
+**Status — the metadata was removed, deliberately.** `cosmetic_catalog.milestone_day`
+existed but gated nothing, so it was dropped
+(`20260727120000_drop_inert_cosmetic_milestone_day.sql`, applied to prod
+2026-07-27). Do not read that as the feature being cancelled — the column was
+removed *because* a schema that implies a rule it does not enforce is worse than
+one that stays quiet. Re-adding the column is the trivial part of this work.
+
+**Steps when ready:**
+
+1. **Server grant path — this is the real work.** Nothing writes
+   `user_cosmetics.acquired_via = 'milestone'` today, though the CHECK already
+   admits it. Add a SECURITY DEFINER routine that inserts the ownership row on a
+   *verified* claim. Fold it into `claim_streak_milestone` so it is atomic with
+   the claim and the Noor mint, exactly as the Noor grant was folded in
+   (`20260726000700`) — a separate RPC re-opens the lost-grant race that
+   migration closed.
+2. **Re-add `cosmetic_catalog.milestone_day`** (nullable int) and seed it on the
+   chosen rows.
+3. **Remove `noor_price` from those rows.** Non-obvious and load-bearing: the
+   wardrobe's teaser arm only renders when the price is null-or-zero, so a
+   milestone row that is *also* priced falls through to the purchase arm and the
+   teaser never appears. That is precisely why the original copy was dead.
+4. **Restore the teaser** — `WardrobeAction.unavailableTeaser` was
+   `milestoneTeaser` before the cleanup; give it back its streak-aware copy, or
+   add a distinct arm.
+5. **Emit `milestone_skin_unlocked`** — the analytics constant already exists in
+   `analytics_event_names.dart` and has never been fired.
+6. **pgTAP** the grant: idempotent per (user, item), refuses an unreached day,
+   and does not double-grant on a streak rebuild.
+
+**Surfaced by:** independent review of PR #61 (lantern cosmetics), 2026-07-27.
+
 ---
 
 ## Duʿā Rain Window (Phase 2) — PARKED

@@ -10,8 +10,10 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// The post-expiry paid buy-back (§2g). A *calm, dismissible* rescue — never a
 /// "your streak died!" guilt gate. The free effort/freeze paths have already
@@ -181,7 +183,7 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
         ref.read(dailyLoopProvider.notifier).clearStreakLapse();
         Navigator.of(context).pop();
         rateLimitedMessenger.showSnackBar(
-          const SnackBar(
+          const SnackBar(duration: kSnackBarDuration, 
             content: Text('You can restore a streak once a month.'),
           ),
         );
@@ -194,7 +196,7 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
       case RepairFailReason.unknown:
         // Genuinely transient — keep the sheet open so they can retry.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          const SnackBar(duration: kSnackBarDuration, 
               content: Text('Couldn’t relight just now — try again.')),
         );
     }
@@ -222,11 +224,12 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
+              SizedBox(
                 height: 108,
                 child: Center(
                   child: CompanionMedallion(
-                    state: CompanionState(
+                    skin: ref.watch(renderableLanternSkinProvider),
+                    state: const CompanionState(
                       brightness: CompanionBrightness.dormant,
                       protected: false,
                     ),

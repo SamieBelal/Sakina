@@ -1,0 +1,559 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/user_data_batch_sync_service.dart';
+import 'package:sakina/services/widget_data_service.dart';
+
+// ---------------------------------------------------------------------------
+// Cosmetics Service (Lane B)
+//
+// Server-authoritative Lantern Cosmetics economy client. NEVER writes economy
+// tables directly — all client mutation flows through the Lane A SECURITY
+// DEFINER RPCs (award_daily_noor / unlock_cosmetic / equip_cosmetic). The
+// underlying `award_noor` is NOT client-callable: EXECUTE was revoked from
+// `authenticated` in 20260726200600_lock_down_award_noor.sql because it let the
+// caller pick both the amount (via p_reason) and the dedupe key. Skin IAP
+// ownership is granted by the RevenueCat WEBHOOK server-side (service_role-only
+// grant_cosmetic_iap, revoked from authenticated; 2026-07-25 contract change),
+// NOT by this client — the client purchases via RC then re-syncs (see Task 7).
+// State is read from the additive noor / equipped / cosmetics sections of
+// sync_all_user_data() and mirrored into user-scoped SharedPreferences so the
+// wardrobe renders synchronously (mirrors TokenState / premium_grants_service).
+//
+// No Riverpod imports (pinned indirectly by the leaf-import discipline).
+// ---------------------------------------------------------------------------
+
+/// Analytics seam. Top-level cosmetics functions have no Riverpod access, so
+/// they emit through this static hook (same pattern as
+/// `GatingService.onAnalyticsEvent` / `StreakAnalytics.onAnalyticsEvent`).
+/// Wired once in `main.dart`; null in tests and until wired, so emitting is a
+/// safe no-op.
+class CosmeticsAnalytics {
+  CosmeticsAnalytics._();
+
+  static void Function(String event, Map<String, dynamic> props)?
+      onAnalyticsEvent;
+
+  static void emit(String event, Map<String, dynamic> props) {
+    try {
+      onAnalyticsEvent?.call(event, props);
+    } catch (_) {
+      // Telemetry must never break an economy write.
+    }
+  }
+}
+
+/// Read-only view of the user's cosmetics economy state. Hand-written (like
+/// TokenState / StreakState) — no Freezed, since it is a tiny read model with
+/// no JSON round-trip of its own.
+@immutable
+class CosmeticsState {
+  const CosmeticsState({
+    required this.noorBalance,
+    required this.equippedLanternSkin,
+    required this.equippedBackdrop,
+    required this.ownedLanternSkins,
+    required this.ownedBackdrops,
+  });
+
+  final int noorBalance;
+  final String equippedLanternSkin;
+  final String equippedBackdrop;
+  final Set<String> ownedLanternSkins;
+  final Set<String> ownedBackdrops;
+
+  bool owns(String itemType, String itemId) {
+    switch (itemType) {
+      case itemTypeLanternSkin:
+        return itemId == defaultLanternSkin ||
+            ownedLanternSkins.contains(itemId);
+      case itemTypeBackdrop:
+        return itemId == defaultBackdrop || ownedBackdrops.contains(itemId);
+      default:
+        return false;
+    }
+  }
+}
+
+// item_type values — mirror the cosmetic_catalog CHECK constraint.
+const String itemTypeLanternSkin = 'lantern_skin';
+const String itemTypeBackdrop = 'backdrop';
+
+// The always-owned defaults (backfilled server-side; never in user_cosmetics).
+const String defaultLanternSkin = 'classic_gold';
+const String defaultBackdrop = 'default';
+
+// User-scoped SharedPreferences base keys.
+const String _noorBalanceKey = 'sakina_noor_balance';
+const String _equippedSkinKey = 'sakina_equipped_lantern_skin';
+const String _equippedBackdropKey = 'sakina_equipped_backdrop';
+const String _ownedSkinsKey = 'sakina_owned_lantern_skins';
+const String _ownedBackdropsKey = 'sakina_owned_backdrops';
+
+Future<Set<String>> _readOwnedSet(
+  SharedPreferences prefs,
+  String baseKey,
+) async {
+  final raw = prefs.getString(supabaseSyncService.scopedKey(baseKey));
+  if (raw == null || raw.isEmpty) return <String>{};
+  try {
+    return (jsonDecode(raw) as List<dynamic>).cast<String>().toSet();
+  } catch (_) {
+    return <String>{};
+  }
+}
+
+/// Reads the cached cosmetics state. Server is the source of truth; this cache
+/// is refreshed on every `sync_all_user_data` via [hydrateCosmeticsFromSync].
+Future<CosmeticsState> getCosmeticsState() async {
+  final prefs = await SharedPreferences.getInstance();
+  return CosmeticsState(
+    noorBalance:
+        prefs.getInt(supabaseSyncService.scopedKey(_noorBalanceKey)) ?? 0,
+    equippedLanternSkin:
+        prefs.getString(supabaseSyncService.scopedKey(_equippedSkinKey)) ??
+            defaultLanternSkin,
+    equippedBackdrop:
+        prefs.getString(supabaseSyncService.scopedKey(_equippedBackdropKey)) ??
+            defaultBackdrop,
+    ownedLanternSkins: await _readOwnedSet(prefs, _ownedSkinsKey),
+    ownedBackdrops: await _readOwnedSet(prefs, _ownedBackdropsKey),
+  );
+}
+
+/// Mirrors the three additive sync sections into the local caches. Called by
+/// `user_data_batch_sync_service` on every app-launch / re-sync. Owned rows
+/// arrive as the `cosmetics` section's `[{item_type, item_id, acquired_via}]`.
+Future<void> hydrateCosmeticsFromSync({
+  required int noorBalance,
+  required String equippedLanternSkin,
+  required String equippedBackdrop,
+  required List<Map<String, dynamic>> owned,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt(
+      supabaseSyncService.scopedKey(_noorBalanceKey), noorBalance);
+  await prefs.setString(
+      supabaseSyncService.scopedKey(_equippedSkinKey), equippedLanternSkin);
+  await prefs.setString(
+      supabaseSyncService.scopedKey(_equippedBackdropKey), equippedBackdrop);
+
+  final skins = <String>[];
+  final backdrops = <String>[];
+  for (final row in owned) {
+    final type = row['item_type'];
+    final id = row['item_id'];
+    if (id is! String) continue;
+    if (type == itemTypeLanternSkin) {
+      skins.add(id);
+    } else if (type == itemTypeBackdrop) {
+      backdrops.add(id);
+    }
+  }
+  await prefs.setString(
+      supabaseSyncService.scopedKey(_ownedSkinsKey), jsonEncode(skins));
+  await prefs.setString(
+      supabaseSyncService.scopedKey(_ownedBackdropsKey), jsonEncode(backdrops));
+}
+
+/// Outcome of an unlock / equip / grant action. [success] drives whether the
+/// caller shows a confirmation or an error snackbar (spec §UI). The service
+/// itself surfaces nothing — it returns this so the widget layer owns the
+/// snackbar (services never show UI).
+@immutable
+class CosmeticActionResult {
+  const CosmeticActionResult({required this.success});
+  final bool success;
+
+  static const CosmeticActionResult ok = CosmeticActionResult(success: true);
+  static const CosmeticActionResult failed =
+      CosmeticActionResult(success: false);
+}
+
+/// Spends Noor to unlock [itemId]. Delegates ALL price/availability/gating to
+/// the Lane A `unlock_cosmetic` RPC (server never trusts the client price —
+/// [noorPrice] is used ONLY to optimistically mirror the debit into the cache
+/// on success; the next sync reconciles the authoritative balance). Returns
+/// [CosmeticActionResult.failed] when the RPC raises (insufficient noor,
+/// inactive, premium-exclusive, out-of-window) — `callRpc` maps the raise to
+/// null.
+Future<CosmeticActionResult> unlockCosmetic({
+  required String itemType,
+  required String itemId,
+  required int noorPrice,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+
+  final ok = await supabaseSyncService.callRpc<bool>(
+    'unlock_cosmetic',
+    {'p_item_type': itemType, 'p_item_id': itemId},
+  );
+
+  if (ok != true) {
+    CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlockRejected, {
+      AnalyticsEvents.propItemType: itemType,
+      AnalyticsEvents.propItemId: itemId,
+      AnalyticsEvents.propReason: 'rpc_declined',
+    });
+    return CosmeticActionResult.failed;
+  }
+
+  await _addOwnedToCache(itemType, itemId);
+  await _debitNoorCache(noorPrice);
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlocked, {
+    AnalyticsEvents.propItemType: itemType,
+    AnalyticsEvents.propItemId: itemId,
+    AnalyticsEvents.propVia: AnalyticsEvents.cosmeticViaNoor,
+  });
+  return CosmeticActionResult.ok;
+}
+
+Future<void> _addOwnedToCache(String itemType, String itemId) async {
+  // Symmetric with the read side (hydrateCosmeticsFromSync): explicitly handle
+  // the two valid types and DROP anything else, so a malformed/unknown
+  // item_type never silently lands in the skins set.
+  final String baseKey;
+  switch (itemType) {
+    case itemTypeLanternSkin:
+      baseKey = _ownedSkinsKey;
+    case itemTypeBackdrop:
+      baseKey = _ownedBackdropsKey;
+    default:
+      return; // unknown type — ignore, do not pollute skins.
+  }
+  final prefs = await SharedPreferences.getInstance();
+  final set = await _readOwnedSet(prefs, baseKey);
+  set.add(itemId);
+  await prefs.setString(
+      supabaseSyncService.scopedKey(baseKey), jsonEncode(set.toList()));
+}
+
+Future<void> _debitNoorCache(int amount) async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = supabaseSyncService.scopedKey(_noorBalanceKey);
+  final current = prefs.getInt(key) ?? 0;
+  await prefs.setInt(key, (current - amount).clamp(0, 1 << 31));
+}
+
+/// The streak-milestone days for which `claim_streak_milestone` actually MINTS
+/// Noor (its guarded `p_day in (7,14,30,60,90)` arm, matching `award_noor`'s
+/// `milestone:7|14|30|60|90` cases). Client-side mirror of the server contract,
+/// kept in lockstep with `20260726000800_align_milestone_day_90.sql` — which
+/// aligned the server on 90, the day [streakMilestones] has always used. (The
+/// original arm was a stray `100`: no client could ever send it, while a
+/// genuine 90-day streak was rejected as an unrecognized milestone day.)
+///
+/// Documentation + drift guard only — [creditMintedMilestoneNoor] deliberately
+/// does NOT filter on it. The server is the sole minter and reports what it
+/// credited; re-deriving that set client-side would silently drop a real grant
+/// if the two ever diverge again.
+const Set<int> awardableMilestoneDays = {7, 14, 30, 60, 90};
+
+/// Mirrors a milestone Noor grant the SERVER already minted inside
+/// `claim_streak_milestone`. Call this with the `noor_awarded` that RPC
+/// returned — NEVER award speculatively; the client is not a minter.
+///
+/// As of the 20260726000700 migration the milestone Noor is minted INSIDE
+/// `claim_streak_milestone`, in the same transaction as the claim record, so
+/// the claim and the award commit-or-roll-back together (the "claim fails → no
+/// award" property is now structural — §13 item P1). By the time this is
+/// called the money already exists server-side; the client half is purely
+/// observational:
+///   • credit the local balance cache so the wardrobe updates without a
+///     round-trip (the next full sync reconciles the authoritative value), and
+///   • emit `noor_earned` so the milestone-Noor funnel is visible.
+///
+/// No-ops when [amount] <= 0 — a replay, an already-claimed day, a
+/// recognized-but-non-mintable day (180/365), or a claim that never committed
+/// all report 0, and none of those may move the cache or the funnel.
+///
+/// SINGLE production call site: `streak_service.checkStreakMilestones` (both
+/// its claim paths), which already holds the RPC response. Do not re-issue
+/// `claim_streak_milestone` here — that would invoke the RPC twice per
+/// milestone.
+Future<void> creditMintedMilestoneNoor({
+  required int day,
+  required int amount,
+}) async {
+  if (amount <= 0) return;
+
+  await _creditNoorCache(amount);
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
+    AnalyticsEvents.propAmount: amount,
+    AnalyticsEvents.propReason: 'milestone:$day',
+  });
+}
+
+/// Awards the daily-muḥāsabah Noor (spec §3) via `award_daily_noor()`.
+///
+/// Takes NO arguments, deliberately. This replaces the old
+/// `awardNoor(reason:, reasonKey:)`, which called `award_noor(p_reason,
+/// p_reason_key)` directly — a function that derived the AMOUNT from the
+/// client's `reason` and deduped on the client's `reason_key`. A dedupe key the
+/// caller picks is not a dedupe key: any authenticated user could send
+/// `('milestone:90', <fresh key>)` in a loop and mint unlimited Noor, then spend
+/// it on à-la-carte skins that also carry a real-money `iap_product_id`.
+/// `20260726200600_lock_down_award_noor.sql` revoked EXECUTE on `award_noor`
+/// from `authenticated` (it stays reachable by `service_role` and by the
+/// SECURITY DEFINER callers), so this is now the only client earn path, and both
+/// the amount and the dedupe key are derived server-side. The server also
+/// verifies the caller actually has a `user_checkin_history` row for today
+/// before minting.
+///
+/// Returns the amount minted, or 0 on a deduped replay (already granted today),
+/// a caller with no checkin recorded for today, or an unauthenticated caller.
+///
+/// NOTE — the quest earn path is intentionally absent. `user_quest_progress` is
+/// written directly by the client with a free-form `quest_id` and a
+/// client-asserted `completed` flag, so no server-side verification is possible
+/// and an `award_quest_noor` would be exactly as forgeable as what it replaced.
+/// Nothing regresses: the quest→Noor hook had no production call site. See the
+/// migration header for what re-enabling it requires.
+Future<int> awardDailyNoor() async {
+  if (supabaseSyncService.currentUserId == null) return 0;
+
+  final amount = await supabaseSyncService.callRpc<int>('award_daily_noor');
+  if (amount == null || amount <= 0) return 0;
+
+  await _creditNoorCache(amount);
+  CosmeticsAnalytics.emit(AnalyticsEvents.noorEarned, {
+    AnalyticsEvents.propAmount: amount,
+    AnalyticsEvents.propReason: 'daily',
+  });
+  return amount;
+}
+
+Future<void> _creditNoorCache(int amount) async {
+  final prefs = await SharedPreferences.getInstance();
+  final key = supabaseSyncService.scopedKey(_noorBalanceKey);
+  final current = prefs.getInt(key) ?? 0;
+  await prefs.setInt(key, current + amount);
+}
+
+/// Equips [itemId] via the Lane A `equip_cosmetic` RPC, which verifies
+/// ownership server-side (raises "cannot equip unowned item" → null here).
+/// On success, mirrors the equipped column into the cache so the Companion
+/// stage / Home medallion re-render without a round-trip.
+///
+/// On a successful `lantern_skin` equip it also pushes the skin to the iOS
+/// companion widget ([WidgetDataService.setEquippedLanternSkin]); [widgetData]
+/// is injectable for tests, production uses the global `widgetDataService`.
+Future<CosmeticActionResult> equipCosmetic({
+  required String itemType,
+  required String itemId,
+  WidgetDataService? widgetData,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+
+  final ok = await supabaseSyncService.callRpc<bool>(
+    'equip_cosmetic',
+    {'p_item_type': itemType, 'p_item_id': itemId},
+  );
+  if (ok != true) {
+    // A failed equip is observable — `cosmeticUnlockRejected` covers equip
+    // rejections too (doc). Mirrors unlockCosmetic's rejection emit shape.
+    CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticUnlockRejected, {
+      AnalyticsEvents.propItemType: itemType,
+      AnalyticsEvents.propItemId: itemId,
+      AnalyticsEvents.propReason: 'rpc_declined',
+    });
+    return CosmeticActionResult.failed;
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+  final key =
+      itemType == itemTypeBackdrop ? _equippedBackdropKey : _equippedSkinKey;
+  await prefs.setString(supabaseSyncService.scopedKey(key), itemId);
+
+  // Push the new lantern to the iOS home-screen widget right away, so the
+  // cosmetic promise doesn't visibly break on the home screen until the next
+  // sync. Skins only — backdrops are in-app surfaces and never reach the widget
+  // (spec §5). Best-effort: a widget failure must never fail the equip.
+  if (itemType == itemTypeLanternSkin) {
+    try {
+      await (widgetData ?? widgetDataService).setEquippedLanternSkin(itemId);
+    } catch (_) {
+      // Widget refresh is cosmetic; the next syncHomeWidget will catch up.
+    }
+  }
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticEquipped, {
+    AnalyticsEvents.propItemType: itemType,
+    AnalyticsEvents.propItemId: itemId,
+  });
+  return CosmeticActionResult.ok;
+}
+
+/// Client-side predicate for whether the Equip button should be shown for a
+/// catalog row (spec §13 item 6 / OQ-1 — the single premium definition seam).
+///
+/// Rules (conservative — the spec is silent on whether trial/gift/referral
+/// users PERMANENTLY keep premium-exclusive skins, so we never convert them to
+/// ownership here; see OQ-1):
+///   • Owned (in user_cosmetics or the always-owned default) → equippable.
+///   • Premium-exclusive AND the caller is premium (any source: sub, trial,
+///     gift, referral — [PurchaseService.isPremium] ORs over all) → equippable
+///     WHILE premium is active. The server `equip_cosmetic` remains the final
+///     authority; this only decides whether to surface the button.
+///   • Otherwise → NOT equippable (the user must unlock/buy it first).
+///
+/// [purchaseService] is injectable for tests; production passes the default
+/// `PurchaseService()`.
+Future<bool> canEquip({
+  required CosmeticsState state,
+  required String itemType,
+  required String itemId,
+  required bool isPremiumExclusive,
+  PurchaseService? purchaseService,
+}) async {
+  if (state.owns(itemType, itemId)) return true;
+  if (isPremiumExclusive) {
+    final svc = purchaseService ?? PurchaseService();
+    return svc.isPremium();
+  }
+  return false;
+}
+
+/// À-la-carte skin IAP SKUs → catalog item_id. Mirrors the `iap_product_id`
+/// column in `20260726000100_seed_cosmetic_catalog.sql`. The client uses this
+/// ONLY to recognize which RC products are skin purchases and to LABEL the
+/// analytics event with the item_id; it performs NO grant with it. The SERVER
+/// (RC webhook, service_role) re-verifies product↔item against the catalog and
+/// is the sole granter. When SKUs change, this map AND the seed migration must
+/// both update.
+const Map<String, String> skinIapProductToItem = {
+  'sakina.skin.obsidian': 'obsidian_gold',
+  'sakina.skin.masjid': 'masjid_brass',
+  'sakina.skin.crystal': 'crystal_star',
+};
+
+/// Completes an à-la-carte skin purchase from the CLIENT side (spec §13 item 4;
+/// 2026-07-25 security-driven contract change). The caller has already run the
+/// RevenueCat purchase (`Purchases.purchase...`) successfully; this function
+/// does the post-purchase reconciliation.
+///
+/// The client does NOT grant ownership — `grant_cosmetic_iap` is service_role-
+/// ONLY (revoked from `authenticated`) and is called by the RC WEBHOOK. Here we
+/// simply re-sync via [syncNow] (default: `hydrateUserDataFromBatchRpc`, i.e.
+/// `sync_all_user_data()`), so the webhook's server-side grant shows up in the
+/// `cosmetics` section and the caches report the skin owned. See DEP-1/DEP-2.
+///
+/// Emits `cosmetic_iap_purchased` on a recognized skin SKU (client-observed RC
+/// success). Idempotency / refund clawback / receipt verification are all
+/// server-side. Returns failure for a non-skin SKU, an unauthenticated caller,
+/// or when the sync throws.
+Future<CosmeticActionResult> completeSkinIapPurchase({
+  required String productId,
+  Future<void> Function()? syncNow,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+  final itemId = skinIapProductToItem[productId];
+  if (itemId == null) {
+    // Not a skin SKU — refuse (consumables go through ConsumableGrantsService).
+    return CosmeticActionResult.failed;
+  }
+
+  // Re-sync so the webhook's server-side grant is reflected. NO grant RPC here.
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await sync();
+  } catch (_) {
+    return CosmeticActionResult.failed;
+  }
+
+  CosmeticsAnalytics.emit(AnalyticsEvents.cosmeticIapPurchased, {
+    AnalyticsEvents.propItemId: itemId,
+    AnalyticsEvents.propProductId: productId,
+  });
+  return CosmeticActionResult.ok;
+}
+
+/// Restores previously-purchased skins (spec §13 item 4; DEP-2). Calls
+/// [restore] (default: `Purchases.restorePurchases()`), which makes RevenueCat
+/// re-fire its non-consumable / TRANSFER event to the WEBHOOK — the webhook
+/// re-grants ownership server-side — then re-syncs via [syncNow] so the
+/// restored rows surface from the `cosmetics` section.
+///
+/// The client grants NOTHING and does NOT reconcile from `CustomerInfo` by
+/// granting (the revoked, service_role-only contract forbids it). Callers: the
+/// explicit "Restore purchases" action and app-launch recovery. Returns success
+/// when both the restore and the sync complete without throwing.
+Future<CosmeticActionResult> restoreSkinIaps({
+  Future<void> Function()? restore,
+  Future<void> Function()? syncNow,
+}) async {
+  if (supabaseSyncService.currentUserId == null) {
+    return CosmeticActionResult.failed;
+  }
+  final doRestore = restore ?? _defaultRestorePurchases;
+  final sync = syncNow ?? hydrateUserDataFromBatchRpc;
+  try {
+    await doRestore(); // RC re-fires non-consumable/TRANSFER → webhook grants.
+    await sync(); // Surface the server-side (re)grant from the sync payload.
+  } catch (_) {
+    return CosmeticActionResult.failed;
+  }
+  return CosmeticActionResult.ok;
+}
+
+/// Production default for [restoreSkinIaps.restore]. Thin wrapper over
+/// `purchases_flutter` so the service stays trivially unit-testable (tests
+/// inject a fake and never touch RevenueCat).
+Future<void> _defaultRestorePurchases() async {
+  await Purchases.restorePurchases();
+}
+
+/// DEFERRED (OQ-2 / spec §13 item 7, §14 rollout P4/P5): reconciles the
+/// premium-only cosmetic grants (monthly-exclusive skin + seasonal auto-grant)
+/// on sync while the subscription is active.
+///
+/// There is NO `grant_premium_cosmetics` RPC in the merged Lane A migrations
+/// yet, and the entitlement-period backfill (granting a subscriber who did NOT
+/// open during the drop month) is inherently server-side — a client cannot
+/// reconcile a window the server never granted. So this is a THIN forward hook:
+/// it calls the future RPC when it exists and no-ops (returns 0) until then,
+/// giving the app a single stable call site to wire on sync now.
+///
+/// When Lane A ships `grant_premium_cosmetics()` (SECURITY DEFINER; grants
+/// premium-exclusive/seasonal rows `ON CONFLICT DO NOTHING` when premium is
+/// active and the drop_month / islamic_occasions window matches), this hook
+/// mirrors any newly-granted rows into the ownership cache. Returns the count
+/// of rows granted this sync.
+Future<int> syncPremiumCosmetics({PurchaseService? purchaseService}) async {
+  if (supabaseSyncService.currentUserId == null) return 0;
+  final svc = purchaseService ?? PurchaseService();
+  if (!await svc.isPremium()) return 0;
+
+  final res = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+    'grant_premium_cosmetics',
+  );
+  if (res == null) return 0; // RPC not shipped yet — graceful no-op.
+
+  final granted = res['granted'];
+  if (granted is! List) return 0;
+
+  var count = 0;
+  for (final row in granted) {
+    if (row is! Map) continue;
+    final type = row['item_type'];
+    final id = row['item_id'];
+    if (id is! String || type is! String) continue;
+    await _addOwnedToCache(type, id);
+    count += 1;
+  }
+  return count;
+}

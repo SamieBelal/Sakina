@@ -296,6 +296,16 @@ begin
   -- =========================================================================
   -- 17. claim_streak_milestone idempotency (server-authoritative claimed-set)
   -- =========================================================================
+  -- Since 20260726200700 the reached-check no longer trusts the client-writable
+  -- user_streaks.current_streak alone: it also requires the account to have
+  -- existed long enough to reach the day. pg_temp.test_insert_auth_user seeds
+  -- created_at = now(), which is exactly the forged-fresh-account shape the
+  -- guard rejects, so age uid_a past day 7 first. This test is about claim
+  -- IDEMPOTENCY, not about the reached-check.
+  perform pg_temp.reset_auth();
+  update auth.users set created_at = now() - interval '30 days' where id = uid_a;
+  perform pg_temp.set_auth(uid_a);
+
   v_result := public.claim_streak_milestone(7);
   perform pg_temp.expect((v_result->>'newly_claimed')::boolean,
     '17a. first milestone claim is newly_claimed=true');

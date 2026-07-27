@@ -97,6 +97,161 @@ void main() {
         reason: 'two distinct syncs × two widgets (Name + companion)');
   });
 
+  test('payload carries the default lantern skin when none is supplied',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold');
+  });
+
+  test('payload carries a bundled equipped skin', () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+      lanternSkinId: 'obsidian_gold',
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'obsidian_gold');
+  });
+
+  test('a skin with no bundled frames is written as the default, never raw',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    await build(client).syncWidget(
+      name: name,
+      anchor: 'a',
+      streak: 3,
+      checkedInToday: true,
+      personalized: true,
+      lanternSkinId: 'skin_from_a_future_catalog',
+    );
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold',
+        reason: 'an unbundled id would make the widget look for a missing PNG');
+  });
+
+  test('changing only the skin busts the perf guard', () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 3,
+        checkedInToday: true,
+        personalized: true);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 3,
+        checkedInToday: true,
+        personalized: true,
+        lanternSkinId: 'masjid_brass');
+    expect(client.updates, 4,
+        reason: 'two distinct payloads × two widgets (Name + companion)');
+  });
+
+  test('setEquippedLanternSkin re-pushes the last payload with the new skin',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 7,
+        checkedInToday: true,
+        personalized: true);
+    expect(client.updates, 2);
+
+    await svc.setEquippedLanternSkin('obsidian_gold');
+
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'obsidian_gold');
+    expect(json['streak'], 7, reason: 'the rest of the payload is preserved');
+    expect(json['name_key'], 'al-malik');
+    expect(client.updates, 4, reason: 'the equip re-pushed and reloaded');
+  });
+
+  test('equipping the same skin twice is a no-op', () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 7,
+        checkedInToday: true,
+        personalized: true);
+    await svc.setEquippedLanternSkin('obsidian_gold');
+    await svc.setEquippedLanternSkin('obsidian_gold');
+    expect(client.updates, 4, reason: 'the second equip must not reload');
+  });
+
+  test('equipping a skin with no bundled frames reverts to classic_gold',
+      () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 7,
+        checkedInToday: true,
+        personalized: true,
+        lanternSkinId: 'obsidian_gold');
+    await svc.setEquippedLanternSkin('skin_from_a_future_catalog');
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold');
+  });
+
+  test('an equip before the first sync is carried by the next sync', () async {
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.setEquippedLanternSkin('masjid_brass');
+    expect(client.saved, isEmpty, reason: 'nothing to patch yet');
+
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 1,
+        checkedInToday: true,
+        personalized: true);
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'masjid_brass');
+  });
+
+  test('clearWidget resets the skin so the next user starts on classic_gold',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final client = _FakeHomeWidgetClient();
+    final svc = build(client);
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 7,
+        checkedInToday: true,
+        personalized: true,
+        lanternSkinId: 'obsidian_gold');
+    await svc.clearWidget();
+
+    await svc.syncWidget(
+        name: name,
+        anchor: 'a',
+        streak: 1,
+        checkedInToday: true,
+        personalized: true);
+    final json = jsonDecode(client.lastSavedValue!) as Map<String, dynamic>;
+    expect(json['lantern_skin'], 'classic_gold');
+  });
+
   test('saveDuaTimesSchedule: identical JSON does not re-save or reload',
       () async {
     final client = _FakeHomeWidgetClient();

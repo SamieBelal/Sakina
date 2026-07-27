@@ -48,6 +48,23 @@ class LanternForm {
   final bool tassel;
 
   static const classic = LanternForm();
+
+  // Value equality on all render-affecting fields (geometry + ornament) so a
+  // server-reconstructed form compares equal to its value-twin. Without it,
+  // LanternPainter.shouldRepaint would fall back to identity and needlessly
+  // repaint on every rebuild, defeating the raster cache. Mirrors Backdrop.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LanternForm &&
+          other.dome == dome &&
+          other.finial == finial &&
+          other.archedWindow == archedWindow &&
+          other.lattice == lattice &&
+          other.tassel == tassel);
+
+  @override
+  int get hashCode => Object.hash(dome, finial, archedWindow, lattice, tassel);
 }
 
 @immutable
@@ -105,6 +122,43 @@ class LanternSkin {
 
   /// Geometry + ornament. Recolor skins keep the classic form.
   final LanternForm form;
+
+  // Value equality on the id + every render-affecting field (palette colors +
+  // form) so a server-reconstructed skin twin compares equal, letting
+  // LanternPainter.shouldRepaint keep the raster cache. `name`/`blurb` are
+  // display-only metadata and don't affect the raster, so they're excluded.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LanternSkin &&
+          other.id == id &&
+          other.metalTop == metalTop &&
+          other.metalMid == metalMid &&
+          other.metalBot == metalBot &&
+          other.metalDark == metalDark &&
+          other.highlight == highlight &&
+          other.glow == glow &&
+          other.ember == ember &&
+          other.glass == glass &&
+          other.dustyTop == dustyTop &&
+          other.dustyBot == dustyBot &&
+          other.form == form);
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        metalTop,
+        metalMid,
+        metalBot,
+        metalDark,
+        highlight,
+        glow,
+        ember,
+        glass,
+        dustyTop,
+        dustyBot,
+        form,
+      );
 
   /// The production default — identical to the original hardcoded gold palette.
   static const classicGold = LanternSkin(

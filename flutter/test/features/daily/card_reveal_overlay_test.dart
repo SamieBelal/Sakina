@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/daily/reveal/reveal_spec.dart';
@@ -6,6 +7,12 @@ import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
+// The overlay's medallion renders the user's EQUIPPED lantern skin, which it
+// reads through `renderableLanternSkinProvider` — so the tree now needs a
+// ProviderScope. In production one always exists: `runApp` wraps everything in
+// ProviderScope, well above the root navigator these overlays are pushed onto.
+// No override is needed here: both inputs to that provider fall back to classic
+// gold while unresolved, which is exactly what these tests want.
 void main() {
   // The ornate card tile embeds the CompanionMedallion, which uses a
   // VisibilityDetector — its default 500ms debounce timer would linger past the
@@ -22,7 +29,8 @@ void main() {
     CardTier tier = CardTier.emerald,
   }) async {
     final events = <(String, Map<String, Object?>)>[];
-    await tester.pumpWidget(MediaQuery(
+    await tester.pumpWidget(ProviderScope(
+        child: MediaQuery(
       data: MediaQueryData(disableAnimations: disableAnimations),
       child: MaterialApp(
         home: CardRevealOverlay(
@@ -32,15 +40,17 @@ void main() {
           onEvent: (name, props) => events.add((name, props)),
         ),
       ),
-    ));
+    )));
     await tester.pump();
     return events;
   }
 
-  testWidgets('reduced motion (autoStart) resolves to the card + Continue quickly',
+  testWidgets(
+      'reduced motion (autoStart) resolves to the card + Continue quickly',
       (tester) async {
     var continued = false;
-    await tester.pumpWidget(MediaQuery(
+    await tester.pumpWidget(ProviderScope(
+        child: MediaQuery(
       data: const MediaQueryData(disableAnimations: true),
       child: MaterialApp(
         home: CardRevealOverlay(
@@ -50,7 +60,7 @@ void main() {
           onContinue: () => continued = true,
         ),
       ),
-    ));
+    )));
     // Under reduced motion the sequence collapses to <= 600ms.
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.text('Tap to continue'), findsOneWidget);
@@ -64,8 +74,8 @@ void main() {
     var continueCount = 0;
     // Silver has the shortest spin duration (3600ms), so its haptic ratchet
     // Future.delayed timers drain fastest at the end of the test.
-    await pumpOverlay(
-        tester, onContinue: () => continueCount++, tier: CardTier.silver);
+    await pumpOverlay(tester,
+        onContinue: () => continueCount++, tier: CardTier.silver);
 
     // tap1: opens the reveal (does not continue).
     await tester.tap(find.byType(CardRevealOverlay));
@@ -89,7 +99,8 @@ void main() {
     // A stray extra tap must not double-fire (_dismissed guard).
     await tester.tap(find.byType(CardRevealOverlay));
     await tester.pump();
-    expect(continueCount, 1, reason: '_dismissed must guard against double-fire');
+    expect(continueCount, 1,
+        reason: '_dismissed must guard against double-fire');
 
     // Drain the scheduled haptic Future.delayed timers (guarded by mounted) so
     // none outlive the widget tree. Silver's ratchet spans its 3600ms duration.
@@ -115,8 +126,8 @@ void main() {
     expect(shown, hasLength(1));
     expect(shown.single.$2['tier'], 'Gold');
     expect(shown.single.$2['auto'], false);
-    expect(
-        events.where((e) => e.$1 == AnalyticsEvents.cardRevealCompleted), isEmpty);
+    expect(events.where((e) => e.$1 == AnalyticsEvents.cardRevealCompleted),
+        isEmpty);
 
     // tap2: skip to settle; tap3: continue → card_reveal_completed fires once.
     await tester.tap(find.byType(CardRevealOverlay));
@@ -134,8 +145,7 @@ void main() {
     // A stray tap must not emit a second completed event.
     await tester.tap(find.byType(CardRevealOverlay));
     await tester.pump();
-    expect(
-        events.where((e) => e.$1 == AnalyticsEvents.cardRevealCompleted),
+    expect(events.where((e) => e.$1 == AnalyticsEvents.cardRevealCompleted),
         hasLength(1));
 
     // Exactly one shown across the whole flow, too.

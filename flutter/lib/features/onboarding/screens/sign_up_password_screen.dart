@@ -15,6 +15,7 @@ import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_autofocus_text_field.dart';
 import '../widgets/onboarding_continue_button.dart';
 import '../widgets/onboarding_page_wrapper.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 class SignUpPasswordScreen extends ConsumerStatefulWidget {
   const SignUpPasswordScreen({
@@ -82,7 +83,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          const SnackBar(duration: kSnackBarDuration, 
             content:
                 Text('That email already has an account. Try logging in instead.'),
           ),
@@ -105,7 +106,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          SnackBar(duration: kSnackBarErrorDuration, 
             content: Text(
               result.errorMessage ?? 'Something went wrong. Please try again.',
             ),
@@ -176,7 +177,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
         'error': AnalyticsEvents.signupFailedReasonForCode(e.code),
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        SnackBar(duration: kSnackBarErrorDuration, content: Text(e.message)),
       );
     } catch (_) {
       if (!mounted) return;
@@ -188,7 +189,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
         },
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
             content: Text('Something went wrong. Please try again.')),
       );
     } finally {

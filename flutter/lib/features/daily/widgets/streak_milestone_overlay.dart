@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
@@ -9,6 +10,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Full-Screen Streak Milestone Celebration Overlay
@@ -240,12 +242,17 @@ class _StreakMilestoneOverlayState extends State<StreakMilestoneOverlay>
                             curve: Curves.easeOutBack,
                           ),
                         ],
-                        child: const CompanionMedallion(
-                          state: CompanionState(
-                            brightness: CompanionBrightness.fullyLit,
-                            protected: false,
+                        // A milestone celebrates the streak the user actually
+                        // built, so it lights THEIR lantern, not a stock one.
+                        child: Consumer(
+                          builder: (_, ref, __) => CompanionMedallion(
+                            skin: ref.watch(renderableLanternSkinProvider),
+                            state: const CompanionState(
+                              brightness: CompanionBrightness.fullyLit,
+                              protected: false,
+                            ),
+                            size: 132,
                           ),
-                          size: 132,
                         ),
                       ),
                       const SizedBox(height: 20),

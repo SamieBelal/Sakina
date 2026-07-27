@@ -15,6 +15,7 @@ import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/widgets/freeze_burn_card.dart';
 import 'package:sakina/features/streaks/widgets/streak_rescue_sheet.dart';
 import 'package:sakina/features/streaks/widgets/month_of_light.dart';
@@ -747,7 +748,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             child: companion == null
                 ? null
                 : Center(
-                    child: CompanionMedallion(state: companion, size: 152),
+                    // Tap the lamp → the Companion stage (and from there the
+                    // wardrobe). The medallion itself stays a pure painter.
+                    child: GestureDetector(
+                      onTap: () => GoRouter.of(context).push('/companion'),
+                      // Home renders the EQUIPPED skin, same as every other
+                      // lantern surface. See renderableLanternSkinProvider for
+                      // why all of them share one resolution.
+                      child: CompanionMedallion(
+                        state: companion,
+                        size: 152,
+                        skin: ref.watch(renderableLanternSkinProvider),
+                      ),
+                    ),
                   ),
           ),
           const SizedBox(height: 8),

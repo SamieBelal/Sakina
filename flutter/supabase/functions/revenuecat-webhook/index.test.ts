@@ -2,8 +2,14 @@ import { assert, assertEquals } from "jsr:@std/assert@1";
 
 import {
   buildConsumableClawback,
+  buildCosmeticClawback,
+  buildCosmeticGrant,
+  buildCosmeticReinstate,
   buildUserSubscriptionUpsert,
   type ConsumableClawbackPayload,
+  type CosmeticClawbackPayload,
+  type CosmeticGrantPayload,
+  type CosmeticReinstatePayload,
   handleRevenueCatWebhook,
   hasActivePremiumAccess,
   type RevenueCatEvent,
@@ -722,6 +728,405 @@ Deno.test("trackSubscriptionEvent failure does NOT fail the webhook (isolation)"
   // Billing sync succeeded; the analytics hiccup must not become a 500.
   assertEquals(response.status, 200);
   assertEquals(await response.json(), { status: "ok" });
+});
+
+// ── À-la-carte skin IAP grant + refund (Lane A-bis) ───────────────────────
+//
+// Skin purchases arrive as NON_RENEWING_PURCHASE with a skin SKU; refunds as
+// CANCELLATION with a skin SKU. Neither carries the premium entitlement and
+// neither SKU is in CONSUMABLE_SKU_TO_AMOUNT, so they never collide with the
+// subscription/consumable paths.
+
+function skinPurchaseEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "NON_RENEWING_PURCHASE",
+    id: "rc-event-skin-1",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [],
+    product_id: "sakina.skin.obsidian",
+    transaction_id: "apple-skin-txn-1",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+function skinRefundEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "CANCELLATION",
+    id: "rc-event-skin-refund-1",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [],
+    product_id: "sakina.skin.obsidian",
+    transaction_id: "apple-skin-txn-1",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+Deno.test("buildCosmeticGrant maps a known skin SKU on NON_RENEWING_PURCHASE", () => {
+  const payload = buildCosmeticGrant(skinPurchaseEvent());
+  assert(payload);
+  assertEquals(payload.user_id, userId);
+  assertEquals(payload.product_id, "sakina.skin.obsidian");
+  assertEquals(payload.item_id, "obsidian_gold");
+  assertEquals(payload.transaction_id, "apple-skin-txn-1");
+});
+
+Deno.test("buildCosmeticGrant returns null for a subscription event", () => {
+  assertEquals(buildCosmeticGrant(baseEvent()), null);
+});
+
+Deno.test("buildCosmeticGrant returns null for an unknown SKU", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({ product_id: "sakina.tokens_100" })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant returns null for anonymous user", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({
+      app_user_id: "$RCAnonymousID:anon-a",
+      original_app_user_id: "$RCAnonymousID:anon-b",
+      aliases: ["$RCAnonymousID:anon-c"],
+    })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant returns null when transaction id AND event id are missing", () => {
+  assertEquals(
+    buildCosmeticGrant(skinPurchaseEvent({ transaction_id: null, id: null })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticGrant falls back to event id when transaction_id missing", () => {
+  const payload = buildCosmeticGrant(
+    skinPurchaseEvent({ transaction_id: null, id: "rc-fallback-skin" }),
+  );
+  assert(payload);
+  assertEquals(payload.transaction_id, "rc-fallback-skin");
+});
+
+function skinRefundReversedEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return {
+    type: "REFUND_REVERSED",
+    id: "rc-event-skin-refund-reversed-1",
+    app_user_id: userId,
+    original_app_user_id: userId,
+    aliases: [],
+    entitlement_ids: [],
+    product_id: "sakina.skin.obsidian",
+    transaction_id: "apple-skin-txn-1",
+    store: "APP_STORE",
+    environment: "PRODUCTION",
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  };
+}
+
+Deno.test("buildCosmeticClawback maps a known skin SKU on CANCELLATION", () => {
+  const payload = buildCosmeticClawback(skinRefundEvent());
+  assert(payload);
+  assertEquals(payload.transaction_id, "apple-skin-txn-1");
+});
+
+// I-2: an unmatched refund writes a tombstone server-side, and the tombstone is
+// far more useful when it can name the buyer and the SKU. These identity fields
+// are ONLY for that — when a real ledger row exists the RPC ignores them and
+// uses the ledger, so nothing caller-supplied can widen a revocation.
+Deno.test("buildCosmeticClawback carries identity for tombstone attribution", () => {
+  const payload = buildCosmeticClawback(skinRefundEvent());
+  assert(payload);
+  assertEquals(payload.user_id, userId);
+  assertEquals(payload.item_id, "obsidian_gold");
+  assertEquals(payload.product_id, "sakina.skin.obsidian");
+});
+
+Deno.test("buildCosmeticClawback returns null for a non-CANCELLATION type", () => {
+  assertEquals(
+    buildCosmeticClawback(skinRefundEvent({ type: "NON_RENEWING_PURCHASE" })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticClawback returns null for an unknown SKU", () => {
+  assertEquals(
+    buildCosmeticClawback(skinRefundEvent({ product_id: "sakina_tokens_100" })),
+    null,
+  );
+});
+
+Deno.test("Skin NON_RENEWING_PURCHASE triggers grantCosmetic, not subscription/consumable", async () => {
+  const grants: CosmeticGrantPayload[] = [];
+  let upsertCalls = 0;
+  let consumableClawbacks = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {
+        consumableClawbacks += 1;
+      },
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      grantCosmetic: async (payload) => {
+        grants.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(grants.length, 1);
+  assertEquals(grants[0].item_id, "obsidian_gold");
+  assertEquals(grants[0].transaction_id, "apple-skin-txn-1");
+  assertEquals(upsertCalls, 0, "skin buy must NOT touch subscriptions");
+  assertEquals(consumableClawbacks, 0, "skin buy is not a consumable");
+});
+
+Deno.test("Skin CANCELLATION triggers clawbackCosmetic, not subscription upsert", async () => {
+  const clawbacks: CosmeticClawbackPayload[] = [];
+  let upsertCalls = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinRefundEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      clawbackCosmetic: async (payload) => {
+        clawbacks.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(clawbacks.length, 1);
+  assertEquals(clawbacks[0].transaction_id, "apple-skin-txn-1");
+  assertEquals(upsertCalls, 0, "skin refund must NOT touch subscriptions");
+});
+
+Deno.test("Skin grant RPC failure returns 500 so RC retries", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+      grantCosmetic: async () => {
+        throw new Error("rpc boom");
+      },
+    },
+  );
+
+  assertEquals(response.status, 500);
+});
+
+// --------------------------------------------------------------------------
+// N-1: REFUND_REVERSED (Apple reinstating a purchase it previously refunded).
+// Routed to its own RPC because re-running the grant does nothing — the revoked
+// ledger row short-circuits grant_cosmetic_iap.
+// --------------------------------------------------------------------------
+
+Deno.test("buildCosmeticReinstate maps a known skin SKU on REFUND_REVERSED", () => {
+  const payload = buildCosmeticReinstate(skinRefundReversedEvent());
+  assert(payload);
+  assertEquals(payload.transaction_id, "apple-skin-txn-1");
+  assertEquals(payload.event_timestamp, new Date(nowMs).toISOString());
+});
+
+Deno.test("buildCosmeticReinstate returns null for a non-REFUND_REVERSED type", () => {
+  assertEquals(
+    buildCosmeticReinstate(skinRefundReversedEvent({ type: "CANCELLATION" })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticReinstate returns null for an unknown SKU", () => {
+  assertEquals(
+    buildCosmeticReinstate(
+      skinRefundReversedEvent({ product_id: "sakina_tokens_100" }),
+    ),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticReinstate returns null for anonymous user", () => {
+  assertEquals(
+    buildCosmeticReinstate(skinRefundReversedEvent({
+      app_user_id: "$RCAnonymousID:anon-a",
+      original_app_user_id: "$RCAnonymousID:anon-b",
+      aliases: ["$RCAnonymousID:anon-c"],
+    })),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticReinstate returns null when transaction id AND event id are missing", () => {
+  assertEquals(
+    buildCosmeticReinstate(
+      skinRefundReversedEvent({ transaction_id: null, id: null }),
+    ),
+    null,
+  );
+});
+
+Deno.test("buildCosmeticReinstate falls back to event id when transaction_id missing", () => {
+  const payload = buildCosmeticReinstate(
+    skinRefundReversedEvent({ transaction_id: null, id: "rc-fallback-rev" }),
+  );
+  assert(payload);
+  assertEquals(payload.transaction_id, "rc-fallback-rev");
+});
+
+Deno.test("Skin REFUND_REVERSED triggers reinstateCosmetic only", async () => {
+  const reinstates: CosmeticReinstatePayload[] = [];
+  let upsertCalls = 0;
+  let consumableClawbacks = 0;
+  let grants = 0;
+  let clawbacks = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinRefundReversedEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {
+        consumableClawbacks += 1;
+      },
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      grantCosmetic: async () => {
+        grants += 1;
+      },
+      clawbackCosmetic: async () => {
+        clawbacks += 1;
+      },
+      reinstateCosmetic: async (payload) => {
+        reinstates.push(payload);
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+  assertEquals(reinstates.length, 1);
+  assertEquals(reinstates[0].transaction_id, "apple-skin-txn-1");
+  assertEquals(upsertCalls, 0, "reversal must NOT touch subscriptions");
+  assertEquals(consumableClawbacks, 0, "reversal is not a consumable refund");
+  assertEquals(grants, 0, "reversal must not route through the grant path");
+  assertEquals(clawbacks, 0, "reversal must not route through the refund path");
+});
+
+Deno.test("Skin reinstate RPC failure returns 500 so RC retries", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinRefundReversedEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+      reinstateCosmetic: async () => {
+        throw new Error("rpc boom");
+      },
+    },
+  );
+
+  assertEquals(response.status, 500);
+});
+
+Deno.test("REFUND_REVERSED with reinstateCosmetic omitted is a 200 skip", async () => {
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinRefundReversedEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
+});
+
+Deno.test("REFUND_REVERSED for a subscription SKU stays a 200 skip", async () => {
+  // Unchanged behaviour: REFUND_REVERSED is not in HANDLED_EVENT_TYPES, so a
+  // subscription reversal must not start writing user_subscriptions rows just
+  // because the cosmetic path learned the event type.
+  let upsertCalls = 0;
+  let reinstates = 0;
+
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(
+      skinRefundReversedEvent({
+        product_id: "sakina_sub_annual",
+        entitlement_ids: ["premium"],
+      }),
+    ),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+      reinstateCosmetic: async () => {
+        reinstates += 1;
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
+  assertEquals(upsertCalls, 0);
+  assertEquals(reinstates, 0);
+});
+
+Deno.test("Skin purchase with grantCosmetic omitted is a 200 skip (no dispatch)", async () => {
+  // Belt-and-suspenders: an event that only builds a cosmetic payload, but the
+  // option is not wired, must still 200 (skipped) rather than throw.
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(skinPurchaseEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        throw new Error("should not be called");
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
 });
 
 // --- Promotional entitlement grants (RC dashboard "Grant Entitlement") -------

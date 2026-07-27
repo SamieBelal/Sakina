@@ -4,16 +4,9 @@
 // Small + Medium. Written straight into the widget extension's synced group so
 // they auto-bundle.
 //
-// This is a GENERATOR, not a test: it writes tracked binary assets. It lives in
-// the test/ tree only because rendering a CustomPainter needs the flutter_test
-// harness — so it is skipped unless explicitly asked for. Without that guard the
-// `flutter test` sweep documented in CLAUDE.md silently rewrote all seven PNGs
-// (~470KB) on every full run, which showed up as mystery `M` entries in working
-// trees nobody had touched.
+//   flutter test test/widgets/gen_companion_widget_frames_test.dart
 //
-// Re-run whenever the lantern art changes. Frames land in ios/SakinaWidget/:
-//
-//   REGEN_WIDGET_FRAMES=1 flutter test test/widgets/gen_companion_widget_frames_test.dart
+// Re-run whenever the lantern art changes. Frames land in ios/SakinaWidget/.
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -42,11 +35,6 @@ Future<void> _renderFrame(String outPath, CompanionBrightness b) async {
   File(outPath).writeAsBytesSync(bytes!.buffer.asUint8List());
 }
 
-/// Opt-in switch. Absent (the normal `flutter test` case) → the generator is
-/// skipped and no tracked asset is touched.
-final bool _regenRequested =
-    Platform.environment['REGEN_WIDGET_FRAMES'] == '1';
-
 void main() {
   test(
     'generate companion widget frames into ios/SakinaWidget/',
@@ -60,9 +48,18 @@ void main() {
         expect(File(out).existsSync(), isTrue);
       }
     },
-    skip: _regenRequested
-        ? null
-        : 'generator, not a test — it rewrites tracked PNGs in '
-            'ios/SakinaWidget/. Run with REGEN_WIDGET_FRAMES=1 to regenerate.',
+    // GATED, like gen_companion_skin_frames_test.dart. This is a GENERATOR, not
+    // an assertion: it writes seven TRACKED files under ios/SakinaWidget/.
+    // Ungated it ran on every `flutter test`, so the documented full-suite
+    // command silently dirtied the working tree — and because the encoder's
+    // output is not byte-stable run to run (companion_fullyLit.png moved
+    // 194 KB -> 409 KB between runs with no code change), the diff looked like
+    // real artwork churn and invited exactly the mistaken "refresh the stale
+    // fallback frames" commit that prompted this fix.
+    //
+    // Its sibling was already gated this way; only this one was missed.
+    skip: Platform.environment['GEN_WIDGET_FRAMES'] == null
+        ? 'set GEN_WIDGET_FRAMES=1 to regenerate the widget frames'
+        : false,
   );
 }

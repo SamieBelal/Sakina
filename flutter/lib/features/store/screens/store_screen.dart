@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_cross_link_banner.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
@@ -22,6 +24,7 @@ import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 // ── IAP product IDs ──────────────────────────────────────────────────────────
 // Note: sakina_premium (one-time SKU) was removed per the subscription-only
@@ -274,7 +277,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: kSnackBarErrorDuration, 
       content: Text(message),
       backgroundColor: AppColors.error,
     ));
@@ -335,6 +338,10 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
                           ),
                         ],
                       ).animate().fadeIn(duration: 400.ms),
+                      const SizedBox(height: AppSpacing.md),
+                      WardrobeCrossLinkBanner(
+                        onTap: () => GoRouter.of(context).push('/companion'),
+                      ),
                       const SizedBox(height: AppSpacing.xl),
                       // Tab bar — pill-style segmented control. Replaces
                       // the earlier hard-divider underline, which felt
@@ -414,7 +421,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
       if (code == PurchasesErrorCode.purchaseCancelledError) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Restore failed. Please try again.'),
         ),
       );
@@ -422,7 +429,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Restore failed. Please try again.'),
         ),
       );
@@ -431,7 +438,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     if (!success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('No active premium subscription was found to restore.'),
         ),
       );
@@ -447,7 +454,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     } catch (_) {}
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      const SnackBar(duration: kSnackBarDuration, 
         content: Text('Premium restored!'),
         backgroundColor: AppColors.primary,
       ),

@@ -81,3 +81,99 @@ alter table public.cosmetic_catalog enable row level security;
 drop policy if exists cosmetic_catalog_read on public.cosmetic_catalog;
 create policy cosmetic_catalog_read on public.cosmetic_catalog
   for select using (true);
+
+-- award_noor: grant earned Noor with a SERVER-DERIVED amount (never trust a
+-- client amount), idempotent per (user, reason_key) via the noor_grants ledger
+-- so a grant can never double-credit (stops streak-rebuild farming).
+create or replace function public.award_noor(p_reason text, p_reason_key text)
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  v_uid uuid := auth.uid();
+  v_amount integer;
+begin
+  if v_uid is null then raise exception 'not authenticated'; end if;
+  v_amount := case
+    when p_reason = 'daily'          then 10
+    when p_reason = 'milestone:7'    then 40
+    when p_reason = 'milestone:14'   then 75
+    when p_reason = 'milestone:30'   then 150
+    when p_reason = 'milestone:60'   then 250
+    when p_reason = 'milestone:100'  then 400
+    when p_reason = 'quest'          then 15
+    else null end;
+  if v_amount is null then raise exception 'unknown noor reason: %', p_reason; end if;
+
+  insert into public.noor_grants(user_id, reason_key, amount)
+    values (v_uid, p_reason_key, v_amount)
+    on conflict (user_id, reason_key) do nothing;
+  if not found then return 0; end if;
+
+  perform set_config('app.cosmetics_rpc','on', true);
+  update public.user_profiles
+     set noor_balance = noor_balance + v_amount,
+         noor_total_earned = noor_total_earned + v_amount
+   where id = v_uid;
+  return v_amount;
+end $$;
+
+revoke execute on function public.award_noor(text,text) from public, anon;
+grant  execute on function public.award_noor(text,text) to authenticated;
+
+-- unlock_cosmetic: atomically spend Noor to acquire a cosmetic. Row-locks the
+-- profile (FOR UPDATE) so two concurrent unlocks can't both pass the balance
+-- check and double-spend. Already-owned → returns true WITHOUT charging again.
+create or replace function public.unlock_cosmetic(p_item_type text, p_item_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+  v_uid uuid := auth.uid();
+  v_price integer;
+  v_balance integer;
+begin
+  if v_uid is null then raise exception 'not authenticated'; end if;
+  if exists (select 1 from public.user_cosmetics
+             where user_id=v_uid and item_type=p_item_type and item_id=p_item_id) then
+    return true;
+  end if;
+  select noor_price into v_price from public.cosmetic_catalog
+   where item_type=p_item_type and item_id=p_item_id and active;
+  if v_price is null then raise exception 'item not Noor-purchasable or inactive'; end if;
+  select noor_balance into v_balance from public.user_profiles where id=v_uid for update;
+  if v_balance < v_price then raise exception 'insufficient noor'; end if;
+  perform set_config('app.cosmetics_rpc','on', true);
+  update public.user_profiles
+     set noor_balance = noor_balance - v_price,
+         noor_total_spent = noor_total_spent + v_price
+   where id=v_uid;
+  insert into public.user_cosmetics(user_id,item_type,item_id,acquired_via)
+     values (v_uid,p_item_type,p_item_id,'noor')
+     on conflict (user_id,item_type,item_id) do nothing;
+  return true;
+end $$;
+revoke execute on function public.unlock_cosmetic(text,text) from public, anon;
+grant  execute on function public.unlock_cosmetic(text,text) to authenticated;
+
+-- equip_cosmetic: set the equipped cosmetic for a slot, but ONLY if the caller
+-- owns it. Ownership is checked against user_cosmetics; the guarded equipped_*
+-- columns are written under the RPC GUC flag.
+create or replace function public.equip_cosmetic(p_item_type text, p_item_id text)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception 'not authenticated'; end if;
+  if not exists (select 1 from public.user_cosmetics
+                 where user_id=v_uid and item_type=p_item_type and item_id=p_item_id) then
+    raise exception 'cannot equip unowned item';
+  end if;
+  perform set_config('app.cosmetics_rpc','on', true);
+  if p_item_type = 'lantern_skin' then
+    update public.user_profiles set equipped_lantern_skin=p_item_id where id=v_uid;
+  elsif p_item_type = 'backdrop' then
+    update public.user_profiles set equipped_backdrop=p_item_id where id=v_uid;
+  else raise exception 'unknown item_type %', p_item_type; end if;
+  return true;
+end $$;
+revoke execute on function public.equip_cosmetic(text,text) from public, anon;
+grant  execute on function public.equip_cosmetic(text,text) to authenticated;

@@ -13,6 +13,7 @@ import 'package:sakina/services/gift_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// Surface state for the home-screen gift card. The card's three rendered
 /// states are:
@@ -189,7 +190,7 @@ class _RamadanGiftCardState extends ConsumerState<RamadanGiftCard> {
     setState(() => _claiming = false);
     final messenger = ScaffoldMessenger.maybeOf(context);
     messenger?.showSnackBar(
-      SnackBar(
+      SnackBar(duration: kSnackBarDuration, 
         backgroundColor: AppColors.surfaceLight,
         content: Text(
           'We couldn\'t accept the gift just now. Please try again later.',

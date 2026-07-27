@@ -11,6 +11,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/app_session.dart';
 import '../../../services/auth_service.dart';
 import '../../onboarding/widgets/social_sign_in_button.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -134,7 +135,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await ref.read(authServiceProvider).resetPassword(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent')),
+        const SnackBar(duration: kSnackBarDuration, content: Text('Password reset email sent')),
       );
     } on AuthException catch (e) {
       if (!mounted) return;

@@ -110,5 +110,49 @@ serve((request) =>
         throw error;
       }
     },
+    grantCosmetic: async (payload) => {
+      // Idempotent on transaction_id server-side, so RC retries are safe.
+      // Errors propagate → 500 → RC retries.
+      const { error } = await supabase.rpc("grant_cosmetic_iap", {
+        p_user_id: payload.user_id,
+        p_item_id: payload.item_id,
+        p_product_id: payload.product_id,
+        p_transaction_id: payload.transaction_id,
+      });
+      if (error != null) {
+        throw error;
+      }
+    },
+    clawbackCosmetic: async (payload) => {
+      // Idempotent on transaction_id server-side. Errors propagate → 500 → RC
+      // retries.
+      //
+      // p_user_id/p_item_id/p_product_id are optional and used ONLY to attribute
+      // the tombstone the RPC writes when this refund arrives before its grant
+      // (I-2). When the ledger row exists the RPC reads identity from it, so
+      // these can never widen a revocation.
+      const { error } = await supabase.rpc("clawback_cosmetic_iap", {
+        p_transaction_id: payload.transaction_id,
+        p_event_timestamp: payload.event_timestamp,
+        p_user_id: payload.user_id,
+        p_item_id: payload.item_id,
+        p_product_id: payload.product_id,
+      });
+      if (error != null) {
+        throw error;
+      }
+    },
+    reinstateCosmetic: async (payload) => {
+      // REFUND_REVERSED (N-1). NOT the grant path: a revoked ledger row makes
+      // grant_cosmetic_iap a no-op, so re-granting would leave the user revoked.
+      // Idempotent on transaction_id. Errors propagate → 500 → RC retries.
+      const { error } = await supabase.rpc("reinstate_cosmetic_iap", {
+        p_transaction_id: payload.transaction_id,
+        p_event_timestamp: payload.event_timestamp,
+      });
+      if (error != null) {
+        throw error;
+      }
+    },
   })
 );

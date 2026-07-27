@@ -17,6 +17,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/lantern_skin.dart';
+import 'lantern_glass_panel.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 // The skinnable colors (metal gradient, glow, highlight, ember, glass, dusty
@@ -185,11 +186,21 @@ class LanternPainter extends CustomPainter {
     final bodyTop = -s * 0.10;
     final bodyBot = s * 0.22;
     final body = _barrel(w, bodyTop, bodyBot, s * 0.028, s * 0.04);
+    // For arched-window skins the glass arch apex rises ABOVE the barrel's top
+    // edge, so stroking the FULL barrel outline would draw a horizontal line
+    // across the arch interior (the seam Task 1 targeted). Build a top-open
+    // outline (no top edge / top corners) — the arch's own `panel.path` stroke
+    // supplies that top boundary. The FILL still uses the closed `body`.
+    final bodyOutlinePath =
+        skin.form.archedWindow ? _barrelOpenTop(w, bodyTop, bodyBot, s * 0.028, s * 0.04) : body;
     final dome = _domeFor(skin.form.dome, s, w, bodyTop);
     final base = _base(s, w, bodyBot);
-    final panel = RRect.fromRectAndRadius(
-      Rect.fromLTRB(-w * 0.66, bodyTop + s * 0.028, w * 0.66, bodyBot - s * 0.03),
-      Radius.circular(s * 0.03),
+    final panelRect =
+        Rect.fromLTRB(-w * 0.66, bodyTop + s * 0.028, w * 0.66, bodyBot - s * 0.03);
+    final panel = GlassPanel(
+      rect: panelRect,
+      radius: s * 0.03,
+      arched: skin.form.archedWindow,
     );
 
     // Grounding glow-pool + rays/embers (joy) or content halo (at ease).
@@ -362,53 +373,49 @@ class LanternPainter extends CustomPainter {
     canvas.drawPath(body, metal(bodyTop, bodyBot));
 
     // Glass panel — dark, holds the khatam light (lit) or a cold, cracked
-    // ghost of it (dormant).
+    // ghost of it (dormant). One arch-topped (or rounded-rect) shape.
     canvas.save();
-    canvas.clipRRect(panel);
-    canvas.drawRRect(
-        panel, Paint()..color = dormant ? const Color(0xFF0A1116) : skin.glass);
+    canvas.clipPath(panel.path);
+    canvas.drawPath(
+        panel.path, Paint()..color = dormant ? const Color(0xFF0A1116) : skin.glass);
     if (!dormant) {
       // Mashrabiya screen — a faint geometric lattice behind the light.
-      if (skin.form.lattice) _mashrabiya(canvas, panel.outerRect);
+      if (skin.form.lattice) _mashrabiya(canvas, panel.innerRect);
       // The FLAME — the lantern's living "face". Sits in the emblem's open
       // centre; its height/steadiness/colour carry the emotion, and the khatam
       // frames it. (Journey/Sky/candle technique: light IS the expression.)
-      _flame(canvas, panel.outerRect, g, phase, breath);
-      _khatamLight(canvas, panel.outerRect, g);
+      _flame(canvas, panel.innerRect, g, phase, breath);
+      _khatamLight(canvas, panel.innerRect, g);
       // Glass reflection streak (a dead lamp reflects nothing).
       canvas.drawPath(
         Path()
-          ..moveTo(panel.left + s * 0.02, panel.top)
-          ..lineTo(panel.left + s * 0.08, panel.top)
-          ..lineTo(panel.left + s * 0.02, panel.bottom)
-          ..lineTo(panel.left - s * 0.04, panel.bottom)
+          ..moveTo(panel.innerRect.left + s * 0.02, panel.innerRect.top)
+          ..lineTo(panel.innerRect.left + s * 0.08, panel.innerRect.top)
+          ..lineTo(panel.innerRect.left + s * 0.02, panel.innerRect.bottom)
+          ..lineTo(panel.innerRect.left - s * 0.04, panel.innerRect.bottom)
           ..close(),
         Paint()..color = Colors.white.withValues(alpha: 0.05),
       );
       // Worn but lit (dim / recovering) — dust settles, a faint web in the
       // corner. Fades out entirely as the streak strengthens.
       if (neglect > 0.05) {
-        _dustFilm(canvas, panel.outerRect, neglect);
-        _cobweb(canvas, panel.outerRect, neglect, phase);
-        _dustMotes(canvas, panel.outerRect, neglect, phase);
+        _dustFilm(canvas, panel.innerRect, neglect);
+        _cobweb(canvas, panel.innerRect, neglect, phase);
+        _dustMotes(canvas, panel.innerRect, neglect, phase);
       }
     } else {
-      _coldGhost(canvas, panel.outerRect); // the form remains, cold and unlit
-      _cracks(canvas, panel); // hairline fractures in the glass
-      _dustFilm(canvas, panel.outerRect, 1.0); // heavy settled dust
-      _cobweb(canvas, panel.outerRect, 1.0, phase); // full cobwebs
-      _dustMotes(canvas, panel.outerRect, 1.0, phase);
+      _coldGhost(canvas, panel.innerRect); // the form remains, cold and unlit
+      _cracks(canvas, panel.innerRect); // hairline fractures in the glass
+      _dustFilm(canvas, panel.innerRect, 1.0); // heavy settled dust
+      _cobweb(canvas, panel.innerRect, 1.0, phase); // full cobwebs
+      _dustMotes(canvas, panel.innerRect, 1.0, phase);
     }
     canvas.restore();
-    canvas.drawRRect(panel, outline);
-
-    // Arched mihrab cap over the window (sculpted skins).
-    if (skin.form.archedWindow) {
-      _archedWindow(canvas, s, panel.outerRect, g, metal, outline);
-    }
+    canvas.drawPath(panel.path, outline);
 
     // Body outline + two facet lines flanking the panel (multi-panel hint).
-    canvas.drawPath(body, outline);
+    // For arched skins this omits the barrel's top edge (the arch supplies it).
+    canvas.drawPath(bodyOutlinePath, outline);
     final facet = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = s * 0.006
@@ -466,6 +473,22 @@ class LanternPainter extends CustomPainter {
       ..quadraticBezierTo(-w, b, -w, b - rad)
       ..quadraticBezierTo(-w - bulge, (t + b) / 2, -w, t + rad)
       ..close();
+  }
+
+  // The barrel outline with its TOP edge (and both top corners) omitted — an
+  // OPEN contour used only for the outline stroke on arched-window skins, where
+  // the glass arch apex rises above the barrel top and the arch's own outline
+  // supplies the top boundary. Traces left side → bottom → right side, ending
+  // at the top-right just below the corner. Geometry is otherwise identical to
+  // `_barrel`, so the sides/bottom stroke byte-for-byte the same.
+  Path _barrelOpenTop(double w, double t, double b, double bulge, double rad) {
+    return Path()
+      ..moveTo(-w, t + rad)
+      ..quadraticBezierTo(-w - bulge, (t + b) / 2, -w, b - rad)
+      ..quadraticBezierTo(-w, b, -w + rad, b)
+      ..lineTo(w - rad, b)
+      ..quadraticBezierTo(w, b, w, b - rad)
+      ..quadraticBezierTo(w + bulge, (t + b) / 2, w, t + rad);
   }
 
   Path _domeFor(DomeShape shape, double s, double w, double baseY) =>
@@ -615,48 +638,6 @@ class LanternPainter extends CustomPainter {
       canvas.drawLine(Offset(x, r.top), Offset(x + r.height, r.bottom), p);
       canvas.drawLine(Offset(x, r.top), Offset(x - r.height, r.bottom), p);
     }
-  }
-
-  // A pointed mihrab arch capping the glass window — carved into the metal above
-  // the rectangular panel, with a faint light rising into it.
-  void _archedWindow(Canvas canvas, double s, Rect panel, double g,
-      Paint Function(double, double) metal, Paint outline) {
-    final pl = panel.left, pr = panel.right, pt = panel.top;
-    final h = panel.height;
-    final apexY = pt - h * 0.24;
-    final arch = Path()
-      ..moveTo(pl, pt)
-      ..quadraticBezierTo(pl, pt - h * 0.30, 0, apexY)
-      ..quadraticBezierTo(pr, pt - h * 0.30, pr, pt)
-      ..close();
-    canvas.drawPath(
-        arch, Paint()..color = dormant ? const Color(0xFF0A1116) : skin.glass);
-    if (!dormant && g > 0.05) {
-      canvas.save();
-      canvas.clipPath(arch);
-      canvas.drawCircle(
-        Offset(0, pt),
-        h * 0.5,
-        Paint()
-          ..color = skin.glow.withValues(alpha: 0.22 * g)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, h * 0.28)
-          ..blendMode = BlendMode.plus,
-      );
-      canvas.restore();
-    }
-    canvas.drawPath(
-      arch,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = s * 0.018
-        ..strokeJoin = StrokeJoin.round
-        ..color = dormant ? _coldMetalTop : skin.metalMid,
-    );
-    canvas.drawPath(arch, outline);
-    // A small keystone dot at the apex.
-    canvas.drawCircle(
-        Offset(0, apexY + s * 0.006), s * 0.009, metal(apexY, apexY + s * 0.02));
-    canvas.drawCircle(Offset(0, apexY + s * 0.006), s * 0.009, outline);
   }
 
   // A decorative tassel hanging beneath the base — a cord, a bead, and a fanned
@@ -1019,8 +1000,7 @@ class LanternPainter extends CustomPainter {
   }
 
   // Hairline fractures across the dark glass — drawn inside the panel clip.
-  void _cracks(Canvas canvas, RRect panel) {
-    final r = panel.outerRect;
+  void _cracks(Canvas canvas, Rect r) {
     final c = r.center;
     final p = Paint()
       ..style = PaintingStyle.stroke

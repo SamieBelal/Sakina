@@ -8,6 +8,7 @@ import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/widget_sync.dart';
 import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
@@ -192,6 +193,8 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     seed: seedQuestProgressToSupabaseFromLocalCache,
   );
 
+  await hydrateCosmeticsFromBatchPayload(payload);
+
   if (!payload.containsKey('achievements')) {
     await syncAchievementsCacheFromSupabase();
   }
@@ -283,4 +286,33 @@ String? _stringValue(dynamic value) {
 bool? _boolValue(dynamic value) {
   if (value is bool) return value;
   return null;
+}
+
+/// Hydrates the cosmetics-economy caches from the additive `noor`, `equipped`,
+/// and `cosmetics` sections of `sync_all_user_data()` (migration
+/// 20260726000300). DEFENSIVE: a pre-cosmetics server omits these sections —
+/// in that case we leave the caches at their defaults (0 noor, classic_gold /
+/// default equipped) rather than zeroing, so an old backend never wipes a
+/// user's equipped skin. Even when the sections are present, individual
+/// columns can arrive as SQL-NULL (the sync migration does not coalesce the
+/// subqueries), so each field is coalesced before being passed to the
+/// non-nullable [hydrateCosmeticsFromSync] signature.
+Future<void> hydrateCosmeticsFromBatchPayload(
+  UserDataBatchPayload payload,
+) async {
+  final noor = payload.objectSection('noor');
+  final equipped = payload.objectSection('equipped');
+  if (noor == null || equipped == null) return; // pre-cosmetics server.
+
+  final balance = _intValue(noor['balance']) ?? 0;
+  final skin = _stringValue(equipped['lantern_skin']) ?? defaultLanternSkin;
+  final backdrop = _stringValue(equipped['backdrop']) ?? defaultBackdrop;
+  final owned = payload.listSection('cosmetics') ?? const [];
+
+  await hydrateCosmeticsFromSync(
+    noorBalance: balance,
+    equippedLanternSkin: skin,
+    equippedBackdrop: backdrop,
+    owned: owned,
+  );
 }

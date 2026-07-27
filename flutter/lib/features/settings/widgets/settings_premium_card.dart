@@ -13,6 +13,7 @@ import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/services/cancellation_feedback_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// Persistent Settings → Premium entry point. Added 2026-05-13 to satisfy
 /// App Review's "subscriptions must be reachable outside onboarding"
@@ -110,7 +111,7 @@ class _SettingsPremiumCardState extends ConsumerState<SettingsPremiumCard>
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarErrorDuration, 
           content: Text('Could not open subscription management. '
               'Open the App Store directly to manage your subscription.'),
         ),

@@ -28,6 +28,7 @@ import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/widgets/subpage_header.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 class DevToolsScreen extends ConsumerStatefulWidget {
   const DevToolsScreen({super.key});
@@ -621,7 +622,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final plugin = ref.read(localNotificationsPluginProvider);
     if (plugin == null) {
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar(const SnackBar(duration: kSnackBarDuration, 
         content: Text('Local notifications unavailable on this platform.'),
       ));
       return;
@@ -656,7 +657,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
           UILocalNotificationDateInterpretation.absoluteTime,
     );
 
-    messenger.showSnackBar(const SnackBar(
+    messenger.showSnackBar(const SnackBar(duration: kSnackBarDuration, 
       content: Text('Test duʿā notification scheduled ~60s out. '
           'Lock the phone and wait.'),
     ));
@@ -670,7 +671,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
     final scheduler = ref.read(duaNotificationSchedulerProvider);
     final gate = ref.read(duaNotificationGateProvider);
     if (scheduler == null || gate == null) {
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar(const SnackBar(duration: kSnackBarDuration, 
         content: Text('Duʿā scheduler unavailable on this platform.'),
       ));
       return;
@@ -678,7 +679,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
 
     final schedule = ref.read(duaWindowProvider).schedule;
     if (schedule == null) {
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar(const SnackBar(duration: kSnackBarDuration, 
         content: Text('No duʿā schedule built yet — open the home card first.'),
       ));
       return;
@@ -686,7 +687,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
 
     await gate.apply(schedule, force: true);
     final count = await scheduler.pendingDuaCount();
-    messenger.showSnackBar(SnackBar(
+    messenger.showSnackBar(SnackBar(duration: kSnackBarDuration, 
       content: Text('Rescheduled. $count dua-band notification(s) pending.'),
     ));
   }

@@ -35,9 +35,11 @@ These exist in-tree as the validated spike. All additive; production rendering i
 | Source | Grant (indicative, to tune) |
 |---|---|
 | Daily muḥāsabah completion | +10 |
-| Streak milestones (7/14/30/60/100…) | +40 / +75 / +150 / … |
+| Streak milestones (7/14/30/60/90) | +40 / +75 / +150 / +250 / +400 |
 | Achievements / quests / first-time actions | one-off |
 | **Premium multiplier** | **~2×** all earning |
+
+Mintable days must match `streakMilestones` in `lib/services/streak_service.dart` exactly — the recognized set is `{7,14,30,60,90,180,365}` and the mintable subset is `{7,14,30,60,90}` (180/365 are recognized-but-non-mintable). An earlier draft wrote `100`, which no client could ever send while a genuine 90-day streak was rejected; migration `20260726000800_align_milestone_day_90.sql` aligned the server on 90.
 
 Prices tuned so a recolor skin ≈ **1–2 weeks** of daily use (goal-gradient pull without grind). Sculpted heroes cost more Noor **or** are bought outright via IAP.
 
@@ -202,8 +204,8 @@ Full scope held, so these correctness gaps (Claude review + Codex outside voice)
 2. **`unlock_cosmetic` transactional.** Conditional balance update / `SELECT … FOR UPDATE` so deduct + insert are atomic under concurrency; `ON CONFLICT` alone is not idempotent if deduct precedes insert.
 3. **Fix the exploitable `claim_streak_milestone(p_day)`** (`20260719000000_streaks_defense.sql`) — it verifies neither that the day is recognized nor reached; any authed user can claim any day. **Prerequisite** before hanging Noor/skins on milestones.
 4. **Non-consumable IAP infra must be built, not reused.** `ConsumableGrantsService` dedups in SharedPreferences (not cross-device); the RevenueCat webhook (`revenuecat-webhook/handler.ts`) has **no** non-consumable/non-renewing grant path — no refund, restore, original-transaction, environment, or product→item verification. This is net-new work.
-5. **Supersede the monetization ADR.** À-la-carte skins reverse `docs/decisions/monetization-model.md` (which deliberately deleted the `NON_RENEWING_PURCHASE` handler). Write a superseding ADR before building IAP.
-6. **One server-authoritative `premium` definition.** Client counts subs/trials/gifts/referrals; server helper counts subs only. Decide whether trial/gift/referral users get the forever-kept monthly skin, and enforce it server-side.
+5. **Supersede the monetization ADR.** À-la-carte skins reintroduce the `NON_RENEWING_PURCHASE` path `docs/decisions/monetization-model.md` deleted. **RESOLVED 2026-07-25 — maintainer chose to keep direct skin IAP; superseding ADR written: [`docs/decisions/2026-07-25-cosmetics-non-consumable-iap.md`](../../decisions/2026-07-25-cosmetics-non-consumable-iap.md)** (clarifies premium-entitlement is still subscription-only; sanctions non-consumable *cosmetic* IAP; skin refunds revoke a cosmetic entitlement, not consumables). Must land before shipping IAP to users.
+6. **One server-authoritative `premium` definition.** Client counts subs/trials/gifts/referrals; server helper counts subs only. **RULED 2026-07-25:** premium-exclusive (subscriber-perk) skins are equippable **only while a premium source is active** and are **NEVER converted to permanent ownership** — trial/gift/referral users do not keep the monthly exclusive after premium lapses (equipped slot falls back to an owned default). À-la-carte purchases (distinct) are permanent. Enforce server-side.
 7. **Entitlement-period reconciliation for grants.** "Grant on sync while active" misses subscribers who don't open during the month/window. Reconcile over the entitlement period, not current-state-at-launch.
 8. **Catalog fields.** `cosmetic_catalog` needs milestone_day, early-access/general-release timestamps, availability intervals, `min_app_version`, platform-specific product ids, and grant-retention policy; plus explicit RLS/read access + client fetch path.
 9. **Widget plumbing before widget work.** Add a skin field to the App-Group payload (`widget_data_service.dart`), write it on sync, replace the hardcoded `companion_<brightness>.png` lookup (`SakinaCompanionWidget.swift`), and define immediate refresh on equip. Only skins whose PNGs are bundled in the installed build are widget-eligible (`min_app_version`).
@@ -211,8 +213,11 @@ Full scope held, so these correctness gaps (Claude review + Codex outside voice)
 11. **Real golden coverage.** The spike writes 4 cherry-picked lit PNGs. Replace with goldens over skin × backdrop × representative states.
 12. **Fix `Backdrop.none`** — it currently maps to `emeraldSanctuary` (renders the emerald scene); make it a genuinely plain surface.
 
+13. **[Lane B client gating — from Lane A code review]** `award_noor('milestone:N', …)` is idempotent but does NOT itself verify the milestone was reached — that authority lives in `claim_streak_milestone(N)`. The client MUST call `award_noor('milestone:N')` ONLY after a successful `claim_streak_milestone(N)`, with a server-shaped `reason_key` (e.g. `milestone:N`), never a client-arbitrary one. Consider folding the Noor grant directly into `claim_streak_milestone` in a later migration so it cannot be invoked independently. (Lane A hardening already gated `unlock_cosmetic` on availability + premium-exclusive, and added amount/price CHECKs — migration `20260726000400`.)
+
 **Separate, pre-existing (NOT this feature's scope):**
 - **Shariah boundary** ruled acceptable by the maintainer (see §3) — documented, no fix required.
+- **Guard is UPDATE-only** (accepted posture, mirrors `guard_user_profiles_freemium_fields`) — safe because the profile row is created once server-side; a client INSERT never wins post-signup.
 
 ## 15. Implementation parallelization
 

@@ -763,4 +763,68 @@ abstract final class AnalyticsEvents {
   /// callers in onboarding_screen.dart pick the correct labels at runtime.
   static Map<int, String> stepNamesFor({required bool trimmed}) =>
       trimmed ? trimmedStepNames : stepNames;
+
+  // ── Lantern Cosmetics (Noor economy + skins/backdrops) ──────────────────
+  // Spec §7. Emitted from cosmetics_service.dart via the static
+  // CosmeticsAnalytics.onAnalyticsEvent hook (no Riverpod in the service).
+  // These exact strings are the Mixpanel dashboard contract — renames must be
+  // a deliberate analytics-team coordination (pinned by
+  // cosmetics_analytics_names_test).
+
+  /// Noor was minted for the user. Props: `amount`, `reason`
+  /// (daily|milestone:N). Fired only on a NON-idempotent-replay grant (the
+  /// server returns the granted amount; a deduped replay — or an ineligible
+  /// caller — returns 0 and emits nothing). `quest` is reserved but not
+  /// currently emitted: the quest earn path is disabled because quest
+  /// completion has no server-authoritative record to verify (see
+  /// 20260726200600_lock_down_award_noor.sql).
+  static const String noorEarned = 'noor_earned';
+
+  /// A cosmetic was unlocked by spending Noor. Props: `item_type`, `item_id`,
+  /// `via` ('noor').
+  static const String cosmeticUnlocked = 'cosmetic_unlocked';
+
+  /// A cosmetic was equipped. Props: `item_type`, `item_id`.
+  static const String cosmeticEquipped = 'cosmetic_equipped';
+
+  /// An à-la-carte skin was purchased with real money and granted
+  /// server-side. Props: `item_id`, `product_id`.
+  static const String cosmeticIapPurchased = 'cosmetic_iap_purchased';
+
+  /// A milestone-gated skin was auto-unlocked after a confirmed
+  /// claim_streak_milestone. Props: `item_id`, `milestone_day`.
+  static const String milestoneSkinUnlocked = 'milestone_skin_unlocked';
+
+  /// An unlock/equip RPC was rejected (insufficient noor, unowned, inactive,
+  /// premium-exclusive). Props: `item_type`, `item_id`, `reason`.
+  static const String cosmeticUnlockRejected = 'cosmetic_unlock_rejected';
+
+  // Property keys + values for the cosmetics events.
+  static const String propItemType = 'item_type';
+  static const String propItemId = 'item_id';
+  static const String propAmount = 'amount';
+  static const String propVia = 'via';
+  static const String propProductId = 'product_id';
+  static const String propMilestoneDay = 'milestone_day';
+  static const String cosmeticViaNoor = 'noor';
+  static const String cosmeticViaIap = 'iap';
+
+  /// The Companion stage was opened (Home medallion tap → /companion). No props.
+  static const String companionScreenOpened = 'companion_screen_opened';
+
+  /// The wardrobe was opened. Props: `tab` ('lantern_skin' | 'backdrop').
+  static const String wardrobeOpened = 'wardrobe_opened';
+
+  /// The wardrobe's axis was switched. Props: `tab` ('lantern_skin' |
+  /// 'backdrop'). Distinct from [wardrobeOpened] on purpose: emitting the open
+  /// event on every tab tap inflated the open count and understated the
+  /// open → preview → unlock funnel.
+  static const String wardrobeTabChanged = 'wardrobe_tab_changed';
+
+  /// A wardrobe tile was tapped to preview it on the stage. Props: `item_type`,
+  /// `item_id`.
+  static const String cosmeticPreviewed = 'cosmetic_previewed';
+
+  /// Which wardrobe axis/tab. Value is an item_type ('lantern_skin'|'backdrop').
+  static const String propTab = 'tab';
 }
