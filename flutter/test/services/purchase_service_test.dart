@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:sakina/services/install_id_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -521,6 +522,52 @@ void main() {
       final methods = methodLog.map((c) => c.method).toList();
       expect(methods, contains('getAppUserID'));
       expect(methods, isNot(contains('logIn')));
+    });
+
+    test('re-stamps install_id on the IDENTIFIED subscriber after logIn',
+        () async {
+      // `initialize` stamps the ANONYMOUS subscriber, and RevenueCat only
+      // carries UNSYNCED attributes across `logIn` — init runs many screens
+      // before signup, so the attribute has almost always synced by then and
+      // stays behind. Without this re-stamp the paying subscriber carries no
+      // install_id, and the reel→purchase join misses exactly the users who
+      // bought.
+      SharedPreferences.setMockInitialValues({});
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      methodResponses['getAppUserID'] = 'anon-previous';
+      methodResponses['logIn'] = <String, dynamic>{
+        'customerInfo': _buildCustomerInfo(premiumActive: false),
+        'created': false,
+      };
+
+      await service.setUserId('user-1');
+
+      final methods = methodLog.map((c) => c.method).toList();
+      expect(
+        methods.indexOf('setAttributes'),
+        greaterThan(methods.indexOf('logIn')),
+        reason: 'stamping before logIn would write it on the anonymous '
+            'subscriber all over again',
+      );
+      final attributes = (methodLog
+              .firstWhere((c) => c.method == 'setAttributes')
+              .arguments as Map)['attributes'] as Map;
+      expect(attributes.keys, contains(installIdPropertyName));
+      expect(attributes[installIdPropertyName], isNotEmpty);
+    });
+
+    test('does not re-stamp when logIn was skipped', () async {
+      // Same id, no logIn, so nobody changed subscribers — the attribute the
+      // anonymous stamp wrote is already on this one.
+      SharedPreferences.setMockInitialValues({});
+      final service = PurchaseService.test();
+      service.debugMarkInitialized();
+      methodResponses['getAppUserID'] = 'user-1';
+
+      await service.setUserId('user-1');
+
+      expect(methodLog.map((c) => c.method), isNot(contains('setAttributes')));
     });
 
     test('falls through to logIn when appUserID read throws', () async {

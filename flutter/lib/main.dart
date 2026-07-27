@@ -219,9 +219,14 @@ Future<void> main() async {
     // launch reads fresh values from the populated cache.
     unawaited(
       AppConfigService(Supabase.instance.client).primeCache(const [
-        // The reel-flow kill switch (W2-E1). MUST be primed: a cold-cache miss
-        // reads the `true` fallback, so a REVERTED flag would still render the
-        // reel flow for that launch — the one launch where the revert matters.
+        // The reel-flow kill switch (W2-E1). Primed here so a launch WITH a
+        // cached value decides on fresh data. Priming alone does not guarantee
+        // a revert lands: this is fire-and-forget, and `getBool` answers
+        // cache-or-fallback immediately, so on a first install (no cached
+        // value) the flag read can still return the `true` fallback before the
+        // refresh completes. `resolveOnboardingFlow` in onboarding_screen.dart
+        // is what closes that hole — it awaits one bounded fresh read of this
+        // key when nothing is cached yet.
         reelFirstOnboardingFlag,
         'onboarding_trim_enabled',
         'guided_tour_enabled',

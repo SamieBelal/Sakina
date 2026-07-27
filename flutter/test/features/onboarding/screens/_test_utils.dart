@@ -49,6 +49,13 @@ class FlowStubAppConfig extends AppConfigService {
 
   @override
   Future<void> primeCache(List<String> keys) async {}
+
+  /// The stub IS the cache, so the flow resolver's cold-cache probe (which
+  /// otherwise awaits a fresh read of the reel flag before deciding) has
+  /// nothing to wait for. Without this the probe would fall through to real
+  /// SharedPreferences and stall every flow test on an unmocked plugin.
+  @override
+  Future<bool> hasCachedValue(String key) async => true;
 }
 
 class _SilentNotificationService extends NotificationService {

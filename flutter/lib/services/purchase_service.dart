@@ -529,6 +529,13 @@ class PurchaseService {
     }
 
     await Purchases.logIn(userId);
+    // Re-stamp on the IDENTIFIED subscriber. `initialize` stamps the anonymous
+    // one, and RevenueCat only carries UNSYNCED attributes across `logIn` — an
+    // attribute that already synced (the common case, since init runs many
+    // screens before signup) stays on the anonymous subscriber, so the paying
+    // subscriber would carry no install_id and the reel→purchase join would
+    // miss exactly the users who bought. Idempotent: same key, same value.
+    await _attachInstallId();
   }
 
   String _platformApiKey({

@@ -40,6 +40,11 @@ class HookProblemScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
   /// Pre-selects a card — how Wave E's `sakina://feel/<emotion>` link lands.
+  ///
+  /// Arrives LATE in practice: the drain that produces it is async and resolves
+  /// after this screen's first build, so it reaches the State as a widget
+  /// update, not as an initState value. [_HookProblemScreenState.didUpdateWidget]
+  /// is what makes the pre-selection actually happen.
   final String? initialChipKey;
 
   final ProblemChipResolver? resolver;
@@ -67,6 +72,23 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
   void initState() {
     super.initState();
     _selectedKey = widget.initialChipKey;
+  }
+
+  /// Adopts a chip key that arrived AFTER the first build.
+  ///
+  /// The deep-link drain (`_drainReelDeepLinks`) reads SharedPreferences, so it
+  /// always loses the race to this screen's `initState` — reading
+  /// `initialChipKey` there alone left `sakina://feel/<emotion>` with no
+  /// visible effect at all. The user's own answer still wins: once they have
+  /// selected a card (or a commit is in flight), a late link is ignored rather
+  /// than moving the selection under their finger.
+  @override
+  void didUpdateWidget(covariant HookProblemScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final incoming = widget.initialChipKey;
+    if (incoming == null || incoming == oldWidget.initialChipKey) return;
+    if (_committing || _selectedKey != null) return;
+    setState(() => _selectedKey = incoming);
   }
 
   @override

@@ -59,6 +59,85 @@ bool shouldFireAbandonment({
   return resumedAt.difference(pausedAt) > const Duration(hours: 24);
 }
 
+/// The WHOLE `onboarding_abandoned_at_page` predicate, exactly as
+/// [_OnboardingScreenState.didChangeAppLifecycleState] applies it — not just
+/// the 24h threshold. Top-level and pure so the test drives the shipping rule
+/// instead of a re-declared copy of it that can silently drift.
+///
+/// Suppressed when:
+///   * nothing was recorded at pause time ([pausedPage] / [pausedAt] null);
+///   * the pause was on the ACTIVE flow's paywall (the funnel's end — they
+///     reached it and didn't buy, which `paywall_viewed` already says);
+///   * completion is in flight ([completing]) — otherwise a backgrounded
+///     post-paywall round-trip logs both "completed" and "abandoned".
+@visibleForTesting
+bool shouldEmitAbandonment({
+  required int? pausedPage,
+  required DateTime? pausedAt,
+  required DateTime resumedAt,
+  required OnboardingFlowKind flow,
+  required bool completing,
+}) {
+  if (pausedPage == null || pausedAt == null) return false;
+  if (pausedPage == activeOnboardingLastPageIndex(flow)) return false;
+  if (completing) return false;
+  return shouldFireAbandonment(pausedAt: pausedAt, resumedAt: resumedAt);
+}
+
+/// How long [resolveOnboardingFlow] will wait for a FIRST fresh read of the
+/// reel kill switch. Long enough for a normal round-trip, short enough that a
+/// dead network costs a first-install user a beat, not a blank screen.
+const Duration reelFlagFreshReadTimeout = Duration(seconds: 2);
+
+/// Picks between the three page orders (W2-E1, plan review 4).
+///
+/// `reel_first_onboarding_enabled` is checked FIRST and short-circuits: the
+/// reel flow is its own page order, not a trim of the legacy one. With it OFF,
+/// the existing `onboarding_trim_enabled` decision runs unchanged — the kill
+/// switch has to reproduce the CURRENT prod experience, which is the trimmed
+/// flow, not the 27-page one.
+///
+/// On a FIRST install there is no cached value for the reel flag, and
+/// [AppConfigService.getBool] answers cache-or-fallback immediately — so a
+/// reverted kill switch would not take effect on the one launch where the
+/// revert matters. This waits (bounded by [freshReadTimeout]) for a single
+/// fresh read of that ONE key before deciding. Launches WITH a cached value
+/// skip the wait entirely, so the normal cold launch is not slowed.
+///
+/// Never throws: the caller's whole entry sequence — the flow field, the
+/// `onboarding_flow` write and the funnel-entry events — hangs off this future,
+/// so an error would leave the screen rendering the optimistic default with no
+/// telemetry at all. A failed read means the same thing the flag's own
+/// `fallback: true` does: reel, the shipping experience.
+///
+/// Top-level so the timeout behaviour is unit-testable without a PageView.
+@visibleForTesting
+Future<OnboardingFlowKind> resolveOnboardingFlow(
+  AppConfigService config, {
+  Duration freshReadTimeout = reelFlagFreshReadTimeout,
+}) async {
+  try {
+    if (!await config.hasCachedValue(reelFirstOnboardingFlag)) {
+      await config
+          .primeCache(const [reelFirstOnboardingFlag])
+          .timeout(freshReadTimeout, onTimeout: () {});
+    }
+  } catch (_) {
+    // The probe is an optimisation on top of the read below. If prefs or the
+    // network misbehaves, degrade to the plain cache-or-fallback read.
+  }
+  try {
+    final reel = await config.getBool(reelFirstOnboardingFlag, fallback: true);
+    if (reel) return OnboardingFlowKind.reel;
+    final trimmed =
+        await config.getBool('onboarding_trim_enabled', fallback: true);
+    return trimmed ? OnboardingFlowKind.trimmed : OnboardingFlowKind.legacy;
+  } catch (error, stack) {
+    debugPrint('OnboardingScreen: flow flag read failed — $error\n$stack');
+    return OnboardingFlowKind.reel;
+  }
+}
+
 /// Last valid page index for the active onboarding flow: reel ends at
 /// [onboardingReelLastPageIndex] (12), trimmed at [onboardingLastPageIndex]
 /// (19), legacy at [onboardingLegacyLastPageIndex] (26). Pure top-level fn so
@@ -118,11 +197,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   final OnboardingRevealLatch _revealLatch = OnboardingRevealLatch();
 
   /// Drained from a `sakina://feel/<emotion>` link — pre-selects a hook card.
+  ///
+  /// A State field is right for THIS one: it is a pre-selection on a screen the
+  /// user is looking at, and a kill before they answer costs nothing but the
+  /// highlight. The reel link's pair override is different — it changes what
+  /// the reveal shows — so it lives in `OnboardingState` instead.
   String? _pendingFeelChipKey;
 
-  /// Drained from a `sakina://reel/<id>?name_ids=…` link — overrides the pair
-  /// the hook would have resolved. Empty for the common case.
-  List<int> _reelPairOverride = const [];
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
   final Set<int> _dropoffEmitted = <int>{};
@@ -221,23 +302,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    // Started FIRST so the flag read overlaps the rest of initState; the
+    // continuation is attached below, once `initialPage` exists to hand it.
     _flowFuture = _resolveFlow();
-    // Mirror the resolved flow into a field so `_next`, the abandonment gate,
-    // the nav guard, and the paywall triggers (all outside `build`) can read
-    // it. The FutureBuilder in `build` remains the authoritative source for
-    // rendering.
-    _flowFuture.then((kind) {
-      if (!mounted) return;
-      if (kind != _flow) setState(() => _flow = kind);
-      // Record which EXPERIENCE this user ran, at entry rather than at
-      // completion: it rides every `saveOnboardingData` persist (including the
-      // final one that the freeze trigger locks), and `completeOnboarding`
-      // branches on it to decide the post-onboarding gate.
-      ref
-          .read(onboardingProvider.notifier)
-          .setOnboardingFlow(onboardingFlowValueFor(kind));
-      if (kind == OnboardingFlowKind.reel) unawaited(_drainReelDeepLinks());
-    });
     WidgetsBinding.instance.addObserver(this);
     final restoredPage = ref.read(onboardingProvider).currentPage;
     // Clamp against the LARGEST of the three maxes, because the flow decision
@@ -255,43 +322,55 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     if (initialPage != restoredPage) {
       Future(() => ref.read(onboardingProvider.notifier).setPage(initialPage));
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Funnel entry (2026-06-15 audit, D3): fire `onboarding_started` once per
-      // onboarding start — this OnboardingScreen instance is created when the
-      // router enters onboarding, so a single initState fire == one start. It's
-      // the denominator the rest of the onboarding funnel divides into. Carries
-      // `entry_page` so a resumed mid-flow start (restored currentPage != 0) is
-      // separable from a true first-page start.
-      ref.read(analyticsProvider).track(
-        AnalyticsEvents.onboardingStarted,
-        properties: {'entry_page': initialPage},
-      );
-      _emitStepViewedOnce(initialPage);
-      if (initialPage == 0) {
-        ref
-            .read(analyticsProvider)
-            .timeEvent(AnalyticsEvents.onboardingCompleted);
-      }
-      // paywall_viewed for the final page is now emitted by PaywallScreen's
-      // own initState (single source of truth) — no per-page fire here.
+    // Mirror the resolved flow into a field so `_next`, the abandonment gate,
+    // the nav guard, and the paywall triggers (all outside `build`) can read
+    // it. The FutureBuilder in `build` remains the authoritative source for
+    // rendering.
+    _flowFuture.then((kind) {
+      if (!mounted) return;
+      if (kind != _flow) setState(() => _flow = kind);
+      // Record which EXPERIENCE this user ran, at entry rather than at
+      // completion: it rides every `saveOnboardingData` persist (including the
+      // final one that the freeze trigger locks), and `completeOnboarding`
+      // branches on it to decide the post-onboarding gate.
+      ref
+          .read(onboardingProvider.notifier)
+          .setOnboardingFlow(onboardingFlowValueFor(kind));
+      _emitEntryFunnelEvents(initialPage);
+      if (kind == OnboardingFlowKind.reel) unawaited(_drainReelDeepLinks());
     });
   }
 
-  /// Picks between the three page orders (W2-E1, plan review 4).
+  /// Funnel entry (2026-06-15 audit, D3): `onboarding_started` once per
+  /// onboarding start — this OnboardingScreen instance is created when the
+  /// router enters onboarding, so a single fire == one start. It's the
+  /// denominator the rest of the onboarding funnel divides into. Carries
+  /// `entry_page` so a resumed mid-flow start (restored currentPage != 0) is
+  /// separable from a true first-page start.
   ///
-  /// `reel_first_onboarding_enabled` is checked FIRST and short-circuits: the
-  /// reel flow is its own page order, not a trim of the legacy one. With it
-  /// OFF, the existing `onboarding_trim_enabled` decision runs unchanged — the
-  /// kill switch has to reproduce the CURRENT prod experience, which is the
-  /// trimmed flow, not the 27-page one.
-  Future<OnboardingFlowKind> _resolveFlow() async {
-    final config = ref.read(appConfigServiceProvider);
-    final reel = await config.getBool(reelFirstOnboardingFlag, fallback: true);
-    if (reel) return OnboardingFlowKind.reel;
-    final trimmed =
-        await config.getBool('onboarding_trim_enabled', fallback: true);
-    return trimmed ? OnboardingFlowKind.trimmed : OnboardingFlowKind.legacy;
+  /// Fired from the `_flowFuture` continuation, NOT from an initState
+  /// post-frame callback: `_flow` is optimistically `reel` until the flag
+  /// resolves, and the post-frame callback always won that race — so a
+  /// kill-switch user's very first `onboarding_step_viewed` carried a REEL step
+  /// name for a page they were never shown, mis-segmenting the funnel at its
+  /// widest point. One await later the flow is known and the names are right.
+  ///
+  /// `paywall_viewed` for the final page is emitted by PaywallScreen's own
+  /// initState (single source of truth) — no per-page fire here.
+  void _emitEntryFunnelEvents(int initialPage) {
+    final analytics = ref.read(analyticsProvider);
+    analytics.track(
+      AnalyticsEvents.onboardingStarted,
+      properties: {'entry_page': initialPage},
+    );
+    _emitStepViewedOnce(initialPage);
+    if (initialPage == 0) {
+      analytics.timeEvent(AnalyticsEvents.onboardingCompleted);
+    }
   }
+
+  Future<OnboardingFlowKind> _resolveFlow() =>
+      resolveOnboardingFlow(ref.read(appConfigServiceProvider));
 
   /// Drains whatever `sakina://reel/…` / `sakina://feel/…` left in prefs at
   /// launch (W2-E4). Only in the reel flow: the kill-switch flows have no hook
@@ -304,13 +383,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     if (arrival != null) {
       ref.read(onboardingProvider.notifier).setReelArrival(
             reelId: arrival.reelId,
+            nameIds: arrival.nameIds,
           );
     }
-    if (arrival == null && chip == null) return;
-    setState(() {
-      if (arrival != null) _reelPairOverride = arrival.nameIds;
-      if (chip != null) _pendingFeelChipKey = chip;
-    });
+    if (chip == null) return;
+    setState(() => _pendingFeelChipKey = chip);
   }
 
   @override
@@ -327,18 +404,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       _pausedAtPage = ref.read(onboardingProvider).currentPage;
     } else if (state == AppLifecycleState.resumed && _pausedAt != null) {
       final resumedAt = DateTime.now();
-      // Suppress abandonment fire when:
-      // (a) Paused on the paywall (final page) — they reached the end of the
-      //     funnel, they're not "abandoned at page N", they just didn't buy.
-      //     The funnel has paywall_viewed for that signal.
-      // (b) Mid-completion — _completing flips on as soon as the paywall's
-      //     onComplete fires; a backgrounded app during the await chain
-      //     would otherwise log both "completed" and "abandoned at last page".
-      final isPaywallPage = _pausedAtPage == _activeLastPageIndex;
-      if (_pausedAtPage != null &&
-          !isPaywallPage &&
-          !_completing &&
-          shouldFireAbandonment(pausedAt: _pausedAt!, resumedAt: resumedAt)) {
+      // The suppression rules live in `shouldEmitAbandonment` (top-level, pure,
+      // directly tested) so the shipping predicate and the tested one are the
+      // same code.
+      if (shouldEmitAbandonment(
+        pausedPage: _pausedAtPage,
+        pausedAt: _pausedAt,
+        resumedAt: resumedAt,
+        flow: _flow,
+        completing: _completing,
+      )) {
         final gone = resumedAt.difference(_pausedAt!);
         ref.read(analyticsProvider).track(
           AnalyticsEvents.onboardingAbandonedAtPage,
@@ -503,7 +578,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   /// cannot land half-applied, and everything else about the answer — what the
   /// user said, and how — is carried through untouched.
   void _onHookCommitted(ChipSelection selection) {
-    final override = _reelPairOverride;
+    // Read from STATE, not a field on this object: the link was drained at
+    // launch and persisted with the rest of the arrival, so an app kill between
+    // the link and this tap still reveals the Names the reel named.
+    final override = ref.read(onboardingProvider).reelPairOverride;
     ref.read(onboardingProvider.notifier).applyHookSelection(
           override.isEmpty ? selection : selection.withPairNameIds(override),
         );
@@ -597,7 +675,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       NameInputScreen(
         onNext: _next,
         onBack: _back,
-        pageIndex: 8,
+        pageIndex: onboardingReelNamePageIndex,
         progressSegment: 5,
         totalSegments: onboardingReelTotalSegments,
       ),

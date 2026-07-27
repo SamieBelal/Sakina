@@ -50,6 +50,18 @@ class AppConfigService {
     return raw == null ? fallback : raw == 'true';
   }
 
+  /// True when [key] has ANY cached value, fresh or stale.
+  ///
+  /// The one thing [getBool] cannot tell a caller apart: a cached `false` and a
+  /// cache MISS both come back as `false` when the fallback is `false` (and a
+  /// miss comes back as `true` when it isn't). A caller that must not act on a
+  /// fallback — a kill switch on first install — checks this first and awaits
+  /// [primeCache] before reading.
+  Future<bool> hasCachedValue(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_valueKey(key)) != null;
+  }
+
   /// Returns the string value of [key] from `app_config`.
   /// Returns [fallback] if no cached value exists AND the network fetch fails,
   /// or if the stored jsonb value is not a string. Mirrors [getBool] exactly:

@@ -23,6 +23,11 @@ import '../../support/fake_supabase_sync_service.dart';
 /// restore the tour for legacy users without re-gating the reel users who
 /// already skipped it.
 class _StubAuthService extends AuthService {
+  _StubAuthService([this.log]);
+
+  /// Shared step log, when the test cares about ORDER.
+  final List<String>? log;
+
   @override
   bool get isSignedIn => true;
 
@@ -52,7 +57,48 @@ class _StubAuthService extends AuthService {
   }) async {}
 
   @override
-  Future<void> markOnboardingCompleted() async {}
+  Future<void> markOnboardingCompleted() async => log?.add('markCompleted');
+}
+
+/// Records WHEN each gate write happens relative to the rest of completion.
+class _RecordingSession extends AppSessionNotifier {
+  _RecordingSession(this.log, {required super.hardPaywallFlowReader})
+      : super(
+          initialOnboarded: false,
+          authStateChanges: const Stream.empty(),
+          isAuthenticatedProvider: _yes,
+          currentUserIdProvider: _uid,
+          hydrateEconomyCache: _noop,
+          hasCompletedOnboarding: _yesAsync,
+          isPremiumReader: _noAsync,
+          notificationService: _FakeNotificationService(),
+        );
+
+  static bool _yes() => true;
+  static String? _uid() => 'user-1';
+  static Future<void> _noop() async {}
+  static Future<bool> _yesAsync() async => true;
+  static Future<bool> _noAsync() async => false;
+
+  final List<String> log;
+
+  @override
+  Future<void> skipOnboardingGateForReelFlow() async {
+    log.add('gate');
+    await super.skipOnboardingGateForReelFlow();
+  }
+
+  @override
+  Future<void> enterOnboardingGate() async {
+    log.add('gate');
+    await super.enterOnboardingGate();
+  }
+
+  @override
+  Future<void> markOnboarded() async {
+    log.add('markOnboarded');
+    await super.markOnboarded();
+  }
 }
 
 class _FakeNotificationService extends NotificationService {
@@ -157,6 +203,44 @@ void main() {
       addTearDown(relaunched.dispose);
       expect(relaunched.tourCompleted, isTrue);
       expect(relaunched.paywallCleared, isTrue);
+    });
+  });
+
+  group('when the gate is latched', () {
+    Future<List<String>> runOrdered(String flow) async {
+      final log = <String>[];
+      final session = _RecordingSession(log, hardPaywallFlowReader: () async => true);
+      addTearDown(session.dispose);
+      await session.hydrateOnboardingGate();
+
+      final notifier = OnboardingNotifier(authService: _StubAuthService(log));
+      notifier.setOnboardingFlow(flow);
+      await notifier.completeOnboarding(session);
+      return log;
+    }
+
+    test('the reel latch lands right after the completion flag, ahead of the '
+        'network tail', () async {
+      // Run at the END of completion, the gate write sat behind the first-steps
+      // sync, the referral confirm and two premium-cache refreshes — seconds of
+      // day-0 network. An app kill inside that window left the server thinking
+      // the user was onboarded while no tour-seen flag existed locally, so the
+      // next launch handed a reel user the legacy opportunistic tour.
+      final log = await runOrdered(onboardingFlowReel);
+
+      expect(log.indexOf('gate'), greaterThan(log.indexOf('markCompleted')),
+          reason: 'the gate describes a FINISHED onboarding');
+      expect(log.indexOf('gate'), lessThan(log.indexOf('markOnboarded')),
+          reason: 'markOnboarded closes the tail the hoist skips ahead of');
+    });
+
+    test('the legacy branch is hoisted with it', () async {
+      final log = await runOrdered(onboardingFlowLegacy);
+
+      expect(log.indexOf('gate'), greaterThan(log.indexOf('markCompleted')));
+      expect(log.indexOf('gate'), lessThan(log.indexOf('markOnboarded')),
+          reason: 'the same kill window strands a legacy user OUTSIDE the '
+              'hard-paywall gate they were meant to enter');
     });
   });
 

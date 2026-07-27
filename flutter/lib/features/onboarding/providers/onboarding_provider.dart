@@ -106,6 +106,12 @@ const int onboardingReelRevealPageIndex = 1;
 /// latch's own doc comment requires.
 const int onboardingReelNoBackBeforeIndex = 2;
 
+/// Reel-flow name-input page index. `NameInputScreen` compares its own
+/// `pageIndex` against the current page to decide whether to autofocus, so the
+/// value has to be the page's REAL index — the literal it replaces was the one
+/// thing in the reel list with no name behind it.
+const int onboardingReelNamePageIndex = 8;
+
 /// Reel-flow sign-up email page index.
 const int onboardingReelEmailPageIndex = 10;
 
@@ -182,6 +188,7 @@ class OnboardingState {
     this.carryingDuration,
     this.reelSource,
     this.reelId,
+    this.reelPairOverride = const [],
     this.hookType,
     this.onboardingFlow,
   });
@@ -265,6 +272,16 @@ class OnboardingState {
   /// Reel id captured from a `sakina://reel/<id>` deep link.
   final String? reelId;
 
+  /// The `?name_ids=a,b` pair a reel link promised, or empty for the common
+  /// case. Validated at capture time (`reel_deep_link_service.dart`), so it is
+  /// either a real two-Name pair or nothing.
+  ///
+  /// Lives in STATE rather than on the onboarding screen's State object because
+  /// the deep link is drained once, at launch, and the hook may be answered
+  /// several app kills later — a field would have quietly lost the override and
+  /// revealed the Names the hook resolved instead of the ones the reel named.
+  final List<int> reelPairOverride;
+
   /// [HookType.chip], [HookType.freeText] or [HookType.reel].
   final String? hookType;
 
@@ -339,6 +356,7 @@ class OnboardingState {
     String? carryingDuration,
     String? reelSource,
     String? reelId,
+    List<int>? reelPairOverride,
     String? hookType,
     String? onboardingFlow,
   }) {
@@ -383,6 +401,7 @@ class OnboardingState {
       carryingDuration: carryingDuration ?? this.carryingDuration,
       reelSource: reelSource ?? this.reelSource,
       reelId: reelId ?? this.reelId,
+      reelPairOverride: reelPairOverride ?? this.reelPairOverride,
       hookType: hookType ?? this.hookType,
       onboardingFlow: onboardingFlow ?? this.onboardingFlow,
     );
@@ -416,6 +435,9 @@ class OnboardingState {
         'carryingDuration': carryingDuration,
         'reelSource': reelSource,
         'reelId': reelId,
+        // Additive within v8: an older v8 blob simply has no key here, and
+        // `fromJson` reads that as "no override" — which is what it was.
+        'reelPairOverride': reelPairOverride,
         'hookType': hookType,
         'onboardingFlow': onboardingFlow,
       };
@@ -471,6 +493,10 @@ class OnboardingState {
       carryingDuration: json['carryingDuration'] as String?,
       reelSource: json['reelSource'] as String?,
       reelId: json['reelId'] as String?,
+      reelPairOverride: (json['reelPairOverride'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList(growable: false) ??
+          const [],
       hookType: json['hookType'] as String?,
       onboardingFlow: json['onboardingFlow'] as String?,
     );
@@ -653,8 +679,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   /// Stamped from a `sakina://reel/<id>` deep link before the hook renders.
-  void setReelArrival({required String reelId}) {
-    state = state.copyWith(reelId: reelId, hookType: HookType.reel);
+  ///
+  /// [nameIds] is the link's `?name_ids=` pair, already validated by
+  /// `reel_deep_link_service.dart`; it persists with the rest of the arrival so
+  /// an app kill between the link and the hook answer cannot silently drop the
+  /// Names the reel promised. Empty is the common case and overrides nothing.
+  void setReelArrival({required String reelId, List<int> nameIds = const []}) {
+    state = state.copyWith(
+      reelId: reelId,
+      hookType: HookType.reel,
+      reelPairOverride: List<int>.unmodifiable(nameIds),
+    );
     _saveToPrefs();
   }
 
@@ -952,6 +987,20 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       await _authService.markOnboardingCompleted();
     } catch (_) {}
 
+    // Which post-onboarding gate this user gets is decided by the flow they
+    // actually ran, NOT by the current flag state (plan §F1): a kill-switch
+    // revert must restore the tour for the users who ran the legacy flow
+    // without stranding the reel users who already skipped it.
+    //
+    // Placed HERE — immediately after the completion flag, ahead of the
+    // first-steps sync / referral confirm / premium-cache tail — because that
+    // tail is seconds of network on a cold day-0 connection. Run last, an app
+    // kill inside that window left the gate flags unwritten while the server
+    // already considered the user onboarded: a reel user's next launch had no
+    // tour-seen flag and got the legacy opportunistic tour they were never
+    // meant to see. Nothing in the gate write depends on the tail.
+    await _applyPostOnboardingGate(appSession);
+
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();
 
@@ -992,11 +1041,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     // already routed the user out of onboarding.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
+  }
 
-    // Which post-onboarding gate this user gets is decided by the flow they
-    // actually ran, NOT by the current flag state (plan §F1): a kill-switch
-    // revert must restore the tour for the users who ran the legacy flow
-    // without stranding the reel users who already skipped it.
+  /// Latches the post-onboarding gate for the flow this user actually ran.
+  /// Called from [completeOnboarding] right after the completion flag; see the
+  /// comment there for why it does not run at the end.
+  Future<void> _applyPostOnboardingGate(AppSessionNotifier appSession) async {
     if (state.onboardingFlow == onboardingFlowReel) {
       // The reel flow REPLACES the forced tour — it already delivered the
       // value the tour exists to demonstrate (a Name met, a card awarded, the

@@ -56,6 +56,49 @@ void main() {
     expect(restored.currentPage, 3);
   });
 
+  group('the reel link\'s name_ids override', () {
+    test('round-trips with the rest of the arrival', () {
+      const state = OnboardingState(
+        reelId: 'r-1234',
+        hookType: HookType.reel,
+        reelPairOverride: [2, 36],
+      );
+
+      final restored = OnboardingState.fromJson(state.toJson());
+
+      expect(restored.reelPairOverride, [2, 36],
+          reason: 'the link is drained once at launch; the hook may not be '
+              'answered until several app kills later');
+    });
+
+    test('setReelArrival persists it alongside the reel id', () {
+      final notifier = OnboardingNotifier()
+        ..setReelArrival(reelId: 'r-42', nameIds: const [6, 35]);
+
+      expect(notifier.state.reelId, 'r-42');
+      expect(notifier.state.reelPairOverride, [6, 35]);
+      expect(notifier.state.hookType, HookType.reel);
+    });
+
+    test('a link with no name_ids overrides nothing', () {
+      final notifier = OnboardingNotifier()..setReelArrival(reelId: 'r-42');
+
+      expect(notifier.state.reelPairOverride, isEmpty);
+    });
+
+    test('an older v8 blob without the key reads as no override', () {
+      // Additive within v8 — a blob written before this field existed must
+      // restore, not be discarded.
+      final legacyBlob = const OnboardingState(reelId: 'r-1').toJson()
+        ..remove('reelPairOverride');
+
+      final restored = OnboardingState.fromJson(legacyBlob);
+
+      expect(restored.reelId, 'r-1');
+      expect(restored.reelPairOverride, isEmpty);
+    });
+  });
+
   test('a v7 blob is discarded — its page indices mean a different flow', () {
     final v7 = const OnboardingState(currentPage: 12, intention: 'peace')
         .toJson()
