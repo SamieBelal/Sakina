@@ -106,12 +106,16 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
         const CompanionState(
             brightness: CompanionBrightness.glowing, protected: false);
 
+    // The chrome inverts with the backdrop: cream ink reads on the emerald and
+    // night scenes but vanishes on the plain cream surface (and vice versa).
+    final onCanvas = !backdrop.isLightSurface;
+
     return CompanionStage(
       backdrop: backdrop,
       child: SafeArea(
         child: Column(
           children: [
-            _topBar(context, cs),
+            _topBar(context, cs, onCanvas),
             const Spacer(),
             SizedBox(
               width: 220,
@@ -119,7 +123,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
               child: CompanionMedallion(state: state, size: 220, skin: skin),
             ),
             const SizedBox(height: AppSpacing.md),
-            _lanternNameLabel(),
+            _lanternNameLabel(onCanvas),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -131,8 +135,12 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
                   icon: const Icon(Icons.palette_outlined),
                   label: const Text('Customize'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.sacredInk,
-                    foregroundColor: AppColors.primary,
+                    // A cream fill disappears on the cream surface, so invert
+                    // to the emerald fill there.
+                    backgroundColor:
+                        onCanvas ? AppColors.sacredInk : AppColors.primary,
+                    foregroundColor:
+                        onCanvas ? AppColors.primary : AppColors.sacredInk,
                     shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(AppSpacing.buttonRadius)),
@@ -147,7 +155,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
   }
 
   /// The lantern's name, tappable to rename (E3).
-  Widget _lanternNameLabel() {
+  Widget _lanternNameLabel(bool onCanvas) {
     return InkWell(
       onTap: _rename,
       borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
@@ -162,20 +170,26 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
                 _lanternName,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.headlineMedium
-                    .copyWith(color: AppColors.sacredInk),
+                style: AppTypography.headlineMedium.copyWith(
+                    color: onCanvas
+                        ? AppColors.sacredInk
+                        : AppColors.textPrimaryLight),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            const Icon(Icons.edit_outlined,
-                size: 18, color: AppColors.sacredInkFaint),
+            Icon(Icons.edit_outlined,
+                size: 18,
+                color: onCanvas
+                    ? AppColors.sacredInkFaint
+                    : AppColors.textSecondaryLight),
           ],
         ),
       ),
     );
   }
 
-  Widget _topBar(BuildContext context, CosmeticsState cs) {
+  Widget _topBar(BuildContext context, CosmeticsState cs, bool onCanvas) {
+    final ink = onCanvas ? AppColors.sacredInk : AppColors.textPrimaryLight;
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -183,10 +197,10 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
         children: [
           IconButton(
             onPressed: () => context.pop(),
-            icon: const Icon(Icons.close_rounded, color: AppColors.sacredInk),
+            icon: Icon(Icons.close_rounded, color: ink),
           ),
           const Spacer(),
-          NoorBalanceChip(balance: cs.noorBalance, onCanvas: true),
+          NoorBalanceChip(balance: cs.noorBalance, onCanvas: onCanvas),
           const SizedBox(width: AppSpacing.sm),
           IconButton(
             onPressed: () => shareLanternCard(
@@ -196,7 +210,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
               lanternName: _lanternName,
               streak: ref.read(companionStreakProvider),
             ),
-            icon: const Icon(Icons.share_rounded, color: AppColors.sacredInk),
+            icon: Icon(Icons.share_rounded, color: ink),
           ),
         ],
       ),

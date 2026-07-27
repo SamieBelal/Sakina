@@ -7,6 +7,7 @@ import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_unlock_reveal
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_action_bar.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_grid.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_preview_stage.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tab_pills.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tile.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
@@ -142,8 +143,14 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
   }
 
   void _onTabChanged() {
-    if (_tabs.indexIsChanging) return;
     final tab = _tabs.index == 0 ? itemTypeLanternSkin : itemTypeBackdrop;
+    // Deliberately NOT guarded on `_tabs.indexIsChanging`. That flag stays true
+    // for the whole ~300ms kTabScrollDuration animation, so guarding on it
+    // deferred the grid swap until the animation ENDED — felt like lag on tap.
+    // The guard only ever earned its keep against a swipeable TabBarView
+    // firing this on every drag frame; the segmented pill is a discrete tap.
+    // Dedupe on the value instead: fires once per real change, never late.
+    if (tab == ref.read(wardrobePreviewProvider).tab) return;
     ref.read(wardrobePreviewProvider.notifier).setTab(tab);
     // NOT wardrobeOpened (I9): re-emitting the open event per tab tap inflated
     // the open count and understated open → preview → unlock, which is exactly
@@ -179,12 +186,19 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     final preview = ref.watch(wardrobePreviewProvider);
     final asyncState = ref.watch(cosmeticsStateProvider);
     return Scaffold(
+      // Warm beige rather than the near-white page: the preview card and the
+      // tiles both read as surfaces sitting ON something, instead of white
+      // shapes floating on white.
+      backgroundColor: const Color(0xFFF3ECE1),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF3ECE1),
+        // Material 3 tints and rules the AppBar once content scrolls under it,
+        // which drew a hard dark line across this warm surface. The wardrobe
+        // wants no seam between the bar and the page.
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text('Wardrobe'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [Tab(text: 'Lanterns'), Tab(text: 'Backdrops')],
-        ),
       ),
       body: asyncState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -209,6 +223,17 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
 
     return Column(
       children: [
+        WardrobeTabPills(
+          labels: const ['Lanterns', 'Backdrops'],
+          index: _tabs.index,
+          // Assign `index` rather than `animateTo`: the setter changes the
+          // index and notifies synchronously, so the grid swaps on the same
+          // frame as the tap. `animateTo` would spend kTabScrollDuration in
+          // `indexIsChanging` for an animation nothing renders — the pill runs
+          // its own. Still routed through the controller so the analytics hook
+          // and the preview provider stay the single source of truth.
+          onChanged: (i) => _tabs.index = i,
+        ),
         WardrobePreviewStage(
           skinId: preview.previewedSkinId ?? equippedSkinId,
           backdropId: preview.previewedBackdropId ?? state.equippedBackdrop,
@@ -223,7 +248,11 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
             onPreview: _preview,
           ),
         ),
-        if (previewedEntry != null) _actionBar(previewedEntry, state),
+        // SafeArea(top: false) lifts the CTA clear of the home indicator —
+        // without it the bar sits flush on the screen edge and reads as
+        // falling off the bottom of the phone.
+        if (previewedEntry != null)
+          SafeArea(top: false, child: _actionBar(previewedEntry, state)),
       ],
     );
   }

@@ -99,7 +99,11 @@ class WardrobeTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.backgroundLight,
+          // Warm off-white, a step nearer the beige page than backgroundLight
+          // (#FBF7F2). The tile still reads as a raised card, but when the
+          // scroll edge slices one the cut is far quieter — a near-white tile
+          // cut against beige is what made the grid look torn.
+          color: const Color(0xFFFDFAF6),
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           border: Border.all(
             color: selected

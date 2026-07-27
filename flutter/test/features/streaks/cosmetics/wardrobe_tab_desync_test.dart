@@ -23,6 +23,7 @@ import 'package:sakina/features/streaks/screens/wardrobe_screen.dart';
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_preview_stage.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tab_pills.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
@@ -92,10 +93,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
+  // Reads the SELECTOR's own idea of the current tab. The wardrobe swapped its
+  // Material `TabBar` for `WardrobeTabPills` (the rule across the screen was a
+  // hard dark line, and the tab underline read as utilitarian on this surface).
+  // The invariant this file pins is unchanged — the selector and the grid must
+  // never disagree — only the widget it is read from moved.
   int selectedTabIndex(WidgetTester tester) =>
-      tester.widget<TabBar>(find.byType(TabBar)).controller!.index;
+      tester.widget<WardrobeTabPills>(find.byType(WardrobeTabPills)).index;
 
-  testWidgets('reopening cannot leave the TabBar and the grid disagreeing',
+  testWidgets('reopening cannot leave the selector and the grid disagreeing',
       (tester) async {
     await phoneSurface(tester);
     await tester.pumpWidget(harness());

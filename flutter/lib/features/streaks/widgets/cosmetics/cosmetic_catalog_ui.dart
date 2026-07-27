@@ -122,6 +122,17 @@ const List<CosmeticCatalogEntry> _catalog = [
       itemId: 'emerald_sanctuary',
       noorPrice: 150,
       sort: 2),
+  CosmeticCatalogEntry(
+      itemType: itemTypeBackdrop,
+      itemId: 'desert_night',
+      noorPrice: 150,
+      sort: 3),
+  CosmeticCatalogEntry(
+      itemType: itemTypeBackdrop,
+      itemId: 'fajr_courtyard',
+      noorPrice: 200,
+      milestoneDay: 30,
+      sort: 4),
 ];
 
 /// The catalog row for [itemType]/[itemId], or null if unknown.
