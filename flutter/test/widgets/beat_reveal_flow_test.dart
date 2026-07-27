@@ -180,5 +180,37 @@ void main() {
       await t.tap(find.text('Try Again'));
       expect(retried, 1);
     });
+
+    testWidgets('loading dissolves into the first beat rather than popping',
+        (t) async {
+      await t.pumpWidget(MaterialApp(
+        home: BeatRevealFlow(
+          status: BeatFlowStatus.loading,
+          response: null,
+          onAmeen: _noop,
+        ),
+      ));
+      await t.pump();
+      expect(find.text('Preparing your reflection…'), findsOneWidget);
+
+      await t.pumpWidget(MaterialApp(
+        home: BeatRevealFlow(
+          status: BeatFlowStatus.ready,
+          response: _response(),
+          onAmeen: _noop,
+        ),
+      ));
+      await t.pump(const Duration(milliseconds: 120));
+
+      // Mid-fade both are on screen; a hard swap would have dropped the loader
+      // on the first frame.
+      expect(find.text('Preparing your reflection…'), findsOneWidget);
+
+      await t.pumpAndSettle();
+      expect(find.text('Preparing your reflection…'), findsNothing);
+      expect(find.text('Al-Lateef'), findsOneWidget);
+    });
   });
 }
+
+void _noop() {}
