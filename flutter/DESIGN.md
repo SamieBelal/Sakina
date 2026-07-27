@@ -233,6 +233,24 @@ canvas.
 - **Entry / reveal** beat: 1100ms.
 - **Name reveal** scale: `scaleXY 0.6→1.0`, 500ms, `Curves.easeOutBack`.
 
+**Canvas threshold (`sacred_canvas_threshold.dart`):**
+- **Enter** 700ms `easeOutCubic` — the sacred gradient blooms as a circle from the
+  tapped CTA (muḥāsabah) or from screen centre (Reflect, Build-a-Dua) while the cream
+  tree fades and settles `1.0 → 0.98` beneath it. The origin rule is **anchored when
+  tap-driven, centre when result-driven**: muḥāsabah is the only surface that enters
+  the canvas on the tap itself, so it is the only one with a live anchor.
+- **Exit** 400ms — the canvas dissolves over the incoming cream tree. Deliberately not
+  a contracting bloom: rewinding the entrance reads as an undo, which is wrong
+  straight after "Ameen".
+- **Reversal** — a flag flip mid-transition unwinds the animation already playing
+  rather than restarting it, so a half-grown bloom shrinks instead of snapping to
+  full screen.
+- **Status fade** 350ms — `BeatRevealFlow`'s loading view dissolving into beat 1.
+- **Progress bar entrance** 320ms `easeOutCubic` hairline sweep, one-shot on the bar's
+  own first mount (not on the bloom landing — the two moments differ per surface).
+- **Reduced motion** collapses the threshold to a 150ms fade with no bloom geometry,
+  and mounts both progress bars fully open.
+
 **Reduced motion:** the flow reads `_reducedMotion` and collapses transition durations
 to ~1ms (fade/slide effectively instant) while preserving the tap logic. **Any new
 canvas motion must honor a reduced-motion path** — never gate content behind an

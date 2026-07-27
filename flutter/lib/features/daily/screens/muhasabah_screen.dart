@@ -23,6 +23,7 @@ import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -59,6 +60,21 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// whenever the guided tour is active — decision 10A). Bumped on first advance.
   int? _hintAdvances;
   static const String _hintAdvancesKey = 'beat_hint_advances';
+
+  /// Global centre of the *Go Deeper* pill, captured on tap so the canvas
+  /// blooms out of the button the user actually pressed. Stays null on every
+  /// other entry path (error retry, restored state), which the threshold reads
+  /// as "grow from the centre of the screen".
+  final GlobalKey _goDeeperKey = GlobalKey();
+  Offset? _canvasOrigin;
+
+  void _captureGoDeeperOrigin() {
+    final box = _goDeeperKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    setState(() {
+      _canvasOrigin = box.localToGlobal(box.size.center(Offset.zero));
+    });
+  }
 
   @override
   void initState() {
@@ -130,19 +146,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // (BeatRevealFlow brings its own Scaffold + chrome + back handling). The
     // canvas is entered the moment the user leaves the gacha, so the wait is
     // part of the ritual — hence we branch on `deeper` even while loading.
-    if (state.currentStep == DailyLoopStep.deeper) {
-      return _buildBeatFlow(state, notifier);
-    }
+    // SacredCanvasThreshold animates the crossing in both directions. It must
+    // stay the outermost widget so the bloom origin, which is in screen
+    // coordinates, coincides with its own local space.
+    final onCanvas = state.currentStep == DailyLoopStep.deeper;
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: _buildContent(state, notifier),
-          ),
-        ),
-      ),
+    return SacredCanvasThreshold(
+      onCanvas: onCanvas,
+      origin: _canvasOrigin,
+      child: onCanvas
+          ? _buildBeatFlow(state, notifier)
+          : Scaffold(
+              backgroundColor: AppColors.backgroundLight,
+              body: SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: _buildContent(state, notifier),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
@@ -491,8 +514,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
             surface: TourSurface.muhasabah,
             anchorId: 'goDeeperCta',
             child: GestureDetector(
+              key: _goDeeperKey,
               onTap: () {
                 HapticFeedback.mediumImpact();
+                _captureGoDeeperOrigin();
                 notifier.startDeeper();
               },
               child: Container(

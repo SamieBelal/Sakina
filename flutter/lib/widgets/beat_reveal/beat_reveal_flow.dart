@@ -183,7 +183,18 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         body: DecoratedBox(
           decoration:
               const BoxDecoration(gradient: AppColors.sacredCanvasGradient),
-          child: SafeArea(child: _body()),
+          child: SafeArea(
+            // The loading → ready swap used to pop. Fading it keeps the whole
+            // entrance continuous: the canvas threshold's bloom lands on the
+            // loader, then the loader dissolves into beat 1.
+            child: AnimatedSwitcher(
+              duration: Duration(milliseconds: _reducedMotion ? 1 : 350),
+              child: KeyedSubtree(
+                key: ValueKey<BeatFlowStatus>(widget.status),
+                child: _body(),
+              ),
+            ),
+          ),
         ),
       ),
     );
