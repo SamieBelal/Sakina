@@ -83,18 +83,45 @@ void main() {
     test('widgetEligibleSkinId still runs AFTER entitlement', () async {
       // The two filters compose in this order: entitlement decides WHAT the
       // user may see, the bundled set decides what this build can DRAW.
+      //
+      // Uses ramadan_gold, which is absent from cosmetic_catalog and therefore
+      // ships no widget frames. This assertion previously used ramadan_royal,
+      // but that skin is now bundled (every catalog skin is), so it no longer
+      // demonstrates the bundling filter — the premise, not the rule, changed.
       final entitled = await resolveWidgetLanternSkin(
-        readCosmetics: () async => _state('ramadan_royal', owned: <String>{}),
+        readCosmetics: () async => _state('ramadan_gold', owned: <String>{}),
         readPremium: () async => true,
       );
       expect(widgetEligibleSkinId(entitled), kDefaultWidgetLanternSkinId,
-          reason: 'ramadan_royal ships no widget frames in this build');
+          reason: 'ramadan_gold ships no widget frames in this build');
       expect(
-        renderableSkinId(_state('ramadan_royal', owned: <String>{}),
+        renderableSkinId(_state('ramadan_gold', owned: <String>{}),
             isPremium: true),
         entitled,
         reason: 'the widget must agree with the in-app resolver',
       );
+    });
+
+    test('the premium-exclusive now survives BOTH filters for a subscriber',
+        () async {
+      // ramadan_royal is bundled, so an ACTIVE subscriber sees the real perk on
+      // the home screen instead of a classic_gold stand-in. Safe only because
+      // resolveWidgetLanternSkin routes through renderableSkinId.
+      final entitled = await resolveWidgetLanternSkin(
+        readCosmetics: () async => _state('ramadan_royal', owned: <String>{}),
+        readPremium: () async => true,
+      );
+      expect(widgetEligibleSkinId(entitled), 'ramadan_royal');
+    });
+
+    test('a LAPSED subscriber still falls back despite the skin being bundled',
+        () async {
+      // The entitlement filter, not the bundled set, is what protects this now.
+      final lapsed = await resolveWidgetLanternSkin(
+        readCosmetics: () async => _state('ramadan_royal', owned: <String>{}),
+        readPremium: () async => false,
+      );
+      expect(widgetEligibleSkinId(lapsed), kDefaultWidgetLanternSkinId);
     });
   });
 }

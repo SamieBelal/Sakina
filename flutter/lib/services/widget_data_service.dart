@@ -72,15 +72,36 @@ const List<CompanionBrightness> kWidgetCompanionBrightnesses =
 /// blank widget on already-installed builds — an equipped skin that isn't in
 /// this set is silently rendered as [kDefaultWidgetLanternSkinId].
 const Set<String> kWidgetBundledSkinIds = <String>{
-  // Trimmed to fit the widget-asset budget (see the Lane E plan, Task 7): all
-  // nine skins measured 4,349,953 B (4.15 MiB), over the 4.0 MB gate.
-  // The default plus the three a-la-carte real-money skins: a paid skin must
-  // never silently fall back. Earned skins fall back to classic_gold on the
-  // widget only; they still render fully in-app.
+  // EVERY skin the catalog actually sells. Nothing a user can own falls back on
+  // their home screen — not an earned recolor, and not the premium-exclusive.
+  //
+  // History: Lane E Task 7 measured all NINE client skins at 4,349,953 B
+  // (4.15 MiB) against the 4.0 MB gate and fell back to a curated four. That
+  // trim was blunt in two ways. First, the ninth skin (`ramadan_gold`) is not
+  // seeded in `cosmetic_catalog`, so no user can ever equip it — bundling
+  // frames for it was pure waste, and dropping ONLY it brings the set to
+  // ~3.9 MB, inside the gate. Second, the four it kept were the default plus
+  // the three a-la-carte skins, which left `ramadan_royal` — the rotating
+  // SUBSCRIBER-exclusive, i.e. the one thing a monthly payer gets — as the sole
+  // paid skin absent from the widget.
+  //
+  // Bundling `ramadan_royal` is only safe because `resolveWidgetLanternSkin`
+  // now routes through the shared `renderableSkinId` (commit c3de10a): a lapsed
+  // subscriber resolves to classic_gold. Before that fix this set was the ONLY
+  // thing preventing a lapsed subscriber's widget from showing the perk
+  // indefinitely — protection by luck rather than by design.
+  //
+  // Excluded deliberately: `ramadan_gold` (absent from cosmetic_catalog =
+  // unobtainable). If it is ever seeded, add it here AND regenerate frames with
+  // `GEN_WIDGET_FRAMES=1`, then re-check the total against the 4.0 MB gate.
   'classic_gold',
+  'moonlit_silver',
+  'emerald_jade',
+  'rose_quartz',
   'obsidian_gold',
   'masjid_brass',
   'crystal_star',
+  'ramadan_royal',
 };
 
 /// File name of the exported frame for [skinId] at [brightness]. Mirrored by
