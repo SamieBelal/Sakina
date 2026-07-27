@@ -155,6 +155,12 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
   }
 
   /// The lantern's name, tappable to rename (E3).
+  ///
+  /// The name itself IS the affordance — the explicit pencil glyph was removed
+  /// because it broke the stillness of the scene. The tap target is unchanged:
+  /// the InkWell has always wrapped the whole label (the icon was decoration,
+  /// never the button), so this is purely a visual removal and renaming still
+  /// works exactly as before.
   Widget _lanternNameLabel(bool onCanvas) {
     return InkWell(
       onTap: _rename,
@@ -162,27 +168,13 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: Text(
-                _lanternName,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.headlineMedium.copyWith(
-                    color: onCanvas
-                        ? AppColors.sacredInk
-                        : AppColors.textPrimaryLight),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Icon(Icons.edit_outlined,
-                size: 18,
-                color: onCanvas
-                    ? AppColors.sacredInkFaint
-                    : AppColors.textSecondaryLight),
-          ],
+        child: Text(
+          _lanternName,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.headlineMedium.copyWith(
+              color:
+                  onCanvas ? AppColors.sacredInk : AppColors.textPrimaryLight),
         ),
       ),
     );
