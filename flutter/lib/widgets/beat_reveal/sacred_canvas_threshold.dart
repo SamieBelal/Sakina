@@ -174,14 +174,26 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
       child: _surfaceChild ?? const SizedBox.shrink(),
     );
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = Curves.easeOutCubic.transform(_controller.value);
-        return _entering
-            ? _enterStack(surface, canvas, t)
-            : _exitStack(surface, canvas, t);
-      },
+    // A transition accepts no input at all, in either direction.
+    //
+    // Both trees are mounted and neither `Opacity` nor `ClipPath` reliably takes
+    // the wrong one out of the hit-test path: `Opacity` ignores alpha entirely
+    // when hit-testing, and the enter path's `ClipPath` only clips the canvas it
+    // wraps — the departing surface beneath stays fully live outside the bloom.
+    // Leaving that open let a second tap on the CTA re-fire the work mid-bloom,
+    // and let taps land on a canvas that had already faded to invisible.
+    // Swallowing input for the duration is simpler than reasoning about which
+    // layer should be live at which frame, and matches how routes behave.
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final t = Curves.easeOutCubic.transform(_controller.value);
+          return _entering
+              ? _enterStack(surface, canvas, t)
+              : _exitStack(surface, canvas, t);
+        },
+      ),
     );
   }
 
@@ -206,19 +218,13 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
   }
 
   /// Surface beneath, already in place; canvas above, dissolving off it.
-  ///
-  /// The dissolving canvas is wrapped in [IgnorePointer] because `Opacity` does
-  /// not gate hit-testing: a canvas faded to invisible would still sit on top of
-  /// the surface and swallow every tap for the whole exit. It is on its way out
-  /// and should never take input. (The enter path needs no equivalent — the
-  /// growing canvas is under a `ClipPath`, which *does* restrict hit-testing to
-  /// the clipped region, so the surface stays live outside the bloom.)
+  /// Input is handled by the [IgnorePointer] in [build], not here.
   Widget _exitStack(Widget surface, Widget canvas, double t) {
     return Stack(
       fit: StackFit.expand,
       children: [
         surface,
-        IgnorePointer(child: Opacity(opacity: 1 - t, child: canvas)),
+        Opacity(opacity: 1 - t, child: canvas),
       ],
     );
   }

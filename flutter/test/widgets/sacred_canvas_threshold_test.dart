@@ -177,12 +177,12 @@ void main() {
     expect(find.text('surface'), findsOneWidget);
   });
 
-  testWidgets('the dissolving canvas does not swallow taps for the surface',
+  testWidgets('a transition accepts no input, and input returns after it',
       (t) async {
-    // Opacity does not gate hit-testing, so a canvas fading to invisible still
-    // sits above the surface and intercepts touches unless it is explicitly
-    // taken out of the hit-test path. Mirrors the real hosts: both sides are
-    // opaque Scaffolds and the canvas carries a full-bleed tap zone.
+    // Neither Opacity nor ClipPath reliably takes the wrong tree out of the
+    // hit-test path, so the threshold swallows input for the whole transition.
+    // Mirrors the real hosts: both sides are opaque Scaffolds and the canvas
+    // carries a full-bleed tap zone.
     var surfaceTaps = 0;
     var canvasTaps = 0;
 
@@ -218,9 +218,17 @@ void main() {
     await t.tapAt(const Offset(200, 400));
 
     expect(canvasTaps, 0,
-        reason: 'the dying canvas must be out of the hit-test path');
-    expect(surfaceTaps, 1,
-        reason: 'the surface underneath must receive the tap');
+        reason: 'the dying canvas must not intercept — Opacity alone would let it');
+    expect(surfaceTaps, 0,
+        reason: 'nor should the arriving surface act on a tap mid-transition');
+
+    // …but the screen must not stay inert. Once the dissolve lands, the surface
+    // is live again.
+    await t.pumpAndSettle();
+    await t.tapAt(const Offset(200, 400));
+
+    expect(surfaceTaps, 1, reason: 'input returns when the transition ends');
+    expect(canvasTaps, 0);
   });
 
   testWidgets('a reversal that is itself reversed lands on the canvas',

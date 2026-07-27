@@ -66,6 +66,30 @@ void main() {
     expect(find.text('canvas'), findsOneWidget);
     expect(find.text('Go Deeper'), findsNothing);
   });
+
+  testWidgets('a second tap mid-bloom does not re-fire the work', (t) async {
+    // The outgoing cream tree stays mounted beneath the growing bloom, and
+    // neither Opacity nor the canvas's ClipPath takes it out of the hit-test
+    // path. Without the threshold swallowing input for the transition, the CTA
+    // is still tappable and startDeeper() runs twice.
+    var starts = 0;
+    await t.pumpWidget(MaterialApp(home: _Harness(onStart: () => starts++)));
+
+    await t.tap(find.text('Go Deeper'));
+    await t.pump();
+    expect(starts, 1);
+
+    // The button is demonstrably still findable mid-bloom — tap it again.
+    expect(find.text('Go Deeper'), findsOneWidget);
+    await t.tap(find.text('Go Deeper'), warnIfMissed: false);
+    await t.pump();
+
+    expect(starts, 1,
+        reason: 'a transition must not accept input for the tree it is leaving');
+
+    await t.pumpAndSettle();
+    expect(find.text('canvas'), findsOneWidget);
+  });
 }
 
 // Deliberately not tested here: that muhasabah_screen.dart actually passes the
