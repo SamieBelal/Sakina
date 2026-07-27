@@ -14,6 +14,7 @@ import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
+import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
@@ -190,17 +191,22 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
       if (n.state != inFlow) n.state = inFlow;
     });
 
-    if (inFlow) {
-      return _buildReflectBeatFlow(state, notifier);
-    }
-
-    return GestureDetector(
-      onTap: () => dismissKeyboard(context),
-      behavior: HitTestBehavior.translucent,
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: _buildBody(state, notifier),
-      ),
+    // SacredCanvasThreshold animates the crossing in both directions. No
+    // origin: Reflect enters the canvas when the result lands rather than on a
+    // tap, so a stored button position would be stale — the centre, where the
+    // ripple loader sits, is the honest origin.
+    return SacredCanvasThreshold(
+      onCanvas: inFlow,
+      child: inFlow
+          ? _buildReflectBeatFlow(state, notifier)
+          : GestureDetector(
+              onTap: () => dismissKeyboard(context),
+              behavior: HitTestBehavior.translucent,
+              child: Scaffold(
+                backgroundColor: AppColors.backgroundLight,
+                body: _buildBody(state, notifier),
+              ),
+            ),
     );
   }
 
