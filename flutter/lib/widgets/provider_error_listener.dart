@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// Listens to a Riverpod provider and surfaces its `error` field as a SnackBar
 /// whenever it transitions from one value to another non-null value.
@@ -33,7 +34,7 @@ class ProviderErrorSnackBarListener<T> extends ConsumerWidget {
       if (err == prevErr) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(err)));
+        ..showSnackBar(SnackBar(duration: kSnackBarDuration, content: Text(err)));
     });
     return child;
   }

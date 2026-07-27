@@ -12,6 +12,7 @@ import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tile.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// Pure resolution of the primary action for a previewed item.
 ///
@@ -363,7 +364,7 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     if (msg != null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(msg)));
+        ..showSnackBar(SnackBar(duration: kSnackBarDuration, content: Text(msg)));
     }
     if (!ok) return;
     ref.invalidate(cosmeticsStateProvider);

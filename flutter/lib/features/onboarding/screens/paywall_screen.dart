@@ -25,6 +25,7 @@ import '../../../services/supabase_sync_service.dart';
 import '../../paywall/screens/refer_unlock_screen.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/premium_celebration_overlay.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
@@ -740,7 +741,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the page. Try again.')),
+        const SnackBar(duration: kSnackBarDuration, content: Text('Could not open the page. Try again.')),
       );
     }
   }

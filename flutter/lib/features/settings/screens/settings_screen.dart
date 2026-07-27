@@ -37,6 +37,7 @@ import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 /// F1 fix (2026-04-26): pure resolver for the Settings profile-card display
 /// name. Tries `user_profiles.display_name` first (canonical onboarding
@@ -258,7 +259,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // snap-back to OFF isn't mysterious.
         if (enabled && !isOptedIn) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            const SnackBar(duration: kSnackBarDuration, 
               content: Text(
                 'Notifications are blocked in your device settings. '
                 'Enable them there to turn this on.',
@@ -271,7 +272,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted || _pushNotificationsEnabled != enabled) return;
       setState(() => _pushNotificationsEnabled = previousValue);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Could not update notifications. Please try again.'),
         ),
       );
@@ -292,7 +293,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted || _notificationPreferenceValue(key) != enabled) return;
       setState(() => _setLocalNotificationPreference(key, previousValue));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Could not update notification preference.'),
         ),
       );
@@ -394,7 +395,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the page. Try again.')),
+        const SnackBar(duration: kSnackBarDuration, content: Text('Could not open the page. Try again.')),
       );
     }
   }
@@ -417,7 +418,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await resetDailyLaunchGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
             content: Text('Daily loop reset. Go back to Home to start fresh.')),
       );
     }
@@ -438,7 +439,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
             content: Text(
                 'Card collection wiped. Every check-in will now discover a new card.')),
       );
@@ -512,7 +513,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Could not delete account. Please try again.'),
         ),
       );
@@ -1204,7 +1205,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 } catch (_) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    const SnackBar(duration: kSnackBarDuration, 
                       content: Text('Could not sign out. Please try again.'),
                     ),
                   );

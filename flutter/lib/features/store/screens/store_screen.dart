@@ -24,6 +24,7 @@ import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
+import 'package:sakina/core/constants/app_durations.dart';
 
 // ── IAP product IDs ──────────────────────────────────────────────────────────
 // Note: sakina_premium (one-time SKU) was removed per the subscription-only
@@ -276,7 +277,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: kSnackBarDuration, 
       content: Text(message),
       backgroundColor: AppColors.error,
     ));
@@ -420,7 +421,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
       if (code == PurchasesErrorCode.purchaseCancelledError) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Restore failed. Please try again.'),
         ),
       );
@@ -428,7 +429,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('Restore failed. Please try again.'),
         ),
       );
@@ -437,7 +438,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     if (!success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        const SnackBar(duration: kSnackBarDuration, 
           content: Text('No active premium subscription was found to restore.'),
         ),
       );
@@ -453,7 +454,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     } catch (_) {}
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      const SnackBar(duration: kSnackBarDuration, 
         content: Text('Premium restored!'),
         backgroundColor: AppColors.primary,
       ),
