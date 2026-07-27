@@ -177,6 +177,52 @@ void main() {
     expect(find.text('surface'), findsOneWidget);
   });
 
+  testWidgets('the dissolving canvas does not swallow taps for the surface',
+      (t) async {
+    // Opacity does not gate hit-testing, so a canvas fading to invisible still
+    // sits above the surface and intercepts touches unless it is explicitly
+    // taken out of the hit-test path. Mirrors the real hosts: both sides are
+    // opaque Scaffolds and the canvas carries a full-bleed tap zone.
+    var surfaceTaps = 0;
+    var canvasTaps = 0;
+
+    Widget host(bool onCanvas) => MaterialApp(
+          home: SacredCanvasThreshold(
+            onCanvas: onCanvas,
+            child: onCanvas
+                ? Scaffold(
+                    backgroundColor: const Color(0xFF1B6B4A),
+                    body: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () => canvasTaps++,
+                      child: const Center(child: Text('canvas')),
+                    ),
+                  )
+                : Scaffold(
+                    backgroundColor: const Color(0xFFFBF7F2),
+                    body: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => surfaceTaps++,
+                      child: const Center(child: Text('surface')),
+                    ),
+                  ),
+          ),
+        );
+
+    await t.pumpWidget(host(true));
+    await t.pumpAndSettle();
+
+    await t.pumpWidget(host(false)); // exit begins
+    await t.pump(const Duration(milliseconds: 200)); // mid-dissolve
+
+    await t.tapAt(const Offset(200, 400));
+
+    expect(canvasTaps, 0,
+        reason: 'the dying canvas must be out of the hit-test path');
+    expect(surfaceTaps, 1,
+        reason: 'the surface underneath must receive the tap');
+  });
+
   testWidgets('a reversal that is itself reversed lands on the canvas',
       (t) async {
     // enter → flip back → flip forward again, all mid-flight. The controller

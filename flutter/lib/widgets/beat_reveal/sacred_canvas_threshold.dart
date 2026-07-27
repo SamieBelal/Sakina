@@ -71,6 +71,12 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
   /// change it: a reversed enter is still an enter, played backwards.
   bool _entering = false;
 
+  /// Reduced motion, latched for the duration of one transition. The controller's
+  /// duration is fixed when the transition starts, so re-reading the live value
+  /// at render time could pair a 700ms controller with the 150ms cross-fade
+  /// shape if the OS setting flips mid-animation.
+  bool _transitionReduced = false;
+
   /// Stable identities for the two trees. Each tree keeps its own key for its
   /// whole life, so moving between stack slots (and between the wrapped
   /// transition shape and the bare idle shape) preserves its element and state
@@ -119,8 +125,9 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
 
     _entering = widget.onCanvas;
     _transitioning = true;
+    _transitionReduced = _reducedMotion;
     _controller
-      ..duration = _reducedMotion
+      ..duration = _transitionReduced
           ? SacredCanvasThresholdDurations.reduced
           : (_entering
               ? SacredCanvasThresholdDurations.enter
@@ -187,7 +194,7 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
           opacity: 1 - t,
           child: Transform.scale(scale: 1 - (0.02 * t), child: surface),
         ),
-        if (_reducedMotion)
+        if (_transitionReduced)
           Opacity(opacity: t, child: canvas)
         else
           ClipPath(
@@ -199,12 +206,19 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
   }
 
   /// Surface beneath, already in place; canvas above, dissolving off it.
+  ///
+  /// The dissolving canvas is wrapped in [IgnorePointer] because `Opacity` does
+  /// not gate hit-testing: a canvas faded to invisible would still sit on top of
+  /// the surface and swallow every tap for the whole exit. It is on its way out
+  /// and should never take input. (The enter path needs no equivalent — the
+  /// growing canvas is under a `ClipPath`, which *does* restrict hit-testing to
+  /// the clipped region, so the surface stays live outside the bloom.)
   Widget _exitStack(Widget surface, Widget canvas, double t) {
     return Stack(
       fit: StackFit.expand,
       children: [
         surface,
-        Opacity(opacity: 1 - t, child: canvas),
+        IgnorePointer(child: Opacity(opacity: 1 - t, child: canvas)),
       ],
     );
   }
