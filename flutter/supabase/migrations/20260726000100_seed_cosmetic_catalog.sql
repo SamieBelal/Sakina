@@ -9,5 +9,12 @@ insert into public.cosmetic_catalog(item_type,item_id,noor_price,milestone_day,i
   ('lantern_skin','ramadan_royal',   null, null, true,  true,  'ramadan', null, 7),
   ('backdrop','default',             0,    null, false, false, null, null, 0),
   ('backdrop','laylat_night',        150,  14,   false, false, null, null, 1),
-  ('backdrop','emerald_sanctuary',   150,  null, false, false, null, null, 2)
+  ('backdrop','emerald_sanctuary',   150,  null, false, false, null, null, 2),
+  -- Added with the backdrop scene rebuild: Backdrop.all in
+  -- lib/features/streaks/models/backdrop.dart and the _catalog mirror in
+  -- cosmetic_catalog_ui.dart both carry these, so without rows here the
+  -- wardrobe offers two backdrops that unlock_cosmetic rejects as
+  -- 'item not Noor-purchasable or inactive' on a freshly-built database.
+  ('backdrop','desert_night',        150,  null, false, false, null, null, 3),
+  ('backdrop','fajr_courtyard',      200,  30,   false, false, null, null, 4)
 on conflict (item_type,item_id) do nothing;
