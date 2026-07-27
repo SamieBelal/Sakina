@@ -81,6 +81,43 @@ void main() {
     expect(fakeSync.deleteCalls.first['table'], 'user_built_duas');
   });
 
+  test(
+      'removeSavedBuiltDua rolls back when server delete returns false (no throw)',
+      () async {
+    final fakeSync = FakeSupabaseSyncService(userId: 'user-rollback');
+    SupabaseSyncService.debugSetInstance(fakeSync);
+
+    final notifier = DuasNotifier(
+      dependencies: DuasDependencies(
+        findDuas: (_) async => throw UnimplementedError(),
+        buildDua: (_) async => throw UnimplementedError(),
+        now: () => fixedNow,
+        createId: () => 'dua-rollback-false',
+      ),
+      resultRevealDelay: Duration.zero,
+    );
+    addTearDown(notifier.dispose);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(notifier.state.savedBuiltDuas, hasLength(1));
+
+    // Mirror the real deleteRow: swallow the error and return false.
+    fakeSync.nextDeleteShouldReturnFalse = true;
+
+    await notifier.removeSavedBuiltDua('dua-1');
+
+    expect(notifier.state.savedBuiltDuas, hasLength(1),
+        reason: 'a false return must also roll back');
+    expect(notifier.state.savedBuiltDuas.first.id, 'dua-1');
+    expect(notifier.state.error, isNotNull,
+        reason: 'user must see an error even when deleteRow returns false');
+
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('saved_built_duas:user-rollback');
+    expect(stored, contains('dua-1'),
+        reason: 'rollback should re-persist the dua to SP');
+  });
+
   test('removeSavedBuiltDua removes locally + remotely on server success',
       () async {
     final fakeSync = FakeSupabaseSyncService(userId: 'user-rollback');

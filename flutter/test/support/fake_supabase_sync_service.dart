@@ -30,6 +30,12 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   /// callers that wrap deletes in try/catch.
   bool nextDeleteShouldThrow = false;
 
+  /// When set, the next delete returns `false` without touching storage, then
+  /// resets to `false`. Mirrors the REAL [SupabaseSyncService.deleteRow], which
+  /// catches its own exceptions and returns `false` rather than throwing — the
+  /// failure mode callers must detect via the return value, not a try/catch.
+  bool nextDeleteShouldReturnFalse = false;
+
   @override
   String? get currentUserId => userId;
 
@@ -214,6 +220,10 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
     if (nextDeleteShouldThrow) {
       nextDeleteShouldThrow = false;
       throw StateError('fake delete failure');
+    }
+    if (nextDeleteShouldReturnFalse) {
+      nextDeleteShouldReturnFalse = false;
+      return false;
     }
     final list = rowLists[table];
     if (list != null) {

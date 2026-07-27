@@ -30,9 +30,10 @@ class OnboardingTourState {
   /// once at tour start/replay; null until then (copy falls back to no name).
   final String? userName;
 
-  /// Which A/B arm this run is showing. Resolved once at tour start/resume from
-  /// the `tour_ab_enabled` flag + a stable per-user bucket; defaults to slim
-  /// (the go-forward variant) for idle/synthetic states.
+  /// Which variant this run is showing. Always slim since the slim-vs-full A/B
+  /// concluded (its config key was deleted 2026-07-25); defaults to slim for
+  /// idle/synthetic states. The full-variant machinery dies with the tour
+  /// post-keep (conversion-refactor deletion ledger).
   final TourVariant variant;
 
   bool get isActive => status == TourStatus.active;
@@ -153,23 +154,12 @@ class OnboardingTourController extends StateNotifier<OnboardingTourState> {
     _trackStepViewed();
   }
 
-  /// Resolves the A/B arm for this run. When `tour_ab_enabled` is off everyone
-  /// gets the slim tour (the go-forward default); when on, a stable per-user
-  /// 50/50 bucket decides. Fail-safe (no config / no auth) → slim. The result
-  /// is recorded as a `tour_variant` USER property so every downstream event
-  /// (retention, conversion) segments by the variant the user actually saw.
-  Future<TourVariant> _resolveVariant() async {
-    try {
-      final abEnabled = await _ref
-          .read(appConfigServiceProvider)
-          .getBool('tour_ab_enabled', fallback: false);
-      if (!abEnabled) return TourVariant.slim;
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-      return assignTourVariant(userId);
-    } catch (_) {
-      return TourVariant.slim;
-    }
-  }
+  /// Everyone gets the slim tour. The slim-vs-full A/B concluded and the
+  /// `tour_ab_enabled` app_config key was deleted 2026-07-25 (off in prod
+  /// since 06-15). The full-variant step list + the `tour_variant` recording
+  /// stay until the tour itself is removed post-keep (conversion-refactor
+  /// deletion ledger).
+  Future<TourVariant> _resolveVariant() async => TourVariant.slim;
 
   void _recordVariant(TourVariant variant) {
     // Set on BOTH the people profile (for user-level analysis) AND as a super

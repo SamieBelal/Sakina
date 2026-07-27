@@ -1128,3 +1128,154 @@ Deno.test("Skin purchase with grantCosmetic omitted is a 200 skip (no dispatch)"
   assertEquals(response.status, 200);
   assertEquals(await response.json(), { status: "skipped" });
 });
+
+// --- Promotional entitlement grants (RC dashboard "Grant Entitlement") -------
+//
+// Regression: a promotional grant arrives as NON_RENEWING_PURCHASE, which was
+// not in HANDLED_EVENT_TYPES, so the webhook 200-skipped it and never mirrored
+// the grant into user_subscriptions. The client still saw premium (it reads the
+// RC entitlement live), but `has_active_premium_entitlement()` — which reads
+// user_subscriptions and gates grant_premium_monthly(), the premium streak-
+// freeze cap and the daily-reward multiplier — stayed false for the whole grant
+// window. Reproduced against the real payload for the customer in production
+// (promo `rc_promo_premium_daily`, granted 2026-07-26, revoked 2026-07-27).
+
+function promotionalGrantEvent(
+  overrides: Partial<RevenueCatEvent> = {},
+): RevenueCatEvent {
+  return baseEvent({
+    type: "NON_RENEWING_PURCHASE",
+    product_id: "rc_promo_premium_daily",
+    store: "PROMOTIONAL",
+    period_type: "PROMOTIONAL",
+    entitlement_ids: ["premium"],
+    expiration_at_ms: nowMs + 24 * 60 * 60 * 1000,
+    event_timestamp_ms: nowMs,
+    ...overrides,
+  });
+}
+
+Deno.test("Promotional NON_RENEWING_PURCHASE mirrors the grant into user_subscriptions", async () => {
+  const payloads: UserSubscriptionUpsert[] = [];
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(promotionalGrantEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async (nextPayload) => {
+        payloads.push(nextPayload);
+        return { written: true, cancellationStarted: false };
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "ok" });
+
+  const upsertPayload = payloads[0];
+  if (upsertPayload == null) {
+    throw new Error(
+      "Expected a subscription upsert for the promotional grant.",
+    );
+  }
+  assertEquals(upsertPayload.user_id, userId);
+  assertEquals(upsertPayload.entitlement, "premium");
+  assertEquals(upsertPayload.product_id, "rc_promo_premium_daily");
+  assertEquals(upsertPayload.store, "PROMOTIONAL");
+  assertEquals(upsertPayload.period_type, "promotional");
+  assertEquals(upsertPayload.last_event_type, "NON_RENEWING_PURCHASE");
+  assertEquals(
+    upsertPayload.expires_at,
+    new Date(nowMs + 24 * 60 * 60 * 1000).toISOString(),
+  );
+
+  // The whole point: the server must agree with the client that premium is on.
+  assert(
+    hasActivePremiumAccess(upsertPayload, new Date(nowMs)),
+    "Server-side premium must be active during the granted window.",
+  );
+});
+
+Deno.test("Promotional grant clears a stale canceled_at from a prior subscription", async () => {
+  const payloads: UserSubscriptionUpsert[] = [];
+  await handleRevenueCatWebhook(
+    authorizedRequest(promotionalGrantEvent()),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async (nextPayload) => {
+        payloads.push(nextPayload);
+        return { written: true, cancellationStarted: false };
+      },
+    },
+  );
+
+  const upsertPayload = payloads[0];
+  if (upsertPayload == null) {
+    throw new Error("Expected a subscription upsert payload.");
+  }
+  // A comped grant is a fresh active window. The row it lands on may still
+  // carry canceled_at / billing_issue_detected_at from the expired
+  // subscription underneath it, which would misreport the user as cancelled.
+  assertEquals(upsertPayload.canceled_at, null);
+  assertEquals(upsertPayload.billing_issue_detected_at, null);
+});
+
+// Boundary guards for the NON_RENEWING_PURCHASE widening above. Both of these
+// already held before promotional grants were handled; they are here so that
+// widening the event set can never start swallowing one-off item purchases.
+
+Deno.test("Consumable NON_RENEWING_PURCHASE (token pack) writes no subscription row", async () => {
+  let upsertCalls = 0;
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest(baseEvent({
+      type: "NON_RENEWING_PURCHASE",
+      product_id: "sakina_tokens_100",
+      store: "APP_STORE",
+      // Consumables are not tied to the premium entitlement.
+      entitlement_ids: [],
+      transaction_id: "txn-token-pack-1",
+    })),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
+  assertEquals(upsertCalls, 0);
+});
+
+Deno.test("TEMPORARY_ENTITLEMENT_GRANT stays skipped (deliberate)", async () => {
+  let upsertCalls = 0;
+  // RevenueCat emits this when it cannot reach the App Store to validate a
+  // receipt. It carries no entitlement_ids, no product_id and no expiry, so
+  // there is nothing truthful to mirror — inventing a window would let a store
+  // outage grant server-side premium. The client still honours the temporary
+  // grant via the live RC entitlement; the server mirror deliberately does not.
+  const response = await handleRevenueCatWebhook(
+    authorizedRequest({
+      type: "TEMPORARY_ENTITLEMENT_GRANT",
+      app_user_id: userId,
+      store: "APP_STORE",
+      event_timestamp_ms: nowMs,
+    }),
+    {
+      webhookSecret,
+      clawbackConsumable: async () => {},
+      upsertSubscription: async () => {
+        upsertCalls += 1;
+        return { written: true, cancellationStarted: false };
+      },
+    },
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { status: "skipped" });
+  assertEquals(upsertCalls, 0);
+});

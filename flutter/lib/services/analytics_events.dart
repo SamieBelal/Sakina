@@ -20,7 +20,7 @@ const String analyticsAppInstallFiredPrefsKey = 'analytics_app_install_fired';
 /// flag/super-property/install-guard logic is unit-testable without booting the
 /// whole app.
 ///
-/// Sets `platform`, `app_version`, the four `flag_*` experiment-context super
+/// Sets `platform`, `app_version`, the `flag_*` experiment-context super
 /// properties, and `is_premium` (so every event — and thus any funnel — is
 /// segmentable by flag combination, release, and conversion state). Then fires
 /// `app_install` exactly once, guarded by [analyticsAppInstallFiredPrefsKey].
@@ -36,7 +36,6 @@ Future<void> registerBootstrapAnalytics({
   required String appVersion,
   required bool flagOnboardingTrim,
   required bool flagHardPaywall,
-  required bool flagTourAb,
   required bool flagGuidedTour,
   required bool isPremium,
   bool flagReverseTrialExp = false,
@@ -50,10 +49,16 @@ Future<void> registerBootstrapAnalytics({
     'app_version': appVersion,
     'flag_onboarding_trim': flagOnboardingTrim,
     'flag_hard_paywall': flagHardPaywall,
-    'flag_tour_ab': flagTourAb,
+    // flag_tour_ab retired 2026-07-25 (slim-vs-full A/B concluded; flag off
+    // since 06-15). Mixpanel super properties PERSIST on-device and merge, so
+    // omission alone is not retirement — the explicit unregister below scrubs
+    // upgraded installs. Historical events keep the property.
     'flag_guided_tour': flagGuidedTour,
     AnalyticsEvents.flagReverseTrialExp: flagReverseTrialExp,
   });
+  // One-shot scrub of the retired flag_tour_ab from upgraded installs'
+  // persisted store — cheap and idempotent, so it runs every bootstrap.
+  analytics.removeSuperProperty('flag_tour_ab');
   analytics.setSuperProperties({AnalyticsEvents.isPremium: isPremium});
   // app_install: fire EXACTLY ONCE in the app's lifetime, guarded by its own
   // SharedPreferences flag. Set the flag immediately after firing so a crash

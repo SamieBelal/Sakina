@@ -23,6 +23,13 @@ class _SpyAnalytics extends AnalyticsService {
   @override
   void setUserProperties(Map<String, dynamic> props) => userProps.addAll(props);
 
+  final removedSuperProps = <String>[];
+  @override
+  void removeSuperProperty(String name) {
+    removedSuperProps.add(name);
+    superProps.remove(name);
+  }
+
   @override
   void flush() => flushCalls++;
 
@@ -55,7 +62,6 @@ void main() {
         appVersion: '1.2.3+45',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: true,
         flagGuidedTour: false,
         isPremium: true,
       );
@@ -64,7 +70,11 @@ void main() {
       expect(spy.superProps['app_version'], '1.2.3+45');
       expect(spy.superProps['flag_onboarding_trim'], true);
       expect(spy.superProps['flag_hard_paywall'], false);
-      expect(spy.superProps['flag_tour_ab'], true);
+      expect(spy.superProps.containsKey('flag_tour_ab'), false,
+          reason: 'flag_tour_ab retired 2026-07-25 — no longer registered');
+      expect(spy.removedSuperProps, contains('flag_tour_ab'),
+          reason: 'retired flag must be actively unregistered — Mixpanel '
+              'super properties persist on upgraded installs otherwise');
       expect(spy.superProps['flag_guided_tour'], false);
       expect(spy.superProps[AnalyticsEvents.isPremium], true,
           reason: 'boot super property must reflect the passed premium state');
@@ -81,7 +91,6 @@ void main() {
         appVersion: '1.0.0+1',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: false,
         flagGuidedTour: true,
         isPremium: false,
       );
@@ -106,7 +115,6 @@ void main() {
         appVersion: '1.0.0+1',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: false,
         flagGuidedTour: true,
         isPremium: false,
       );
@@ -124,7 +132,6 @@ void main() {
         appVersion: '1.0.0+1',
         flagOnboardingTrim: true,
         flagHardPaywall: false,
-        flagTourAb: false,
         flagGuidedTour: true,
         isPremium: false,
       );
@@ -147,10 +154,10 @@ void main() {
       spy.cacheDeviceSuperProperties({
         'platform': 'iOS',
         'app_version': '1.2.3+45',
-        'flag_tour_ab': true,
+        'flag_guided_tour': true,
       });
       spy.setSuperProperties({AnalyticsEvents.isPremium: true});
-      expect(spy.superProps['flag_tour_ab'], true);
+      expect(spy.superProps['flag_guided_tour'], true);
       expect(spy.superProps[AnalyticsEvents.isPremium], true);
 
       spy.resetForSignOut();
@@ -162,7 +169,7 @@ void main() {
       // next user on this device is still flag-segmentable.
       expect(spy.superProps['platform'], 'iOS');
       expect(spy.superProps['app_version'], '1.2.3+45');
-      expect(spy.superProps['flag_tour_ab'], true);
+      expect(spy.superProps['flag_guided_tour'], true);
       // User-scoped is_premium must NOT bleed into the next user.
       expect(spy.superProps.containsKey(AnalyticsEvents.isPremium), false,
           reason: 'is_premium belongs to the signed-out user, not the device');

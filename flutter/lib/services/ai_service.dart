@@ -671,24 +671,35 @@ Future<Map<String, dynamic>?> _callOpenAiChat({
   const apiKey = Env.openAiApiKey;
   if (apiKey.isEmpty) return null;
 
-  final response = await http.post(
-    Uri.parse(_openAiChatUrl),
-    headers: {
-      'Authorization': 'Bearer $apiKey',
-      'Content-Type': 'application/json',
-    },
-    body: jsonEncode({
-      'model': _chatModel,
-      'max_completion_tokens': maxCompletionTokens,
-      // Lower temperature => far less run-to-run variance in format adherence.
-      // Omitted (null) preserves OpenAI's default of 1.0 for callers that want it.
-      if (temperature != null) 'temperature': temperature,
-      'messages': [
-        {'role': 'system', 'content': systemPrompt},
-        {'role': 'user', 'content': userMessage},
-      ],
-    }),
-  );
+  final http.Response response;
+  try {
+    response = await http
+        .post(
+          Uri.parse(_openAiChatUrl),
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'model': _chatModel,
+            'max_completion_tokens': maxCompletionTokens,
+            // Lower temperature => far less run-to-run variance in format
+            // adherence. Omitted (null) preserves OpenAI's default of 1.0 for
+            // callers that want it.
+            if (temperature != null) 'temperature': temperature,
+            'messages': [
+              {'role': 'system', 'content': systemPrompt},
+              {'role': 'user', 'content': userMessage},
+            ],
+          }),
+        )
+        // Without a timeout a stalled connection (socket open, no response)
+        // hangs the AI call forever. Bound it and treat a timeout like any
+        // other failed request so every caller hits its existing null path.
+        .timeout(const Duration(seconds: 30));
+  } on TimeoutException {
+    return null;
+  }
 
   if (response.statusCode != 200) {
     return null;

@@ -263,7 +263,7 @@ const List<CollectibleName> allCollectibleNames = [
     id: 6,
     arabic: 'السَّلَامُ',
     transliteration: 'As-Salam',
-    english: 'The Source of Peace',
+    english: 'The Source of Serenity',
     meaning: 'The One from whom all peace flows and in whom all peace rests.',
     lesson:
         'True peace is not the absence of struggle — it is As-Salam dwelling in your heart.',
@@ -307,7 +307,7 @@ const List<CollectibleName> allCollectibleNames = [
     id: 9,
     arabic: 'الْجَبَّارُ',
     transliteration: 'Al-Jabbar',
-    english: 'The Compeller',
+    english: 'The Compeller — Restorer of the Broken',
     meaning: 'The One who mends what is broken and compels all to His will.',
     lesson: 'Al-Jabbar heals broken hearts. Bring Him your shattered pieces.',
     hadith:
@@ -2052,7 +2052,11 @@ Future<CardEngageResult> engageCard(int cardId, {int maxTier = 3}) async {
     tierUpDates = {};
   }
 
-  final today = DateTime.now();
+  // UTC, not local: these date strings are compared against the quests
+  // provider's UTC week/month boundaries and against the UTC date prefix of
+  // server-hydrated discovered_at — a local date disagrees with both near
+  // midnight for non-UTC users.
+  final today = DateTime.now().toUtc();
   final todayStr = today.toIso8601String().substring(0, 10);
   final bool isNew = !ids.contains(cardId);
   final int currentTier = tiers[cardId] ?? 0;

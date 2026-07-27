@@ -215,9 +215,6 @@ Future<void> main() async {
         // the user gets the HARD wall that launch, and `soft` only takes
         // effect a launch later once the background refresh lands.
         'post_tour_paywall_mode',
-        // Slim-vs-full guided-tour A/B. Off → everyone gets the slim tour;
-        // on → 50/50 stable per-user split (see OnboardingTourController).
-        'tour_ab_enabled',
       ]).timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
   }
@@ -314,8 +311,6 @@ Future<void> main() async {
         .getBool('onboarding_trim_enabled', fallback: true),
     flagHardPaywall: await appConfigForAnalytics
         .getBool('hard_paywall_after_tour_enabled', fallback: false),
-    flagTourAb:
-        await appConfigForAnalytics.getBool('tour_ab_enabled', fallback: false),
     flagGuidedTour: await appConfigForAnalytics.getBool('guided_tour_enabled',
         fallback: true),
     flagReverseTrialExp: await appConfigForAnalytics

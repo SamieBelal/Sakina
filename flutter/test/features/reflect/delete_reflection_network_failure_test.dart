@@ -34,6 +34,18 @@ class _ThrowingDeleteSync extends FakeSupabaseSyncService {
   }
 }
 
+/// Mirrors the REAL `SupabaseSyncService.deleteRow`, which catches its own
+/// exceptions and returns `false` rather than throwing. This is the failure
+/// mode the earlier fix missed: the try/catch never fired, so no rollback.
+class _FalseReturningDeleteSync extends FakeSupabaseSyncService {
+  _FalseReturningDeleteSync({required super.userId});
+
+  @override
+  Future<bool> deleteRow(String table, String column, dynamic value) async {
+    return false;
+  }
+}
+
 SavedReflection _reflection(String id) => SavedReflection(
       id: id,
       date: '2026-04-26T12:00:00Z',
@@ -78,6 +90,32 @@ void main() {
     expect(notifier.state.error, isNotNull,
         reason: 'user must see an error when delete fails');
     expect(notifier.state.error, contains('delete'));
+  });
+
+  test(
+      'deleteReflection reverts + surfaces error when server delete returns false (no throw)',
+      () async {
+    SupabaseSyncService.debugSetInstance(
+      _FalseReturningDeleteSync(userId: 'user-jE4-false'),
+    );
+
+    final keep = _reflection('keep-1');
+    final doomed = _reflection('doomed-1');
+    final notifier = ReflectNotifier(loadOnInit: false);
+    addTearDown(notifier.dispose);
+
+    notifier.debugSeedReflections([keep, doomed]);
+
+    await notifier.deleteReflection('doomed-1');
+
+    expect(
+      notifier.state.savedReflections.map((r) => r.id),
+      containsAll(['keep-1', 'doomed-1']),
+      reason:
+          'a false return (deleteRow swallows the error) must also roll back',
+    );
+    expect(notifier.state.error, isNotNull,
+        reason: 'user must see an error even when deleteRow returns false');
   });
 
   test('deleteReflection succeeds normally when server delete works',

@@ -9,6 +9,76 @@ type EligibleUser = {
   last_active: string | null;
 };
 
+// ── Notification Phase A (plan 2026-07-23 §0.3): reel-voice copy ─────────────
+//
+// The server cannot know TODAY's Name (that requires user_name_queue, Phase B),
+// so templates reference the user's MOST-RECENT checked-in Name — fetched as
+// step two of a two-step query via the get_recent_checkin_names companion RPC
+// (no PostgREST FK embed; see the dua due-query gotcha below).
+//
+// BINDING COPY RULES (sign-copy boundary):
+//   • Transliteration only — NEVER Arabic script in a title or body.
+//   • NEVER attribute waiting/stance to Allah or to a Name ("As-Salam is
+//     waiting for you" is banned — app artifacts wait, Names never do).
+//   • No "sign" / "meant for you" language. No guilt copy.
+//   • NEVER interpolate null/undefined — every template has a generic
+//     fallback that makes no being-seen claim.
+//
+// copy_version stamps every payload + notification_sent event so funnels can
+// segment old vs new copy without a separate event stream.
+export const COPY_VERSION = "reel_v1";
+
+// One row per requested user from get_recent_checkin_names. All three data
+// fields are null for users with no check-in history (the RPC returns the row
+// with NULLs rather than omitting the user).
+export type RecentNameRow = {
+  user_id: string;
+  checked_in_at: string | null;
+  name_transliteration: string | null;
+  name_anchor: string | null;
+};
+
+export type RenderedCopy = {
+  title: string;
+  message: string;
+  templateId: string;
+};
+
+// Null-safe extraction: undefined, null, or blank → null so a template can
+// never render "null"/"undefined" into a push.
+export function cleanTransliteration(row: RecentNameRow | null): string | null {
+  const t = row?.name_transliteration;
+  if (typeof t !== "string") return null;
+  const trimmed = t.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+// Anchor line with any trailing sentence punctuation stripped, so composing
+// "{anchor}. …" never yields a doubled period (anchors are authored as full
+// sentences ending in '.').
+export function cleanAnchor(row: RecentNameRow | null): string | null {
+  const a = row?.name_anchor;
+  if (typeof a !== "string") return null;
+  const trimmed = a.trim().replace(/[.!?…]+$/u, "").trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+// True when the user's most-recent check-in happened within the last 7 days.
+// The Jumu'ah template claims "the Name you met this week" — a check-in older
+// than a week would make that a false claim, so it gates to the fallback.
+export function checkedInWithinDays(
+  row: RecentNameRow | null,
+  days: number,
+  now: Date,
+): boolean {
+  const at = row?.checked_in_at;
+  if (typeof at !== "string") return false;
+  const ms = Date.parse(at);
+  if (Number.isNaN(ms)) return false;
+  const age = now.getTime() - ms;
+  return age >= 0 && age <= days * 24 * 60 * 60 * 1000;
+}
+
 type NotificationType = {
   key: string;
   prefColumn: string;
@@ -24,8 +94,11 @@ type NotificationType = {
   // instead of targetHour, falling back to targetHour only when
   // reminder_time is null/empty. Daily only.
   useUserReminderTime?: boolean;
-  title: (row: EligibleUser) => string;
-  message: (row: EligibleUser) => string;
+  render: (
+    row: EligibleUser,
+    recent: RecentNameRow | null,
+    now: Date,
+  ) => RenderedCopy;
   dataType: string;
 };
 
@@ -158,9 +231,33 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     targetHour: 9, // fallback when user has not set reminder_time
     requiresStreak: false,
     useUserReminderTime: true,
-    title: (row) =>
-      row.display_name ? `Assalamu Alaikum, ${row.display_name}` : "Sakina",
-    message: () => "Take a moment with Sakina today.",
+    render: (row, recent, now) => {
+      const title = row.display_name
+        ? `Assalamu Alaikum, ${row.display_name}`
+        : "Sakina";
+      const translit = cleanTransliteration(recent);
+      const anchor = cleanAnchor(recent);
+      // Named variant requires BOTH pieces — an anchorless Name (e.g. a legacy
+      // spelling or 'Allah', which has no anchors row) falls back to generic
+      // rather than shipping half a sentence. The anchor requirement doubles as
+      // the canonical whitelist: only transliterations with an anchors row are
+      // ever interpolated into push copy (excludes 'Allah' + junk legacy rows).
+      // Recency-gated so a months-old Name isn't presented as fresh context.
+      if (translit && anchor && checkedInWithinDays(recent, 7, now)) {
+        return {
+          title,
+          message: `${translit} — ${anchor}. Today's Name is waiting.`,
+          templateId: "daily_recent_name_v1",
+        };
+      }
+      // Generic: today's reveal (an app artifact) waits; no claim about what
+      // the user is carrying — that phrasing needs Phase B queue data.
+      return {
+        title,
+        message: "Today's Name is waiting.",
+        templateId: "daily_generic_v1",
+      };
+    },
     dataType: "daily_reminder",
   },
   {
@@ -170,9 +267,31 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     targetHour: 11,
     inactiveDays: 3,
     requiresStreak: false,
-    title: (row) =>
-      row.display_name ? `We miss you, ${row.display_name}` : "We miss you",
-    message: () => "Take a moment with Sakina today.",
+    render: (row, recent) => {
+      const title = row.display_name
+        ? `We miss you, ${row.display_name}`
+        : "We miss you";
+      const translit = cleanTransliteration(recent);
+      const anchor = cleanAnchor(recent);
+      // Anchor-gated even though the anchor text isn't rendered: it is the
+      // canonical whitelist. Without it, `name_returned = 'Allah'` (card id 1)
+      // would render "You paused at Allah. Its story…" — banned copy.
+      // DELIBERATELY no recency gate (unlike daily/weekly): "you paused at"
+      // is timeless — true whether the pause was 3 days or a year ago. Do
+      // not "fix" by adding checkedInWithinDays here.
+      if (translit && anchor) {
+        return {
+          title,
+          message: `You paused at ${translit}. Its story is still open.`,
+          templateId: "reengagement_recent_name_v1",
+        };
+      }
+      return {
+        title,
+        message: "Your next Name is ready.",
+        templateId: "reengagement_generic_v1",
+      };
+    },
     dataType: "reengagement",
   },
   {
@@ -183,11 +302,67 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     dayOfWeek: 5,
     inactiveDays: -1, // skip activity filter; weekly fires regardless of check-in status
     requiresStreak: false,
-    title: () => "Your week with Sakina",
-    message: () => "Take a moment to reflect on your week.",
+    render: (_row, recent, now) => {
+      const title = "Your week with Sakina";
+      const translit = cleanTransliteration(recent);
+      const anchor = cleanAnchor(recent);
+      // "this week" is a factual claim — only use the named variant when the
+      // most-recent check-in actually happened in the last 7 days. Anchor-gated
+      // as the canonical whitelist (excludes 'Allah' + junk legacy rows).
+      if (translit && anchor && checkedInWithinDays(recent, 7, now)) {
+        return {
+          title,
+          message:
+            `The hour of Jumu'ah — the Name you met this week was ${translit}.`,
+          templateId: "weekly_recent_name_v1",
+        };
+      }
+      // No-checkin fallback: never interpolates, no being-seen claim.
+      return {
+        title,
+        message: "The hour of Jumu'ah — a quiet hour to meet your next Name.",
+        templateId: "weekly_generic_v1",
+      };
+    },
     dataType: "weekly_reflection",
   },
 ];
+
+// Step two of the two-step Name lookup: given the user ids an eligibility RPC
+// already returned, fetch each user's most-recent checked-in Name via the
+// get_recent_checkin_names companion RPC. Two-step by design — there is no FK
+// between the notification tables and user_checkin_history (both key on
+// auth.users), so a PostgREST embed cannot be resolved (same gotcha as the dua
+// due-query).
+//
+// BEST-EFFORT by design: personalization must never take down the cron. Any
+// error (missing function pre-migration, transient DB failure, malformed rows)
+// logs and returns an empty map so every template falls back to generic copy.
+async function fetchRecentNames(
+  supabase: any,
+  userIds: string[],
+): Promise<Map<string, RecentNameRow>> {
+  const map = new Map<string, RecentNameRow>();
+  if (userIds.length === 0) return map;
+  try {
+    const { data, error } = await supabase.rpc("get_recent_checkin_names", {
+      p_user_ids: [...new Set(userIds)],
+    });
+    if (error) throw error;
+    for (const row of (data ?? []) as RecentNameRow[]) {
+      if (row && typeof row.user_id === "string") {
+        map.set(row.user_id, row);
+      }
+    }
+    return map;
+  } catch (err) {
+    console.error(
+      "get_recent_checkin_names failed — falling back to generic copy",
+      err instanceof Error ? err.message : String(err),
+    );
+    return new Map();
+  }
+}
 
 // ── Unified streak-family notification (T5 / spec §5 S1, D5/D6/D7/D8/D11) ────
 //
@@ -196,9 +371,9 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
 // (saver | milestone | winback), collapsing mutual exclusion + the :00/:30
 // double-fire into the server. This code path just renders the locked-vocabulary
 // copy per kind and stamps the single family dedup key.
-type StreakKind = "saver" | "milestone" | "winback";
+export type StreakKind = "saver" | "milestone" | "winback";
 
-type StreakDecision = {
+export type StreakDecision = {
   user_id: string;
   timezone: string;
   display_name: string | null;
@@ -220,7 +395,14 @@ function streakFamilyTitle(_d: StreakDecision): string {
   return "A quiet moment awaits";
 }
 
-function streakFamilyBody(d: StreakDecision): string {
+// DELIBERATE PHASE-A DEVIATION from plan §0.3 (recorded in the plan doc): the
+// ENTIRE streak family keeps the locked streak-retention-v2 vocabulary
+// unchanged. The plan's saver/milestone/winback Name variants all assume queue
+// semantics ({Name} = the NEXT Name the user will meet) — with Phase A's
+// yesterday's-Name data, "{Name} is one reflection away" would promise a Name
+// the next reflection won't deliver. Streak-family personalization is Phase B.
+// Exported for unit testing.
+export function streakFamilyBody(d: StreakDecision): string {
   switch (d.kind) {
     case "saver":
       return "Your lantern rests tonight — one reflection keeps it lit.";
@@ -232,6 +414,20 @@ function streakFamilyBody(d: StreakDecision): string {
       return "Your lantern is resting. Relight it whenever you're ready.";
     default:
       throw new Error(`Unknown streak kind: ${(d as StreakDecision).kind}`);
+  }
+}
+
+// template_id for the streak family. Exported for unit testing.
+export function streakFamilyTemplateId(kind: StreakKind): string {
+  switch (kind) {
+    case "saver":
+      return "streak_saver_v1";
+    case "milestone":
+      return "streak_milestone_v1";
+    case "winback":
+      return "streak_winback_v1";
+    default:
+      throw new Error(`Unknown streak kind: ${kind}`);
   }
 }
 
@@ -310,6 +506,8 @@ export async function processStreakFamily(params: {
   const decisions = (data ?? []) as StreakDecision[];
   if (decisions.length === 0) return { eligible: 0, sent: 0, marked: 0 };
 
+  // Phase A: the streak family does NOT personalize (locked vocabulary — see
+  // streakFamilyBody). No recent-Name fetch needed here until Phase B.
   let sent = 0;
   let marked = 0;
 
@@ -325,6 +523,7 @@ export async function processStreakFamily(params: {
       // with "undefined" content. The throw here is caught below and skipped.
       const body = streakFamilyBody(d);
       const dataType = streakFamilyDataType(d.kind);
+      const templateId = streakFamilyTemplateId(d.kind);
 
       const ok = await sendOneSignalNotification({
         appId,
@@ -333,6 +532,7 @@ export async function processStreakFamily(params: {
         title: streakFamilyTitle(d),
         message: body,
         dataType,
+        templateId,
       });
       if (!ok) continue;
 
@@ -355,6 +555,8 @@ export async function processStreakFamily(params: {
         type: dataType,
         segment: d.kind,
         streak: d.current_streak,
+        template_id: templateId,
+        copy_version: COPY_VERSION,
       }, {
         insertId: `${d.user_id}:${dataType}:${
           localTodayForTimezone(d.timezone, now)
@@ -390,6 +592,9 @@ async function sendOneSignalNotification(params: {
   title: string;
   message: string;
   dataType: string;
+  // Which copy template rendered this push (Phase A §0.3). Stamped into the
+  // payload data so the client echo can attribute opens per template.
+  templateId: string;
   // Optional deep link the OneSignal open routes to (e.g. Build-a-Duʿā).
   url?: string;
 }): Promise<boolean> {
@@ -401,7 +606,11 @@ async function sendOneSignalNotification(params: {
     target_channel: "push",
     headings: { en: params.title },
     contents: { en: params.message },
-    data: { type: params.dataType },
+    data: {
+      type: params.dataType,
+      template_id: params.templateId,
+      copy_version: COPY_VERSION,
+    },
   };
   if (params.url) body.url = params.url;
 
@@ -546,6 +755,12 @@ async function processDuaPreciseWindows(params: {
 
   let sent = 0;
   for (const row of toSend) {
+    // Duʿā copy is client-authored (synced per-row title/body); the server
+    // only owns the NULL-guard fallback. template_id distinguishes the two so
+    // funnels don't mix client copy iterations with the server fallback.
+    const templateId = row.title !== null && row.body !== null
+      ? "dua_window_client_v1"
+      : "dua_window_fallback_v1";
     const ok = await sendOneSignalNotification({
       appId,
       restApiKey,
@@ -553,6 +768,7 @@ async function processDuaPreciseWindows(params: {
       title: row.title ?? DUA_WINDOW_FALLBACK_TITLE,
       message: row.body ?? DUA_WINDOW_FALLBACK_BODY,
       dataType: DUA_WINDOW_DATA_TYPE,
+      templateId,
       url: DUA_WINDOW_DEEP_LINK,
     });
 
@@ -567,6 +783,8 @@ async function processDuaPreciseWindows(params: {
       window_type: row.window_type,
       // Per-sync join key back to the client `dua_notif_synced` (same version).
       sync_version: row.sync_version,
+      template_id: templateId,
+      copy_version: COPY_VERSION,
     }, {
       insertId: `${row.user_id}:${DUA_WINDOW_DATA_TYPE}:${row.id}`,
     });
@@ -619,6 +837,15 @@ export async function runFixedCadenceLoop(
       continue;
     }
 
+    // Step two of the two-step Name lookup (Phase A §0.3): best-effort — an
+    // empty map (RPC missing/failed) renders every template as its generic
+    // fallback and the cron keeps sending.
+    const recentNames = await fetchRecentNames(
+      supabase,
+      users.map((user) => user.user_id),
+    );
+    const now = new Date();
+
     let sent = 0;
     let marked = 0;
 
@@ -627,13 +854,19 @@ export async function runFixedCadenceLoop(
         // Quiet-hours dedup: skip a user already pushed by an earlier type this run.
         if (pushedUserIds.has(user.user_id)) continue;
 
+        const copy = notificationType.render(
+          user,
+          recentNames.get(user.user_id) ?? null,
+          now,
+        );
         const ok = await sendOneSignalNotification({
           appId: oneSignalAppId,
           restApiKey: oneSignalRestApiKey,
           userId: user.user_id,
-          title: notificationType.title(user),
-          message: notificationType.message(user),
+          title: copy.title,
+          message: copy.message,
           dataType: notificationType.dataType,
+          templateId: copy.templateId,
         });
 
         if (!ok) continue;
@@ -647,6 +880,8 @@ export async function runFixedCadenceLoop(
         // per-user+type+day $insert_id dedups a cron re-run/retry in Mixpanel.
         await mixpanelTrack("notification_sent", user.user_id, {
           type: notificationType.dataType,
+          template_id: copy.templateId,
+          copy_version: COPY_VERSION,
         }, {
           insertId: `${user.user_id}:${notificationType.dataType}:${
             new Date().toISOString().slice(0, 10)
@@ -665,13 +900,19 @@ export async function runFixedCadenceLoop(
         // Quiet-hours dedup: skip a user already pushed by an earlier type this run.
         if (pushedUserIds.has(user.user_id)) continue;
 
+        const copy = notificationType.render(
+          user,
+          recentNames.get(user.user_id) ?? null,
+          now,
+        );
         const ok = await sendOneSignalNotification({
           appId: oneSignalAppId,
           restApiKey: oneSignalRestApiKey,
           userId: user.user_id,
-          title: notificationType.title(user),
-          message: notificationType.message(user),
+          title: copy.title,
+          message: copy.message,
           dataType: notificationType.dataType,
+          templateId: copy.templateId,
         });
 
         if (ok) {
@@ -679,6 +920,8 @@ export async function runFixedCadenceLoop(
           pushedUserIds.add(user.user_id);
           await mixpanelTrack("notification_sent", user.user_id, {
             type: notificationType.dataType,
+            template_id: copy.templateId,
+            copy_version: COPY_VERSION,
           }, {
             insertId: `${user.user_id}:${notificationType.dataType}:${
               new Date().toISOString().slice(0, 10)

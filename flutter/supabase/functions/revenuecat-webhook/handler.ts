@@ -8,6 +8,18 @@ const ACTIVE_LIFECYCLE_EVENT_TYPES = new Set([
   "RENEWAL",
   "PRODUCT_CHANGE",
   "UNCANCELLATION",
+  // A promotional entitlement granted from the RevenueCat dashboard (or the
+  // v2 grant API) arrives as NON_RENEWING_PURCHASE with store PROMOTIONAL.
+  // It opens a genuine active window, so it belongs here rather than in the
+  // passive set: it must clear any canceled_at / billing_issue_detected_at
+  // left behind by the expired subscription the row is sitting on.
+  //
+  // Non-premium NON_RENEWING_PURCHASE events (consumable token / scroll packs,
+  // and the à-la-carte skin SKUs once those ship) never reach the upsert —
+  // `hasPremiumEntitlement` below filters on entitlement_ids: ['premium'],
+  // which is the boundary between "this is premium access" and "this is a
+  // one-off item grant". Item grants keep routing to their own builders.
+  "NON_RENEWING_PURCHASE",
 ]);
 
 export const HANDLED_EVENT_TYPES = new Set([
