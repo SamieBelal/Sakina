@@ -7,7 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
+import 'package:sakina/features/streaks/models/lantern_skin.dart';
+import 'package:sakina/features/streaks/widgets/cosmetics/cosmetic_catalog_ui.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 
 /// The user's cosmetics economy state (Noor + owned + equipped). Re-read after
 /// every successful equip/unlock/buy via `ref.invalidate(cosmeticsStateProvider)`.
@@ -23,6 +26,54 @@ import 'package:sakina/services/cosmetics_service.dart';
 final cosmeticsStateProvider =
     FutureProvider.autoDispose<CosmeticsState>((ref) async {
   return getCosmeticsState();
+});
+
+/// Premium, for the cosmetics render gate ONLY. Unresolvable reads as NOT
+/// premium — the conservative default (it can only cost an active subscriber one
+/// frame of classic gold, never the reverse).
+///
+/// autoDispose so it re-resolves for a new set of consumers rather than pinning
+/// one answer for the process lifetime; a subscription that starts or lapses
+/// mid-session is picked up the next time a lantern surface mounts.
+final cosmeticsPremiumProvider = FutureProvider.autoDispose<bool>((ref) async {
+  try {
+    return await PurchaseService().isPremium();
+  } catch (_) {
+    return false;
+  }
+});
+
+/// THE lantern skin every surface renders — Home, the launch overlay, the card
+/// reveal, the milestone overlay, the rescue sheet, and the Companion stage.
+///
+/// Exists because `CompanionMedallion.skin` defaults to classic gold so that
+/// pre-cosmetics call sites kept compiling, which quietly left every surface
+/// except the Companion stage and the wardrobe rendering brass no matter what
+/// the user equipped. Making each one resolve its own premium snapshot would
+/// reintroduce, five times over, exactly the drift `renderableSkinId` was
+/// written to prevent — so they all read this instead.
+///
+/// Routes through `renderableSkinId`, NOT `equippedLanternSkin` directly: that
+/// is what makes a lapsed subscriber's premium-exclusive skin fall back to
+/// classic gold instead of showing the perk indefinitely.
+///
+/// Falls back to classic gold while either input is loading, so a surface never
+/// blocks on a spinner — a cold start may show one brass frame before resolving.
+///
+/// autoDispose is inherited deliberately: it keeps [cosmeticsStateProvider]'s
+/// user-scoped lifetime intact (see its doc). An app-scoped derived provider
+/// here would hold that state alive forever and bring back the sign-out →
+/// sign-in staleness it was made autoDispose to fix.
+final renderableLanternSkinProvider =
+    Provider.autoDispose<LanternSkin>((ref) {
+  final isPremium = ref.watch(cosmeticsPremiumProvider).maybeWhen(
+        data: (p) => p,
+        orElse: () => false,
+      );
+  return ref.watch(cosmeticsStateProvider).maybeWhen(
+        data: (cs) => resolveSkin(renderableSkinId(cs, isPremium: isPremium)),
+        orElse: () => LanternSkin.classicGold,
+      );
 });
 
 /// The streak count the Companion stage and the E1 share card display. Derived

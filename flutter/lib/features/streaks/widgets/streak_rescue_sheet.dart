@@ -10,6 +10,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/streak_service.dart';
 
@@ -222,11 +223,12 @@ class _StreakRescueSheetState extends ConsumerState<_StreakRescueSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
+              SizedBox(
                 height: 108,
                 child: Center(
                   child: CompanionMedallion(
-                    state: CompanionState(
+                    skin: ref.watch(renderableLanternSkinProvider),
+                    state: const CompanionState(
                       brightness: CompanionBrightness.dormant,
                       protected: false,
                     ),

@@ -12,6 +12,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/daily/providers/starter_name_provider.dart';
 import 'package:sakina/features/daily/providers/token_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
@@ -230,7 +231,11 @@ class _StreakGreetingStep extends ConsumerWidget {
             child: companion == null
                 ? const SizedBox(width: 96)
                 : Center(
-                    child: CompanionMedallion(state: companion, size: 96),
+                    child: CompanionMedallion(
+                      state: companion,
+                      size: 96,
+                      skin: ref.watch(renderableLanternSkinProvider),
+                    ),
                   ),
           ),
           const SizedBox(height: 24),
