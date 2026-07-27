@@ -21,7 +21,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 /// - [buy] only for à-la-carte skins (`iapProductId != null`) that are not
 ///   owned, AND only while `kSkinIapEnabled` is true — the caller must have a
 ///   real RevenueCat purchase behind `onBuy`.
-/// - [premiumTeaser] / [milestoneTeaser] / [comingSoonTeaser] —
+/// - [premiumTeaser] / [unavailableTeaser] / [comingSoonTeaser] —
 ///   visible-but-locked. No action; the item reads as reachable later, not
 ///   purchasable now.
 enum WardrobeAction {
@@ -30,7 +30,17 @@ enum WardrobeAction {
   unlockUnaffordable,
   buy,
   premiumTeaser,
-  milestoneTeaser,
+  /// Fallback for a catalog row no other arm classifies — not owned, not
+  /// premium-exclusive, not à-la-carte, and with no usable price. No seeded row
+  /// reaches it today; it exists to keep [resolveWardrobeAction] total if the
+  /// server catalog ever gains a shape the client does not model.
+  ///
+  /// Was `milestoneTeaser`, rendering "Unlock at a N-day streak". That copy was
+  /// unreachable: it required `noorPrice` to be null-or-zero, but every
+  /// milestone-tagged row is also priced, so the arm above always won. The
+  /// `milestone_day` metadata behind it has been dropped — see
+  /// `20260727120000_drop_inert_cosmetic_milestone_day.sql`.
+  unavailableTeaser,
 
   /// À-la-carte, unowned, and the skin IAP is not live yet
   /// (`kSkinIapEnabled == false`). Same inert teaser shape as the other two —
@@ -58,8 +68,8 @@ class WardrobeActionBar extends StatelessWidget {
   /// '120 Noor' or a store-formatted price like r'$2.99'.
   final String? priceLabel;
 
-  /// Copy for the premium/milestone locked states, e.g.
-  /// 'Unlock at a 30-day streak'.
+  /// Copy for the locked states, e.g. 'Premium · this month' or 'Coming soon'.
+  /// Falls back to 'Locked' when null.
   final String? teaser;
 
   final VoidCallback onEquip;
@@ -77,7 +87,7 @@ class WardrobeActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (action) {
       case WardrobeAction.premiumTeaser:
-      case WardrobeAction.milestoneTeaser:
+      case WardrobeAction.unavailableTeaser:
       case WardrobeAction.comingSoonTeaser:
         return Padding(
           padding: const EdgeInsets.all(AppSpacing.md),

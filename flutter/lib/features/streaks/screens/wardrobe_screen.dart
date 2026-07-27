@@ -47,7 +47,7 @@ WardrobeAction resolveWardrobeAction({
         : WardrobeAction.comingSoonTeaser;
   }
   if (price != null && price > 0) return WardrobeAction.unlockUnaffordable;
-  return WardrobeAction.milestoneTeaser;
+  return WardrobeAction.unavailableTeaser;
 }
 
 /// Pure resolution of one grid tile's display state.
@@ -297,7 +297,6 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     // what the à-la-carte teaser exists to avoid.
     if (action == WardrobeAction.comingSoonTeaser) return 'Coming soon';
     if (e.isPremiumExclusive) return 'Premium · this month';
-    if (e.milestoneDay != null) return 'Unlock at a ${e.milestoneDay}-day streak';
     return null;
   }
 

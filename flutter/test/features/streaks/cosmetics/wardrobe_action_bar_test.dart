@@ -73,19 +73,36 @@ void main() {
     expect(find.byType(FilledButton), findsNothing);
   });
 
-  // Milestone-gated items read as visible-but-locked with the streak hint —
-  // never as a purchasable action.
-  testWidgets('milestone-locked shows the streak hint and no button',
+  // The unclassifiable-row fallback renders as visible-but-locked, never as a
+  // purchasable action. Was `milestoneTeaser` with an "Unlock at a 30-day
+  // streak" hint; that copy was unreachable (it needed a null-or-zero price,
+  // but every milestone-tagged row was also priced) and the `milestone_day`
+  // metadata behind it has been dropped.
+  testWidgets('the unavailable fallback shows the teaser and no button',
       (tester) async {
     await tester.pumpWidget(host(WardrobeActionBar(
-      action: WardrobeAction.milestoneTeaser,
+      action: WardrobeAction.unavailableTeaser,
       priceLabel: null,
-      teaser: 'Unlock at a 30-day streak',
+      teaser: 'Coming soon',
       onEquip: () {},
       onUnlock: () {},
       onBuy: () {},
     )));
-    expect(find.text('Unlock at a 30-day streak'), findsOneWidget);
+    expect(find.text('Coming soon'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
+  // No teaser supplied → the bar must still render a locked state, not blank.
+  testWidgets('the unavailable fallback degrades to "Locked" with no teaser',
+      (tester) async {
+    await tester.pumpWidget(host(WardrobeActionBar(
+      action: WardrobeAction.unavailableTeaser,
+      priceLabel: null,
+      onEquip: () {},
+      onUnlock: () {},
+      onBuy: () {},
+    )));
+    expect(find.text('Locked'), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing);
   });
 }

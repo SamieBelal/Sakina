@@ -36,7 +36,6 @@ void main() {
 
     final laylat = catalogEntryFor(itemTypeBackdrop, 'laylat_night')!;
     expect(laylat.noorPrice, 150);
-    expect(laylat.milestoneDay, 14);
   });
 
   test('displayCatalog lists lantern and backdrop items in sort order', () {

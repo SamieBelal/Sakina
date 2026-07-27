@@ -43,7 +43,6 @@ class CosmeticCatalogEntry {
     this.isPremiumExclusive = false,
     this.isSeasonal = false,
     this.seasonKey,
-    this.milestoneDay,
   });
 
   final String itemType;
@@ -54,7 +53,6 @@ class CosmeticCatalogEntry {
   final bool isPremiumExclusive;
   final bool isSeasonal;
   final String? seasonKey;
-  final int? milestoneDay;
 
   /// À-la-carte real-money skins (obsidian/masjid/crystal in the seed).
   bool get isAlaCarte => iapProductId != null;
@@ -76,7 +74,6 @@ const List<CosmeticCatalogEntry> _catalog = [
       itemType: itemTypeLanternSkin,
       itemId: 'emerald_jade',
       noorPrice: 120,
-      milestoneDay: 7,
       sort: 2),
   CosmeticCatalogEntry(
       itemType: itemTypeLanternSkin,
@@ -87,7 +84,6 @@ const List<CosmeticCatalogEntry> _catalog = [
       itemType: itemTypeLanternSkin,
       itemId: 'obsidian_gold',
       noorPrice: 200,
-      milestoneDay: 30,
       iapProductId: 'sakina.skin.obsidian',
       sort: 4),
   CosmeticCatalogEntry(
@@ -115,7 +111,6 @@ const List<CosmeticCatalogEntry> _catalog = [
       itemType: itemTypeBackdrop,
       itemId: 'laylat_night',
       noorPrice: 150,
-      milestoneDay: 14,
       sort: 1),
   CosmeticCatalogEntry(
       itemType: itemTypeBackdrop,
@@ -131,7 +126,6 @@ const List<CosmeticCatalogEntry> _catalog = [
       itemType: itemTypeBackdrop,
       itemId: 'fajr_courtyard',
       noorPrice: 200,
-      milestoneDay: 30,
       sort: 4),
 ];
 

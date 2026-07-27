@@ -1,0 +1,43 @@
+-- Drop `cosmetic_catalog.milestone_day` — a gate that never gated anything.
+--
+-- ── WHAT IT WAS FOR ────────────────────────────────────────────────────────
+-- The design spec (docs/superpowers/specs/2026-07-25-lantern-cosmetics-design.md
+-- §49) called for MILESTONE UNLOCKS: "specific skins awarded free at streak
+-- milestones (the streak-coupling; strongest retention lever). Visible-but-locked
+-- in the wardrobe ('Unlock at a 30-day streak') to drive motivation."
+--
+-- ── WHAT SHIPPED INSTEAD ───────────────────────────────────────────────────
+-- The Noor economy. Milestones mint CURRENCY (40/75/150/250/400 at days
+-- 7/14/30/60/90 via claim_streak_milestone → award_noor), and Noor buys
+-- cosmetics. The streak still pays out — just fungibly, not as a specific item.
+--
+-- ── WHY THE COLUMN IS INERT ────────────────────────────────────────────────
+-- Nothing reads it. Server-side: `unlock_cosmetic` selects on noor_price /
+-- active / is_premium_exclusive / availability windows and never consults
+-- milestone_day; `claim_streak_milestone` only mints Noor and writes no
+-- user_cosmetics row. The `acquired_via` CHECK admits 'milestone', but no code
+-- path anywhere writes that value.
+--
+-- Client-side it was self-defeating: the "Unlock at a N-day streak" teaser only
+-- rendered when `noorPrice` was null-or-zero, yet every milestone-tagged row was
+-- ALSO priced, so the priced arm always won first. The copy could never appear
+-- for any seeded row.
+--
+-- Net effect today: `fajr_courtyard` is a plain 200-Noor purchase available at
+-- streak 0, exactly like a row with no milestone_day at all. The column made the
+-- schema read as though a rule existed when none did — which is worse than
+-- absent, because it invites the reader to trust a constraint that is not there.
+--
+-- ── REVERSIBILITY ──────────────────────────────────────────────────────────
+-- Dropped rather than nulled so the schema stops asserting a gate. Bringing the
+-- feature back is not a matter of restoring this column — it needs the grant
+-- path that was never built: a SECURITY DEFINER routine that writes
+-- user_cosmetics with acquired_via='milestone' on a verified claim, plus
+-- removing noor_price from the milestone rows so the teaser can actually render.
+-- Re-adding one nullable integer is the trivial part of that work.
+--
+-- SAFE: no data loss of consequence (the values were decorative), no RPC reads
+-- it, and no client field maps to it after this branch. `user_streak_milestones_
+-- claimed.milestone_day` is a DIFFERENT and very much live column — untouched.
+
+alter table public.cosmetic_catalog drop column if exists milestone_day;
