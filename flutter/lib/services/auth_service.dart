@@ -283,9 +283,18 @@ class AuthService {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
+    // One Ship W1 columns — W2's reel flow is their first writer.
+    Map<String, dynamic>? acquisitionPromise,
+    String? firstProblemText,
+    String? onboardingFlow,
   }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
+
+    assert(
+      acquisitionPromise == null || acquisitionPromise.containsKey('contract'),
+      'acquisition_promise must carry a "contract" key (DB check constraint)',
+    );
 
     await _supabase.from('user_profiles').update({
       'display_name': resolveDisplayName(displayName),
@@ -300,6 +309,13 @@ class AuthService {
       'daily_commitment_minutes': dailyCommitmentMinutes,
       'reminder_time': reminderTime,
       'commitment_accepted': commitmentAccepted,
+      // Only written when the flow produced a value. An explicit null would
+      // clobber an earlier persist (this method runs 2-4× per signup) and,
+      // once `onboarding_completed` is true, the freeze trigger raises on any
+      // *distinct* value — including a null over a real answer.
+      if (acquisitionPromise != null) 'acquisition_promise': acquisitionPromise,
+      if (firstProblemText != null) 'first_problem_text': firstProblemText,
+      if (onboardingFlow != null) 'onboarding_flow': onboardingFlow,
     }).eq('id', userId);
   }
 

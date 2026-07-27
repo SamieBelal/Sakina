@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +22,9 @@ class _FakeAuthService extends AuthService {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
+    Map<String, dynamic>? acquisitionPromise,
+    String? firstProblemText,
+    String? onboardingFlow,
   }) async {
     captured = {
       'displayName': displayName,
@@ -35,6 +39,9 @@ class _FakeAuthService extends AuthService {
       'dailyCommitmentMinutes': dailyCommitmentMinutes,
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
+      'acquisitionPromise': acquisitionPromise,
+      'firstProblemText': firstProblemText,
+      'onboardingFlow': onboardingFlow,
     };
   }
 }
@@ -72,5 +79,43 @@ void main() {
     expect(fake.captured!['dailyCommitmentMinutes'], 5);
     expect(fake.captured!['reminderTime'], '08:30');
     expect(fake.captured!['commitmentAccepted'], isTrue);
+  });
+
+  test('the three W1 columns ride every persist once the hook is answered',
+      () async {
+    final fake = _FakeAuthService();
+    final notifier = OnboardingNotifier(authService: fake)
+      ..setOnboardingFlow('reel_v1')
+      ..applyHookSelection(const ChipSelection(
+        contract: HookContract.problem,
+        problemCategory: 'rizq',
+        hookType: HookType.chip,
+        chipKey: 'rizq',
+        pairNameIds: [13, 23],
+        problemTextRaw: 'rent is due and I have nothing',
+      ));
+
+    await notifier.debugPersistOnboardingForTest();
+
+    expect(fake.captured!['onboardingFlow'], 'reel_v1');
+    expect(fake.captured!['firstProblemText'], 'rent is due and I have nothing');
+    expect(fake.captured!['acquisitionPromise'], {
+      'hook_type': 'chip',
+      'contract': 'problem',
+      'problem_category': 'rizq',
+    });
+  });
+
+  test('an unanswered hook sends no promise — the column stays untouched',
+      () async {
+    final fake = _FakeAuthService();
+    final notifier = OnboardingNotifier(authService: fake)
+      ..setIntention('spiritualGrowth');
+
+    await notifier.debugPersistOnboardingForTest();
+
+    expect(fake.captured!['acquisitionPromise'], isNull);
+    expect(fake.captured!['firstProblemText'], isNull);
+    expect(fake.captured!['onboardingFlow'], isNull);
   });
 }

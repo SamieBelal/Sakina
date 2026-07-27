@@ -85,10 +85,10 @@ void main() {
   });
 
   test(
-      'T11 REGRESSION: persisted v7 state preserves pages beyond the trimmed '
+      'T11 REGRESSION: persisted v8 state preserves pages beyond the trimmed '
       'max for legacy rollback', () {
     final restored = OnboardingState.fromJson({
-      'version': 7,
+      'version': 8,
       'currentPage': onboardingLegacyLastPageIndex,
     });
 

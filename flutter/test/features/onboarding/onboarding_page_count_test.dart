@@ -31,15 +31,16 @@ void main() {
       expect(onboardingLegacyEncouragementPageIndex, 21);
     });
 
-    test('OnboardingState schema version is 7', () {
+    test('OnboardingState schema version is 8', () {
       const s = OnboardingState();
-      expect(s.toJson()['version'], 7);
+      expect(s.toJson()['version'], 8);
     });
 
-    test('fromJson discards blobs older than version 7', () {
-      // A v6 blob with a stored currentPage should be dropped, returning a fresh state.
+    test('fromJson discards blobs older than version 8', () {
+      // A v7 blob with a stored currentPage should be dropped, returning a
+      // fresh state — the reel flow renumbered the pages (One Ship W2-B3).
       final old = OnboardingState.fromJson({
-        'version': 6,
+        'version': 7,
         'currentPage': 17,
         'intention': 'spiritual-growth',
       });
@@ -47,7 +48,7 @@ void main() {
       expect(old.intention, isNull);
     });
 
-    test('fromJson preserves v7 blobs', () {
+    test('fromJson preserves v8 blobs', () {
       const original = OnboardingState(currentPage: 5, intention: 'curious');
       final restored = OnboardingState.fromJson(original.toJson());
       expect(restored.currentPage, 5);

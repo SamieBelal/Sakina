@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/app_session.dart';
+import '../content/problem_chips.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/launch_gate_service.dart';
 import '../../../services/purchase_service.dart';
@@ -76,6 +77,18 @@ class OnboardingState {
     this.reminderTime,
     this.commitmentAccepted = false,
     this.referralApplyFailedReason,
+    // New in v8 (One Ship W2 — the reel flow):
+    this.contract,
+    this.problemCategory,
+    this.chipKey,
+    this.problemTextRaw,
+    this.pairNameIds = const [],
+    this.aspiration,
+    this.carryingDuration,
+    this.reelSource,
+    this.reelId,
+    this.hookType,
+    this.onboardingFlow,
   });
 
   final int currentPage;
@@ -110,6 +123,67 @@ class OnboardingState {
   /// can never surface as a snackbar days after onboarding.
   final String? referralApplyFailedReason;
 
+  // ---- v8: the reel flow's hook + arrival record -------------------------
+  // All of these are written pre-auth and must survive an app kill mid-flow,
+  // so every one of them round-trips through prefs (deferred signup, W2-E2).
+
+  /// [HookContract.problem] or [HookContract.sign] — what the hook promised.
+  final String? contract;
+
+  /// Stable snake_case category behind the chosen chip, or `unmatched`.
+  final String? problemCategory;
+
+  /// The taxonomy chip key (`anxiety`, `far-from-allah`, …). Null when free
+  /// text matched nothing — the comfort pair still reveals, but no chip is
+  /// claimed on the user's behalf.
+  final String? chipKey;
+
+  /// Verbatim free text → `user_profiles.first_problem_text`.
+  final String? problemTextRaw;
+
+  /// `[name₁, name₂]` resolved from the approved decks at hook time. Persisted
+  /// so an app kill after the reveal resumes with the SAME Names.
+  final List<int> pairNameIds;
+
+  /// Wave D's aspiration answer (drives queue rows 3-7 in W2-C2).
+  final String? aspiration;
+
+  /// "How long have you been carrying this?" — pacing + AI context.
+  final String? carryingDuration;
+
+  /// Post-reveal "Where did you find us?" answer.
+  final String? reelSource;
+
+  /// Reel id captured from a `sakina://reel/<id>` deep link.
+  final String? reelId;
+
+  /// [HookType.chip], [HookType.freeText] or [HookType.reel].
+  final String? hookType;
+
+  /// `reel_v1` | `legacy` — which onboarding EXPERIENCE ran. Set at flow entry
+  /// (W2-E1) and mirrored into `user_profiles.onboarding_flow`; also the tour
+  /// suppression key.
+  final String? onboardingFlow;
+
+  /// The `acquisition_promise` jsonb payload, or null when the hook has not
+  /// been answered yet.
+  ///
+  /// `contract` is mandatory — the column carries a check constraint requiring
+  /// it. `contract` and `hookType` are always written together by
+  /// [OnboardingNotifier.applyHookSelection]; if either is somehow missing we
+  /// emit nothing rather than guess an arrival story.
+  Map<String, dynamic>? get acquisitionPromise {
+    final c = contract;
+    final h = hookType;
+    if (c == null || h == null) return null;
+    return {
+      if (reelId != null) 'reel_id': reelId,
+      'hook_type': h,
+      'contract': c,
+      if (problemCategory != null) 'problem_category': problemCategory,
+    };
+  }
+
   OnboardingState copyWith({
     int? currentPage,
     String? intention,
@@ -138,6 +212,19 @@ class OnboardingState {
     bool? commitmentAccepted,
     String? referralApplyFailedReason,
     bool clearReferralApplyFailedReason = false,
+    String? contract,
+    String? problemCategory,
+    String? chipKey,
+    bool clearChipKey = false,
+    String? problemTextRaw,
+    bool clearProblemTextRaw = false,
+    List<int>? pairNameIds,
+    String? aspiration,
+    String? carryingDuration,
+    String? reelSource,
+    String? reelId,
+    String? hookType,
+    String? onboardingFlow,
   }) {
     return OnboardingState(
       currentPage: currentPage ?? this.currentPage,
@@ -167,11 +254,25 @@ class OnboardingState {
       referralApplyFailedReason: clearReferralApplyFailedReason
           ? null
           : (referralApplyFailedReason ?? this.referralApplyFailedReason),
+      contract: contract ?? this.contract,
+      problemCategory: problemCategory ?? this.problemCategory,
+      // Explicit clears: re-answering the hook with unmatched free text must
+      // be able to erase a chip key / typed sentence from an earlier answer.
+      chipKey: clearChipKey ? null : (chipKey ?? this.chipKey),
+      problemTextRaw:
+          clearProblemTextRaw ? null : (problemTextRaw ?? this.problemTextRaw),
+      pairNameIds: pairNameIds ?? this.pairNameIds,
+      aspiration: aspiration ?? this.aspiration,
+      carryingDuration: carryingDuration ?? this.carryingDuration,
+      reelSource: reelSource ?? this.reelSource,
+      reelId: reelId ?? this.reelId,
+      hookType: hookType ?? this.hookType,
+      onboardingFlow: onboardingFlow ?? this.onboardingFlow,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 7,
+        'version': 8,
         'currentPage': currentPage,
         'intention': intention,
         'notificationPermissionGranted': notificationPermissionGranted,
@@ -188,15 +289,27 @@ class OnboardingState {
         'dailyCommitmentMinutes': dailyCommitmentMinutes,
         'reminderTime': reminderTime,
         'commitmentAccepted': commitmentAccepted,
+        'contract': contract,
+        'problemCategory': problemCategory,
+        'chipKey': chipKey,
+        'problemTextRaw': problemTextRaw,
+        'pairNameIds': pairNameIds,
+        'aspiration': aspiration,
+        'carryingDuration': carryingDuration,
+        'reelSource': reelSource,
+        'reelId': reelId,
+        'hookType': hookType,
+        'onboardingFlow': onboardingFlow,
       };
 
   static OnboardingState fromJson(Map<String, dynamic> json) {
-    // Bumped to 7 with the onboarding-trim refactor (page indices changed,
-    // quranConnection / commonEmotions / aspirations fields removed). Old
-    // blobs reference page indices that no longer exist after the trim, so
-    // they are discarded and the user starts fresh.
+    // Bumped to 8 with the One Ship reel flow (W2): the page order changed
+    // again and the hook fields are new. A v7 blob describes a flow whose page
+    // indices no longer mean the same thing, so it is discarded and the user
+    // starts fresh — intended, and the same call the trim refactor made when
+    // it bumped 6 → 7.
     final version = json['version'] as int? ?? 0;
-    if (version < 7) return const OnboardingState();
+    if (version < 8) return const OnboardingState();
 
     var currentPage = json['currentPage'] as int? ?? 0;
     // Preserve rollback-path pages until OnboardingScreen resolves the
@@ -224,6 +337,20 @@ class OnboardingState {
       dailyCommitmentMinutes: json['dailyCommitmentMinutes'] as int?,
       reminderTime: json['reminderTime'] as String?,
       commitmentAccepted: json['commitmentAccepted'] as bool? ?? false,
+      contract: json['contract'] as String?,
+      problemCategory: json['problemCategory'] as String?,
+      chipKey: json['chipKey'] as String?,
+      problemTextRaw: json['problemTextRaw'] as String?,
+      pairNameIds: (json['pairNameIds'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList(growable: false) ??
+          const [],
+      aspiration: json['aspiration'] as String?,
+      carryingDuration: json['carryingDuration'] as String?,
+      reelSource: json['reelSource'] as String?,
+      reelId: json['reelId'] as String?,
+      hookType: json['hookType'] as String?,
+      onboardingFlow: json['onboardingFlow'] as String?,
     );
   }
 }
@@ -322,6 +449,52 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void setStarterName(int catalogId) {
     state = state.copyWith(starterNameId: catalogId);
+    _saveToPrefs();
+  }
+
+  /// Commit the hook screen's answer (W2-B2 → B3).
+  ///
+  /// One write for the whole promise so `contract`, `hookType` and the pair can
+  /// never be persisted half-applied — [OnboardingState.acquisitionPromise]
+  /// depends on that invariant.
+  void applyHookSelection(ChipSelection selection) {
+    state = state.copyWith(
+      contract: selection.contract,
+      problemCategory: selection.problemCategory,
+      hookType: selection.hookType,
+      pairNameIds: selection.pairNameIds,
+      chipKey: selection.chipKey,
+      clearChipKey: selection.chipKey == null,
+      problemTextRaw: selection.problemTextRaw,
+      clearProblemTextRaw: selection.problemTextRaw == null,
+    );
+    _saveToPrefs();
+  }
+
+  void setCarryingDuration(String value) {
+    state = state.copyWith(carryingDuration: value);
+    _saveToPrefs();
+  }
+
+  void setAspiration(String value) {
+    state = state.copyWith(aspiration: value);
+    _saveToPrefs();
+  }
+
+  void setReelSource(String value) {
+    state = state.copyWith(reelSource: value);
+    _saveToPrefs();
+  }
+
+  /// Stamped from a `sakina://reel/<id>` deep link before the hook renders.
+  void setReelArrival({required String reelId}) {
+    state = state.copyWith(reelId: reelId, hookType: HookType.reel);
+    _saveToPrefs();
+  }
+
+  /// `reel_v1` | `legacy`, decided at flow entry (W2-E1).
+  void setOnboardingFlow(String flow) {
+    state = state.copyWith(onboardingFlow: flow);
     _saveToPrefs();
   }
 
@@ -460,6 +633,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         dailyCommitmentMinutes: state.dailyCommitmentMinutes,
         reminderTime: state.reminderTime,
         commitmentAccepted: state.commitmentAccepted,
+        // W1 columns — they ride EVERY persist, including the final one, so
+        // they are already written when `onboarding_completed` freezes them.
+        acquisitionPromise: state.acquisitionPromise,
+        firstProblemText: state.problemTextRaw,
+        onboardingFlow: state.onboardingFlow,
       );
     } catch (e, stack) {
       // Best-effort — don't block onboarding completion on DB failure, but

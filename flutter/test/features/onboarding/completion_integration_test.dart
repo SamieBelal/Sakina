@@ -28,6 +28,9 @@ class _FakeAuthService extends AuthService {
     int? dailyCommitmentMinutes,
     String? reminderTime,
     bool commitmentAccepted = false,
+    Map<String, dynamic>? acquisitionPromise,
+    String? firstProblemText,
+    String? onboardingFlow,
   }) async {
     callCount += 1;
     captured = {
@@ -43,6 +46,9 @@ class _FakeAuthService extends AuthService {
       'dailyCommitmentMinutes': dailyCommitmentMinutes,
       'reminderTime': reminderTime,
       'commitmentAccepted': commitmentAccepted,
+      'acquisitionPromise': acquisitionPromise,
+      'firstProblemText': firstProblemText,
+      'onboardingFlow': onboardingFlow,
     };
   }
 
