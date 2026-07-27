@@ -753,7 +753,7 @@ void _noop() {}
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `flutter test test/widgets/beat_reveal_flow_test.dart -n "loading dissolves"`
+Run: `flutter test test/widgets/beat_reveal_flow_test.dart --plain-name "loading dissolves"`
 Expected: FAIL — `Expected: exactly one matching candidate / Actual: _TextFinder:<zero widgets>` at the mid-fade assertion, because the loader is dropped on the first frame.
 
 - [ ] **Step 3: Implement the fade**
