@@ -18,6 +18,10 @@ flutter build appbundle --release --dart-define-from-file=env.json
 # Tests + lint
 flutter test
 flutter test test/path/to/test.dart   # single file
+
+# Regenerate the iOS widget's lantern frames (writes tracked PNGs — opt-in, so a
+# plain `flutter test` skips it instead of silently rewriting the assets)
+REGEN_WIDGET_FRAMES=1 flutter test test/widgets/gen_companion_widget_frames_test.dart
 flutter analyze
 
 # Codegen (Freezed, JSON serialization)
