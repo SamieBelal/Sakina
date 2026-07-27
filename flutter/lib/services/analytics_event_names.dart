@@ -773,10 +773,41 @@ abstract final class AnalyticsEvents {
     19: 'paywall',
   };
 
+  // REEL 13-page flow step names (0-12, paywall at 12). Active by default once
+  // `reel_first_onboarding_enabled` ships (One Ship W2-E1); the two maps above
+  // serve the kill-switch flows.
+  //
+  // The reel-only screens carry a `reel_` prefix; the six screens the reel flow
+  // REUSES keep their existing names on purpose, so a funnel keyed on
+  // `step_name` joins the same step across all three flows and the
+  // `flag_onboarding_trim` / flow super properties do the segmenting. Copy on
+  // these screens may change; these ids may not.
+  static const reelStepNames = <int, String>{
+    0: 'reel_hook',
+    1: 'reel_reveal',
+    2: 'reel_source',
+    3: 'reel_carrying_duration',
+    4: 'reel_aspiration',
+    5: 'reminder_time',
+    6: 'notifications',
+    7: 'reel_queue_plan',
+    8: 'name_input',
+    9: 'save_progress',
+    10: 'signup_email',
+    11: 'signup_password',
+    12: 'paywall',
+  };
+
   /// Resolves the step-name map for the active onboarding flow. Centralized so
   /// callers in onboarding_screen.dart pick the correct labels at runtime.
-  static Map<int, String> stepNamesFor({required bool trimmed}) =>
-      trimmed ? trimmedStepNames : stepNames;
+  ///
+  /// [reel] wins over [trimmed] — the reel flow is its own page order, not a
+  /// trim of either legacy one.
+  static Map<int, String> stepNamesFor({
+    required bool trimmed,
+    bool reel = false,
+  }) =>
+      reel ? reelStepNames : (trimmed ? trimmedStepNames : stepNames);
 
   // ── Lantern Cosmetics (Noor economy + skins/backdrops) ──────────────────
   // Spec §7. Emitted from cosmetics_service.dart via the static

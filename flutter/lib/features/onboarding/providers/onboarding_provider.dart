@@ -70,6 +70,82 @@ const int onboardingLegacyEmailPageIndex = 19;
 const int onboardingLegacyPasswordPageIndex = 20;
 const int onboardingLegacyEncouragementPageIndex = 21;
 
+// ---------------------------------------------------------------------------
+// REEL flow (One Ship W2-E1) — the third page order. Default-on behind
+// [reelFirstOnboardingFlag]; the two sets above serve the kill switch.
+//
+//   0 Hook, 1 Reveal, 2 Source, 3 Carrying duration, 4 Aspiration,
+//   5 Reminder time, 6 Notifications, 7 Queue plan, 8 Name,
+//   9 Save progress, 10 Email, 11 Password, 12 Paywall (final gate).
+//
+// Value first, account last: the signup trio sits AFTER the reveal and the
+// plan, so the user has met a Name and seen their queue before they are asked
+// for an address (W2-E2, deferred signup).
+// ---------------------------------------------------------------------------
+
+/// app_config kill switch. Fallback **true** — the reel flow is the shipping
+/// experience; OFF reproduces today's prod behaviour exactly (trimmed, or
+/// legacy when `onboarding_trim_enabled` is also off).
+const String reelFirstOnboardingFlag = 'reel_first_onboarding_enabled';
+
+/// Reel-flow last index — the final gate (paywall) at 12.
+const int onboardingReelLastPageIndex = 12;
+
+/// Reel-flow hook screen. No progress bar, no back affordance.
+const int onboardingReelHookPageIndex = 0;
+
+/// Reel-flow reveal (deck → Silver card → sealed Name₂). No progress bar.
+const int onboardingReelRevealPageIndex = 1;
+
+/// First page from which backing up into the reveal is FORBIDDEN.
+///
+/// The reveal awards a card and burns its once-per-run latch on "Ameen"; a
+/// re-entry would land the user on a deck whose Ameen no longer does anything,
+/// and re-answering the hook would resolve a different pair than the card they
+/// already own. `OnboardingRevealLatch` is the belt; this is the braces the
+/// latch's own doc comment requires.
+const int onboardingReelNoBackBeforeIndex = 2;
+
+/// Reel-flow sign-up email page index.
+const int onboardingReelEmailPageIndex = 10;
+
+/// Reel-flow sign-up password page index.
+const int onboardingReelPasswordPageIndex = 11;
+
+/// Where social-auth (Apple/Google) users land after OAuth succeeds in the reel
+/// order: the page after the signup trio, which IS the final gate. Unlike the
+/// trimmed flow there is no interstitial left to show them — the plan screen
+/// already ran, pre-signup.
+const int onboardingReelPostSignupPageIndex = 12;
+
+/// Segments in the reel flow's progress bar.
+///
+/// Nine, not thirteen: the bar is hidden on the hook (spec ③ — a step counter
+/// on screen one signals a long form), on the reveal (full-screen sacred
+/// canvas), on the queue plan (its own header, and it is a payoff not a step),
+/// and on the paywall. The nine bar-visible pages fill segments 0-8, so the bar
+/// COMPLETES on the password screen rather than vanishing part-full.
+const int onboardingReelTotalSegments = 9;
+
+/// Which of the three onboarding page orders is active.
+///
+/// [reel] is the shipping flow; [trimmed] and [legacy] are the two kill-switch
+/// fallbacks and behave exactly as they do today.
+enum OnboardingFlowKind { reel, trimmed, legacy }
+
+/// Last valid page index for [kind].
+int lastPageIndexForFlow(OnboardingFlowKind kind) => switch (kind) {
+      OnboardingFlowKind.reel => onboardingReelLastPageIndex,
+      OnboardingFlowKind.trimmed => onboardingLastPageIndex,
+      OnboardingFlowKind.legacy => onboardingLegacyLastPageIndex,
+    };
+
+/// The `user_profiles.onboarding_flow` value [kind] records. Both fallback
+/// flows are `legacy` — the column names the EXPERIENCE, and neither fallback
+/// is the reel one.
+String onboardingFlowValueFor(OnboardingFlowKind kind) =>
+    kind == OnboardingFlowKind.reel ? onboardingFlowReel : onboardingFlowLegacy;
+
 class OnboardingState {
   const OnboardingState({
     this.currentPage = 0,
@@ -866,15 +942,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
 
-    // Put the new user INTO the hard-paywall gate by writing the local
-    // paywall-cleared latch = false NOW, so the router enforces tour → wall
-    // immediately and deterministically — without depending on the async
-    // batch-sync hydrate winning the race against the first redirect / the
-    // one-shot tour-start in progress_screen (the cold-launch race two
-    // reviewers flagged). Flag-gated: a user who onboards while the kill
-    // switch is OFF must stay grandfathered if it later flips ON, so we only
-    // set the latch when the gate is actually active.
-    if (appSession.hardPaywallFlowEnabled) {
+    // Which post-onboarding gate this user gets is decided by the flow they
+    // actually ran, NOT by the current flag state (plan §F1): a kill-switch
+    // revert must restore the tour for the users who ran the legacy flow
+    // without stranding the reel users who already skipped it.
+    if (state.onboardingFlow == onboardingFlowReel) {
+      // The reel flow REPLACES the forced tour — it already delivered the
+      // value the tour exists to demonstrate (a Name met, a card awarded, the
+      // queue shown), and its final page IS an onboarding-placement paywall.
+      // Latching both gate flags here is what keeps the router from parking
+      // these users in stage `tour`, where no paywall surface is reachable.
+      await appSession.skipOnboardingGateForReelFlow();
+    } else if (appSession.hardPaywallFlowEnabled) {
+      // Put the new user INTO the hard-paywall gate by writing the local
+      // paywall-cleared latch = false NOW, so the router enforces tour → wall
+      // immediately and deterministically — without depending on the async
+      // batch-sync hydrate winning the race against the first redirect / the
+      // one-shot tour-start in progress_screen (the cold-launch race two
+      // reviewers flagged). Flag-gated: a user who onboards while the kill
+      // switch is OFF must stay grandfathered if it later flips ON, so we only
+      // set the latch when the gate is actually active.
       await appSession.enterOnboardingGate();
     }
   }

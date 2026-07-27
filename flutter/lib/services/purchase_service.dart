@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/gift_service.dart';
+import 'package:sakina/services/install_id_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,12 +50,33 @@ class PurchaseService {
       final configuration = PurchasesConfiguration(apiKey);
       await Purchases.configure(configuration);
       _initialized = true;
+      await _attachInstallId();
       completer.complete();
     } catch (error, stackTrace) {
       completer.completeError(error, stackTrace);
       rethrow;
     } finally {
       _initializationFuture = null;
+    }
+  }
+
+  /// Stamps this install's id onto the RevenueCat subscriber as a CUSTOM
+  /// attribute (W2-E3), so a purchase can be joined back to the pre-signup reel
+  /// events that carry the same id as a Mixpanel super property.
+  ///
+  /// Deliberately not RevenueCat's reserved `$mixpanelDistinctId`: that
+  /// attribute asserts the subscriber IS a given Mixpanel distinct id, which
+  /// stops being true the moment `identify()` runs. See
+  /// [installIdPropertyName].
+  ///
+  /// Best-effort — a failed attribute write must never fail `initialize`, which
+  /// gates every purchase path in the app.
+  Future<void> _attachInstallId() async {
+    try {
+      final installId = await InstallIdService().getOrCreate();
+      await Purchases.setAttributes({installIdPropertyName: installId});
+    } catch (error) {
+      debugPrint('[Purchases] install_id attribute failed: $error');
     }
   }
 

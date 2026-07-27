@@ -21,11 +21,24 @@ class SignUpPasswordScreen extends ConsumerStatefulWidget {
   const SignUpPasswordScreen({
     required this.onNext,
     required this.onBack,
+    this.pageIndex = onboardingPasswordPageIndex,
+    this.progressSegment = 22,
+    this.totalSegments,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
+
+  /// This screen's position in the ACTIVE PageView. It gates nothing visual —
+  /// only "am I the page on screen right now", which drives autofocus. The reel
+  /// flow reorders the signup trio, so the index cannot be a constant here.
+  final int pageIndex;
+
+  /// Segment this screen lights on the progress bar, and the bar's length.
+  /// Defaulted to the kill-switch flows' values (W2-E1).
+  final int progressSegment;
+  final int? totalSegments;
 
   @override
   ConsumerState<SignUpPasswordScreen> createState() =>
@@ -201,7 +214,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
   Widget build(BuildContext context) {
     final isActive = ref.watch(
       onboardingProvider.select(
-        (state) => state.currentPage == onboardingPasswordPageIndex,
+        (state) => state.currentPage == widget.pageIndex,
       ),
     );
 
@@ -209,7 +222,8 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
       onTap: () => dismissKeyboard(context),
       behavior: HitTestBehavior.translucent,
       child: OnboardingPageWrapper(
-        progressSegment: 22,
+        progressSegment: widget.progressSegment,
+        totalSegments: widget.totalSegments,
         onBack: () {
           dismissKeyboard(context);
           widget.onBack();

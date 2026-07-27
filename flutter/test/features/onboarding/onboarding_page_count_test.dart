@@ -31,6 +31,69 @@ void main() {
       expect(onboardingLegacyEncouragementPageIndex, 21);
     });
 
+    // --- REEL flow (One Ship W2-E1), the shipping default -------------------
+
+    test('onboardingReelLastPageIndex is 12 (paywall gate at 12)', () {
+      expect(onboardingReelLastPageIndex, 12);
+    });
+
+    test('the reel hook and reveal are pages 0 and 1', () {
+      expect(onboardingReelHookPageIndex, 0);
+      expect(onboardingReelRevealPageIndex, 1);
+    });
+
+    test('onboardingReelNoBackBeforeIndex is 2 (first page past the reveal)',
+        () {
+      expect(onboardingReelNoBackBeforeIndex, 2);
+      expect(
+        onboardingReelNoBackBeforeIndex,
+        onboardingReelRevealPageIndex + 1,
+        reason: 'the latch must start immediately after the reveal — a gap '
+            'would leave a page that can still back into a burnt deck',
+      );
+    });
+
+    test('the reel signup trio sits at 10/11 with the gate at 12', () {
+      expect(onboardingReelEmailPageIndex, 10);
+      expect(onboardingReelPasswordPageIndex, 11);
+      expect(onboardingReelPostSignupPageIndex, 12);
+    });
+
+    test('onboardingReelTotalSegments is 9 (13 pages minus the 4 bar-less)',
+        () {
+      expect(onboardingReelTotalSegments, 9);
+      expect(
+        onboardingReelTotalSegments,
+        (onboardingReelLastPageIndex + 1) - 4,
+        reason: 'bar hidden on hook, reveal, queue plan and paywall',
+      );
+    });
+
+    test('lastPageIndexForFlow resolves all three flows', () {
+      expect(lastPageIndexForFlow(OnboardingFlowKind.reel),
+          onboardingReelLastPageIndex);
+      expect(lastPageIndexForFlow(OnboardingFlowKind.trimmed),
+          onboardingLastPageIndex);
+      expect(lastPageIndexForFlow(OnboardingFlowKind.legacy),
+          onboardingLegacyLastPageIndex);
+    });
+
+    test('onboardingFlowValueFor maps the kind to the profile column value',
+        () {
+      // Both fallbacks are `legacy`: the column names the EXPERIENCE, and
+      // neither kill-switch flow is the reel one.
+      expect(
+          onboardingFlowValueFor(OnboardingFlowKind.reel), onboardingFlowReel);
+      expect(onboardingFlowValueFor(OnboardingFlowKind.trimmed),
+          onboardingFlowLegacy);
+      expect(onboardingFlowValueFor(OnboardingFlowKind.legacy),
+          onboardingFlowLegacy);
+    });
+
+    test('the reel kill-switch flag key is the one the plan names', () {
+      expect(reelFirstOnboardingFlag, 'reel_first_onboarding_enabled');
+    });
+
     test('OnboardingState schema version is 8', () {
       const s = OnboardingState();
       expect(s.toJson()['version'], 8);

@@ -38,6 +38,7 @@ class ReelSingleTapQuestion extends StatefulWidget {
     this.skipLabel,
     this.initialKey,
     this.progressSegment,
+    this.totalSegments,
     this.commitBeat = const Duration(milliseconds: 450),
     super.key,
   });
@@ -62,8 +63,11 @@ class ReelSingleTapQuestion extends StatefulWidget {
 
   /// When set, the screen wears the shared onboarding chrome (back affordance +
   /// progress bar) instead of a bare header. Wave E owns the reel flow's
-  /// segment numbering, so it stays null until then.
+  /// segment numbering (see `onboardingReelTotalSegments`).
   final int? progressSegment;
+
+  /// Length of that bar; null keeps the wrapper's default.
+  final int? totalSegments;
 
   /// The pause between the selected state and [onCommitted]; zero in tests.
   final Duration commitBeat;
@@ -106,9 +110,13 @@ class _ReelSingleTapQuestionState extends State<ReelSingleTapQuestion> {
   Widget build(BuildContext context) {
     final segment = widget.progressSegment;
     if (segment != null) {
-      // The wrapper brings its own back affordance and the progress bar.
+      // The wrapper brings its own back affordance and the progress bar. With
+      // no [onBack] the affordance is omitted rather than rendered inert — the
+      // reel page after the reveal genuinely cannot go back.
       return OnboardingPageWrapper(
         progressSegment: segment,
+        totalSegments: widget.totalSegments,
+        showBack: widget.onBack != null,
         onBack: widget.onBack ?? () {},
         child: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.lg),

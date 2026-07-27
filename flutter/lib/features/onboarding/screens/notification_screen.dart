@@ -18,11 +18,19 @@ class NotificationScreen extends ConsumerWidget {
   const NotificationScreen({
     required this.onNext,
     required this.onBack,
+    this.progressSegment = 14,
+    this.totalSegments,
     super.key,
   });
 
   final VoidCallback onNext;
   final VoidCallback onBack;
+
+  /// Segment this screen lights on the progress bar, and the bar's length.
+  /// Defaulted to the kill-switch flows' values; the reel flow reuses this
+  /// screen at a different position on a shorter bar (W2-E1).
+  final int progressSegment;
+  final int? totalSegments;
 
   Future<void> _requestPermission(WidgetRef ref) async {
     bool granted = false;
@@ -54,7 +62,8 @@ class NotificationScreen extends ConsumerWidget {
     ];
 
     return OnboardingPageWrapper(
-      progressSegment: 14,
+      progressSegment: progressSegment,
+      totalSegments: totalSegments,
       onBack: onBack,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

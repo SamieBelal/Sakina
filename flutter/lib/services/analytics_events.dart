@@ -4,6 +4,7 @@ import '../features/onboarding/providers/onboarding_provider.dart';
 import '../features/paywall/paywall_experiment.dart';
 import 'analytics_service.dart';
 import 'analytics_event_names.dart';
+import 'install_id_service.dart' show installIdPropertyName;
 
 // Re-export the pure constants so the ~30 widget/provider files importing
 // analytics_events.dart for AnalyticsEvents keep working unchanged.
@@ -39,6 +40,7 @@ Future<void> registerBootstrapAnalytics({
   required bool flagGuidedTour,
   required bool isPremium,
   bool flagReverseTrialExp = false,
+  String? installId,
 }) async {
   // Device/build/experiment super properties — durable across a sign-out reset
   // (re-applied by AnalyticsService.resetForSignOut). is_premium is registered
@@ -55,6 +57,14 @@ Future<void> registerBootstrapAnalytics({
     // upgraded installs. Historical events keep the property.
     'flag_guided_tour': flagGuidedTour,
     AnalyticsEvents.flagReverseTrialExp: flagReverseTrialExp,
+    // Install id (W2-E3): DEVICE-scoped, so it rides `cacheDeviceSuperProperties`
+    // and survives the sign-out reset. It is the join key between pre-signup
+    // reel events and the RevenueCat subscriber (same value, set as a custom RC
+    // subscriber attribute at purchase-service init). Omitted rather than
+    // registered null when the read failed — a null super property is worse than
+    // an absent one, since it looks like a real value in a breakdown.
+    if (installId != null && installId.isNotEmpty)
+      installIdPropertyName: installId,
   });
   // One-shot scrub of the retired flag_tour_ab from upgraded installs'
   // persisted store — cheap and idempotent, so it runs every bootstrap.
@@ -82,9 +92,10 @@ extension AnalyticsHelpers on AnalyticsService {
     setUserProperties({AnalyticsEvents.paywallExpArm: value});
   }
 
-  void trackStepViewed(int index, {required bool trimmed}) {
-    final name = AnalyticsEvents.stepNamesFor(trimmed: trimmed)[index] ??
-        'unknown';
+  void trackStepViewed(int index, {required bool trimmed, bool reel = false}) {
+    final name =
+        AnalyticsEvents.stepNamesFor(trimmed: trimmed, reel: reel)[index] ??
+            'unknown';
     timeEvent(AnalyticsEvents.onboardingStepCompleted);
     track(AnalyticsEvents.onboardingStepViewed, properties: {
       'step_index': index,
@@ -92,9 +103,14 @@ extension AnalyticsHelpers on AnalyticsService {
     });
   }
 
-  void trackStepCompleted(int index, {required bool trimmed}) {
-    final name = AnalyticsEvents.stepNamesFor(trimmed: trimmed)[index] ??
-        'unknown';
+  void trackStepCompleted(
+    int index, {
+    required bool trimmed,
+    bool reel = false,
+  }) {
+    final name =
+        AnalyticsEvents.stepNamesFor(trimmed: trimmed, reel: reel)[index] ??
+            'unknown';
     track(AnalyticsEvents.onboardingStepCompleted, properties: {
       'step_index': index,
       'step_name': name,

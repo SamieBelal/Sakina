@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,11 +10,15 @@ import '../../../widgets/sakina_loader.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/app_config_service.dart';
+import '../../../services/reel_deep_link_service.dart';
 import '../../paywall/reverse_trial_onboarding.dart';
+import '../content/problem_chips.dart';
 import '../providers/onboarding_provider.dart';
 import 'age_range_screen.dart';
+import 'aspiration_screen_reel.dart';
 import 'aspirations_screen.dart';
 import 'attribution_screen.dart';
+import 'carrying_duration_screen.dart';
 import 'commitment_pact_screen.dart';
 import 'common_emotions_screen.dart';
 import 'daily_commitment_screen.dart';
@@ -21,12 +27,15 @@ import 'encouragement_screen.dart';
 import 'familiarity_screen.dart';
 import 'first_checkin_screen.dart';
 import 'generating_screen.dart';
+import 'hook_problem_screen.dart';
 import 'intention_screen.dart';
 import 'name_input_screen.dart';
 import 'notification_screen.dart';
+import 'onboarding_reveal_screen.dart';
 import 'paywall_screen.dart';
 import 'personalized_plan_screen.dart';
 import 'prayer_frequency_screen.dart';
+import 'queue_plan_screen.dart';
 import 'quran_connection_screen.dart';
 import 'rating_gate_screen.dart';
 import 'reminder_time_screen.dart';
@@ -34,6 +43,7 @@ import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
 import 'sign_up_password_screen.dart';
 import 'social_proof_screen.dart';
+import 'source_question_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
 import 'your_journey_screen.dart';
@@ -49,15 +59,36 @@ bool shouldFireAbandonment({
   return resumedAt.difference(pausedAt) > const Duration(hours: 24);
 }
 
-/// Last valid page index for the active onboarding flow. Trimmed flow ends at
-/// [onboardingLastPageIndex] (19/18); legacy at [onboardingLegacyLastPageIndex]
-/// (26/25). Pure top-level fn so the dual-flow bound (used by `_next`, the
-/// paywall-event triggers, and the abandonment paywall gate) is directly
-/// unit-testable without driving the full PageView. See
-/// test/features/onboarding/onboarding_dual_flow_test.dart.
+/// Last valid page index for the active onboarding flow: reel ends at
+/// [onboardingReelLastPageIndex] (12), trimmed at [onboardingLastPageIndex]
+/// (19), legacy at [onboardingLegacyLastPageIndex] (26). Pure top-level fn so
+/// the three-flow bound (used by `_next`, the paywall-event triggers, and the
+/// abandonment paywall gate) is directly unit-testable without driving the full
+/// PageView. See test/features/onboarding/onboarding_tri_flow_test.dart.
 @visibleForTesting
-int activeOnboardingLastPageIndex({required bool trimmed}) =>
-    trimmed ? onboardingLastPageIndex : onboardingLegacyLastPageIndex;
+int activeOnboardingLastPageIndex(OnboardingFlowKind flow) =>
+    lastPageIndexForFlow(flow);
+
+/// Whether a move from [from] to [to] is permitted in [flow].
+///
+/// The one rule: in the reel flow, nothing at or past
+/// [onboardingReelNoBackBeforeIndex] may go back to the hook or the reveal.
+/// The reveal awards a card and burns its once-per-run latch on "Ameen", so a
+/// re-entry lands the user on a deck whose Ameen does nothing, and re-answering
+/// the hook resolves a pair that contradicts the card they already own.
+/// `OnboardingRevealLatch` guards the double-award; this guards the dead end.
+///
+/// Pure and top-level so the rule is testable without a PageView.
+@visibleForTesting
+bool canNavigateOnboarding({
+  required OnboardingFlowKind flow,
+  required int from,
+  required int to,
+}) {
+  if (flow != OnboardingFlowKind.reel) return true;
+  return !(from >= onboardingReelNoBackBeforeIndex &&
+      to < onboardingReelNoBackBeforeIndex);
+}
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -69,14 +100,35 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with WidgetsBindingObserver {
   late final PageController _pageController;
-  late final Future<bool> _useTrimmedFlowFuture;
-  // Resolved flow: trimmed (default, 20 pages) vs legacy (27 pages). Starts
-  // optimistic-true to match the FutureBuilder default, then corrected once
-  // `_useTrimmedFlowFuture` resolves. Used by `_next`, the abandonment gate,
-  // and the paywall-event triggers so they reference the ACTIVE flow's last
-  // index instead of the hardcoded trimmed index.
-  bool _trimmed = true;
+  late final Future<OnboardingFlowKind> _flowFuture;
+  // Resolved flow: reel (default, 13 pages) vs the two kill-switch fallbacks,
+  // trimmed (20) and legacy (27). Starts optimistic-reel to match the
+  // FutureBuilder default, then corrected once `_flowFuture` resolves. Used by
+  // `_next`, the abandonment gate, the nav guard, and the paywall-event
+  // triggers so they all reference the ACTIVE flow.
+  OnboardingFlowKind _flow = OnboardingFlowKind.reel;
+  bool get _isReel => _flow == OnboardingFlowKind.reel;
+  bool get _trimmed => _flow == OnboardingFlowKind.trimmed;
   bool _navigating = false;
+
+  /// One latch per onboarding RUN, handed to the reveal screen so a PageView
+  /// rebuild or a re-mount can neither award a second card nor re-emit the
+  /// deck telemetry. Lives here, not in the reveal's own State, by that
+  /// screen's contract.
+  final OnboardingRevealLatch _revealLatch = OnboardingRevealLatch();
+
+  /// The pair the reveal ACTUALLY showed, which is not always the pair the hook
+  /// resolved (the reveal falls back to the comfort pair for an unresolved
+  /// hook). The plan screen renders this so it can never name two Names the
+  /// user did not just meet.
+  List<int>? _revealedPair;
+
+  /// Drained from a `sakina://feel/<emotion>` link — pre-selects a hook card.
+  String? _pendingFeelChipKey;
+
+  /// Drained from a `sakina://reel/<id>?name_ids=…` link — overrides the pair
+  /// the hook would have resolved. Empty for the common case.
+  List<int> _reelPairOverride = const [];
   final Set<int> _viewedEmitted = <int>{};
   final Set<int> _completedEmitted = <int>{};
   final Set<int> _dropoffEmitted = <int>{};
@@ -90,23 +142,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // post-paywall Supabase round-trip doesn't log abandonment-at-last-page.
   bool _completing = false;
 
-  /// Last valid page index for the ACTIVE flow. The trimmed flow ends at
-  /// [onboardingLastPageIndex] (19/18); legacy ends at
-  /// [onboardingLegacyLastPageIndex] (26/25). Used to drive `_next`'s upper
+  /// Last valid page index for the ACTIVE flow. Used to drive `_next`'s upper
   /// bound, the paywall-event triggers, and the abandonment paywall gate so
   /// they all track the flow the user is actually in.
-  int get _activeLastPageIndex =>
-      activeOnboardingLastPageIndex(trimmed: _trimmed);
+  int get _activeLastPageIndex => activeOnboardingLastPageIndex(_flow);
+
+  Map<int, String> get _stepNames =>
+      AnalyticsEvents.stepNamesFor(trimmed: _trimmed, reel: _isReel);
 
   void _emitStepViewedOnce(int index) {
     if (!_viewedEmitted.add(index)) return;
-    ref.read(analyticsProvider).trackStepViewed(index, trimmed: _trimmed);
+    ref
+        .read(analyticsProvider)
+        .trackStepViewed(index, trimmed: _trimmed, reel: _isReel);
     _emitPaywallFlowShown(index);
   }
 
   void _emitStepCompletedOnce(int index) {
     if (!_completedEmitted.add(index)) return;
-    ref.read(analyticsProvider).trackStepCompleted(index, trimmed: _trimmed);
+    ref
+        .read(analyticsProvider)
+        .trackStepCompleted(index, trimmed: _trimmed, reel: _isReel);
     _emitPaywallFlowContinued(index);
   }
 
@@ -125,7 +181,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // `step_name` so both dual-flow index sets resolve correctly (trimmed has no
   // journey page). Fired from the deduped step hooks below, so once per page.
   void _emitPaywallFlowShown(int index) {
-    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final name = _stepNames[index];
     final analytics = ref.read(analyticsProvider);
     if (name == 'paywall_flow_loader') {
       analytics.track(AnalyticsEvents.paywallFlowLoaderShown);
@@ -137,7 +193,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   void _emitPaywallFlowContinued(int index) {
-    final name = AnalyticsEvents.stepNamesFor(trimmed: _trimmed)[index];
+    final name = _stepNames[index];
     final analytics = ref.read(analyticsProvider);
     if (name == 'paywall_flow_loader') {
       analytics.track(AnalyticsEvents.paywallFlowLoaderAdvanced);
@@ -152,7 +208,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   // forward through the funnel. Complements the derivable funnel drop (a
   // *_shown without the next step) with an explicit signal.
   void _emitPaywallFlowDropoffIfLeaving(int fromIndex, int toIndex) {
-    final names = AnalyticsEvents.stepNamesFor(trimmed: _trimmed);
+    final names = _stepNames;
     final name = names[fromIndex];
     if (name == null || !name.startsWith('paywall_flow_')) return;
     // The loader (GeneratingScreen) auto-advances forward, so backing INTO it
@@ -171,23 +227,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    _useTrimmedFlowFuture = ref
-        .read(appConfigServiceProvider)
-        .getBool('onboarding_trim_enabled', fallback: true);
+    _flowFuture = _resolveFlow();
     // Mirror the resolved flow into a field so `_next`, the abandonment gate,
-    // and the paywall triggers (all outside `build`) can read it. The
-    // FutureBuilder in `build` remains the authoritative source for rendering.
-    _useTrimmedFlowFuture.then((value) {
-      if (mounted && value != _trimmed) setState(() => _trimmed = value);
+    // the nav guard, and the paywall triggers (all outside `build`) can read
+    // it. The FutureBuilder in `build` remains the authoritative source for
+    // rendering.
+    _flowFuture.then((kind) {
+      if (!mounted) return;
+      if (kind != _flow) setState(() => _flow = kind);
+      // Record which EXPERIENCE this user ran, at entry rather than at
+      // completion: it rides every `saveOnboardingData` persist (including the
+      // final one that the freeze trigger locks), and `completeOnboarding`
+      // branches on it to decide the post-onboarding gate.
+      ref
+          .read(onboardingProvider.notifier)
+          .setOnboardingFlow(onboardingFlowValueFor(kind));
+      if (kind == OnboardingFlowKind.reel) unawaited(_drainReelDeepLinks());
     });
     WidgetsBinding.instance.addObserver(this);
     final restoredPage = ref.read(onboardingProvider).currentPage;
-    // Clamp against the LEGACY max since the dual-flow decision (trimmed vs
-    // legacy) is async — clamping against trimmedLastIndex prematurely would
-    // strand a legacy-flow returner (e.g. saved currentPage=24, YourJourney)
-    // at the trimmed paywall. The FutureBuilder + PageView will re-correct
-    // bounds once the flow resolves. legacyMax >= trimmedMax always, so
-    // trimmed-flow users are unaffected.
+    // Clamp against the LARGEST of the three maxes, because the flow decision
+    // is async — clamping against a shorter flow's index prematurely would
+    // strand a returner (e.g. saved currentPage=24, YourJourney) at some other
+    // flow's paywall. The FutureBuilder + PageView re-correct the bounds once
+    // the flow resolves (and that re-clamp waits for `hasData` for the same
+    // reason). Legacy is the longest of the three, so nobody is affected.
     const maxInitial =
         onboardingLegacyLastPageIndex > onboardingLastPageIndex
             ? onboardingLegacyLastPageIndex
@@ -216,6 +280,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       }
       // paywall_viewed for the final page is now emitted by PaywallScreen's
       // own initState (single source of truth) — no per-page fire here.
+    });
+  }
+
+  /// Picks between the three page orders (W2-E1, plan review 4).
+  ///
+  /// `reel_first_onboarding_enabled` is checked FIRST and short-circuits: the
+  /// reel flow is its own page order, not a trim of the legacy one. With it
+  /// OFF, the existing `onboarding_trim_enabled` decision runs unchanged — the
+  /// kill switch has to reproduce the CURRENT prod experience, which is the
+  /// trimmed flow, not the 27-page one.
+  Future<OnboardingFlowKind> _resolveFlow() async {
+    final config = ref.read(appConfigServiceProvider);
+    final reel = await config.getBool(reelFirstOnboardingFlag, fallback: true);
+    if (reel) return OnboardingFlowKind.reel;
+    final trimmed =
+        await config.getBool('onboarding_trim_enabled', fallback: true);
+    return trimmed ? OnboardingFlowKind.trimmed : OnboardingFlowKind.legacy;
+  }
+
+  /// Drains whatever `sakina://reel/…` / `sakina://feel/…` left in prefs at
+  /// launch (W2-E4). Only in the reel flow: the kill-switch flows have no hook
+  /// screen to pre-select and no `reel_id` to stamp, and consuming the keys
+  /// there would throw the arrival away for good.
+  Future<void> _drainReelDeepLinks() async {
+    final arrival = await consumePendingReelArrival();
+    final chip = await consumePendingFeelChip();
+    if (!mounted) return;
+    if (arrival != null) {
+      ref.read(onboardingProvider.notifier).setReelArrival(
+            reelId: arrival.reelId,
+          );
+    }
+    if (arrival == null && chip == null) return;
+    setState(() {
+      if (arrival != null) _reelPairOverride = arrival.nameIds;
+      if (chip != null) _pendingFeelChipKey = chip;
     });
   }
 
@@ -261,11 +361,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   void _goToPage(int page) {
     if (_navigating) return;
+
+    final current = ref.read(onboardingProvider).currentPage;
+    // Checked BEFORE the `_navigating` latch is taken: a refused move must
+    // leave the screen navigable, not wedge it behind a guard nothing clears.
+    if (!canNavigateOnboarding(flow: _flow, from: current, to: page)) return;
     _navigating = true;
 
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final current = ref.read(onboardingProvider).currentPage;
     ref.read(onboardingProvider.notifier).setPage(page);
 
     // Only fire step_completed on forward navigation — back navigation is abandonment, not completion
@@ -299,6 +403,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   /// Trimmed-flow social-auth landing: jump to Generating (16).
   void _skipToPostSignup() => _goToPage(onboardingPostSignupPageIndex);
+
+  /// Reel-flow social-auth landing (W2-E2): jump to the final gate (12).
+  /// Nothing is left to show an already-authenticated user — the reveal and the
+  /// plan both ran before signup — so the page after the trio IS the gate.
+  void _skipToReelPostSignup() =>
+      _goToPage(onboardingReelPostSignupPageIndex);
 
   /// Legacy-flow social-auth landing: jump to Encouragement (21).
   /// Kept while the dual-flow kill switch is live; PR-2b will delete the
@@ -390,6 +500,141 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     } catch (_) {/* experiment hook is best-effort */}
 
     if (mounted) context.go('/');
+  }
+
+  /// The hook screen's tap, committed (W2-B2 → B3).
+  ///
+  /// A `sakina://reel/<id>?name_ids=…` link replaces the pair here and nowhere
+  /// else: this is the single place the promise is written, so the override
+  /// cannot land half-applied, and everything else about the answer — what the
+  /// user said, and how — is carried through untouched.
+  void _onHookCommitted(ChipSelection selection) {
+    final override = _reelPairOverride;
+    ref.read(onboardingProvider.notifier).applyHookSelection(
+          override.isEmpty ? selection : selection.withPairNameIds(override),
+        );
+    _next();
+  }
+
+  /// The reveal finished (deck → Silver card → sealed Name₂).
+  void _onRevealDone(OnboardingRevealResult result) {
+    setState(() {
+      _revealedPair = [
+        result.name1Id,
+        if (result.name2Id != null) result.name2Id!,
+      ];
+    });
+    _next();
+  }
+
+  /// Reel 13-screen flow (One Ship W2). Default-on behind
+  /// [reelFirstOnboardingFlag]; see the index constants in
+  /// `onboarding_provider.dart` for the canonical order.
+  ///
+  /// Pages 0, 1 and 12 render NO progress bar (hook: spec ③ bans a step
+  /// counter on screen one; reveal: full-screen sacred canvas; paywall: its own
+  /// visual identity). Page 7 (the plan) is a payoff, not a step, and carries
+  /// its own header. The remaining nine fill segments 0-8 of a
+  /// [onboardingReelTotalSegments]-long bar, so it COMPLETES on the password
+  /// screen.
+  List<Widget> _reelChildren(List<int> pairNameIds) {
+    return [
+      // 0 — Hook: "What's weighing on you right now?" No back (first page).
+      HookProblemScreen(
+        initialChipKey: _pendingFeelChipKey,
+        onCommitted: _onHookCommitted,
+      ),
+      // 1 — Reveal: Name₁'s deck → Silver card → Name₂ sealed.
+      OnboardingRevealScreen(
+        pairNameIds: pairNameIds,
+        latch: _revealLatch,
+        onBack: _back,
+        onDone: _onRevealDone,
+      ),
+      // — Everything below is past the reveal: back-nav to 0/1 is refused. —
+      // 2 — Where did you find us? (no back affordance: nowhere to go)
+      SourceQuestionScreen(
+        onNext: _next,
+        progressSegment: 0,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 3 — How long have you been carrying this?
+      CarryingDurationScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 1,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 4 — Aspiration → queue rows 3-7.
+      AspirationScreenReel(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 2,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 5 — Reminder time (legacy screen, reused as-is).
+      ReminderTimeScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 3,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 6 — Notifications permission (legacy screen, reused as-is).
+      NotificationScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 4,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 7 — The real 7-Name queue + the 8-stamp journey track. No bar.
+      QueuePlanScreen(
+        onNext: _next,
+        onBack: _back,
+        revealedPairNameIds: _revealedPair,
+      ),
+      // — Deferred signup (W2-E2): value first, account last. —
+      // 8 — Name
+      NameInputScreen(
+        onNext: _next,
+        onBack: _back,
+        pageIndex: 8,
+        progressSegment: 5,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 9 — Save progress (sign-up choice)
+      SaveProgressScreen(
+        onNext: _next,
+        onBack: _back,
+        onSocialAuthComplete: _skipToReelPostSignup,
+        progressSegment: 6,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 10 — Sign-up email
+      SignUpEmailScreen(
+        onNext: _next,
+        onBack: _back,
+        pageIndex: onboardingReelEmailPageIndex,
+        progressSegment: 7,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 11 — Sign-up password
+      SignUpPasswordScreen(
+        onNext: _next,
+        onBack: _back,
+        pageIndex: onboardingReelPasswordPageIndex,
+        progressSegment: 8,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 12 — Paywall. ALWAYS the soft onboarding-placement one for this flow
+      // (plan §F1.2): a reel user never sees the post-tour hard wall, because
+      // they never take the tour, so the hard-flag's empty branch would leave
+      // them with no paywall surface at all. W4 replaces this page's contents;
+      // its position is already correct.
+      OnboardingFinalGate(
+        onComplete: _completeOnboarding,
+        alwaysShowPaywall: true,
+      ),
+    ];
   }
 
   /// Trimmed 20-screen flow (Phase A target, 2026-05-25 trim).
@@ -491,10 +736,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onBack: _back,
         onSocialAuthComplete: _skipToEncouragement,
       ),
-      // 19 — Sign-up email
-      SignUpEmailScreen(onNext: _next, onBack: _back),
+      // 19 — Sign-up email. The explicit indices fix a latent bug the reel
+      // flow's `pageIndex` param exposed: these two compared against the
+      // TRIMMED constants (14/15), so neither field ever autofocused in the
+      // legacy flow.
+      SignUpEmailScreen(
+        onNext: _next,
+        onBack: _back,
+        pageIndex: onboardingLegacyEmailPageIndex,
+      ),
       // 20 — Sign-up password
-      SignUpPasswordScreen(onNext: _next, onBack: _back),
+      SignUpPasswordScreen(
+        onNext: _next,
+        onBack: _back,
+        pageIndex: onboardingLegacyPasswordPageIndex,
+      ),
       // 21 — Encouragement #2 (social-auth users land here)
       EncouragementScreen(onNext: _next, onBack: _back),
       // — Paywall flow begins. Progress bar hidden on these. —
@@ -516,26 +772,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     final currentPage = ref.watch(
       onboardingProvider.select((state) => state.currentPage),
     );
+    // Watched, not read: the reveal renders whatever the hook resolved, and the
+    // hook's commit is what changes it.
+    final pairNameIds = ref.watch(
+      onboardingProvider.select((state) => state.pairNameIds),
+    );
 
-    return FutureBuilder<bool>(
-      future: _useTrimmedFlowFuture,
+    return FutureBuilder<OnboardingFlowKind>(
+      future: _flowFuture,
       builder: (context, snapshot) {
-        // Optimistic default — trim is the new shipping flow. Cached value
-        // resolves synchronously on subsequent launches via AppConfigService.
-        final trimmed = snapshot.data ?? true;
+        // Optimistic default — reel is the new shipping flow, matching the
+        // flag's own `fallback: true`. Cached value resolves synchronously on
+        // subsequent launches via AppConfigService.
+        final flow = snapshot.data ?? OnboardingFlowKind.reel;
         // Belt-and-braces: keep the field in lockstep with the rendered flow
-        // so `_next`/abandonment/paywall triggers (which read `_trimmed`
+        // so `_next`/abandonment/nav-guard/paywall triggers (which read `_flow`
         // outside build) never lag the FutureBuilder. Plain assignment — no
         // setState; build is already running.
-        _trimmed = trimmed;
-        final children = trimmed ? _trimmedChildren() : _legacyChildren();
+        _flow = flow;
+        final children = switch (flow) {
+          OnboardingFlowKind.reel => _reelChildren(pairNameIds),
+          OnboardingFlowKind.trimmed => _trimmedChildren(),
+          OnboardingFlowKind.legacy => _legacyChildren(),
+        };
 
         // Re-clamp once the flow resolves: if the user's restored page is
         // past the end of the chosen flow's children, snap them to the last
         // valid page. Defer to the next frame so we don't setState during
         // build. Idempotent — no-op when currentPage is already in bounds.
+        //
+        // `hasData` is load-bearing. The optimistic default is the REEL flow,
+        // which has the SHORTEST page list (13), so clamping on the first
+        // unresolved frame would drag a kill-switch returner restored at, say,
+        // trimmed page 13 down to 12 — permanently, since the clamp persists —
+        // before the flag ever said which flow they are in. This is the same
+        // hazard `initState` guards by clamping against the LARGEST max; the
+        // difference is that here the answer is one frame away, so we simply
+        // wait for it.
         final maxIdx = children.length - 1;
-        if (currentPage > maxIdx) {
+        if (snapshot.hasData && currentPage > maxIdx) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             ref.read(onboardingProvider.notifier).setPage(maxIdx);
@@ -548,9 +823,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         // Pages that should NOT resize for keyboard:
         //   trimmed: 0 (first check-in) and 6 (dua topics)
         //   legacy:  0 (first check-in) and 7 (dua topics)
-        final keepBottomInset = trimmed
-            ? (currentPage != 0 && currentPage != 6)
-            : (currentPage != 0 && currentPage != 7);
+        //   reel:    none — the hook's free-text box has to clear the keyboard,
+        //            and every other text-entry page there wants the resize.
+        final keepBottomInset = switch (flow) {
+          OnboardingFlowKind.reel => true,
+          OnboardingFlowKind.trimmed =>
+            currentPage != 0 && currentPage != 6,
+          OnboardingFlowKind.legacy =>
+            currentPage != 0 && currentPage != 7,
+        };
 
         return Scaffold(
           resizeToAvoidBottomInset: keepBottomInset,
@@ -578,13 +859,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 ///
 /// Keeping the decision at the leaf (rather than restructuring the page list)
 /// leaves every test-pinned page index untouched.
+/// The reel flow (W2-E1) always takes the first branch: see [alwaysShowPaywall].
 @visibleForTesting
 class OnboardingFinalGate extends ConsumerWidget {
-  const OnboardingFinalGate({required this.onComplete, super.key});
+  const OnboardingFinalGate({
+    required this.onComplete,
+    this.alwaysShowPaywall = false,
+    super.key,
+  });
 
   /// `_OnboardingScreenState._completeOnboarding` — idempotent (re-entry
   /// guarded), so the post-frame callback firing on rebuilds is safe.
   final Future<void> Function() onComplete;
+
+  /// Forces the soft onboarding-placement paywall regardless of the
+  /// hard-paywall-after-tour flag. Set by the REEL flow, whose users never take
+  /// the tour: the flag-ON branch below hands off to a router gate that would
+  /// route them straight past every paywall surface, so "no paywall here"
+  /// would mean no paywall anywhere. Plan §F1.2 — W4 replaces the contents of
+  /// this page, not its position.
+  final bool alwaysShowPaywall;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -592,7 +886,7 @@ class OnboardingFinalGate extends ConsumerWidget {
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) {
-        if (!session.hardPaywallFlowEnabled) {
+        if (alwaysShowPaywall || !session.hardPaywallFlowEnabled) {
           return PaywallScreen(
             placement: AnalyticsEvents.placementOnboarding,
             onComplete: onComplete,

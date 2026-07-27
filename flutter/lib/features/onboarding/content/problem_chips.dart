@@ -263,6 +263,22 @@ class ChipSelection {
 
   /// Verbatim typed text (`first_problem_text`); null for chip taps.
   final String? problemTextRaw;
+
+  /// The same answer against a different pair — how a `sakina://reel/<id>`
+  /// link's `name_ids` override lands (W2-E4).
+  ///
+  /// Only the Names change. What the user said (`contract`,
+  /// `problemCategory`, `chipKey`, the typed text) is theirs and is carried
+  /// through untouched; the reel is allowed to choose which Names answer it,
+  /// not to rewrite the question.
+  ChipSelection withPairNameIds(List<int> pairNameIds) => ChipSelection(
+        contract: contract,
+        problemCategory: problemCategory,
+        hookType: hookType,
+        pairNameIds: pairNameIds,
+        chipKey: chipKey,
+        problemTextRaw: problemTextRaw,
+      );
 }
 
 /// Resolves a tap or a typed sentence into a [ChipSelection], deriving the

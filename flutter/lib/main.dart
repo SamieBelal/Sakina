@@ -36,6 +36,8 @@ import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/cosmetics_service.dart';
 import 'services/gating_service.dart';
+import 'services/install_id_service.dart';
+import 'services/reel_deep_link_service.dart';
 import 'services/streak_service.dart';
 import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
@@ -87,16 +89,27 @@ String? extractValidReferralCode(Uri uri) {
 /// Universal-link handling (`https://sakina.app/r/<code>`) is OUT OF SCOPE
 /// for v1 — we don't own the domain, so AASA/assetlinks.json hosting isn't
 /// available. See docs/superpowers/plans/2026-05-14-refer-unlock.md.
-Future<void> _captureInboundReferral(AppLinks appLinks) async {
+Future<void> _captureInboundLinks(AppLinks appLinks) async {
   try {
     final initial = await appLinks.getInitialLink();
-    if (initial != null) await _persistReferralFromUri(initial);
+    if (initial != null) await _persistInboundLink(initial);
   } catch (_) {
     // First-launch on Android can throw on getInitialLink — non-fatal.
   }
   // Warm-launch deep links: subscribe AFTER awaiting the initial-link so
   // the cold-launch URI is committed first.
-  appLinks.uriLinkStream.listen(_persistReferralFromUri);
+  appLinks.uriLinkStream.listen(_persistInboundLink);
+}
+
+/// Every inbound `sakina://` link we capture before `runApp`. Each handler
+/// recognises its own host and ignores the rest, so the order is irrelevant
+/// and adding one cannot break another.
+Future<void> _persistInboundLink(Uri uri) async {
+  await _persistReferralFromUri(uri);
+  // `sakina://reel/<id>` and `sakina://feel/<emotion>` (W2-E4) — same shape as
+  // the referral key above: pure parser, unscoped prefs, drained later by the
+  // onboarding screen. See reel_deep_link_service.dart.
+  await captureReelDeepLink(uri);
 }
 
 Future<void> _persistReferralFromUri(Uri uri) async {
@@ -174,9 +187,10 @@ Future<void> main() async {
   // provider null and every caller no-ops.
   final localNotifications = await _initLocalNotifications();
 
-  // Capture any inbound referral deep link BEFORE further init so the
-  // pending_referral prefs key is committed by the time the signup flow runs.
-  await _captureInboundReferral(AppLinks());
+  // Capture any inbound deep link BEFORE further init so the pending_referral
+  // / pending_reel_arrival / pending_feel_chip prefs keys are committed by the
+  // time the signup flow and the onboarding entry read them.
+  await _captureInboundLinks(AppLinks());
 
   // Load onboarding flag and cached onboarding state
   final prefs = await SharedPreferences.getInstance();
@@ -204,6 +218,10 @@ Future<void> main() async {
     // launch reads fresh values from the populated cache.
     unawaited(
       AppConfigService(Supabase.instance.client).primeCache(const [
+        // The reel-flow kill switch (W2-E1). MUST be primed: a cold-cache miss
+        // reads the `true` fallback, so a REVERTED flag would still render the
+        // reel flow for that launch — the one launch where the revert matters.
+        reelFirstOnboardingFlag,
         'onboarding_trim_enabled',
         'guided_tour_enabled',
         // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
@@ -304,11 +322,22 @@ Future<void> main() async {
   // the four flag_* flags, is_premium) and fire the once-ever app_install
   // event. Extracted to registerBootstrapAnalytics so the guard + super-prop
   // shape is unit-testable; behavior is identical to the previous inline code.
+  // Install id (W2-E3): minted once ever, registered as the `install_id` super
+  // property so pre-signup reel events carry it, and set as the matching
+  // RevenueCat subscriber attribute inside PurchaseService.initialize above.
+  // Best-effort — a failed read simply omits the property.
+  String? installId;
+  try {
+    installId = await InstallIdService().getOrCreate();
+  } catch (_) {
+    installId = null;
+  }
   await registerBootstrapAnalytics(
     analytics: analytics,
     prefs: prefs,
     platform: defaultTargetPlatform.name,
     appVersion: appVersion,
+    installId: installId,
     flagOnboardingTrim: await appConfigForAnalytics
         .getBool('onboarding_trim_enabled', fallback: true),
     flagHardPaywall: await appConfigForAnalytics

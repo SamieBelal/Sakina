@@ -21,6 +21,7 @@ class SourceQuestionScreen extends ConsumerWidget {
     required this.onNext,
     this.onBack,
     this.progressSegment,
+    this.totalSegments,
     this.commitBeat = const Duration(milliseconds: 450),
     super.key,
   });
@@ -45,6 +46,9 @@ class SourceQuestionScreen extends ConsumerWidget {
   /// Forwarded to the shared question surface; null renders no progress bar.
   final int? progressSegment;
 
+  /// Length of that bar; null keeps the wrapper's default.
+  final int? totalSegments;
+
   /// Zero in tests.
   final Duration commitBeat;
 
@@ -58,6 +62,7 @@ class SourceQuestionScreen extends ConsumerWidget {
       initialKey: selected,
       onBack: onBack,
       progressSegment: progressSegment,
+      totalSegments: totalSegments,
       commitBeat: commitBeat,
       skipLabel: skipLabel,
       onSkip: onNext,

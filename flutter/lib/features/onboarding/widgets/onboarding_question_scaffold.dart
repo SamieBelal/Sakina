@@ -21,7 +21,12 @@ class OnboardingQuestionScaffold extends StatelessWidget {
     this.subtitle,
     this.continueLabel,
     this.resizeToAvoidBottomInset = true,
+    this.totalSegments,
   });
+
+  /// Length of the progress bar; null keeps the wrapper's default. Passed by
+  /// the reel flow, which reuses some of these screens on a shorter bar.
+  final int? totalSegments;
 
   final int progressSegment;
   final String headline;
@@ -37,6 +42,7 @@ class OnboardingQuestionScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnboardingPageWrapper(
       progressSegment: progressSegment,
+      totalSegments: totalSegments,
       onBack: onBack,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       child: resizeToAvoidBottomInset

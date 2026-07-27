@@ -1,4 +1,4 @@
-/// **DRAFT — founder review pending.** The aspiration question's options and,
+/// **APPROVED (founder verdict: good, 2026-07-27 — stems, labels, and all five sequences as drafted).** The aspiration question's options and,
 /// more importantly, the five-Name ORDERINGS each one seeds into the queue
 /// (One Ship W2-C2a). Author: Claude; reviewer: founder — same review contract
 /// as the decks (plan open item 2). Nothing here is new content: every id

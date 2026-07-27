@@ -13,10 +13,18 @@ class ReminderTimeScreen extends ConsumerStatefulWidget {
   const ReminderTimeScreen({
     required this.onNext,
     required this.onBack,
+    this.progressSegment = 13,
+    this.totalSegments,
     super.key,
   });
   final VoidCallback onNext;
   final VoidCallback onBack;
+
+  /// Segment this screen lights on the progress bar, and the bar's length.
+  /// Defaulted to the kill-switch flows' values; the reel flow reuses this
+  /// screen at a different position on a shorter bar (W2-E1).
+  final int progressSegment;
+  final int? totalSegments;
 
   @override
   ConsumerState<ReminderTimeScreen> createState() => _ReminderTimeScreenState();
@@ -78,7 +86,8 @@ class _ReminderTimeScreenState extends ConsumerState<ReminderTimeScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingQuestionScaffold(
-      progressSegment: 13,
+      progressSegment: widget.progressSegment,
+      totalSegments: widget.totalSegments,
       headline: 'When should we check in with you?',
       subtitle: 'A gentle reminder, once a day. Pick the hour that suits you.',
       onBack: widget.onBack,

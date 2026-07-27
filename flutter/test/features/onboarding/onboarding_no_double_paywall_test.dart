@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -33,11 +34,18 @@ Future<AppSessionNotifier> _session({required bool flowOn}) async {
   return s;
 }
 
-Widget _host(AppSessionNotifier session, VoidCallback onComplete) {
+Widget _host(
+  AppSessionNotifier session,
+  VoidCallback onComplete, {
+  bool alwaysShowPaywall = false,
+}) {
   return ProviderScope(
     overrides: [appSessionProvider.overrideWithValue(session)],
     child: MaterialApp(
-      home: OnboardingFinalGate(onComplete: () async => onComplete()),
+      home: OnboardingFinalGate(
+        onComplete: () async => onComplete(),
+        alwaysShowPaywall: alwaysShowPaywall,
+      ),
     ),
   );
 }
@@ -107,6 +115,49 @@ void main() {
     // in production). At minimum it fired.
     expect(completeCount, greaterThanOrEqualTo(1));
     expect(find.byType(PaywallScreen), findsNothing);
+  });
+
+  // --- REEL flow (One Ship W2-E1, plan §F1.2) --------------------------------
+  //
+  // The mirror image of the regression above. A reel user never takes the
+  // tour, so the flag-ON branch — "show nothing here, the router gate will
+  // wall them" — would hand them to a router that walls nobody: with
+  // `tourCompleted` + `paywallCleared` both latched by `completeOnboarding`,
+  // they go straight to stage `app`. No paywall in onboarding would therefore
+  // mean no paywall ANYWHERE, which is the opposite failure to two paywalls.
+
+  testWidgets(
+      'reel flow: the final page shows the onboarding paywall even with the '
+      'hard-paywall flag ON', (tester) async {
+    final session = await _session(flowOn: true);
+    addTearDown(session.dispose);
+    var completed = false;
+
+    await tester.pumpWidget(
+      _host(session, () => completed = true, alwaysShowPaywall: true),
+    );
+    await tester.pump();
+
+    expect(find.byType(PaywallScreen), findsOneWidget);
+    expect(completed, false,
+        reason: 'the soft paywall must not auto-complete out from under the '
+            'user — that is what would leave them with no wall at all');
+
+    await tester.pump(const Duration(seconds: 4));
+  });
+
+  testWidgets('reel flow: the paywall carries the onboarding placement',
+      (tester) async {
+    final session = await _session(flowOn: true);
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(_host(session, () {}, alwaysShowPaywall: true));
+    await tester.pump();
+
+    final paywall = tester.widget<PaywallScreen>(find.byType(PaywallScreen));
+    expect(paywall.placement, AnalyticsEvents.placementOnboarding);
+
+    await tester.pump(const Duration(seconds: 4));
   });
 }
 

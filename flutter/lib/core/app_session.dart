@@ -315,6 +315,41 @@ class AppSessionNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The reel flow's counterpart to [enterOnboardingGate] (One Ship W2-E1, per
+  /// plan §F1): a `reel_v1` user must NOT be routed into the forced tour.
+  ///
+  /// The naive "just skip `enterOnboardingGate`" leaves the user in stage
+  /// `tour` forever — the stage machine only reaches the paywall stages after
+  /// `tourCompleted`, and the router lets tour-stage users roam, so no paywall
+  /// surface is ever reached. Both latches are therefore set explicitly.
+  ///
+  /// In-memory FIRST, durable second, for the same reason [enterOnboardingGate]
+  /// flips its flags before awaiting the persist: the router's redirect runs
+  /// synchronously off `context.go('/')` at the end of completion, and a latch
+  /// that only lands after an await loses that race on day 0.
+  ///
+  /// Both writes are best-effort. The in-memory flip already routes THIS
+  /// session correctly; the prefs writes are what keep the next cold launch's
+  /// [hydrateOnboardingGate] from re-gating them (it reads the tour-seen flag
+  /// as `false` when absent).
+  Future<void> skipOnboardingGateForReelFlow() async {
+    setOnboardingFlow(onboardingFlowReelV1);
+    _tourCompleted = true;
+    _paywallCleared = true;
+    notifyListeners();
+
+    final uid = _currentUserIdProvider();
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(onboardingTourSeenFlag(uid), true);
+      } catch (_) {/* in-memory latch still holds for this session */}
+    }
+    try {
+      await OnboardingGateService().setPaywallCleared(true);
+    } catch (_) {/* ditto */}
+  }
+
   /// The forced tour finished → router advances the user to the hard paywall.
   void markTourCompleted() {
     if (_tourCompleted) return;
