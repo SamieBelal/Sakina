@@ -6,7 +6,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 /// Segmented progress: one pill per section, filled gold up to and including
 /// [current], the remainder on the faint `sacredTrack`. Used by the Build-a-Dua
 /// section step viewer.
-class DuaSegmentedProgress extends StatelessWidget {
+class DuaSegmentedProgress extends StatefulWidget {
   const DuaSegmentedProgress({
     super.key,
     required this.count,
@@ -17,11 +17,50 @@ class DuaSegmentedProgress extends StatelessWidget {
   final int current;
 
   @override
+  State<DuaSegmentedProgress> createState() => _DuaSegmentedProgressState();
+}
+
+class _DuaSegmentedProgressState extends State<DuaSegmentedProgress>
+    with SingleTickerProviderStateMixin {
+  /// One-shot hairline sweep on first mount, matching BeatProgressBar. This bar
+  /// is pinned to the bottom next to the CTA rather than to the top, but the
+  /// sweep reads the same on either edge.
+  late final AnimationController _entrance;
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
+    final track = Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(count, (i) {
-        final filled = i <= current;
+      children: List.generate(widget.count, (i) {
+        final filled = i <= widget.current;
         return Container(
           width: 22,
           height: 4,
@@ -32,6 +71,22 @@ class DuaSegmentedProgress extends StatelessWidget {
           ),
         );
       }),
+    );
+
+    return AnimatedBuilder(
+      animation: _entrance,
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(_entrance.value);
+        return Opacity(
+          opacity: t,
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.diagonal3Values(t, 1, 1),
+            child: child,
+          ),
+        );
+      },
+      child: track,
     );
   }
 }

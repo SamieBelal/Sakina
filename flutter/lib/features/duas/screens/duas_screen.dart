@@ -23,6 +23,7 @@ import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/dua_loading.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -219,12 +220,18 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
       if (n.state != inCanvas) n.state = inCanvas;
     });
 
-    return GestureDetector(
-      onTap: () => dismissKeyboard(context),
-      behavior: HitTestBehavior.translucent,
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: _buildBuildTab(state, notifier),
+    // SacredCanvasThreshold animates the crossing in both directions, reusing
+    // the `inCanvas` flag above rather than deriving a second source of truth.
+    // No origin: the canvas arrives when the build result lands, not on a tap.
+    return SacredCanvasThreshold(
+      onCanvas: inCanvas,
+      child: GestureDetector(
+        onTap: () => dismissKeyboard(context),
+        behavior: HitTestBehavior.translucent,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundLight,
+          body: _buildBuildTab(state, notifier),
+        ),
       ),
     );
   }
