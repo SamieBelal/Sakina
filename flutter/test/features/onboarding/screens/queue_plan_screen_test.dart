@@ -38,6 +38,7 @@ void main() {
     String? aspiration,
     String? carryingDuration,
     VoidCallback? onNext,
+    double textScale = 1.0,
   }) async {
     useOnboardingViewport(tester);
     final container = ProviderContainer();
@@ -62,9 +63,12 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          home: QueuePlanScreen(
-            onNext: onNext ?? () {},
-            revealedPairNameIds: revealedPairNameIds,
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+            child: QueuePlanScreen(
+              onNext: onNext ?? () {},
+              revealedPairNameIds: revealedPairNameIds,
+            ),
           ),
         ),
       ),
@@ -87,7 +91,9 @@ void main() {
     // Position 1: met, with the tier the reveal actually awarded.
     expect(find.text(translit(pair[0])), findsOneWidget);
     expect(find.text(QueueNameRow.metLabel), findsOneWidget);
-    expect(find.text('Silver'), findsOneWidget);
+    // The tier belongs to the CARD, never to the Name beside it.
+    expect(find.text('Silver card'), findsOneWidget);
+    expect(find.text('Silver'), findsNothing);
 
     // Position 2: named but sealed — tomorrow, and nothing more precise.
     expect(find.text(translit(pair[1])), findsOneWidget);
@@ -190,6 +196,43 @@ void main() {
       find.byType(JourneyStampTrack),
     );
     expect(track.earnedStamps, 1);
+  });
+
+  testWidgets('the screen survives the accessibility text scales',
+      (tester) async {
+    // The header and the stamp track scroll WITH the rows; pinned above a
+    // scrolling list they took fixed vertical space that grows with the scale,
+    // and at 2x-3x that left the rows nothing to render into. The tier pill is
+    // the horizontal half of the same bug.
+    for (final scale in const [2.0, 3.0]) {
+      await pump(
+        tester,
+        pairNameIds: await realPair('rizq'),
+        aspiration: 'peace',
+        textScale: scale,
+      );
+
+      expect(tester.takeException(), isNull, reason: 'textScaler $scale');
+      // Still reachable, which is why it is the one thing left pinned.
+      expect(find.text('Continue'), findsOneWidget, reason: 'textScaler $scale');
+    }
+  });
+
+  testWidgets('a veiled row announces its position, not just "sealed"',
+      (tester) async {
+    final pair = await realPair('rizq');
+    await pump(tester, pairNameIds: pair, aspiration: 'peace');
+
+    final handle = tester.ensureSemantics();
+    expect(find.bySemanticsLabel('Name 3 of 7, sealed'), findsOneWidget);
+    expect(find.bySemanticsLabel('Name 7 of 7, sealed'), findsOneWidget);
+    // …and the met row reads the tier it shows.
+    expect(
+      find.bySemanticsLabel('${translit(pair[0])}, '
+          '${QueueNameRow.metLabel}, Silver card'),
+      findsOneWidget,
+    );
+    handle.dispose();
   });
 
   testWidgets('continue advances', (tester) async {

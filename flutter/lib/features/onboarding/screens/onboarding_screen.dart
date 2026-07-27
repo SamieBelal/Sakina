@@ -117,12 +117,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   /// screen's contract.
   final OnboardingRevealLatch _revealLatch = OnboardingRevealLatch();
 
-  /// The pair the reveal ACTUALLY showed, which is not always the pair the hook
-  /// resolved (the reveal falls back to the comfort pair for an unresolved
-  /// hook). The plan screen renders this so it can never name two Names the
-  /// user did not just meet.
-  List<int>? _revealedPair;
-
   /// Drained from a `sakina://feel/<emotion>` link — pre-selects a hook card.
   String? _pendingFeelChipKey;
 
@@ -517,13 +511,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   /// The reveal finished (deck → Silver card → sealed Name₂).
+  ///
+  /// The pair goes to the NOTIFIER, not a field on this State: the plan screen
+  /// renders it, and `completeOnboarding` resolves the starter card and the
+  /// queue head against it, so a local copy would leave the server-side half of
+  /// the promise still reading the hook's pair.
   void _onRevealDone(OnboardingRevealResult result) {
-    setState(() {
-      _revealedPair = [
-        result.name1Id,
-        if (result.name2Id != null) result.name2Id!,
-      ];
-    });
+    ref.read(onboardingProvider.notifier).setRevealedPair([
+      result.name1Id,
+      if (result.name2Id != null) result.name2Id!,
+    ]);
     _next();
   }
 
@@ -537,7 +534,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   /// its own header. The remaining nine fill segments 0-8 of a
   /// [onboardingReelTotalSegments]-long bar, so it COMPLETES on the password
   /// screen.
-  List<Widget> _reelChildren(List<int> pairNameIds) {
+  List<Widget> _reelChildren(
+    List<int> pairNameIds,
+    List<int> revealedPairNameIds,
+  ) {
     return [
       // 0 — Hook: "What's weighing on you right now?" No back (first page).
       HookProblemScreen(
@@ -590,7 +590,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       QueuePlanScreen(
         onNext: _next,
         onBack: _back,
-        revealedPairNameIds: _revealedPair,
+        revealedPairNameIds: revealedPairNameIds,
       ),
       // — Deferred signup (W2-E2): value first, account last. —
       // 8 — Name
@@ -777,6 +777,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     final pairNameIds = ref.watch(
       onboardingProvider.select((state) => state.pairNameIds),
     );
+    // …and what the reveal ended up showing, which the plan screen renders.
+    final revealedPairNameIds = ref.watch(
+      onboardingProvider.select((state) => state.revealedPairNameIds),
+    );
 
     return FutureBuilder<OnboardingFlowKind>(
       future: _flowFuture,
@@ -791,7 +795,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         // setState; build is already running.
         _flow = flow;
         final children = switch (flow) {
-          OnboardingFlowKind.reel => _reelChildren(pairNameIds),
+          OnboardingFlowKind.reel =>
+            _reelChildren(pairNameIds, revealedPairNameIds),
           OnboardingFlowKind.trimmed => _trimmedChildren(),
           OnboardingFlowKind.legacy => _legacyChildren(),
         };

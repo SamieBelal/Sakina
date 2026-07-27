@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/card_collection_service.dart' show CardTier, CardTierX;
 import 'package:sakina/services/dua_live_activity_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
@@ -144,6 +145,31 @@ List<ProfileUpdate> onboardingProfileUpdates({
   ];
 }
 
+/// Sends [updates] one statement at a time through [send], isolating each so a
+/// failure cannot abort the ones behind it — the whole reason
+/// [onboardingProfileUpdates] splits the payload in the first place.
+///
+/// [onFailure] receives the stage and the error CLASS (never the raw driver
+/// message, which would explode the analytics property cardinality).
+///
+/// Top level and injectable so the isolation is testable without a live
+/// Supabase client — the same idiom as [onboardingProfileUpdates] itself.
+Future<void> sendOnboardingProfileUpdates(
+  List<ProfileUpdate> updates,
+  Future<void> Function(ProfileUpdate update) send, {
+  void Function(String stage, String errorClass)? onFailure,
+}) async {
+  for (final update in updates) {
+    try {
+      await send(update);
+    } catch (e, stack) {
+      debugPrint('[Auth] onboarding persist (${update.stage}) UPDATE failed: '
+          '$e\n$stack');
+      onFailure?.call(update.stage, e.runtimeType.toString());
+    }
+  }
+}
+
 /// Outcome of [performSignUpWithRecovery].
 enum SignUpOutcome {
   /// signUp succeeded and the response carried a live session.
@@ -252,6 +278,16 @@ Future<SignUpResult> performSignUpWithRecovery({
 
 class AuthService {
   late final _supabase = Supabase.instance.client;
+
+  /// Static analytics hook (mirrors `OnboardingNotifier.onAnalyticsEvent`) —
+  /// wired in `main.dart` so this service stays Riverpod-free.
+  ///
+  /// The onboarding persist is best-effort by design: it must never block the
+  /// user's completion on a DB failure. That makes a dropped answer invisible
+  /// without this, since the only other trace is a `debugPrint` nobody sees in
+  /// production.
+  static void Function(String name, Map<String, Object?> props)?
+      onAnalyticsEvent;
 
   // Default written to `user_profiles.display_name` when onboarding state
   // has no usable name. Without this, the column persisted null for a
@@ -415,33 +451,36 @@ class AuthService {
     // for why the split and the order both matter. Isolated because the split
     // is pointless if the first failure aborts the second: bounding the blast
     // radius means each group survives the other's constraint violations.
-    for (final update in onboardingProfileUpdates(
-      displayName: displayName,
-      intention: intention,
-      familiarity: familiarity,
-      attribution: attribution,
-      ageRange: ageRange,
-      prayerFrequency: prayerFrequency,
-      starterNameId: starterNameId,
-      duaTopics: duaTopics,
-      duaTopicsOther: duaTopicsOther,
-      dailyCommitmentMinutes: dailyCommitmentMinutes,
-      reminderTime: reminderTime,
-      commitmentAccepted: commitmentAccepted,
-      acquisitionPromise: acquisitionPromise,
-      firstProblemText: firstProblemText,
-      onboardingFlow: onboardingFlow,
-    )) {
-      try {
-        await _supabase
-            .from('user_profiles')
-            .update(update.columns)
-            .eq('id', userId);
-      } catch (e, stack) {
-        debugPrint('[Auth] onboarding persist (${update.stage}) UPDATE failed: '
-            '$e\n$stack');
-      }
-    }
+    await sendOnboardingProfileUpdates(
+      onboardingProfileUpdates(
+        displayName: displayName,
+        intention: intention,
+        familiarity: familiarity,
+        attribution: attribution,
+        ageRange: ageRange,
+        prayerFrequency: prayerFrequency,
+        starterNameId: starterNameId,
+        duaTopics: duaTopics,
+        duaTopicsOther: duaTopicsOther,
+        dailyCommitmentMinutes: dailyCommitmentMinutes,
+        reminderTime: reminderTime,
+        commitmentAccepted: commitmentAccepted,
+        acquisitionPromise: acquisitionPromise,
+        firstProblemText: firstProblemText,
+        onboardingFlow: onboardingFlow,
+      ),
+      (update) async => _supabase
+          .from('user_profiles')
+          .update(update.columns)
+          .eq('id', userId),
+      onFailure: (stage, errorClass) => onAnalyticsEvent?.call(
+        AnalyticsEvents.onboardingPersistFailed,
+        {
+          AnalyticsEvents.propStage: stage,
+          AnalyticsEvents.propErrorClass: errorClass,
+        },
+      ),
+    );
   }
 
   /// Seed the user's collection with the starter Name they got from the

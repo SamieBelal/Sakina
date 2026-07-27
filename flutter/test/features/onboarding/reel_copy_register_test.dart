@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// strings the user actually reads are.
 void main() {
   const files = [
+    'lib/features/onboarding/content/aspirations.dart',
     'lib/features/onboarding/content/carrying_durations.dart',
     'lib/features/onboarding/screens/aspiration_screen_reel.dart',
     'lib/features/onboarding/screens/carrying_duration_screen.dart',
@@ -77,9 +78,34 @@ void main() {
     }
   }
 
+  /// The habit-nag register, kept in one place so the ban and the self-check
+  /// below can never drift apart.
+  // `\x27` is the apostrophe in "don't" — a regex-level escape, so the pattern
+  // stays a single-quoted raw string like every other ban here.
+  final habitFraming = RegExp(
+    r'\b(streaks?|habits?|goals?|on track|keep it up|every day'
+    r'|don\x27t miss|keep the)\b',
+  );
+
+  test('the bans match what they claim to', () {
+    // A ban with a typo in it passes vacuously forever. These are the phrases
+    // the plan names, spelled the way a copy edit would reintroduce them.
+    for (final phrase in const [
+      'a 5-day streak',
+      'build the habit',
+      "don't miss a day",
+      'come back every day',
+      'keep the chain going',
+    ]) {
+      expect(habitFraming.hasMatch(phrase), isTrue, reason: phrase);
+    }
+    expect(habitFraming.hasMatch('to keep turning back'), isFalse,
+        reason: 'the aspiration copy is not habit framing');
+  });
+
   test('no streak, habit or goal framing', () {
     expectNoMatch(
-      RegExp(r'\b(streaks?|habits?|goals?|on track|keep it up)\b'),
+      habitFraming,
       'the reel flow counts Names met, never days chained',
     );
   });
@@ -113,9 +139,12 @@ void main() {
     // matching, every ban above would pass vacuously.
     final planCopy =
         literalsIn('lib/features/onboarding/screens/queue_plan_screen.dart');
-    expect(planCopy, contains("'Your Names, in order.'"));
+    expect(planCopy, contains("'The Names ahead of you'"));
     final sourceCopy = literalsIn(
         'lib/features/onboarding/screens/source_question_screen.dart');
     expect(sourceCopy, contains("'Rather not say'"));
+    final aspirationCopy =
+        literalsIn('lib/features/onboarding/content/aspirations.dart');
+    expect(aspirationCopy, contains("'To feel close to Allah again'"));
   });
 }

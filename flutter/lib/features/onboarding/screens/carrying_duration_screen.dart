@@ -53,10 +53,9 @@ class CarryingDurationScreen extends ConsumerWidget {
       progressSegment: progressSegment,
       totalSegments: totalSegments,
       commitBeat: commitBeat,
-      onCommitted: (key) {
-        ref.read(onboardingProvider.notifier).setCarryingDuration(key);
-        onNext();
-      },
+      onAnswer: (key) =>
+          ref.read(onboardingProvider.notifier).setCarryingDuration(key),
+      onCommitted: (_) => onNext(),
     );
   }
 }

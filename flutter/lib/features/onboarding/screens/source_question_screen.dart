@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../services/analytics_event_names.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/reel_single_tap_question.dart';
 
@@ -25,6 +26,13 @@ class SourceQuestionScreen extends ConsumerWidget {
     this.commitBeat = const Duration(milliseconds: 450),
     super.key,
   });
+
+  /// Analytics dispatch hook. This screen is a plain `ConsumerWidget` and the
+  /// answer never reaches a service, so — like `OnboardingRevealScreen` —
+  /// `main.dart` bridges the emission rather than the screen reaching for a
+  /// provider. Null in tests unless the test sets it.
+  static void Function(String name, Map<String, Object?> props)?
+      onAnalyticsEvent;
 
   static const String headlineLabel = 'Where did you find us?';
   static const String sublineLabel = 'It helps us know who we are reaching.';
@@ -66,10 +74,13 @@ class SourceQuestionScreen extends ConsumerWidget {
       commitBeat: commitBeat,
       skipLabel: skipLabel,
       onSkip: onNext,
-      onCommitted: (key) {
+      onAnswer: (key) {
         ref.read(onboardingProvider.notifier).setReelSource(key);
-        onNext();
+        onAnalyticsEvent?.call(AnalyticsEvents.reelSourceSelected, {
+          AnalyticsEvents.propSource: key,
+        });
       },
+      onCommitted: (_) => onNext(),
     );
   }
 }

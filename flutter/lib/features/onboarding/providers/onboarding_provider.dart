@@ -177,6 +177,7 @@ class OnboardingState {
     this.chipKey,
     this.problemTextRaw,
     this.pairNameIds = const [],
+    this.revealedPairNameIds = const [],
     this.aspiration,
     this.carryingDuration,
     this.reelSource,
@@ -239,10 +240,23 @@ class OnboardingState {
   /// so an app kill after the reveal resumes with the SAME Names.
   final List<int> pairNameIds;
 
+  /// `[name₁, name₂]` as the reveal ACTUALLY showed them — the single source of
+  /// truth for the pair once the reveal has run.
+  ///
+  /// Not always [pairNameIds]: the reveal falls back to the comfort pair when
+  /// either half has no approved deck, including for a length-2 pair that only
+  /// LOOKS resolved (a deep link's `name_ids`, an id retired from the decks).
+  /// Recording what was shown is what keeps the four consumers — the card the
+  /// user watched land, `starter_name_id`, the seeded queue's head, and the
+  /// plan screen's named rows — from disagreeing about which Name they met.
+  /// Empty until the reveal reports back, and outside the reel flow.
+  final List<int> revealedPairNameIds;
+
   /// Wave D's aspiration answer (drives queue rows 3-7 in W2-C2).
   final String? aspiration;
 
-  /// "How long have you been carrying this?" — pacing + AI context.
+  /// "How long have you been carrying this?" — pacing + AI context. Rides to
+  /// the server inside [acquisitionPromise] as `carrying_duration`.
   final String? carryingDuration;
 
   /// Post-reveal "Where did you find us?" answer.
@@ -266,6 +280,12 @@ class OnboardingState {
   /// it. `contract` and `hookType` are always written together by
   /// [OnboardingNotifier.applyHookSelection]; if either is somehow missing we
   /// emit nothing rather than guess an arrival story.
+  ///
+  /// `carrying_duration` rides along when the user answered that question. The
+  /// check constraint only requires `contract`, so extra keys are free, and
+  /// this is the column that gives the answer a server-side home: it is
+  /// otherwise local-only, and W3 needs it as AI context on a device that may
+  /// not be the one that onboarded.
   Map<String, dynamic>? get acquisitionPromise {
     final c = contract;
     final h = hookType;
@@ -275,6 +295,7 @@ class OnboardingState {
       'hook_type': h,
       'contract': c,
       if (problemCategory != null) 'problem_category': problemCategory,
+      if (carryingDuration != null) 'carrying_duration': carryingDuration,
     };
   }
 
@@ -313,6 +334,7 @@ class OnboardingState {
     String? problemTextRaw,
     bool clearProblemTextRaw = false,
     List<int>? pairNameIds,
+    List<int>? revealedPairNameIds,
     String? aspiration,
     String? carryingDuration,
     String? reelSource,
@@ -356,6 +378,7 @@ class OnboardingState {
       problemTextRaw:
           clearProblemTextRaw ? null : (problemTextRaw ?? this.problemTextRaw),
       pairNameIds: pairNameIds ?? this.pairNameIds,
+      revealedPairNameIds: revealedPairNameIds ?? this.revealedPairNameIds,
       aspiration: aspiration ?? this.aspiration,
       carryingDuration: carryingDuration ?? this.carryingDuration,
       reelSource: reelSource ?? this.reelSource,
@@ -388,6 +411,7 @@ class OnboardingState {
         'chipKey': chipKey,
         'problemTextRaw': problemTextRaw,
         'pairNameIds': pairNameIds,
+        'revealedPairNameIds': revealedPairNameIds,
         'aspiration': aspiration,
         'carryingDuration': carryingDuration,
         'reelSource': reelSource,
@@ -436,6 +460,10 @@ class OnboardingState {
       chipKey: json['chipKey'] as String?,
       problemTextRaw: json['problemTextRaw'] as String?,
       pairNameIds: (json['pairNameIds'] as List<dynamic>?)
+              ?.map((e) => (e as num).toInt())
+              .toList(growable: false) ??
+          const [],
+      revealedPairNameIds: (json['revealedPairNameIds'] as List<dynamic>?)
               ?.map((e) => (e as num).toInt())
               .toList(growable: false) ??
           const [],
@@ -590,6 +618,21 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       clearChipKey: selection.chipKey == null,
       problemTextRaw: selection.problemTextRaw,
       clearProblemTextRaw: selection.problemTextRaw == null,
+    );
+    _saveToPrefs();
+  }
+
+  /// Record the pair the reveal actually showed (W2-E, called from its
+  /// `onDone`). See [OnboardingState.revealedPairNameIds] for why the shown
+  /// pair — not the hook's — is what the rest of completion resolves against.
+  ///
+  /// Anything but a two-id pair is ignored: a half pair would name one row on
+  /// the plan screen and seed a queue the RPC rejects, and the hook's own pair
+  /// (with its comfort fallback) is the better answer in that case.
+  void setRevealedPair(List<int> nameIds) {
+    if (nameIds.length != 2) return;
+    state = state.copyWith(
+      revealedPairNameIds: List<int>.unmodifiable(nameIds),
     );
     _saveToPrefs();
   }
@@ -790,8 +833,16 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   /// stayed null — the queue's Name₁ and the card they own must be the same
   /// Name. Outside the reel flow the state's pair is returned untouched: the
   /// comfort fallback is the reel flow's contract, not a global default.
+  ///
+  /// The pair the reveal SHOWED wins outright when it recorded one. The hook's
+  /// pair can be two ids long and still not be what the user met — an id no
+  /// approved deck teaches (a deep link's `name_ids`, a retired deck) sends the
+  /// reveal to the comfort pair without ever touching `pairNameIds`, and the
+  /// length check below would then hand completion a pair the user never saw.
   @visibleForTesting
   Future<List<int>> resolvePairNameIds() async {
+    final revealed = state.revealedPairNameIds;
+    if (revealed.length == 2) return revealed;
     final pair = state.pairNameIds;
     if (pair.length == 2 || state.onboardingFlow != onboardingFlowReel) {
       return pair;

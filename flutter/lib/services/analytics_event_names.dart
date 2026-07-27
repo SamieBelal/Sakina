@@ -57,6 +57,21 @@ abstract final class AnalyticsEvents {
   // behind it — their daily unseal opens on an empty queue.
   //   props: id_count, error_class (the class, never the raw driver message)
   static const nameQueueSeedFailed = 'name_queue_seed_failed';
+  // "Where did you find us?" (One Ship W2-D3). The screen buys the user
+  // nothing, so this event is its ENTIRE reason to exist: organic reels carry
+  // no attributed click, and the tap is the only source signal there is. A
+  // decline ("Rather not say") emits nothing — the screen-view event is what
+  // separates a decline from an unseen screen.
+  //   props: [propSource] — one of the screen's stable snake_case keys
+  static const reelSourceSelected = 'reel_source_selected';
+  // An onboarding profile UPDATE that failed (One Ship W2). The persist is
+  // best-effort by design — it must never block completion — which means a
+  // silently-dropped answer is otherwise invisible outside a debug console.
+  //   props: stage ('w1' | 'quiz'), error_class (the class, never the raw
+  //   driver message, which would explode the property cardinality)
+  static const onboardingPersistFailed = 'onboarding_persist_failed';
+  static const propStage = 'stage';
+  static const propErrorClass = 'error_class';
   // Re-engagement: fired when a user taps a push notification (client). Pairs
   // with a future server-side `notification_sent` to compute push CTR and
   // notification→session lift.
@@ -568,6 +583,9 @@ abstract final class AnalyticsEvents {
   /// the duʿā-times widget is separable from the daily-Name widget (both can
   /// deep-link to Build-a-Duʿā). The duʿā-times widget tags its link
   /// `source=dua_times_widget`; taps without the param default to `home_widget`.
+  ///
+  /// Also carries the answer on [reelSourceSelected], where the value space is
+  /// that screen's own keys rather than the widget ones below.
   static const String propSource = 'source';
   static const String widgetSourceHomeWidget = 'home_widget';
   static const String widgetSourceDuaTimes = 'dua_times_widget';

@@ -35,7 +35,7 @@ class QueuePlanScreen extends ConsumerWidget {
     super.key,
   });
 
-  static const String headlineLabel = 'Your Names, in order.';
+  static const String headlineLabel = 'The Names ahead of you';
 
   /// The tier the onboarding reveal awards — deterministic Silver (plan review
   /// blocker 1). Shown on the met row so the plan screen and the card the user
@@ -48,11 +48,18 @@ class QueuePlanScreen extends ConsumerWidget {
   /// `[name₁, name₂]` as the reveal actually showed them, when that is not what
   /// the hook resolved.
   ///
-  /// The reveal falls back to the comfort pair for an unresolved hook, and
-  /// `completeOnboarding` seeds that same fallback — so a plan screen reading
-  /// only `pairNameIds` would veil two rows the queue is about to fill. Wave E
-  /// passes `[result.name1Id, result.name2Id]` from `OnboardingRevealResult`
-  /// here; null means the hook's own pair is the truth.
+  /// The reveal falls back to the comfort pair whenever either half has no
+  /// approved deck, and `completeOnboarding` resolves against that same
+  /// fallback — so a plan screen reading only `pairNameIds` would name two rows
+  /// the queue will not hold (or veil two it will). Wave E passes
+  /// `OnboardingState.revealedPairNameIds` straight through: the reveal writes
+  /// it via `setRevealedPair` in its `onDone`, so this screen, the card the
+  /// user watched land, `starter_name_id` and the seeded queue head all read
+  /// one value.
+  ///
+  /// Anything that is not exactly two ids — null, empty (the reveal has not run
+  /// yet, or this is a kill-switch flow) — means the hook's own pair is the
+  /// truth.
   final List<int>? revealedPairNameIds;
 
   /// The queue as rendered: the hook's pair, then the aspiration's five.
@@ -80,7 +87,9 @@ class QueuePlanScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(onboardingProvider);
-    final pairNameIds = revealedPairNameIds ?? state.pairNameIds;
+    final revealed = revealedPairNameIds;
+    final pairNameIds =
+        revealed != null && revealed.length == 2 ? revealed : state.pairNameIds;
     final hasPair = pairNameIds.length == 2;
     final queue = plannedQueueNameIds(
       pairNameIds: pairNameIds,
@@ -102,24 +111,32 @@ class QueuePlanScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              QueuePlanHeader(
-                headline: headlineLabel,
-                // The carrying-duration answer's visible consequence (§G4).
-                pacingLine: carryingPacingLine(state.carryingDuration),
-                onBack: onBack,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              JourneyStampTrack(
-                totalStamps: totalStamps,
-                earnedStamps: earnedStamps,
-                caption: _stampCaption(earnedStamps),
-              ),
-              const SizedBox(height: AppSpacing.lg),
+              // Header and track scroll WITH the rows. Pinned above a scrolling
+              // list they cost fixed vertical space that grows with the text
+              // scale, and at the accessibility sizes (2x-3x) that left the
+              // rows nothing to render into. Only the continue button stays
+              // pinned — an action the user must always be able to reach.
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _rows(queue, hasPair),
+                    children: [
+                      QueuePlanHeader(
+                        headline: headlineLabel,
+                        // The carrying-duration answer's visible consequence
+                        // (§G4).
+                        pacingLine: carryingPacingLine(state.carryingDuration),
+                        onBack: onBack,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      JourneyStampTrack(
+                        totalStamps: totalStamps,
+                        earnedStamps: earnedStamps,
+                        caption: _stampCaption(earnedStamps),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      ..._rows(queue, hasPair),
+                    ],
                   ),
                 ),
               ),
@@ -152,7 +169,9 @@ class QueuePlanScreen extends ConsumerWidget {
       } else if (name != null && hasPair && i == 1) {
         row = QueueNameRow.next(name: name);
       } else {
-        row = const QueueNameRow.veiled();
+        // A veiled row has no Name to announce, so its position in the queue is
+        // the only thing a screen reader can say about it.
+        row = QueueNameRow.veiled(position: i + 1, total: queue.length);
       }
       if (i > 0) rows.add(const SizedBox(height: AppSpacing.sm + 2));
       rows.add(

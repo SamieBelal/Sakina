@@ -106,6 +106,53 @@ void main() {
     });
   });
 
+  test('the carrying-duration answer rides the promise to the server',
+      () async {
+    // It is otherwise local-only, and W3 needs it as AI context on a device
+    // that may not be the one that onboarded. The DB check constrains only
+    // `contract`, so an extra key is free.
+    final fake = _FakeAuthService();
+    final notifier = OnboardingNotifier(authService: fake)
+      ..setOnboardingFlow('reel_v1')
+      ..applyHookSelection(const ChipSelection(
+        contract: HookContract.problem,
+        problemCategory: 'rizq',
+        hookType: HookType.chip,
+        chipKey: 'rizq',
+        pairNameIds: [13, 23],
+      ))
+      ..setCarryingDuration('years');
+
+    await notifier.debugPersistOnboardingForTest();
+
+    expect(fake.captured!['acquisitionPromise'], {
+      'hook_type': 'chip',
+      'contract': 'problem',
+      'problem_category': 'rizq',
+      'carrying_duration': 'years',
+    });
+  });
+
+  test('an unanswered carrying duration adds no key at all', () async {
+    final fake = _FakeAuthService();
+    final notifier = OnboardingNotifier(authService: fake)
+      ..applyHookSelection(const ChipSelection(
+        contract: HookContract.problem,
+        problemCategory: 'rizq',
+        hookType: HookType.chip,
+        chipKey: 'rizq',
+        pairNameIds: [13, 23],
+      ));
+
+    await notifier.debugPersistOnboardingForTest();
+
+    expect(
+      (fake.captured!['acquisitionPromise'] as Map<String, dynamic>)
+          .containsKey('carrying_duration'),
+      isFalse,
+    );
+  });
+
   test('an unanswered hook sends no promise — the column stays untouched',
       () async {
     final fake = _FakeAuthService();
@@ -227,6 +274,60 @@ void main() {
       expect(quiz.containsKey('age_range'), isTrue);
       expect(quiz['age_range'], isNull);
       expect(quiz['commitment_accepted'], isFalse);
+    });
+  });
+
+  group('sendOnboardingProfileUpdates — the statement ISOLATION', () {
+    final updates = onboardingProfileUpdates(
+      intention: 'spiritualGrowth',
+      onboardingFlow: OnboardingFlow.reelV1,
+      acquisitionPromise: const {'contract': 'problem'},
+    );
+
+    test('a failing W1 statement does not take the quiz statement with it',
+        () async {
+      // The split is pointless if the first failure aborts the second: the W1
+      // columns carry a check constraint and a freeze trigger the quiz columns
+      // do not, and either group must survive the other's violations.
+      final sent = <String>[];
+      await sendOnboardingProfileUpdates(updates, (update) async {
+        sent.add(update.stage);
+        if (update.stage == 'w1') throw StateError('check constraint');
+      });
+
+      expect(sent, ['w1', 'quiz'],
+          reason: 'statement 2 must still be attempted');
+    });
+
+    test('the failure is reported by stage, with the error CLASS only',
+        () async {
+      // A raw PostgrestException message is free-form and version-dependent —
+      // pushing it through a Mixpanel property would explode the cardinality.
+      final failures = <({String stage, String errorClass})>[];
+      await sendOnboardingProfileUpdates(
+        updates,
+        (update) async {
+          if (update.stage == 'w1') throw StateError('rls: 42501 denied');
+        },
+        onFailure: (stage, errorClass) =>
+            failures.add((stage: stage, errorClass: errorClass)),
+      );
+
+      expect(failures, hasLength(1));
+      expect(failures.single.stage, 'w1');
+      expect(failures.single.errorClass, 'StateError');
+      expect(failures.single.errorClass, isNot(contains('42501')));
+    });
+
+    test('a clean run reports nothing', () async {
+      final failures = <String>[];
+      await sendOnboardingProfileUpdates(
+        updates,
+        (_) async {},
+        onFailure: (stage, _) => failures.add(stage),
+      );
+
+      expect(failures, isEmpty);
     });
   });
 }

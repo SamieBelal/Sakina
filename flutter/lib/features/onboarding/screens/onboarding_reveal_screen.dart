@@ -99,6 +99,13 @@ class OnboardingRevealResult {
 class OnboardingRevealLatch {
   bool completed = false;
   bool abandonedFired = false;
+
+  /// [OnboardingRevealScreen.onDone] has been handed back. Guards the deckless-
+  /// Name₂ path, where `_finish` runs from a post-frame callback in `build`:
+  /// any rebuild while that phase is on screen (a parent setState, a PageView
+  /// relayout) schedules another callback, and without this the caller is told
+  /// the reveal finished once per frame.
+  bool finished = false;
 }
 
 enum _Phase { deck, tease }
@@ -146,8 +153,10 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
       // The comfort fallback the hook screen promises, honoured here too: an
       // empty pair (a skipped/kill-switched hook) or an id no approved deck
       // teaches reveals the sign pair rather than an error the user cannot
-      // clear. Both halves move together — half a pair is not a reveal.
-      if (one == null) {
+      // clear. Both halves move together — half a pair is not a reveal, so a
+      // resolvable Name₁ beside an unresolvable Name₂ takes the fallback as
+      // well rather than revealing one Name and teasing nothing.
+      if (one == null || two == null) {
         final comfort = await _stories.comfortPair();
         if (comfort.length == 2) {
           one = comfort.first;
@@ -200,6 +209,8 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   }
 
   void _finish() {
+    if (_latch.finished) return;
+    _latch.finished = true;
     widget.onDone(OnboardingRevealResult(
       name1Id: _name1!.nameId,
       name2Id: _name2?.nameId,
@@ -216,7 +227,7 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
     // Name₂ has no approved deck (ship-gate fallback territory) — the reveal
     // still completed, so hand back rather than strand the user on a tease
     // with nothing in it.
-    if (_phase == _Phase.tease) {
+    if (_phase == _Phase.tease && !_latch.finished) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _finish();
       });

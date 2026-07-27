@@ -45,6 +45,7 @@ import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
 import 'services/user_data_batch_sync_service.dart';
 import 'features/onboarding/screens/onboarding_reveal_screen.dart';
+import 'features/onboarding/screens/source_question_screen.dart';
 import 'widgets/billing_issue_banner.dart';
 import 'widgets/iap_to_sub_upsell_banner.dart';
 
@@ -423,6 +424,14 @@ Future<void> main() async {
   // `name_queue_seed_failed` is otherwise invisible, since completion carries
   // on without the queue the reel flow promised.
   OnboardingNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The reel flow's source question (W2-D3) — measurement is the screen's only
+  // reason to exist, and it is a plain ConsumerWidget with no service behind it.
+  SourceQuestionScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // …and the onboarding persist's own failures. It is best-effort by design, so
+  // without this a silently-dropped answer leaves no production trace at all.
+  AuthService.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(

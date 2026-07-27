@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -265,6 +266,92 @@ void main() {
 
     expect(find.textContaining("You didn't find this"), findsOneWidget);
     expect(find.text('Try Again'), findsNothing);
+  });
+
+  testWidgets('an unresolvable Name₂ takes BOTH halves to the comfort pair',
+      (tester) async {
+    // Half a pair is not a reveal: a length-2 pair whose Name₂ no approved deck
+    // teaches (a deep link's name_ids, a retired deck) used to reveal Name₁ and
+    // then tease nothing, which is the deckless-tease dead end.
+    final done = await pumpReveal(tester, pair: const [6, 999]);
+
+    // Ar-Rahman's recognition beat — the comfort pair, not As-Salam's deck.
+    expect(find.textContaining("You didn't find this"), findsOneWidget);
+    expect(find.textContaining('there is a Name'), findsNothing);
+
+    await walkToLastBeat(tester);
+    await tester.tap(find.text('Ameen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 400));
+    final overlay =
+        tester.widget<CardRevealOverlay>(find.byType(CardRevealOverlay));
+    expect(overlay.card.id, 2, reason: 'the card is the Name they were shown');
+    overlay.onContinue!();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SealedNameTease), findsOneWidget);
+    expect(find.text('Al-Lateef'), findsOneWidget);
+    await tester.tap(find.text(SealedNameTease.continueLabel));
+    await tester.pumpAndSettle();
+
+    expect(done.single.name1Id, 2);
+    expect(done.single.name2Id, 36);
+  });
+
+  testWidgets('a deckless Name₂ tease hands back exactly once, not per frame',
+      (tester) async {
+    // The tease phase with no Name₂ deck finishes from a post-frame callback in
+    // `build`, so every rebuild while it is on screen scheduled another one.
+    // Only reachable when even the comfort pair cannot supply a Name₂.
+    useOnboardingViewport(tester);
+    final done = <OnboardingRevealResult>[];
+    final allDecks = jsonDecode(
+      File(NameStoriesService.assetPath).readAsStringSync(),
+    ) as List<dynamic>;
+    final singleDeckAsset = jsonEncode([
+      allDecks.firstWhere(
+        (deck) => (deck as Map<String, dynamic>)['name_id'] == 6,
+      ),
+    ]);
+
+    Future<void> pumpFrame() => tester.pumpWidget(MaterialApp(
+          home: Padding(
+            // A prop that changes on rebuild, so the child really is rebuilt.
+            padding: EdgeInsets.only(top: done.length.toDouble()),
+            child: OnboardingRevealScreen(
+              pairNameIds: const [6],
+              stories:
+                  NameStoriesService(loadAsset: (_) async => singleDeckAsset),
+              loaderBeat: Duration.zero,
+              showFirstRunHint: false,
+              onDone: done.add,
+            ),
+          ),
+        ));
+
+    await pumpFrame();
+    await tester.pumpAndSettle();
+    await walkToLastBeat(tester);
+    await tester.tap(find.text('Ameen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 400));
+    tester
+        .widget<CardRevealOverlay>(find.byType(CardRevealOverlay))
+        .onContinue!();
+    await tester.pumpAndSettle();
+
+    expect(done, hasLength(1));
+
+    // The parent rebuilds while the tease phase is still mounted.
+    await pumpFrame();
+    await tester.pump();
+    await pumpFrame();
+    await tester.pump();
+
+    expect(done, hasLength(1),
+        reason: 'a rebuild is not a second completion of the reveal');
   });
 
   testWidgets('the in-canvas error is what is left when even comfort fails',

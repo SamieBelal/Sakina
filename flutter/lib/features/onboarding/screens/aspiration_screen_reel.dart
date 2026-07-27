@@ -62,10 +62,9 @@ class AspirationScreenReel extends ConsumerWidget {
       progressSegment: progressSegment,
       totalSegments: totalSegments,
       commitBeat: commitBeat,
-      onCommitted: (key) {
-        ref.read(onboardingProvider.notifier).setAspiration(key);
-        onNext();
-      },
+      onAnswer: (key) =>
+          ref.read(onboardingProvider.notifier).setAspiration(key),
+      onCommitted: (_) => onNext(),
     );
   }
 }

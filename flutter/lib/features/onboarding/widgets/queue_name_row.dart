@@ -26,35 +26,66 @@ class QueueNameRow extends StatelessWidget {
     super.key,
   })  : _name = name,
         _tierLabel = tierLabel,
-        _statusLabel = metLabel;
+        _statusLabel = metLabel,
+        _position = null,
+        _total = null;
 
   const QueueNameRow.next({required CollectibleName name, super.key})
       : _name = name,
         _tierLabel = null,
-        _statusLabel = nextLabel;
+        _statusLabel = nextLabel,
+        _position = null,
+        _total = null;
 
-  const QueueNameRow.veiled({super.key})
-      : _name = null,
+  /// [position] is 1-based and [total] is the length of the whole queue — the
+  /// two numbers a screen reader needs to place a row that has no Name to read.
+  const QueueNameRow.veiled({
+    required int position,
+    required int total,
+    super.key,
+  })  : _name = null,
         _tierLabel = null,
-        _statusLabel = veiledLabel;
+        _statusLabel = veiledLabel,
+        _position = position,
+        _total = total;
 
   static const String metLabel = 'Met';
   static const String nextLabel = 'Opens tomorrow';
   static const String veiledLabel = 'Sealed';
 
+  /// The tier pill's text. The tier belongs to the CARD the reveal awarded, not
+  /// to the Name beside it — no Name of Allah is silver.
+  static String tierPillLabel(String tierLabel) => '$tierLabel card';
+
   final CollectibleName? _name;
   final String? _tierLabel;
   final String _statusLabel;
+  final int? _position;
+  final int? _total;
 
   bool get _isMet => _statusLabel == metLabel;
+
+  /// What a screen reader reads for this row.
+  String get _semanticsLabel {
+    final name = _name;
+    if (name == null) {
+      return 'Name $_position of $_total, ${veiledLabel.toLowerCase()}';
+    }
+    final tierLabel = _tierLabel;
+    final identity = '${name.transliteration}, $_statusLabel';
+    // The tier is on screen for a sighted user; leaving it out of the label
+    // made the met row the one row that read differently than it looked.
+    return tierLabel == null
+        ? identity
+        : '$identity, ${tierPillLabel(tierLabel)}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final name = _name;
     final tierLabel = _tierLabel;
     return Semantics(
-      label:
-          name == null ? veiledLabel : '${name.transliteration}, $_statusLabel',
+      label: _semanticsLabel,
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -76,7 +107,10 @@ class QueueNameRow extends StatelessWidget {
             Expanded(child: name == null ? _veil() : _identity(name)),
             if (tierLabel != null) ...[
               const SizedBox(width: AppSpacing.sm),
-              _tierChip(tierLabel),
+              // Flexible, not a fixed chip: at accessibility text scales the
+              // pill's own text is wider than the space left beside the Name,
+              // and an unconstrained Row child overflows rather than wrapping.
+              Flexible(child: _tierChip(tierLabel)),
             ],
           ],
         ),
@@ -180,7 +214,7 @@ class QueueNameRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
-        label,
+        tierPillLabel(label),
         style: AppTypography.labelSmall.copyWith(
           color: AppColors.goldInk,
           fontWeight: FontWeight.w700,

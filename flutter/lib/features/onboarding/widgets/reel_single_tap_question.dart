@@ -33,6 +33,7 @@ class ReelSingleTapQuestion extends StatefulWidget {
     required this.subline,
     required this.options,
     required this.onCommitted,
+    this.onAnswer,
     this.onBack,
     this.onSkip,
     this.skipLabel,
@@ -47,7 +48,16 @@ class ReelSingleTapQuestion extends StatefulWidget {
   final String subline;
   final List<ReelOption> options;
 
-  /// Fired once per commit with [ReelOption.key], after the beat.
+  /// Fired once per commit with [ReelOption.key], **before** the beat — the
+  /// place to WRITE the answer.
+  ///
+  /// The beat is a held breath, not a save: a page change or a backgrounding
+  /// during it must not be able to lose a tap the user already made. Runs from
+  /// the tap handler, so a Riverpod mutation inside it is safe.
+  final ValueChanged<String>? onAnswer;
+
+  /// Fired once per commit with [ReelOption.key], after the beat — the place to
+  /// NAVIGATE. By the time it runs the answer is already recorded.
   final ValueChanged<String> onCommitted;
 
   /// Omitted (no affordance rendered) when this is the flow's first page.
@@ -78,7 +88,14 @@ class ReelSingleTapQuestion extends StatefulWidget {
 
 class _ReelSingleTapQuestionState extends State<ReelSingleTapQuestion> {
   String? _selectedKey;
+
+  /// Held from the tap until a rebuild AFTER [ReelSingleTapQuestion.onCommitted]
+  /// has run. While it is set, further taps and the skip link do nothing.
   bool _committing = false;
+
+  /// `onCommitted` has run for the tap that set [_committing] — so the next
+  /// rebuild is free to release the guard.
+  bool _committed = false;
 
   @override
   void initState() {
@@ -86,24 +103,37 @@ class _ReelSingleTapQuestionState extends State<ReelSingleTapQuestion> {
     _selectedKey = widget.initialKey;
   }
 
+  @override
+  void didUpdateWidget(covariant ReelSingleTapQuestion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Release point for the commit guard. A rebuild arriving mid-beat is this
+    // screen's own answer landing on state and echoing back, and releasing on
+    // that would re-open the window a second tap could commit through — so the
+    // guard only lifts once the commit has been handed off in full. A user who
+    // navigates back can then change their answer. No setState: a build always
+    // follows didUpdateWidget.
+    if (_committed) {
+      _committing = false;
+      _committed = false;
+    }
+  }
+
   /// The beat is a held breath, not a spinner: the card shows itself chosen,
-  /// then the flow moves. Taps during it are swallowed (one commit per beat);
-  /// the guard is released afterwards so a user who navigates back can change
-  /// their answer.
+  /// then the flow moves. The ANSWER, though, is written the instant the tap
+  /// lands — the beat is visual only, and a page change or a backgrounding
+  /// during it must not cost the user the tap they already made.
   Future<void> _commit(String key) async {
     if (_committing) return;
     setState(() {
       _committing = true;
       _selectedKey = key;
     });
+    widget.onAnswer?.call(key);
     HapticFeedback.selectionClick();
     await Future<void>.delayed(widget.commitBeat);
-    if (!mounted) {
-      _committing = false;
-      return;
-    }
-    setState(() => _committing = false);
+    if (!mounted) return;
     widget.onCommitted(key);
+    _committed = true;
   }
 
   @override
