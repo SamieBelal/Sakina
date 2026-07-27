@@ -26,6 +26,28 @@ class _CanvasBodyState extends State<_CanvasBody> {
   Widget build(BuildContext context) => const Text('canvas');
 }
 
+/// Same idea as [_CanvasBody], for the surface side: a reversed enter must not
+/// remount the cream tree either.
+int _surfaceInits = 0;
+
+class _SurfaceBody extends StatefulWidget {
+  const _SurfaceBody();
+
+  @override
+  State<_SurfaceBody> createState() => _SurfaceBodyState();
+}
+
+class _SurfaceBodyState extends State<_SurfaceBody> {
+  @override
+  void initState() {
+    super.initState();
+    _surfaceInits++;
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('surface');
+}
+
 Widget _host({
   required bool onCanvas,
   Offset? origin,
@@ -38,14 +60,17 @@ Widget _host({
           child: SacredCanvasThreshold(
             onCanvas: onCanvas,
             origin: origin,
-            child: onCanvas ? const _CanvasBody() : const Text('surface'),
+            child: onCanvas ? const _CanvasBody() : const _SurfaceBody(),
           ),
         ),
       ),
     );
 
 void main() {
-  setUp(() => _canvasInits = 0);
+  setUp(() {
+    _canvasInits = 0;
+    _surfaceInits = 0;
+  });
 
   testWidgets('idle wraps the child in no clip or opacity layer', (t) async {
     await t.pumpWidget(_host(onCanvas: true));
@@ -122,5 +147,66 @@ void main() {
 
     await t.pump(const Duration(milliseconds: 160));
     expect(find.text('surface'), findsNothing);
+  });
+
+  testWidgets(
+      'reversing an enter mid-bloom returns to the surface without a full-screen flash',
+      (t) async {
+    await t.pumpWidget(_host(onCanvas: false));
+    await t.pumpWidget(_host(onCanvas: true));
+    await t.pump(const Duration(milliseconds: 250)); // mid-bloom
+
+    await t.pumpWidget(_host(onCanvas: false)); // reverse mid-flight
+
+    // The frame right after the reversal begins must still be shrinking the
+    // bloom, not have snapped to the exit stack's bare opacity fade.
+    await t.pump(const Duration(milliseconds: 16));
+    expect(
+      find.descendant(
+        of: find.byType(SacredCanvasThreshold),
+        matching: find.byType(ClipPath),
+      ),
+      findsOneWidget,
+      reason:
+          'a reversed enter keeps shrinking the bloom geometry, it does not '
+          'jump to a full-screen opaque canvas that then fades',
+    );
+
+    await t.pumpAndSettle();
+    expect(find.text('canvas'), findsNothing);
+    expect(find.text('surface'), findsOneWidget);
+  });
+
+  testWidgets('reversing unwinds the bloom in place rather than restarting',
+      (t) async {
+    await t.pumpWidget(_host(onCanvas: false));
+    await t.pumpWidget(_host(onCanvas: true));
+    await t.pump(const Duration(milliseconds: 250)); // mid-bloom, ~35% of 700ms
+
+    await t.pumpWidget(_host(onCanvas: false)); // reverse mid-flight
+
+    // A reversal from t≈0.35 unwinds over ≈0.35×700≈245ms (or less, if the
+    // fix rides the shorter 400ms exit duration instead) — either way well
+    // under a fresh 400ms exit restarted from t=0, which would still have the
+    // canvas mounted at the 300ms mark.
+    await t.pump(const Duration(milliseconds: 300));
+    expect(find.text('canvas'), findsNothing,
+        reason: 'reversing in place settles faster than restarting a fresh exit would');
+    expect(find.text('surface'), findsOneWidget);
+  });
+
+  // A GlobalKey-identity invariant, not a reversal regression test: it holds
+  // both before and after the reversal fix below, because the surface's
+  // element identity was never the broken part — see the fix commit.
+  testWidgets('the surface tree keeps its element identity across a reversal',
+      (t) async {
+    await t.pumpWidget(_host(onCanvas: false));
+    await t.pumpWidget(_host(onCanvas: true));
+    await t.pump(const Duration(milliseconds: 250)); // mid-bloom
+
+    await t.pumpWidget(_host(onCanvas: false)); // reverse mid-flight
+    await t.pumpAndSettle();
+
+    expect(_surfaceInits, 1);
   });
 }

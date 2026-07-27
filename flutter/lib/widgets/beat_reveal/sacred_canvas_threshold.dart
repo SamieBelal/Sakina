@@ -55,11 +55,20 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  /// The tree being replaced — a frozen snapshot of the previous [widget.child],
-  /// deliberately not rebuilt while it departs. Null whenever we're idle.
-  Widget? _outgoing;
+  /// The two trees, tracked by what each one *is* rather than derived from the
+  /// current [widget.onCanvas]. A transition must keep animating the same pair
+  /// even when the flag flips underneath it mid-flight — deriving the roles
+  /// from the live flag would swap them halfway and clip the wrong tree.
+  /// Whichever tree the host isn't currently handing us stays frozen at the
+  /// frame the transition began.
+  Widget? _canvasChild;
+  Widget? _surfaceChild;
 
-  /// Direction of the in-flight transition.
+  /// True while a transition is in flight, including one that is unwinding.
+  bool _transitioning = false;
+
+  /// Which direction the in-flight transition *began* in. A reversal does not
+  /// change it: a reversed enter is still an enter, played backwards.
   bool _entering = false;
 
   /// Stable identities for the two trees. Each tree keeps its own key for its
@@ -77,8 +86,13 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
     super.initState();
     _controller = AnimationController(vsync: this)
       ..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() => _outgoing = null);
+        if (!mounted) return;
+        // `completed` is a transition that landed; `dismissed` is one that was
+        // reversed all the way back to where it started. Both are resting
+        // states — settling on either drops us to the cheap idle path.
+        if (status == AnimationStatus.completed ||
+            status == AnimationStatus.dismissed) {
+          setState(() => _transitioning = false);
         }
       });
   }
@@ -88,8 +102,23 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.onCanvas == widget.onCanvas) return;
 
+    // Flipped mid-flight (e.g. the user backs out while the bloom is still
+    // growing): change the direction of the animation we're already playing
+    // instead of starting a new one. Restarting would snap a half-grown circle
+    // to a full-screen canvas and only then fade it. The reversal rides the
+    // duration it started with rather than swapping enter's 700ms for exit's
+    // 400ms — swapping would visibly change speed halfway through one gesture.
+    if (_transitioning) {
+      if (widget.onCanvas == _entering) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+      return;
+    }
+
     _entering = widget.onCanvas;
-    _outgoing = oldWidget.child;
+    _transitioning = true;
     _controller
       ..duration = _reducedMotion
           ? SacredCanvasThresholdDurations.reduced
@@ -112,24 +141,30 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
 
   @override
   Widget build(BuildContext context) {
-    final outgoing = _outgoing;
+    // Record whichever tree the host is handing us this frame. The other slot
+    // keeps the last tree of its kind, frozen — that's what we animate against.
+    if (widget.onCanvas) {
+      _canvasChild = widget.child;
+    } else {
+      _surfaceChild = widget.child;
+    }
 
     // Idle: the child, bare. No clip, no opacity, no stack — an animation that
     // has finished must cost nothing.
-    if (outgoing == null) {
+    if (!_transitioning) {
       return KeyedSubtree(
         key: _keyFor(isCanvas: widget.onCanvas),
         child: widget.child,
       );
     }
 
-    final incoming = KeyedSubtree(
-      key: _keyFor(isCanvas: widget.onCanvas),
-      child: widget.child,
+    final canvas = KeyedSubtree(
+      key: _canvasKey,
+      child: _canvasChild ?? const SizedBox.shrink(),
     );
-    final departing = KeyedSubtree(
-      key: _keyFor(isCanvas: !widget.onCanvas),
-      child: outgoing,
+    final surface = KeyedSubtree(
+      key: _surfaceKey,
+      child: _surfaceChild ?? const SizedBox.shrink(),
     );
 
     return AnimatedBuilder(
@@ -137,8 +172,8 @@ class _SacredCanvasThresholdState extends State<SacredCanvasThreshold>
       builder: (context, _) {
         final t = Curves.easeOutCubic.transform(_controller.value);
         return _entering
-            ? _enterStack(departing, incoming, t)
-            : _exitStack(incoming, departing, t);
+            ? _enterStack(surface, canvas, t)
+            : _exitStack(surface, canvas, t);
       },
     );
   }
