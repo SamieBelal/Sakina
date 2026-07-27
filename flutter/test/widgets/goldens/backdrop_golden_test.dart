@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/streaks/models/backdrop.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_painter.dart';
+import 'golden_platform.dart';
 
 Widget _harness(Backdrop b) => MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -23,6 +24,6 @@ void main() {
         find.byType(CustomPaint).first,
         matchesGoldenFile('backdrops/${b.id}.png'),
       );
-    });
+    }, skip: skipGoldensOffPlatform);
   }
 }

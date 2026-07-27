@@ -8,6 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/models/lantern_skin.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'golden_platform.dart';
 
 const _fullyLit =
     CompanionState(brightness: CompanionBrightness.fullyLit, protected: false);
@@ -53,7 +54,7 @@ void main() {
         find.byType(CompanionMedallion),
         matchesGoldenFile('skins/${skin.id}_fully_lit.png'),
       );
-    });
+    }, skip: skipGoldensOffPlatform);
 
     testWidgets('skin ${skin.id} · dim', (tester) async {
       await tester.pumpWidget(_harness(skin, _dim));
@@ -62,6 +63,6 @@ void main() {
         find.byType(CompanionMedallion),
         matchesGoldenFile('skins/${skin.id}_dim.png'),
       );
-    });
+    }, skip: skipGoldensOffPlatform);
   }
 }

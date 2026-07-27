@@ -9,6 +9,7 @@ import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/models/lantern_skin.dart';
 import 'package:sakina/features/streaks/widgets/backdrop_stage.dart';
 import 'package:sakina/features/streaks/widgets/companion_medallion.dart';
+import 'golden_platform.dart';
 
 const _fullyLit =
     CompanionState(brightness: CompanionBrightness.fullyLit, protected: false);
@@ -51,12 +52,12 @@ void main() {
         _stage(Backdrop.laylatNight, LanternSkin.masjidBrass, _fullyLit));
     await expectLater(
         find.byType(CompanionStage), matchesGoldenFile('stages/laylat_masjid.png'));
-  });
+  }, skip: skipGoldensOffPlatform);
 
   testWidgets('stage · jade on emerald sanctuary', (tester) async {
     await tester.pumpWidget(
         _stage(Backdrop.emeraldSanctuary, LanternSkin.emeraldJade, _fullyLit));
     await expectLater(
         find.byType(CompanionStage), matchesGoldenFile('stages/emerald_jade.png'));
-  });
+  }, skip: skipGoldensOffPlatform);
 }

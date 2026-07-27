@@ -65,6 +65,16 @@ select has_trigger('public', 'referrals', 'trg_notify_referrer_on_confirm',
 -- (unknown type) — pgtap's like() is `(text, text, text)` and the parser
 -- doesn't auto-cast. Using the LIKE operator inside ok() side-steps the
 -- ambiguity entirely.
+--
+-- ILIKE, not LIKE: `pg_get_triggerdef` renders the WHEN clause's row variables
+-- in LOWERCASE — `WHEN (((old.status = 'pending'::text) AND (new.status =
+-- 'confirmed'::text)))` — while this pattern spells them OLD/NEW. LIKE is
+-- case-sensitive, so the assertion could never pass; verified against a live
+-- Postgres 17.6, where LIKE returns false and ILIKE returns true for this exact
+-- trigger. It went unnoticed because a pgTAP `not ok` is a result ROW, so psql
+-- still exits 0 and CI reported the suite green until the TAP-parsing fix in
+-- this PR started failing on `not ok`. Case-insensitive keeps the assertion
+-- honest across Postgres versions without pinning its formatting quirks.
 select ok(
   (select pg_get_triggerdef(t.oid)
      from pg_trigger t
@@ -72,7 +82,7 @@ select ok(
      join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
       and c.relname = 'referrals'
-      and t.tgname = 'trg_notify_referrer_on_confirm') LIKE
+      and t.tgname = 'trg_notify_referrer_on_confirm') ILIKE
     '%AFTER UPDATE OF status%FOR EACH ROW%OLD.status = ''pending''%NEW.status = ''confirmed''%',
   'trigger DDL: AFTER UPDATE OF status, FOR EACH ROW, tightened pending->confirmed WHEN (S4 fix)');
 
