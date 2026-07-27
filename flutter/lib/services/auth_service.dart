@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
+import 'package:sakina/services/card_collection_service.dart' show CardTier, CardTierX;
 import 'package:sakina/services/dua_live_activity_service.dart';
 import 'package:sakina/services/starter_name_cache.dart';
 import 'package:sakina/services/widget_data_service.dart';
@@ -28,6 +29,26 @@ Future<int> clearScopedPreferencesForUser(
   }
   return scopedKeys.length;
 }
+
+/// The One Ship W1 profile columns for an UPDATE payload, non-null values only.
+///
+/// A key is emitted only when the flow produced a value. An explicit null would
+/// clobber an earlier persist ([AuthService.saveOnboardingData] runs 2-4× per
+/// signup) and, once `onboarding_completed` is true, the freeze trigger raises
+/// on any *distinct* value — including a null over a real answer.
+///
+/// Top level so the non-null-only contract is unit-testable without a live
+/// Supabase client (same idiom as [clearScopedPreferencesForUser]).
+Map<String, dynamic> w1ProfileColumns({
+  Map<String, dynamic>? acquisitionPromise,
+  String? firstProblemText,
+  String? onboardingFlow,
+}) =>
+    {
+      if (acquisitionPromise != null) 'acquisition_promise': acquisitionPromise,
+      if (firstProblemText != null) 'first_problem_text': firstProblemText,
+      if (onboardingFlow != null) 'onboarding_flow': onboardingFlow,
+    };
 
 /// Outcome of [performSignUpWithRecovery].
 enum SignUpOutcome {
@@ -309,14 +330,23 @@ class AuthService {
       'daily_commitment_minutes': dailyCommitmentMinutes,
       'reminder_time': reminderTime,
       'commitment_accepted': commitmentAccepted,
-      // Only written when the flow produced a value. An explicit null would
-      // clobber an earlier persist (this method runs 2-4× per signup) and,
-      // once `onboarding_completed` is true, the freeze trigger raises on any
-      // *distinct* value — including a null over a real answer.
-      if (acquisitionPromise != null) 'acquisition_promise': acquisitionPromise,
-      if (firstProblemText != null) 'first_problem_text': firstProblemText,
-      if (onboardingFlow != null) 'onboarding_flow': onboardingFlow,
     }).eq('id', userId);
+
+    // The three W1 columns ride a SECOND statement, deliberately.
+    //
+    // `acquisition_promise` carries a check constraint and `onboarding_flow` is
+    // covered by the post-completion freeze trigger. Sharing one UPDATE with the
+    // quiz answers means either of those raising takes the whole write down —
+    // and this method is the only writer of the quiz answers, so a reel-flow
+    // constraint bug would silently cost every user their onboarding data.
+    // Split, the blast radius of a W1 failure is the W1 columns.
+    final w1 = w1ProfileColumns(
+      acquisitionPromise: acquisitionPromise,
+      firstProblemText: firstProblemText,
+      onboardingFlow: onboardingFlow,
+    );
+    if (w1.isEmpty) return;
+    await _supabase.from('user_profiles').update(w1).eq('id', userId);
   }
 
   /// Seed the user's collection with the starter Name they got from the
@@ -329,12 +359,25 @@ class AuthService {
   /// home greeting can render the starter Name synchronously without waiting
   /// for the next Supabase round-trip (the previous behavior caused a
   /// noticeable "today's Name" flicker on the day-0 home greeting).
-  Future<void> seedStarterCard(int nameId) async {
+  ///
+  /// [tier] defaults to the legacy `bronze`; the reel flow passes
+  /// [CardTier.silver] because its reveal SHOWS a Silver card (W2-C1,
+  /// deterministic — there is no tier roll to clamp).
+  ///
+  /// An existing row is **clamped, never incremented**: the tier becomes
+  /// `max(current, tier)`, so a re-run of `completeOnboarding` (which is
+  /// designed to be re-runnable) can raise a Bronze row to the Silver the user
+  /// was shown, but can never step a Gold/Emerald card back down or ratchet a
+  /// card up one tier per call the way the engage path does.
+  Future<void> seedStarterCard(
+    int nameId, {
+    CardTier tier = CardTier.bronze,
+  }) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;
     final existing = await _supabase
         .from('user_card_collection')
-        .select('id')
+        .select('id, tier')
         .eq('user_id', userId)
         .eq('name_id', nameId)
         .maybeSingle();
@@ -342,10 +385,23 @@ class AuthService {
       await _supabase.from('user_card_collection').insert({
         'user_id': userId,
         'name_id': nameId,
-        'tier': 'bronze',
+        'tier': tier.name,
       });
+    } else if (_tierRank(existing['tier'] as String?) < tier.number) {
+      await _supabase
+          .from('user_card_collection')
+          .update({'tier': tier.name}).eq('id', existing['id'] as Object);
     }
     await writeCachedStarterNameId(nameId);
+  }
+
+  /// The stored tier's rank, or the ceiling for an unrecognised value so an
+  /// unknown tier is never clobbered by the clamp.
+  int _tierRank(String? stored) {
+    for (final t in CardTier.values) {
+      if (t.name == stored) return t.number;
+    }
+    return CardTier.emerald.number;
   }
 
   Future<void> markOnboardingCompleted() async {

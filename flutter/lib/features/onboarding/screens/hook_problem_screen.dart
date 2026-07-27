@@ -78,7 +78,20 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
     super.dispose();
   }
 
-  Future<void> _commit(Future<ChipSelection> resolving, String? key) async {
+  /// [resolve] is a thunk, not a future: a swallowed tap must never start work
+  /// nobody awaits, and an eagerly-created future whose error lands after the
+  /// guard returns is an unhandled async error.
+  ///
+  /// [unresolved] is what we commit when the deck lookup fails (missing or
+  /// unparseable asset). Screen one has no other way forward, so a failure
+  /// costs the tailored Names — the reveal reads the empty pair as the comfort
+  /// fallback — and never the user's progress. No snackbar: the flow continues,
+  /// so there is nothing to ask them to do.
+  Future<void> _commit({
+    required Future<ChipSelection> Function() resolve,
+    required ChipSelection Function() unresolved,
+    String? key,
+  }) async {
     // Double-tap guard: the first tap owns the beat, later taps are ignored.
     if (_committing) return;
     setState(() {
@@ -86,10 +99,23 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
       _selectedKey = key;
     });
     HapticFeedback.selectionClick();
-    await Future<void>.delayed(widget.commitBeat);
-    final selection = await resolving;
+    ChipSelection? selection;
+    try {
+      await Future<void>.delayed(widget.commitBeat);
+      selection = await resolve();
+    } catch (error, stack) {
+      debugPrint('HookProblemScreen: chip resolve failed — $error\n$stack');
+    } finally {
+      // Always released, so a failure leaves the screen tappable rather than
+      // frozen behind a guard that can no longer be cleared.
+      if (mounted) {
+        setState(() => _committing = false);
+      } else {
+        _committing = false;
+      }
+    }
     if (!mounted) return;
-    widget.onCommitted(selection);
+    widget.onCommitted(selection ?? unresolved());
   }
 
   void _openFreeText() {
@@ -150,7 +176,10 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
                     onExpand: _openFreeText,
                     onSubmit: (text) {
                       if (text.trim().isEmpty) return;
-                      _commit(_resolver.forFreeText(text), null);
+                      _commit(
+                        resolve: () => _resolver.forFreeText(text),
+                        unresolved: () => _resolver.unresolvedForFreeText(text),
+                      );
                     },
                   ).animate().fadeIn(duration: 450.ms, delay: 650.ms),
                 ],
@@ -177,7 +206,11 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
         ProblemChipCard(
           chip: chip,
           selected: _selectedKey == chip.chipKey,
-          onTap: () => _commit(_resolver.forChip(chip.chipKey), chip.chipKey),
+          onTap: () => _commit(
+            resolve: () => _resolver.forChip(chip.chipKey),
+            unresolved: () => _resolver.unresolvedForChip(chip.chipKey),
+            key: chip.chipKey,
+          ),
         )
             // Same 60ms/card stagger the shipped hook screen uses.
             .animate()

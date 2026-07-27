@@ -105,24 +105,37 @@ class HookFreeTextBlock extends StatelessWidget {
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
           builder: (context, value, _) {
-            if (value.text.trim().isEmpty) return const SizedBox(height: 4);
-            return Semantics(
-              button: true,
-              label: submitLabel,
-              excludeSemantics: true,
-              child: GestureDetector(
-                onTap: enabled ? () => onSubmit(controller.text) : null,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 44),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  child: Text(
-                    submitLabel,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: AppColors.primary,
+            final hasText = value.text.trim().isNotEmpty;
+            // The 44pt slot is always laid out and only faded in. Swapping the
+            // button into the layout on the first keystroke would shove the
+            // field the user is typing in, mid-sentence.
+            return IgnorePointer(
+              ignoring: !hasText,
+              child: ExcludeSemantics(
+                excluding: !hasText,
+                child: AnimatedOpacity(
+                  opacity: hasText ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  child: Semantics(
+                    button: true,
+                    label: submitLabel,
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: enabled ? () => onSubmit(controller.text) : null,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        child: Text(
+                          submitLabel,
+                          style: AppTypography.labelLarge.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

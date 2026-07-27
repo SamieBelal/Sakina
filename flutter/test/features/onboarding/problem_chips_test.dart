@@ -61,6 +61,14 @@ void main() {
     });
   });
 
+  group('OnboardingFlow', () {
+    test('is exactly the two wire values the column accepts', () {
+      expect(OnboardingFlow.reelV1, 'reel_v1');
+      expect(OnboardingFlow.legacy, 'legacy');
+      expect(OnboardingFlow.values, {'reel_v1', 'legacy'});
+    });
+  });
+
   group('free-text keyword map', () {
     void mapsTo(String chipKey, List<String> phrases) {
       for (final p in phrases) {
@@ -133,6 +141,43 @@ void main() {
       expect(matchChipKeyForText(''), isNull);
       expect(matchChipKeyForText('   '), isNull);
       expect(matchChipKeyForText('qwerty zxcvb'), isNull);
+    });
+
+    test('evaluation order is the disambiguation rule — pin it explicitly', () {
+      // First hit wins, so the key order IS the routing policy. Reordering this
+      // map silently re-routes real sentences; changing it should have to
+      // change this line too.
+      expect(
+        problemChipKeywords.keys.toList(),
+        ['guilt', 'far-from-allah', 'rizq', 'unseen', 'anxiety', 'heavy'],
+      );
+    });
+
+    test('ambient devotional and relational words do not hijack the sentence',
+        () {
+      // 'praying' / 'prayers' / 'faith' left far-from-allah on 2026-07-26: they
+      // fire on sentences whose actual problem is somewhere else entirely.
+      expect(matchChipKeyForText('I keep praying for a job'), 'rizq');
+      expect(matchChipKeyForText('praying for my exams'), 'anxiety');
+      // ...and 'disconnected' with them: it is ambient, not devotional.
+      expect(
+        matchChipKeyForText('I feel disconnected from my wife'),
+        'unseen',
+      );
+      // The register terms that DO name the problem stayed.
+      mapsTo('far-from-allah', [
+        'I keep missing salah',
+        'my iman is gone',
+        'I feel empty inside',
+        'just going through the motions',
+        'I feel like a hypocrite',
+        'I am not consistent with anything',
+      ]);
+    });
+
+    test('the terms the reviewer found missing now route', () {
+      expect(matchChipKeyForText('I am so tired'), 'heavy');
+      mapsTo('anxiety', ['the waswas will not stop', 'constant waswasa']);
     });
   });
 
@@ -213,6 +258,24 @@ void main() {
       expect(sel.pairNameIds, [2, 36]);
       expect(sel.problemCategory, 'guilt',
           reason: 'the fallback swaps the Names, never what the user said');
+    });
+
+    test('unresolvedForChip keeps everything the tap said, minus the pair', () {
+      final sel = resolver.unresolvedForChip('guilt');
+      expect(sel.chipKey, 'guilt');
+      expect(sel.contract, HookContract.problem);
+      expect(sel.problemCategory, 'guilt');
+      expect(sel.hookType, HookType.chip);
+      expect(sel.pairNameIds, isEmpty);
+    });
+
+    test('unresolvedForFreeText still runs the (pure) keyword match', () {
+      final sel = resolver.unresolvedForFreeText('  my exams start monday  ');
+      expect(sel.chipKey, 'anxiety');
+      expect(sel.problemCategory, 'anxiety');
+      expect(sel.hookType, HookType.freeText);
+      expect(sel.problemTextRaw, 'my exams start monday');
+      expect(sel.pairNameIds, isEmpty);
     });
 
     test('an uncovered comfort pair yields no ids rather than half a pair',

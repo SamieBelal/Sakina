@@ -23,6 +23,34 @@ import 'package:sakina/services/title_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/xp_service.dart';
 
+/// The onboarding-shape fields the batch RPC returns on its `profile` section
+/// (One Ship W1 columns, W2-C3 is their first client reader).
+class OnboardingProfileSnapshot {
+  const OnboardingProfileSnapshot({
+    required this.onboardingFlow,
+    required this.hasAcquisitionPromise,
+  });
+
+  /// `reel_v1` | `legacy` | null for a profile written before W1.
+  final String? onboardingFlow;
+
+  /// Whether the server holds an arrival record for this user. Presence is all
+  /// the client needs — the payload itself is analytics/server-side context,
+  /// and re-deriving it locally would let a stale prefs blob contradict the
+  /// frozen server value.
+  final bool hasAcquisitionPromise;
+}
+
+/// Bridges the batch sync's `profile` section to the session layer.
+///
+/// [hydrateUserDataFromBatchRpc] is a top-level function with no Riverpod or
+/// [AppSessionNotifier] access, so `main.dart` wires this hook the same way it
+/// wires the analytics hooks. Left null in tests unless the test sets it.
+abstract final class UserProfileSyncHooks {
+  static void Function(OnboardingProfileSnapshot snapshot)?
+      onOnboardingProfileHydrated;
+}
+
 class UserDataBatchPayload {
   const UserDataBatchPayload(this.raw);
 
@@ -146,6 +174,16 @@ Future<void> hydrateUserDataFromBatchRpc() async {
     // / second device boots from server truth. Existing users are backfilled
     // `onboarding_paywall_cleared = true`, so the gate never re-walls them.
     await OnboardingGateService().hydrateFromProfile(profile);
+    // Mirror which onboarding EXPERIENCE this user ran into the session. It is
+    // cross-device backfill only — the reel flow latches its own value locally
+    // at completion — so a null here (pre-W1 profile) must never be read as
+    // "legacy"; the session keeps it null and the caller decides.
+    UserProfileSyncHooks.onOnboardingProfileHydrated?.call(
+      OnboardingProfileSnapshot(
+        onboardingFlow: _stringValue(profile['onboarding_flow']),
+        hasAcquisitionPromise: profile['acquisition_promise'] != null,
+      ),
+    );
   }
 
   await _hydrateOrSeedListSection(

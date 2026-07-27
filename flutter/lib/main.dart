@@ -41,6 +41,8 @@ import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
 import 'services/public_catalog_service.dart';
 import 'services/purchase_service.dart';
+import 'services/user_data_batch_sync_service.dart';
+import 'features/onboarding/screens/onboarding_reveal_screen.dart';
 import 'widgets/billing_issue_banner.dart';
 import 'widgets/iap_to_sub_upsell_banner.dart';
 
@@ -383,12 +385,22 @@ Future<void> main() async {
   // next. AppSessionNotifier has no Riverpod access, so it calls this static
   // hook from its signedOut branch (after final events are queued).
   AppSessionNotifier.onAnalyticsReset = analytics.resetForSignOut;
+  // Onboarding reveal telemetry (One Ship W2-C1): the reveal screen is a plain
+  // widget with no Riverpod access, so `reveal_deck_completed` / `_abandoned`
+  // (and the card-reveal overlay's own events) bridge through this hook.
+  OnboardingRevealScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),
     notificationService: notificationService,
     initialOnboarded: onboardingCompleted,
   );
+  // Cross-device backfill of which onboarding experience this user ran. The
+  // batch sync is a top-level function, so it hands the profile snapshot to the
+  // session through this hook (W2-C3). Wave F is what reads it.
+  UserProfileSyncHooks.onOnboardingProfileHydrated =
+      (snapshot) => appSession.setOnboardingFlow(snapshot.onboardingFlow);
 
   runApp(
     ProviderScope(

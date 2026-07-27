@@ -9,13 +9,30 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/app_session.dart';
+import '../content/aspirations.dart';
 import '../content/problem_chips.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/card_collection_service.dart' show CardTier;
 import '../../../services/launch_gate_service.dart';
+import '../../../services/name_queue_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/referral_service.dart';
 import '../../../services/user_data_batch_sync_service.dart';
 import '../../quests/providers/quests_provider.dart';
+
+/// `OnboardingState.onboardingFlow` for the reel flow — also the tour
+/// suppression key (Wave F) and the `user_profiles.onboarding_flow` value.
+///
+/// Aliases [OnboardingFlow], which is where [OnboardingNotifier.setOnboardingFlow]
+/// validates from. `AppSessionNotifier` (which the router reads, and which
+/// cannot import this direction) keeps its own copy; the two are pinned equal by
+/// `test/features/onboarding/complete_onboarding_queue_seed_test.dart` — a drift
+/// would suppress the tour for nobody while silently marking every profile
+/// `reel_v1`.
+const String onboardingFlowReel = OnboardingFlow.reelV1;
+
+/// …and for both fallback flows behind the kill switch.
+const String onboardingFlowLegacy = OnboardingFlow.legacy;
 
 const _prefsKey = 'onboarding_state';
 
@@ -356,14 +373,30 @@ class OnboardingState {
 }
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
-  OnboardingNotifier({OnboardingState? restored, AuthService? authService})
-      : _authServiceOverride = authService,
+  OnboardingNotifier({
+    OnboardingState? restored,
+    AuthService? authService,
+    NameQueueService? nameQueueService,
+    ProblemChipResolver? chipResolver,
+  })  : _authServiceOverride = authService,
+        _nameQueueOverride = nameQueueService,
+        _chipResolverOverride = chipResolver,
         super(restored ?? const OnboardingState());
 
   final AuthService? _authServiceOverride;
   AuthService? _authServiceCached;
   AuthService get _authService =>
       _authServiceOverride ?? (_authServiceCached ??= AuthService());
+
+  final NameQueueService? _nameQueueOverride;
+  NameQueueService? _nameQueueCached;
+  NameQueueService get _nameQueue =>
+      _nameQueueOverride ?? (_nameQueueCached ??= NameQueueService());
+
+  final ProblemChipResolver? _chipResolverOverride;
+  ProblemChipResolver? _chipResolverCached;
+  ProblemChipResolver get _chipResolver =>
+      _chipResolverOverride ?? (_chipResolverCached ??= ProblemChipResolver());
 
   Timer? _generateTimer;
 
@@ -457,11 +490,18 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   /// One write for the whole promise so `contract`, `hookType` and the pair can
   /// never be persisted half-applied — [OnboardingState.acquisitionPromise]
   /// depends on that invariant.
+  ///
+  /// `hook_type` records ARRIVAL ORIGIN, so an existing [HookType.reel] survives
+  /// this call: a reel visitor answers the hook screen like everyone else, and
+  /// overwriting them as `chip` would make [HookType.reel] unreachable in the
+  /// data and erase the only marker that the reel sent them.
   void applyHookSelection(ChipSelection selection) {
+    final origin =
+        state.hookType == HookType.reel ? HookType.reel : selection.hookType;
     state = state.copyWith(
       contract: selection.contract,
       problemCategory: selection.problemCategory,
-      hookType: selection.hookType,
+      hookType: origin,
       pairNameIds: selection.pairNameIds,
       chipKey: selection.chipKey,
       clearChipKey: selection.chipKey == null,
@@ -493,7 +533,18 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   /// `reel_v1` | `legacy`, decided at flow entry (W2-E1).
+  ///
+  /// Throws rather than asserts on an unknown value: the column is the tour
+  /// suppression key and the flow dimension every W2 readout segments on, so a
+  /// typo that only fails in debug would ship as silently mis-segmented data.
   void setOnboardingFlow(String flow) {
+    if (!OnboardingFlow.values.contains(flow)) {
+      throw ArgumentError.value(
+        flow,
+        'flow',
+        'not an onboarding flow (${OnboardingFlow.values.join(' | ')})',
+      );
+    }
     state = state.copyWith(onboardingFlow: flow);
     _saveToPrefs();
   }
@@ -609,8 +660,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   Future<void> persistOnboardingToSupabase() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    // Asked through the service (which owns the Supabase handle) rather than
+    // reading `Supabase.instance` here, so the completion chain can be driven
+    // in a unit test without a live client.
+    if (!_authService.isSignedIn) return;
     await _persistQuizAnswers();
   }
 
@@ -646,33 +699,77 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     }
   }
 
-  Future<void> completeOnboarding(AppSessionNotifier appSession) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsKey);
+  /// The 7 ids `seed_name_queue` is called with: the hook's pair at positions
+  /// 1-2, then the aspiration answer's five at 3-7.
+  ///
+  /// Empty for anything but the reel flow — the queue IS the reel flow's
+  /// acquisition promise, and a kill-switch user who never saw a hook screen
+  /// must not be handed one. Within the reel flow it falls back to the comfort
+  /// pair when the state carries no resolved pair (the same fallback the hook
+  /// screen uses), and to a two-row queue when the aspiration is unanswered —
+  /// the RPC accepts 2-7 ids, and inventing an ordering would ship unreviewed
+  /// content. Empty means "don't seed", never "seed junk".
+  @visibleForTesting
+  Future<List<int>> buildQueueNameIds() async {
+    if (state.onboardingFlow != onboardingFlowReel) return const [];
+    var pair = state.pairNameIds;
+    if (pair.length != 2) {
+      pair = await _chipResolver.pairNameIdsForChip(comfortChipKey);
+    }
+    if (pair.length != 2) return const [];
+    return [...pair, ...aspirationQueueNameIds(state.aspiration)];
+  }
 
+  Future<void> completeOnboarding(AppSessionNotifier appSession) async {
     // Reset the daily launch gate so the new user always sees the day-0
     // DailyLaunchOverlay when they land on the home screen.
     await resetDailyLaunchGate();
 
     await persistOnboardingToSupabase();
 
-    // Seed the user's first collection card with their starter Name from the
-    // first check-in. Idempotent on (user_id, name_id) so re-runs are safe.
-    final starterId = state.starterNameId;
+    // Seed the user's first collection card with the Name they met. The reel
+    // flow's reveal SHOWS a Silver card (W2-C1, deterministic), so it persists
+    // Silver; every other flow keeps the legacy Bronze. Idempotent on
+    // (user_id, name_id) — a re-run clamps rather than increments.
+    final starterId = state.starterNameId ??
+        (state.pairNameIds.isNotEmpty ? state.pairNameIds.first : null);
     if (starterId != null) {
       try {
-        await _authService.seedStarterCard(starterId);
+        await _authService.seedStarterCard(
+          starterId,
+          tier: state.onboardingFlow == onboardingFlowReel
+              ? CardTier.silver
+              : CardTier.bronze,
+        );
       } catch (e, stack) {
         debugPrint('[Onboarding] seed starter card failed: $e\n$stack');
       }
       // Refresh local card_collection cache so the collection screen shows
-      // the seeded bronze immediately. Separate try/catch so a hydration
+      // the seeded card immediately. Separate try/catch so a hydration
       // failure isn't misattributed to the seed call above.
       try {
         await hydrateUserDataFromBatchRpc();
       } catch (e, stack) {
         debugPrint(
             '[Onboarding] post-seed user data hydration failed: $e\n$stack');
+      }
+    }
+
+    // Seed the 7-Name queue — needs auth, so it runs after the persist, and
+    // before the completion flag so the promise exists by the time the user is
+    // "onboarded". `seedIfEmpty` pre-checks with an RLS select and never
+    // swallows a raise (the RPC's errcode can't distinguish "already seeded"
+    // from a wholesale failure), so a genuine failure lands here loudly rather
+    // than leaving a silently dead W3 unseal. It must not abort the rest of
+    // completion, though: the caller in onboarding_screen swallows throws, and
+    // an escape here would skip markOnboardingCompleted + markOnboarded.
+    final queueIds = await buildQueueNameIds();
+    if (queueIds.length >= 2) {
+      try {
+        await _nameQueue.seedIfEmpty(queueIds);
+      } catch (e, stack) {
+        debugPrint('[Onboarding] name-queue seed FAILED — the daily unseal '
+            'will have nothing to open: $e\n$stack');
       }
     }
 
@@ -683,6 +780,15 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await _authService.markOnboardingCompleted();
     } catch (_) {}
+
+    // Only NOW drop the local onboarding state. Wiping it first (as this did
+    // until W2-C2) meant a crash anywhere above restarted onboarding from a
+    // blank slate — a fresh Name₁ resolved against a queue the server had
+    // already frozen, and a `first_problem_text` the freeze trigger would
+    // reject. Losing the wipe to a crash is the cheap failure: the next run
+    // re-persists the same answers idempotently.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
 
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();

@@ -131,6 +131,84 @@ void main() {
       expect(notifier.state.pairNameIds, [2, 36]);
     });
 
+    test('a reel arrival stays a reel arrival after they answer the hook', () {
+      // hook_type is ORIGIN. The reel visitor taps a chip like everyone else;
+      // stamping them `chip` would make HookType.reel unreachable in the data
+      // and erase the only marker that the reel sent them.
+      final notifier = OnboardingNotifier()
+        ..setReelArrival(reelId: 'r-42')
+        ..applyHookSelection(hookSelection);
+
+      expect(notifier.state.hookType, HookType.reel);
+      expect(notifier.state.chipKey, 'anxiety',
+          reason: 'what they tapped is still recorded');
+      expect(notifier.state.acquisitionPromise, {
+        'reel_id': 'r-42',
+        'hook_type': 'reel',
+        'contract': 'problem',
+        'problem_category': 'anxiety',
+      });
+    });
+
+    test('free text after a reel arrival is still a reel arrival', () {
+      final notifier = OnboardingNotifier()
+        ..setReelArrival(reelId: 'r-42')
+        ..applyHookSelection(const ChipSelection(
+          contract: HookContract.problem,
+          problemCategory: problemCategoryUnmatched,
+          hookType: HookType.freeText,
+          pairNameIds: [2, 36],
+          problemTextRaw: 'qwerty',
+        ));
+
+      expect(notifier.state.hookType, HookType.reel);
+      expect(notifier.state.problemTextRaw, 'qwerty');
+    });
+
+    test('without a reel arrival the selection still sets hook_type', () {
+      final chip = OnboardingNotifier()..applyHookSelection(hookSelection);
+      expect(chip.state.hookType, HookType.chip);
+
+      final typed = OnboardingNotifier()
+        ..applyHookSelection(const ChipSelection(
+          contract: HookContract.problem,
+          problemCategory: 'heavy',
+          hookType: HookType.freeText,
+          pairNameIds: [2, 36],
+          problemTextRaw: 'everything hurts',
+        ));
+      expect(typed.state.hookType, HookType.freeText);
+    });
+
+    test('a chip tap can still replace an earlier chip tap', () {
+      final notifier = OnboardingNotifier()
+        ..applyHookSelection(hookSelection)
+        ..applyHookSelection(const ChipSelection(
+          contract: HookContract.sign,
+          problemCategory: 'unspoken',
+          hookType: HookType.chip,
+          chipKey: 'sign',
+          pairNameIds: [2, 36],
+        ));
+
+      expect(notifier.state.hookType, HookType.chip);
+      expect(notifier.state.chipKey, 'sign');
+    });
+
+    test('setOnboardingFlow rejects anything off the wire vocabulary', () {
+      final notifier = OnboardingNotifier();
+
+      expect(() => notifier.setOnboardingFlow('reel'),
+          throwsA(isA<ArgumentError>()));
+      expect(() => notifier.setOnboardingFlow(''),
+          throwsA(isA<ArgumentError>()));
+      expect(notifier.state.onboardingFlow, isNull,
+          reason: 'a rejected value must not land on state');
+
+      notifier.setOnboardingFlow(OnboardingFlow.legacy);
+      expect(notifier.state.onboardingFlow, 'legacy');
+    });
+
     test('the Wave D / E setters land on state', () {
       final notifier = OnboardingNotifier()
         ..setCarryingDuration('years')

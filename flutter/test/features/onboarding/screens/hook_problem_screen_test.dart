@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/screens/hook_problem_screen.dart';
 import 'package:sakina/features/onboarding/widgets/hook_free_text_block.dart';
+import 'package:sakina/features/onboarding/widgets/onboarding_page_wrapper.dart';
+import 'package:sakina/features/onboarding/widgets/onboarding_progress_bar.dart';
 import 'package:sakina/features/onboarding/widgets/problem_chip_card.dart';
 import 'package:sakina/services/name_stories_service.dart';
 
@@ -65,9 +68,16 @@ void main() {
       (tester) async {
     await pumpScreen(tester);
 
-    // Spec ③: a step counter on screen one manufactures hurry.
-    expect(find.byType(LinearProgressIndicator), findsNothing);
-    // Spec ④: the illustration is replaced by a small ornament.
+    // Spec ③: a step counter on screen one manufactures hurry. Assert against
+    // the widgets this screen would actually have used — a bare
+    // LinearProgressIndicator was never on the table, so pinning that was
+    // pinning nothing.
+    expect(find.byType(OnboardingProgressBar), findsNothing);
+    expect(find.byType(OnboardingPageWrapper), findsNothing,
+        reason: 'the wrapper always renders the progress bar');
+    // Spec ④: no illustration. The onboarding art is SVG, so `Image` alone
+    // could never have caught one.
+    expect(find.byType(SvgPicture), findsNothing);
     expect(find.byType(Image), findsNothing);
   });
 
@@ -91,21 +101,33 @@ void main() {
         reason: 'distinction is weight/ink only — not size');
   });
 
+  /// The card's own minimum-height constraint — the thing that guarantees the
+  /// tap target, rather than whatever the current label happens to measure.
+  BoxConstraints cardConstraints(WidgetTester tester, ProblemChip chip) {
+    final card = find.ancestor(
+      of: find.text(chip.label),
+      matching: find.byType(ProblemChipCard),
+    );
+    return tester
+        .widget<AnimatedContainer>(
+          find.descendant(of: card, matching: find.byType(AnimatedContainer)),
+        )
+        .constraints!;
+  }
+
   testWidgets('every card is at least 64pt tall (44pt HIG minimum cleared)',
       (tester) async {
     await pumpScreen(tester);
 
+    expect(ProblemChipCard.minHeight, greaterThanOrEqualTo(64));
     for (final chip in problemChips) {
       final size = tester.getSize(find.text(chip.label).hitTestable());
       expect(size.width, greaterThan(200), reason: '${chip.chipKey} full-width');
-      final card = tester.getSize(
-        find.ancestor(
-          of: find.text(chip.label),
-          matching: find.byType(ProblemChipCard),
-        ),
-      );
-      expect(card.height, greaterThanOrEqualTo(ProblemChipCard.minHeight),
+      final constraints = cardConstraints(tester, chip);
+      expect(constraints.minHeight, greaterThanOrEqualTo(64),
           reason: chip.chipKey);
+      expect(constraints.maxHeight, double.infinity,
+          reason: '${chip.chipKey}: a minimum, never a fixed box');
     }
   });
 
@@ -192,14 +214,41 @@ void main() {
     expect(committed.single.problemTextRaw, 'my exams start monday');
   });
 
-  testWidgets('empty typed text cannot commit', (tester) async {
+  testWidgets('empty typed text cannot commit — the Continue slot is inert',
+      (tester) async {
     final committed = await pumpScreen(tester);
 
     await openFreeText(tester);
     await tester.enterText(find.byType(TextField), '   ');
     await tester.pumpAndSettle();
 
-    expect(find.text(HookFreeTextBlock.submitLabel), findsNothing);
+    // Reserved rather than absent: the 44pt slot is laid out from the start so
+    // the field does not jump under the user's thumb on the first keystroke.
+    final submit = find.text(HookFreeTextBlock.submitLabel);
+    expect(submit, findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find
+                .ancestor(of: submit, matching: find.byType(AnimatedOpacity))
+                .first,
+          )
+          .opacity,
+      0,
+    );
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find
+                .ancestor(of: submit, matching: find.byType(IgnorePointer))
+                .first,
+          )
+          .ignoring,
+      isTrue,
+    );
+
+    await tester.tap(submit, warnIfMissed: false);
+    await tester.pumpAndSettle();
     expect(committed, isEmpty);
   });
 
@@ -225,12 +274,18 @@ void main() {
     useOnboardingViewport(tester);
     await tester.pumpWidget(
       MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(2.0)),
-          child: HookProblemScreen(
-            onCommitted: (_) {},
-            resolver: resolver(),
-            commitBeat: Duration.zero,
+        // copyWith, not a fresh MediaQueryData: replacing the whole thing drops
+        // the viewport, padding and device pixel ratio the rest of the screen
+        // lays out against, so the test would be measuring a phantom device.
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2.0)),
+            child: HookProblemScreen(
+              onCommitted: (_) {},
+              resolver: resolver(),
+              commitBeat: Duration.zero,
+            ),
           ),
         ),
       ),
@@ -241,7 +296,65 @@ void main() {
     // clipping it (the list is lazy, so only the visible ones are built).
     expect(tester.takeException(), isNull);
     expect(find.byType(ProblemChipCard), findsAtLeastNWidgets(1));
-    final first = tester.getSize(find.byType(ProblemChipCard).first);
-    expect(first.height, greaterThan(ProblemChipCard.minHeight));
+    final card = find.byType(ProblemChipCard).first;
+    final constraints = tester
+        .widget<AnimatedContainer>(
+          find.descendant(of: card, matching: find.byType(AnimatedContainer)),
+        )
+        .constraints!;
+    expect(constraints.minHeight, greaterThanOrEqualTo(64),
+        reason: 'still a floor, not a ceiling');
+    expect(constraints.maxHeight, double.infinity);
+    expect(tester.getSize(card).height, greaterThan(constraints.minHeight),
+        reason: 'the doubled label grew the card past its floor');
+  });
+
+  testWidgets(
+      'a failed deck lookup still commits, and the next tap resolves for real',
+      (tester) async {
+    useOnboardingViewport(tester);
+    var failNext = true;
+    final committed = <ChipSelection>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HookProblemScreen(
+          onCommitted: committed.add,
+          commitBeat: Duration.zero,
+          resolver: ProblemChipResolver(
+            stories: NameStoriesService(
+              loadAsset: (_) async {
+                if (failNext) {
+                  failNext = false;
+                  throw const FileSystemException('asset unavailable');
+                }
+                return File(NameStoriesService.assetPath).readAsStringSync();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text("My mind won't stop racing"));
+    await tester.pumpAndSettle();
+
+    // Tap 1: no pair, but everything the tap itself said survives, and no
+    // exception escapes to the framework.
+    expect(tester.takeException(), isNull);
+    expect(committed, hasLength(1));
+    expect(committed.single.chipKey, 'anxiety');
+    expect(committed.single.contract, HookContract.problem);
+    expect(committed.single.hookType, HookType.chip);
+    expect(committed.single.pairNameIds, isEmpty,
+        reason: 'the reveal reads an empty pair as the comfort fallback');
+
+    // Tap 2: the guard was released, so the screen is not dead-ended.
+    await tester.tap(find.text('Everything feels heavy'));
+    await tester.pumpAndSettle();
+
+    expect(committed, hasLength(2));
+    expect(committed.last.chipKey, 'heavy');
+    expect(committed.last.pairNameIds, hasLength(2));
   });
 }

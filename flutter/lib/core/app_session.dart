@@ -128,6 +128,29 @@ class AppSessionNotifier extends ChangeNotifier {
   bool get isPremiumCached => _isPremiumCached;
   bool get hardPaywallFlowEnabled => _hardPaywallFlowEnabled;
 
+  /// Which onboarding EXPERIENCE this user ran (`reel_v1` | `legacy`), or null
+  /// when it is not known yet — a pre-W1 profile, or a session that has not
+  /// hydrated. Null is NOT "legacy": callers that gate on the reel flow must
+  /// test for [onboardingFlowReelV1] explicitly, so an unhydrated session can
+  /// never accidentally suppress the tour for a legacy user (Wave F reads it).
+  String? _onboardingFlow;
+  String? get onboardingFlow => _onboardingFlow;
+
+  /// The reel flow's wire value, mirroring
+  /// `user_profiles.onboarding_flow`.
+  static const String onboardingFlowReelV1 = 'reel_v1';
+
+  /// Mirrors the flow into the session. Synchronous on purpose: the router's
+  /// redirect reads it during a build, so a value that only lands after an
+  /// async hydrate would lose the day-0 race — the same reason
+  /// [enterOnboardingGate] flips its in-memory flags before it awaits the
+  /// persist.
+  void setOnboardingFlow(String? flow) {
+    if (_onboardingFlow == flow) return;
+    _onboardingFlow = flow;
+    notifyListeners();
+  }
+
   /// The effective post-tour paywall mode (reverse-trial Phase A). Derived from
   /// the `post_tour_paywall_mode` app_config string, falling back to the legacy
   /// `hard_paywall_after_tour_enabled` boolean. Read synchronously by the
@@ -354,6 +377,7 @@ class AppSessionNotifier extends ChangeNotifier {
         _tourCompleted = true;
         _paywallCleared = true;
         _isPremiumCached = false;
+        _onboardingFlow = null;
         _postTourPaywallMode = PostTourPaywallMode.off;
         resetSoftPaywallPlacementForSignOut();
         _gateValveBypass = false;

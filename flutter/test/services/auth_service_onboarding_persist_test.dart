@@ -118,4 +118,76 @@ void main() {
     expect(fake.captured!['firstProblemText'], isNull);
     expect(fake.captured!['onboardingFlow'], isNull);
   });
+
+  test('a reel arrival persists hook_type reel and carries the reel id',
+      () async {
+    final fake = _FakeAuthService();
+    final notifier = OnboardingNotifier(authService: fake)
+      ..setOnboardingFlow(OnboardingFlow.reelV1)
+      ..setReelArrival(reelId: 'r-42')
+      ..applyHookSelection(const ChipSelection(
+        contract: HookContract.problem,
+        problemCategory: 'rizq',
+        hookType: HookType.chip,
+        chipKey: 'rizq',
+        pairNameIds: [13, 23],
+      ));
+
+    await notifier.debugPersistOnboardingForTest();
+
+    expect(fake.captured!['acquisitionPromise'], {
+      'reel_id': 'r-42',
+      'hook_type': 'reel',
+      'contract': 'problem',
+      'problem_category': 'rizq',
+    });
+  });
+
+  group('w1ProfileColumns — the second, separate UPDATE payload', () {
+    test('is empty when the flow produced nothing, so no statement is sent',
+        () {
+      expect(w1ProfileColumns(), isEmpty);
+    });
+
+    test('emits only the keys that have a value (never an explicit null)', () {
+      expect(
+        w1ProfileColumns(onboardingFlow: OnboardingFlow.reelV1),
+        {'onboarding_flow': 'reel_v1'},
+      );
+      expect(
+        w1ProfileColumns(
+          acquisitionPromise: const {'contract': 'problem'},
+          firstProblemText: 'rent is due',
+          onboardingFlow: OnboardingFlow.reelV1,
+        ),
+        {
+          'acquisition_promise': {'contract': 'problem'},
+          'first_problem_text': 'rent is due',
+          'onboarding_flow': 'reel_v1',
+        },
+      );
+    });
+
+    test('carries none of the quiz answers — that is the point of the split',
+        () {
+      // The quiz UPDATE runs first and alone: a check-constraint or freeze
+      // trigger failure on these three columns must not be able to take the
+      // onboarding answers down with it.
+      final payload = w1ProfileColumns(
+        acquisitionPromise: const {'contract': 'problem'},
+        firstProblemText: 'rent is due',
+        onboardingFlow: OnboardingFlow.reelV1,
+      );
+      expect(payload.keys, hasLength(3));
+      for (final quizColumn in const [
+        'display_name',
+        'onboarding_intention',
+        'age_range',
+        'dua_topics',
+        'commitment_accepted',
+      ]) {
+        expect(payload.containsKey(quizColumn), isFalse, reason: quizColumn);
+      }
+    });
+  });
 }
