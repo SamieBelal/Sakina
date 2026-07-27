@@ -157,24 +157,40 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
   /// The lantern's name, tappable to rename (E3).
   ///
   /// The name itself IS the affordance — the explicit pencil glyph was removed
-  /// because it broke the stillness of the scene. The tap target is unchanged:
-  /// the InkWell has always wrapped the whole label (the icon was decoration,
-  /// never the button), so this is purely a visual removal and renaming still
-  /// works exactly as before.
+  /// because it broke the stillness of the scene. Renaming is unchanged: the
+  /// InkWell has always wrapped the whole label (the icon was decoration, never
+  /// the button).
+  ///
+  /// The 44×44 minimum is enforced explicitly rather than left to the text's
+  /// intrinsic size. `headlineMedium` is 20px on a 1.3 line box = 26pt, and the
+  /// old `AppSpacing.xs` padding brought that to only 34pt tall — under the
+  /// minimum both before and after the glyph was dropped (the 18pt icon sat
+  /// BESIDE the text and never drove the row's height, so removing it cost
+  /// width, not height). Width was never at risk: names cap at 20 characters
+  /// (`lantern_name_sheet.dart`), but a 1–2 character name would shrink-wrap
+  /// below 44pt too, so the minimum is applied on both axes.
   Widget _lanternNameLabel(bool onCanvas) {
     return InkWell(
       onTap: _rename,
       borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-        child: Text(
-          _lanternName,
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.headlineMedium.copyWith(
-              color:
-                  onCanvas ? AppColors.sacredInk : AppColors.textPrimaryLight),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Text(
+              _lanternName,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.headlineMedium.copyWith(
+                  color: onCanvas
+                      ? AppColors.sacredInk
+                      : AppColors.textPrimaryLight),
+            ),
+          ),
         ),
       ),
     );

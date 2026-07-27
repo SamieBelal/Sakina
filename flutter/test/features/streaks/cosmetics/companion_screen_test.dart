@@ -135,6 +135,31 @@ void main() {
     expect(find.text('Name your lantern'), findsOneWidget);
   });
 
+  // The rename affordance is now the bare name — the pencil glyph that used to
+  // sit beside it was removed. That glyph never drove the row's HEIGHT (it sat
+  // alongside the text), so the target was already under the 44pt minimum at
+  // 34pt: `headlineMedium` is 20px on a 1.3 line box = 26pt, plus 2×AppSpacing.xs.
+  // With no icon and no ripple visible (the InkWell's Material is behind the
+  // opaque backdrop), the hit area is the ONLY thing left making the name
+  // tappable, so it is pinned here.
+  testWidgets('the rename target meets the 44pt minimum on both axes',
+      (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final target = find.ancestor(
+      of: find.text(defaultLanternName),
+      matching: find.byType(InkWell),
+    );
+    expect(target, findsOneWidget);
+
+    final size = tester.getSize(target);
+    expect(size.height, greaterThanOrEqualTo(44.0),
+        reason: 'a 26pt line box + 4pt padding is only 34pt — under the minimum');
+    expect(size.width, greaterThanOrEqualTo(44.0),
+        reason: 'a 1-2 character name would shrink-wrap below 44pt');
+  });
+
   testWidgets('E1: share hands off the equipped ids, the name, and the streak',
       (tester) async {
     Map<String, Object?>? captured;
