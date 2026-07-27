@@ -6,6 +6,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/content/aspirations.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/services/card_collection_service.dart' show CardTier;
 import 'package:sakina/services/name_queue_service.dart';
@@ -46,6 +47,8 @@ class _RecordingAuthService extends AuthService {
   @override
   bool get isSignedIn => true;
 
+  int? persistedStarterNameId;
+
   @override
   Future<void> saveOnboardingData({
     String? displayName,
@@ -64,6 +67,7 @@ class _RecordingAuthService extends AuthService {
     String? firstProblemText,
     String? onboardingFlow,
   }) async {
+    persistedStarterNameId = starterNameId;
     await _note('persist');
   }
 
@@ -266,6 +270,101 @@ void main() {
     expect(ctx.log, contains('markCompleted'));
     expect(session.hasOnboarded, isTrue);
     expect(await storedOnboardingState(), isNull);
+  });
+
+  test('a seed failure emits name_queue_seed_failed with the error class',
+      () async {
+    // The debugPrint above is invisible in production; this event is the only
+    // way to see that a shipped user's promise has nothing behind it.
+    final events = <({String name, Map<String, Object?> props})>[];
+    OnboardingNotifier.onAnalyticsEvent =
+        (name, props) => events.add((name: name, props: props));
+    addTearDown(() => OnboardingNotifier.onAnalyticsEvent = null);
+
+    final ctx = await buildReelNotifier(queueError: StateError('rls denied'));
+
+    await ctx.notifier.completeOnboarding(buildSession());
+
+    final failed = events
+        .where((e) => e.name == AnalyticsEvents.nameQueueSeedFailed)
+        .toList();
+    expect(failed, hasLength(1));
+    expect(failed.single.props['id_count'], 7);
+    expect(failed.single.props['error_class'], 'StateError',
+        reason: 'the class, never the raw driver message');
+  });
+
+  test('a successful seed emits nothing', () async {
+    final events = <String>[];
+    OnboardingNotifier.onAnalyticsEvent = (name, _) => events.add(name);
+    addTearDown(() => OnboardingNotifier.onAnalyticsEvent = null);
+
+    final ctx = await buildReelNotifier();
+    await ctx.notifier.completeOnboarding(buildSession());
+
+    expect(events, isEmpty);
+  });
+
+  group('the pair is resolved ONCE for every consumer', () {
+    test('an empty-pair reel user gets the comfort pair as BOTH starter and '
+        'queue head', () async {
+      // The split-resolution bug: the queue opened on Ar-Rahman while the
+      // starter card (and `starter_name_id`) stayed null.
+      final log = <String>[];
+      final auth = _RecordingAuthService(log);
+      final queue = _RecordingNameQueueService(log);
+      final notifier = OnboardingNotifier(
+        authService: auth,
+        nameQueueService: queue,
+        chipResolver: resolver(),
+      );
+      notifier.setOnboardingFlow(onboardingFlowReel);
+      notifier.setAspiration('peace');
+
+      await notifier.completeOnboarding(buildSession());
+
+      expect(queue.seededIds!.first, 2, reason: 'Ar-Rahman heads the queue');
+      expect(auth.seededNameId, 2, reason: '…and is the card the user owns');
+      expect(auth.seededTier, CardTier.silver);
+    });
+
+    test('the resolved starter reaches the server persist, not just the card',
+        () async {
+      // Computing the fallback after `saveOnboardingData` left
+      // `starter_name_id` null server-side — and the freeze trigger locks it.
+      final log = <String>[];
+      final auth = _RecordingAuthService(log);
+      final notifier = OnboardingNotifier(
+        authService: auth,
+        nameQueueService: _RecordingNameQueueService(log),
+        chipResolver: resolver(),
+      );
+      notifier.setOnboardingFlow(onboardingFlowReel);
+      notifier.applyHookSelection(await resolver().forChip('anxiety'));
+
+      await notifier.completeOnboarding(buildSession());
+
+      expect(auth.persistedStarterNameId, 6);
+      expect(notifier.state.starterNameId, 6);
+    });
+
+    test('an explicit starter always wins over the pair', () async {
+      final log = <String>[];
+      final auth = _RecordingAuthService(log);
+      final notifier = OnboardingNotifier(
+        authService: auth,
+        nameQueueService: _RecordingNameQueueService(log),
+        chipResolver: resolver(),
+      );
+      notifier.setOnboardingFlow(onboardingFlowReel);
+      notifier.applyHookSelection(await resolver().forChip('anxiety'));
+      notifier.setStarterName(3);
+
+      await notifier.completeOnboarding(buildSession());
+
+      expect(auth.seededNameId, 3);
+      expect(auth.persistedStarterNameId, 3);
+    });
   });
 
   group('buildQueueNameIds', () {

@@ -118,12 +118,50 @@ void main() {
       final session = buildSession();
       addTearDown(session.dispose);
       UserProfileSyncHooks.onOnboardingProfileHydrated =
-          (s) => session.setOnboardingFlow(s.onboardingFlow);
+          (s) => session.mirrorServerOnboardingFlow(s.onboardingFlow);
       respondWithProfile({'onboarding_flow': 'reel_v1'});
 
       await hydrateUserDataFromBatchRpc();
 
       expect(session.onboardingFlow, 'reel_v1');
+    });
+
+    test('a null from the server never clobbers a known flow', () async {
+      // A pre-W1 profile, a partial payload, or a row the sync could not read
+      // all arrive as null. Null means "the server didn't say" — clobbering
+      // with it un-suppresses the tour for a reel user on their next launch.
+      final session = buildSession();
+      addTearDown(session.dispose);
+      session.setOnboardingFlow(AppSessionNotifier.onboardingFlowReelV1);
+      var notifications = 0;
+      session.addListener(() => notifications++);
+
+      session.mirrorServerOnboardingFlow(null);
+
+      expect(session.onboardingFlow, 'reel_v1');
+      expect(notifications, 0);
+    });
+
+    test('a real server value still lands on an unhydrated session', () async {
+      final session = buildSession();
+      addTearDown(session.dispose);
+      expect(session.onboardingFlow, isNull);
+
+      session.mirrorServerOnboardingFlow('legacy');
+
+      expect(session.onboardingFlow, 'legacy');
+    });
+
+    test('the local latch is still allowed to clear', () async {
+      // `setOnboardingFlow` keeps its null semantics for the local caller —
+      // only the SERVER mirror treats null as "no news".
+      final session = buildSession();
+      addTearDown(session.dispose);
+      session.setOnboardingFlow('reel_v1');
+
+      session.setOnboardingFlow(null);
+
+      expect(session.onboardingFlow, isNull);
     });
   });
 }

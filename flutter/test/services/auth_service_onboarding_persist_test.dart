@@ -170,9 +170,9 @@ void main() {
 
     test('carries none of the quiz answers — that is the point of the split',
         () {
-      // The quiz UPDATE runs first and alone: a check-constraint or freeze
-      // trigger failure on these three columns must not be able to take the
-      // onboarding answers down with it.
+      // The two groups ride separate, individually-isolated statements: a
+      // check-constraint or freeze-trigger failure on these three columns must
+      // not be able to take the onboarding answers down with it, or vice versa.
       final payload = w1ProfileColumns(
         acquisitionPromise: const {'contract': 'problem'},
         firstProblemText: 'rent is due',
@@ -188,6 +188,45 @@ void main() {
       ]) {
         expect(payload.containsKey(quizColumn), isFalse, reason: quizColumn);
       }
+    });
+  });
+
+  group('onboardingProfileUpdates — the statement ORDER', () {
+    test('W1 goes first: it is the write with a deadline', () {
+      // Once `onboarding_completed` flips true the freeze trigger rejects any
+      // distinct W1 value, so a W1 write lost behind a failing quiz UPDATE on
+      // the LAST persist is lost forever. The quiz columns stay writable and
+      // ride every later persist, so they are the ones that can afford to wait.
+      final updates = onboardingProfileUpdates(
+        intention: 'spiritualGrowth',
+        onboardingFlow: OnboardingFlow.reelV1,
+        firstProblemText: 'rent is due',
+        acquisitionPromise: const {'contract': 'problem'},
+      );
+
+      expect(updates.map((u) => u.stage), ['w1', 'quiz']);
+      expect(updates.first.columns.keys, [
+        'acquisition_promise',
+        'first_problem_text',
+        'onboarding_flow',
+      ]);
+      expect(updates.last.columns['onboarding_intention'], 'spiritualGrowth');
+    });
+
+    test('a flow with no W1 values sends the quiz statement alone', () {
+      final updates = onboardingProfileUpdates(intention: 'spiritualGrowth');
+
+      expect(updates.map((u) => u.stage), ['quiz']);
+    });
+
+    test('the quiz payload keeps its explicit nulls', () {
+      // Unlike the W1 columns, a null here IS the answer — this path is the
+      // only writer of these columns.
+      final quiz = onboardingProfileUpdates().single.columns;
+
+      expect(quiz.containsKey('age_range'), isTrue);
+      expect(quiz['age_range'], isNull);
+      expect(quiz['commitment_accepted'], isFalse);
     });
   });
 }

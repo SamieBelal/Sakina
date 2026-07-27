@@ -151,6 +151,18 @@ class AppSessionNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// [setOnboardingFlow] for SERVER hydration, which may legitimately arrive
+  /// with no value: a pre-W1 profile, a partial payload, or a row the sync
+  /// could not read. Null there means "the server didn't say", never "not the
+  /// reel flow" — passing it through would clobber the flow the local flow
+  /// latch already knows and un-suppress the tour for a reel user on their
+  /// second launch. Use [setOnboardingFlow] for the local latch, which is
+  /// allowed to clear.
+  void mirrorServerOnboardingFlow(String? flow) {
+    if (flow == null) return;
+    setOnboardingFlow(flow);
+  }
+
   /// The effective post-tour paywall mode (reverse-trial Phase A). Derived from
   /// the `post_tour_paywall_mode` app_config string, falling back to the legacy
   /// `hard_paywall_after_tour_enabled` boolean. Read synchronously by the

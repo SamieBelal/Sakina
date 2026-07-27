@@ -30,6 +30,7 @@ class OnboardingRevealScreen extends StatefulWidget {
     required this.onDone,
     this.onBack,
     this.stories,
+    this.latch,
     this.loaderBeat = const Duration(milliseconds: 900),
     this.showFirstRunHint = true,
     super.key,
@@ -53,6 +54,16 @@ class OnboardingRevealScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
   final NameStoriesService? stories;
+
+  /// The once-per-onboarding-run latch for the award / abandon emissions.
+  ///
+  /// The flags cannot live in the [State]: a back-nav that re-enters the reveal
+  /// builds a fresh state object, which would re-award the card and re-emit
+  /// `reveal_deck_completed`. Wave E owns one instance per run and passes it in.
+  /// It is a belt to the braces — Wave E must STILL forbid back-nav past the
+  /// reveal, because a re-entry with the latch set lands the user on a deck
+  /// whose Ameen no longer does anything.
+  final OnboardingRevealLatch? latch;
 
   /// Minimum time the loader beat holds before the deck appears. Zero in tests.
   final Duration loaderBeat;
@@ -82,6 +93,14 @@ class OnboardingRevealResult {
   final CardTier awardedTier;
 }
 
+/// Survives the reveal screen's own [State] so a re-mount (back-nav, a PageView
+/// rebuild) can neither award a second card nor re-emit the deck telemetry.
+/// Mutable by design — it is a latch, not state to rebuild on.
+class OnboardingRevealLatch {
+  bool completed = false;
+  bool abandonedFired = false;
+}
+
 enum _Phase { deck, tease }
 
 class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
@@ -89,14 +108,14 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   static const CardTier awardTier = CardTier.silver;
 
   late final NameStoriesService _stories = widget.stories ?? nameStoriesService;
+  late final OnboardingRevealLatch _latch =
+      widget.latch ?? OnboardingRevealLatch();
 
   _Phase _phase = _Phase.deck;
   NameStoryDeck? _name1;
   NameStoryDeck? _name2;
   List<BeatScreen> _screens = const [];
   bool _failed = false;
-  bool _completed = false;
-  bool _abandonedFired = false;
   int _lastBeatIndex = 0;
 
   @override
@@ -114,14 +133,27 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _failed = false);
+    // Only a retry has an error on screen to clear; in `initState` this is
+    // already false, and `setState` there is churn the framework warns about.
+    if (_failed) setState(() => _failed = false);
     final ids = widget.pairNameIds;
     try {
       // The loader is a minimum, not a wait: the asset usually resolves in a
       // frame, and cutting straight to the deck reads as a glitch.
       final beat = Future<void>.delayed(widget.loaderBeat);
-      final one = ids.isNotEmpty ? await _stories.deckForName(ids.first) : null;
-      final two = ids.length > 1 ? await _stories.deckForName(ids[1]) : null;
+      var one = ids.isNotEmpty ? await _stories.deckForName(ids.first) : null;
+      var two = ids.length > 1 ? await _stories.deckForName(ids[1]) : null;
+      // The comfort fallback the hook screen promises, honoured here too: an
+      // empty pair (a skipped/kill-switched hook) or an id no approved deck
+      // teaches reveals the sign pair rather than an error the user cannot
+      // clear. Both halves move together — half a pair is not a reveal.
+      if (one == null) {
+        final comfort = await _stories.comfortPair();
+        if (comfort.length == 2) {
+          one = comfort.first;
+          two = comfort[1];
+        }
+      }
       await beat;
       if (!mounted) return;
       setState(() {
@@ -146,16 +178,16 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   }
 
   void _emitAbandoned() {
-    if (_completed || _abandonedFired || _screens.isEmpty) return;
-    _abandonedFired = true;
+    if (_latch.completed || _latch.abandonedFired || _screens.isEmpty) return;
+    _latch.abandonedFired = true;
     _emit(AnalyticsEvents.revealDeckAbandoned, {
       AnalyticsEvents.propBeatIndex: _lastBeatIndex,
     });
   }
 
   Future<void> _onAmeen() async {
-    if (_completed) return;
-    _completed = true;
+    if (_latch.completed) return;
+    _latch.completed = true;
     _emit(AnalyticsEvents.revealDeckCompleted);
     await pushOnboardingCardReveal(
       context,

@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../content/aspirations.dart';
 import '../content/problem_chips.dart';
+import '../../../services/analytics_event_names.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/card_collection_service.dart' show CardTier;
 import '../../../services/launch_gate_service.dart';
@@ -383,6 +384,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         _chipResolverOverride = chipResolver,
         super(restored ?? const OnboardingState());
 
+  /// Static analytics hook (mirrors `DailyLoopNotifier.onAnalyticsEvent`).
+  /// Wired in `main.dart` — the notifier itself stays Riverpod-dispatch-free so
+  /// `completeOnboarding` can be driven in a unit test.
+  static void Function(String name, Map<String, Object?> props)?
+      onAnalyticsEvent;
+
   final AuthService? _authServiceOverride;
   AuthService? _authServiceCached;
   AuthService get _authService =>
@@ -699,31 +706,62 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     }
   }
 
+  /// The hook pair this user's completion writes agree on.
+  ///
+  /// Resolved ONCE per completion and handed to both consumers (the starter
+  /// card / `starter_name_id`, and the seeded queue). Resolving it twice let an
+  /// empty-pair user's queue open on the comfort pair while their starter card
+  /// stayed null — the queue's Name₁ and the card they own must be the same
+  /// Name. Outside the reel flow the state's pair is returned untouched: the
+  /// comfort fallback is the reel flow's contract, not a global default.
+  @visibleForTesting
+  Future<List<int>> resolvePairNameIds() async {
+    final pair = state.pairNameIds;
+    if (pair.length == 2 || state.onboardingFlow != onboardingFlowReel) {
+      return pair;
+    }
+    return _chipResolver.pairNameIdsForChip(comfortChipKey);
+  }
+
   /// The 7 ids `seed_name_queue` is called with: the hook's pair at positions
   /// 1-2, then the aspiration answer's five at 3-7.
   ///
   /// Empty for anything but the reel flow — the queue IS the reel flow's
   /// acquisition promise, and a kill-switch user who never saw a hook screen
-  /// must not be handed one. Within the reel flow it falls back to the comfort
-  /// pair when the state carries no resolved pair (the same fallback the hook
-  /// screen uses), and to a two-row queue when the aspiration is unanswered —
-  /// the RPC accepts 2-7 ids, and inventing an ordering would ship unreviewed
-  /// content. Empty means "don't seed", never "seed junk".
-  @visibleForTesting
-  Future<List<int>> buildQueueNameIds() async {
+  /// must not be handed one. Falls back to a two-row queue when the aspiration
+  /// is unanswered — the RPC accepts 2-7 ids, and inventing an ordering would
+  /// ship unreviewed content. Empty means "don't seed", never "seed junk".
+  List<int> queueNameIdsFor(List<int> pair) {
     if (state.onboardingFlow != onboardingFlowReel) return const [];
-    var pair = state.pairNameIds;
-    if (pair.length != 2) {
-      pair = await _chipResolver.pairNameIdsForChip(comfortChipKey);
-    }
     if (pair.length != 2) return const [];
     return [...pair, ...aspirationQueueNameIds(state.aspiration)];
   }
+
+  /// [queueNameIdsFor] over a freshly [resolvePairNameIds]-resolved pair.
+  /// `completeOnboarding` does NOT call this — it resolves the pair itself so
+  /// the starter card sees the same one.
+  @visibleForTesting
+  Future<List<int>> buildQueueNameIds() async =>
+      queueNameIdsFor(await resolvePairNameIds());
 
   Future<void> completeOnboarding(AppSessionNotifier appSession) async {
     // Reset the daily launch gate so the new user always sees the day-0
     // DailyLaunchOverlay when they land on the home screen.
     await resetDailyLaunchGate();
+
+    // One resolution for the whole chain: the starter card, the persisted
+    // `starter_name_id` and the queue's first row are the same Name or the
+    // user's collection contradicts their queue on day 0.
+    final pair = await resolvePairNameIds();
+    final starterId =
+        state.starterNameId ?? (pair.isNotEmpty ? pair.first : null);
+    // Committed to state BEFORE the persist so the fallback reaches
+    // `starter_name_id` server-side too — computing it after meant the column
+    // stayed null for every user who reached completion without an explicit
+    // starter, and the freeze trigger locks that null in.
+    if (starterId != null && state.starterNameId != starterId) {
+      state = state.copyWith(starterNameId: starterId);
+    }
 
     await persistOnboardingToSupabase();
 
@@ -731,8 +769,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     // flow's reveal SHOWS a Silver card (W2-C1, deterministic), so it persists
     // Silver; every other flow keeps the legacy Bronze. Idempotent on
     // (user_id, name_id) — a re-run clamps rather than increments.
-    final starterId = state.starterNameId ??
-        (state.pairNameIds.isNotEmpty ? state.pairNameIds.first : null);
     if (starterId != null) {
       try {
         await _authService.seedStarterCard(
@@ -763,13 +799,21 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     // than leaving a silently dead W3 unseal. It must not abort the rest of
     // completion, though: the caller in onboarding_screen swallows throws, and
     // an escape here would skip markOnboardingCompleted + markOnboarded.
-    final queueIds = await buildQueueNameIds();
+    final queueIds = queueNameIdsFor(pair);
     if (queueIds.length >= 2) {
       try {
         await _nameQueue.seedIfEmpty(queueIds);
       } catch (e, stack) {
         debugPrint('[Onboarding] name-queue seed FAILED — the daily unseal '
             'will have nothing to open: $e\n$stack');
+        // A debugPrint is invisible in production, and this failure means a
+        // shipped user has an acquisition promise with nothing behind it. The
+        // error CLASS only — a raw PostgrestException message would blow up the
+        // property cardinality.
+        onAnalyticsEvent?.call(AnalyticsEvents.nameQueueSeedFailed, {
+          'id_count': queueIds.length,
+          'error_class': e.runtimeType.toString(),
+        });
       }
     }
 
@@ -780,15 +824,6 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await _authService.markOnboardingCompleted();
     } catch (_) {}
-
-    // Only NOW drop the local onboarding state. Wiping it first (as this did
-    // until W2-C2) meant a crash anywhere above restarted onboarding from a
-    // blank slate — a fresh Name₁ resolved against a queue the server had
-    // already frozen, and a `first_problem_text` the freeze trigger would
-    // reject. Losing the wipe to a crash is the cheap failure: the next run
-    // re-persists the same answers idempotently.
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsKey);
 
     // Re-sync first steps now that user_profiles row exists
     await syncFirstStepsFromSupabase();
@@ -819,6 +854,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
     // Mark onboarded in the single source of truth
     await appSession.markOnboarded();
+
+    // Only NOW drop the local onboarding state — after the LAST step that could
+    // need to be retried against it. Wiping it earlier (as this did until
+    // W2-C2) meant a crash anywhere above restarted onboarding from a blank
+    // slate: a fresh Name₁ resolved against a queue the server had already
+    // frozen, and a `first_problem_text` the freeze trigger would reject.
+    // Losing the wipe to a crash is the cheap failure — the next run
+    // re-persists the same answers idempotently, and `markOnboarded` has
+    // already routed the user out of onboarding.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
 
     // Put the new user INTO the hard-paywall gate by writing the local
     // paywall-cleared latch = false NOW, so the router enforces tour → wall

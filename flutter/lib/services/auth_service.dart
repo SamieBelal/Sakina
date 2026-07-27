@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sakina/core/env.dart';
@@ -49,6 +50,99 @@ Map<String, dynamic> w1ProfileColumns({
       if (firstProblemText != null) 'first_problem_text': firstProblemText,
       if (onboardingFlow != null) 'onboarding_flow': onboardingFlow,
     };
+
+/// The quiz-answer columns of an onboarding persist. Explicit nulls are part of
+/// the contract here (unlike [w1ProfileColumns]): these columns are only ever
+/// written by this one path, so a null is the answer, not a gap.
+Map<String, dynamic> onboardingQuizColumns({
+  String? displayName,
+  String? intention,
+  String? familiarity,
+  List<String> attribution = const [],
+  String? ageRange,
+  String? prayerFrequency,
+  int? starterNameId,
+  List<String> duaTopics = const [],
+  String? duaTopicsOther,
+  int? dailyCommitmentMinutes,
+  String? reminderTime,
+  bool commitmentAccepted = false,
+}) =>
+    {
+      'display_name': AuthService.resolveDisplayName(displayName),
+      'onboarding_intention': intention,
+      'onboarding_familiarity': familiarity,
+      'onboarding_attribution': attribution,
+      'age_range': ageRange,
+      'prayer_frequency': prayerFrequency,
+      'starter_name_id': starterNameId,
+      'dua_topics': duaTopics,
+      'dua_topics_other': duaTopicsOther,
+      'daily_commitment_minutes': dailyCommitmentMinutes,
+      'reminder_time': reminderTime,
+      'commitment_accepted': commitmentAccepted,
+    };
+
+/// One UPDATE statement of an onboarding persist: which group of columns, and
+/// a [stage] for the failure log.
+typedef ProfileUpdate = ({String stage, Map<String, dynamic> columns});
+
+/// The UPDATEs [AuthService.saveOnboardingData] sends, **in the order it sends
+/// them**, one statement per group.
+///
+/// W1 FIRST. The two groups fail for different reasons — `acquisition_promise`
+/// carries a check constraint and `onboarding_flow` is covered by the
+/// post-completion freeze trigger — so they were split to bound the blast
+/// radius. Order is the other half of that: the W1 write has a DEADLINE (once
+/// `onboarding_completed` flips true the freeze trigger rejects any distinct
+/// value, so a W1 write lost on the last persist is lost forever), while the
+/// quiz columns stay writable and are re-sent by every later persist. Running
+/// the deadline-bound write behind a statement that can fail inverts that.
+///
+/// Top level so the order is unit-testable without a live Supabase client.
+List<ProfileUpdate> onboardingProfileUpdates({
+  String? displayName,
+  String? intention,
+  String? familiarity,
+  List<String> attribution = const [],
+  String? ageRange,
+  String? prayerFrequency,
+  int? starterNameId,
+  List<String> duaTopics = const [],
+  String? duaTopicsOther,
+  int? dailyCommitmentMinutes,
+  String? reminderTime,
+  bool commitmentAccepted = false,
+  Map<String, dynamic>? acquisitionPromise,
+  String? firstProblemText,
+  String? onboardingFlow,
+}) {
+  final w1 = w1ProfileColumns(
+    acquisitionPromise: acquisitionPromise,
+    firstProblemText: firstProblemText,
+    onboardingFlow: onboardingFlow,
+  );
+  return [
+    if (w1.isNotEmpty) (stage: 'w1', columns: w1),
+    (
+      stage: 'quiz',
+      columns: onboardingQuizColumns(
+        displayName: displayName,
+        intention: intention,
+        familiarity: familiarity,
+        attribution: attribution,
+        ageRange: ageRange,
+        prayerFrequency: prayerFrequency,
+        starterNameId: starterNameId,
+        duaTopics: duaTopics,
+        duaTopicsOther: duaTopicsOther,
+        dailyCommitmentMinutes: dailyCommitmentMinutes,
+        reminderTime: reminderTime,
+        commitmentAccepted: commitmentAccepted,
+      ),
+    ),
+  ];
+}
 
 /// Outcome of [performSignUpWithRecovery].
 enum SignUpOutcome {
@@ -317,36 +411,37 @@ class AuthService {
       'acquisition_promise must carry a "contract" key (DB check constraint)',
     );
 
-    await _supabase.from('user_profiles').update({
-      'display_name': resolveDisplayName(displayName),
-      'onboarding_intention': intention,
-      'onboarding_familiarity': familiarity,
-      'onboarding_attribution': attribution,
-      'age_range': ageRange,
-      'prayer_frequency': prayerFrequency,
-      'starter_name_id': starterNameId,
-      'dua_topics': duaTopics,
-      'dua_topics_other': duaTopicsOther,
-      'daily_commitment_minutes': dailyCommitmentMinutes,
-      'reminder_time': reminderTime,
-      'commitment_accepted': commitmentAccepted,
-    }).eq('id', userId);
-
-    // The three W1 columns ride a SECOND statement, deliberately.
-    //
-    // `acquisition_promise` carries a check constraint and `onboarding_flow` is
-    // covered by the post-completion freeze trigger. Sharing one UPDATE with the
-    // quiz answers means either of those raising takes the whole write down —
-    // and this method is the only writer of the quiz answers, so a reel-flow
-    // constraint bug would silently cost every user their onboarding data.
-    // Split, the blast radius of a W1 failure is the W1 columns.
-    final w1 = w1ProfileColumns(
+    // Two statements, W1 first, each isolated — see [onboardingProfileUpdates]
+    // for why the split and the order both matter. Isolated because the split
+    // is pointless if the first failure aborts the second: bounding the blast
+    // radius means each group survives the other's constraint violations.
+    for (final update in onboardingProfileUpdates(
+      displayName: displayName,
+      intention: intention,
+      familiarity: familiarity,
+      attribution: attribution,
+      ageRange: ageRange,
+      prayerFrequency: prayerFrequency,
+      starterNameId: starterNameId,
+      duaTopics: duaTopics,
+      duaTopicsOther: duaTopicsOther,
+      dailyCommitmentMinutes: dailyCommitmentMinutes,
+      reminderTime: reminderTime,
+      commitmentAccepted: commitmentAccepted,
       acquisitionPromise: acquisitionPromise,
       firstProblemText: firstProblemText,
       onboardingFlow: onboardingFlow,
-    );
-    if (w1.isEmpty) return;
-    await _supabase.from('user_profiles').update(w1).eq('id', userId);
+    )) {
+      try {
+        await _supabase
+            .from('user_profiles')
+            .update(update.columns)
+            .eq('id', userId);
+      } catch (e, stack) {
+        debugPrint('[Auth] onboarding persist (${update.stage}) UPDATE failed: '
+            '$e\n$stack');
+      }
+    }
   }
 
   /// Seed the user's collection with the starter Name they got from the

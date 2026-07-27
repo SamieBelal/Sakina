@@ -129,8 +129,10 @@ void main() {
     expect(find.byType(SealedNameTease), findsOneWidget);
     expect(find.text(SealedNameTease.sealedLabel.toUpperCase()), findsOneWidget);
     expect(find.text('Al-Wakeel'), findsOneWidget);
-    // No countdown clock anywhere on the tease (approved UX spec).
-    expect(find.textContaining(':'), findsNothing);
+    // No countdown clock anywhere on the tease (approved UX spec) — a duration
+    // or a wall clock, not merely the colon character, which any copy edit
+    // could reintroduce innocently.
+    expect(find.textContaining(RegExp(r'\d+\s*(h|hr|hour|:\d\d)')), findsNothing);
 
     await tester.tap(find.text(SealedNameTease.continueLabel));
     await tester.pumpAndSettle();
@@ -229,13 +231,50 @@ void main() {
         isEmpty);
   });
 
-  testWidgets('an unresolvable Name₁ shows the in-canvas error, not a blank',
+  testWidgets('an empty pair falls back to the comfort pair, not the error',
+      (tester) async {
+    // The kill-switched / skipped hook. The screen owes this user a reveal, and
+    // the comfort pair is the one every other surface falls back to.
+    final done = await pumpReveal(tester, pair: const []);
+
+    expect(find.textContaining("couldn't prepare"), findsNothing);
+    // Ar-Rahman's deck opens on its recognition beat.
+    expect(find.textContaining("You didn't find this"), findsOneWidget);
+
+    await walkToLastBeat(tester);
+    await tester.tap(find.text('Ameen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 400));
+    tester
+        .widget<CardRevealOverlay>(find.byType(CardRevealOverlay))
+        .onContinue!();
+    await tester.pumpAndSettle();
+
+    // …and the tease is the comfort pair's Name₂, not a dead end.
+    expect(find.text('Al-Lateef'), findsOneWidget);
+    await tester.tap(find.text(SealedNameTease.continueLabel));
+    await tester.pumpAndSettle();
+    expect(done.single.name1Id, 2);
+    expect(done.single.name2Id, 36);
+  });
+
+  testWidgets('an unresolvable Name₁ falls back to the comfort pair too',
+      (tester) async {
+    await pumpReveal(tester, pair: const [999]); // no deck teaches this id
+
+    expect(find.textContaining("You didn't find this"), findsOneWidget);
+    expect(find.text('Try Again'), findsNothing);
+  });
+
+  testWidgets('the in-canvas error is what is left when even comfort fails',
       (tester) async {
     useOnboardingViewport(tester);
     await tester.pumpWidget(MaterialApp(
       home: OnboardingRevealScreen(
-        pairNameIds: const [999], // no deck teaches this id
-        stories: stories(),
+        pairNameIds: const [6, 35],
+        // An empty catalog: no Name₁, and no comfort pair to fall back to.
+        stories: NameStoriesService(loadAsset: (_) async => '[]'),
         loaderBeat: Duration.zero,
         showFirstRunHint: false,
         onDone: (_) {},
@@ -245,5 +284,59 @@ void main() {
 
     expect(find.textContaining("couldn't prepare"), findsOneWidget);
     expect(find.text('Try Again'), findsOneWidget);
+  });
+
+  testWidgets('a shared latch survives a re-mount — no second award, no re-emit',
+      (tester) async {
+    // Wave E owns one latch per onboarding run. Back-nav into the reveal must
+    // not re-award the card or re-fire the deck telemetry. (Wave E must STILL
+    // forbid that back-nav — this is the belt, not the braces.)
+    final latch = OnboardingRevealLatch();
+    Future<void> pumpWithLatch() async {
+      await tester.pumpWidget(MaterialApp(
+        home: OnboardingRevealScreen(
+          pairNameIds: anxietyPair,
+          stories: stories(),
+          latch: latch,
+          loaderBeat: Duration.zero,
+          showFirstRunHint: false,
+          onDone: (_) {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    useOnboardingViewport(tester);
+    await pumpWithLatch();
+    await walkToLastBeat(tester);
+    await tester.tap(find.text('Ameen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 400));
+    tester
+        .widget<CardRevealOverlay>(find.byType(CardRevealOverlay))
+        .onContinue!();
+    await tester.pumpAndSettle();
+    expect(events.where((e) => e.name == AnalyticsEvents.revealDeckCompleted),
+        hasLength(1));
+
+    // Re-entered: a fresh State, the same run.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await pumpWithLatch();
+    await walkToLastBeat(tester);
+    await tester.tap(find.text('Ameen'));
+    // Fixed pumps, not pumpAndSettle: the flow's completion beat stays up
+    // (nothing navigates away from it this time, which is the point).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(CardRevealOverlay), findsNothing,
+        reason: 'the card was already awarded');
+    expect(events.where((e) => e.name == AnalyticsEvents.revealDeckCompleted),
+        hasLength(1));
+    expect(events.where((e) => e.name == AnalyticsEvents.revealDeckAbandoned),
+        isEmpty);
   });
 }

@@ -155,6 +155,9 @@ class SealedNameTease extends StatelessWidget {
     return Semantics(
       button: true,
       label: continueLabel,
+      // Without this the child Text re-announces the label, so VoiceOver reads
+      // the button twice.
+      excludeSemantics: true,
       child: GestureDetector(
         onTap: onContinue,
         child: Container(

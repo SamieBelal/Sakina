@@ -390,6 +390,11 @@ Future<void> main() async {
   // (and the card-reveal overlay's own events) bridge through this hook.
   OnboardingRevealScreen.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
+  // …and the completion chain's degrade-don't-abort failures (W2-C2): a
+  // `name_queue_seed_failed` is otherwise invisible, since completion carries
+  // on without the queue the reel flow promised.
+  OnboardingNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
 
   final appSession = AppSessionNotifier(
     authService: AuthService(),
@@ -398,9 +403,11 @@ Future<void> main() async {
   );
   // Cross-device backfill of which onboarding experience this user ran. The
   // batch sync is a top-level function, so it hands the profile snapshot to the
-  // session through this hook (W2-C3). Wave F is what reads it.
+  // session through this hook (W2-C3). Wave F is what reads it. The mirror —
+  // not the plain setter — because a snapshot with no flow must leave a known
+  // flow alone.
   UserProfileSyncHooks.onOnboardingProfileHydrated =
-      (snapshot) => appSession.setOnboardingFlow(snapshot.onboardingFlow);
+      (snapshot) => appSession.mirrorServerOnboardingFlow(snapshot.onboardingFlow);
 
   runApp(
     ProviderScope(

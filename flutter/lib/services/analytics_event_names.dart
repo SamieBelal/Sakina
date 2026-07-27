@@ -51,6 +51,12 @@ abstract final class AnalyticsEvents {
   static const surfaceOnboardingReveal = 'onboarding_reveal';
   static const revealDeckCompleted = 'reveal_deck_completed';
   static const revealDeckAbandoned = 'reveal_deck_abandoned';
+  // The 7-Name queue seed failing at the end of onboarding (One Ship W2-C2).
+  // Degrade-don't-abort means completion still finishes, so this event is the
+  // ONLY signal that a shipped user has an acquisition promise with nothing
+  // behind it — their daily unseal opens on an empty queue.
+  //   props: id_count, error_class (the class, never the raw driver message)
+  static const nameQueueSeedFailed = 'name_queue_seed_failed';
   // Re-engagement: fired when a user taps a push notification (client). Pairs
   // with a future server-side `notification_sent` to compute push CTR and
   // notification→session lift.
