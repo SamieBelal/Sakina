@@ -32,9 +32,11 @@ final cosmeticsStateProvider =
 /// premium — the conservative default (it can only cost an active subscriber one
 /// frame of classic gold, never the reverse).
 ///
-/// autoDispose so it re-resolves for a new set of consumers rather than pinning
-/// one answer for the process lifetime; a subscription that starts or lapses
-/// mid-session is picked up the next time a lantern surface mounts.
+/// autoDispose, but note the limit: a FutureProvider does not re-run while a
+/// listener survives, and Home listens across every PUSHED route. So this does
+/// NOT self-heal mid-session — `CompanionScreen.initState` and the wardrobe's
+/// post-mutation path invalidate it explicitly. Do not assume mounting a lantern
+/// surface is enough to refresh it.
 final cosmeticsPremiumProvider = FutureProvider.autoDispose<bool>((ref) async {
   try {
     return await PurchaseService().isPremium();
@@ -43,8 +45,13 @@ final cosmeticsPremiumProvider = FutureProvider.autoDispose<bool>((ref) async {
   }
 });
 
-/// THE lantern skin every surface renders — Home, the launch overlay, the card
-/// reveal, the milestone overlay, the rescue sheet, and the Companion stage.
+/// THE lantern skin the non-cosmetics surfaces render — Home, the launch
+/// overlay, the card reveal, the milestone overlay and the rescue sheet.
+///
+/// The Companion stage and the wardrobe deliberately do NOT read this: they
+/// resolve their own premium snapshot because they also need it for badges and
+/// per-tile gating, not just for the hero. They stay in agreement with this
+/// provider by invalidating [cosmeticsPremiumProvider] whenever they re-resolve.
 ///
 /// Exists because `CompanionMedallion.skin` defaults to classic gold so that
 /// pre-cosmetics call sites kept compiling, which quietly left every surface

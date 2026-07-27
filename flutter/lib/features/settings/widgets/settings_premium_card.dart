@@ -111,7 +111,7 @@ class _SettingsPremiumCardState extends ConsumerState<SettingsPremiumCard>
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, 
+        const SnackBar(duration: kSnackBarErrorDuration, 
           content: Text('Could not open subscription management. '
               'Open the App Store directly to manage your subscription.'),
         ),

@@ -259,7 +259,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // snap-back to OFF isn't mysterious.
         if (enabled && !isOptedIn) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(duration: kSnackBarDuration, 
+            const SnackBar(duration: kSnackBarErrorDuration, 
               content: Text(
                 'Notifications are blocked in your device settings. '
                 'Enable them there to turn this on.',

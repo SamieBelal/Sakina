@@ -1067,7 +1067,7 @@ class _CardDetailSheet extends ConsumerWidget {
                           }
                           if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(duration: kSnackBarDuration, 
+                            SnackBar(duration: kSnackBarErrorDuration, 
                               content: Text(
                                 refund.success
                                     ? "Couldn't upgrade. Your scrolls were refunded."

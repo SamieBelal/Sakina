@@ -106,7 +106,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
           },
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(duration: kSnackBarDuration, 
+          SnackBar(duration: kSnackBarErrorDuration, 
             content: Text(
               result.errorMessage ?? 'Something went wrong. Please try again.',
             ),
@@ -177,7 +177,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
         'error': AnalyticsEvents.signupFailedReasonForCode(e.code),
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(duration: kSnackBarDuration, content: Text(e.message)),
+        SnackBar(duration: kSnackBarErrorDuration, content: Text(e.message)),
       );
     } catch (_) {
       if (!mounted) return;

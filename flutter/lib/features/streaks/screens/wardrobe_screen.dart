@@ -368,6 +368,14 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
     }
     if (!ok) return;
     ref.invalidate(cosmeticsStateProvider);
+    // Also drop the shared premium snapshot. Home holds
+    // `cosmeticsPremiumProvider` alive across pushed routes, so a user who
+    // bought premium during THIS session (paywall → companion → wardrobe, all
+    // pushes, Home never unmounts) left Home pinned at isPremium=false. Equipping
+    // a premium-EXCLUSIVE skin then had the wardrobe showing it while Home fell
+    // back to classic gold — the exact two-surfaces-two-answers drift the shared
+    // provider exists to prevent, just relocated.
+    ref.invalidate(cosmeticsPremiumProvider);
     // Re-read entitlement with the state (I5): premium can be granted anywhere
     // in the app, and a snapshot frozen at initState would leave the badges
     // describing an entitlement the user no longer (or now does) hold.

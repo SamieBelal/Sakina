@@ -34,7 +34,7 @@ class ProviderErrorSnackBarListener<T> extends ConsumerWidget {
       if (err == prevErr) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(duration: kSnackBarDuration, content: Text(err)));
+        ..showSnackBar(SnackBar(duration: kSnackBarErrorDuration, content: Text(err)));
     });
     return child;
   }

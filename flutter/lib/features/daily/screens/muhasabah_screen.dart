@@ -9,6 +9,7 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/reveal/reveal_spec.dart';
@@ -199,6 +200,16 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         qn.onNameDiscovered();
         if (tieredUp) qn.onCardTieredUp();
         notifier.completeDeeper();
+        // completeDeeper() mints the daily Noor, which `_creditNoorCache`
+        // writes STRAIGHT to prefs — there is no provider write to observe, and
+        // the service layer has no Ref to invalidate with. Before Home rendered
+        // the equipped skin that did not matter: `cosmeticsStateProvider` is
+        // autoDispose and its only consumers were the Companion stage and the
+        // wardrobe, so both re-read on every open. Home now holds it alive
+        // across pushed routes, so without this the Noor chip and the wardrobe's
+        // affordability check would both show the PRE-award balance until the
+        // user happened to switch bottom-nav tabs.
+        ref.invalidate(cosmeticsStateProvider);
       },
       onReturnHome: () {
         // If the user backs out of the beat flow without completing (taps

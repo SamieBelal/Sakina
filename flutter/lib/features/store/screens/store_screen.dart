@@ -277,7 +277,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: kSnackBarDuration, 
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: kSnackBarErrorDuration, 
       content: Text(message),
       backgroundColor: AppColors.error,
     ));
