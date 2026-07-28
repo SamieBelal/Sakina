@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_reveal_screen.dart';
@@ -48,15 +49,17 @@ void main() {
   }) async {
     useOnboardingViewport(tester);
     final done = <OnboardingRevealResult>[];
-    await tester.pumpWidget(MaterialApp(
-      home: OnboardingRevealScreen(
-        pairNameIds: pair,
-        stories: stories(),
-        loaderBeat: Duration.zero,
-        // The hint pulses forever; pumpAndSettle would never return.
-        showFirstRunHint: false,
-        onBack: onBack,
-        onDone: done.add,
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: OnboardingRevealScreen(
+          pairNameIds: pair,
+          stories: stories(),
+          loaderBeat: Duration.zero,
+          // The hint pulses forever; pumpAndSettle would never return.
+          showFirstRunHint: false,
+          onBack: onBack,
+          onDone: done.add,
+        ),
       ),
     ));
     await tester.pumpAndSettle();
@@ -75,13 +78,15 @@ void main() {
   testWidgets('opens on the loader beat, then renders the real Name₁ deck',
       (tester) async {
     useOnboardingViewport(tester);
-    await tester.pumpWidget(MaterialApp(
-      home: OnboardingRevealScreen(
-        pairNameIds: anxietyPair,
-        stories: stories(),
-        loaderBeat: const Duration(milliseconds: 400),
-        showFirstRunHint: false,
-        onDone: (_) {},
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: OnboardingRevealScreen(
+          pairNameIds: anxietyPair,
+          stories: stories(),
+          loaderBeat: const Duration(milliseconds: 400),
+          showFirstRunHint: false,
+          onDone: (_) {},
+        ),
       ),
     ));
     await tester.pump(); // first frame — deck not resolved yet
@@ -315,17 +320,19 @@ void main() {
       ),
     ]);
 
-    Future<void> pumpFrame() => tester.pumpWidget(MaterialApp(
-          home: Padding(
-            // A prop that changes on rebuild, so the child really is rebuilt.
-            padding: EdgeInsets.only(top: done.length.toDouble()),
-            child: OnboardingRevealScreen(
-              pairNameIds: const [6],
-              stories:
-                  NameStoriesService(loadAsset: (_) async => singleDeckAsset),
-              loaderBeat: Duration.zero,
-              showFirstRunHint: false,
-              onDone: done.add,
+    Future<void> pumpFrame() => tester.pumpWidget(ProviderScope(
+          child: MaterialApp(
+            home: Padding(
+              // A prop that changes on rebuild, so the child really is rebuilt.
+              padding: EdgeInsets.only(top: done.length.toDouble()),
+              child: OnboardingRevealScreen(
+                pairNameIds: const [6],
+                stories:
+                    NameStoriesService(loadAsset: (_) async => singleDeckAsset),
+                loaderBeat: Duration.zero,
+                showFirstRunHint: false,
+                onDone: done.add,
+              ),
             ),
           ),
         ));
@@ -357,14 +364,16 @@ void main() {
   testWidgets('the in-canvas error is what is left when even comfort fails',
       (tester) async {
     useOnboardingViewport(tester);
-    await tester.pumpWidget(MaterialApp(
-      home: OnboardingRevealScreen(
-        pairNameIds: const [6, 35],
-        // An empty catalog: no Name₁, and no comfort pair to fall back to.
-        stories: NameStoriesService(loadAsset: (_) async => '[]'),
-        loaderBeat: Duration.zero,
-        showFirstRunHint: false,
-        onDone: (_) {},
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: OnboardingRevealScreen(
+          pairNameIds: const [6, 35],
+          // An empty catalog: no Name₁, and no comfort pair to fall back to.
+          stories: NameStoriesService(loadAsset: (_) async => '[]'),
+          loaderBeat: Duration.zero,
+          showFirstRunHint: false,
+          onDone: (_) {},
+        ),
       ),
     ));
     await tester.pumpAndSettle();
@@ -380,14 +389,16 @@ void main() {
     // forbid that back-nav — this is the belt, not the braces.)
     final latch = OnboardingRevealLatch();
     Future<void> pumpWithLatch() async {
-      await tester.pumpWidget(MaterialApp(
-        home: OnboardingRevealScreen(
-          pairNameIds: anxietyPair,
-          stories: stories(),
-          latch: latch,
-          loaderBeat: Duration.zero,
-          showFirstRunHint: false,
-          onDone: (_) {},
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          home: OnboardingRevealScreen(
+            pairNameIds: anxietyPair,
+            stories: stories(),
+            latch: latch,
+            loaderBeat: Duration.zero,
+            showFirstRunHint: false,
+            onDone: (_) {},
+          ),
         ),
       ));
       await tester.pumpAndSettle();

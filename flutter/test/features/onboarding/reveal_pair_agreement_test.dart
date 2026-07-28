@@ -137,13 +137,15 @@ void main() {
   ) async {
     useOnboardingViewport(tester);
     final done = <OnboardingRevealResult>[];
-    await tester.pumpWidget(MaterialApp(
-      home: OnboardingRevealScreen(
-        pairNameIds: pairNameIds,
-        stories: stories(),
-        loaderBeat: Duration.zero,
-        showFirstRunHint: false,
-        onDone: done.add,
+    await tester.pumpWidget(ProviderScope(
+      child: MaterialApp(
+        home: OnboardingRevealScreen(
+          pairNameIds: pairNameIds,
+          stories: stories(),
+          loaderBeat: Duration.zero,
+          showFirstRunHint: false,
+          onDone: done.add,
+        ),
       ),
     ));
     await tester.pumpAndSettle();
