@@ -121,7 +121,11 @@ const List<ProblemChip> problemChips = [
   ),
   ProblemChip(
     chipKey: 'sign',
-    label: "I can't put it into words — everything just feels heavy",
+    // Short on purpose. The long form ("…— everything just feels heavy")
+    // duplicated the `heavy` chip two rows above, and research on first-question
+    // screens (Noom's praised "I haven't decided yet") says the escape hatch
+    // reads best as the shortest, least-committal line on the screen.
+    label: "I can't put it into words",
     problemCategory: 'unspoken',
     contract: HookContract.sign,
   ),

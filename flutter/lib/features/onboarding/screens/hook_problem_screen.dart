@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_motion.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../content/problem_chips.dart';
 import '../widgets/hook_free_text_block.dart';
@@ -29,7 +30,12 @@ class HookProblemScreen extends StatefulWidget {
   });
 
   static const String headerLabel = "What's weighing on you right now?";
-  static const String sublineLabel = 'Take your time.';
+
+  /// Answers "why are you asking me this?" in the same breath as the question.
+  /// A first-time user otherwise meets the most exposing question in the app
+  /// with no idea what happens after they tap (revised 2026-07-27).
+  static const String promiseLabel =
+      "Whatever it is, there's a Name of Allah for it.";
 
   /// Fired once, after the selected-state beat, with everything the tap
   /// promised. Called from the tap handler's continuation — never during
@@ -164,8 +170,20 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
     return false;
   }
 
+  /// Short screens (iPhone SE and friends) get a compacted rhythm.
+  ///
+  /// Not cosmetic: at the roomy metrics the seventh row — "I can't put it into
+  /// words" — falls below the fold on a 667pt screen, and that is the option
+  /// built for the user who cannot name their state. NN/g eyetracking shows
+  /// content just below the fold is viewed about half as much as content just
+  /// above it, so the escape hatch has to stay on screen. Pinned by
+  /// hook_problem_screen_small_device_test.dart.
+  static const double _compactHeightThreshold = 700;
+
   @override
   Widget build(BuildContext context) {
+    final compact =
+        MediaQuery.sizeOf(context).height < _compactHeightThreshold;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
@@ -175,21 +193,27 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
               onNotification: _trackExtentAfter,
               child: ListView(
                 controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(
+                // Top air is deliberate: the question wants to sit slightly
+                // below the notch rather than butt against it, and the list
+                // ends well clear of the bottom edge so nothing feels packed.
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  compact ? AppSpacing.md : AppSpacing.xl + AppSpacing.md,
                   AppSpacing.lg,
                   AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
                 ),
                 children: [
                   HookScreenHeader(
                     title: HookProblemScreen.headerLabel,
-                    subline: HookProblemScreen.sublineLabel,
+                    promise: HookProblemScreen.promiseLabel,
+                    compact: compact,
                     onBack: widget.onBack,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  ..._cards(),
-                  const SizedBox(height: AppSpacing.md - 2),
+                  SizedBox(
+                    height: compact ? AppSpacing.md : AppSpacing.lg + 4,
+                  ),
+                  ..._cards(compact: compact),
+                  SizedBox(height: compact ? AppSpacing.sm : AppSpacing.lg),
                   HookFreeTextBlock(
                     expanded: _freeTextExpanded,
                     controller: _textController,
@@ -203,7 +227,14 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
                         unresolved: () => _resolver.unresolvedForFreeText(text),
                       );
                     },
-                  ).animate().fadeIn(duration: 450.ms, delay: 650.ms),
+                  )
+                      // Last thing to arrive — after every option has landed.
+                      .animate()
+                      .fadeIn(
+                        duration: 450.ms,
+                        delay: AppMotion.listStart +
+                            AppMotion.stagger * problemChips.length,
+                      ),
                 ],
               ),
             ),
@@ -219,29 +250,45 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
     );
   }
 
-  List<Widget> _cards() {
+  /// The list OVERLAPS the question's settle rather than queuing behind it.
+  ///
+  /// This is the "bite-sized" trick on a screen that cannot afford an extra
+  /// tap: the eye still meets the question first, but the options begin
+  /// arriving while it is finishing, so nothing waits on a dead frame. The
+  /// first pass started the list at 620ms — exactly when the question stopped
+  /// moving — which pushed the last row's settle to ~1370ms, well past the 1s
+  /// ceiling NN/g puts on interface animation. Starting at 320ms with a 40ms
+  /// stagger settles row seven at ~900ms instead.
+  List<Widget> _cards({required bool compact}) {
     final cards = <Widget>[];
+    final anySelected = _selectedKey != null;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
     for (var i = 0; i < problemChips.length; i++) {
       final chip = problemChips[i];
-      if (i > 0) cards.add(const SizedBox(height: 12));
+      final isSelected = _selectedKey == chip.chipKey;
+      final delay = AppMotion.listStart + AppMotion.stagger * i;
       cards.add(
         ProblemChipCard(
           chip: chip,
-          selected: _selectedKey == chip.chipKey,
+          selected: isSelected,
+          dimmed: anySelected && !isSelected,
+          showRule: i < problemChips.length - 1,
+          rowHeight: compact
+              ? ProblemChipCard.compactMinHeight
+              : ProblemChipCard.minHeight,
           onTap: () => _commit(
             resolve: () => _resolver.forChip(chip.chipKey),
             unresolved: () => _resolver.unresolvedForChip(chip.chipKey),
             key: chip.chipKey,
           ),
         )
-            // Same 60ms/card stagger the shipped hook screen uses.
-            .animate()
-            .fadeIn(duration: 300.ms, delay: (150 + i * 60).ms)
-            .slideY(
-              begin: 0.06,
+            .animate(delay: delay)
+            .fadeIn(duration: AppMotion.item, curve: AppMotion.enter)
+            .moveY(
+              begin: reduceMotion ? 0 : AppMotion.riseSmall,
               end: 0,
-              duration: 300.ms,
-              delay: (150 + i * 60).ms,
+              duration: AppMotion.item,
+              curve: AppMotion.enter,
             ),
       );
     }

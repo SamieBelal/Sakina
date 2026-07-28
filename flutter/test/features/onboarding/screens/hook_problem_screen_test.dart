@@ -52,12 +52,18 @@ void main() {
     return committed;
   }
 
-  testWidgets('renders the approved header, subline and all 7 cards',
+  testWidgets('renders the question, the promise line and all 7 options',
       (tester) async {
     await pumpScreen(tester);
 
     expect(find.text("What's weighing on you right now?"), findsOneWidget);
-    expect(find.text('Take your time.'), findsOneWidget);
+    // The promise line replaced "Take your time." on 2026-07-27: a first-time
+    // user meets the most exposing question in the app here, and this is the
+    // only thing on screen telling them what happens after they tap.
+    expect(
+      find.text("Whatever it is, there's a Name of Allah for it."),
+      findsOneWidget,
+    );
     expect(find.byType(ProblemChipCard), findsNWidgets(7));
     for (final chip in problemChips) {
       expect(find.text(chip.label), findsOneWidget, reason: chip.chipKey);
