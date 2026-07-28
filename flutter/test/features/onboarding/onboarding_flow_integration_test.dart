@@ -11,6 +11,7 @@ import 'package:sakina/features/onboarding/screens/notification_screen.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_reveal_screen.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/queue_plan_screen.dart';
+import 'package:sakina/features/onboarding/screens/widget_offer_screen.dart';
 import 'package:sakina/features/onboarding/screens/reminder_time_screen.dart';
 import 'package:sakina/features/onboarding/screens/save_progress_screen.dart';
 import 'package:sakina/features/onboarding/screens/sign_up_email_screen.dart';
@@ -38,12 +39,13 @@ void main() {
     4: AspirationScreenReel,
     5: ReminderTimeScreen,
     6: NotificationScreen,
-    7: QueuePlanScreen,
-    8: NameInputScreen,
-    9: SaveProgressScreen,
-    10: SignUpEmailScreen,
-    11: SignUpPasswordScreen,
-    12: OnboardingFinalGate,
+    7: WidgetOfferScreen,
+    8: QueuePlanScreen,
+    9: NameInputScreen,
+    10: SaveProgressScreen,
+    11: SignUpEmailScreen,
+    12: SignUpPasswordScreen,
+    13: OnboardingFinalGate,
   };
 
   Future<List<Widget>> pumpReel(WidgetTester tester, {int? atPage}) async {
@@ -67,7 +69,7 @@ void main() {
     return (pageView.childrenDelegate as SliverChildListDelegate).children;
   }
 
-  testWidgets("the 13 pages are in the plan's order", (tester) async {
+  testWidgets("the 14 pages are in the plan's order", (tester) async {
     final children = await pumpReel(tester);
     expect(children, hasLength(reelOrder.length));
     reelOrder.forEach((index, type) {
@@ -113,7 +115,7 @@ void main() {
 
     // Everything after it CAN go back — only the reveal is sealed off.
     expect((children[3] as CarryingDurationScreen).onBack, isNotNull);
-    expect((children[8] as NameInputScreen).onBack, isNotNull);
+    expect((children[9] as NameInputScreen).onBack, isNotNull);
     await tester.pump(const Duration(seconds: 2));
   });
 
@@ -148,20 +150,22 @@ void main() {
       (tester) async {
     final children = await pumpReel(tester);
     // Hook and reveal are bare full-screen surfaces; the plan is a payoff with
-    // its own header; the gate is the paywall. The other nine fill segments
-    // 0..8 so the bar COMPLETES on the password screen.
+    // its own header; the gate is the paywall. The other ten fill segments
+    // 0..9 so the bar COMPLETES on the password screen. The widget offer (7)
+    // DOES carry a segment — it is an ask, like the notification page.
     expect((children[2] as SourceQuestionScreen).progressSegment, 0);
     expect((children[3] as CarryingDurationScreen).progressSegment, 1);
     expect((children[4] as AspirationScreenReel).progressSegment, 2);
     expect((children[5] as ReminderTimeScreen).progressSegment, 3);
     expect((children[6] as NotificationScreen).progressSegment, 4);
-    expect((children[8] as NameInputScreen).progressSegment, 5);
-    expect((children[9] as SaveProgressScreen).progressSegment, 6);
-    expect((children[10] as SignUpEmailScreen).progressSegment, 7);
-    expect((children[11] as SignUpPasswordScreen).progressSegment, 8);
-    expect(onboardingReelTotalSegments, 9);
+    expect((children[7] as WidgetOfferScreen).progressSegment, 5);
+    expect((children[9] as NameInputScreen).progressSegment, 6);
+    expect((children[10] as SaveProgressScreen).progressSegment, 7);
+    expect((children[11] as SignUpEmailScreen).progressSegment, 8);
+    expect((children[12] as SignUpPasswordScreen).progressSegment, 9);
+    expect(onboardingReelTotalSegments, 10);
     expect(
-      (children[11] as SignUpPasswordScreen).progressSegment,
+      (children[12] as SignUpPasswordScreen).progressSegment,
       onboardingReelTotalSegments - 1,
       reason: 'the bar must complete on the last bar-visible page, not vanish '
           'part-full the way the pre-fix 25-segment bar did',
@@ -178,13 +182,15 @@ void main() {
         onboardingReelTotalSegments);
     expect((children[6] as NotificationScreen).totalSegments,
         onboardingReelTotalSegments);
-    expect((children[8] as NameInputScreen).totalSegments,
+    expect((children[7] as WidgetOfferScreen).totalSegments,
         onboardingReelTotalSegments);
-    expect((children[9] as SaveProgressScreen).totalSegments,
+    expect((children[9] as NameInputScreen).totalSegments,
         onboardingReelTotalSegments);
-    expect((children[10] as SignUpEmailScreen).totalSegments,
+    expect((children[10] as SaveProgressScreen).totalSegments,
         onboardingReelTotalSegments);
-    expect((children[11] as SignUpPasswordScreen).totalSegments,
+    expect((children[11] as SignUpEmailScreen).totalSegments,
+        onboardingReelTotalSegments);
+    expect((children[12] as SignUpPasswordScreen).totalSegments,
         onboardingReelTotalSegments);
     await tester.pump(const Duration(seconds: 2));
   });
@@ -196,10 +202,10 @@ void main() {
     // trimmed-flow constants they would autofocus on the wrong reel page (or
     // never), which is the class of bug the pageIndex param removes.
     final children = await pumpReel(tester);
-    expect((children[8] as NameInputScreen).pageIndex, 8);
-    expect((children[10] as SignUpEmailScreen).pageIndex,
+    expect((children[9] as NameInputScreen).pageIndex, 9);
+    expect((children[11] as SignUpEmailScreen).pageIndex,
         onboardingReelEmailPageIndex);
-    expect((children[11] as SignUpPasswordScreen).pageIndex,
+    expect((children[12] as SignUpPasswordScreen).pageIndex,
         onboardingReelPasswordPageIndex);
     await tester.pump(const Duration(seconds: 2));
   });

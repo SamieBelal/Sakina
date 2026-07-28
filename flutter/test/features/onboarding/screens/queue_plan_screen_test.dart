@@ -12,13 +12,21 @@ import 'package:sakina/features/onboarding/widgets/journey_stamp_track.dart';
 import 'package:sakina/features/onboarding/widgets/queue_name_row.dart';
 import 'package:sakina/services/name_stories_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '_test_utils.dart';
 
 /// One Ship W2-D2 — the plan screen renders the REAL queue: a real chip's
 /// approved pair at 1-2, the aspiration's founder-reviewed ordering at 3-7.
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    // The lantern medallion (Wave G) wraps itself in a VisibilityDetector,
+    // whose batching timer outlives the tree and trips the pending-timer
+    // invariant. Zero makes its callbacks synchronous — the same convention
+    // the card-reveal and cosmetics tests already use.
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
 
   ProblemChipResolver resolver() => ProblemChipResolver(
         stories: NameStoriesService(
@@ -64,7 +72,14 @@ void main() {
         container: container,
         child: MaterialApp(
           home: MediaQuery(
-            data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+            data: MediaQueryData(
+              textScaler: TextScaler.linear(textScale),
+              // The screen hosts the lantern medallion (Wave G), whose breath
+              // pulse repeats forever — `pumpAndSettle` would never return.
+              // Suppressing it here is also exactly what a reduce-motion user
+              // gets, so the layout under test is a shipped configuration.
+              disableAnimations: true,
+            ),
             child: QueuePlanScreen(
               onNext: onNext ?? () {},
               revealedPairNameIds: revealedPairNameIds,
@@ -215,6 +230,12 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'textScaler $scale');
       // Still reachable, which is why it is the one thing left pinned.
       expect(find.text('Continue'), findsOneWidget, reason: 'textScaler $scale');
+      // Unmount and flush before the next iteration. `renderableLanternSkinProvider`
+      // is autoDispose, so tearing down its Consumer schedules a Riverpod
+      // dispose task on a zero-duration timer; the binding asserts none is
+      // still pending when the test ends.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
     }
   });
 

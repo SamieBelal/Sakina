@@ -6,6 +6,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../services/card_collection_service.dart';
+import '../../streaks/models/companion_state.dart';
+import '../../streaks/providers/cosmetics_ui_providers.dart';
+import '../../streaks/widgets/companion_medallion.dart';
 import '../content/aspirations.dart';
 import '../content/carrying_durations.dart';
 import '../providers/onboarding_provider.dart';
@@ -129,6 +132,27 @@ class QueuePlanScreen extends ConsumerWidget {
                         onBack: onBack,
                       ),
                       const SizedBox(height: AppSpacing.lg),
+                      // The lantern heads the track it is already bound to
+                      // (Wave G): the stamps ARE the streak, and the streak is
+                      // what drives its brightness. `endowedDim` is the honest
+                      // state here — arrived, nothing acted on yet — and it is
+                      // the same state the home screen will show them in a
+                      // moment, so the hand-off has no discontinuity.
+                      // ambient:false: cream surface.
+                      Center(
+                        child: Consumer(
+                          builder: (_, ref, __) => CompanionMedallion(
+                            state: const CompanionState(
+                              brightness: CompanionBrightness.endowedDim,
+                              protected: false,
+                            ),
+                            size: 104,
+                            ambient: false,
+                            skin: ref.watch(renderableLanternSkinProvider),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
                       JourneyStampTrack(
                         totalStamps: totalStamps,
                         earnedStamps: earnedStamps,

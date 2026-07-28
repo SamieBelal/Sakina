@@ -63,6 +63,16 @@ class BeatRevealFlow extends StatefulWidget {
   final Widget Function(Widget child)? readStoryAnchorBuilder;
   final Widget Function(Widget child)? ameenAnchorBuilder;
 
+  /// Replaces the default "Preparing your reflection…" body while [status] is
+  /// [BeatFlowStatus.loading].
+  ///
+  /// Added for the onboarding kindling beat (Wave G): that beat is not a wait,
+  /// it is the moment the lantern is lit, and it has to sit in the loading slot
+  /// specifically so it inherits the existing `AnimatedSwitcher` dissolve into
+  /// beat 1 rather than introducing a competing transition. Null everywhere
+  /// else — the two AI surfaces keep the ripple loader.
+  final Widget? loadingView;
+
   const BeatRevealFlow({
     super.key,
     required this.status,
@@ -81,6 +91,7 @@ class BeatRevealFlow extends StatefulWidget {
     this.onFirstAdvance,
     this.readStoryAnchorBuilder,
     this.ameenAnchorBuilder,
+    this.loadingView,
   });
 
   @override
@@ -239,7 +250,7 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
   Widget _body() {
     switch (widget.status) {
       case BeatFlowStatus.loading:
-        return _LoadingView();
+        return widget.loadingView ?? _LoadingView();
       case BeatFlowStatus.error:
         return _MessageView(
           message: "We couldn't prepare your reflection.",

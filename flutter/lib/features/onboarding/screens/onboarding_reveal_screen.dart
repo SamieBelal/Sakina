@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/name_story_deck.dart';
 import '../../../services/analytics_event_names.dart';
@@ -6,6 +7,8 @@ import '../../../services/card_collection_service.dart';
 import '../../../services/name_stories_service.dart';
 import '../../../widgets/beat_reveal/beat_reveal_flow.dart';
 import '../../../widgets/beat_reveal/beat_reveal_models.dart';
+import '../../streaks/providers/cosmetics_ui_providers.dart';
+import '../widgets/lantern_kindle_beat.dart';
 import '../widgets/onboarding_card_reveal.dart';
 import '../widgets/sealed_name_tease.dart';
 
@@ -31,7 +34,7 @@ class OnboardingRevealScreen extends StatefulWidget {
     this.onBack,
     this.stories,
     this.latch,
-    this.loaderBeat = const Duration(milliseconds: 900),
+    this.loaderBeat = const Duration(milliseconds: 2200),
     this.showFirstRunHint = true,
     super.key,
   });
@@ -65,7 +68,15 @@ class OnboardingRevealScreen extends StatefulWidget {
   /// whose Ameen no longer does anything.
   final OnboardingRevealLatch? latch;
 
-  /// Minimum time the loader beat holds before the deck appears. Zero in tests.
+  /// Minimum time the opening beat holds before the deck appears. Zero in tests.
+  ///
+  /// This is NOT padding around a wait — Wave G puts the lantern's kindling
+  /// beat in this slot, and the deck asset resolves in about a frame, so the
+  /// duration is simply how long that beat is on screen. Budget: the flame
+  /// settles at ~900ms, the headline lands at ~520ms and the subline trails it,
+  /// leaving roughly a second to read before the deck dissolves in. Shorter and
+  /// the copy is gone before it is read; longer and it becomes the fake theater
+  /// the plan explicitly rejected.
   final Duration loaderBeat;
 
   /// The tap-to-continue hint — always on in production (this is the user's
@@ -99,6 +110,11 @@ class OnboardingRevealResult {
 class OnboardingRevealLatch {
   bool completed = false;
   bool abandonedFired = false;
+
+  /// The lantern's kindling has been reported (Wave G). Lives here rather than
+  /// in the [State] for the same reason as the others: a re-mount rebuilds the
+  /// beat, and the lamp is only ever lit once per onboarding run.
+  bool kindledFired = false;
 
   /// [OnboardingRevealScreen.onDone] has been handed back. Guards the deckless-
   /// Name₂ path, where `_finish` runs from a post-frame callback in `build`:
@@ -186,6 +202,15 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
     });
   }
 
+  /// The lamp has finished catching. Emitted once per run — the kindle beat
+  /// itself only fires its callback once, and a re-mount that rebuilds the beat
+  /// is guarded by the same latch that protects the award.
+  void _onKindled() {
+    if (_latch.kindledFired) return;
+    _latch.kindledFired = true;
+    _emit(AnalyticsEvents.lanternKindled);
+  }
+
   void _emitAbandoned() {
     if (_latch.completed || _latch.abandonedFired || _screens.isEmpty) return;
     _latch.abandonedFired = true;
@@ -250,6 +275,22 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
         widget.onBack?.call();
       },
       onBeatAdvanced: (index, _) => _lastBeatIndex = index,
+      // The kindling beat (Wave G) replaces the ripple loader on this surface
+      // only. It sits in the loading slot deliberately: that is where the
+      // flow's dissolve-into-beat-1 already lives, so the lamp hands off to the
+      // deck through the existing transition instead of a competing one.
+      //
+      // Inline Consumer rather than a ConsumerWidget: this screen is a plain
+      // StatefulWidget by design (Wave E owns the provider writes), and the
+      // same pattern is already how CardRevealOverlay reads the equipped skin.
+      // Pre-auth the provider falls back to classicGold, which is correct — a
+      // user this early owns no cosmetics.
+      loadingView: Consumer(
+        builder: (_, ref, __) => LanternKindleBeat(
+          skin: ref.watch(renderableLanternSkinProvider),
+          onKindled: _onKindled,
+        ),
+      ),
     );
   }
 }

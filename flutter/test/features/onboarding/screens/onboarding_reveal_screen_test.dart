@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_reveal_screen.dart';
+import 'package:sakina/features/onboarding/widgets/lantern_kindle_beat.dart';
 import 'package:sakina/features/onboarding/widgets/sealed_name_tease.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/card_collection_service.dart';
@@ -35,6 +37,9 @@ void main() {
       );
 
   setUp(() {
+    // The kindling beat's lantern sits in a VisibilityDetector, whose
+    // batching timer would otherwise outlive the tree.
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     events = [];
     OnboardingRevealScreen.onAnalyticsEvent =
         (name, props) => events.add((name: name, props: props));
@@ -91,7 +96,11 @@ void main() {
     ));
     await tester.pump(); // first frame — deck not resolved yet
 
-    expect(find.text('Preparing your reflection…'), findsOneWidget);
+    // Wave G: this slot is the lantern's kindling beat, not a loader. It sits
+    // in the flow's `loading` status deliberately, so it inherits the existing
+    // dissolve into beat 1 rather than adding a competing transition.
+    expect(find.byType(LanternKindleBeat), findsOneWidget);
+    expect(find.text('Preparing your reflection…'), findsNothing);
 
     await tester.pumpAndSettle();
     // As-Salam's bridge line opens the deck.
@@ -380,6 +389,12 @@ void main() {
 
     expect(find.textContaining("couldn't prepare"), findsOneWidget);
     expect(find.text('Try Again'), findsOneWidget);
+
+    // The kindling beat was mounted for a frame before this replaced it, and
+    // its staggered copy schedules flutter_animate delay timers. Harmless in
+    // production (they fire into a disposed widget and do nothing) but the test
+    // binding asserts no timer outlives the tree, so let them elapse.
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('a shared latch survives a re-mount — no second award, no re-emit',

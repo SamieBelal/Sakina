@@ -64,6 +64,20 @@ abstract final class AnalyticsEvents {
   // separates a decline from an unseen screen.
   //   props: [propSource] — one of the screen's stable snake_case keys
   static const reelSourceSelected = 'reel_source_selected';
+  // The onboarding widget carousel (One Ship W2 Wave G). iOS has no API to add
+  // a widget, so the CTA can only instruct — which makes `..._cta_tapped` an
+  // INTENT signal, never an install. Nothing here should ever be read as
+  // "widgets added"; the real installs show up later as `widget_opened`.
+  //   props on all three: [propWidgetKind] — 'lantern' | 'daily_name' |
+  //   'dua_times', the stable keys in onboarding_widgets.dart
+  static const onboardingWidgetPreviewed = 'onboarding_widget_previewed';
+  static const onboardingWidgetCtaTapped = 'onboarding_widget_cta_tapped';
+  static const onboardingWidgetSkipped = 'onboarding_widget_skipped';
+  static const String propWidgetKind = 'widget_kind';
+  // The lantern's first lighting, at the reveal's opening beat. The single
+  // moment Wave G exists for, so a drop here is worth seeing on its own rather
+  // than inferred from the surrounding step events.
+  static const lanternKindled = 'lantern_kindled';
   // An onboarding profile UPDATE that failed (One Ship W2). The persist is
   // best-effort by design — it must never block completion — which means a
   // silently-dropped answer is otherwise invisible outside a debug console.
@@ -808,12 +822,16 @@ abstract final class AnalyticsEvents {
     4: 'reel_aspiration',
     5: 'reminder_time',
     6: 'notifications',
-    7: 'reel_queue_plan',
-    8: 'name_input',
-    9: 'save_progress',
-    10: 'signup_email',
-    11: 'signup_password',
-    12: 'paywall',
+    // Wave G inserted the widget offer here; everything below shifted by one.
+    // The step_id strings are the funnel's join key across page-order changes,
+    // so they stay stable — only the indices move.
+    7: 'reel_widget_offer',
+    8: 'reel_queue_plan',
+    9: 'name_input',
+    10: 'save_progress',
+    11: 'signup_email',
+    12: 'signup_password',
+    13: 'paywall',
   };
 
   /// Resolves the step-name map for the active onboarding flow. Centralized so

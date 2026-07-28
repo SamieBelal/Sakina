@@ -88,8 +88,11 @@ const int onboardingLegacyEncouragementPageIndex = 21;
 /// legacy when `onboarding_trim_enabled` is also off).
 const String reelFirstOnboardingFlag = 'reel_first_onboarding_enabled';
 
-/// Reel-flow last index — the final gate (paywall) at 12.
-const int onboardingReelLastPageIndex = 12;
+/// Reel-flow last index — the final gate (paywall) at 13.
+///
+/// Was 12 until Wave G inserted the widget-offer page after the notification
+/// ask; every index and segment below moved with it.
+const int onboardingReelLastPageIndex = 13;
 
 /// Reel-flow hook screen. No progress bar, no back affordance.
 const int onboardingReelHookPageIndex = 0;
@@ -110,28 +113,31 @@ const int onboardingReelNoBackBeforeIndex = 2;
 /// `pageIndex` against the current page to decide whether to autofocus, so the
 /// value has to be the page's REAL index — the literal it replaces was the one
 /// thing in the reel list with no name behind it.
-const int onboardingReelNamePageIndex = 8;
+const int onboardingReelNamePageIndex = 9;
 
 /// Reel-flow sign-up email page index.
-const int onboardingReelEmailPageIndex = 10;
+const int onboardingReelEmailPageIndex = 11;
 
 /// Reel-flow sign-up password page index.
-const int onboardingReelPasswordPageIndex = 11;
+const int onboardingReelPasswordPageIndex = 12;
 
 /// Where social-auth (Apple/Google) users land after OAuth succeeds in the reel
 /// order: the page after the signup trio, which IS the final gate. Unlike the
 /// trimmed flow there is no interstitial left to show them — the plan screen
 /// already ran, pre-signup.
-const int onboardingReelPostSignupPageIndex = 12;
+const int onboardingReelPostSignupPageIndex = 13;
 
 /// Segments in the reel flow's progress bar.
 ///
-/// Nine, not thirteen: the bar is hidden on the hook (spec ③ — a step counter
-/// on screen one signals a long form), on the reveal (full-screen sacred
-/// canvas), on the queue plan (its own header, and it is a payoff not a step),
-/// and on the paywall. The nine bar-visible pages fill segments 0-8, so the bar
+/// Ten, not fourteen: the bar is hidden on the hook (spec ③ — a step counter on
+/// screen one signals a long form), on the reveal (full-screen sacred canvas),
+/// on the queue plan (its own header, and it is a payoff not a step), and on
+/// the paywall. The ten bar-visible pages fill segments 0-9, so the bar
 /// COMPLETES on the password screen rather than vanishing part-full.
-const int onboardingReelTotalSegments = 9;
+///
+/// Wave G's widget offer DOES carry a segment: it is an ask like the
+/// notification page before it, not a payoff.
+const int onboardingReelTotalSegments = 10;
 
 /// Which of the three onboarding page orders is active.
 ///

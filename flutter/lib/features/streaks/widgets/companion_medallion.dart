@@ -5,6 +5,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import 'package:sakina/features/streaks/models/companion_state.dart';
 import 'package:sakina/features/streaks/models/lantern_skin.dart';
+import 'package:sakina/features/streaks/widgets/lantern_ambient_shader.dart';
 import 'package:sakina/features/streaks/widgets/lantern_painter.dart';
 
 /// The living lantern companion, driven by a resolved [CompanionState].
@@ -63,24 +64,23 @@ class _CompanionMedallionState extends State<CompanionMedallion>
   ui.FragmentShader? _shader;
   bool _visible = true;
   bool _foreground = true;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadShader();
-    _syncPulse();
+    // The pulse is started from didChangeDependencies, not here: _syncPulse
+    // reads MediaQuery (for reduce-motion), and an inherited-widget lookup
+    // during initState is illegal.
   }
 
+  /// The program compile is shared process-wide (see [LanternAmbientShader]);
+  /// this instance still owns its own shader, which carries per-frame uniforms.
   Future<void> _loadShader() async {
-    try {
-      final program =
-          await ui.FragmentProgram.fromAsset('shaders/khatam_glow.frag');
-      if (mounted) setState(() => _shader = program.fragmentShader());
-    } catch (e) {
-      // The painter renders fine without the ambient aura — best-effort.
-      debugPrint('companion shader load failed: $e');
-    }
+    final shader = await LanternAmbientShader.shader();
+    if (shader != null && mounted) setState(() => _shader = shader);
   }
 
   @override
@@ -104,10 +104,28 @@ class _CompanionMedallionState extends State<CompanionMedallion>
     _syncPulse();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cached, not read inside _syncPulse: that method is also driven by the
+    // visibility and lifecycle callbacks, which can fire after this State is
+    // unmounted — and touching `context` there throws. Re-read here so a user
+    // toggling reduce-motion in Settings still takes effect live.
+    _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    _syncPulse();
+  }
+
   /// Run the pulse only when it can actually be seen — visible, foregrounded,
-  /// and the caller wants motion. Otherwise stop it (no offscreen repaint).
+  /// the caller wants motion, and the platform hasn't asked for less of it.
+  ///
+  /// The reduce-motion clause matters twice over. It is the correct
+  /// accessibility behaviour — a glow that breathes forever is exactly the
+  /// ambient, unprompted motion the setting exists to suppress — and it is what
+  /// makes any screen hosting the companion testable at all: an unbounded
+  /// `repeat()` means `pumpAndSettle` never returns.
   void _syncPulse() {
-    final shouldRun = widget.animate && _visible && _foreground;
+    final shouldRun =
+        widget.animate && _visible && _foreground && !_reduceMotion;
     if (shouldRun) {
       if (!_pulse.isAnimating) _pulse.repeat();
     } else {

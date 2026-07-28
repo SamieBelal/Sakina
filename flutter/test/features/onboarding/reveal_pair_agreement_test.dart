@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/content/aspirations.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
@@ -104,6 +105,7 @@ void main() {
   late FakeSupabaseSyncService fakeSync;
 
   setUp(() {
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
     SupabaseSyncService.debugSetInstance(fakeSync);
@@ -168,7 +170,13 @@ void main() {
 
     // The screen must have been torn down before the test ends, or the tease's
     // animations outlive it.
-    addTearDown(() async => tester.pumpWidget(const SizedBox()));
+    // Tear down inside the test rather than at teardown, then flush. Two
+    // sources of stray timers otherwise outlive the tree and trip the
+    // binding's invariant: the kindling beat's flutter_animate delays, and the
+    // autoDispose skin provider's Riverpod dispose task.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
     return done.single;
   }
 
@@ -221,9 +229,14 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          home: QueuePlanScreen(
-            onNext: () {},
-            revealedPairNameIds: [revealed.name1Id, revealed.name2Id!],
+          // The plan screen hosts the lantern medallion (Wave G), whose breath
+          // pulse repeats forever — pumpAndSettle would never return.
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: QueuePlanScreen(
+              onNext: () {},
+              revealedPairNameIds: [revealed.name1Id, revealed.name2Id!],
+            ),
           ),
         ),
       ),

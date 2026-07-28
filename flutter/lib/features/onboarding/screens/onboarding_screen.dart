@@ -46,6 +46,7 @@ import 'social_proof_screen.dart';
 import 'source_question_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
+import 'widget_offer_screen.dart';
 import 'your_journey_screen.dart';
 
 /// Returns true when [resumedAt] is more than 24 hours after [pausedAt].
@@ -657,53 +658,66 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         progressSegment: 3,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 6 — Notifications permission (legacy screen, reused as-is).
+      // 6 — Notifications permission. Wave G swaps the generic bell for the
+      // lantern in its `pendingUnlit` — literally "waiting to be lit" — state,
+      // plus a preview of the system dialog about to appear.
       NotificationScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 4,
         totalSegments: onboardingReelTotalSegments,
+        lanternVariant: true,
       ),
-      // 7 — The real 7-Name queue + the 8-stamp journey track. No bar.
+      // 7 — Widget offer (Wave G). Adjacent to the notification ask on purpose:
+      // both are "keep this alive", and this one is a gift rather than a
+      // permission grab. iOS cannot add a widget programmatically, so the CTA
+      // instructs and installs nothing.
+      WidgetOfferScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 5,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 8 — The real 7-Name queue + the 8-stamp journey track. No bar.
       QueuePlanScreen(
         onNext: _next,
         onBack: _back,
         revealedPairNameIds: revealedPairNameIds,
       ),
       // — Deferred signup (W2-E2): value first, account last. —
-      // 8 — Name
+      // 9 — Name
       NameInputScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelNamePageIndex,
-        progressSegment: 5,
+        progressSegment: 6,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 9 — Save progress (sign-up choice)
+      // 10 — Save progress (sign-up choice)
       SaveProgressScreen(
         onNext: _next,
         onBack: _back,
         onSocialAuthComplete: _skipToReelPostSignup,
-        progressSegment: 6,
+        progressSegment: 7,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 10 — Sign-up email
+      // 11 — Sign-up email
       SignUpEmailScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelEmailPageIndex,
-        progressSegment: 7,
+        progressSegment: 8,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 11 — Sign-up password
+      // 12 — Sign-up password
       SignUpPasswordScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelPasswordPageIndex,
-        progressSegment: 8,
+        progressSegment: 9,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 12 — Paywall. ALWAYS the soft onboarding-placement one for this flow
+      // 13 — Paywall. ALWAYS the soft onboarding-placement one for this flow
       // (plan §F1.2): a reel user never sees the post-tour hard wall, because
       // they never take the tour, so the hard-flag's empty branch would leave
       // them with no paywall surface at all. W4 replaces this page's contents;
