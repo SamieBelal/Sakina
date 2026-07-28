@@ -54,7 +54,8 @@ class WidgetPreviewCard extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.cardRadius),
                     border: Border.all(
                       color: AppColors.borderLight.withValues(alpha: 0.6),
                     ),
@@ -136,7 +137,6 @@ class _NamePreview extends StatelessWidget {
           'ٱلرَّحْمَٰن',
           textDirection: TextDirection.rtl,
           style: AppTypography.arabicClassical.copyWith(
-            fontSize: 26,
             color: AppColors.primary,
           ),
         ),
@@ -201,7 +201,10 @@ class _DuaTimesPreview extends StatelessWidget {
         Text(
           'in 3h 12m',
           style: AppTypography.bodyMedium.copyWith(
-            color: AppColors.secondary,
+            // goldInk, never `secondary`: bright gold is ~2.2:1 on a light
+            // surface and fails WCAG 4.5:1 for text (DESIGN.md 2.3). The icon
+            // above may stay `secondary` — the rule is about text.
+            color: AppColors.goldInk,
           ),
         ),
       ],

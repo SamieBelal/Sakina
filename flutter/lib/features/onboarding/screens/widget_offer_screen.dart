@@ -36,7 +36,7 @@ class WidgetOfferScreen extends ConsumerStatefulWidget {
     super.key,
   });
 
-  static const String headline = 'Keep it on your home screen.';
+  static const String headline = 'Keep Sakina on your home screen.';
   static const String subline = 'Three ways to carry Sakina with you.';
   static const String ctaLabel = 'Show me how';
   static const String skipLabel = 'Not now';
@@ -232,7 +232,7 @@ class _HowToSheet extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,

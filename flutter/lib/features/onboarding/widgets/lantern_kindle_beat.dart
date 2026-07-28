@@ -17,9 +17,13 @@ import 'lantern_kindle.dart';
 /// answer arriving as light before it arrives as words.
 ///
 /// The lamp is dark, catches, and settles at `endowedDim` — the true state of
-/// someone who has just arrived. Both copy lines are claims the product keeps:
-/// glow really does rise with the streak (`dim` 1–3 → `glowing` 4–29 →
-/// `fullyLit` 30+). Neither line attributes a stance to Allah or to a Name,
+/// someone who has just arrived. Both copy lines are claims the product keeps.
+///
+/// The subline says "the longer you keep coming back", NOT "each day". Glow
+/// moves in three steps, not daily: `dim` 0.44 covers streak 1–3, `glowing`
+/// 0.72 covers 4–29, `fullyLit` 1.0 is 30+. A user returning on day two sees no
+/// change at all, so a daily promise would be false on its second test — and
+/// this flow cannot afford to be caught overclaiming in its opening beat. Neither line attributes a stance to Allah or to a Name,
 /// neither uses "sign" or "meant for you", and the lantern itself never speaks
 /// — it is a mirror, not a guide (Wave G decision 1).
 class LanternKindleBeat extends StatelessWidget {
@@ -31,7 +35,7 @@ class LanternKindleBeat extends StatelessWidget {
   });
 
   static const String headline = 'Your lantern is lit.';
-  static const String subline = 'It brightens each day you come back.';
+  static const String subline = 'It brightens the longer you keep coming back.';
 
   final LanternSkin skin;
   final double size;
@@ -86,7 +90,9 @@ class LanternKindleBeat extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: AppTypography.bodyMedium.copyWith(
                   height: 1.45,
-                  color: AppColors.sacredInk.withValues(alpha: 0.72),
+                  // The canvas's own supporting-text token, not a hand-rolled
+                  // alpha — every other sacred-canvas surface uses it.
+                  color: AppColors.sacredInkSoft,
                 ),
               )
                   .animate(delay: _headlineDelay + AppMotion.beat)

@@ -262,7 +262,7 @@ class _PermissionPrimer extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
               border: Border.all(
                 color: AppColors.borderLight.withValues(alpha: 0.6),
               ),
