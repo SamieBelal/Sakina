@@ -154,9 +154,11 @@ The kindling beat's **slot** is right (it fills the reveal's loading phase and i
 
 ### Proposed page order (18 pages)
 
-`0` Hook · `1` Reveal · `2` H1 duration · `3` H2 heaviest · `4` H3 told anyone · `5` H4 Names known · `6` H5 what would help · `7` H6 time · `8` H7 free text · `9` **Plan (payoff)** · `10` Notifications · `11` Widget · `12` Where did you find us · `13` Name · `14` Save progress · `15` Email · `16` Password · `17` Paywall
+`0` Hook · `1` Reveal · `2` H1 duration · `3` H2 heaviest · `4` H3 told anyone · `5` H4 Names known · `6` H5 what would help · `7` H6 time · `8` H7 free text · `9` **Plan (payoff)** · `10` Rating gate · `11` Notifications · `12` Widget · `13` Where did you find us · `14` Name · `15` Save progress · `16` Email · `17` Password · `18` Paywall
 
-Asks come **after** the payoff, matching Duolingo's shape (goal → projection → notifications → widget → value → paywall). Progress bar hidden on `0`, `1`, `9`, `17` — 14 bar-visible pages fill segments 0–13, so `onboardingReelTotalSegments` becomes **14** and `onboardingReelLastPageIndex` becomes **17**. Every index constant and the index-pinned test files move with them, as in Wave G.
+Asks come **after** the payoff, matching Duolingo's shape (goal → projection → notifications → widget → value → paywall). The **rating gate stays in the flow** (Wave F2, founder call 2026-07-28) and sits immediately after the plan so it lands on the payoff rather than before it.
+
+Progress bar hidden on `0`, `1`, `9`, `10`, `18` (hook, reveal, plan, rating gate, paywall — the gates and payoffs, none of which are "steps") — the 14 bar-visible pages fill segments 0–13, so `onboardingReelTotalSegments` becomes **14** and `onboardingReelLastPageIndex` becomes **18**. Every index constant and the index-pinned test files move with them, as in Wave G.
 
 ---
 
