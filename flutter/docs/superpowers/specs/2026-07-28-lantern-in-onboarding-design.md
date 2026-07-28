@@ -102,6 +102,8 @@ Reel flow indices per `onboarding_screen.dart::_reelChildren`.
 
 Replaces the bare `SakinaLoader` phase already specified in W2-C1 ("brief loader… not the 3.5s fake theater"). Same duration budget, given a body.
 
+**Composes with the flow's own dissolve — do not build a second loader.** master `1952ba0` made `BeatRevealFlow` dissolve its `loading` status into beat 1 rather than popping, and `SacredCanvasThreshold` (`78a94b3`) is the house entrance/exit motion for sacred-canvas surfaces. The kindling beat lives *inside* that existing loading phase and hands off through the existing dissolve; it does not introduce a competing transition.
+
 **Composition.** Lantern centered at 160pt on the sacred canvas (`ambient: true` — this is a dark immersive surface, so the aura is correct here). Copy below it, app-voice:
 
 > **Your lantern is lit.**

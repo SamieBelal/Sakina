@@ -76,7 +76,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
   2. **Pre-W4 gate behavior, explicit:** reel users see the EXISTING `PaywallScreen(placement: placementOnboarding)` as the reel flow's final-gate page (the non-hard-flag branch of `OnboardingFinalGate` today) — dismissible, then straight to stage `app`. W4 replaces that page's contents; the flow position is already correct.
   3. Belt-and-braces early return in `resumeForGate()` (`lib/features/tour/providers/onboarding_tour_controller.dart:238`) when the session mirror says `reel_v1` — before `tour_offered` fires (no phantom events). Server-hydrated `onboarding_flow` (C3) is cross-device backfill only.
 **F2. Rating gate relocated:** removed from the reel page list; trigger moves to post-D1-unseal (fires from the unseal completion path — W3 wires the actual call; W2 lands the relocated widget + prefs guard so W3's hook is one line).
-**F3. Coachmarks:** 2-3 dismissible contextual coachmarks (Duas tab, streak flame) replacing the tour for reel users — reuse the coachmark overlay pattern from the 2026-05-31 redesign; never blocking, each once-ever (prefs).
+**F3. Coachmarks:** 2-3 dismissible contextual coachmarks replacing the tour for reel users — reuse `lib/widgets/coachmark/` (`coachmark_overlay`/`coachmark_step`/`tour_anchor`, verified present 2026-07-28); never blocking, each once-ever (prefs). **Target list revised after the master rebase:** Duas tab, streak flame, **and the Companion stage (`/companion`)**. The third is new because the lantern-cosmetics merge shipped a whole Companion stage + wardrobe + Noor economy that **the tour never taught** (zero references to companion/wardrobe/lantern anywhere in `lib/features/tour/`, verified) — so this is not a reel-user regression, it is a gap for *every* user that Wave G makes newly worth closing: a reel user who meets the lantern during onboarding has an obvious reason to be pointed at where it lives.
 **F4. Tests:** rewrite the six index-pinned files for dual-flow (reel + legacy indices); new widget tests: hook screen (tap-commit advances, free-text keyword map, sign-card a11y), deck renderer (recognition/comfort_verse kinds), plan screen queue rendering; unit tests: parsers (reel/feel links), keyword map, aspiration map; the A2 ship-gate test. `flutter analyze` + full suite green; RTL/Arabic isolation check on all new surfaces (W6 re-verifies on device).
 
 ## Wave G — The lantern in onboarding (added 2026-07-28)
@@ -96,6 +96,19 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 **G5. Implementation debt to clear in-wave.** `CompanionMedallion._loadShader()` calls `FragmentProgram.fromAsset` **per instance** — add a static cached future before four placements ship. Use `renderableLanternSkinProvider` at every placement (never hardcode a skin); its `autoDispose` fallback to `classicGold` is correct for the pre-auth pages, not a bug. `ambient: true` only on the dark sacred canvas; `ambient: false` everywhere else or the dormant vignette renders as a grey box.
 
 **Corrected baseline:** the lantern is **already in onboarding** — `card_reveal_overlay.dart:506` renders a `CompanionMedallion` as the card's vessel (master `6bece34`), and our reveal screen pushes that overlay. Page 1 is not a blank slate; G1 lands *before* an appearance the user already gets, which is the right order.
+
+## Master-rebase reconciliation (2026-07-28)
+
+Rebased onto `433c537` — **123 commits**, chiefly lantern cosmetics (PR #61) and the sacred-canvas threshold (PR #63). Two rebase conflicts, both additive (a `sacred_canvas_threshold` vs `beat_reveal_models` import in the two AI surfaces; `stepNamesFor` vs the cosmetics constants block in `analytics_event_names.dart`). One genuine semantic break: master's `6bece34` put a Riverpod `Consumer` inside `CardRevealOverlay`, so the reveal-screen tests needed a `ProviderScope` (production always has one at the app root). **Full suite green afterwards: 2337 passed, 4 skipped, 0 failed** — note this supersedes the long-standing "the suite fails on a clean baseline" caveat; master fixed both flaky tests and gated the widget-frame generator behind `REGEN_WIDGET_FRAMES=1`.
+
+**What the merge changed in this plan:**
+
+1. **C1's "brief loader" wording is stale.** master `1952ba0` made `BeatRevealFlow` dissolve its own `loading` state into beat 1 rather than popping. The reveal no longer needs a separately-managed loader phase — Wave G1's kindling beat composes with that dissolve instead of replacing it, which makes G1 *cheaper*, not costlier.
+2. **`SacredCanvasThreshold` is now the house entrance/exit motion** for sacred-canvas surfaces (`78a94b3`, timings in `docs/superpowers/specs/2026-07-27-sacred-canvas-threshold*`). The reveal and the kindling beat use it rather than inventing motion.
+3. **F3's coachmark target list grows** — see F3.
+4. **The lantern is already rendered in onboarding** and **all three widgets already ship** — both corrections are folded into the Wave G spec.
+
+**What did NOT need adjusting:** the three-flow kill switch, deferred signup, queue seeding, the deck pipeline, and every index constant (the rebase reconciled them; the six index-pinned files pass). The `sync_all_user_data` collision flagged as a merge blocker is **resolved on both sides** — verified that the last-applied migration (`20260727100300`) is a true superset: all six W1 profile keys plus the `noor`/`equipped`/`cosmetics` sections. The tour's blocking-route handling already anticipates us: `tour_route_observer.dart:25` lists `CardRevealOverlay.routeName` with the comment "(muḥāsabah, collection, onboarding)", and our `onboarding_card_reveal.dart` uses the shared const.
 
 ## Sequencing & review gates
 
