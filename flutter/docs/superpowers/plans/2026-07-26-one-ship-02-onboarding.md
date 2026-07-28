@@ -1,8 +1,8 @@
 # One Ship 02 — W2 Onboarding Rebuild
 
-**Status: APPROVED (founder, 2026-07-26 — all 4 open items decided: bundled JSON · deterministic Silver · aspiration map author=Claude/reviewer=founder · anxiety pair v2 approved). Build in progress.**
-**Date:** 2026-07-26
-**Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first` (off master `44f8628` = W1 merged; W1 schema live on prod, dormant)
+**Status: APPROVED (founder, 2026-07-26 — all 4 open items decided: bundled JSON · deterministic Silver · aspiration map author=Claude/reviewer=founder · anxiety pair v2 approved). Build in progress — A–E done + reviewed; F and G open.**
+**Date:** 2026-07-26 · **Wave G added 2026-07-28**
+**Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first` (rebased 2026-07-28 onto master `433c537` = lantern cosmetics PR #61 merged; was off `44f8628` = W1 merged, W1 schema live on prod, dormant)
 **Parents:** distilled doc Phase 1 → W2 (incl. the founder-approved hook-screen UX spec + mock) · plan of record §V5.1/§V6.8 · `2026-07-25-name-stories-deck-format.md` · decks in `docs/superpowers/content/decks/` (12 approved; anxiety pair = DRAFT v2 awaiting founder) · W1 plan (binding notes)
 
 W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck reveal → real-queue plan screen → deferred signup, default-on for new users with the complete legacy flow retained behind the `reel_first_onboarding_enabled` kill switch. No paywall changes (W4), no daily-loop changes (W3), no analytics beyond stubs the screens need (W5 completes).
@@ -79,9 +79,27 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 **F3. Coachmarks:** 2-3 dismissible contextual coachmarks (Duas tab, streak flame) replacing the tour for reel users — reuse the coachmark overlay pattern from the 2026-05-31 redesign; never blocking, each once-ever (prefs).
 **F4. Tests:** rewrite the six index-pinned files for dual-flow (reel + legacy indices); new widget tests: hook screen (tap-commit advances, free-text keyword map, sign-card a11y), deck renderer (recognition/comfort_verse kinds), plan screen queue rendering; unit tests: parsers (reel/feel links), keyword map, aspiration map; the A2 ship-gate test. `flutter analyze` + full suite green; RTL/Arabic isolation check on all new surfaces (W6 re-verifies on device).
 
+## Wave G — The lantern in onboarding (added 2026-07-28)
+
+**Full spec: [`2026-07-28-lantern-in-onboarding-design.md`](../specs/2026-07-28-lantern-in-onboarding-design.md).** Founder-approved 2026-07-28 after a research pass over Duolingo's 17-screen onboarding + the mascot/companion literature. Summary only here; the spec is the contract.
+
+**G0. Role decision (binding).** The lantern is a **MIRROR, not a GUIDE** — it never speaks, never gets a speech bubble, never uses first person. Duolingo's layout system transfers; its mascot personality does not (a talking object over "I keep sinning and going back" is the Clippy failure mode and collides with the reverence firewall). What the lantern has instead is seven real states wired to behaviour — Duo's poses are costumes, ours are consequences.
+
+**G1. Kindling beat (NEW-A).** The bare `SakinaLoader` phase between hook and reveal (already specified in C1) gains a body: the lamp **catches**, once, because of what the user just said. Glow 0 → 0.34 over ~900ms with a luminance-only flare to ~0.45. Pre-kindle frame is `pendingUnlit` params with `wear: 0` — **never `dormant: true`** (cold Day 0 is a standing reverence guardrail). **⚠️ The flame's on/off threshold is `g < 0.04` and breath modulates `g` ±10%, so the ramp must cross 0.04 decisively or the flame blinks once per breath** — test-pinned. Not a new PageView page.
+
+**G2. Placement map.** HERO at: NEW-A, page 6 (notifications, at `pendingUnlit` — "waiting to be lit" is literally true, and it converts an OS permission ask into a stake the user already owns), NEW-B, page 7 (queue plan, `endowedDim`). **ABSENT** at `/welcome`, page 0 (we removed the basmala from that screen for being decoration — a lantern is the same mistake), pages 2–5, pages 8–11, and **page 12 the paywall — a dim lamp beside a price reads as "pay to light it", enforced by test, not convention.** The ANCHOR (small persistent corner lantern on question screens) is **cut for v1**: with no bubble to hold it is decoration.
+
+**G3. Widget carousel (NEW-B).** New page after notifications: all **three** shipped widgets in a browsable `PageView` (founder override of the single-dominant-option recommendation; the choice-overload trade is recorded in the spec). Order: Your Lantern → A Name for What You're Carrying → Duʿā Times. **⚠️ iOS has no API to add a widget** — the CTA opens an instructional sheet and installs nothing (Duolingo's button is instructional too). **We are NOT reordering `SakinaWidgetBundle.swift`** — that would change the gallery for every existing user.
+
+**G4. Index migration + tests.** `onboardingReelLastPageIndex` 12 → 13; the six index-pinned files move with it. New tests: flame-blink guard, reduce-motion, **paywall-absence**, placement map, carousel order + "Not now", pre-auth `classicGold` skin fallback.
+
+**G5. Implementation debt to clear in-wave.** `CompanionMedallion._loadShader()` calls `FragmentProgram.fromAsset` **per instance** — add a static cached future before four placements ship. Use `renderableLanternSkinProvider` at every placement (never hardcode a skin); its `autoDispose` fallback to `classicGold` is correct for the pre-auth pages, not a bug. `ambient: true` only on the dark sacred canvas; `ambient: false` everywhere else or the dormant vignette renders as a grey box.
+
+**Corrected baseline:** the lantern is **already in onboarding** — `card_reveal_overlay.dart:506` renders a `CompanionMedallion` as the card's vessel (master `6bece34`), and our reveal screen pushes that overlay. Page 1 is not a blank slate; G1 lands *before* an appearance the user already gets, which is the right order.
+
 ## Sequencing & review gates
 
-A (content+spine) → B (hook) → C (reveal+queue) → D (questions+plan) → E (assembly+signup+links) → F (suppression+tests). Waves A+B are independently reviewable; agent review after A, C, and F; founder eyeballs the hook screen + reveal on simulator after C (screenshots via `sips -Z 1600`), full flow after F. Merge W2 alone into master when green (same PR discipline as W1) — invisible to users until the release ships; the kill switch only ever affects the new binary.
+A (content+spine) → B (hook) → C (reveal+queue) → D (questions+plan) → E (assembly+signup+links) → F (suppression+tests) → **G (lantern)**. Waves A+B are independently reviewable; agent review after A, C, F, and G; founder eyeballs the hook screen + reveal on simulator after C (screenshots via `sips -Z 1600`), full flow after F, and the kindling beat + carousel after G. Merge W2 alone into master when green (same PR discipline as W1) — invisible to users until the release ships; the kill switch only ever affects the new binary.
 
 ## Review record (2026-07-26)
 
@@ -93,3 +111,9 @@ Adversarial eng+flow review, all 13 findings folded in. Blockers: **(1)** "clamp
 2. **Aspiration → queue rows 3-7 map**: I'll draft the 5-Name sequences per aspiration option from the approved taxonomy's Name pool; you review them like the decks (orderings of already-approved Names, no new content). Each sequence is test-pinned disjoint from the chip pairs.
 3. **Card award = deterministic SILVER at the onboarding reveal** (review found no gacha tier roll exists to clamp — first discovery is hardcoded Bronze today; a weighted Silver/Gold/Emerald roll would be a new economy mechanic, deferred post-keep) — confirm.
 4. **Anxiety pair v2 needs your sign-off** — its file still reads "DRAFT v2 — awaiting founder review" while the other six files are APPROVED. Until then the anxiety chip falls back to the comfort pair (ship gate enforces this).
+
+### Wave G open items (2026-07-28)
+
+5. **Luminance flare vs the no-bounce rule** — the kindle flare is luminance-only (no scale, no translate), so it should not breach a rule aimed at spatial overshoot; a flame flaring as it catches is physically true rather than cute. Confirm, or it falls back to a plain ramp.
+6. **Widget gallery order** (`SakinaWidgetBundle.swift`, currently Duʿā Times → Name → Lantern) — pointing a new user at the third entry costs us, but reordering changes the gallery for every existing user. Product call, not blocking.
+7. **`/welcome` remote arch image** — the app's first screen fetches its illustration from a `googleusercontent.com` Stitch URL (`hook_screen.dart:22`). Should become a bundled asset; out of scope for W2, recorded so it is not lost.
