@@ -24,7 +24,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 
 - Scripture only from verified sources: decks are transcribed **verbatim** from the founder-approved files; nothing AI-generated at build time. Arabic and Latin never share a `Text` — deck JSON keeps `arabic`/`transliteration`/`translation` as separate fields end-to-end.
 - **Unseal/reveal never directly grants tokens/XP/tier** (W1 binding note): the card award goes through the existing gacha/economy path; the queue only picks the Name.
-- No urgency mechanics on the hook screen; no progress bar there; sign card distinct by typography only (founder decision 2026-07-25).
+- No urgency mechanics on the hook screen; no progress bar there; ~~sign card distinct by typography only (founder decision 2026-07-25)~~ → **sign card has NO visual distinction, founder 2026-07-29; see Status addendum D1.**
 - Reverence firewall applies to all new copy (no "sign" language system-initiated, no waiting-Allah claims, tier language attaches to card not Name).
 
 ---
@@ -35,7 +35,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 
 **A2. Ship gate as a test, not runtime logic:** `test/content/name_stories_ship_gate_test.dart` asserts (a) every chip key in the taxonomy maps to exactly 2 decks, (b) every deck has `review_verdict == 'good'` + non-empty `reviewed_by/at`, (c) every verse/dua beat carries all three script fields separately and none mixes Arabic+Latin in one string, (d) `name_id`s exist in `collectible_names.json`, (e) beat kinds/order match the spec. A failing deck fails CI — uncovered chips can never render (the runtime fallback to the comfort pair still exists as defense).
 
-**⚠️ BLOCKING PRE-A1 DEPENDENCY (review 6): the anxiety pair is NOT approved.** Its file header reads "DRAFT v2 — awaiting founder review" (the v2 revision reset it; the other six files carry APPROVED = 12/14 decks). The transcriber carries the TRUE status — never stamps `good` on unreviewed scripture — so until the founder approves anxiety v2, the ship gate correctly fails the anxiety chip and it falls back to the comfort pair. Founder sign-off on anxiety v2 is an open item below.
+**✅ RESOLVED (verified 2026-07-29 — all seven deck files now read APPROVED, ship gate green).** Original text kept for history: **⚠️ BLOCKING PRE-A1 DEPENDENCY (review 6): the anxiety pair is NOT approved.** Its file header reads "DRAFT v2 — awaiting founder review" (the v2 revision reset it; the other six files carry APPROVED = 12/14 decks). The transcriber carries the TRUE status — never stamps `good` on unreviewed scripture — so until the founder approves anxiety v2, the ship gate correctly fails the anxiety chip and it falls back to the comfort pair. Founder sign-off on anxiety v2 is an open item below.
 
 **A3. Beat spine extension.** Add `BeatKind.recognition` + `BeatKind.comfortVerse` (`beat_reveal_models.dart:7`) with rendering in `beat_screen_view.dart` — Dart 3 exhaustive-switch errors will surface BOTH switch sites (`_content` and `semanticText`; review 13). **Wire format decided now (review 12): analytics emit snake_case via a `beatKindWireName` extension (`comfort_verse`, not `comfortVerse`)** — retrofit the two existing emitters (`reflect_screen.dart:224`, `muhasabah_screen.dart:232`) in the same change so `beat_kind` is uniform (existing kinds are single-word, so historical values are unaffected). Add a **deck-native path**: `buildBeatScreensFromDeck(NameStoryDeck, {includePairSynergy})` returning `List<BeatScreen>` directly, and a `BeatRevealFlow.deck(...)` constructor variant. **Dua beat (review 7):** `BeatScreen` gains standalone `duaArabic/duaTransliteration/duaTranslation/duaSource` fields and the `BeatKind.dua` render case prefers them over the legacy `ReflectResponse? dua` (which currently renders `SizedBox.shrink()` when null — the deck path would otherwise show a BLANK dua screen); the Ameen overlay keys off `BeatKind.dua` and applies to deck flows intentionally. Existing `ReflectResponse` path untouched (pinned by existing tests).
 
@@ -45,7 +45,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 
 **B1. Chip taxonomy constants:** new `lib/features/onboarding/content/problem_chips.dart` — the 6 problem chips + sign chip with `chip_key`, sentence label, `problem_category`, `contract` ('problem'|'sign'), Name-pair ids (pairs per the approved table; comfort pair Ar-Rahman+Al-Latif as fallback), and the free-text keyword map (must catch family/marriage/exams/sleep/grief → nearest chip; unmatched → comfort pair + `problem_category:'unmatched'`).
 
-**B2. New `hook_problem_screen.dart`** replacing `first_checkin_screen.dart` at page 0 of the reel flow, per the spec: single-column full-width cards ≥64pt, 16px radius, ~12px gaps; tap=commit (selected tint + haptic + ~450ms beat → advance — mutation in the tap handler per the Riverpod build-phase rule, respecting `_navigating`); header "What's weighing on you right now?" + "Take your time."; **no progress bar**; illustration cut; free text demoted to an expanding "Or say it in your own words…" that never hides the cards; sign card last, typography-only distinction; all 7 visible ≥812pt, gentle scroll + fade below; 60ms stagger-fade; 44pt/Dynamic-Type/VoiceOver.
+**B2. New `hook_problem_screen.dart`** replacing `first_checkin_screen.dart` at page 0 of the reel flow, per the spec: single-column full-width cards ≥64pt, 16px radius, ~12px gaps; tap=commit (selected tint + haptic + ~450ms beat → advance — mutation in the tap handler per the Riverpod build-phase rule, respecting `_navigating`); header "What's weighing on you right now?" + "Take your time."; **no progress bar**; illustration cut; ~~free text demoted to an expanding "Or say it in your own words…"~~ → **a modal (D4)**, never hides the cards; sign card last, ~~typography-only distinction~~ → **no distinction (D1)**; all 7 visible ≥812pt, gentle scroll + fade below; 60ms stagger-fade; 44pt/Dynamic-Type/VoiceOver.
 
 **B3. State:** `OnboardingState` → `version: 8` adding `contract, problemCategory, chipKey, problemTextRaw, pairNameIds, aspiration, carryingDuration, reelSource, reelId, hookType` (map's field list; `demoFeelingInput` machinery retired from the reel flow). Writes `acquisition_promise` `{reel_id?, hook_type, contract, problem_category}` + `first_problem_text` + `onboarding_flow:'reel_v1'` into `saveOnboardingData` (new named params + UPDATE columns) so they ride **every** persist including the final one.
 
@@ -59,8 +59,8 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 ## Wave D — Derived questions, plan screen, source question
 
 **D1. Questions between reveal and signup** (all single-tap, question-scaffold reuse): "How long have you been carrying this?" (pacing + AI-context field), aspiration (sign-register variant when contract='sign') → queue rows 3-7, reminder-time screen retained as-is. The §V6.8.A6 orphan questions (age/prayer-frequency/familiarity/dua-topics/commitment/attribution/intention) are **absent from the reel flow** (files stay for legacy).
-**D2. Plan screen rebuild** (`personalized_plan_screen` successor): renders the **real 7-Name queue** (Name₁ met ✓, Name₂ sealed-tomorrow, 3-7 as veiled silhouettes) + the **8-stamp journey track pre-stamped 2/8** (arrived + first Name; replaces the legacy journey timeline). Copy in depth register, no worship-streak framing.
-**D3. Post-reveal "Where did you find us?"** single-tap (TikTok/IG/friend/other) → stored in state (`reel_source_captured` event lands with W5 constants; stub now).
+**D2. Plan screen rebuild** (`personalized_plan_screen` successor): renders the **real 7-Name queue** (Name₁ met ✓, Name₂ sealed-tomorrow, 3-7 as veiled silhouettes) + the 8-stamp journey track pre-stamped 2/8 (arrived + first Name; replaces the legacy journey timeline) — **rendered as a filling BAR since 2026-07-29, semantics unchanged (D3)**. Copy in depth register, no worship-streak framing.
+**D3. Post-reveal "Where did you find us?"** single-tap (TikTok/IG/friend/other) → stored in state. **⚠️ SHIPPED AS `reel_source_selected{source}`, not the specified `reel_source_captured`, and NO `reel_hook` super property exists (D5). W5 work; setup steps in TODO.md.**
 
 ## Wave E — Flow assembly, deferred signup, deep links
 
@@ -129,7 +129,7 @@ Who is actually exposed: users onboarded before the gate shipped were backfilled
 
 **H4. The comfort opening replaces the welcome screen** (founder's proposal). 2:286 in motion + one short English acknowledgement → smooth transition into the hook. It REPLACES rather than precedes `/welcome` (else two gates before the ask); only the "I already have an account" link survives. **Supersedes review 11's "`/welcome` unchanged" note** — that predates the reel-contract audit. Rationale is ad-scent, not decoration: a Reel-2 arrival promised 2:286 currently meets a *different* ayah (94:6) under the tagline "Reflect · Build · Discover" over a **remotely-fetched `googleusercontent.com` image**. Bundle that asset locally regardless.
 
-**H5. Re-sequencing.** The kindling beat's slot is right, its content is wrong — the user names pain and we answer with a lamp and a streak promise; **re-voice it to acknowledgement** and move the lantern's introduction to the notification screen. **"Where did you find us?" moves off the emotional peak** (it currently asks the user to do market research for us moments after Ameen — the only screen giving them nothing, at their most open) to just before the signup trio. **Widget carousel moves after the plan.** **Sign chip promoted** out of 7th place — a Reel-2 arrival's row is currently in the least-read position. New order is **19 pages** (includes the rating gate, which F2 keeps, placed after the plan screen and bar-less like the other gates); `onboardingReelLastPageIndex` 13 → **18**, `onboardingReelTotalSegments` 10 → **14**.
+**H5. Re-sequencing.** The kindling beat's slot is right, its content is wrong — the user names pain and we answer with a lamp and a streak promise; **re-voice it to acknowledgement** and move the lantern's introduction to the notification screen. **"Where did you find us?" moves off the emotional peak** (it currently asks the user to do market research for us moments after Ameen — the only screen giving them nothing, at their most open) to just before the signup trio. **Widget carousel moves after the plan.** ~~**Sign chip promoted** out of 7th place — a Reel-2 arrival's row is currently in the least-read position.~~ **⚠️ NOT IMPLEMENTED — `problem_chips.dart` was last touched in Wave B and still lists `sign` seventh. Superseded by the 2026-07-29 decision, which keeps it last deliberately: reading the six problem chips does real diagnostic work and one of them usually lands.** New order is **19 pages** (includes the rating gate, which F2 keeps, placed after the plan screen and bar-less like the other gates); `onboardingReelLastPageIndex` 13 → **18**, `onboardingReelTotalSegments` 10 → **14** → **15 (2026-07-29: the plan screen gained a progress bar, D3)**.
 
 **H6. Retire the lapse presupposition.** "To feel close to Allah **again**" and "even when I slip" are exclusionary under the corrected ICP. Copy-test pinned so it cannot innocently revert.
 
@@ -166,3 +166,59 @@ Adversarial eng+flow review, all 13 findings folded in. Blockers: **(1)** "clamp
 5. **Luminance flare vs the no-bounce rule** — the kindle flare is luminance-only (no scale, no translate), so it should not breach a rule aimed at spatial overshoot; a flame flaring as it catches is physically true rather than cute. Confirm, or it falls back to a plain ramp.
 6. **Widget gallery order** (`SakinaWidgetBundle.swift`, currently Duʿā Times → Name → Lantern) — pointing a new user at the third entry costs us, but reordering changes the gallery for every existing user. Product call, not blocking.
 7. **`/welcome` remote arch image** — the app's first screen fetches its illustration from a `googleusercontent.com` Stitch URL (`hook_screen.dart:22`). Should become a bundled asset; out of scope for W2, recorded so it is not lost.
+
+---
+
+## Status addendum (2026-07-29) — post-build audit
+
+Every W2 line item walked against what is committed on `feat/reel-first-w2-onboarding`.
+Divergence IDs (D1-D8) are shared with the divergence log in
+`2026-07-23-conversion-refactor-changes-and-implementation.md`; the full rationale lives
+there. This section records only what changed for *this* doc.
+
+### Open items — resolved
+
+- **#4 Anxiety pair sign-off — RESOLVED.** All seven deck files now read APPROVED
+  (verified by reading the file headers, 2026-07-29). The #1 chip by research is no
+  longer falling back to the comfort pair. `test/content/name_stories_ship_gate_test.dart`
+  passes, including "exactly one pair-synergy beat per pair".
+- **#6 Widget gallery order — RESOLVED.** The carousel follows the iOS gallery exactly
+  (Duʿā Times → Name → Lantern), so the how-to sheet reads against the same list the user
+  is looking at. Commit `5c2b743`.
+- **#7 `/welcome` remote arch image — RESOLVED.** The comfort opening replaced
+  `hook_screen.dart` outright (commit `9721b05`), and the arch is now the code-drawn
+  `MihrabArchFrame`. Worth noting what this actually fixed: the app's **first frame** had
+  been fetching its illustration from a `googleusercontent.com` URL, so the opening
+  depended on a third-party CDN.
+
+### Still open
+
+- **#1 Deck transport = bundled asset JSON** — shipped that way; confirm and close.
+- **#2 Aspiration → queue rows 3-7 map** — the sequences need the same founder review the
+  decks got (orderings of already-approved Names, no new content).
+- **#3 Card award = deterministic SILVER** — shipped that way; confirm and close.
+- **#5 Luminance flare vs the no-bounce rule** — still unconfirmed.
+
+### Divergences from this doc's own spec
+
+- **D1** sign card visual distinction removed.
+- **D3** journey track renders as a bar; `onboardingReelTotalSegments` 14 → 15.
+- **D4** free text is a modal.
+- **D5** `reel_source_selected` shipped in place of `reel_source_captured`; no `reel_hook`
+  super property — the one genuine W2 gap, deferred to W5.
+- **H5 sign-chip promotion never landed** — see the struck line in Wave H above.
+
+### Beyond this doc's scope, shipped in the same window
+
+The comfort opening became a two-movement cold open (greeting → verse, ~14s, tap to skip,
+once per install); the hook screen took an emerald promise line and a corrected spacing
+rhythm; the plan screen was rebuilt to match its siblings; the widget-offer screen now
+uses real Home Screen screenshots. Paywall and referral changes are D6-D8 in the shared
+log.
+
+**W1 is complete and applied to prod** (`user_name_queue` live with RLS, all
+`user_profiles` columns present, `sync_all_user_data` verified as a genuine superset of
+both the W1 and cosmetics key sets, quests local-vs-UTC bug fixed per review eng-1,
+softener wave written and staged unexecuted in `supabase/staged/`). Local migration
+filenames differ from the prod-applied versions — same schema, and re-applying is a no-op
+because every statement is guarded.

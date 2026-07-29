@@ -24,10 +24,10 @@
 - **The aspiration question survives ("What are you seeking?" / sign register: "What do you most want to know Him as — peace, mercy, strength, nearness?") and shapes queue rows 3-7, AI teaching-context bias, and notification content rotation.** Rows 1-2 are the promised pair, so this is the question that makes the rest of the 7-Name plan personal instead of generic. (§G2, §V6.1 Branch B, §V6.8.A1)
 - **The plan screen becomes a real artifact: a server-stored `user_name_queue` of the first 7 Names (rows 1-2 = the promised pair).** Promise → artifact → verification is the trust loop; the static "crafted for you" tiles promised things nothing delivered. (§G3, §V6.8.A1)
 - **The One Ship includes the D1-D7 daily-loop seam: the daily reveal consults the queue, and the D1 reveal IS Name #2's unseal deck.** Without this seam the plan screen and D1 push promise things Day 1 doesn't deliver — the user catches us breaking the promise immediately. (§V6.8.A5)
-- **The journey track shows 8 stamps (7 Names + account), pre-stamped 2/8; day 7 = "Seeker of the Names" title.** Endowed progress (2 pre-stamps ≈ 34% vs 19% completion) with truthful stamps; this absorbs the old trial-journey track. (§V6.8.A8, §V6.5.4)
+- **[AMENDED 2026-07-29 — D3]** **The journey track shows 8 stamps (7 Names + account), pre-stamped 2/8; day 7 = "Seeker of the Names" title.** Endowed progress (2 pre-stamps ≈ 34% vs 19% completion) with truthful stamps; this absorbs the old trial-journey track. (§V6.8.A8, §V6.5.4)
 - **Deferred signup ships as local-first state + `persistOnboardingToSupabase` at signup — anonymous auth is cut.** Signup completion is already 99%, so anon-auth was the ship's biggest engineering risk spent on a non-leak; a stable install id is still aliased at signup so pre-signup events and RC join up. (§V6.8.E)
 - **The forced 9-step tour is killed for the new flow, replaced by 2-3 dismissible contextual coachmarks — never blocking, never multi-step; suppression is keyed on the flow (not a global flag flip) so a kill-switch revert restores the tour with the legacy flow.** The tour is the funnel's biggest leak (52% completion). (§V6.2.8, §V6.8.A7 adapted by §V6.9, v1 Phase 1)
-- **The rating gate moves out of the pre-paywall slot to post-D1-unseal.** It currently occupies the emotional peak the paywall needs; D1-unseal is a genuine delight moment that's safer for review quality anyway. (§V6.8.A8)
+- **[SUPERSEDED 2026-07-28 — D2]** **The rating gate moves out of the pre-paywall slot to post-D1-unseal.** It currently occupies the emotional peak the paywall needs; D1-unseal is a genuine delight moment that's safer for review quality anyway. (§V6.8.A8)
 - **First reveal is guaranteed Silver+ ("beginner's barakah"), with a dignity floor across the first 7 reveals — ships IN the One Ship.** Today the first pull always lands Bronze, i.e. the weakest reveal at the most important moment, and a mid-window gacha change later would violate the freeze. (§V6.8.A9)
 - **The queue selects the Name, the gacha selects only the tier, and the awarded card is always the revealed Name's card; already-met Names become tier-upgrade pulls.** The three progress systems (queue, gacha, cards) previously had no reconciliation and would visibly contradict each other. (§V6.8.D4)
 - **Per-user local-time day boundaries close whatever gap the shipped streak-tz work left (quests/rewards/muhasabah).** "Unseals tomorrow" and the weekly pool reset are incoherent at UTC midnight (3 AM Jakarta, 4 PM California). (§V6.8.A10)
@@ -39,7 +39,7 @@
 - **The trial is 7 days on every SKU, including the weekly (currently 3-day).** 3-day trials are the industry's worst-converting bucket, and taking the weekly 3-day burns the user's once-per-subscription-group intro eligibility — forfeiting the annual 7-day forever. (§V6.3.2, §V6.8.B4)
 - **The annual anchor moves $49.99 → $59.99 with the new paywall.** The faith category clusters at $59.99-69.99 and under-pricing is the bigger measured risk; the gate change is the zero-marginal-cost moment to move. (§V6.3.6)
 - **The paywall is multi-page, echoes the user's own problem/Name, and sells depth only — never the arc ("X of 99 met" is banned from purchase surfaces).** JTBD/feeling-echo paywalls outperform layout tests, but the journey count sells a thing that's free forever, which reads as deception after dismissal. (§V5.3, §V6.8.B2)
-- **Dismissal goes straight to home with a one-time reverent "always free" card — the ReferUnlock chain and 3s-hidden close button do NOT carry over; re-presentation is capped at ≤1 gate per session start and ≤2 offer surfaces per week.** Honoring dismissal is what makes the hard-looking gate non-coercive; the caps keep "re-present on reopen" from decaying into nagging. (§V6.3.1d, §V5.3)
+- **[PARTIAL — D6]** **Dismissal goes straight to home with a one-time reverent "always free" card — the ReferUnlock chain and 3s-hidden close button do NOT carry over; re-presentation is capped at ≤1 gate per session start and ≤2 offer surfaces per week.** Honoring dismissal is what makes the hard-looking gate non-coercive; the caps keep "re-present on reopen" from decaying into nagging. (§V6.3.1d, §V5.3)
 - **A binding gate copy firewall: payment never buys the divine, no guilt/loss framing, scarcity stated plainly once, no countdown UI anywhere (the sole allowed clock is the system RC trial-end reminder, e.g. the Day-6 notice); enforced by a tripwire grep.** A monetization surface in a worship app is exactly where copy drift does real harm, and the pre-v6 firewall predates the hybrid gate. (§V6.3.1, §V6.7 H5 row)
 - **The base reverence firewall (§H5) stays in force alongside the v6 extensions: no paid randomness ever (money never buys a random pull), no public worship leaderboards, social = praying for each other only, gamify showing up never the worship itself; plus the pinned card-tier language rule — tier vocabulary attaches to the card, never the Name ("a Bronze Name of Allah" is banned copy).** The One Ship puts a gacha-tier card award adjacent to a purchase surface for the first time, which is exactly where these lines get crossed by accident. (§H5, §V6.5.6)
 - **Free forever, guaranteed: the 99 Names, verses, duas, the daily problem→Name match with full deck and share card, both promised Names, streak/lantern/widgets.** The reel's literal promise and scripture can never sit behind the gate — that's both the faith line and the growth loop. (§V6.3.3, §V6.2.3)
@@ -150,16 +150,16 @@
   2. **Tap = commit.** Selecting a card advances (selected state + haptic + ~450ms beat, then the reveal loader). No separate Continue button on this screen — one decision, one tap.
   3. **Header:** "What's weighing on you right now?" + quiet subline "Take your time." **No progress bar on this screen** (precedent: the paywall pages already hide it) — a step counter on screen one signals a long form and manufactures hurry.
   4. **Illustration cut** (or reduced to a small ornament above the header) — the vertical space belongs to the choices.
-  5. **Free text demoted:** a quiet "Or say it in your own words…" text-button below the list that expands the field on demand; never required, never hides the cards (§V6.1). Typed input keyword-maps per §V6.8.A4.
-  6. **Sign card: identical surface and spacing to the problem cards; distinction via typography ONLY** (lighter weight, secondary ink; last position in the list). Founder decision 2026-07-25 after the mock review, revising §V6.1's "visually distinct chip": a tinted surface reads as a pre-selected state (the selected state is an emerald tint) and inconsistent spacing reads as a layout bug. The sentence-length label + last position + quieter type are distinction enough.
+  5. **[AMENDED 2026-07-29 — D4]** **Free text demoted:** a quiet "Or say it in your own words…" text-button below the list that expands the field on demand; never required, never hides the cards (§V6.1). Typed input keyword-maps per §V6.8.A4.
+  6. **[SUPERSEDED 2026-07-29 — D1]** **Sign card: identical surface and spacing to the problem cards; distinction via typography ONLY** (lighter weight, secondary ink; last position in the list). Founder decision 2026-07-25 after the mock review, revising §V6.1's "visually distinct chip": a tinted surface reads as a pre-selected state (the selected state is an emerald tint) and inconsistent spacing reads as a layout bug. The sentence-length label + last position + quieter type are distinction enough.
   7. **All 7 visible without scrolling** on ≥812pt screens (compact header + no illustration makes this fit); on smaller screens allow gentle scroll with a fade hint — never shrink the cards to fit.
   8. **No urgency mechanics ever:** no timers, no auto-advance, no skip-pressure copy (§H5). Stagger-fade the cards in (~60ms/card, pattern already in the shipped screen). Accessibility: 44pt minimum everywhere, Dynamic-Type-safe labels, VoiceOver reads the full sentence.
 - Reveal: pair lookup → full story deck rendered on the shipped beat spine (`BeatRevealFlow` surface `'onboarding_reveal'`); recognition beat + comfort verse for sign contract; Name #2 identity shown, deck sealed.
 - Card award at reveal: guaranteed Silver+ first pull; queue-picks-Name/gacha-picks-tier wiring; tier-upgrade on already-met.
 - Derived questions (problem register, consumers wired): "how long carrying" → plan pacing + AI context field; aspiration question (sign-register variant) → queue rows 3-7 + AI teaching-context + notification rotation; reminder-time question retained.
-- Plan screen renders the real 7-Name queue; 8-stamp journey track pre-stamped 2/8.
+- **[AMENDED 2026-07-29 — D3]** Plan screen renders the real 7-Name queue; 8-stamp journey track pre-stamped 2/8.
 - Deferred signup: local pre-auth state + `persistOnboardingToSupabase` at signup; stable install id aliased at signup (RC/Mixpanel join for pre-signup events).
-- Post-reveal "Where did you find us?" single tap → `reel_source_captured` + `reel_hook`.
+- **[PARTIAL — D5]** Post-reveal "Where did you find us?" single tap → `reel_source_captured` + `reel_hook`.
 - Rating gate relocated to post-D1-unseal; tour suppressed for the new flow (keyed on `onboarding_flow`, NOT a global flag flip — kill-switch revert must restore it), replaced by 2-3 dismissible contextual coachmarks (Duas tab, streak — never blocking).
 - Deep-link handlers (best-effort): `sakina://reel/<id>` + `sakina://feel/<emotion>` cloning the `sakina://r/` pattern; `name_ids` in the payload override the chip pair.
 
@@ -229,3 +229,83 @@
 | `RAMADAN_GIFT_ENABLED` (compile-time Env) | `true` | Ramadan/Eid gift card surface | Permanent seasonal knob |
 
 **Count trajectory:** 8 keys today → 6 after the immediate cleanup → ~8 during the watch window (kill switch + dials added, reverse-trial key gone) → 4 post-keep → **2 permanent knobs** post-softener-wave (+1 env knob). Doc-drift note: CLAUDE.md still cites `Env.ratingGateEnabled`, which no longer exists — the rating gate is hardcoded in the page list today (and relocates post-D1-unseal in the One Ship); fix the CLAUDE.md line when touching onboarding docs.
+
+---
+
+## Divergence log — code vs this plan (2026-07-29)
+
+Audited by walking every W1/W2 line item against what is committed on
+`feat/reel-first-w2-onboarding`. Recorded here rather than rewritten inline so the
+original intent and the reason it changed both stay legible. Each entry names the
+decision date and where the truth now lives in code.
+
+**D1 — Sign card has NO visual distinction.** Founder call 2026-07-29, reversing the
+2026-07-25 "distinction via typography ONLY (lighter weight, secondary ink)". Reason:
+the lighter grey type — plus a hairline break added on 2026-07-29 and removed the same
+day — lifted the row out of the list into an implied "other" bucket sitting directly
+above the free-text link, so two *opposite* affordances read as duplicates ("I can't put
+it into words" = *I don't want to type*; the link = *I do*). The row is now the seventh
+feeling, styled identically, still last. Pinned by
+`test/features/onboarding/screens/hook_list_uniformity_test.dart`, which defends
+uniformity precisely because the failure mode is gradual re-differentiation.
+
+**D2 — Rating gate STAYS in onboarding.** Founder call 2026-07-28. Placed *after* the
+plan screen so it lands on the payoff rather than before it. Post-D1-unseal is a W3
+surface that does not exist yet, so relocation had nowhere to go. Note recorded during
+Wave F: despite its name `rating_gate_screen.dart` is not a two-step "are you enjoying
+Sakina?" gate — it calls `InAppReview.requestReview()` directly, and iOS rate-limits to
+3 prompts/365 days, so placement genuinely burns attempts.
+
+**D3 — The journey track is a filling bar, not eight stamps.** Founder call 2026-07-29.
+The 8-total / 2-earned *semantics* are unchanged; only the rendering is. Eight dots read
+as a count of things rather than as progress, which produced the founder's actual
+question — "why does it say 2 of 8 when the screen above says you know 10?". Same
+change gave the plan screen the progress bar it had been excluded from
+(`onboardingReelTotalSegments` 14 → **15**, new `onboardingReelPlanSegment`).
+
+**D4 — Free text is a modal, not an inline expanding field.** Founder call 2026-07-29.
+The inline field expanded *below* seven options, so on a device it opened under the fold,
+the screen auto-scrolled to find it, and the keyboard then covered the rows just read —
+while leaving all six options live during a sentence about the hardest thing in someone's
+week. Now `showFreeTextDialog`: blurred canvas (dark-emerald scrim, never black),
+autofocus, circular emerald check. `HookFreeTextBlock` collapsed to a single link, and
+its label changed to "Or describe it yourself…" so it stops echoing the row above it —
+that row keeps its wording because the sign contract's shipped reveal answers it directly
+("You couldn't put it into words…", `assets/content/name_stories.json`).
+
+**D5 — `reel_hook` is NOT shipped; the event name differs.** The screen exists and sits
+at the flow's lowest-emotion point, but emits `reel_source_selected{source}` rather than
+the specified `reel_source_captured`, and **no `reel_hook` super property is registered
+anywhere**. Consequence: the answer tags one event instead of segmenting the funnel —
+which matters, because this doc calls reel-source capture "the plan's biggest measurement
+hole". Deferred to W5; setup steps (including that organic Instagram gives the app
+nothing to capture, and ASC Campaign Links as the free first-party substitute) are in
+`TODO.md`.
+
+**D6 — Part of the §B dismissal item shipped early, in the W2 timeframe.** The
+ReferUnlock chain is **deleted** (2026-07-29) rather than waiting for W4: its card
+advertised a 7-day trial against a THREE_DAYS App Store offer, its "Start free trial" CTA
+called `Navigator.maybePop()` and started no trial, and it asked a user who had declined
+twice and never used the app to recommend it to three friends. Still outstanding from the
+same bullet: the **3s-hidden close button** (`_closeButtonRevealDelay` is still live) and
+the one-time reverent **"always free" card**, which does not exist. Do both with W4.
+
+**D7 — New decision not in this plan: the referral share ask is gated on consistency.**
+`resolveReferralNudge` now requires `currentStreak >= 7` — the app's own first streak
+milestone, the one that unlocks the title "Consistent" — instead of an active RevenueCat
+entitlement plus a 2-day grace. Free users can now be asked; day-1 subscribers cannot.
+Rationale: a payer on day 1 has bought a promise, a free user on day 7 has kept a habit,
+and only the second has something to vouch for. The old audience comment's "never
+gift/referral" exclusion was NOT ported — on inspection it blocked ordinary A→B→C
+referral chains rather than abuse, and `apply_referral` already blocks self-referral
+server-side.
+
+**D8 — Interim paywall work, to be reverted by W4.** The existing paywall was trimmed to
+one viewport (duplicate honest-billing paragraph, "No payment due today", the "YOU'RE 1
+STEP AWAY" eyebrow and the "Everything premium unlocks" label all removed) so Restore /
+Terms / Privacy reach the thumb, and its trial copy was corrected from 7 days to **3**,
+matching App Store Connect (`sakina_sub_annual`, subscription 6762153970, FREE_TRIAL /
+THREE_DAYS; both RC subs P3D). A latent bug surfaced during the trim: the microcopy
+hardcoded the annual package and the literal "/year", so selecting Weekly quoted the
+annual price. **W4 moves the real offering to 7 days — the corrected copy must flip back
+in the same change that updates RevenueCat, not before and not after.**
