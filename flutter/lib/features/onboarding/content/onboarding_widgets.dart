@@ -24,6 +24,7 @@ class OnboardingWidgetOption {
     required this.kind,
     required this.galleryName,
     required this.line,
+    required this.previewAsset,
   });
 
   /// Stable snake_case key for analytics. Never localized.
@@ -35,6 +36,16 @@ class OnboardingWidgetOption {
 
   /// One line on what it does for them.
   final String line;
+
+  /// A REAL screenshot of this widget on a Home Screen, cropped to the card
+  /// plus ~8pt of wallpaper (founder, 2026-07-29). See `WidgetPreviewCard` for
+  /// what the crop may and may not contain — Apple's Home Screen rule is the
+  /// binding constraint, not taste.
+  ///
+  /// Registered under `assets/images/widget_previews/` in `pubspec.yaml`; that
+  /// directory needs its own entry because Flutter asset dirs are not
+  /// recursive, and a missing one fails at RUNTIME.
+  final String previewAsset;
 }
 
 const List<OnboardingWidgetOption> onboardingWidgetOptions = [
@@ -42,15 +53,18 @@ const List<OnboardingWidgetOption> onboardingWidgetOptions = [
     kind: 'dua_times',
     galleryName: 'Duʿā Times',
     line: 'The next window for duʿā.',
+    previewAsset: 'assets/images/widget_previews/widget_dua_times.png',
   ),
   OnboardingWidgetOption(
     kind: 'daily_name',
     galleryName: "A Name for What You're Carrying",
     line: "Today's Name, on your home screen.",
+    previewAsset: 'assets/images/widget_previews/widget_daily_name.png',
   ),
   OnboardingWidgetOption(
     kind: 'lantern',
     galleryName: 'Your Lantern',
     line: 'Your streak, lit.',
+    previewAsset: 'assets/images/widget_previews/widget_lantern.png',
   ),
 ];

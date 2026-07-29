@@ -134,6 +134,11 @@ flutter:
     - assets/content/
     - assets/widget/
     - assets/images/
+    # Flutter asset directories are NOT recursive — `assets/images/` above does
+    # not pick this one up, and the miss surfaces as a runtime exception rather
+    # than a build failure. Same reason `illustrations/main_screens/` is listed
+    # separately below.
+    - assets/images/widget_previews/
     - assets/icons/
     - assets/patterns/
     - assets/illustrations/

@@ -267,15 +267,29 @@ private struct MediumView: View {
                     .lineLimit(1).minimumScaleFactor(0.6)
                 // Matched capsule pills, vertically centered: streak (status) and
                 // Dua (action) read as a proper pair.
+                //
+                // The Spacer belongs to the PAIR, not to the row. `StreakChip`
+                // renders `EmptyView()` when the streak state is `.hidden`
+                // (logged out — see the payload check in `makeDisplay`), and an
+                // unconditional Spacer then shoved a lone Dua pill against the
+                // right edge with a hand-span of dead space beside it. With no
+                // chip there is no pair to separate, so the pill simply starts
+                // at the leading edge the way the lantern widget's Reflect pill
+                // already does. Founder, 2026-07-29.
                 HStack(alignment: .center, spacing: 6) {
-                    StreakChip(display: display)
-                    Spacer(minLength: 4)
+                    if display.streakState != .hidden {
+                        StreakChip(display: display)
+                        Spacer(minLength: 4)
+                    }
                     Link(destination: widgetDeepLinkURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
                         Label("Dua", systemImage: "hands.sparkles.fill")
                             .font(.custom("Outfit", size: 12)).fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(Palette.gold).clipShape(Capsule())
+                    }
+                    if display.streakState == .hidden {
+                        Spacer(minLength: 0)
                     }
                 }
                 .padding(.top, 2)

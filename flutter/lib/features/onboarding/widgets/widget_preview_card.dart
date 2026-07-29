@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_motion.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../streaks/models/companion_state.dart';
-import '../../streaks/providers/cosmetics_ui_providers.dart';
-import '../../streaks/widgets/companion_medallion.dart';
 import '../content/onboarding_widgets.dart';
 
 /// One card in the onboarding widget carousel (Wave G, spec §7).
 ///
-/// **These are diagrams, not screenshots.** Only the lantern card is rendered
-/// from the real source — it uses the live [CompanionMedallion], the same
-/// painter that generates the widget's `companion_*.png` frames, so it cannot
-/// drift and it follows the equipped skin for free. The other two are
-/// simplified impressions built from the real palette and type; they say what
-/// the widget is *for* rather than claiming pixel fidelity, which is the honest
-/// thing to show given they will evolve independently. If they ever start
-/// looking like promises, replace them with generated frames the way the
-/// companion ones are (`REGEN_WIDGET_FRAMES` precedent).
+/// **These are real screenshots** (founder, 2026-07-29). They were previously
+/// re-drawn Flutter impressions — honest about not claiming pixel fidelity, but
+/// they did not look like widgets on a Home Screen, which is the one thing this
+/// screen has to sell. Each asset is a medium widget captured on a device and
+/// cropped to the card plus ~8pt of wallpaper.
+///
+/// **Apple permits exactly this and no more.** Its Marketing Resources
+/// guidelines allow showing your own widget on the Home Screen "as long as no
+/// third-party content is depicted" — so the crop deliberately excludes the
+/// status bar, the dock and the "Sakina" caption iOS draws under the widget.
+/// Re-crop, do not re-frame, if these are ever regenerated.
+///
+/// **They can go stale silently.** A widget redesign will not fail any test
+/// here; the screenshot simply keeps showing the old one. Regeneration recipe is
+/// in `docs/qa/widget-preview-screenshots.md`. The `REGEN_WIDGET_FRAMES`
+/// generator is the precedent for making this automatic if it becomes a problem.
 class WidgetPreviewCard extends StatelessWidget {
   const WidgetPreviewCard({
     required this.option,
@@ -34,6 +37,11 @@ class WidgetPreviewCard extends StatelessWidget {
   /// reads as the subject — opacity only, no scale, so nothing is moving
   /// underneath a swipe.
   final bool active;
+
+  /// Native crop is 1094x524 @3x. Pinned as a constant because all three assets
+  /// are cropped by the same script to the same box — if one ever differs, the
+  /// carousel would jump height between pages.
+  static const double previewAspectRatio = 1094 / 524;
 
   @override
   Widget build(BuildContext context) {
@@ -49,18 +57,16 @@ class WidgetPreviewCard extends StatelessWidget {
           children: [
             Flexible(
               child: AspectRatio(
-                aspectRatio: 1,
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.cardRadius),
-                    border: Border.all(
-                      color: AppColors.borderLight.withValues(alpha: 0.6),
-                    ),
+                aspectRatio: previewAspectRatio,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+                  child: Image.asset(
+                    option.previewAsset,
+                    fit: BoxFit.contain,
+                    // The screenshot IS the artwork — no fill or border behind
+                    // it. Its own wallpaper margin is the frame.
+                    filterQuality: FilterQuality.medium,
                   ),
-                  child: _preview(),
                 ),
               ),
             ),
@@ -84,130 +90,6 @@ class WidgetPreviewCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _preview() {
-    switch (option.kind) {
-      case 'lantern':
-        // The real thing: same painter as the shipped widget frames.
-        // ambient:false — this card is a light surface.
-        return Center(
-          child: Consumer(
-            builder: (_, ref, __) => CompanionMedallion(
-              state: const CompanionState(
-                brightness: CompanionBrightness.endowedDim,
-                protected: false,
-              ),
-              size: 104,
-              ambient: false,
-              skin: ref.watch(renderableLanternSkinProvider),
-            ),
-          ),
-        );
-      case 'daily_name':
-        return const _NamePreview();
-      case 'dua_times':
-      default:
-        return const _DuaTimesPreview();
-    }
-  }
-}
-
-/// An impression of the daily-Name widget. Arabic and Latin are in separate
-/// `Text` widgets with explicit directions — never one mixed string.
-class _NamePreview extends StatelessWidget {
-  const _NamePreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'TODAY',
-          style: AppTypography.labelSmall.copyWith(
-            letterSpacing: 1.4,
-            color: AppColors.textSecondaryLight,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'ٱلرَّحْمَٰن',
-          textDirection: TextDirection.rtl,
-          style: AppTypography.arabicClassical.copyWith(
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Ar-Rahman',
-          textDirection: TextDirection.ltr,
-          style: AppTypography.bodyMedium.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimaryLight,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'The Most Merciful',
-          textDirection: TextDirection.ltr,
-          style: AppTypography.bodySmall.copyWith(
-            color: AppColors.textSecondaryLight,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// An impression of the duʿā-times widget — the next window and its countdown.
-class _DuaTimesPreview extends StatelessWidget {
-  const _DuaTimesPreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.access_time_rounded,
-              size: 14,
-              color: AppColors.secondary.withValues(alpha: 0.9),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'NEXT WINDOW',
-              style: AppTypography.labelSmall.copyWith(
-                letterSpacing: 1.2,
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Last third',
-          style: AppTypography.bodyLarge.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimaryLight,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'in 3h 12m',
-          style: AppTypography.bodyMedium.copyWith(
-            // goldInk, never `secondary`: bright gold is ~2.2:1 on a light
-            // surface and fails WCAG 4.5:1 for text (DESIGN.md 2.3). The icon
-            // above may stay `secondary` — the rule is about text.
-            color: AppColors.goldInk,
-          ),
-        ),
-      ],
     );
   }
 }

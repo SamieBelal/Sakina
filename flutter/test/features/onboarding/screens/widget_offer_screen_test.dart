@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,6 +60,48 @@ void main() {
     // the data plus the first card actually rendering.
     expect(find.byType(WidgetPreviewCard), findsWidgets);
     expect(find.text('Duʿā Times'), findsOneWidget);
+  });
+
+  test('every preview asset exists, is registered, and shares one crop', () {
+    // These are real screenshots, so nothing about a widget redesign makes them
+    // fail — but a renamed/missing file or an unregistered asset dir fails at
+    // RUNTIME on a screen 12 pages into onboarding, which is the worst place to
+    // find out. Regeneration recipe: docs/qa/widget-preview-screenshots.md
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    expect(
+      pubspec,
+      contains('assets/images/widget_previews/'),
+      reason: 'Flutter asset dirs are not recursive — the subdirectory needs '
+          'its own pubspec entry or Image.asset throws at runtime',
+    );
+
+    final sizes = <String>{};
+    for (final option in onboardingWidgetOptions) {
+      final file = File(option.previewAsset);
+      expect(file.existsSync(), isTrue,
+          reason: '${option.kind}: ${option.previewAsset} is missing');
+
+      // Decode just the IHDR — PNG width/height live at bytes 16-23, so this
+      // needs no image package.
+      final bytes = file.readAsBytesSync();
+      final data = ByteData.sublistView(bytes);
+      sizes.add('${data.getUint32(16)}x${data.getUint32(20)}');
+    }
+    expect(
+      sizes,
+      hasLength(1),
+      reason: 'all three crops must be identical in size — the carousel pins '
+          'one aspect ratio, so a differing asset makes the page jump height '
+          'mid-swipe. Got: $sizes',
+    );
+
+    final dims = sizes.single.split('x').map(int.parse).toList();
+    expect(
+      dims[0] / dims[1],
+      closeTo(WidgetPreviewCard.previewAspectRatio, 0.01),
+      reason: 'the assets were re-cropped to a different box — update '
+          'WidgetPreviewCard.previewAspectRatio to match',
+    );
   });
 
   testWidgets('the gallery names match the shipped widget bundle exactly',
