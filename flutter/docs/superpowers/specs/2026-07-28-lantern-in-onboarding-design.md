@@ -72,7 +72,7 @@ Verified against the post-rebase tree, 2026-07-28. **Two of these corrected earl
 - `renderableLanternSkinProvider` is `Provider.autoDispose<LanternSkin>` and **falls back to `classicGold`** whenever cosmetics state is unloaded. Onboarding is pre-auth for pages 0–7, so it will resolve to `classicGold` there. **That is correct, not a bug** — a brand-new user owns no cosmetics. Do not "fix" it.
 - `SacredCanvasThreshold` (master, `78a94b3`) is the shared entrance/exit motion for sacred-canvas surfaces; timings recorded in `docs/superpowers/specs/2026-07-27-sacred-canvas-threshold*`.
 - `AppMotion` (`lib/core/constants/app_motion.dart`, landed with the hook-screen redesign) is the motion vocabulary: `feedback` 140ms · `quick` 200 · `entrance` 440 · `layer` 400 · `item` 340 · `recede` 260 · `beat` 180 · `listStart` 320 · `stagger` 40 · `enter` = M3 emphasized `Cubic(0.2, 0, 0, 1)` · `ambient` = easeInOutSine · rise 14/12/10. **No bounce anywhere in the muḥāsabah path.**
-- The `/welcome` screen (`HookScreen`, `router.dart:220`) is **deliberately unchanged in W2** (plan review 11). It gets no lantern. Separately and unrelated: it loads its arch illustration from a remote `googleusercontent.com` URL via `CachedNetworkImage` — the app's first screen depends on a network fetch of a Google-hosted Stitch asset. Tracked as debt in §10, out of scope here.
+- The `/welcome` screen (`HookScreen`, `router.dart:220`) was **deliberately unchanged in W2** (plan review 11) and gets no lantern. ⚠️ **SUPERSEDED by Wave H**, which REPLACES this screen with the 2:286 comfort opening. An implementer working from Wave G alone would preserve a screen H deletes. Separately and unrelated: it loads its arch illustration from a remote `googleusercontent.com` URL via `CachedNetworkImage` — the app's first screen depends on a network fetch of a Google-hosted Stitch asset. Tracked as debt in §10, out of scope here.
 
 ---
 
@@ -159,8 +159,8 @@ Lead with the lantern: it continues the beat that just happened. **Onboarding or
 
 - **Flame-blink guard** (the highest-value test here): drive the kindle ramp frame by frame and assert `glow` never rests in `[0.02, 0.06]` for more than one frame. Directly encodes the §5 gotcha.
 - **Reduce-motion**: with `disableAnimations: true`, assert no flare and no `moveY` on either the medallion or the copy.
-- **Paywall ban**: assert **no `CompanionMedallion` anywhere in the page-12 subtree.** This encodes a product rule that convention alone will not hold.
-- **Placement map**: assert medallion presence/absence per §4 for pages 0, 2–5, 8–11 (absent) and NEW-A, 6, NEW-B, 7 (present).
+- **Paywall ban**: assert **no `CompanionMedallion` anywhere in the paywall subtree.** ⚠️ Pin this to `onboardingReelLastPageIndex`, **never to a literal index** — Wave G moves the paywall to 13 and Wave H moves it to 18, and a literal `12` would silently retarget the test at the password screen. This encodes the one product rule both specs call test-enforced rather than convention, so a stale pin here is worse than no test.
+- **Placement map**: assert medallion presence/absence per §4. ⚠️ **The §4 table is pre-Wave-H and cannot survive it** — H renumbers the flow to 19 pages, makes page 9 the plan and page 11 notifications (both of which MUST carry a hero medallion), and deletes the reminder-time screen that §4 lists at page 5. **Wave H must reissue the placement map**; do not implement G's literal indices afterwards, and if this test fails post-H the fix is the map, never deleting the medallions.
 - **Widget carousel**: three cards, order pinned, "Not now" reachable, CTA opens the sheet and installs nothing.
 - **Index migration**: the six index-pinned files updated for `onboardingReelLastPageIndex` 12 → 13.
 - **Pre-auth skin**: with no cosmetics state loaded, the medallion resolves `classicGold` and does not throw. Regression guard for the `autoDispose` fallback in §3.
