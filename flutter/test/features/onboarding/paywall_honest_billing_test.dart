@@ -166,11 +166,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Day 7: \$59.99/year unless cancelled'),
+      find.textContaining('3 days free, then \$59.99/year'),
       findsOneWidget,
       reason:
-          'Annual default-selected: honest-billing footer must surface the '
-          'live priceString — \$59.99 — and the literal Apple-reminder copy.',
+          'Annual default-selected: the billing line must surface the live '
+          'priceString — \$59.99 — and the right period.',
+    );
+    // The screen states the terms ONCE now. Two more copies used to sit under
+    // the CTA and are what pushed it past a single viewport.
+    expect(
+      find.textContaining('unless cancelled'),
+      findsNothing,
+      reason: 'the honest-billing paragraph was removed from the paywall on '
+          '2026-07-29; the microcopy above the CTA carries the terms',
+    );
+    expect(
+      find.textContaining('Day 7'),
+      findsNothing,
+      reason: 'there has never been a 7-day trial — App Store Connect has the '
+          'annual intro offer at THREE_DAYS. This assertion used to require '
+          'the wrong number.',
     );
   });
 
@@ -207,19 +222,23 @@ void main() {
     await tester.tap(find.text(AppStrings.paywallWeeklyLabel));
     await tester.pumpAndSettle();
 
+    // THE regression this file exists to catch. Until 2026-07-29 the microcopy
+    // hardcoded the annual package and the literal "/year", so a user who
+    // selected Weekly read "3 days free, then $59.99/year" beside a $9.99/week
+    // card. It was masked by the plan-aware paragraph underneath; removing that
+    // duplicate made this line the only billing statement on the screen, so it
+    // now has to follow the selection itself.
     expect(
-      find.textContaining('Day 3: \$9.99/week unless cancelled'),
+      find.textContaining('3 days free, then \$9.99/week'),
       findsOneWidget,
-      reason:
-          'Weekly selected: footer must flip to the 3-day-trial copy with '
-          'the live weekly priceString.',
+      reason: 'Weekly selected: the billing line must flip to the weekly price '
+          'AND the weekly period.',
     );
     expect(
-      find.textContaining('Day 7:'),
+      find.textContaining('/year'),
       findsNothing,
-      reason:
-          'When weekly is selected the annual "Day 7" line must not also '
-          'render — only one footer at a time.',
+      reason: 'with weekly selected, no annual period may still be claimed '
+          'anywhere in the billing copy',
     );
   });
 

@@ -22,7 +22,6 @@ import '../../../services/card_collection_service.dart';
 import '../../../services/onboarding_gate_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/supabase_sync_service.dart';
-import '../../paywall/screens/refer_unlock_screen.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/premium_celebration_overlay.dart';
 import 'package:sakina/core/constants/app_durations.dart';
@@ -118,11 +117,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   // Exit offer shown at most once per session. If the user declines weekly
   // and taps X again, we close immediately — no second nag.
   bool _exitOfferShown = false;
-
-  /// Timestamp when the paywall first became visible — used to compute
-  /// `paywall_dwell_seconds` (forwarded as a property on `refer_unlock_shown`
-  /// per the CEO review's cannibalization-vs-conversion instrumentation).
-  DateTime? _shownAt;
 
   String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
 
@@ -281,7 +275,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   @override
   void initState() {
     super.initState();
-    _shownAt = DateTime.now();
     // Single source of truth for paywall_viewed across ALL three surfaces
     // (onboarding, post-tour hard wall, soft in-app). Previously the hard wall
     // and most soft entries fired no view event at all; the onboarding page
@@ -414,14 +407,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     unawaited(_doClose());
   }
 
-  /// Base SharedPreferences key for the post-dismiss routing counter.
-  /// User-scoped via [SupabaseSyncService.scopedKey] so a shared device
-  /// doesn't bleed dismiss state across accounts.
+  /// Base SharedPreferences key for the dismiss counter. User-scoped via
+  /// [SupabaseSyncService.scopedKey] so a shared device doesn't bleed dismiss
+  /// state across accounts.
   ///
-  /// - count == 1 → first dismiss → push [ReferUnlockScreen] (refer-to-unlock
-  ///   reframe).
-  /// - count >= 2 → second+ dismiss → just close (WinbackScreen lives in a
-  ///   separate plan; landing it together is not blocking).
+  /// **Nothing reads this today** (founder, 2026-07-29). It used to route the
+  /// first dismiss to `ReferUnlockScreen`; that screen is gone and every dismiss
+  /// now completes the flow. The counter is kept deliberately rather than
+  /// deleted: it is the exact input a winback surface needs, it is already
+  /// user-scoped and already accumulating, and throwing it away would mean
+  /// starting that history from zero later.
   static const String paywallDismissCountPrefsBaseKey = 'paywall_dismiss_count';
 
   /// Whether this paywall instance is the post-tour soft gate (either arm's
@@ -458,40 +453,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final count = (prefs.getInt(scopedKey) ?? 0) + 1;
     await prefs.setInt(scopedKey, count);
 
-    if (!mounted) {
-      widget.onComplete();
-      return;
-    }
-
-    // First dismiss → route to ReferUnlockScreen. The screen has two CTAs:
-    // (1) "Start trial" → pops back to here and the user can purchase, (2)
-    // "Send a dua to 3 friends" → opens the share sheet. Either way, on
-    // pop we call widget.onComplete() so onboarding finishes.
-    if (count == 1 && widget.inOnboardingFlow) {
-      final dwellSeconds = _shownAt == null
-          ? null
-          : DateTime.now().difference(_shownAt!).inSeconds;
-      await Navigator.of(context, rootNavigator: true).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => ReferUnlockScreen(
-            paywallDwellSeconds: dwellSeconds,
-            onStartTrial: () {
-              // Pop the ReferUnlockScreen; user lands back on the paywall
-              // with the trial CTA in focus.
-              Navigator.of(context, rootNavigator: true).maybePop();
-            },
-            onClose: () {
-              // User declined both paths → finish onboarding (paywall
-              // already counted this as a dismiss).
-              Navigator.of(context, rootNavigator: true).maybePop();
-              if (mounted) widget.onComplete();
-            },
-          ),
-        ),
-      );
-      return;
-    }
-
+    // Every dismiss finishes the flow — the user lands in the app.
+    //
+    // Until 2026-07-29 the first dismiss pushed `ReferUnlockScreen` ("Two paths
+    // forward") between here and home. It was removed, not moved, for three
+    // reasons: it advertised a **7-day** free trial when App Store Connect has
+    // the annual intro offer at THREE_DAYS; its "Start free trial" button did
+    // not start a trial, it popped back to this very paywall; and by the time it
+    // appeared the user had declined twice, so asking them to recommend Sakina
+    // to three friends asked for advocacy they had no experience to give.
+    //
+    // The share ask now lives only in `ReferralNudgeCard`, gated on a 7-day
+    // streak. Do not re-add an interstitial here: the whole reel-first thesis is
+    // that the pre-value gates are where the funnel leaks.
     widget.onComplete();
   }
 
@@ -835,26 +809,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Small gold all-caps line above the aspiration headline.
-                        // Personalized with the user's first name when available
-                        // (post 2026-05-05 redesign).
-                        Text(
-                          AppStrings.paywallPersonalizedHeaderTemplate.replaceAll(
-                            '{name}',
-                            () {
-                              final n = ref.read(onboardingProvider).signUpName;
-                              return (n != null && n.isNotEmpty) ? n : 'friend';
-                            }(),
-                          ),
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            fontSize: 11,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
+                        // The gold "YOU'RE 1 STEP AWAY, {name}" eyebrow was
+                        // removed 2026-07-29 (founder). It cost a line plus its
+                        // 6pt gap at the top of a screen whose Restore / Terms /
+                        // Privacy row sat below the fold and out of easy thumb
+                        // reach. Those links are a store requirement, so the
+                        // eyebrow — which repeated what the CTA already says —
+                        // is the right thing to spend.
+                        //
+                        // It was also the last consumer of
+                        // `paywallPersonalizedHeaderTemplate`; the string stays
+                        // in `app_strings.dart` for the W4 rebuild.
+                        //
                         // Personalized headline — DM Serif Display.
                         Text(
                           _personalizedHeadline(),
@@ -865,25 +831,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                           ),
                           textAlign: TextAlign.center,
                         ),
+                        // md, not lg: this gap now carries the whole transition
+                        // from hero to list, since the "Everything premium
+                        // unlocks" section label that used to sit between them
+                        // was removed 2026-07-29 (founder). Five emerald
+                        // checkmarks under a purchase headline are already
+                        // legible as a list of what you get — the label was
+                        // announcing what the rows say for themselves, and it
+                        // cost a line plus two gaps on a screen fighting for a
+                        // single viewport.
+                        //
+                        // `paywallPremiumBenefitsHeader` stays in
+                        // `app_strings.dart`: the W4 three-page rebuild puts a
+                        // benefits checklist on its own `plan_select` page,
+                        // where a section label has a real job.
                         const SizedBox(height: AppSpacing.md),
-
-                        // Section label framing the concrete premium unlocks
-                        // below. Emerald (not the top eyebrow's gold) so it
-                        // ties visually to the emerald checkmarks in the list,
-                        // and left-aligned to anchor the scannable list that
-                        // follows (the hero copy above is centered).
-                        Text(
-                          AppStrings.paywallPremiumBenefitsHeader,
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            letterSpacing: 0.2,
-                          ),
-                        )
-                            .animate()
-                            .fadeIn(delay: 60.ms, duration: 380.ms),
-                        const SizedBox(height: AppSpacing.sm),
 
                         // Benefit rows — staggered fade/slide on first
                         // paint so the eye lands here after the hero.
@@ -1009,11 +971,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
                         const SizedBox(height: AppSpacing.sm + 2),
                         Text(
+                          // Follows the SELECTED plan. This is now the only
+                          // billing line on the screen, so it may not assume
+                          // annual — see the note on the weekly template.
                           hasTrial
-                              ? AppStrings.paywallTrialMicrocopyTemplate.replaceAll(
+                              ? (_selectedPlan == _PlanType.annual
+                                      ? AppStrings.paywallTrialMicrocopyTemplate
+                                      : AppStrings
+                                          .paywallTrialMicrocopyWeeklyTemplate)
+                                  .replaceAll(
                                   '{price}',
-                                  _annualPackage?.storeProduct.priceString ??
-                                      AppStrings.paywallAnnualPrice,
+                                  _activePackagePriceString(),
                                 )
                               : AppStrings.paywallNoTrialNote,
                           style: AppTypography.bodySmall.copyWith(
@@ -1111,42 +1079,29 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                   ),
                           ),
                         ),
-                        if (hasTrial) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            AppStrings.paywallNoPaymentTodayLine,
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textTertiaryLight,
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-
-                        // Blinkist-style honest-billing footer. Single
-                        // explicit line beneath the CTA + "No payment
-                        // today" microcopy. Gated on `_planHasTrial` so
-                        // storefronts without an intro offer don't get a
-                        // false trial promise.
-                        // Per Blinkist's public case study, this single-
-                        // line explicit billing copy lifts conversion
-                        // ~23% and reduces refund complaints ~55%.
-                        if (hasTrial) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            (_selectedPlan == _PlanType.annual
-                                    ? AppStrings.paywallHonestBillingAnnual
-                                    : AppStrings.paywallHonestBillingWeekly)
-                                .replaceAll(
-                                    '{price}', _activePackagePriceString()),
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textTertiaryLight,
-                              fontSize: 11.5,
-                              height: 1.35,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                        // Below the CTA there used to be TWO more blocks — "No
+                        // payment due today." and the three-clause honest-
+                        // billing paragraph — on top of the trial microcopy
+                        // that already sits ABOVE the button. Three statements
+                        // of one fact is what pushed this screen past a single
+                        // viewport (founder, 2026-07-29).
+                        //
+                        // The surviving line is `paywallTrialMicrocopyTemplate`
+                        // above the CTA: "3 days free, then {price}/year.
+                        // Cancel anytime." That still carries everything
+                        // guideline 3.1.2 asks to be visible before purchase —
+                        // trial length, price, period, how to cancel — and the
+                        // plan cards restate the price and period beside it.
+                        //
+                        // Deleting the paragraph gives up the Blinkist result
+                        // the old comment cited (~23% conversion, ~55% fewer
+                        // refund complaints). That study compared explicit
+                        // billing copy against NO billing copy, which is not
+                        // this trade: the explicit line is still on screen, it
+                        // is just stated once instead of three times.
+                        // `paywallHonestBillingAnnual` / `...Weekly` are kept
+                        // in `app_strings.dart` for the manage-subscription
+                        // surfaces and in case this is revisited.
                         const SizedBox(height: AppSpacing.sm + 4),
 
                         // Legal links

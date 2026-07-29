@@ -183,8 +183,18 @@ abstract final class AppStrings {
   // and factually accurate. Per Blinkist's public case study, this
   // single-line explicit billing copy lifts conversion ~23% and reduces
   // refund complaints ~55%.
+  // WAS "Day 6 … Day 7" until 2026-07-29 — copy written for a 7-day trial that
+  // does not exist. Verified at the source: the introductory offer on
+  // `sakina_sub_annual` (App Store Connect subscription 6762153970) is
+  // `offerMode: FREE_TRIAL`, `duration: THREE_DAYS`, 1 period, live since
+  // 2026-04-29 in every territory; RevenueCat mirrors it as
+  // `trial_duration: P3D`. Both the CTA and the microcopy already said 3 days,
+  // so this line contradicted them in the one place that describes the CHARGE.
+  // Overstating a trial is an App Review 3.1.2 problem before it is a refund
+  // problem. If the offer is ever changed, change it here too — nothing derives
+  // this string from the store.
   static const paywallHonestBillingAnnual =
-      'Today: full access. Day 6: Apple sends a trial-ending reminder. Day 7: {price}/year unless cancelled. Cancel anytime in Settings.';
+      'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/year unless cancelled. Cancel anytime in Settings.';
   static const paywallHonestBillingWeekly =
       'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/week unless cancelled. Cancel anytime in Settings.';
 
@@ -321,6 +331,16 @@ abstract final class AppStrings {
   // {price} replaced at render time with annual price string from RevenueCat.
   static const paywallTrialMicrocopyTemplate =
       '3 days free, then {price}/year. Cancel anytime.';
+
+  // The weekly counterpart. It did not exist until 2026-07-29: the microcopy
+  // hardcoded the ANNUAL package and the literal "/year", so selecting Weekly
+  // showed "3 days free, then $49.99/year" beside a $4.99/week card. It went
+  // unnoticed because the plan-aware honest-billing paragraph underneath was
+  // saying the right thing; once that duplicate was removed this became the
+  // only billing line on the screen, and it had to actually follow the
+  // selection.
+  static const paywallTrialMicrocopyWeeklyTemplate =
+      '3 days free, then {price}/week. Cancel anytime.';
   static const paywallNoPaymentTodayLine = 'No payment due today.';
   // CTA copy upgrade (OV9) — brand-name in CTA lifts conversion.
   static const paywallCtaTrial = 'Try Sakina Free for 3 days';
