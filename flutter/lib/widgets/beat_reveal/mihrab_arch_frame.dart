@@ -12,13 +12,28 @@ import 'package:sakina/core/constants/app_colors.dart';
 /// as a NON-TEXT accent only (DESIGN.md contrast rule); the stroke sits at a
 /// low enough alpha to read as ornament, not chrome.
 class MihrabArchFrame extends StatelessWidget {
-  const MihrabArchFrame({required this.child, this.animate = false, super.key});
+  const MihrabArchFrame({
+    required this.child,
+    this.animate = false,
+    this.progress,
+    super.key,
+  });
 
   final Widget child;
 
   /// When true, the arch strokes draw on once (0→1) instead of appearing
   /// instantly. The caller gates this to the first reveal + reduced-motion.
+  /// Ignored when [progress] is supplied.
   final bool animate;
+
+  /// Caller-driven draw-on, 0→1. Use this when the arch is one beat inside a
+  /// longer sequence and has to start on that sequence's clock rather than when
+  /// it happens to be built — flipping [animate] from false to true mid-life
+  /// would paint the arch complete, then erase it and redraw.
+  ///
+  /// The padding is unaffected, so the frame reserves its layout on the first
+  /// frame and content inside it never moves as the strokes arrive.
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +42,10 @@ class MihrabArchFrame extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(30, 40, 30, 34),
       child: child,
     );
+    final progress = this.progress;
+    if (progress != null) {
+      return CustomPaint(painter: _MihrabArchPainter(progress), child: content);
+    }
     if (!animate) {
       return CustomPaint(painter: _MihrabArchPainter(1), child: content);
     }
