@@ -21,13 +21,21 @@ import '../content/problem_chips.dart';
 /// user picked instead of holding seven live-looking choices behind the
 /// transition.
 ///
-/// The sign row keeps its typography distinction (lighter weight, quieter ink)
-/// — a tinted surface was rejected on 2026-07-25 because it reads as
-/// pre-selected, and the selected state is exactly that emerald tint. Since
-/// 2026-07-29 the typography is no longer carrying the distinction alone: the
-/// screen draws a break above the row (air + one hairline, see
-/// `HookProblemScreen._signSeparator`), which is why the row above it is asked
-/// for `showRule: false`.
+/// **The sign row is styled exactly like the other six** (founder, 2026-07-29).
+/// It used to be lighter and greyer, and for one day it also had a hairline
+/// break above it. Both were attempts to mark it as the way out — and together
+/// they lifted it out of the list into an "other" bucket, sitting directly above
+/// the free-text link, which is another way out. Two escape hatches stacked,
+/// reading as duplicates.
+///
+/// They are not duplicates, they are opposites: this row means *I don't want to
+/// type*, the link means *I do*. So the row belongs in the list as the seventh
+/// feeling — "I can't put it into words" is a feeling, exactly like "Everything
+/// feels heavy" — and the link below is the only escape. Nothing needs a
+/// distinction because they are visibly different kinds of thing.
+///
+/// (A tinted surface was rejected on 2026-07-25 for a separate reason that still
+/// holds: a tint reads as pre-selected, and the selected state IS that tint.)
 class ProblemChipCard extends StatelessWidget {
   const ProblemChipCard({
     required this.chip,
@@ -72,10 +80,8 @@ class ProblemChipCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final baseStyle = AppTypography.bodyLarge.copyWith(
       fontSize: 17.5,
-      fontWeight: chip.isSign ? FontWeight.w300 : FontWeight.w400,
-      color: chip.isSign && !selected
-          ? AppColors.textSecondaryLight
-          : AppColors.textPrimaryLight,
+      fontWeight: FontWeight.w400,
+      color: AppColors.textPrimaryLight,
       height: 1.35,
     );
 

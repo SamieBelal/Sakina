@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_motion.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../content/problem_chips.dart';
+import '../widgets/free_text_dialog.dart';
 import '../widgets/hook_free_text_block.dart';
 import '../widgets/hook_screen_header.dart';
 import '../widgets/problem_chip_card.dart';
@@ -45,9 +46,6 @@ class HookProblemScreen extends StatefulWidget {
   /// Omitted (no affordance rendered) when this is the flow's first page.
   final VoidCallback? onBack;
 
-  /// The break above the sign row — see [_signSeparator].
-  static const Key signSeparatorKey = ValueKey('hook-sign-separator');
-
   /// Pre-selects a card — how Wave E's `sakina://feel/<emotion>` link lands.
   ///
   /// Arrives LATE in practice: the drain that produces it is async and resolves
@@ -68,14 +66,14 @@ class HookProblemScreen extends StatefulWidget {
 class _HookProblemScreenState extends State<HookProblemScreen> {
   late final ProblemChipResolver _resolver =
       widget.resolver ?? ProblemChipResolver();
+  /// Lives here rather than in the dialog so a dismiss-and-reopen resumes the
+  /// user's half-written sentence.
   final TextEditingController _textController = TextEditingController();
-  final FocusNode _textFocus = FocusNode();
   final ScrollController _scroll = ScrollController();
   final ValueNotifier<bool> _moreBelow = ValueNotifier<bool>(false);
 
   String? _selectedKey;
   bool _committing = false;
-  bool _freeTextExpanded = false;
 
   @override
   void initState() {
@@ -103,7 +101,6 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
   @override
   void dispose() {
     _textController.dispose();
-    _textFocus.dispose();
     _scroll.dispose();
     _moreBelow.dispose();
     super.dispose();
@@ -149,19 +146,25 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
     widget.onCommitted(selection ?? unresolved());
   }
 
-  void _openFreeText() {
-    setState(() => _freeTextExpanded = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _textFocus.requestFocus();
-      if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    });
+  /// Opens the free-text modal and commits whatever comes back.
+  ///
+  /// A dismissal returns null and commits nothing — the controller keeps the
+  /// text, so reopening resumes the sentence rather than starting over. The
+  /// dialog is popped before [_commit] runs, so the keyboard is gone by the time
+  /// the list dims to the chosen line.
+  Future<void> _openFreeText() async {
+    if (_committing) return;
+    final text = await showFreeTextDialog(
+      context: context,
+      controller: _textController,
+    );
+    if (!mounted || text == null || text.trim().isEmpty) return;
+    await _commit(
+      // Raw, not trimmed: `problemTextRaw` is the user's own wording and the
+      // resolver does its own normalising.
+      resolve: () => _resolver.forFreeText(text),
+      unresolved: () => _resolver.unresolvedForFreeText(text),
+    );
   }
 
   bool _trackExtentAfter(Notification n) {
@@ -179,7 +182,7 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
   /// words" — falls below the fold on a 667pt screen, and that is the option
   /// built for the user who cannot name their state. NN/g eyetracking shows
   /// content just below the fold is viewed about half as much as content just
-  /// above it, so the escape hatch has to stay on screen. Pinned by
+  /// above it, so it has to stay on screen. Pinned by
   /// hook_problem_screen_small_device_test.dart.
   static const double _compactHeightThreshold = 700;
 
@@ -218,18 +221,8 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
                   ..._cards(compact: compact),
                   SizedBox(height: compact ? AppSpacing.sm : AppSpacing.lg),
                   HookFreeTextBlock(
-                    expanded: _freeTextExpanded,
-                    controller: _textController,
-                    focusNode: _textFocus,
                     enabled: !_committing,
-                    onExpand: _openFreeText,
-                    onSubmit: (text) {
-                      if (text.trim().isEmpty) return;
-                      _commit(
-                        resolve: () => _resolver.forFreeText(text),
-                        unresolved: () => _resolver.unresolvedForFreeText(text),
-                      );
-                    },
+                    onTap: _openFreeText,
                   )
                       // Last thing to arrive — after every option has landed.
                       .animate()
@@ -270,27 +263,12 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
       final chip = problemChips[i];
       final isSelected = _selectedKey == chip.chipKey;
       final delay = AppMotion.listStart + AppMotion.stagger * i;
-      // The sign row gets a break above it — air plus one hairline — so it
-      // reads as "or, if none of these fit" rather than as a greyer seventh
-      // option. The row it follows drops its own rule so the break is a single
-      // line with air on both sides, not two lines 8px apart.
-      final nextIsSign =
-          i + 1 < problemChips.length && problemChips[i + 1].isSign;
-      if (chip.isSign && i > 0) {
-        cards.add(
-          _signSeparator(
-            compact: compact,
-            delay: delay,
-            dimmed: anySelected && !isSelected,
-          ),
-        );
-      }
       cards.add(
         ProblemChipCard(
           chip: chip,
           selected: isSelected,
           dimmed: anySelected && !isSelected,
-          showRule: i < problemChips.length - 1 && !nextIsSign,
+          showRule: i < problemChips.length - 1,
           rowHeight: compact
               ? ProblemChipCard.compactMinHeight
               : ProblemChipCard.minHeight,
@@ -311,45 +289,5 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
       );
     }
     return cards;
-  }
-
-  /// Separation, not promotion.
-  ///
-  /// Reading the six problem chips does real diagnostic work and one of them
-  /// usually lands, so the escape hatch stays last (spec 🟡, revised
-  /// 2026-07-29). But distinguishing it by typography alone made it recede
-  /// exactly when it should read as an obvious way out. Air plus a hairline
-  /// gives it the weight of a section break without promoting it.
-  ///
-  /// Deliberately NOT a tinted surface — rejected 2026-07-25, because a tint
-  /// reads as pre-selected and the selected state IS an emerald tint.
-  ///
-  /// It fades with the row it introduces and recedes with the rest of the list
-  /// once an answer is in flight; a rule left at full strength beside dimmed
-  /// rows is the one thing left glowing on a screen that is meant to resolve to
-  /// a single line. No travel: a hairline sliding 10px is noise, not motion.
-  Widget _signSeparator({
-    required bool compact,
-    required Duration delay,
-    required bool dimmed,
-  }) {
-    final gap = compact ? AppSpacing.sm : AppSpacing.md;
-    return AnimatedOpacity(
-      duration: AppMotion.recede,
-      curve: AppMotion.enter,
-      opacity: dimmed ? ProblemChipCard.unselectedFade : 1,
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: gap),
-        child: SizedBox(
-          key: HookProblemScreen.signSeparatorKey,
-          height: 1,
-          // The same hairline the rows use, so the break belongs to the list.
-          child: ColoredBox(color: ProblemChipCard.ruleColor),
-        ),
-      ),
-    ).animate(delay: delay).fadeIn(
-          duration: AppMotion.item,
-          curve: AppMotion.enter,
-        );
   }
 }

@@ -99,12 +99,23 @@ class HookScreenHeader extends StatelessWidget {
               curve: AppMotion.enter,
             ),
         SizedBox(height: compact ? AppSpacing.xs + 2 : AppSpacing.sm + 2),
+        // Emerald, not grey (founder, 2026-07-29). This is the only line on the
+        // screen that can carry the brand before a tap: the six options have to
+        // stay quiet or the list reads as a form, and the ink ramp everywhere
+        // else on this screen is a cool grey that fights the warm cream. One
+        // emerald sentence is what stops the page reading as black-on-white.
+        //
+        // #1B6B4A on #FBF7F2 is 6.05:1 — comfortably AA at this size, and this
+        // is `primary`, NOT `secondary`: gold on cream is ~2.2:1 and is barred
+        // from text outright (DESIGN.md §2.3).
         Text(
           promise,
           style: AppTypography.bodyMedium.copyWith(
-            fontWeight: FontWeight.w400,
+            // A half-step heavier than the grey it replaces, so the colour
+            // reads as deliberate rather than as washed-out body copy.
+            fontWeight: FontWeight.w500,
             height: 1.45,
-            color: AppColors.textSecondaryLight,
+            color: AppColors.primary,
           ),
         )
             .animate(delay: AppMotion.beat)

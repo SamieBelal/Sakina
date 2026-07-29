@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/screens/hook_problem_screen.dart';
+import 'package:sakina/features/onboarding/widgets/free_text_dialog.dart';
 import 'package:sakina/features/onboarding/widgets/hook_free_text_block.dart';
 import 'package:sakina/features/onboarding/widgets/onboarding_page_wrapper.dart';
 import 'package:sakina/features/onboarding/widgets/onboarding_progress_bar.dart';
@@ -100,8 +101,11 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('the sign card is last and quieter, on the same surface',
+  testWidgets('the sign card is last, and looks like the other six',
       (tester) async {
+    // Order and contract still matter: reading the six problem chips does real
+    // diagnostic work, so the sign row stays last and still routes to the
+    // recognition contract rather than the diagnosis one.
     await pumpScreen(tester);
 
     final cards = tester
@@ -110,14 +114,17 @@ void main() {
     expect(cards.last.chip.chipKey, 'sign');
     expect(cards.last.chip.contract, HookContract.sign);
 
+    // What changed on 2026-07-29: it is no longer set apart visually. It was
+    // w300 + secondary ink, which read as an "other" bucket stacked above the
+    // free-text link. Full uniformity coverage lives in
+    // hook_list_uniformity_test.dart.
     TextStyle styleOf(String label) =>
         tester.widget<Text>(find.text(label)).style!;
     final sign = styleOf(cards.last.chip.label);
     final problem = styleOf(cards.first.chip.label);
-    expect(sign.fontWeight, FontWeight.w300);
-    expect(problem.fontWeight, FontWeight.w400);
-    expect(sign.fontSize, problem.fontSize,
-        reason: 'distinction is weight/ink only — not size');
+    expect(sign.fontWeight, problem.fontWeight);
+    expect(sign.color, problem.color);
+    expect(sign.fontSize, problem.fontSize);
   });
 
   /// The card's own minimum-height constraint — the thing that guarantees the
@@ -203,21 +210,69 @@ void main() {
     expect(selected.single.chip.chipKey, 'rizq');
   });
 
-  testWidgets('expanding free text never hides the cards', (tester) async {
+  testWidgets('free text opens as a modal, focused, over a blurred canvas',
+      (tester) async {
     await pumpScreen(tester);
-
     await openFreeText(tester);
-    expect(find.text(HookFreeTextBlock.promptLabel), findsNothing);
-    expect(find.byType(TextField), findsOneWidget);
 
-    // Back to the top of the list: the cards must still be there — expanding
-    // the field demotes them, it does not replace them.
-    await tester.drag(find.byType(ListView), const Offset(0, 2000));
+    // A modal, not an inline expansion (founder, 2026-07-29): the field opens
+    // over the screen rather than below seven options and under the fold.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.byType(BackdropFilter),
+      findsOneWidget,
+      reason: 'the canvas behind the card must be blurred, not merely covered',
+    );
+    // Focused on open — the entire reason this became a modal is that the
+    // keyboard is already up.
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).autofocus,
+      isTrue,
+    );
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isTrue,
+    );
+
+    // The modal labels itself. A bare field over a blur gives no clue what it
+    // is for, and the heading is the only place the prompt's wording survives
+    // once the link is behind the scrim.
+    expect(find.text(freeTextDialogTitle), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
+      freeTextDialogHint,
+    );
+
+    // The screen underneath is untouched — the modal demotes the cards, it
+    // never replaces them.
+    expect(find.text(HookFreeTextBlock.promptLabel), findsOneWidget);
+  });
+
+  testWidgets('dismissing the modal commits nothing but keeps the sentence',
+      (tester) async {
+    final committed = await pumpScreen(tester);
+    await openFreeText(tester);
+
+    await tester.enterText(find.byType(TextField), 'half a thought');
     await tester.pumpAndSettle();
-    expect(find.byType(ProblemChipCard), findsNWidgets(7));
-    for (final chip in problemChips) {
-      expect(find.text(chip.label), findsOneWidget, reason: chip.chipKey);
-    }
+
+    // Tap the blurred barrier, well clear of the card.
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(
+      committed,
+      isEmpty,
+      reason: 'a dismissal must not choose an answer — this screen decides '
+          'which Names the user is shown',
+    );
+
+    // Reopening resumes the sentence rather than starting over: the controller
+    // belongs to the screen, not to the dialog.
+    await tester.tap(find.text(HookFreeTextBlock.promptLabel));
+    await tester.pumpAndSettle();
+    expect(find.text('half a thought'), findsOneWidget);
   });
 
   testWidgets('typed text commits through the keyword map', (tester) async {
@@ -226,9 +281,7 @@ void main() {
     await openFreeText(tester);
     await tester.enterText(find.byType(TextField), 'my exams start monday');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text(HookFreeTextBlock.submitLabel));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(HookFreeTextBlock.submitLabel));
+    await tester.tap(find.byIcon(Icons.check_rounded));
     await tester.pumpAndSettle();
 
     expect(committed, hasLength(1));
@@ -237,7 +290,7 @@ void main() {
     expect(committed.single.problemTextRaw, 'my exams start monday');
   });
 
-  testWidgets('empty typed text cannot commit — the Continue slot is inert',
+  testWidgets('empty typed text cannot commit — the check is inert',
       (tester) async {
     final committed = await pumpScreen(tester);
 
@@ -245,34 +298,61 @@ void main() {
     await tester.enterText(find.byType(TextField), '   ');
     await tester.pumpAndSettle();
 
-    // Reserved rather than absent: the 44pt slot is laid out from the start so
-    // the field does not jump under the user's thumb on the first keystroke.
-    final submit = find.text(HookFreeTextBlock.submitLabel);
-    expect(submit, findsOneWidget);
+    // Dimmed rather than absent: the button is laid out from the start so the
+    // field does not jump under the user's thumb on the first keystroke.
+    final check = find.byIcon(Icons.check_rounded);
+    expect(check, findsOneWidget);
     expect(
       tester
           .widget<AnimatedOpacity>(
-            find
-                .ancestor(of: submit, matching: find.byType(AnimatedOpacity))
-                .first,
+            find.ancestor(of: check, matching: find.byType(AnimatedOpacity)).first,
           )
           .opacity,
-      0,
+      lessThan(1),
     );
     expect(
       tester
           .widget<IgnorePointer>(
-            find
-                .ancestor(of: submit, matching: find.byType(IgnorePointer))
-                .first,
+            find.ancestor(of: check, matching: find.byType(IgnorePointer)).first,
           )
           .ignoring,
       isTrue,
     );
 
-    await tester.tap(submit, warnIfMissed: false);
+    await tester.tap(check, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(committed, isEmpty);
+    expect(find.byType(TextField), findsOneWidget,
+        reason: 'an inert check must not close the modal either');
+  });
+
+  testWidgets('the keyboard return key submits, for dictation and hardware '
+      'keyboards', (tester) async {
+    final committed = await pumpScreen(tester);
+    await openFreeText(tester);
+
+    await tester.enterText(find.byType(TextField), 'my exams start monday');
+    await tester.pumpAndSettle();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(committed, hasLength(1));
+    expect(committed.single.hookType, HookType.freeText);
+  });
+
+  testWidgets('the check button clears Apple\'s 44pt tap floor',
+      (tester) async {
+    await pumpScreen(tester);
+    await openFreeText(tester);
+
+    final size = tester.getSize(
+      find.ancestor(
+        of: find.byIcon(Icons.check_rounded),
+        matching: find.byType(Container),
+      ).first,
+    );
+    expect(size.width, greaterThanOrEqualTo(44));
+    expect(size.height, greaterThanOrEqualTo(44));
   });
 
   testWidgets('VoiceOver reads the full sentence on every card', (tester) async {
