@@ -252,7 +252,10 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
                         color: AppColors.textSecondaryLight,
                       ),
                     ).animate().fadeIn(duration: 500.ms, delay: 100.ms),
-                    const Spacer(),
+                    // F-07 parity — see the note on the same line in
+                    // `sign_up_email_screen.dart`. With the keyboard down this
+                    // field sat ~520pt below its own headline.
+                    const SizedBox(height: AppSpacing.xl),
                     OnboardingAutofocusTextField(
                       controller: _controller,
                       shouldRequestFocus: isActive,
@@ -285,7 +288,7 @@ class _SignUpPasswordScreenState extends ConsumerState<SignUpPasswordScreen> {
                         color: AppColors.textPrimaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+                    const Spacer(),
                     OnboardingContinueButton(
                       label: AppStrings.signUpPasswordCta,
                       onPressed: _submit,

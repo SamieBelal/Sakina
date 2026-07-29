@@ -139,7 +139,16 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
                         .animate()
                         .fadeIn(duration: 500.ms)
                         .slideY(begin: 0.03, end: 0),
-                    const Spacer(),
+                    // F-07 parity: the input sits directly beneath the prompt
+                    // instead of being shoved to the bottom by a LEADING
+                    // Spacer. The flexible space lives below the field so the
+                    // Continue button still anchors to the bottom. This screen
+                    // was missed when the same fix landed on
+                    // `name_input_screen.dart` (see its note at :109-114) —
+                    // with the keyboard down the field sat ~496pt under its own
+                    // headline. Pinned by
+                    // `test/features/onboarding/screens/keyboard_inset_layout_test.dart`.
+                    const SizedBox(height: AppSpacing.xl),
                     OnboardingAutofocusTextField(
                       controller: _controller,
                       shouldRequestFocus: isActive,
@@ -182,7 +191,7 @@ class _SignUpEmailScreenState extends ConsumerState<SignUpEmailScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: AppSpacing.xxl),
+                    const Spacer(),
                     OnboardingContinueButton(
                       label: AppStrings.continueButton,
                       onPressed: _submit,
