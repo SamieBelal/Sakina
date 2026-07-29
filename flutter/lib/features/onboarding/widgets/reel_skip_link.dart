@@ -36,10 +36,11 @@ class ReelSkipLink extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Text(
               label,
+              // No underline (founder, 2026-07-29). Quiet ink alone carries the
+              // decline path; the rule under it made a line the user is meant
+              // to skim past look like the most decorated thing on the screen.
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.textSecondaryLight,
-                decoration: TextDecoration.underline,
-                decorationColor: AppColors.textTertiaryLight,
               ),
             ),
           ),

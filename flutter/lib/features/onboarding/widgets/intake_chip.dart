@@ -8,11 +8,13 @@ import '../../../core/theme/app_typography.dart';
 /// One chip in the H5 cloud (One Ship W2-H, spec §5).
 ///
 /// **No checkbox glyph.** The hook screen's borderless direction applies here
-/// too: the only thing that draws attention to a chip is the emerald tint it
-/// takes when the user chooses it — the same `primaryLight` fill
-/// `ProblemChipCard` uses, so a user who tapped a row on screen one recognises
-/// the state instantly. A tick box would announce "form", which is the whole
-/// thing this treatment exists to avoid.
+/// too: what draws attention to a chip is the emerald tint it takes when the
+/// user chooses it — the same `primaryLight` fill `ProblemChipCard` uses, so a
+/// user who tapped a row on screen one recognises the state instantly. A tick
+/// box would announce "form", which is the whole thing this treatment exists to
+/// avoid. Since 2026-07-29 the tint is joined by an emerald edge on the selected
+/// chip only, so "chosen" looks identical here and on the single-tap cards
+/// ([ReelOptionCard]); unselected chips stay flat and unbordered.
 ///
 /// **[dimmed] is the cap made visible.** When three chips are already held, the
 /// unselected ones recede and stop responding — the refusal has to be legible
@@ -76,6 +78,19 @@ class IntakeChip extends StatelessWidget {
                   ? AppColors.primaryLight
                   : AppColors.surfaceAltLight,
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              // Emerald edge on the chosen chip, matching `ReelOptionCard`'s
+              // selected state (founder, 2026-07-29) so a selection reads the
+              // same on every reel screen.
+              //
+              // The border is ALWAYS 1.5 wide and only changes colour — a
+              // border that appears on tap would add 3pt to the box and shove
+              // every chip below it down by that much, on the one screen where
+              // the user taps three times in a row. Unselected chips stay
+              // borderless-looking, which is the treatment's whole point.
+              border: Border.all(
+                color: selected ? AppColors.primary : Colors.transparent,
+                width: 1.5,
+              ),
             ),
             child: Text(
               label,

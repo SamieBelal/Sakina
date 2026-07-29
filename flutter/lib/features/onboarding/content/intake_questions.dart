@@ -94,37 +94,32 @@ String? heaviestReminderTime(String? key) {
   }
 }
 
-/// H2's visible consequence on the plan screen — the app repeating back what
-/// the user said about their own hours, and when it will be there.
+/// H2's visible consequence on the plan screen — when the Name will be there.
 ///
 /// No claim about what will happen to them at that hour: the promise is about
 /// the app's own behaviour, which is the right side of the §8 line.
 ///
-/// Two copy rules hold across all six branches, because only ONE of them ever
-/// renders and the set has to read as one voice regardless of which:
+/// **Promise only, no playback** (founder, 2026-07-29 — see
+/// [toldAnyonePlanLine] for the full reasoning). Each branch used to open "You
+/// said [the answer] is heaviest" before naming the hour; the hour alone still
+/// encodes the answer, so the echo was costing a full line to say nothing new.
 ///
-///   * the playback echoes the user's own words — the question asked what was
-///     *heaviest*, so the answer never paraphrases that as "hardest", and each
-///     first sentence mirrors the option label the user actually tapped;
-///   * one verb for the promise ("will be there"). "Waiting" was the other half
-///     of an earlier split, and it quietly implies something expecting you.
+/// One copy rule holds across all six branches, because only ONE of them ever
+/// renders and the set has to read as one voice regardless of which: a single
+/// verb for the promise ("will be there"). "Waiting" was the other half of an
+/// earlier split, and it quietly implies something expecting you.
 String heaviestPlanLine(String? key) {
   switch (key) {
     case 'mornings':
-      return 'You said mornings are heaviest. Your Name will be there first '
-          'thing.';
+      return 'Your Name will be there first thing.';
     case 'daytime':
-      return "You said it's heaviest during the day. Your Name will be there "
-          'at midday.';
+      return 'Your Name will be there at midday.';
     case 'nights':
-      return 'You said nights are heaviest. Your Name will be there before you '
-          'sleep.';
+      return 'Your Name will be there before you sleep.';
     case 'alone':
-      return "You said it's heaviest when you're alone. Your Name will be "
-          'there each evening.';
+      return 'Your Name will be there each evening.';
     case 'relentless':
-      return "You said it doesn't let up. Your Name will be there each "
-          'morning.';
+      return 'Your Name will be there each morning.';
     default:
       return 'Your Name will be there whenever you open this.';
   }
@@ -188,18 +183,27 @@ String toldAnyoneRegister(String? key) =>
 ///
 /// The unspoken lines answer the ICP's second-ranked fear — being judged —
 /// rather than promising anything about what saying it will do.
+///
+/// **Promise only, no playback** (founder, 2026-07-29). Each line used to open
+/// by repeating the answer back ("You haven't said this to anyone…") before
+/// getting to the promise. Three consequence lines all doing that turned the
+/// plan screen into a wall of "You said…", so the playback clause is gone from
+/// every one of them — the user knows what they just answered. The promise is
+/// still keyed to the answer, which is what makes the question non-extractive.
+/// `no_one` keeps a line of its own rather than sharing the neutral default:
+/// answering the question has to differ from declining it, or the question was
+/// extractive after all. (A first pass at the shortening collapsed the two and
+/// `intake_questions_test.dart` caught it.)
 String toldAnyonePlanLine(String? key) {
   switch (key) {
     case 'someone_knows':
-      return 'Someone already knows. This is somewhere to sit with it '
-          'yourself.';
+      return 'Somewhere to sit with it yourself.';
     case 'a_little':
-      return "You've said some of it. There's room here for the rest.";
+      return "There's room here for the rest.";
     case 'no_one':
-      return "You haven't said this to anyone. Nothing here asks you to "
-          'explain yourself.';
-    default:
       return 'Nothing here asks you to explain yourself.';
+    default:
+      return 'You choose what to bring here.';
   }
 }
 

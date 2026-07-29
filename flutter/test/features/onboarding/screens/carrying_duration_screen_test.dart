@@ -170,8 +170,10 @@ void main() {
     });
 
     test('long-carry answers buy the gentle pacing line', () {
-      const gentle =
-          "You've carried this a long time. We'll go gently — one Name a day.";
+      // Shortened to one sentence on 2026-07-29 (founder). The playback half —
+      // "You've carried this a long time." — told the user what they had just
+      // tapped. What the branches MEAN is unchanged.
+      const gentle = "We'll go gently — one Name a day.";
       expect(carryingPacingLine('months'), gentle);
       expect(carryingPacingLine('years'), gentle);
       expect(carryingPacingLine('always'), gentle);
@@ -179,6 +181,10 @@ void main() {
       // Unanswered gets the neutral line, never a guessed one.
       expect(carryingPacingLine(null), isNot(gentle));
       expect(carryingPacingLine(null), carryingPacingLine('nonsense'));
+      // ...and every ANSWER differs from that neutral line, or the question is
+      // one we ask and ignore. A first pass at the shortening let 'days'
+      // collapse into the default.
+      expect(carryingPacingLine('days'), isNot(carryingPacingLine(null)));
     });
   });
 }

@@ -45,15 +45,24 @@ final Map<String, CarryingDuration> carryingDurationsByKey = {
 /// Long-carry answers get gentleness, not urgency; a fresh weight gets the same
 /// pace described plainly. An unanswered question gets the neutral line rather
 /// than a guess.
+///
+/// **One sentence, no playback** (founder, 2026-07-29). Both branches used to
+/// open by repeating the answer back — "This is still new.", "You've carried
+/// this a long time." — before saying anything the user did not already know.
+/// This is the plan screen's only subline now, so it had to be the short one.
+/// The answer still changes it, which is what keeps H1 from being a question we
+/// ask and then ignore.
 String carryingPacingLine(String? key) {
   switch (key) {
-    case 'days':
-      return 'This is still new. One Name a day, in the order they help most.';
     case 'months':
     case 'years':
     case 'always':
-      return "You've carried this a long time. We'll go gently — one Name a day.";
-    default:
+      return "We'll go gently — one Name a day.";
+    case 'days':
       return 'One Name a day, in the order they help most.';
+    default:
+      // Distinct from every answered branch on purpose: answering has to differ
+      // from declining, or the question was extractive.
+      return 'One Name a day.';
   }
 }
