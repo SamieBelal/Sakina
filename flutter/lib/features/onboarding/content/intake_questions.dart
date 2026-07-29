@@ -99,24 +99,34 @@ String? heaviestReminderTime(String? key) {
 ///
 /// No claim about what will happen to them at that hour: the promise is about
 /// the app's own behaviour, which is the right side of the §8 line.
+///
+/// Two copy rules hold across all six branches, because only ONE of them ever
+/// renders and the set has to read as one voice regardless of which:
+///
+///   * the playback echoes the user's own words — the question asked what was
+///     *heaviest*, so the answer never paraphrases that as "hardest", and each
+///     first sentence mirrors the option label the user actually tapped;
+///   * one verb for the promise ("will be there"). "Waiting" was the other half
+///     of an earlier split, and it quietly implies something expecting you.
 String heaviestPlanLine(String? key) {
   switch (key) {
     case 'mornings':
-      return 'You said mornings are hardest. Your Name will be waiting first '
+      return 'You said mornings are heaviest. Your Name will be there first '
           'thing.';
     case 'daytime':
-      return "You said it's the middle of the day. Your Name will be there "
-          'then.';
+      return "You said it's heaviest during the day. Your Name will be there "
+          'at midday.';
     case 'nights':
-      return 'You said nights are hardest. Your Name will be there at night.';
+      return 'You said nights are heaviest. Your Name will be there before you '
+          'sleep.';
     case 'alone':
-      return "You said it's heaviest on your own. Your Name will be there in "
-          'the evening.';
+      return "You said it's heaviest when you're alone. Your Name will be "
+          'there each evening.';
     case 'relentless':
       return "You said it doesn't let up. Your Name will be there each "
           'morning.';
     default:
-      return 'Your Name will be waiting whenever you open this.';
+      return 'Your Name will be there whenever you open this.';
   }
 }
 
@@ -184,7 +194,7 @@ String toldAnyonePlanLine(String? key) {
       return 'Someone already knows. This is somewhere to sit with it '
           'yourself.';
     case 'a_little':
-      return "You've said a little of it. There is room here for the rest.";
+      return "You've said some of it. There's room here for the rest.";
     case 'no_one':
       return "You haven't said this to anyone. Nothing here asks you to "
           'explain yourself.';
@@ -215,8 +225,13 @@ String toldAnyoneFirstNotificationBody(String? key) =>
 // stays the right side of §8.
 // ───────────────────────────────────────────────────────────────────────────
 
+/// No "right now" on the end: the hook screen ("What's weighing on you right
+/// now?") and H5 ("What would help most right now?") both carry it already, and
+/// three screens in eight saying it is the flow's most audible tic. The work it
+/// did here — *off the top of your head, don't go and count* — is done better by
+/// the subline below.
 const String namesKnownQuestionLabel =
-    "How many of Allah's Names could you name right now?";
+    "How many of Allah's Names could you name?";
 
 /// The whole point of the subline: this must not read as a test. A user who
 /// feels caught out here is a user who has just been told they are not Muslim
@@ -227,7 +242,11 @@ const List<IntakeOption> namesKnownOptions = [
   IntakeOption(key: 'few', label: 'Just a few'),
   IntakeOption(key: 'ten', label: 'Maybe ten'),
   IntakeOption(key: 'many', label: 'A good number'),
-  IntakeOption(key: 'all', label: "I've tried to learn them all"),
+  // Not "I've tried to learn them all". "Tried" makes the top rung the only
+  // option in the whole intake that asks the user to concede a shortfall, and
+  // it was also the longest label in the flow by half again — a six-word
+  // sentence in a set where nothing else runs past four.
+  IntakeOption(key: 'all', label: "I've studied them"),
 ];
 
 /// [namesKnownOptions] keyed by [IntakeOption.key].
@@ -267,8 +286,12 @@ String? namesKnownProjectionLine(String? key) {
   final baseline = namesKnownBaseline(key);
   if (baseline == null) return null;
   final projected = (baseline + namesKnownProjectionGain).clamp(0, 99);
+  // "on the hard days", not "when life gets heavy": this user's life is heavy
+  // today, and a future tense quietly tells them their situation is the
+  // hypothetical case. It also keeps "heaviest" belonging to H2's playback,
+  // which renders a few lines below this one on the same screen.
   return "You know about $baseline. In $namesKnownProjectionGain days you'll "
-      'know $projected — and which one to turn to when life gets heavy.';
+      'know $projected — and which one to turn to on the hard days.';
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -334,7 +357,7 @@ String dailyTimePacingLine(String? key) {
     case 'as_long':
       return 'As long as you need. One Name, and everything beneath it.';
     default:
-      return 'One Name at a time, at whatever pace suits you.';
+      return 'One Name at a time, however long you need.';
   }
 }
 
@@ -350,11 +373,17 @@ String dailyTimePacingLine(String? key) {
 const String intakeNoteQuestionLabel = 'Anything you want to add?';
 
 /// States the consequence honestly rather than begging for the input: this text
-/// becomes AI context for Reflect and Build-a-Duʿā.
+/// becomes AI context for Reflect and Build-a-Duʿā. "What we bring you" rather
+/// than "the words we bring you" — it shapes duʿā and reflection as well, so the
+/// broader noun is both shorter and truer.
 const String intakeNoteSublineLabel =
-    'Only if you want to. It shapes the words we bring you.';
+    'Only if you want to. It shapes what we bring you.';
 
-const String intakeNoteHintLabel = "In your own words. There's no right length.";
+/// Four words, and no second sentence. This is grey placeholder text inside a
+/// field, the lightest-weight copy in the flow — and its old second half
+/// ("There's no right length") was a near-repeat of H3's subline two screens
+/// back, which made the reassurance sound like a script rather than a reply.
+const String intakeNoteHintLabel = 'In your own words.';
 
 const String intakeNoteSubmitLabel = 'Continue';
 

@@ -65,12 +65,18 @@ void main() {
       expect(helpChipsByKey['strength']!.label, 'Strength to keep going');
     });
 
-    test('the cap and the reversibility promise are both stated', () {
+    test('the cap is stated, and the reassurance is one we can keep', () {
       expect(helpChipsMaxSelections, 3);
-      // "You can change this later" is load-bearing copy: this ICP's fear
-      // ranking puts failing at another thing near the top.
+      // The second sentence is load-bearing copy: this ICP's fear ranking puts
+      // failing at another thing near the top, so the screen has to take the
+      // stakes off the pick.
       expect(helpChipsSublineLabel, contains('up to three'));
-      expect(helpChipsSublineLabel, contains('change this later'));
+      expect(helpChipsSublineLabel, contains('meet the rest'));
+      // It used to say "You can change this later", which was false: `helpWith`
+      // has no settings surface and no consumer outside onboarding, so there is
+      // nowhere in the shipped app to change it. Pinned negative so the promise
+      // cannot return without the edit screen it promises.
+      expect(helpChipsSublineLabel, isNot(contains('change this later')));
     });
   });
 

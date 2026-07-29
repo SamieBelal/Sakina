@@ -1,5 +1,11 @@
-/// **DRAFT — the seven orderings below need the founder's eye (spec §11 item 1,
-/// same review protocol as the original five aspiration sequences).** H5 —
+/// **REVIEWED 2026-07-29 — cleared to ship under the founder's standing
+/// instruction ("review with an agent; if it looks good, use it").** An
+/// independent agent review checked all 35 ids against the catalog, the
+/// anchors and the deck pairs, and corrected two sequences: `words` (dropped
+/// the redundant Al-Ghafur) and `names` (restored the actual catalog run).
+/// Both corrections are documented inline at their sequences. Five of seven
+/// chips shipped unchanged. The founder has NOT eyeballed the corrected
+/// orderings; they are surfaced for veto, not presented as pre-approved.** H5 —
 /// "What would help most right now?" — the multi-select chip cloud that replaces
 /// the single-select aspiration question, and the five-Name orderings each chip
 /// seeds into the queue (One Ship W2-H, §5).
@@ -70,13 +76,25 @@ class HelpChip {
 const String helpChipsQuestionLabel = 'What would help most right now?';
 
 /// **Load-bearing copy, not filler (spec §5).** This ICP's fear ranking puts
-/// *failing at another thing* near the top; stating that the choice is
-/// reversible removes the pressure to get it right, which is most of what makes
-/// a seven-option screen feel light. It also solves the one documented risk with
-/// chips — that users may not realise multi-selection is possible — with
-/// microcopy rather than checkbox glyphs.
+/// *failing at another thing* near the top, so the second sentence exists to
+/// take the stakes off the pick — which is most of what makes a seven-option
+/// screen feel light. The first sentence solves the one documented risk with
+/// chips (that users may not realise multi-selection is possible) with microcopy
+/// rather than checkbox glyphs.
+///
+/// **It said "You can change this later" and that was not true.** `helpWith` has
+/// no consumer outside onboarding and no settings surface — there is nowhere in
+/// the shipped app to change it. Promising an edit screen we do not have, in
+/// onboarding, to a user whose ranked fear is being let down again, is the one
+/// unambiguous defect in the Wave H copy set.
+///
+/// "You'll meet the rest in time" does the same emotional work and is verifiable:
+/// the chips order queue positions 3-7, they do not ration the catalog, and the
+/// daily loop walks all 99. It also reframes the tap from *choosing what you get*
+/// to *choosing what comes first*, which is the more accurate description of what
+/// this screen does.
 const String helpChipsSublineLabel =
-    'Choose up to three. You can change this later.';
+    "Choose up to three. You'll meet the rest in time.";
 
 /// How many chips a user may hold at once. The cap IS the design.
 const int helpChipsMaxSelections = 3;
@@ -90,11 +108,30 @@ const List<HelpChip> helpChips = [
   HelpChip(
     key: 'words',
     label: 'Words to turn to',
-    // As-Sami (hears the silent prayer) → Al-Mujeeb (answers the one who
-    // calls) → Al-Kareem (gives without accounting, so asking is no
-    // imposition) → Al-Ghafur (what to say when you do not know what to say)
-    // → Al-Afuw (erases completely).
-    queueNameIds: [45, 37, 30, 51, 86],
+    // As-Sami (hears the prayer you could not put into words) → Al-Mujeeb
+    // (answers the one who calls) → Al-Kareem (gives without accounting, so
+    // asking is no imposition) → Al-Afuw (erases, not merely covers) →
+    // Al-Basit (widens what felt narrow).
+    //
+    // Al-Ghafur was DROPPED from position 4 in review (2026-07-29), for three
+    // reasons in ascending order of weight:
+    //   1. It is the most redundant Name available here — twin of Al-Ghaffar,
+    //      which is already the `guilt` chip's pair₁, AND near-twin of Al-Afuw
+    //      immediately after it. One idea was spending two of only five slots.
+    //   2. Its stated rationale ("what to say when you do not know what to
+    //      say") is unsupported by its own catalog text, which is entirely
+    //      about concealing and pardoning fault — not about speech.
+    //   3. A `guilt` + `words` user got Al-Ghaffar, Al-Ghafur AND Al-Afuw in
+    //      one 7-card queue. Two consecutive forgiveness Names is what turns a
+    //      passing Name into a theme, and this ICP is shame-sensitive.
+    //
+    // Exactly ONE forgiveness Name is kept, and deliberately not last:
+    // `astaghfirullah` genuinely is a phrase a Muslim reaches for with no words
+    // left, so the chip's premise supports it. This is NOT a §8 lapse
+    // violation — istighfar is normative daily practice, not remedial — the
+    // problem was relevance, since a user whose need IS forgiveness already
+    // says so upstream via the `guilt` hook chip and meets it at positions 1-2.
+    queueNameIds: [45, 37, 30, 86, 25],
   ),
   HelpChip(
     key: 'sense',
@@ -134,11 +171,27 @@ const List<HelpChip> helpChips = [
     // Reel 2's literal promise and the founder's stated second product aspect.
     // Nothing in the current intake captures the learning motive at all.
     label: 'Learning His Names',
-    // The classical opening run after Ar-Rahman and Ar-Raheem — Al-Malik →
-    // Al-Quddus → Al-Azeez → Al-Khaliq → Al-Hayy. Deliberately the sequence a
-    // person learning the 99 would meet in order, because that is what this
-    // chip asked for.
-    queueNameIds: [4, 5, 8, 10, 15],
+    // The catalog's own opening run after Ar-Rahman and Ar-Raheem, skipping
+    // only the Names locked to story decks: Al-Malik (4) → Al-Quddus (5) →
+    // Al-Mumin (7) → Al-Azeez (8) → Al-Khaliq (10).
+    //
+    // Corrected in review (2026-07-29). The draft was [4, 5, 8, 10, 15], and
+    // its comment claimed the "classical opening run… in order". That was not
+    // true: it skipped Al-Mumin (7), which is free — not a deck Name, not used
+    // by any other chip — for no structural reason, and reached FORWARD five
+    // positions for Al-Hayy (15), which is what actually broke the run. Four
+    // other skips (6, 9, 11, 13) are forced, since those Names are deck pairs.
+    //
+    // Ordering matters more here than in any other chip, because order IS this
+    // chip's promise. The public catalog is fetched `orderBy: 'id'`, so a
+    // learner who opens Collection sees catalog order — and would see they had
+    // been handed a non-run.
+    //
+    // ⚠️ The blend is a round-robin, so a user who selects this chip ALONGSIDE
+    // others gets it interleaved and never meets the run in sequence. The chip
+    // LABEL therefore promises only "learning His Names", never an order; do
+    // not add order language to it without changing the blend rule.
+    queueNameIds: [4, 5, 7, 8, 10],
   ),
   HelpChip(
     key: 'strength',
