@@ -191,13 +191,39 @@ there. This section records only what changed for *this* doc.
   been fetching its illustration from a `googleusercontent.com` URL, so the opening
   depended on a third-party CDN.
 
-### Still open
+### Open items — ALL CLOSED (founder, 2026-07-29)
 
-- **#1 Deck transport = bundled asset JSON** — shipped that way; confirm and close.
-- **#2 Aspiration → queue rows 3-7 map** — the sequences need the same founder review the
-  decks got (orderings of already-approved Names, no new content).
-- **#3 Card award = deterministic SILVER** — shipped that way; confirm and close.
-- **#5 Luminance flare vs the no-bounce rule** — still unconfirmed.
+Each was verified in code before closing, not stamped:
+
+- **#1 Deck transport = bundled asset JSON — CLOSED.**
+  `NameStoriesService.assetPath = 'assets/content/name_stories.json'`; `assets/content/`
+  registered at `pubspec.yaml:134`; **no migration anywhere creates a `name_stories`
+  table**. Shipped as specced. The CI ship-gate carries the approval contract, so there is
+  no server dependency to add before post-keep.
+- **#2 Aspiration → queue rows 3-7 map — CLOSED; it was already approved on 2026-07-27.**
+  `lib/features/onboarding/content/aspirations.dart:1` reads verbatim: *"APPROVED (founder
+  verdict: good, 2026-07-27 — stems, labels, and all five sequences as drafted)."* This
+  item was stale, not outstanding. Invariants are test-pinned in
+  `test/features/onboarding/aspirations_test.dart`: 5 options with unique keys, every
+  sequence exactly 5 internally-unique ids, and **no sequence collides with any chip pair
+  including the comfort pair** — the disjointness the plan required.
+- **#3 Card award = deterministic SILVER — CLOSED.**
+  `OnboardingRevealScreen.awardTier = CardTier.silver`, with the review-blocker rationale
+  in the class doc: no gacha tier roll exists to clamp (first discovery is hardcoded Bronze
+  today), and a weighted Silver/Gold/Emerald roll would be a new economy mechanic —
+  deferred post-keep.
+- **#5 Luminance flare vs the no-bounce rule — CLOSED, the flare stays.**
+  `lantern_kindle.dart` implements it as `lerpDouble` on a glow value; the code states
+  *"The flare is a **luminance** overshoot only — nothing moves, nothing scales."* The
+  no-bounce rule targets **spatial** overshoot, and a flame flaring as it catches is
+  physically true rather than decorative. Reduced motion drops the flare and the breath,
+  never the lighting itself.
+
+**Process note.** Two of these had already been resolved and the doc had not caught up —
+#2 (approved 2026-07-27) and the anxiety-pair blocker above (all seven decks APPROVED).
+Both read as outstanding for days. When an open item is answered, close it here in the same
+change; a ⚠️ that has gone stale costs more than no marker at all, because it sends the
+next reader to re-derive an answer that already exists.
 
 ### Divergences from this doc's own spec
 
