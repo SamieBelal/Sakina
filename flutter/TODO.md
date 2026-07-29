@@ -236,3 +236,91 @@ must not be re-added until the column is broadly populated.
 **Surfaced by:** push_enabled-drift QA finding, 2026-07-26.
 
 ---
+## Reel deep links: give them somewhere to be tapped from
+
+**Trigger:** when you want `sakina://reel/<id>` or `sakina://feel/<emotion>` to actually
+reach users — i.e. when a reel is posted that names its two Names on camera and you
+want those exact Names revealed.
+
+**Status:** the **in-app half is done and shipped.** `reel_deep_link_service.dart`
+parses both links, `?name_ids=12,34` overrides the pair the hook chip would have
+resolved, capture happens in `main.dart` before `runApp`, the drain happens at the
+onboarding entry, and the `sakina` URL scheme is already registered in
+`ios/Runner/Info.plist` (under `com.sakina.app.referral` — scheme registration covers
+every `sakina://` host, so no plist change is needed).
+
+**What is missing is entirely outside the app, and it is the part that matters for
+organic Instagram:**
+
+- **A custom scheme does nothing for a user who does not have the app.** Tapping
+  `sakina://reel/12` in Instagram on a device without Sakina fails silently — no App
+  Store redirect, no install. So today these links only work for **warm** traffic
+  (existing users), which is not the acquisition case.
+- **Nothing emits them.** There is no bio link, landing page, or QR that contains one.
+
+**Steps when ready:**
+
+1. **Cheapest path — a redirecting landing page (no domain purchase required).** Host
+   `/<reel-slug>` anywhere you control. On load, attempt `sakina://reel/<id>?name_ids=…`
+   and fall back to the App Store URL after ~1s. Installed users deep-link; everyone
+   else installs. Does NOT carry the reel id through a cold install (the App Store
+   breaks the chain) — accept that, or use step 2.
+2. **Universal links (needs the domain).** Acquire `sakina.app`, host
+   `/.well-known/apple-app-site-association`, add the `associated-domains` entitlement
+   (`applinks:sakina.app`), and add an `https://sakina.app/reel/<id>` handler alongside
+   the custom-scheme parser. This is the plan's Phase 2 item — deliberately out of
+   scope for v1.
+3. **Do NOT buy an attribution SDK for this** (Branch/AppsFlyer/Adjust). It is the only
+   thing that carries a reel id through a cold install, but at ~21 signups/day the plan
+   already declares audience dimensions directional-only and bars them from the keep
+   decision. You would be paying for precision you have agreed not to act on.
+
+**Surfaced by:** W2 completeness audit, 2026-07-29.
+
+---
+
+## `reel_hook`: close the reel-source measurement gap
+
+**Trigger:** W5 instrumentation, before T0. The plan calls reel-source capture "the
+plan's biggest measurement hole."
+
+**Status:** the self-report screen exists (`source_question_screen.dart`, placed at the
+flow's lowest-emotion point on purpose — it used to ask right after "Ameen"). But it
+emits **`reel_source_selected`** with a `source` property, where the plan specifies
+**`reel_source_captured`** plus a **`reel_hook` super property**. No `reel_hook` super
+property is registered anywhere. Consequence: the answer tags one event instead of
+segmenting the whole funnel.
+
+**Steps when ready:**
+
+1. **Register `reel_hook` as a super property, with its provenance stated** — one of
+   `deep_link` / `self_report` / `unknown`. A super property that silently mixes a
+   confirmed deep link with a half-remembered tap looks authoritative and is not; every
+   chart built on it must be able to see how the value was learned.
+2. **Reconcile the event name** with the plan (`reel_source_captured`) or amend the plan
+   to match the code — but not neither, or the readout doc will reference an event that
+   does not exist.
+3. **App Store Connect Campaign Links, per reel (free, first-party).** Generate one per
+   reel behind the bio link; App Analytics then reports App Store views and downloads per
+   campaign. This answers "which reel drives installs" — the actual creative question.
+   Aggregate only: it cannot be joined to a Mixpanel `distinct_id`, so it informs
+   creative decisions, not per-user attribution.
+4. **Consider `contract` as the better proxy for reel-of-origin.** Reel 1 promises
+   "your problem → two Names"; Reel 2 is 2:286 / "can't put it into words". Those map
+   onto the `contract` (problem vs sign) already captured on the hook screen — a
+   *behavioural* signal taken at arrival, rather than a recalled one taken pages later.
+   It may simply be more reliable than the self-report for the question the plan wants
+   answered.
+
+**Not needed:** the install-id join. `InstallIdService` already mints a stable id at
+first boot and registers it as BOTH a Mixpanel super property and a RevenueCat
+subscriber attribute (`purchase_service.dart:77`), deliberately not
+`$mixpanelDistinctId` — Mixpanel's distinct id changes at `identify()` under Simplified
+ID Merge while the install id never does. It is a **join key, not an identity alias**:
+join RC and Mixpanel on `install_id`; do not expect Mixpanel to have merged the
+identities. Nothing external is required. Note a reinstall mints a new id, so reinstalls
+appear as fresh arrivals in any reel→purchase join.
+
+**Surfaced by:** W2 completeness audit, 2026-07-29.
+
+---
