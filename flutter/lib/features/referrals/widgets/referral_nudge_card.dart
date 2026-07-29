@@ -8,20 +8,21 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/referrals/referral_nudge_gate.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
-import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/referral_service.dart';
+import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Surface state for the home-screen referral nudge card:
 ///
-/// 1. `loading` — the async resolve (RC entitlement → optional Supabase
-///    referral read) is in flight. Renders `SizedBox.shrink()`, not a
-///    skeleton: the card is eligible for a small slice of users, so a loader
-///    would flash-then-collapse on most home loads. Silent resolve is correct
-///    UX — when eligible, the card fades in once `_resolve()` flips to `show`.
-/// 2. `hidden` — ineligible (not an RC subscriber, in grace, already rewarded,
-///    or inside the cooldown without a progress bump). Renders nothing.
+/// 1. `loading` — the async resolve (streak → optional Supabase referral read)
+///    is in flight. Renders `SizedBox.shrink()`, not a skeleton: the card is
+///    eligible for a small slice of users, so a loader would flash-then-collapse
+///    on most loads. Silent resolve is correct UX — when eligible, the card fades
+///    in once `_resolve()` flips to `show`.
+/// 2. `hidden` — ineligible (streak below the "Consistent" milestone, already
+///    rewarded, or inside the cooldown without a progress bump). Renders
+///    nothing.
 /// 3. `show(progress)` — eligible. Renders the share card with the live
 ///    "n / 3 joined" progress baked into the CTA.
 @immutable
@@ -42,14 +43,20 @@ class _NudgeShow extends _NudgeState {
   final int progress;
 }
 
-/// Home-dashboard referral nudge. Shown to active RevenueCat subscribers
-/// (trial OR paid) after a short grace, until they earn their first referral
-/// grant. Re-adds the referral loop the hard paywall removed — but on the
-/// *welcome* side of the wall (post-conversion), never as a paywall escape.
+/// The referral nudge. Shown to anyone who has held a streak to the app's first
+/// milestone — the one that unlocks the title "Consistent" — until they earn
+/// their first referral grant.
+///
+/// **This is the only place the share ask lives** (founder, 2026-07-29). It used
+/// to also appear at the onboarding paywall's first dismiss, via
+/// `ReferUnlockScreen`, which asked someone who had just declined to pay twice
+/// to go and recommend an app they had never used. That screen was deleted; see
+/// [resolveReferralNudge]'s library doc for why consistency, not payment, is the
+/// audience.
 ///
 /// Render gating lives in [resolveReferralNudge]; this widget only gathers the
 /// inputs and renders. It self-collapses to `SizedBox.shrink()` whenever it
-/// shouldn't show, so the home `Column` needs no conditional around it.
+/// shouldn't show, so the host `Column` needs no conditional around it.
 class ReferralNudgeCard extends ConsumerStatefulWidget {
   const ReferralNudgeCard({
     super.key,
@@ -77,11 +84,6 @@ class ReferralNudgeCard extends ConsumerStatefulWidget {
 }
 
 class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
-  /// Matches [resolveReferralNudge]'s default; used both for the cheap
-  /// pre-Supabase grace short-circuit and passed to the gate, so the two never
-  /// drift apart.
-  static const Duration _graceDelay = Duration(days: 2);
-
   _NudgeState _state = const _NudgeLoading();
   bool _shownEventFired = false;
   bool _sharing = false;
@@ -103,12 +105,13 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
     _resolve();
   }
 
-  /// Evaluation order is intentional: the cheap RC + grace checks gate the
-  /// Supabase referral read so non-premium / in-grace users (the majority of
-  /// home loads) incur ZERO referral queries. Premium + past-grace users do
-  /// query — that's how a progress bump or an earned grant is detected. Any
-  /// failure (RC offline, Supabase 5xx) collapses to hidden; the card never
-  /// throws on the home screen.
+  /// Evaluation order is intentional: the cheap streak read gates the Supabase
+  /// referral read, so everyone below the milestone — the large majority of
+  /// loads — incurs ZERO referral queries. Users at or past it do query; that is
+  /// how a progress bump or an earned grant is detected. `getStreak()` is
+  /// cache-first, so the short-circuit costs no network either. Any failure
+  /// (Supabase 5xx, unhydrated cache) collapses to hidden; the card never throws
+  /// on a dashboard.
   Future<void> _resolve() async {
     try {
       final uid = supabaseSyncService.currentUserId;
@@ -117,11 +120,9 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
         return;
       }
 
-      final premiumStartedAt =
-          await PurchaseService().getActivePremiumStartedAt();
+      final streak = await getStreak();
       final now = _now();
-      if (premiumStartedAt == null ||
-          now.isBefore(premiumStartedAt.add(_graceDelay))) {
+      if (streak.currentStreak < consistentStreakDays) {
         _setHidden();
         return;
       }
@@ -138,13 +139,12 @@ class _ReferralNudgeCardState extends ConsumerState<ReferralNudgeCard> {
           0;
 
       final decision = resolveReferralNudge(
-        premiumStartedAt: premiumStartedAt,
+        currentStreak: streak.currentStreak,
         now: now,
         progressTowardNext: referrals.progressTowardNext,
         hasEarnedGrant: referrals.grants.isNotEmpty,
         lastShownAt: lastShownAt,
         lastShownProgress: lastShownProgress,
-        graceDelay: _graceDelay,
       );
 
       if (!mounted) return;

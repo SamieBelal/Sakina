@@ -1,24 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/referrals/referral_nudge_gate.dart';
+import 'package:sakina/services/streak_service.dart';
 
 /// Pure-logic coverage for the referral nudge gate. No RevenueCat, no Supabase,
 /// no Flutter — every timing/eligibility branch is exercised here. The widget
 /// test (referral_nudge_card_test.dart) covers wiring; this covers the rules.
+///
+/// The audience rule changed on 2026-07-29: it was "active RC subscriber past a
+/// 2-day grace", it is now "has held a streak to the app's first milestone".
+/// See the gate's library doc for the reasoning.
 void main() {
   final now = DateTime.utc(2026, 6, 10, 12);
 
   // Defaults to a clearly-eligible caller; each test overrides the one axis
   // under scrutiny so a failure points at exactly one rule.
   ReferralNudgeDecision decide({
-    DateTime? premiumStartedAt,
+    int currentStreak = consistentStreakDays,
     int progressTowardNext = 1,
     bool hasEarnedGrant = false,
     DateTime? lastShownAt,
     int lastShownProgress = 0,
   }) {
     return resolveReferralNudge(
-      premiumStartedAt:
-          premiumStartedAt ?? now.subtract(const Duration(days: 5)),
+      currentStreak: currentStreak,
       now: now,
       progressTowardNext: progressTowardNext,
       hasEarnedGrant: hasEarnedGrant,
@@ -27,26 +31,42 @@ void main() {
     );
   }
 
-  test('hidden when not an RC subscriber (premiumStartedAt null)', () {
+  test('the threshold is the app\'s own first streak milestone', () {
+    // The gate mirrors the constant rather than importing it (it is a
+    // dependency-free leaf module), so this is the pin that stops the two
+    // drifting. If the milestone ladder changes, this fails and someone has to
+    // decide deliberately whether the referral ask moves with it.
+    expect(consistentStreakDays, streakMilestones.first.days);
     expect(
-      resolveReferralNudge(
-        premiumStartedAt: null,
-        now: now,
-        progressTowardNext: 1,
-        hasEarnedGrant: false,
-        lastShownAt: null,
-        lastShownProgress: 0,
-      ),
-      ReferralNudgeDecision.hidden,
+      streakMilestones.first.titleUnlock,
+      'Consistent',
+      reason: 'the ask is timed to the moment the app calls the user consistent '
+          '— if that title moves to another milestone, revisit the gate',
     );
   });
 
-  test('show for a paid subscriber past grace (audience is trial OR paid)', () {
-    // A long-time payer: premium began 200 days ago, well past grace.
+  test('hidden below the milestone, shown exactly at it', () {
     expect(
-      decide(premiumStartedAt: now.subtract(const Duration(days: 200))),
-      ReferralNudgeDecision.show,
+      decide(currentStreak: consistentStreakDays - 1),
+      ReferralNudgeDecision.hidden,
     );
+    // Boundary pinned explicitly: a `<` ↔ `<=` slip would delay the ask by a
+    // full day and miss the celebration session it is timed to.
+    expect(decide(currentStreak: consistentStreakDays),
+        ReferralNudgeDecision.show);
+  });
+
+  test('hidden for a brand-new user, however much they have paid', () {
+    // The old gate would have shown this card to a day-1 subscriber. Payment is
+    // no longer the audience: someone who has bought a promise has nothing to
+    // vouch for yet.
+    expect(decide(currentStreak: 0), ReferralNudgeDecision.hidden);
+    expect(decide(currentStreak: 1), ReferralNudgeDecision.hidden);
+  });
+
+  test('shown to a free user who kept the habit', () {
+    // The point of the change — no entitlement is consulted at all.
+    expect(decide(currentStreak: 40), ReferralNudgeDecision.show);
   });
 
   test('hidden once a referral grant has been earned', () {
@@ -55,19 +75,6 @@ void main() {
 
   test('hidden when progress already at 3/3', () {
     expect(decide(progressTowardNext: 3), ReferralNudgeDecision.hidden);
-  });
-
-  test('hidden inside the grace window, shown just after', () {
-    // 1 day in — still inside the 2-day grace.
-    expect(
-      decide(premiumStartedAt: now.subtract(const Duration(days: 1))),
-      ReferralNudgeDecision.hidden,
-    );
-    // 3 days in — past grace.
-    expect(
-      decide(premiumStartedAt: now.subtract(const Duration(days: 3))),
-      ReferralNudgeDecision.show,
-    );
   });
 
   test('hidden inside the 7-day cooldown, shown after it expires', () {
@@ -112,18 +119,8 @@ void main() {
     );
   });
 
-  test('happy path: premium, past grace, 1/3, never shown → show', () {
+  test('happy path: at the milestone, 1/3, never shown → show', () {
     expect(decide(lastShownAt: null), ReferralNudgeDecision.show);
-  });
-
-  // Boundary tests — pin the exact comparison operators so a `<` ↔ `<=`
-  // refactor can't silently flip a day's behavior.
-  test('exactly at the grace boundary (now == start + grace) → show', () {
-    // graceDelay default is 2 days; premium began exactly 2 days ago.
-    expect(
-      decide(premiumStartedAt: now.subtract(const Duration(days: 2))),
-      ReferralNudgeDecision.show,
-    );
   });
 
   test('exactly at the cooldown boundary (now == lastShownAt + 7d) → show', () {
@@ -148,5 +145,12 @@ void main() {
       ),
       ReferralNudgeDecision.hidden,
     );
+  });
+
+  test('a lapsed streak withdraws the ask', () {
+    // Current, not longest, on purpose: someone whose streak just broke is not
+    // who we want carrying an invitation, even if they were consistent for
+    // months. The cooldown prefs survive, so the ask returns when they do.
+    expect(decide(currentStreak: 0), ReferralNudgeDecision.hidden);
   });
 }
