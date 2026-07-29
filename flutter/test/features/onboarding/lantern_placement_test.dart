@@ -80,13 +80,14 @@ void main() {
 
     // Present: the notification ask (pendingUnlit), the widget carousel, and
     // the queue plan (endowedDim).
-    expect((pages[6] as NotificationScreen).lanternVariant, isTrue,
+    expect((pages[11] as NotificationScreen).lanternVariant, isTrue,
         reason: 'the notification ask is the flow\'s highest-value placement');
-    expect(pages[7], isA<WidgetOfferScreen>());
-    expect(pages[8], isA<QueuePlanScreen>());
+    expect(pages[12], isA<WidgetOfferScreen>());
+    expect(pages[9], isA<QueuePlanScreen>());
 
-    // Absent: the hook keeps its air, and the signup trio stays unwatched.
-    for (final index in [0, 2, 3, 4, 5, 9, 10, 11, 12]) {
+    // Absent: the hook keeps its air, the whole Wave H intake block stays
+    // uncluttered, and the signup trio goes unwatched.
+    for (final index in [0, 2, 3, 4, 5, 6, 7, 8, 10, 13, 14, 15, 16, 17]) {
       expect(
         find.descendant(
           of: find.byWidget(pages[index]),

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sakina/features/onboarding/content/aspirations.dart';
+import 'package:sakina/features/onboarding/content/help_chips.dart';
 import 'package:sakina/features/onboarding/content/carrying_durations.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
@@ -43,7 +43,7 @@ void main() {
     WidgetTester tester, {
     required List<int> pairNameIds,
     List<int>? revealedPairNameIds,
-    String? aspiration,
+    List<String>? helpWith,
     String? carryingDuration,
     VoidCallback? onNext,
     double textScale = 1.0,
@@ -62,7 +62,11 @@ void main() {
         pairNameIds: pairNameIds,
       ),
     );
-    if (aspiration != null) notifier.setAspiration(aspiration);
+    if (helpWith != null) {
+      for (final k in helpWith) {
+        notifier.toggleHelpWith(k);
+      }
+    }
     if (carryingDuration != null) {
       notifier.setCarryingDuration(carryingDuration);
     }
@@ -99,7 +103,7 @@ void main() {
       (tester) async {
     final pair = await realPair('rizq');
     expect(pair, hasLength(2), reason: 'the ship gate guarantees a pair');
-    await pump(tester, pairNameIds: pair, aspiration: 'peace');
+    await pump(tester, pairNameIds: pair, helpWith: const ['daily']);
 
     expect(find.byType(QueueNameRow), findsNWidgets(7));
 
@@ -117,7 +121,7 @@ void main() {
     // Positions 3-7: veiled. The Names are real and already chosen, but this
     // screen must not spend the unseals.
     expect(find.text(QueueNameRow.veiledLabel), findsNWidgets(5));
-    for (final id in aspirationQueueNameIds('peace')) {
+    for (final id in helpChipsQueueNameIds(const ['daily'])) {
       expect(find.text(translit(id)), findsNothing, reason: 'name $id');
     }
   });
@@ -126,7 +130,7 @@ void main() {
     await pump(
       tester,
       pairNameIds: await realPair('rizq'),
-      aspiration: 'peace',
+      helpWith: const ['daily'],
     );
 
     final track = tester.widget<JourneyStampTrack>(
@@ -141,12 +145,12 @@ void main() {
       (tester) async {
     final pair = await realPair('rizq');
     final container =
-        await pump(tester, pairNameIds: pair, aspiration: 'guidance');
+        await pump(tester, pairNameIds: pair, helpWith: const ['sense']);
 
     expect(
       QueuePlanScreen.plannedQueueNameIds(
         pairNameIds: pair,
-        aspiration: 'guidance',
+        helpWith: const ['sense'],
       ),
       await container.read(onboardingProvider.notifier).buildQueueNameIds(),
     );
@@ -162,7 +166,7 @@ void main() {
       tester,
       pairNameIds: const [],
       revealedPairNameIds: comfort,
-      aspiration: 'peace',
+      helpWith: const ['daily'],
     );
 
     expect(find.text(translit(comfort[0])), findsOneWidget);
@@ -180,7 +184,7 @@ void main() {
     await pump(
       tester,
       pairNameIds: await realPair('rizq'),
-      aspiration: 'peace',
+      helpWith: const ['daily'],
       carryingDuration: 'years',
     );
 
@@ -188,7 +192,7 @@ void main() {
     expect(find.text(carryingPacingLine('days')), findsNothing);
   });
 
-  testWidgets('an unanswered aspiration shows the pair alone, not junk rows',
+  testWidgets('an unanswered help-chips question shows the pair alone, not junk rows',
       (tester) async {
     await pump(tester, pairNameIds: await realPair('rizq'));
 
@@ -202,7 +206,7 @@ void main() {
 
   testWidgets('an unresolved pair degrades to veiled rows, one stamp',
       (tester) async {
-    await pump(tester, pairNameIds: const [], aspiration: 'peace');
+    await pump(tester, pairNameIds: const [], helpWith: const ['daily']);
 
     expect(find.byType(QueueNameRow), findsNWidgets(5));
     expect(find.text(QueueNameRow.veiledLabel), findsNWidgets(5));
@@ -223,7 +227,7 @@ void main() {
       await pump(
         tester,
         pairNameIds: await realPair('rizq'),
-        aspiration: 'peace',
+        helpWith: const ['daily'],
         textScale: scale,
       );
 
@@ -242,7 +246,7 @@ void main() {
   testWidgets('a veiled row announces its position, not just "sealed"',
       (tester) async {
     final pair = await realPair('rizq');
-    await pump(tester, pairNameIds: pair, aspiration: 'peace');
+    await pump(tester, pairNameIds: pair, helpWith: const ['daily']);
 
     final handle = tester.ensureSemantics();
     expect(find.bySemanticsLabel('Name 3 of 7, sealed'), findsOneWidget);
@@ -261,7 +265,7 @@ void main() {
     await pump(
       tester,
       pairNameIds: await realPair('rizq'),
-      aspiration: 'peace',
+      helpWith: const ['daily'],
       onNext: () => advanced++,
     );
 

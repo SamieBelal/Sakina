@@ -33,8 +33,8 @@ void main() {
 
     // --- REEL flow (One Ship W2-E1), the shipping default -------------------
 
-    test('onboardingReelLastPageIndex is 13 (paywall gate at 13)', () {
-      expect(onboardingReelLastPageIndex, 13);
+    test('onboardingReelLastPageIndex is 18 (paywall gate at 18)', () {
+      expect(onboardingReelLastPageIndex, 18);
     });
 
     test('the reel hook and reveal are pages 0 and 1', () {
@@ -53,18 +53,18 @@ void main() {
       );
     });
 
-    test('the reel signup trio sits at 11/12 with the gate at 13', () {
-      expect(onboardingReelEmailPageIndex, 11);
-      expect(onboardingReelPasswordPageIndex, 12);
-      expect(onboardingReelPostSignupPageIndex, 13);
+    test('the reel signup trio sits at 16/17 with the gate at 18', () {
+      expect(onboardingReelEmailPageIndex, 16);
+      expect(onboardingReelPasswordPageIndex, 17);
+      expect(onboardingReelPostSignupPageIndex, 18);
     });
 
-    test('onboardingReelTotalSegments is 10 (14 pages minus the 4 bar-less)',
+    test('onboardingReelTotalSegments is 14 (19 pages minus the 5 bar-less)',
         () {
-      expect(onboardingReelTotalSegments, 10);
+      expect(onboardingReelTotalSegments, 14);
       expect(
         onboardingReelTotalSegments,
-        (onboardingReelLastPageIndex + 1) - 4,
+        (onboardingReelLastPageIndex + 1) - 5,
         reason: 'bar hidden on hook, reveal, queue plan and paywall',
       );
     });

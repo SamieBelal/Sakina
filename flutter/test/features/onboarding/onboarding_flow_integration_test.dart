@@ -5,6 +5,13 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/aspiration_screen_reel.dart';
 import 'package:sakina/features/onboarding/screens/carrying_duration_screen.dart';
+import 'package:sakina/features/onboarding/screens/heaviest_time_screen.dart';
+import 'package:sakina/features/onboarding/screens/told_anyone_screen.dart';
+import 'package:sakina/features/onboarding/screens/names_known_screen.dart';
+import 'package:sakina/features/onboarding/screens/help_chips_screen.dart';
+import 'package:sakina/features/onboarding/screens/daily_time_screen.dart';
+import 'package:sakina/features/onboarding/screens/intake_note_screen.dart';
+import 'package:sakina/features/onboarding/screens/rating_gate_screen.dart';
 import 'package:sakina/features/onboarding/screens/hook_problem_screen.dart';
 import 'package:sakina/features/onboarding/screens/name_input_screen.dart';
 import 'package:sakina/features/onboarding/screens/notification_screen.dart';
@@ -34,18 +41,24 @@ void main() {
   const reelOrder = <int, Type>{
     0: HookProblemScreen,
     1: OnboardingRevealScreen,
-    2: SourceQuestionScreen,
-    3: CarryingDurationScreen,
-    4: AspirationScreenReel,
-    5: ReminderTimeScreen,
-    6: NotificationScreen,
-    7: WidgetOfferScreen,
-    8: QueuePlanScreen,
-    9: NameInputScreen,
-    10: SaveProgressScreen,
-    11: SignUpEmailScreen,
-    12: SignUpPasswordScreen,
-    13: OnboardingFinalGate,
+    // Wave H — the intake block (7 questions), then the payoff, then the asks.
+    2: CarryingDurationScreen,
+    3: HeaviestTimeScreen,
+    4: ToldAnyoneScreen,
+    5: NamesKnownScreen,
+    6: HelpChipsScreen,
+    7: DailyTimeScreen,
+    8: IntakeNoteScreen,
+    9: QueuePlanScreen,
+    10: RatingGateScreen,
+    11: NotificationScreen,
+    12: WidgetOfferScreen,
+    13: SourceQuestionScreen,
+    14: NameInputScreen,
+    15: SaveProgressScreen,
+    16: SignUpEmailScreen,
+    17: SignUpPasswordScreen,
+    18: OnboardingFinalGate,
   };
 
   Future<List<Widget>> pumpReel(WidgetTester tester, {int? atPage}) async {
@@ -69,7 +82,7 @@ void main() {
     return (pageView.childrenDelegate as SliverChildListDelegate).children;
   }
 
-  testWidgets("the 14 pages are in the plan's order", (tester) async {
+  testWidgets("the 19 pages are in the plan's order", (tester) async {
     final children = await pumpReel(tester);
     expect(children, hasLength(reelOrder.length));
     reelOrder.forEach((index, type) {
@@ -109,13 +122,13 @@ void main() {
     // is the enforcement behind it; this is what stops us shipping a back
     // button that silently does nothing.
     final children = await pumpReel(tester);
-    final source =
-        children[onboardingReelNoBackBeforeIndex] as SourceQuestionScreen;
-    expect(source.onBack, isNull);
+    final firstAfterReveal =
+        children[onboardingReelNoBackBeforeIndex] as CarryingDurationScreen;
+    expect(firstAfterReveal.onBack, isNull);
 
     // Everything after it CAN go back — only the reveal is sealed off.
-    expect((children[3] as CarryingDurationScreen).onBack, isNotNull);
-    expect((children[9] as NameInputScreen).onBack, isNotNull);
+    expect((children[3] as HeaviestTimeScreen).onBack, isNotNull);
+    expect((children[14] as NameInputScreen).onBack, isNotNull);
     await tester.pump(const Duration(seconds: 2));
   });
 
@@ -149,23 +162,27 @@ void main() {
   testWidgets('the progress bar is hidden on the hook, reveal, plan and gate',
       (tester) async {
     final children = await pumpReel(tester);
-    // Hook and reveal are bare full-screen surfaces; the plan is a payoff with
-    // its own header; the gate is the paywall. The other ten fill segments
-    // 0..9 so the bar COMPLETES on the password screen. The widget offer (7)
-    // DOES carry a segment — it is an ask, like the notification page.
-    expect((children[2] as SourceQuestionScreen).progressSegment, 0);
-    expect((children[3] as CarryingDurationScreen).progressSegment, 1);
-    expect((children[4] as AspirationScreenReel).progressSegment, 2);
-    expect((children[5] as ReminderTimeScreen).progressSegment, 3);
-    expect((children[6] as NotificationScreen).progressSegment, 4);
-    expect((children[7] as WidgetOfferScreen).progressSegment, 5);
-    expect((children[9] as NameInputScreen).progressSegment, 6);
-    expect((children[10] as SaveProgressScreen).progressSegment, 7);
-    expect((children[11] as SignUpEmailScreen).progressSegment, 8);
-    expect((children[12] as SignUpPasswordScreen).progressSegment, 9);
-    expect(onboardingReelTotalSegments, 10);
+    // Hook and reveal are bare full-screen surfaces; the plan is a payoff and
+    // the rating gate is a gate, both with their own identity; the paywall is
+    // the paywall. The other fourteen fill segments 0..13 so the bar COMPLETES
+    // on the password screen.
+    expect((children[2] as CarryingDurationScreen).progressSegment, 0);
+    expect((children[3] as HeaviestTimeScreen).progressSegment, 1);
+    expect((children[4] as ToldAnyoneScreen).progressSegment, 2);
+    expect((children[5] as NamesKnownScreen).progressSegment, 3);
+    expect((children[6] as HelpChipsScreen).progressSegment, 4);
+    expect((children[7] as DailyTimeScreen).progressSegment, 5);
+    expect((children[8] as IntakeNoteScreen).progressSegment, 6);
+    expect((children[11] as NotificationScreen).progressSegment, 7);
+    expect((children[12] as WidgetOfferScreen).progressSegment, 8);
+    expect((children[13] as SourceQuestionScreen).progressSegment, 9);
+    expect((children[14] as NameInputScreen).progressSegment, 10);
+    expect((children[15] as SaveProgressScreen).progressSegment, 11);
+    expect((children[16] as SignUpEmailScreen).progressSegment, 12);
+    expect((children[17] as SignUpPasswordScreen).progressSegment, 13);
+    expect(onboardingReelTotalSegments, 14);
     expect(
-      (children[12] as SignUpPasswordScreen).progressSegment,
+      (children[17] as SignUpPasswordScreen).progressSegment,
       onboardingReelTotalSegments - 1,
       reason: 'the bar must complete on the last bar-visible page, not vanish '
           'part-full the way the pre-fix 25-segment bar did',
@@ -178,20 +195,11 @@ void main() {
     // Without this the reused legacy screens would light segment 5 of 23 and
     // the reel bar would look barely started at the finish line.
     final children = await pumpReel(tester);
-    expect((children[5] as ReminderTimeScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[6] as NotificationScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[7] as WidgetOfferScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[9] as NameInputScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[10] as SaveProgressScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[11] as SignUpEmailScreen).totalSegments,
-        onboardingReelTotalSegments);
-    expect((children[12] as SignUpPasswordScreen).totalSegments,
-        onboardingReelTotalSegments);
+    for (final i in [2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17]) {
+      final w = children[i] as dynamic;
+      expect(w.totalSegments, onboardingReelTotalSegments,
+          reason: 'reel page $i must be told the short bar length');
+    }
     await tester.pump(const Duration(seconds: 2));
   });
 
@@ -202,10 +210,10 @@ void main() {
     // trimmed-flow constants they would autofocus on the wrong reel page (or
     // never), which is the class of bug the pageIndex param removes.
     final children = await pumpReel(tester);
-    expect((children[9] as NameInputScreen).pageIndex, 9);
-    expect((children[11] as SignUpEmailScreen).pageIndex,
+    expect((children[14] as NameInputScreen).pageIndex, 14);
+    expect((children[16] as SignUpEmailScreen).pageIndex,
         onboardingReelEmailPageIndex);
-    expect((children[12] as SignUpPasswordScreen).pageIndex,
+    expect((children[17] as SignUpPasswordScreen).pageIndex,
         onboardingReelPasswordPageIndex);
     await tester.pump(const Duration(seconds: 2));
   });
@@ -233,13 +241,20 @@ void main() {
   test('the reused screens keep their existing step_names across flows', () {
     // A funnel keyed on step_name has to join the same step in all three
     // flows; only the reel-only screens carry the `reel_` prefix.
+    //
+    // `reminder_time` is deliberately NOT in this list. Wave H deleted that
+    // page from the reel order — "When is it heaviest?" derives the reminder in
+    // the same state mutation, so the answer IS the schedule. The kill-switch
+    // flows still have the screen and still emit the name, so the two orders
+    // legitimately diverge here; a funnel joining on it now compares the reel
+    // flow's absence against the trimmed flow's step, which is the truth.
     for (final shared in [
-      'reminder_time',
       'notifications',
       'name_input',
       'save_progress',
       'signup_email',
       'signup_password',
+      'rating_gate',
       'paywall',
     ]) {
       expect(
@@ -251,6 +266,10 @@ void main() {
     }
     expect(AnalyticsEvents.reelStepNames[0], 'reel_hook');
     expect(AnalyticsEvents.reelStepNames[1], 'reel_reveal');
-    expect(AnalyticsEvents.reelStepNames[2], 'reel_source');
+    expect(AnalyticsEvents.reelStepNames[2], 'reel_carrying_duration');
+    // Wave H moved the source question off the emotional peak to page 13. The
+    // step_id is unchanged on purpose — it is the funnel's join key across
+    // page-order changes, so only the index moves.
+    expect(AnalyticsEvents.reelStepNames[13], 'reel_source');
   });
 }

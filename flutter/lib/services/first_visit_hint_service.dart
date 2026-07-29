@@ -23,6 +23,8 @@ library;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'analytics_event_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// How long a hint lingers before fading itself out.
@@ -108,6 +110,14 @@ String? _defaultUserId() {
 class FirstVisitHintService {
   FirstVisitHintService._();
 
+  /// Analytics dispatch hook, matching the house pattern for services (which
+  /// carry no Riverpod) — `main.dart` bridges it to the tracker.
+  ///
+  /// Fires at CLAIM time, the same moment the once-ever flag is written, so the
+  /// event count and the number of hints actually spent cannot drift apart.
+  static void Function(String name, Map<String, Object?> props)?
+      onAnalyticsEvent;
+
   static final FirstVisitHintService instance = FirstVisitHintService._();
 
   /// Test/QA seam for the signed-in user id, in the same spirit as
@@ -170,6 +180,10 @@ class FirstVisitHintService {
 
     await prefs.setBool(hintKey, true);
     await prefs.setInt(countKey, shownSoFar + 1);
+    FirstVisitHintService.onAnalyticsEvent?.call(
+      AnalyticsEvents.firstVisitHintShown,
+      {AnalyticsEvents.propHintId: hint.name},
+    );
     return true;
   }
 

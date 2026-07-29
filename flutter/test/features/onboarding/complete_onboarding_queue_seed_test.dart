@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/core/app_session.dart';
-import 'package:sakina/features/onboarding/content/aspirations.dart';
+import 'package:sakina/features/onboarding/content/help_chips.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -167,7 +167,7 @@ void main() {
     );
     notifier.setOnboardingFlow(onboardingFlowReel);
     notifier.applyHookSelection(await resolver().forChip('anxiety'));
-    notifier.setAspiration('closeness');
+    notifier.toggleHelpWith('closer');
     return (notifier: notifier, auth: auth, queue: queue, log: log);
   }
 
@@ -184,7 +184,7 @@ void main() {
 
     expect(ctx.queue.seededIds, [
       6, 35, // the anxiety pair — Name₁ met, Name₂ sealed
-      ...aspirationsByKey['closeness']!.queueNameIds,
+      ...helpChipsQueueNameIds(const ['closer'], exclude: const {6, 35}),
     ]);
     expect(ctx.queue.seededIds, hasLength(7));
     expect(ctx.queue.seededIds!.toSet(), hasLength(7));
@@ -219,7 +219,7 @@ void main() {
     );
     notifier.setOnboardingFlow(onboardingFlowReel);
     notifier.applyHookSelection(await resolver().forChip('anxiety'));
-    notifier.setAspiration('closeness');
+    notifier.toggleHelpWith('closer');
     expect(await storedOnboardingState(), isNotNull,
         reason: 'the blob the wipe is supposed to clear');
 
@@ -319,7 +319,7 @@ void main() {
         chipResolver: resolver(),
       );
       notifier.setOnboardingFlow(onboardingFlowReel);
-      notifier.setAspiration('peace');
+      notifier.toggleHelpWith('daily');
 
       await notifier.completeOnboarding(buildSession());
 
@@ -388,11 +388,11 @@ void main() {
         chipResolver: resolver(),
       );
       notifier.setOnboardingFlow(onboardingFlowReel);
-      notifier.setAspiration('peace');
+      notifier.toggleHelpWith('daily');
 
       expect(await notifier.buildQueueNameIds(), [
         2, 36, // Ar-Rahman + Al-Lateef
-        ...aspirationsByKey['peace']!.queueNameIds,
+        ...helpChipsQueueNameIds(const ['daily'], exclude: const {2, 36}),
       ]);
     });
   });
@@ -410,7 +410,11 @@ void main() {
 
     final json = jsonDecode(raw!) as Map<String, dynamic>;
     expect(json['pairNameIds'], [6, 35]);
-    expect(json['aspiration'], 'closeness');
+    // Wave H: the queue is driven by the multi-select help chips, not the
+    // single aspiration answer, so THIS is the field that must survive a
+    // force-kill mid-onboarding — and its ORDER must survive too, because the
+    // blend weights by selection order.
+    expect(json['helpWith'], ['closer']);
     expect(json['onboardingFlow'], onboardingFlowReel);
     expect(ctx.notifier.state.contract, HookContract.problem);
   });

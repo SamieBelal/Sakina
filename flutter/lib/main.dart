@@ -28,6 +28,7 @@ import 'services/analytics_events.dart';
 import 'services/widget_analytics.dart';
 import 'services/widget_data_service.dart';
 import 'services/analytics_provider.dart';
+import 'services/first_visit_hint_service.dart';
 import 'services/analytics_service.dart';
 import 'services/app_config_service.dart';
 import 'services/auth_service.dart';
@@ -396,6 +397,18 @@ Future<void> main() async {
   // cosmetics service, and the Companion/wardrobe screen + preview events the
   // UI emits through the same static hook (services never touch Riverpod).
   CosmeticsAnalytics.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The onboarding reveal (W2-C1/Wave G). ⚠️ This bridge was MISSING until
+  // 2026-07-28: `reveal_deck_completed`, `reveal_deck_abandoned` and
+  // `lantern_kindled` were all emitted through a hook nothing ever set, so
+  // none of them reached Mixpanel. The screen is a plain StatefulWidget by
+  // design (Wave E owns the provider writes), which is why it needs the same
+  // static-hook treatment as the services above rather than a `ref`.
+  OnboardingRevealScreen.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // First-visit hints (Wave F3). Fires at claim time, so the event count and
+  // the number of hints actually spent cannot drift.
+  FirstVisitHintService.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // Home-screen widget telemetry: `widget_opened` (taps → app) from the
   // deep-link handler, and `widget_installed_state` (adoption snapshot) from

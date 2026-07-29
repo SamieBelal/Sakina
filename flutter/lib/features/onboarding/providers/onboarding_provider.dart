@@ -76,9 +76,21 @@ const int onboardingLegacyEncouragementPageIndex = 21;
 // REEL flow (One Ship W2-E1) — the third page order. Default-on behind
 // [reelFirstOnboardingFlag]; the two sets above serve the kill switch.
 //
-//   0 Hook, 1 Reveal, 2 Source, 3 Carrying duration, 4 Aspiration,
-//   5 Reminder time, 6 Notifications, 7 Queue plan, 8 Name,
-//   9 Save progress, 10 Email, 11 Password, 12 Paywall (final gate).
+//   0 Hook, 1 Reveal, 2 Carrying duration, 3 When heaviest, 4 Told anyone,
+//   5 Names known, 6 What would help, 7 Daily time, 8 Note,
+//   9 Queue plan, 10 Rating gate, 11 Notifications, 12 Widget offer,
+//   13 Source, 14 Name, 15 Save progress, 16 Email, 17 Password,
+//   18 Paywall (final gate).
+//
+// Wave H (2026-07-28) deepened the intake from 3 questions to 7 and moved every
+// ASK behind the payoff: the plan screen now lands before the notification,
+// widget and source screens rather than after them. "Where did you find us?"
+// in particular used to sit at the emotional peak, immediately after Ameen —
+// the one screen that gives the user nothing, at the moment they are most open.
+//
+// The reminder-time page is GONE from the reel order: "When is it heaviest?"
+// derives the reminder in the same state mutation, so the answer IS the
+// schedule. The kill-switch flows keep their reminder screen untouched.
 //
 // Value first, account last: the signup trio sits AFTER the reveal and the
 // plan, so the user has met a Name and seen their queue before they are asked
@@ -90,11 +102,12 @@ const int onboardingLegacyEncouragementPageIndex = 21;
 /// legacy when `onboarding_trim_enabled` is also off).
 const String reelFirstOnboardingFlag = 'reel_first_onboarding_enabled';
 
-/// Reel-flow last index — the final gate (paywall) at 13.
+/// Reel-flow last index — the final gate (paywall) at 18.
 ///
-/// Was 12 until Wave G inserted the widget-offer page after the notification
-/// ask; every index and segment below moved with it.
-const int onboardingReelLastPageIndex = 13;
+/// 12 → 13 when Wave G inserted the widget offer; 13 → 18 when Wave H added the
+/// four new intake questions and re-admitted the rating gate. Every index and
+/// segment below moves with it.
+const int onboardingReelLastPageIndex = 18;
 
 /// Reel-flow hook screen. No progress bar, no back affordance.
 const int onboardingReelHookPageIndex = 0;
@@ -115,31 +128,32 @@ const int onboardingReelNoBackBeforeIndex = 2;
 /// `pageIndex` against the current page to decide whether to autofocus, so the
 /// value has to be the page's REAL index — the literal it replaces was the one
 /// thing in the reel list with no name behind it.
-const int onboardingReelNamePageIndex = 9;
+const int onboardingReelNamePageIndex = 14;
 
 /// Reel-flow sign-up email page index.
-const int onboardingReelEmailPageIndex = 11;
+const int onboardingReelEmailPageIndex = 16;
 
 /// Reel-flow sign-up password page index.
-const int onboardingReelPasswordPageIndex = 12;
+const int onboardingReelPasswordPageIndex = 17;
 
 /// Where social-auth (Apple/Google) users land after OAuth succeeds in the reel
 /// order: the page after the signup trio, which IS the final gate. Unlike the
 /// trimmed flow there is no interstitial left to show them — the plan screen
 /// already ran, pre-signup.
-const int onboardingReelPostSignupPageIndex = 13;
+const int onboardingReelPostSignupPageIndex = 18;
 
 /// Segments in the reel flow's progress bar.
 ///
-/// Ten, not fourteen: the bar is hidden on the hook (spec ③ — a step counter on
-/// screen one signals a long form), on the reveal (full-screen sacred canvas),
-/// on the queue plan (its own header, and it is a payoff not a step), and on
-/// the paywall. The ten bar-visible pages fill segments 0-9, so the bar
-/// COMPLETES on the password screen rather than vanishing part-full.
+/// Fourteen, not nineteen: the bar is hidden on the hook (spec ③ — a step
+/// counter on screen one signals a long form), on the reveal (full-screen
+/// sacred canvas), on the queue plan and the rating gate (payoffs and gates,
+/// not steps), and on the paywall. The fourteen bar-visible pages fill segments
+/// 0-13, so the bar COMPLETES on the password screen rather than vanishing
+/// part-full.
 ///
-/// Wave G's widget offer DOES carry a segment: it is an ask like the
-/// notification page before it, not a payoff.
-const int onboardingReelTotalSegments = 10;
+/// Wave G's widget offer and Wave H's four new questions DO carry segments:
+/// they are steps and asks, not payoffs.
+const int onboardingReelTotalSegments = 14;
 
 /// Which of the three onboarding page orders is active.
 ///
@@ -1065,17 +1079,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   /// The 7 ids `seed_name_queue` is called with: the hook's pair at positions
-  /// 1-2, then the aspiration answer's five at 3-7.
+  /// 1-2, then the five that the "what would help most" selections blend into
+  /// at 3-7 (Wave H — this replaced the single aspiration answer).
   ///
   /// Empty for anything but the reel flow — the queue IS the reel flow's
   /// acquisition promise, and a kill-switch user who never saw a hook screen
-  /// must not be handed one. Falls back to a two-row queue when the aspiration
-  /// is unanswered — the RPC accepts 2-7 ids, and inventing an ordering would
-  /// ship unreviewed content. Empty means "don't seed", never "seed junk".
+  /// must not be handed one. Falls back to a two-row queue when nothing was
+  /// selected — the RPC accepts 2-7 ids, and inventing an ordering would ship
+  /// unreviewed content. Empty means "don't seed", never "seed junk".
+  ///
+  /// MUST stay in lockstep with `QueuePlanScreen.plannedQueueNameIds`, incl.
+  /// the pair exclusion: the plan screen names these rows to the user, and a
+  /// queue that seeds something else makes the promise a lie. Pinned by
+  /// `reveal_pair_agreement_test.dart`.
   List<int> queueNameIdsFor(List<int> pair) {
     if (state.onboardingFlow != onboardingFlowReel) return const [];
     if (pair.length != 2) return const [];
-    return [...pair, ...aspirationQueueNameIds(state.aspiration)];
+    return [
+      ...pair,
+      ...helpChipsQueueNameIds(state.helpWith, exclude: pair.toSet()),
+    ];
   }
 
   /// [queueNameIdsFor] over a freshly [resolvePairNameIds]-resolved pair.

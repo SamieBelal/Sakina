@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:sakina/core/app_session.dart';
-import 'package:sakina/features/onboarding/content/aspirations.dart';
+import 'package:sakina/features/onboarding/content/help_chips.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_reveal_screen.dart';
@@ -209,7 +209,7 @@ void main() {
         chipKey: 'anxiety',
         pairNameIds: junkPair,
       ))
-      ..setAspiration('peace')
+      ..toggleHelpWith('daily')
       // …the Wave E call site, which is what makes the other three agree.
       ..setRevealedPair([revealed.name1Id, revealed.name2Id!]);
 
@@ -222,7 +222,7 @@ void main() {
 
     // 3 — the head of the seeded queue.
     expect(queue.seededIds!.take(2), comfort);
-    expect(queue.seededIds, [...comfort, ...aspirationQueueNameIds('peace')]);
+    expect(queue.seededIds, [...comfort, ...helpChipsQueueNameIds(const ['daily'], exclude: comfort.toSet())]);
 
     // 4 — the rows the plan screen names.
     await tester.pumpWidget(

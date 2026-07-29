@@ -13,7 +13,7 @@ import 'screens/_test_utils.dart';
 
 /// The signup trio's autofocus is gated on "am I the page on display", which
 /// is a different index in each of the three flows (One Ship W2-E1):
-/// reel email=11/password=12, trimmed 14/15, legacy 19/20. Before W2 the check
+/// reel email=16/password=17, trimmed 14/15, legacy 19/20. Before W2 the check
 /// read a module constant, so the screen could only ever autofocus in one flow.
 void main() {
   Future<void> pumpAt(
@@ -52,14 +52,14 @@ void main() {
       )
       .shouldRequestFocus;
 
-  testWidgets('reel: the email screen autofocuses on page 11', (tester) async {
+  testWidgets('reel: the email screen autofocuses on page 16', (tester) async {
     await pumpAt(
       tester,
       FlowStubAppConfig.reel(),
       onboardingReelEmailPageIndex,
     );
     expect(emailAutofocus(tester), isTrue);
-    expect(onboardingReelEmailPageIndex, 11);
+    expect(onboardingReelEmailPageIndex, 16);
     await tester.pump(const Duration(seconds: 2));
   });
 
@@ -124,7 +124,7 @@ void main() {
   // `cachedOnboardingStateProvider` ONCE at creation, so a second pumpWidget in
   // the same test keeps the first start page no matter what the override says.
   group('signup-trio PageView index structural pin', () {
-    testWidgets('reel: page 11 is the email screen', (tester) async {
+    testWidgets('reel: page 16 is the email screen', (tester) async {
       await pumpAt(
         tester,
         FlowStubAppConfig.reel(),
@@ -134,7 +134,7 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('reel: page 12 is the password screen', (tester) async {
+    testWidgets('reel: page 17 is the password screen', (tester) async {
       await pumpAt(
         tester,
         FlowStubAppConfig.reel(),
@@ -165,9 +165,9 @@ void main() {
     });
 
     test('constant values match the expected PageView indices', () {
-      expect(onboardingReelEmailPageIndex, 11);
-      expect(onboardingReelPasswordPageIndex, 12);
-      expect(onboardingReelPostSignupPageIndex, 13);
+      expect(onboardingReelEmailPageIndex, 16);
+      expect(onboardingReelPasswordPageIndex, 17);
+      expect(onboardingReelPostSignupPageIndex, 18);
 
       expect(onboardingEmailPageIndex, 14);
       expect(onboardingPasswordPageIndex, 15);

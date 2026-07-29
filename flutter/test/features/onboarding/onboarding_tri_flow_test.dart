@@ -13,7 +13,7 @@ import '../../support/fake_supabase_sync_service.dart';
 import 'screens/_test_utils.dart';
 
 /// THREE flows now coexist (One Ship W2-E1, plan review 4):
-///   * `reel_first_onboarding_enabled` ON  → the 14-page reel flow (default).
+///   * `reel_first_onboarding_enabled` ON  → the 19-page reel flow (default).
 ///   * OFF → the EXISTING decision, unchanged: `onboarding_trim_enabled`
 ///     picks trimmed (20) vs legacy (27).
 ///
@@ -91,9 +91,9 @@ void main() {
   }
 
   group('flow selection', () {
-    testWidgets('reel flag ON renders 14 children', (tester) async {
+    testWidgets('reel flag ON renders 19 children', (tester) async {
       final children = await pumpFlow(tester, FlowStubAppConfig.reel());
-      expect(children.length, 14);
+      expect(children.length, 19);
       expect(children.length - 1, onboardingReelLastPageIndex);
     });
 
@@ -163,7 +163,7 @@ void main() {
 
   group('activeOnboardingLastPageIndex (three-flow bound)', () {
     test('resolves each flow to its own terminal index', () {
-      expect(activeOnboardingLastPageIndex(OnboardingFlowKind.reel), 13);
+      expect(activeOnboardingLastPageIndex(OnboardingFlowKind.reel), 18);
       expect(activeOnboardingLastPageIndex(OnboardingFlowKind.trimmed), 19);
       expect(activeOnboardingLastPageIndex(OnboardingFlowKind.legacy), 26);
     });

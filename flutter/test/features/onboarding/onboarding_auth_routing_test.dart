@@ -20,7 +20,7 @@ import 'screens/_test_utils.dart';
 /// differs per flow (One Ship W2-E2, plan review 10):
 ///
 ///   * trimmed → Generating (16), the first page of the paywall flow.
-///   * reel    → the final gate (13). The reveal and the plan both ran BEFORE
+///   * reel    → the final gate (18). The reveal and the plan both ran BEFORE
 ///               signup, so nothing is left to show them.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -83,10 +83,10 @@ void main() {
   }
 
   testWidgets(
-    'reel flow: social auth on Save Progress (10) jumps to the final gate (13)',
+    'reel flow: social auth on Save Progress (15) jumps to the final gate (18)',
     (tester) async {
-      final container = await pumpAt(tester, FlowStubAppConfig.reel(), 10);
-      expect(container.read(onboardingProvider).currentPage, 10,
+      final container = await pumpAt(tester, FlowStubAppConfig.reel(), 15);
+      expect(container.read(onboardingProvider).currentPage, 15,
           reason: 'precondition: starts on Save Progress (reel index)');
 
       completeSocialAuth(tester);
@@ -100,7 +100,7 @@ void main() {
         reason: 'the reel flow has no post-signup interstitial — the page '
             'after the trio IS the paywall gate',
       );
-      expect(onboardingReelPostSignupPageIndex, 13);
+      expect(onboardingReelPostSignupPageIndex, 18);
       expect(onboardingReelPostSignupPageIndex, onboardingReelLastPageIndex);
 
       await tester.pump(const Duration(seconds: 2));

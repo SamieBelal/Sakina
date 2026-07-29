@@ -74,6 +74,12 @@ abstract final class AnalyticsEvents {
   static const onboardingWidgetCtaTapped = 'onboarding_widget_cta_tapped';
   static const onboardingWidgetSkipped = 'onboarding_widget_skipped';
   static const String propWidgetKind = 'widget_kind';
+  // First-visit hints (Wave F3 — what replaced the deleted tour). Without
+  // these we cannot tell whether the Reflect hint moves the 13.0%-vs-36.8%
+  // payer/free usage gap, which is the entire reason that hint exists.
+  //   props: [propHintId] — 'reflect' | 'companion' | 'noor'
+  static const firstVisitHintShown = 'first_visit_hint_shown';
+  static const String propHintId = 'hint_id';
   // The lantern's first lighting, at the reveal's opening beat. The single
   // moment Wave G exists for, so a drop here is worth seeing on its own rather
   // than inferred from the surrounding step events.
@@ -817,21 +823,27 @@ abstract final class AnalyticsEvents {
   static const reelStepNames = <int, String>{
     0: 'reel_hook',
     1: 'reel_reveal',
-    2: 'reel_source',
-    3: 'reel_carrying_duration',
-    4: 'reel_aspiration',
-    5: 'reminder_time',
-    6: 'notifications',
-    // Wave G inserted the widget offer here; everything below shifted by one.
-    // The step_id strings are the funnel's join key across page-order changes,
-    // so they stay stable — only the indices move.
-    7: 'reel_widget_offer',
-    8: 'reel_queue_plan',
-    9: 'name_input',
-    10: 'save_progress',
-    11: 'signup_email',
-    12: 'signup_password',
-    13: 'paywall',
+    // Wave H — the intake block. `step_id` strings are the funnel's join key
+    // across page-order changes, so the stable ones are preserved verbatim and
+    // only the indices move.
+    2: 'reel_carrying_duration',
+    3: 'reel_heaviest',
+    4: 'reel_told_anyone',
+    5: 'reel_names_known',
+    6: 'reel_help_with',
+    7: 'reel_daily_time',
+    8: 'reel_note',
+    // The payoff, then every ask behind it.
+    9: 'reel_queue_plan',
+    10: 'rating_gate',
+    11: 'notifications',
+    12: 'reel_widget_offer',
+    13: 'reel_source',
+    14: 'name_input',
+    15: 'save_progress',
+    16: 'signup_email',
+    17: 'signup_password',
+    18: 'paywall',
   };
 
   /// Resolves the step-name map for the active onboarding flow. Centralized so

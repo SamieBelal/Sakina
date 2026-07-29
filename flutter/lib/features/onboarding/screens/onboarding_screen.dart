@@ -19,6 +19,7 @@ import 'aspiration_screen_reel.dart';
 import 'aspirations_screen.dart';
 import 'attribution_screen.dart';
 import 'carrying_duration_screen.dart';
+import 'daily_time_screen.dart';
 import 'commitment_pact_screen.dart';
 import 'common_emotions_screen.dart';
 import 'daily_commitment_screen.dart';
@@ -27,9 +28,13 @@ import 'encouragement_screen.dart';
 import 'familiarity_screen.dart';
 import 'first_checkin_screen.dart';
 import 'generating_screen.dart';
+import 'heaviest_time_screen.dart';
+import 'help_chips_screen.dart';
 import 'hook_problem_screen.dart';
+import 'intake_note_screen.dart';
 import 'intention_screen.dart';
 import 'name_input_screen.dart';
+import 'names_known_screen.dart';
 import 'notification_screen.dart';
 import 'onboarding_reveal_screen.dart';
 import 'paywall_screen.dart';
@@ -43,6 +48,7 @@ import 'save_progress_screen.dart';
 import 'sign_up_email_screen.dart';
 import 'sign_up_password_screen.dart';
 import 'social_proof_screen.dart';
+import 'told_anyone_screen.dart';
 import 'source_question_screen.dart';
 import 'struggle_support_interstitial_screen.dart';
 import 'value_prop_screen.dart';
@@ -140,7 +146,7 @@ Future<OnboardingFlowKind> resolveOnboardingFlow(
 }
 
 /// Last valid page index for the active onboarding flow: reel ends at
-/// [onboardingReelLastPageIndex] (12), trimmed at [onboardingLastPageIndex]
+/// [onboardingReelLastPageIndex] (18), trimmed at [onboardingLastPageIndex]
 /// (19), legacy at [onboardingLegacyLastPageIndex] (26). Pure top-level fn so
 /// the three-flow bound (used by `_next`, the paywall-event triggers, and the
 /// abandonment paywall gate) is directly unit-testable without driving the full
@@ -631,93 +637,138 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onDone: _onRevealDone,
       ),
       // — Everything below is past the reveal: back-nav to 0/1 is refused. —
-      // 2 — Where did you find us? (no back affordance: nowhere to go)
-      SourceQuestionScreen(
+      // — Wave H: the INTAKE block. Seven questions about the user, each with
+      //   a visible consequence on the plan screen (spec §2 — a question whose
+      //   answer never surfaces is extractive, and a longer extractive form is
+      //   worse than the three we had). Asks come AFTER the payoff, below. —
+      // 2 — How long have you been carrying this? (no back: nowhere to go)
+      CarryingDurationScreen(
         onNext: _next,
         progressSegment: 0,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 3 — How long have you been carrying this?
-      CarryingDurationScreen(
+      // 3 — When is it heaviest? DERIVES the reminder time, which is why the
+      // reel order has no reminder-time page.
+      HeaviestTimeScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 1,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 4 — Aspiration → queue rows 3-7.
-      AspirationScreenReel(
+      // 4 — Have you been able to tell anyone?
+      ToldAnyoneScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 2,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 5 — Reminder time (legacy screen, reused as-is).
-      ReminderTimeScreen(
+      // 5 — How many Names could you name? The projection baseline.
+      NamesKnownScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 3,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 6 — Notifications permission. Wave G swaps the generic bell for the
-      // lantern in its `pendingUnlit` — literally "waiting to be lit" — state,
-      // plus a preview of the system dialog about to appear.
-      NotificationScreen(
+      // 6 — What would help most? Multi-select chips, cap 3 → queue rows 3-7.
+      // Replaces the aspiration screen (whose "again"/"when I slip" wording
+      // presupposed lapse — wrong for an ICP defined by hardship, not by
+      // practice level).
+      HelpChipsScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 4,
         totalSegments: onboardingReelTotalSegments,
-        lanternVariant: true,
       ),
-      // 7 — Widget offer (Wave G). Adjacent to the notification ask on purpose:
-      // both are "keep this alive", and this one is a gift rather than a
-      // permission grab. iOS cannot add a widget programmatically, so the CTA
-      // instructs and installs nothing.
-      WidgetOfferScreen(
+      // 7 — How much time feels right? NOT a commitment device (founder call).
+      DailyTimeScreen(
         onNext: _next,
         onBack: _back,
         progressSegment: 5,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 8 — The real 7-Name queue + the 8-stamp journey track. No bar.
+      // 8 — Anything to add? Skippable free text; AI context, and the place a
+      // Day-0 depth-diver (who is who converts) can go deep.
+      IntakeNoteScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 6,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 9 — THE PAYOFF: the real 7-Name queue + the 8-stamp journey track. No
+      // bar. Everything above earns this screen; everything below is an ask.
       QueuePlanScreen(
         onNext: _next,
         onBack: _back,
         revealedPairNameIds: revealedPairNameIds,
       ),
+      // 10 — Rating gate (kept in onboarding, founder call 2026-07-28), placed
+      // AFTER the plan so it lands on the payoff rather than before it. No bar
+      // — it is a gate, not a step.
+      RatingGateScreen(onNext: _next, onBack: _back),
+      // 11 — Notifications permission. Wave G swaps the generic bell for the
+      // lantern in its `pendingUnlit` — literally "waiting to be lit" — state,
+      // plus a preview of the system dialog about to appear.
+      NotificationScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 7,
+        totalSegments: onboardingReelTotalSegments,
+        lanternVariant: true,
+      ),
+      // 12 — Widget offer (Wave G), moved behind the payoff by Wave H.
+      // iOS cannot add a widget programmatically, so the CTA instructs and
+      // installs nothing.
+      WidgetOfferScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 8,
+        totalSegments: onboardingReelTotalSegments,
+      ),
+      // 13 — Where did you find us? Moved off the emotional peak by Wave H: it
+      // used to sit immediately after Ameen, asking the user to do market
+      // research for us at the moment they were most open. It cannot be
+      // deleted (reel-source capture is the plan's biggest measurement hole),
+      // so it sits at the flow's lowest-emotion point instead.
+      SourceQuestionScreen(
+        onNext: _next,
+        onBack: _back,
+        progressSegment: 9,
+        totalSegments: onboardingReelTotalSegments,
+      ),
       // — Deferred signup (W2-E2): value first, account last. —
-      // 9 — Name
+      // 14 — Name
       NameInputScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelNamePageIndex,
-        progressSegment: 6,
+        progressSegment: 10,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 10 — Save progress (sign-up choice)
+      // 15 — Save progress (sign-up choice)
       SaveProgressScreen(
         onNext: _next,
         onBack: _back,
         onSocialAuthComplete: _skipToReelPostSignup,
-        progressSegment: 7,
+        progressSegment: 11,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 11 — Sign-up email
+      // 16 — Sign-up email
       SignUpEmailScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelEmailPageIndex,
-        progressSegment: 8,
+        progressSegment: 12,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 12 — Sign-up password
+      // 17 — Sign-up password
       SignUpPasswordScreen(
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelPasswordPageIndex,
-        progressSegment: 9,
+        progressSegment: 13,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 13 — Paywall. ALWAYS the soft onboarding-placement one for this flow
+      // 18 — Paywall. ALWAYS the soft onboarding-placement one for this flow
       // (plan §F1.2): a reel user never sees the post-tour hard wall, because
       // they never take the tour, so the hard-flag's empty branch would leave
       // them with no paywall surface at all. W4 replaces this page's contents;
