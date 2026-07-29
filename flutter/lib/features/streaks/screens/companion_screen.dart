@@ -16,7 +16,9 @@ import 'package:sakina/features/streaks/widgets/cosmetics/lantern_share_card.dar
 import 'package:sakina/features/streaks/widgets/cosmetics/noor_balance_chip.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/first_visit_hint_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/widgets/first_visit_hint/first_visit_hint_banner.dart';
 
 /// The Companion "stage": the equipped backdrop + the live equipped-skin
 /// medallion as the hero, a Noor chip, and entry to the wardrobe + share.
@@ -124,6 +126,17 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             _lanternNameLabel(onCanvas),
+            // First-visit hint (F3): the stage is reached by tapping the Home
+            // medallion — an unguessable gesture — and the lamp's brightness
+            // has no on-screen explanation. Sits under the lantern it
+            // describes; blocks nothing, and Customize stays live behind it.
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: FirstVisitHintBanner(
+                hint: FirstVisitHintId.companion,
+                padding: EdgeInsets.only(top: AppSpacing.md),
+              ),
+            ),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),

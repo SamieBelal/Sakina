@@ -29,13 +29,11 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:sakina/features/settings/widgets/redeem_code_sheet.dart';
 import 'package:sakina/features/settings/widgets/settings_premium_card.dart';
-import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/subpage_header.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sakina/core/constants/app_durations.dart';
 
@@ -80,11 +78,13 @@ Future<void> performCardCollectionDangerReset({
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key, this.autoAction});
 
-  /// Optional deep-link action consumed on first build. Today the only
-  /// supported value is `replay_tour` — see [_handleAutoAction]. Propagated
-  /// from the GoRouter `/settings?action=` query param so the E5 win-back
-  /// push (`sakina://settings?action=replay_tour`) can trigger Replay
-  /// without the user tapping the row.
+  /// Optional deep-link action consumed on first build, propagated from the
+  /// GoRouter `/settings?action=` query param.
+  ///
+  /// **No action is currently handled** — `replay_tour` was the only one, and
+  /// it became a no-op when the tour was deleted (Wave F1a). The parameter and
+  /// its handler stay because already-scheduled E5 win-back pushes still carry
+  /// it; see [_handleAutoAction].
   final String? autoAction;
 
   @override
@@ -127,28 +127,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  /// Programmatic Replay-tour invocation (E5 win-back push deep link).
-  /// Mirrors the user-tap path in [_replayTour] exactly so both ingress
-  /// surfaces behave identically.
+  /// Deep-link actions arriving at Settings (`sakina://settings?action=…`).
+  ///
+  /// **`replay_tour` is now a no-op** (Wave F1a — the tour was deleted). The
+  /// action cannot simply be removed: E5 win-back pushes carrying it may
+  /// already be scheduled in OneSignal automations we cannot retract, so it has
+  /// to arrive harmlessly. Falling through leaves the user on Settings, which
+  /// is a reasonable landing for a win-back push.
+  ///
+  /// The old handler did three things that are now wrong: it cleared an inert
+  /// tour-seen flag, it redirected to Home (jarring for someone deep-linked to
+  /// Settings), and it fired `tour_replay_tapped`, which would report tours
+  /// that never ran.
   Future<void> _handleAutoAction(String action) async {
-    if (action == 'replay_tour') {
-      await _replayTour();
-    }
-  }
-
-  Future<void> _replayTour() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    // Clear the unified tour-seen flag so the controller can re-arm.
-    await prefs.remove(onboardingTourSeenFlag(userId));
-    if (!mounted) return;
-    // Jump to Home so step 1's anchor (Begin Muhasabah) is mounted.
-    context.go('/');
-    // Restart the tour controller.
-    ref.read(onboardingTourControllerProvider.notifier).replay();
-    // Existing analytics track
-    ref.read(analyticsProvider).track(AnalyticsEvents.tourReplayTapped);
+    // Intentionally empty. See above before adding a branch back.
   }
 
   Future<void> _loadData() async {
@@ -1233,15 +1225,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             showChevron: false,
           ),
           _buildDivider(),
-          // Replay the unified interactive guided tour from step 1. Clears
-          // the onboarding_tour_v1_seen flag and calls
-          // OnboardingTourController.replay() — see _replayTour.
-          _buildSettingsRow(
-            icon: Icons.info_outline,
-            label: 'Replay app tour',
-            onTap: _replayTour,
-          ),
-          _buildDivider(),
+          // "Replay app tour" was removed with the tour itself (Wave F1a).
+          // Recorded rather than silently dropped: the row called
+          // OnboardingTourController.replay(), which is now inert — see its doc
+          // comment for why that method cannot simply be deleted.
           _buildSettingsRow(
             icon: Icons.privacy_tip_outlined,
             label: 'Privacy Policy',

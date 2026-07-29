@@ -11,8 +11,11 @@ import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tab_pills.dar
 import 'package:sakina/features/streaks/widgets/cosmetics/wardrobe_tile.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/first_visit_hint_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/widgets/first_visit_hint/first_visit_hint_banner.dart';
 import 'package:sakina/core/constants/app_durations.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
 
 /// Pure resolution of the primary action for a previewed item.
 ///
@@ -234,6 +237,17 @@ class _WardrobeScreenState extends ConsumerState<WardrobeScreen>
           // its own. Still routed through the controller so the analytics hook
           // and the preview provider stay the single source of truth.
           onChanged: (i) => _tabs.index = i,
+        ),
+        // First-visit hint (F3) for Noor. It lands here rather than on the
+        // Companion stage — where the balance chip technically appears first —
+        // because this is where Noor becomes a question the user actually has:
+        // the tiles below quote prices in it. Keeping it off the Companion
+        // stage also means no two hints ever compete for the same screen, so
+        // which one a user meets first is a matter of where they went, not of
+        // which future resolved first.
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: FirstVisitHintBanner(hint: FirstVisitHintId.noor),
         ),
         WardrobePreviewStage(
           skinId: preview.previewedSkinId ?? equippedSkinId,

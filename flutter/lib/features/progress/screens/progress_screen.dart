@@ -10,7 +10,6 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/core/constants/allah_names.dart';
 import 'package:sakina/core/app_session.dart';
-import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/streaks/providers/companion_inputs_provider.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/streaks/models/companion_state.dart';
@@ -54,7 +53,6 @@ import 'package:sakina/widgets/sakina_loader.dart';
 import 'package:sakina/widgets/primary_card.dart';
 import 'package:sakina/services/xp_service.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
-import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 
 /// Resolved hero-tile content for the home dashboard's "Today's Name" /
@@ -147,31 +145,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     _checkDiscoveryQuiz();
     _maybeShowLapsedTrialSheet();
     _maybeShowCancellationFeedback();
-    // Chain tour-start onto launch-overlay dismissal: when DailyLaunchOverlay
-    // is showing (day-0 starter-name claim, daily reward sheet), the tour
-    // would otherwise punch through and highlight widgets behind it. The
-    // tour controller also has its own route-stack guard in
-    // OnboardingTourOverlayHost as belt-and-braces.
-    _maybeShowDailyLaunch().then((_) {
-      if (!mounted) return;
-      final session = ref.read(appSessionProvider);
-      final stage = resolveOnboardingStage(
-        isAuthenticated: session.isAuthenticated,
-        hasOnboarded: session.hasOnboarded,
-        tourCompleted: session.tourCompleted,
-        paywallCleared: session.paywallCleared || session.gateValveBypass,
-        isPremium: session.isPremiumCached,
-        hardPaywallFlowEnabled: session.hardPaywallFlowEnabled,
-      );
-      final notifier = ref.read(onboardingTourControllerProvider.notifier);
-      if (stage == OnboardingStage.tour) {
-        // New mandatory gate: resume the forced tour at the persisted step.
-        notifier.resumeForGate();
-      } else if (!session.hardPaywallFlowEnabled) {
-        // Legacy opportunistic tour (kill switch off) — unchanged behaviour.
-        notifier.start();
-      }
-    });
+    // The guided tour used to start from here, chained onto the launch-overlay
+    // dismissal so it didn't punch through DailyLaunchOverlay. The tour was
+    // deleted 2026-07-28 (One Ship W2 §F1a — it cost ~48% of signups), so this
+    // is now just the launch overlay.
+    unawaited(_maybeShowDailyLaunch());
   }
 
   /// Reactive cancellation survey (Path B): catches cancels done in the OS
@@ -340,10 +318,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _kickRescueCheck());
     }
-
-    // Replay-tour re-trigger: Settings "Replay app tour" calls
-    // onboardingTourControllerProvider.replay() directly — the controller
-    // owns the lifecycle, no per-screen hook needed here.
 
     // On day 0 (no streak yet) surface the user's starter Name from
     // onboarding instead of the date-rotation Name. This mirrors

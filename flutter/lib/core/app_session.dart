@@ -10,8 +10,6 @@ import '../features/onboarding/onboarding_stage.dart';
 import '../features/paywall/paywall_experiment.dart';
 import '../features/paywall/reverse_trial_onboarding.dart'
     show paywallExperimentAssignedBaseKey;
-import '../features/tour/providers/onboarding_tour_controller.dart'
-    show onboardingTourSeenFlag;
 import '../services/analytics_event_names.dart';
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
@@ -109,12 +107,11 @@ class AppSessionNotifier extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // Onboarding gate flags — synchronously readable by the GoRouter redirect.
   //
-  // All default to the "ungated" value (tour done, wall cleared, flow off) so a
-  // returning/existing user is NEVER flashed into the tour or the wall before
+  // All default to the "ungated" value (wall cleared, flow off) so a
+  // returning/existing user is NEVER flashed into the wall before
   // [hydrateOnboardingGate] resolves real values. A brand-new user is put INTO
   // the gate explicitly by [enterOnboardingGate] from completeOnboarding.
   // ---------------------------------------------------------------------------
-  bool _tourCompleted = true;
   bool _paywallCleared = true;
   bool _isPremiumCached = false;
   bool _hardPaywallFlowEnabled = false;
@@ -123,7 +120,15 @@ class AppSessionNotifier extends ChangeNotifier {
   // before [hydrateOnboardingGate] resolves the real mode.
   PostTourPaywallMode _postTourPaywallMode = PostTourPaywallMode.off;
 
-  bool get tourCompleted => _tourCompleted;
+  /// VESTIGIAL — always `true`. The guided tour was deleted 2026-07-28 (One Ship
+  /// W2, plan §F1a): nothing starts it and [OnboardingStage] has no `tour`
+  /// branch, so "has this user finished the tour?" has exactly one answer for
+  /// every user, including the ones who were stranded mid-tour when it was
+  /// removed. Kept as a constant (rather than deleted outright) so the F1b
+  /// cleanup can retire the remaining call sites in one pass instead of
+  /// rippling through this file's callers now.
+  bool get tourCompleted => true;
+
   bool get paywallCleared => _paywallCleared;
   bool get isPremiumCached => _isPremiumCached;
   bool get hardPaywallFlowEnabled => _hardPaywallFlowEnabled;
@@ -225,10 +230,10 @@ class AppSessionNotifier extends ChangeNotifier {
   Future<void> hydrateOnboardingGate() async {
     final uid = _currentUserIdProvider();
     if (uid != null && uid.isNotEmpty) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        _tourCompleted = prefs.getBool(onboardingTourSeenFlag(uid)) ?? false;
-      } catch (_) {/* keep default */}
+      // The tour-seen flag is no longer read: with the tour deleted there is no
+      // stage that consumes it, and reading it was the mechanism that stranded
+      // mid-tour users (plan §F0). Their `onboarding_tour_v1_seen_*` prefs key
+      // is now inert and left in place.
       try {
         _paywallCleared = await OnboardingGateService().isPaywallCleared();
       } catch (_) {/* keep default */}
@@ -304,10 +309,13 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// New user just finished onboarding → put them INTO the gate so the router
-  /// routes them to the forced tour. Persists the latch=false so a force-kill
+  /// routes them to the entry paywall. Persists the latch=false so a force-kill
   /// before clearing the wall re-gates them on relaunch.
+  ///
+  /// Since the tour was deleted (§F1a) this sets exactly one latch; the user
+  /// lands directly on the paywall stage rather than on the tour that used to
+  /// precede it.
   Future<void> enterOnboardingGate() async {
-    _tourCompleted = false;
     _paywallCleared = false;
     try {
       await OnboardingGateService().setPaywallCleared(false);
@@ -316,46 +324,36 @@ class AppSessionNotifier extends ChangeNotifier {
   }
 
   /// The reel flow's counterpart to [enterOnboardingGate] (One Ship W2-E1, per
-  /// plan §F1): a `reel_v1` user must NOT be routed into the forced tour.
+  /// plan §F1): a `reel_v1` user clears the entry gate outright — the reel flow
+  /// ends on its own paywall page, so a second wall right behind it would be a
+  /// double paywall.
   ///
-  /// The naive "just skip `enterOnboardingGate`" leaves the user in stage
-  /// `tour` forever — the stage machine only reaches the paywall stages after
-  /// `tourCompleted`, and the router lets tour-stage users roam, so no paywall
-  /// surface is ever reached. Both latches are therefore set explicitly.
+  /// Historically this also latched `tourCompleted`, because skipping
+  /// [enterOnboardingGate] alone left the user in stage `tour` forever. That
+  /// stage no longer exists (§F1a), so the cleared latch is the whole job.
   ///
   /// In-memory FIRST, durable second, for the same reason [enterOnboardingGate]
-  /// flips its flags before awaiting the persist: the router's redirect runs
+  /// flips its flag before awaiting the persist: the router's redirect runs
   /// synchronously off `context.go('/')` at the end of completion, and a latch
   /// that only lands after an await loses that race on day 0.
   ///
-  /// Both writes are best-effort. The in-memory flip already routes THIS
-  /// session correctly; the prefs writes are what keep the next cold launch's
-  /// [hydrateOnboardingGate] from re-gating them (it reads the tour-seen flag
-  /// as `false` when absent).
+  /// The write is best-effort. The in-memory flip already routes THIS session
+  /// correctly; the prefs write is what keeps the next cold launch's
+  /// [hydrateOnboardingGate] from re-gating them.
   Future<void> skipOnboardingGateForReelFlow() async {
     setOnboardingFlow(onboardingFlowReelV1);
-    _tourCompleted = true;
     _paywallCleared = true;
     notifyListeners();
 
-    final uid = _currentUserIdProvider();
-    if (uid != null && uid.isNotEmpty) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(onboardingTourSeenFlag(uid), true);
-      } catch (_) {/* in-memory latch still holds for this session */}
-    }
     try {
       await OnboardingGateService().setPaywallCleared(true);
-    } catch (_) {/* ditto */}
+    } catch (_) {/* in-memory latch still holds for this session */}
   }
 
-  /// The forced tour finished → router advances the user to the hard paywall.
-  void markTourCompleted() {
-    if (_tourCompleted) return;
-    _tourCompleted = true;
-    notifyListeners();
-  }
+  /// VESTIGIAL no-op — see [tourCompleted]. The tour that used to call this is
+  /// deleted; retained so the F1b cleanup can drop the remaining call sites
+  /// without a compile break here.
+  void markTourCompleted() {}
 
   /// The user cleared the entry wall (started a trial / restored premium).
   /// Persistence is the caller's responsibility; this updates the in-memory
@@ -421,7 +419,6 @@ class AppSessionNotifier extends ChangeNotifier {
         _hydrationFailed = false;
         // Reset gate flags to the ungated defaults so the next user to sign in
         // on this device isn't gated by the previous user's in-memory state.
-        _tourCompleted = true;
         _paywallCleared = true;
         _isPremiumCached = false;
         _onboardingFlow = null;

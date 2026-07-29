@@ -14,14 +14,13 @@ import '../../support/fake_supabase_sync_service.dart';
 
 /// One Ship W2-E1 / plan §F1 — which post-onboarding gate a finished user gets.
 ///
-/// The blocker this pins: naively "just don't call `enterOnboardingGate` for
-/// reel users" strands them in stage `tour` forever. The stage machine only
-/// reaches the paywall stages after `tourCompleted`, and the router lets
-/// tour-stage users roam — so they would meet no paywall anywhere. The reel
-/// branch therefore latches BOTH flags, and it branches on the flow the user
-/// actually RAN, not on the current flag state: a kill-switch revert has to
-/// restore the tour for legacy users without re-gating the reel users who
-/// already skipped it.
+/// Originally this pinned a two-latch reel branch, because "just don't call
+/// `enterOnboardingGate`" stranded reel users in stage `tour` forever. §F1a
+/// deleted that stage outright, so the surviving contract is simpler and
+/// stronger: the reel branch CLEARS the entry latch (its own paywall page is
+/// the gate) while the legacy branch SETS it, and the branch is chosen by the
+/// flow the user actually RAN, not by the current flag state — a kill-switch
+/// revert must not re-gate reel users who already passed a paywall.
 class _StubAuthService extends AuthService {
   _StubAuthService([this.log]);
 
@@ -153,22 +152,24 @@ void main() {
     return notifier;
   }
 
+  /// The tour-seen flag is INERT after §F1a — nothing reads it and nothing
+  /// should write it. Kept as a probe so a regression that starts writing it
+  /// again is visible here.
   Future<bool?> storedTourSeen() async =>
       (await SharedPreferences.getInstance())
           .getBool(onboardingTourSeenFlag(userId));
 
   group('reel flow', () {
-    test('latches BOTH gate flags instead of entering the tour gate',
+    test('clears the entry latch instead of gating behind a second paywall',
         () async {
       final session = await buildSession();
       addTearDown(session.dispose);
-      expect(session.tourCompleted, isFalse,
-          reason: 'precondition: a fresh user hydrates with no tour-seen flag');
 
       await notifierFor(onboardingFlowReel).completeOnboarding(session);
 
-      expect(session.tourCompleted, isTrue);
       expect(session.paywallCleared, isTrue);
+      expect(await storedTourSeen(), isNull,
+          reason: 'the inert tour-seen flag must not be written any more');
     });
 
     test('mirrors the flow into the session synchronously', () async {
@@ -186,22 +187,19 @@ void main() {
               'profile reel_v1');
     });
 
-    test('persists both latches so the NEXT cold launch is not re-gated',
+    test('persists the latch so the NEXT cold launch is not re-gated',
         () async {
-      // hydrateOnboardingGate reads the tour-seen flag as `false` when absent,
-      // so an in-memory-only latch would park the user in stage `tour` on
-      // launch two.
+      // An in-memory-only latch would re-wall the user on launch two, straight
+      // after the reel flow's own paywall page.
       final session = await buildSession();
       addTearDown(session.dispose);
 
       await notifierFor(onboardingFlowReel).completeOnboarding(session);
 
-      expect(await storedTourSeen(), isTrue);
       expect(await OnboardingGateService().isPaywallCleared(), isTrue);
 
       final relaunched = await buildSession();
       addTearDown(relaunched.dispose);
-      expect(relaunched.tourCompleted, isTrue);
       expect(relaunched.paywallCleared, isTrue);
     });
   });
@@ -252,12 +250,9 @@ void main() {
 
       await notifierFor(onboardingFlowLegacy).completeOnboarding(session);
 
-      expect(session.tourCompleted, isFalse);
       expect(session.paywallCleared, isFalse);
       expect(await OnboardingGateService().isPaywallCleared(), isFalse);
-      expect(await storedTourSeen(), isNull,
-          reason: 'a legacy user has NOT seen the tour — the flag must stay '
-              'unwritten so the forced tour still runs');
+      expect(await storedTourSeen(), isNull);
     });
 
     test('legacy stays grandfathered when the hard-paywall flag is OFF',
@@ -275,14 +270,13 @@ void main() {
 
     test('an unset flow is treated as legacy, never as reel', () async {
       // Null means "we do not know", and guessing reel would silently skip the
-      // tour AND the wall for a user who ran neither reel screen.
+      // wall for a user who ran neither reel screen.
       final session = await buildSession();
       addTearDown(session.dispose);
 
       await OnboardingNotifier(authService: _StubAuthService())
           .completeOnboarding(session);
 
-      expect(session.tourCompleted, isFalse);
       expect(session.paywallCleared, isFalse);
     });
   });

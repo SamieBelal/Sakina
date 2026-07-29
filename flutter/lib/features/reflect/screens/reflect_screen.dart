@@ -22,7 +22,9 @@ import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/first_visit_hint_service.dart';
 import 'package:sakina/services/token_service.dart';
+import 'package:sakina/widgets/first_visit_hint/first_visit_hint_banner.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:sakina/widgets/upgrade_required_sheet.dart';
@@ -354,6 +356,15 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
                       height: 1.5,
                     ),
                   ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+
+                  // First-visit hint (F3). The tab name does not convey what
+                  // the feature does, so this says it once — beside the field,
+                  // and never again. Non-blocking: the field below stays live
+                  // the whole time the hint is up.
+                  const FirstVisitHintBanner(
+                    hint: FirstVisitHintId.reflect,
+                    padding: EdgeInsets.only(top: AppSpacing.md),
+                  ),
                   const SizedBox(height: AppSpacing.xl),
 
                   // Text field — warm white card with soft shadow

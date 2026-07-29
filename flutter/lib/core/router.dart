@@ -75,11 +75,10 @@ String? onboardingGateRedirect({
   final stage = resolveOnboardingStage(
     isAuthenticated: appSession.isAuthenticated,
     hasOnboarded: appSession.hasOnboarded,
-    tourCompleted: appSession.tourCompleted,
     // Session-only valve bypass counts as "cleared" for THIS session only.
     paywallCleared: appSession.paywallCleared || appSession.gateValveBypass,
     isPremium: appSession.isPremiumCached,
-    // New build routes on the post-tour MODE (soft|off|hard). The legacy
+    // New build routes on the entry-gate MODE (soft|off|hard). The legacy
     // boolean is no longer passed here — `postTourPaywallMode` already folds it
     // in via its back-compat derivation (app_session._defaultPostTourPaywallMode).
     paywallMode: appSession.postTourPaywallMode,
@@ -94,21 +93,19 @@ String? onboardingGateRedirect({
           ? null
           : kOnboardingPaywallPath;
     case OnboardingStage.softPaywall:
-      // Present the DISMISSIBLE soft paywall at the post-tour gate. Pull onto it
+      // Present the DISMISSIBLE soft paywall at the entry gate. Pull onto it
       // from ANY in-app route (pre-auth/onboarding/signin already returned
-      // above) — NOT just '/', because the slim tour completes on '/duas' (the
-      // duaBuildComplete step), so a '/'-only pull silently skipped the wall at
-      // the real tour exit. "Soft" is enforced by the screen, not the redirect:
+      // above) — NOT just '/', because a user can arrive on any tab, so a
+      // '/'-only pull silently skipped the wall for everyone who did not land
+      // home. "Soft" is enforced by the screen, not the redirect:
       // its X / purchase calls markPaywallCleared() → stage flips to `app`, so
       // the user is stood up here once and is then free (no re-pull).
       return currentPath == kOnboardingSoftPaywallPath
           ? null
           : kOnboardingSoftPaywallPath;
-    case OnboardingStage.tour:
     case OnboardingStage.app:
-      // The tour runs as an overlay over the home shell, so a tour-stage user
-      // just stays in the app (the overlay drives them). If a tour/cleared
-      // user is somehow sitting on either entry wall, send them home.
+      // Cleared to use the app. If such a user is somehow sitting on either
+      // entry wall, send them home.
       return (currentPath == kOnboardingPaywallPath ||
               currentPath == kOnboardingSoftPaywallPath)
           ? '/'

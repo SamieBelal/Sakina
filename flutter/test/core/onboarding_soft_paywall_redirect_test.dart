@@ -11,11 +11,10 @@ import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../support/fake_supabase_sync_service.dart';
 
-/// Phase A — the soft post-tour paywall routing seam. Pins that a tour-done,
-/// uncleared user in `soft` mode is routed to the dismissible soft paywall (not
-/// the no-X hard wall), and that the route is NOT a navigation trap.
+/// Phase A — the soft entry-paywall routing seam. Pins that an uncleared user
+/// in `soft` mode is routed to the dismissible soft paywall (not the no-X hard
+/// wall), and that the route is NOT a navigation trap.
 Future<AppSessionNotifier> softSession({
-  bool tourDone = true,
   bool cleared = false,
   bool premium = false,
 }) async {
@@ -27,13 +26,12 @@ Future<AppSessionNotifier> softSession({
     hydrateEconomyCache: () async {},
     hasCompletedOnboarding: () async => true,
     isPremiumReader: () async => premium,
-    // Force the post-tour mode to `soft` for these tests.
+    // Force the entry-gate mode to `soft` for these tests.
     postTourPaywallModeReader: () async => PostTourPaywallMode.soft,
     notificationService: _FakeNotif(),
   );
   await s.hydrateOnboardingGate();
   await s.enterOnboardingGate();
-  if (tourDone) s.markTourCompleted();
   if (cleared) s.markPaywallCleared();
   return s;
 }
@@ -54,27 +52,27 @@ void main() {
   String? redirect(String path, AppSessionNotifier s) =>
       onboardingGateRedirect(currentPath: path, appSession: s);
 
-  test('post-tour mode resolves to soft on the session', () async {
+  test('entry-gate mode resolves to soft on the session', () async {
     final s = await softSession();
     expect(s.postTourPaywallMode, PostTourPaywallMode.soft);
   });
 
   test(
-      'soft mode, tour done, uncleared → presented from ANY in-app route '
-      '(incl. /duas, the real tour-exit route)', () async {
-    final s = await softSession(tourDone: true, cleared: false);
-    // Regression for the '/'-only pull that silently skipped the wall: the slim
-    // tour completes on /duas (duaBuildComplete), so the gate MUST present the
-    // soft paywall from there, not just from home.
+      'soft mode, uncleared → presented from ANY in-app route (not just /)',
+      () async {
+    final s = await softSession(cleared: false);
+    // Regression for the '/'-only pull that silently skipped the wall: a user
+    // can arrive on any tab, so the gate MUST present the soft paywall from
+    // there too, not just from home.
     expect(redirect('/', s), kOnboardingSoftPaywallPath);
     expect(redirect('/duas', s), kOnboardingSoftPaywallPath,
-        reason: 'slim tour ends on /duas — wall must fire there');
+        reason: 'the wall must fire off home as well');
     expect(redirect('/collection', s), kOnboardingSoftPaywallPath);
   });
 
   test('soft paywall is dismissible — clearing is the exit, not lenient '
       'routing', () async {
-    final s = await softSession(tourDone: true, cleared: false);
+    final s = await softSession(cleared: false);
     // While on the soft paywall itself the redirect leaves you put (no bounce);
     // "soft" is enforced by the X → markPaywallCleared (see the cleared test
     // below), NOT by the redirect declining to present it.
@@ -83,20 +81,20 @@ void main() {
 
   test('cleared (dismissed) → app, bounced off the soft paywall path',
       () async {
-    final s = await softSession(tourDone: true, cleared: true);
+    final s = await softSession(cleared: true);
     expect(redirect('/', s), isNull);
     expect(redirect(kOnboardingSoftPaywallPath, s), '/');
   });
 
   test('premium short-circuits the soft gate', () async {
-    final s = await softSession(tourDone: true, premium: true);
+    final s = await softSession(premium: true);
     expect(redirect('/', s), isNull);
   });
 
   testWidgets(
       'router presents a DISMISSIBLE soft paywall, and dismiss routes to app',
       (tester) async {
-    final s = await softSession(tourDone: true, cleared: false);
+    final s = await softSession(cleared: false);
     addTearDown(s.dispose);
     final router = buildRouter(appSession: s);
     addTearDown(router.dispose);

@@ -23,7 +23,6 @@ import 'features/dua_times/providers/dua_window_provider.dart';
 import 'features/duas/providers/duas_provider.dart';
 import 'features/onboarding/providers/onboarding_provider.dart';
 import 'features/reflect/providers/reflect_provider.dart';
-import 'features/tour/widgets/onboarding_tour_overlay_host.dart';
 import 'core/widget_deep_link.dart';
 import 'services/analytics_events.dart';
 import 'services/widget_analytics.dart';
@@ -229,13 +228,16 @@ Future<void> main() async {
         // key when nothing is cached yet.
         reelFirstOnboardingFlag,
         'onboarding_trim_enabled',
+        // Read only for the `flag_guided_tour` analytics super property now —
+        // the tour it gated was deleted 2026-07-28 (§F1a) and the flag no
+        // longer changes any behaviour. Retire with the super property.
         'guided_tour_enabled',
-        // Onboarding→tour→hard-paywall gate. MUST be primed: a cold-cache
-        // miss reads the `false` fallback, which drops the user into the
-        // legacy opportunistic (skippable) tour instead of the forced gated
-        // flow. Caught in the simulator on a fresh launch.
+        // Onboarding→hard-paywall entry gate. MUST be primed: a cold-cache
+        // miss reads the `false` fallback, which lets the user into the app
+        // ungated instead of onto the wall. Caught in the simulator on a fresh
+        // launch.
         'hard_paywall_after_tour_enabled',
-        // Reverse-trial Phase A post-tour gate mode (soft|off|hard). MUST be
+        // Reverse-trial Phase A entry-gate mode (soft|off|hard). MUST be
         // primed: on the first launch after the flag flips to `soft`, a
         // cold-cache miss falls back to the legacy hard bool (still true) →
         // the user gets the HARD wall that launch, and `soft` only takes
@@ -509,11 +511,11 @@ class _SakinaAppState extends State<SakinaApp> {
         children: [
           const BillingIssueBanner(),
           const IapToSubUpsellBanner(),
-          Expanded(
-            child: OnboardingTourOverlayHost(
-              child: child ?? const SizedBox.shrink(),
-            ),
-          ),
+          // The guided tour's `OnboardingTourOverlayHost` used to wrap the
+          // router here. It was unmounted 2026-07-28 (One Ship W2 §F1a) when
+          // the tour was deleted — with nothing able to start a tour, the host
+          // would only ever render its child.
+          Expanded(child: child ?? const SizedBox.shrink()),
         ],
       ),
     );

@@ -10,6 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/app_session.dart';
 import '../content/aspirations.dart';
+import '../content/help_chips.dart';
+import '../content/intake_questions.dart';
 import '../content/problem_chips.dart';
 import '../../../services/analytics_event_names.dart';
 import '../../../services/auth_service.dart';
@@ -192,6 +194,13 @@ class OnboardingState {
     this.revealedPairNameIds = const [],
     this.aspiration,
     this.carryingDuration,
+    // New in Wave H — the intake set (H2-H7):
+    this.heaviestTime,
+    this.toldAnyone,
+    this.namesKnown,
+    this.helpWith = const [],
+    this.dailyTime,
+    this.intakeNote,
     this.reelSource,
     this.reelId,
     this.reelPairOverride = const [],
@@ -271,6 +280,50 @@ class OnboardingState {
   /// "How long have you been carrying this?" — pacing + AI context. Rides to
   /// the server inside [acquisitionPromise] as `carrying_duration`.
   final String? carryingDuration;
+
+  // ---- Wave H: the intake set --------------------------------------------
+  // Every one of these has a VISIBLE CONSEQUENCE — a question whose answer
+  // never surfaces is extractive (spec §2). The consequence functions live
+  // beside the options in `content/intake_questions.dart` and
+  // `content/help_chips.dart`; the screens here only record the answer.
+  //
+  // None of them ride to the server yet: `acquisitionPromise` is pinned by
+  // exact-map equality in `onboarding_state_v8_test.dart` and its check
+  // constraint has no room reserved for them. W3 needs `heaviestTime`,
+  // `namesKnown`, `dailyTime` and `intakeNote` as AI context on a device that
+  // may not be the one that onboarded, so giving them a server home is
+  // outstanding work, not a decision that they stay local.
+
+  /// H2 "When is it heaviest?" — DERIVES [reminderTime] (see
+  /// [OnboardingNotifier.setHeaviestTime]) and sets the plan screen's
+  /// when-we'll-be-there line. The reel flow has no reminder-time screen; this
+  /// question replaced it.
+  final String? heaviestTime;
+
+  /// H3 "Have you been able to tell anyone?" — sets the plan line and the first
+  /// notification's register. Approved on the condition that we act on it, so
+  /// an answer of `no_one`/`a_little` MUST keep changing something visible.
+  final String? toldAnyone;
+
+  /// H4 "How many of Allah's Names could you name right now?" — the projection
+  /// baseline ("You know about five. In 30 days you'll know thirty-five.").
+  final String? namesKnown;
+
+  /// H5 "What would help most right now?" — **ordered**, capped at
+  /// [helpChipsMaxSelections].
+  ///
+  /// Order is load-bearing, which is why this is a list and not a set: the
+  /// blend in [helpChipsQueueNameIds] weights by selection order, so
+  /// `['words', 'sense']` and `['sense', 'words']` seed different queues.
+  final List<String> helpWith;
+
+  /// H6 "How much time feels right most days?" — plan pacing line and deck
+  /// length. Not a commitment device; nothing reads it as one.
+  final String? dailyTime;
+
+  /// H7 "Anything you want to add?" — free text, skippable, capped at
+  /// [intakeNoteMaxGraphemes]. AI context for Reflect and Build-a-Duʿā.
+  final String? intakeNote;
 
   /// Post-reveal "Where did you find us?" answer.
   final String? reelSource;
@@ -360,6 +413,13 @@ class OnboardingState {
     List<int>? revealedPairNameIds,
     String? aspiration,
     String? carryingDuration,
+    String? heaviestTime,
+    String? toldAnyone,
+    String? namesKnown,
+    List<String>? helpWith,
+    String? dailyTime,
+    String? intakeNote,
+    bool clearIntakeNote = false,
     String? reelSource,
     String? reelId,
     List<int>? reelPairOverride,
@@ -405,6 +465,15 @@ class OnboardingState {
       revealedPairNameIds: revealedPairNameIds ?? this.revealedPairNameIds,
       aspiration: aspiration ?? this.aspiration,
       carryingDuration: carryingDuration ?? this.carryingDuration,
+      heaviestTime: heaviestTime ?? this.heaviestTime,
+      toldAnyone: toldAnyone ?? this.toldAnyone,
+      namesKnown: namesKnown ?? this.namesKnown,
+      helpWith: helpWith ?? this.helpWith,
+      dailyTime: dailyTime ?? this.dailyTime,
+      // Explicit clear: H7 is the one intake answer a user can take back —
+      // emptying the field must be able to erase a note they already wrote.
+      intakeNote:
+          clearIntakeNote ? null : (intakeNote ?? this.intakeNote),
       reelSource: reelSource ?? this.reelSource,
       reelId: reelId ?? this.reelId,
       reelPairOverride: reelPairOverride ?? this.reelPairOverride,
@@ -439,6 +508,15 @@ class OnboardingState {
         'revealedPairNameIds': revealedPairNameIds,
         'aspiration': aspiration,
         'carryingDuration': carryingDuration,
+        // Additive within v8, like `reelPairOverride`: an older v8 blob simply
+        // has no key here, and `fromJson` reads that as "not answered yet".
+        // These are all written pre-auth and must survive an app kill mid-flow.
+        'heaviestTime': heaviestTime,
+        'toldAnyone': toldAnyone,
+        'namesKnown': namesKnown,
+        'helpWith': helpWith,
+        'dailyTime': dailyTime,
+        'intakeNote': intakeNote,
         'reelSource': reelSource,
         'reelId': reelId,
         // Additive within v8: an older v8 blob simply has no key here, and
@@ -497,6 +575,16 @@ class OnboardingState {
           const [],
       aspiration: json['aspiration'] as String?,
       carryingDuration: json['carryingDuration'] as String?,
+      heaviestTime: json['heaviestTime'] as String?,
+      toldAnyone: json['toldAnyone'] as String?,
+      namesKnown: json['namesKnown'] as String?,
+      // Order survives the round trip — the blend weights by it.
+      helpWith: (json['helpWith'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList(growable: false) ??
+          const [],
+      dailyTime: json['dailyTime'] as String?,
+      intakeNote: json['intakeNote'] as String?,
       reelSource: json['reelSource'] as String?,
       reelId: json['reelId'] as String?,
       reelPairOverride: (json['reelPairOverride'] as List<dynamic>?)
@@ -676,6 +764,91 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void setAspiration(String value) {
     state = state.copyWith(aspiration: value);
+    _saveToPrefs();
+  }
+
+  // ---- Wave H: the intake set --------------------------------------------
+
+  /// H2. Records the answer **and derives [OnboardingState.reminderTime] from
+  /// it** — the whole reason this question is allowed to replace the
+  /// reminder-time screen rather than sit beside it.
+  ///
+  /// Always re-derives: a user who backs up and changes their answer would
+  /// otherwise keep a reminder at the hour they just told us is the wrong one.
+  /// An off-taxonomy key writes the answer but no time (rather than a guessed
+  /// 08:00), so a reminder is only ever scheduled from something the user
+  /// actually said.
+  void setHeaviestTime(String value) {
+    state = state.copyWith(
+      heaviestTime: value,
+      reminderTime: heaviestReminderTime(value),
+    );
+    _saveToPrefs();
+  }
+
+  /// H3.
+  void setToldAnyone(String value) {
+    state = state.copyWith(toldAnyone: value);
+    _saveToPrefs();
+  }
+
+  /// H4.
+  void setNamesKnown(String value) {
+    state = state.copyWith(namesKnown: value);
+    _saveToPrefs();
+  }
+
+  /// H5. Adds [key] to the end of the ordered selection, or removes it.
+  ///
+  /// **A fourth selection is refused, not swapped in.** Silently dropping the
+  /// oldest choice would take away something the user deliberately chose — the
+  /// cap has to read as "you already have three", never as musical chairs. The
+  /// screen dims the unselected chips at the cap so the refusal is visible
+  /// before the tap rather than after it.
+  ///
+  /// Append-to-end is what makes the selection ORDERED: the blend weights by it,
+  /// so re-selecting a chip the user removed puts it last, which is the honest
+  /// reading of what they just did.
+  void toggleHelpWith(String key) {
+    final current = state.helpWith;
+    final List<String> next;
+    if (current.contains(key)) {
+      next = [
+        for (final k in current)
+          if (k != key) k,
+      ];
+    } else {
+      if (current.length >= helpChipsMaxSelections) return;
+      next = [...current, key];
+    }
+    state = state.copyWith(helpWith: List<String>.unmodifiable(next));
+    _saveToPrefs();
+  }
+
+  /// H6.
+  void setDailyTime(String value) {
+    state = state.copyWith(dailyTime: value);
+    _saveToPrefs();
+  }
+
+  /// H7. Empty (or whitespace-only) clears the note — skipping the screen and
+  /// deleting what you wrote are the same intent, and both must be able to
+  /// erase an earlier answer.
+  ///
+  /// Capped in GRAPHEMES so emoji and Arabic ligatures are never split
+  /// mid-code-unit, the same way `setDuaTopicsOther` does it.
+  void setIntakeNote(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      state = state.copyWith(clearIntakeNote: true);
+    } else {
+      final chars = trimmed.characters;
+      state = state.copyWith(
+        intakeNote: chars.length > intakeNoteMaxGraphemes
+            ? chars.take(intakeNoteMaxGraphemes).toString()
+            : trimmed,
+      );
+    }
     _saveToPrefs();
   }
 
