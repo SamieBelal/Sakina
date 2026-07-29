@@ -152,7 +152,7 @@ The kindling beat's **slot** is right (it fills the reveal's loading phase and i
 - **The widget carousel moves** to after the plan screen (Duolingo's position, after the value summary).
 - **Promote the sign chip** out of last place on the hook screen.
 
-### Proposed page order (19 pages)
+### Proposed page order (18 pages)
 
 `0` Hook · `1` Reveal · `2` H1 duration · `3` H2 heaviest · `4` H3 told anyone · `5` H4 Names known · `6` H5 what would help · `7` H6 time · `8` H7 free text · `9` **Plan (payoff)** · `10` Rating gate · `11` Notifications · `12` Widget · `13` Where did you find us · `14` Name · `15` Save progress · `16` Email · `17` Password · `18` Paywall
 
@@ -192,7 +192,7 @@ New constants (stubs here; **W5 completes them and must also add `flag_reel_firs
 - **No lapse presupposition**: a copy test asserting the strings "again" and "slip" do not appear in the intake option set — cheap, and it pins a decision that is otherwise one innocent copy edit from reverting.
 - **Reduce-motion** on the comfort opening and the chip stagger.
 - **RTL isolation** on the 2:286 beat — Arabic and Latin in separate widgets.
-- Index migration for the six index-pinned files (`onboardingReelLastPageIndex` 13 → 18, `onboardingReelTotalSegments` 10 → 14). Wave G takes it 12 → 13 first; H takes it 13 → 18, so the two waves must not be applied out of order.
+- Index migration for the six index-pinned files (`onboardingReelLastPageIndex` 13 → 17, `onboardingReelTotalSegments` 10 → 14).
 - The kill-switch flows are **untouched**: the trimmed/legacy page lists, their reminder-time screen and their aspiration screen must be byte-identical after this wave.
 
 ---
