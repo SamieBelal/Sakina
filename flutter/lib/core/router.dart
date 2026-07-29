@@ -16,7 +16,7 @@ import '../features/streaks/screens/companion_screen.dart';
 import '../features/streaks/screens/wardrobe_screen.dart';
 import '../features/discovery/screens/discovery_quiz_screen.dart';
 import '../features/onboarding/onboarding_stage.dart';
-import '../features/onboarding/screens/hook_screen.dart';
+import '../features/onboarding/screens/comfort_opening_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
 import '../services/analytics_events.dart';
@@ -212,11 +212,16 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         ),
       ),
 
-      // Welcome / auth landing (full screen, no bottom nav)
+      // Welcome / auth landing (full screen, no bottom nav).
+      //
+      // The comfort opening REPLACED the old hook/welcome screen on 2026-07-29
+      // (Wave H §6). `push` is load-bearing here beyond the back stack: its
+      // future completes when the flow is popped back, which is what restores
+      // the screen's canvas after its departure dissolve.
       GoRoute(
         path: '/welcome',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => HookScreen(
+        builder: (context, state) => ComfortOpeningScreen(
           onNext: () => GoRouter.of(context).push('/onboarding'),
           onSignIn: () => GoRouter.of(context).push('/signin'),
         ),

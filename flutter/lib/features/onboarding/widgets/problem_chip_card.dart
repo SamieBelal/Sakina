@@ -21,9 +21,13 @@ import '../content/problem_chips.dart';
 /// user picked instead of holding seven live-looking choices behind the
 /// transition.
 ///
-/// The sign row keeps its typography-only distinction (lighter weight, quieter
-/// ink) — a tinted surface was rejected on 2026-07-25 because it reads as
-/// pre-selected, and the selected state is exactly that emerald tint.
+/// The sign row keeps its typography distinction (lighter weight, quieter ink)
+/// — a tinted surface was rejected on 2026-07-25 because it reads as
+/// pre-selected, and the selected state is exactly that emerald tint. Since
+/// 2026-07-29 the typography is no longer carrying the distinction alone: the
+/// screen draws a break above the row (air + one hairline, see
+/// `HookProblemScreen._signSeparator`), which is why the row above it is asked
+/// for `showRule: false`.
 class ProblemChipCard extends StatelessWidget {
   const ProblemChipCard({
     required this.chip,
@@ -42,7 +46,13 @@ class ProblemChipCard extends StatelessWidget {
   /// Apple's 44pt tap floor.
   static const double compactMinHeight = 56;
 
-  static const double _unselectedFade = 0.35;
+  /// How far an unchosen row recedes. Public because the list's own ornaments
+  /// (the sign-row separator) have to recede by exactly the same amount.
+  static const double unselectedFade = 0.35;
+
+  /// The list's hairline. One definition, so the rule between rows and the rule
+  /// that breaks out the sign row cannot drift apart.
+  static final Color ruleColor = AppColors.borderLight.withValues(alpha: 0.55);
 
   /// Minimum row height; the row still grows for Dynamic Type.
   final double rowHeight;
@@ -83,7 +93,7 @@ class ProblemChipCard extends StatelessWidget {
           // withdraw gently.
           duration: AppMotion.recede,
           curve: AppMotion.enter,
-          opacity: dimmed ? _unselectedFade : 1,
+          opacity: dimmed ? unselectedFade : 1,
           child: AnimatedContainer(
             // Fast on purpose (~140ms). A slow tint on an emotionally loaded
             // answer reads as the app deliberating over what was just admitted.
@@ -102,9 +112,7 @@ class ProblemChipCard extends StatelessWidget {
                 bottom: BorderSide(
                   // The rule belongs to the list, not the row: it disappears
                   // under the chosen line and under the last row.
-                  color: (showRule && !selected)
-                      ? AppColors.borderLight.withValues(alpha: 0.55)
-                      : Colors.transparent,
+                  color: (showRule && !selected) ? ruleColor : Colors.transparent,
                 ),
               ),
             ),

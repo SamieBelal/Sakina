@@ -45,6 +45,9 @@ class HookProblemScreen extends StatefulWidget {
   /// Omitted (no affordance rendered) when this is the flow's first page.
   final VoidCallback? onBack;
 
+  /// The break above the sign row — see [_signSeparator].
+  static const Key signSeparatorKey = ValueKey('hook-sign-separator');
+
   /// Pre-selects a card — how Wave E's `sakina://feel/<emotion>` link lands.
   ///
   /// Arrives LATE in practice: the drain that produces it is async and resolves
@@ -267,12 +270,27 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
       final chip = problemChips[i];
       final isSelected = _selectedKey == chip.chipKey;
       final delay = AppMotion.listStart + AppMotion.stagger * i;
+      // The sign row gets a break above it — air plus one hairline — so it
+      // reads as "or, if none of these fit" rather than as a greyer seventh
+      // option. The row it follows drops its own rule so the break is a single
+      // line with air on both sides, not two lines 8px apart.
+      final nextIsSign =
+          i + 1 < problemChips.length && problemChips[i + 1].isSign;
+      if (chip.isSign && i > 0) {
+        cards.add(
+          _signSeparator(
+            compact: compact,
+            delay: delay,
+            dimmed: anySelected && !isSelected,
+          ),
+        );
+      }
       cards.add(
         ProblemChipCard(
           chip: chip,
           selected: isSelected,
           dimmed: anySelected && !isSelected,
-          showRule: i < problemChips.length - 1,
+          showRule: i < problemChips.length - 1 && !nextIsSign,
           rowHeight: compact
               ? ProblemChipCard.compactMinHeight
               : ProblemChipCard.minHeight,
@@ -293,5 +311,45 @@ class _HookProblemScreenState extends State<HookProblemScreen> {
       );
     }
     return cards;
+  }
+
+  /// Separation, not promotion.
+  ///
+  /// Reading the six problem chips does real diagnostic work and one of them
+  /// usually lands, so the escape hatch stays last (spec 🟡, revised
+  /// 2026-07-29). But distinguishing it by typography alone made it recede
+  /// exactly when it should read as an obvious way out. Air plus a hairline
+  /// gives it the weight of a section break without promoting it.
+  ///
+  /// Deliberately NOT a tinted surface — rejected 2026-07-25, because a tint
+  /// reads as pre-selected and the selected state IS an emerald tint.
+  ///
+  /// It fades with the row it introduces and recedes with the rest of the list
+  /// once an answer is in flight; a rule left at full strength beside dimmed
+  /// rows is the one thing left glowing on a screen that is meant to resolve to
+  /// a single line. No travel: a hairline sliding 10px is noise, not motion.
+  Widget _signSeparator({
+    required bool compact,
+    required Duration delay,
+    required bool dimmed,
+  }) {
+    final gap = compact ? AppSpacing.sm : AppSpacing.md;
+    return AnimatedOpacity(
+      duration: AppMotion.recede,
+      curve: AppMotion.enter,
+      opacity: dimmed ? ProblemChipCard.unselectedFade : 1,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: gap),
+        child: SizedBox(
+          key: HookProblemScreen.signSeparatorKey,
+          height: 1,
+          // The same hairline the rows use, so the break belongs to the list.
+          child: ColoredBox(color: ProblemChipCard.ruleColor),
+        ),
+      ),
+    ).animate(delay: delay).fadeIn(
+          duration: AppMotion.item,
+          curve: AppMotion.enter,
+        );
   }
 }

@@ -159,60 +159,74 @@ class _ComfortOpeningScreenState extends State<ComfortOpeningScreen> {
             AppSpacing.pagePadding,
             compact ? AppSpacing.md : AppSpacing.lg,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _layer(
-                _wordmark(),
-                delay: Duration.zero,
-                duration: AppMotion.layer,
-                rise: AppMotion.riseMedium,
+          // The niche takes the slack on a roomy screen; when it runs out —
+          // a short device at a large Dynamic Type setting — the page scrolls
+          // rather than overflowing, so no line of the ayah is ever lost.
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(child: _body(compact: compact, gap: gap)),
               ),
-              SizedBox(height: gap),
-              // The arch takes whatever the fixed rows leave, so the niche is
-              // tall on a large phone and merely shorter on an SE — never
-              // squashed into a tunnel mouth.
-              Expanded(
-                child: _layer(
-                  _ayahInArch(compact: compact),
-                  delay: AppMotion.beat,
-                  duration: AppMotion.entrance,
-                  rise: AppMotion.riseLarge,
-                ),
-              ),
-              SizedBox(height: gap),
-              _layer(
-                Text(
-                  ComfortOpeningScreen.acknowledgement,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyLarge.copyWith(
-                    fontSize: 19,
-                    height: 1.45,
-                    color: AppColors.sacredInk,
-                  ),
-                ),
-                delay: AppMotion.beat * 3,
-                duration: AppMotion.entrance,
-                rise: AppMotion.riseMedium,
-              ),
-              SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xl),
-              _layer(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _beginCta(),
-                    SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
-                    _signInLink(),
-                  ],
-                ),
-                delay: AppMotion.beat * 4,
-                duration: AppMotion.layer,
-                rise: AppMotion.riseSmall,
-              ),
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _body({required bool compact, required double gap}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _layer(
+          _wordmark(),
+          delay: Duration.zero,
+          duration: AppMotion.layer,
+          rise: AppMotion.riseMedium,
+        ),
+        SizedBox(height: gap),
+        // The arch takes whatever the fixed rows leave, so the niche is tall on
+        // a large phone and merely shorter on an SE — never squashed into a
+        // tunnel mouth.
+        Expanded(
+          child: _layer(
+            _ayahInArch(compact: compact),
+            delay: AppMotion.beat,
+            duration: AppMotion.entrance,
+            rise: AppMotion.riseLarge,
+          ),
+        ),
+        SizedBox(height: gap),
+        _layer(
+          Text(
+            ComfortOpeningScreen.acknowledgement,
+            textAlign: TextAlign.center,
+            style: AppTypography.bodyLarge.copyWith(
+              fontSize: 19,
+              height: 1.45,
+              color: AppColors.sacredInk,
+            ),
+          ),
+          delay: AppMotion.beat * 3,
+          duration: AppMotion.entrance,
+          rise: AppMotion.riseMedium,
+        ),
+        SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xl),
+        _layer(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _beginCta(),
+              SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
+              _signInLink(),
+            ],
+          ),
+          delay: AppMotion.beat * 4,
+          duration: AppMotion.layer,
+          rise: AppMotion.riseSmall,
+        ),
+      ],
     );
   }
 

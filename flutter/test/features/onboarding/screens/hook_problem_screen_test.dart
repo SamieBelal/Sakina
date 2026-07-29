@@ -20,11 +20,24 @@ import '_test_utils.dart';
 /// list overflows a 390×844 viewport. That is why the free-text affordance is
 /// scrolled into view before it is tapped — it is not below the fold in
 /// production.
+///
+/// It has to be *scrolled to* rather than merely `ensureVisible`d: once the
+/// sign-row break (2026-07-29) pushed the block past the `ListView`'s cache
+/// extent it was no longer built at all, and `ensureVisible` needs an element.
 void main() {
+  /// Brings the demoted free-text link into the built range.
+  Future<void> revealFreeText(WidgetTester tester) async {
+    await tester.scrollUntilVisible(
+      find.text(HookFreeTextBlock.promptLabel),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+  }
+
   /// The demoted free-text link sits under the cards; reveal it before tapping.
   Future<void> openFreeText(WidgetTester tester) async {
-    await tester.ensureVisible(find.text(HookFreeTextBlock.promptLabel));
-    await tester.pumpAndSettle();
+    await revealFreeText(tester);
     await tester.tap(find.text(HookFreeTextBlock.promptLabel));
     await tester.pumpAndSettle();
   }
@@ -193,10 +206,14 @@ void main() {
   testWidgets('expanding free text never hides the cards', (tester) async {
     await pumpScreen(tester);
 
-    expect(find.text(HookFreeTextBlock.promptLabel), findsOneWidget);
     await openFreeText(tester);
-
+    expect(find.text(HookFreeTextBlock.promptLabel), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
+
+    // Back to the top of the list: the cards must still be there — expanding
+    // the field demotes them, it does not replace them.
+    await tester.drag(find.byType(ListView), const Offset(0, 2000));
+    await tester.pumpAndSettle();
     expect(find.byType(ProblemChipCard), findsNWidgets(7));
     for (final chip in problemChips) {
       expect(find.text(chip.label), findsOneWidget, reason: chip.chipKey);
@@ -269,6 +286,9 @@ void main() {
         reason: chip.chipKey,
       );
     }
+    // Scrolled last: reaching the block unbuilds the first cards, and the loop
+    // above needs them.
+    await revealFreeText(tester);
     expect(
       find.bySemanticsLabel(HookFreeTextBlock.promptLabel),
       findsOneWidget,
