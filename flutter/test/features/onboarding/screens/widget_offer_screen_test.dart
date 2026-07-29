@@ -43,19 +43,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   }
 
-  testWidgets('offers all three widgets, lantern first', (tester) async {
+  testWidgets('offers all three widgets, in gallery order', (tester) async {
     await pump(tester);
 
     expect(onboardingWidgetOptions, hasLength(3));
-    expect(onboardingWidgetOptions.first.kind, 'lantern',
-        reason: 'the carousel continues the beat where the lamp was lit');
+    // Founder decision 2026-07-29: match the iOS gallery exactly, so the
+    // how-to sheet's "search for Sakina, then choose X" reads against the same
+    // list the user is looking at.
     expect(onboardingWidgetOptions.map((o) => o.kind),
-        ['lantern', 'daily_name', 'dua_times']);
+        ['dua_times', 'daily_name', 'lantern']);
 
     // Only the focused card is built by a PageView at rest, so the pin is on
     // the data plus the first card actually rendering.
     expect(find.byType(WidgetPreviewCard), findsWidgets);
-    expect(find.text('Your Lantern'), findsOneWidget);
+    expect(find.text('Duʿā Times'), findsOneWidget);
   });
 
   testWidgets('the gallery names match the shipped widget bundle exactly',
@@ -66,7 +67,7 @@ void main() {
     // on either side breaks the instruction silently.
     expect(
       onboardingWidgetOptions.map((o) => o.galleryName),
-      ['Your Lantern', "A Name for What You're Carrying", 'Duʿā Times'],
+      ['Duʿā Times', "A Name for What You're Carrying", 'Your Lantern'],
     );
   });
 

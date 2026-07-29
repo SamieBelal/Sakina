@@ -6,12 +6,16 @@
 /// for them. A rename on either side breaks the instruction silently, which is
 /// why `onboarding_widget_carousel_test.dart` pins the strings.
 ///
-/// **Order deliberately differs from the gallery.** The bundle declares
-/// Duʿā Times → Name → Lantern (product priority). Onboarding leads with the
-/// lantern because the user has just watched it light, and the carousel is that
-/// moment's continuation. Reordering the bundle itself was considered and
-/// rejected: it would change the gallery for every existing user (open item 3
-/// in the W2 plan).
+/// **Order MATCHES the gallery exactly** (founder decision 2026-07-29):
+/// Duʿā Times → A Name for What You're Carrying → Your Lantern.
+///
+/// An earlier draft led with the lantern, on the reasoning that the user had
+/// just watched it light. That was rejected in favour of the simpler and more
+/// honest thing: the carousel is a preview of a list the user is about to go
+/// find in the iOS widget gallery, and a preview whose order differs from the
+/// real thing makes the how-to sheet harder to follow, not easier. Reordering
+/// the BUNDLE was never on the table — it would change the gallery for every
+/// existing user.
 library;
 
 /// One card in the onboarding widget carousel.
@@ -35,9 +39,9 @@ class OnboardingWidgetOption {
 
 const List<OnboardingWidgetOption> onboardingWidgetOptions = [
   OnboardingWidgetOption(
-    kind: 'lantern',
-    galleryName: 'Your Lantern',
-    line: 'Your streak, lit.',
+    kind: 'dua_times',
+    galleryName: 'Duʿā Times',
+    line: 'The next window for duʿā.',
   ),
   OnboardingWidgetOption(
     kind: 'daily_name',
@@ -45,8 +49,8 @@ const List<OnboardingWidgetOption> onboardingWidgetOptions = [
     line: "Today's Name, on your home screen.",
   ),
   OnboardingWidgetOption(
-    kind: 'dua_times',
-    galleryName: 'Duʿā Times',
-    line: 'The next window for duʿā.',
+    kind: 'lantern',
+    galleryName: 'Your Lantern',
+    line: 'Your streak, lit.',
   ),
 ];
