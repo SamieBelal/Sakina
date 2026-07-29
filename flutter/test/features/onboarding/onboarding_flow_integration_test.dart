@@ -159,13 +159,18 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('the progress bar is hidden on the hook, reveal, plan and gate',
+  testWidgets('the progress bar is hidden on the hook, reveal and gate',
       (tester) async {
     final children = await pumpReel(tester);
-    // Hook and reveal are bare full-screen surfaces; the plan is a payoff and
-    // the rating gate is a gate, both with their own identity; the paywall is
-    // the paywall. The other fourteen fill segments 0..13 so the bar COMPLETES
-    // on the password screen.
+    // Hook and reveal are bare full-screen surfaces; the rating gate is a gate
+    // with its own identity; the paywall is the paywall. The other fifteen fill
+    // segments 0..14 so the bar COMPLETES on the password screen.
+    //
+    // The queue plan (index 9) joined the run on 2026-07-29 at
+    // `onboardingReelPlanSegment`, which is why everything from notifications
+    // on is one higher than it was. It is asserted through the constant rather
+    // than a literal because the screen reads that same constant internally —
+    // a literal here would let the two drift and still pass.
     expect((children[2] as CarryingDurationScreen).progressSegment, 0);
     expect((children[3] as HeaviestTimeScreen).progressSegment, 1);
     expect((children[4] as ToldAnyoneScreen).progressSegment, 2);
@@ -173,14 +178,16 @@ void main() {
     expect((children[6] as HelpChipsScreen).progressSegment, 4);
     expect((children[7] as DailyTimeScreen).progressSegment, 5);
     expect((children[8] as IntakeNoteScreen).progressSegment, 6);
-    expect((children[11] as NotificationScreen).progressSegment, 7);
-    expect((children[12] as WidgetOfferScreen).progressSegment, 8);
-    expect((children[13] as SourceQuestionScreen).progressSegment, 9);
-    expect((children[14] as NameInputScreen).progressSegment, 10);
-    expect((children[15] as SaveProgressScreen).progressSegment, 11);
-    expect((children[16] as SignUpEmailScreen).progressSegment, 12);
-    expect((children[17] as SignUpPasswordScreen).progressSegment, 13);
-    expect(onboardingReelTotalSegments, 14);
+    expect(children[9], isA<QueuePlanScreen>());
+    expect(onboardingReelPlanSegment, 7);
+    expect((children[11] as NotificationScreen).progressSegment, 8);
+    expect((children[12] as WidgetOfferScreen).progressSegment, 9);
+    expect((children[13] as SourceQuestionScreen).progressSegment, 10);
+    expect((children[14] as NameInputScreen).progressSegment, 11);
+    expect((children[15] as SaveProgressScreen).progressSegment, 12);
+    expect((children[16] as SignUpEmailScreen).progressSegment, 13);
+    expect((children[17] as SignUpPasswordScreen).progressSegment, 14);
+    expect(onboardingReelTotalSegments, 15);
     expect(
       (children[17] as SignUpPasswordScreen).progressSegment,
       onboardingReelTotalSegments - 1,

@@ -138,7 +138,10 @@ void main() {
     );
     expect(track.totalStamps, 8);
     expect(track.earnedStamps, 2);
-    expect(find.text('2 of 8'), findsOneWidget);
+    // "steps", not a bare "2 of 8" (founder, 2026-07-29): the count sits
+    // directly under H4's projection ("…you'll know 40"), and without a unit
+    // the two numbers read as the same scale contradicting each other.
+    expect(find.text('2 of 8 steps'), findsOneWidget);
   });
 
   testWidgets('the rendered queue is the queue the seed will write',

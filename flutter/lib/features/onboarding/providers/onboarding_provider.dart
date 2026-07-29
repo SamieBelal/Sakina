@@ -144,16 +144,28 @@ const int onboardingReelPostSignupPageIndex = 18;
 
 /// Segments in the reel flow's progress bar.
 ///
-/// Fourteen, not nineteen: the bar is hidden on the hook (spec ③ — a step
+/// Fifteen, not nineteen: the bar is hidden on the hook (spec ③ — a step
 /// counter on screen one signals a long form), on the reveal (full-screen
-/// sacred canvas), on the queue plan and the rating gate (payoffs and gates,
-/// not steps), and on the paywall. The fourteen bar-visible pages fill segments
-/// 0-13, so the bar COMPLETES on the password screen rather than vanishing
-/// part-full.
+/// sacred canvas), on the rating gate (a gate, not a step), and on the paywall.
+/// The fifteen bar-visible pages fill segments 0-14, so the bar COMPLETES on the
+/// password screen rather than vanishing part-full.
 ///
 /// Wave G's widget offer and Wave H's four new questions DO carry segments:
 /// they are steps and asks, not payoffs.
-const int onboardingReelTotalSegments = 14;
+///
+/// **The queue plan joined them on 2026-07-29** (founder), which is what took
+/// this from fourteen to fifteen. It had been excluded on the reasoning that a
+/// payoff is not a step — but the bar vanishing for one page mid-flow, taking
+/// the back circle's chrome with it, read as a broken screen rather than as a
+/// deliberate pause. See [onboardingReelPlanSegment].
+const int onboardingReelTotalSegments = 15;
+
+/// The queue plan screen's segment (One Ship W2-D2).
+///
+/// Named rather than inlined because it sits in the middle of the run: every
+/// segment after it is this + n, so a future page inserted before the plan has
+/// one number to change here and a compile error everywhere it matters.
+const int onboardingReelPlanSegment = 7;
 
 /// Which of the three onboarding page orders is active.
 ///

@@ -16,6 +16,7 @@ import '../content/carrying_durations.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/journey_stamp_track.dart';
 import '../widgets/onboarding_continue_button.dart';
+import '../widgets/onboarding_page_wrapper.dart';
 import '../widgets/queue_name_row.dart';
 import '../widgets/queue_plan_header.dart';
 
@@ -32,6 +33,19 @@ import '../widgets/queue_plan_header.dart';
 /// this one renders the pair it is given and veils the rest. The two are pinned
 /// equal by `queue_plan_screen_test.dart`; if a later wave makes the notifier's
 /// version reachable synchronously, delete this copy and call it.
+///
+/// **Where the other intake answers went (founder, 2026-07-29).** This screen
+/// used to carry a consequence line each for H2 (heaviest hour), H3 (told
+/// anyone) and H6 (daily time), on Wave H's rule that an answer which never
+/// surfaces makes the question extractive. Read on a device, five stacked grey
+/// paragraphs buried the one thing the screen exists to show — the queue — so
+/// they were cut to the single H1 subline plus H4's projection.
+///
+/// The rule is not repealed, it is unpaid: **H2, H3 and H6 now surface nowhere
+/// in the product.** All three are persisted, and W3 already plans to read
+/// `heaviestTime` and `dailyTime` as AI context (see the note at
+/// `onboarding_provider.dart:318`) — that is where the debt should be settled,
+/// not by putting the paragraphs back.
 class QueuePlanScreen extends ConsumerWidget {
   const QueuePlanScreen({
     required this.onNext,
@@ -117,116 +131,112 @@ class QueuePlanScreen extends ConsumerWidget {
     final earnedStamps = hasPair ? 2 : 1;
     final projection = namesKnownProjectionLine(state.namesKnown);
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding,
-            vertical: AppSpacing.lg,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header and track scroll WITH the rows. Pinned above a scrolling
-              // list they cost fixed vertical space that grows with the text
-              // scale, and at the accessibility sizes (2x-3x) that left the
-              // rows nothing to render into. Only the continue button stays
-              // pinned — an action the user must always be able to reach.
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      QueuePlanHeader(
-                        headline: headlineLabel,
-                        // The carrying-duration answer's visible consequence
-                        // (§G4).
-                        pacingLine: carryingPacingLine(state.carryingDuration),
-                        onBack: onBack,
-                      ),
-                      // H3's consequence. Deliberately quiet and high: it is a
-                      // reassurance, not a claim, and it answers the question
-                      // the user was actually asked ("have you told anyone?")
-                      // before the screen starts promising things.
-                      const SizedBox(height: AppSpacing.sm),
-                      _ConsequenceLine(toldAnyonePlanLine(state.toldAnyone)),
-                      const SizedBox(height: AppSpacing.lg),
-                      // The lantern heads the track it is already bound to
-                      // (Wave G): the stamps ARE the streak, and the streak is
-                      // what drives its brightness. `endowedDim` is the honest
-                      // state here — arrived, nothing acted on yet — and it is
-                      // the same state the home screen will show them in a
-                      // moment, so the hand-off has no discontinuity.
-                      // ambient:false: cream surface.
-                      Center(
-                        child: Consumer(
-                          builder: (_, ref, __) => CompanionMedallion(
-                            state: const CompanionState(
-                              brightness: CompanionBrightness.endowedDim,
-                              protected: false,
-                            ),
-                            size: 104,
-                            ambient: false,
-                            skin: ref.watch(renderableLanternSkinProvider),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      // H4's consequence — THE PROJECTION, and the one claim on
-                      // this screen that earns emphasis. It is the Cal AI shape
-                      // ("in X time you will be Y") kept the safe side of the
-                      // reverence line by promising the USER's own knowledge
-                      // rather than anything about Allah's response. Null when
-                      // H4 was unanswered: a baseline we did not ask for would
-                      // be invented, and this screen's whole value is that
-                      // every line on it is verifiable tomorrow.
-                      if (projection != null) ...[
-                        Text(
-                          projection,
-                          textAlign: TextAlign.center,
-                          style: AppTypography.bodyLarge.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                            color: AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                      JourneyStampTrack(
-                        totalStamps: totalStamps,
-                        earnedStamps: earnedStamps,
-                        caption: _stampCaption(earnedStamps),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      // H6 then H2: how each day will feel, and when it will
-                      // arrive. Grouped because they answer one question
-                      // together, and kept quiet so the projection above stays
-                      // the thing the eye lands on.
-                      _ConsequenceLine(dailyTimePacingLine(state.dailyTime)),
-                      const SizedBox(height: AppSpacing.xs),
-                      _ConsequenceLine(heaviestPlanLine(state.heaviestTime)),
-                      const SizedBox(height: AppSpacing.lg),
-                      ..._rows(queue, hasPair),
-                    ],
+    return OnboardingPageWrapper(
+      // The plan is a STEP, not a standalone artifact (founder, 2026-07-29).
+      // It previously built its own bare `Scaffold`, so it was the only page in
+      // the flow with no progress bar, a naked chevron instead of the back
+      // circle, and its own padding — which is precisely why it "didn't look
+      // like the rest of them". Everything below is now the wrapper's.
+      progressSegment: onboardingReelPlanSegment,
+      totalSegments: onboardingReelTotalSegments,
+      showBack: onBack != null,
+      onBack: onBack ?? () {},
+      // Matches every question screen (`ReelContinueQuestion` /
+      // `ReelSingleTapQuestion` pass the same), so the headline lands on the
+      // identical baseline as the page before it. The wrapper's xxl default put
+      // this one 16pt lower than its neighbours.
+      contentTopPadding: AppSpacing.xl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header and track scroll WITH the rows. Pinned above a scrolling
+          // list they cost fixed vertical space that grows with the text
+          // scale, and at the accessibility sizes (2x-3x) that left the
+          // rows nothing to render into. Only the continue button stays
+          // pinned — an action the user must always be able to reach.
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  QueuePlanHeader(
+                    headline: headlineLabel,
+                    // The carrying-duration answer's visible consequence (§G4),
+                    // and the screen's ONLY subline (founder, 2026-07-29).
+                    pacingLine: carryingPacingLine(state.carryingDuration),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // The lantern heads the track it is already bound to
+                  // (Wave G): the stamps ARE the streak, and the streak is
+                  // what drives its brightness. `endowedDim` is the honest
+                  // state here — arrived, nothing acted on yet — and it is
+                  // the same state the home screen will show them in a
+                  // moment, so the hand-off has no discontinuity.
+                  // ambient:false: cream surface.
+                  Center(
+                    child: Consumer(
+                      builder: (_, ref, __) => CompanionMedallion(
+                        state: const CompanionState(
+                          brightness: CompanionBrightness.endowedDim,
+                          protected: false,
+                        ),
+                        // 88, not 104: the lamp sits between the headline and
+                        // the projection, and at 104 its halo crowded both.
+                        size: 88,
+                        ambient: false,
+                        skin: ref.watch(renderableLanternSkinProvider),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // H4's consequence — THE PROJECTION, and the one claim on
+                  // this screen that earns emphasis. It is the Cal AI shape
+                  // ("in X time you will be Y") kept the safe side of the
+                  // reverence line by promising the USER's own knowledge
+                  // rather than anything about Allah's response. Null when
+                  // H4 was unanswered: a baseline we did not ask for would
+                  // be invented, and this screen's whole value is that
+                  // every line on it is verifiable tomorrow.
+                  //
+                  // Left-aligned and stepped up to headlineSmall: it is the one
+                  // thing on the page that should out-weigh the queue, and
+                  // centring it was half of why the screen read as ransom-note
+                  // typography — headline left, this centred, the rows left.
+                  if (projection != null) ...[
+                    Text(
+                      projection,
+                      // headlineMedium (20/w600), between the 24/w700 headline
+                      // and 15pt body: emphasised enough to be the thing the
+                      // eye lands on, not so large it argues with the title.
+                      style: AppTypography.headlineMedium.copyWith(
+                        height: 1.35,
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  // No caption: "2 of 8 steps" sits directly under the bar and
+                  // says in four words what the old caption ("Two already:
+                  // arriving, and the Name you met.") spent a full line on.
+                  JourneyStampTrack(
+                    totalStamps: totalStamps,
+                    earnedStamps: earnedStamps,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ..._rows(queue, hasPair),
+                ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              OnboardingContinueButton(
-                label: AppStrings.continueButton,
-                onPressed: onNext,
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.md),
+          OnboardingContinueButton(
+            label: AppStrings.continueButton,
+            onPressed: onNext,
+          ),
+        ],
       ),
     );
   }
-
-  String _stampCaption(int earnedStamps) => earnedStamps >= 2
-      ? 'Two already: arriving, and the Name you met.'
-      : 'One already: arriving.';
 
   List<Widget> _rows(List<int> queue, bool hasPair) {
     final rows = <Widget>[];
@@ -257,29 +267,3 @@ class QueuePlanScreen extends ConsumerWidget {
   }
 }
 
-/// One quiet consequence line on the plan screen.
-///
-/// Wave H's governing constraint is that every intake answer surfaces
-/// somewhere — a question whose answer never appears is extractive, and a
-/// longer extractive form is worse than the three questions we had before. This
-/// is the shared treatment for the three supporting ones (H2, H3, H6); H4's
-/// projection is deliberately NOT one of these, because it is the screen's
-/// single emphasised claim.
-class _ConsequenceLine extends StatelessWidget {
-  const _ConsequenceLine(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Text(
-      text,
-      textAlign: TextAlign.center,
-      style: AppTypography.bodyMedium.copyWith(
-        height: 1.45,
-        color: AppColors.textSecondaryLight,
-      ),
-    );
-  }
-}

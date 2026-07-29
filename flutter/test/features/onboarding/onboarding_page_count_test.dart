@@ -59,13 +59,18 @@ void main() {
       expect(onboardingReelPostSignupPageIndex, 18);
     });
 
-    test('onboardingReelTotalSegments is 14 (19 pages minus the 5 bar-less)',
+    test('onboardingReelTotalSegments is 15 (19 pages minus the 4 bar-less)',
         () {
-      expect(onboardingReelTotalSegments, 14);
+      // Was 14 until 2026-07-29, when the founder put a bar on the queue plan.
+      // One page mid-flow with no bar — and a bare chevron where every other
+      // page has the back circle — read as a broken screen, not as a pause.
+      // Bar-less now: hook, reveal, rating gate, paywall.
+      expect(onboardingReelTotalSegments, 15);
+      expect(onboardingReelPlanSegment, 7);
       expect(
         onboardingReelTotalSegments,
-        (onboardingReelLastPageIndex + 1) - 5,
-        reason: 'bar hidden on hook, reveal, queue plan and paywall',
+        (onboardingReelLastPageIndex + 1) - 4,
+        reason: 'bar hidden on hook, reveal, rating gate and paywall',
       );
     });
 

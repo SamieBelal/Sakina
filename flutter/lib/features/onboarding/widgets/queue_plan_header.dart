@@ -4,46 +4,34 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 
-/// The queue plan screen's heading (One Ship W2-D2): the title, the pacing line
-/// the carrying-duration answer bought, and an optional back affordance.
+/// The queue plan screen's heading (One Ship W2-D2): the title, and the two
+/// quiet lines the carrying-duration and told-anyone answers bought.
 ///
-/// No progress bar — the plan screen is an artifact the user reads, not a step
-/// they are being counted through.
+/// **No back affordance and no bar of its own** (founder, 2026-07-29). Both used
+/// to be this widget's problem because the screen built a bare `Scaffold` —
+/// which is exactly why it was the one page in the flow with a naked chevron and
+/// no progress bar. The screen now wears `OnboardingPageWrapper` like every
+/// other page, so the chrome belongs to the wrapper and this widget is only the
+/// words.
+///
+/// [pacingLine] is the screen's ONLY subline (founder, 2026-07-29). A second
+/// one for H3 lived here briefly; two grey blocks under one headline read as
+/// two competing sublines, and the screen already had three more below.
 class QueuePlanHeader extends StatelessWidget {
   const QueuePlanHeader({
     required this.headline,
     required this.pacingLine,
-    this.onBack,
     super.key,
   });
 
   final String headline;
   final String pacingLine;
-  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (onBack != null)
-          Semantics(
-            button: true,
-            label: 'Back',
-            child: GestureDetector(
-              onTap: onBack,
-              behavior: HitTestBehavior.opaque,
-              child: const SizedBox(
-                width: 44,
-                height: 44,
-                child: Icon(
-                  Icons.arrow_back_ios_new,
-                  size: 18,
-                  color: AppColors.textPrimaryLight,
-                ),
-              ),
-            ),
-          ),
         Semantics(
           header: true,
           child: Text(

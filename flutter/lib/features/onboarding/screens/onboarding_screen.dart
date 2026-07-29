@@ -694,8 +694,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         progressSegment: 6,
         totalSegments: onboardingReelTotalSegments,
       ),
-      // 9 — THE PAYOFF: the real 7-Name queue + the 8-stamp journey track. No
-      // bar. Everything above earns this screen; everything below is an ask.
+      // 9 — THE PAYOFF: the real 7-Name queue + the 8-stamp journey track.
+      // Everything above earns this screen; everything below is an ask.
+      //
+      // It DOES carry a bar — segment `onboardingReelPlanSegment` (founder,
+      // 2026-07-29). The screen owns that internally rather than taking it as a
+      // parameter, so the one number cannot drift between here and there. It
+      // used to be excluded as "a payoff, not a step", which left a single page
+      // mid-flow with no bar and a bare chevron instead of the back circle.
       QueuePlanScreen(
         onNext: _next,
         onBack: _back,
@@ -711,7 +717,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       NotificationScreen(
         onNext: _next,
         onBack: _back,
-        progressSegment: 7,
+        progressSegment: 8,
         totalSegments: onboardingReelTotalSegments,
         lanternVariant: true,
       ),
@@ -721,7 +727,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       WidgetOfferScreen(
         onNext: _next,
         onBack: _back,
-        progressSegment: 8,
+        progressSegment: 9,
         totalSegments: onboardingReelTotalSegments,
       ),
       // 13 — Where did you find us? Moved off the emotional peak by Wave H: it
@@ -732,7 +738,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       SourceQuestionScreen(
         onNext: _next,
         onBack: _back,
-        progressSegment: 9,
+        progressSegment: 10,
         totalSegments: onboardingReelTotalSegments,
       ),
       // — Deferred signup (W2-E2): value first, account last. —
@@ -741,7 +747,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelNamePageIndex,
-        progressSegment: 10,
+        progressSegment: 11,
         totalSegments: onboardingReelTotalSegments,
       ),
       // 15 — Save progress (sign-up choice)
@@ -749,7 +755,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onNext: _next,
         onBack: _back,
         onSocialAuthComplete: _skipToReelPostSignup,
-        progressSegment: 11,
+        progressSegment: 12,
         totalSegments: onboardingReelTotalSegments,
       ),
       // 16 — Sign-up email
@@ -757,7 +763,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelEmailPageIndex,
-        progressSegment: 12,
+        progressSegment: 13,
         totalSegments: onboardingReelTotalSegments,
       ),
       // 17 — Sign-up password
@@ -765,7 +771,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onNext: _next,
         onBack: _back,
         pageIndex: onboardingReelPasswordPageIndex,
-        progressSegment: 13,
+        progressSegment: 14,
         totalSegments: onboardingReelTotalSegments,
       ),
       // 18 — Paywall. ALWAYS the soft onboarding-placement one for this flow
