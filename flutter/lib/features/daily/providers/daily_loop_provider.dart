@@ -649,12 +649,48 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           // A null result means another device drained the queue between the
           // advisory read and this call. Treat as exhausted and pull normally —
           // the user sees a reveal, not an error.
-          queueRow = await _nameQueue.unsealNext();
-          if (queueRow != null) {
+          final unsealed = await _nameQueue.unsealNext();
+
+          // The server advanced only if this position was still SEALED in the
+          // pre-call view. Inside its 20h floor `unseal_next_name` returns the
+          // most recently unsealed row instead of null, so a non-null result is
+          // not by itself evidence of an advance.
+          //
+          // The check looks redundant against the planner, which is supposed to
+          // keep us out of that branch. It isn't, because the two sides read
+          // different clocks: the planner mirrors the floor from the DEVICE
+          // clock (`debugDailyLoopClock`) against a possibly stale cache, while
+          // the RPC re-derives it server-side. They disagree on ordinary drift
+          // at the floor's edge, after a failed authoritative read leaves the
+          // mirror behind, and — the case that matters — when a user sets their
+          // device clock forward on purpose. There the server is correctly
+          // refusing, and an unguarded client rewards the attempt: `queueCard`
+          // resolves to the D0 Name, `deckForName` re-serves its deck, and
+          // `engageCard(floorTier: 2)` tiers up a card they already own, all
+          // reported as `queue_position: 1`.
+          //
+          // "Did the position move" is the exact question, and asking it of the
+          // pre-call view has no false positives. Asking instead whether the
+          // Name is already owned does: a queued Name's card can legitimately be
+          // pre-owned from a Store purchase or a prior tier-up pull, and §11 of
+          // the plan permits exactly that — "the unseal still happens and reads
+          // correctly". Dropping that row would deny the promise this guard
+          // exists to protect.
+          //
+          // `queueRows` is non-empty here by construction (an empty queue plans
+          // to QueueAbsent). A returned position missing from it fails the check
+          // and falls through to an ordinary pull, which is the safe direction.
+          final advanced = unsealed != null &&
+              queueRows.any(
+                  (row) => row.position == unsealed.position && row.isSealed);
+          if (advanced) {
             try {
-              await mergeCachedNameQueueRow(queueRow);
+              await mergeCachedNameQueueRow(unsealed);
             } catch (_) {}
           }
+          // Falling through to the ordinary pull is exactly what QueueHold
+          // produces, which is the honest outcome: no position moved today.
+          queueRow = advanced ? unsealed : null;
         case QueueResume(:final row):
           // The RPC already consumed this position on an earlier attempt today;
           // re-present it rather than asking again, which would skip the Name.
