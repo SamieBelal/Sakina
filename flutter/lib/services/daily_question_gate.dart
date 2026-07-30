@@ -109,11 +109,28 @@ Future<bool> dailyQuestionAutoEnteredToday() async {
     return marker ==
         await userLocalDayString(clock: debugDailyQuestionGateClock);
   } catch (e) {
-    // Fail OPEN: an unreadable marker must not lock the user out of the day's
-    // question — the worst case is one auto-entry they already declined.
+    // Fail CLOSED — report "already asked", so a marker we cannot read does not
+    // auto-enter. This is the library doc's rule applied to an error rather than
+    // to a clock disagreement: **when in doubt, do not ask.**
+    //
+    // It used to fail open, on the rationale that an unreadable marker "must not
+    // lock the user out of the day's question". That rationale was wrong about
+    // this marker: nothing here gates the muḥāsabah route — see the top of this
+    // file — so failing closed locks nobody out of anything. It costs one tap on
+    // the home CTA, which W4 Wave 5 moved above the fold. Against that, a
+    // persistent prefs fault under fail-open re-asks on EVERY open, which is the
+    // expensive, un-undoable side of the asymmetry and precisely what makes a
+    // "Not right now" feel like it was ignored.
+    //
+    // This also inverts a Wave 2 decision, and it inverts it because the ground
+    // moved rather than because the decision was careless. The fail-open was
+    // written while this marker was stamped from the DEFER handler, where
+    // failing open protected the escape hatch. Wave 4 moved the stamp to
+    // auto-entry, which flipped the meaning: failing open now protects the
+    // *asking*, and the escape hatch is not in the blast radius at all.
     debugPrint(
         '[daily_question_gate] could not read the auto-entry marker: $e');
-    return false;
+    return true;
   }
 }
 

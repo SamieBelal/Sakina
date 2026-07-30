@@ -133,10 +133,52 @@ void main() {
         reason: 'both cleared: the day is genuinely fresh again');
   });
 
-  test('an unreadable marker fails OPEN', () async {
-    // No marker at all is the same shape as a marker that could not be read:
-    // the user must never be locked out of the day's question by a prefs
-    // problem. The worst case is one auto-entry they already declined.
-    expect(await dailyQuestionAutoEnteredToday(), isFalse);
+  group('an unreadable marker fails CLOSED', () {
+    // This group replaces a test that claimed to cover the error path and did
+    // not. It asserted the NO-MARKER case (`marker == null → false`) and
+    // reasoned that "no marker at all is the same shape as a marker that could
+    // not be read" — a different line of code, and the substitution is why the
+    // catch block's behaviour went unexamined long enough to contradict the
+    // library doc three screens above it.
+    //
+    // The corruption below is real, not synthetic: SharedPreferences stores
+    // typed values, so a key holding a non-String makes `getString` throw a
+    // cast error. That is exactly what a schema change or a cross-version
+    // rollback produces on a real device.
+    String key() =>
+        'flutter.${dailyQuestionAutoEntryBaseKey}:u1';
+
+    test('the corruption actually throws — the probe is not a no-op', () async {
+      SharedPreferences.setMockInitialValues({key(): 12345});
+      final prefs = await SharedPreferences.getInstance();
+      expect(() => prefs.getString(dailyQuestionAutoEntryBaseKey + ':u1'),
+          throwsA(isA<TypeError>()),
+          reason: 'if this stops throwing, the tests below stop exercising the '
+              'catch branch and quietly become vacuous again');
+    });
+
+    test('reports already-asked, so the day-open does not fire', () async {
+      SharedPreferences.setMockInitialValues({key(): 12345});
+
+      expect(await dailyQuestionAutoEnteredToday(), isTrue,
+          reason: 'when in doubt, do not ask. Nothing here gates the muḥāsabah '
+              'route, so failing closed costs one tap on the home CTA — while '
+              'failing open under a persistent prefs fault re-asks on every '
+              'single open, which cannot be undone');
+      expect(await shouldAutoEnterDailyQuestion(), isFalse);
+    });
+
+    test('and the home CTA still re-enters the whole flow', () async {
+      // The cheap side of the asymmetry, stated as a test so nobody "fixes"
+      // the fail-closed by arguing the user is locked out. They are not: this
+      // marker only ever gated the app asking UNPROMPTED.
+      SharedPreferences.setMockInitialValues({key(): 12345});
+
+      expect(await dailyQuestionAutoEnteredToday(), isTrue);
+      // Nothing in this library is consulted by the muḥāsabah route itself —
+      // there is no gate function here that a CTA tap has to pass.
+      expect(await shouldAutoEnterDailyQuestion(), isFalse,
+          reason: 'auto-entry is suppressed, and that is the whole effect');
+    });
   });
 }
