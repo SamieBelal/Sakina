@@ -155,4 +155,67 @@ void main() {
       expect(await resolveUserTimeZone(), 'UTC');
     });
   });
+
+  group('the memo does not outlive the account', () {
+    /// A sign-out → sign-in-as-someone-else inside ONE process.
+    ///
+    /// `_readCachedZone` and `cacheUserTimeZone` both re-check `currentUserId`,
+    /// but the process-global memo used to short-circuit ahead of them, so the
+    /// second user inherited the first user's zone. Clearing prefs on sign-out
+    /// cannot fix that (a global is not prefs) and `debugResetUserLocalDay` has
+    /// no production caller — so the scoping has to live in the memo itself.
+    ///
+    /// It matters because every consumer of the resolved zone computes a DATE:
+    /// the discover cap key, `planQueueReveal(localUtcOffset:)`, and rule 2's
+    /// same-local-day comparison. Los Angeles to Karachi is 12 hours, so the
+    /// inherited zone is not an approximation — it is a different day.
+    test('a second user in the same process does not inherit the first zone',
+        () async {
+      // User 2's zone is seeded straight into their scoped prefs key rather than
+      // through `cacheUserTimeZone`. That is load-bearing: calling the setter for
+      // user 2 would overwrite `_memoZone` as a side effect, so the test would
+      // pass even with an unscoped memo. Reading it back through the ladder is
+      // the only way the memo is the thing under test.
+      SharedPreferences.setMockInitialValues({
+        '$userTimeZonePrefBaseKey:user-2': 'Asia/Karachi',
+      });
+
+      // User 1 resolves and memoises Los Angeles.
+      await cacheUserTimeZone('America/Los_Angeles');
+      expect(await resolveUserTimeZone(), 'America/Los_Angeles');
+
+      // Sign out, sign in as someone else. Deliberately NOT calling
+      // debugResetUserLocalDay() — production has no equivalent, so the memo
+      // must invalidate itself off the uid.
+      fakeSync.userId = 'user-2';
+      expect(await resolveUserTimeZone(), 'Asia/Karachi');
+
+      final resolved = await resolveUserLocalDay(
+        clock: () => DateTime.utc(2026, 8, 4, 3, 0),
+      );
+      expect(resolved.utcOffset, const Duration(hours: 5));
+      // 03:00Z is 08:00 Karachi — the same instant that is still 2026-08-03 in
+      // Los Angeles. Inheriting user 1's zone would put this a day earlier.
+      expect(resolved.dateString, '2026-08-04');
+    });
+
+    test('the same user keeps the memo across repeated calls', () async {
+      await cacheUserTimeZone('Asia/Karachi');
+      expect(await resolveUserTimeZone(), 'Asia/Karachi');
+      // Prefs go away but the memo still answers — the caching is the point.
+      SharedPreferences.setMockInitialValues({});
+      expect(await resolveUserTimeZone(), 'Asia/Karachi');
+    });
+
+    test('a signed-out session does not inherit the last signed-in zone',
+        () async {
+      await cacheUserTimeZone('America/Los_Angeles');
+      expect(await resolveUserTimeZone(), 'America/Los_Angeles');
+
+      fakeSync.userId = null;
+      // No uid, so no scoped prefs to read: the ladder must fall past the memo
+      // to the device zone, and to UTC when that is unavailable in tests.
+      expect(await resolveUserTimeZone(), 'UTC');
+    });
+  });
 }

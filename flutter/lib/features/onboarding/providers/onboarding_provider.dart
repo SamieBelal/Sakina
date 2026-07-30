@@ -1199,19 +1199,38 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       // user's daily-cap keys are user-local or UTC (W3 §7a). Left unprimed,
       // the cohort only goes live once `discoverName` performs its own
       // authoritative read — which is AFTER the CTA has already called
-      // `markUsed` under the UTC key. For a UTC-7 user revealing at 20:00 local
-      // on D1, that use is recorded against the UTC date, which is the SAME
-      // string as their local date the next morning: their entire D2 reads as
-      // already-used and the promised second Name is unreachable for a full
-      // day. Priming here closes that window before the first cap write.
+      // `markUsed` under the UTC key. When that first write lands on the far
+      // side of the UTC rollover from the user's local day, the counter is
+      // recorded against a date string that is still "today" locally tomorrow,
+      // so the next local day reads as already-used and the promised Name is
+      // unreachable until the UTC date turns over.
+      //
+      // Who that actually reaches (corrected after review): NOT a fresh free
+      // user, whose first four discovers take the warmup branch and never touch
+      // the daily counter at all (`GatingService.warmupBudget[discoverName]`
+      // is 5, and `canUse` does not consult `_applyDailyCap` while warmup
+      // remains). It reaches premium/fair-use users, whose every use increments,
+      // and anyone past their warmup — including the 1 → 0 transition, which
+      // increments deliberately. Priming here closes the window for all of them
+      // before the first cap write, and stays correct if the warmup budget ever
+      // changes.
       //
       // Best-effort by design: an authoritative read, so it is right for both
       // the fresh seed and the already-seeded re-entry, and a failure simply
       // leaves the mirror empty (UTC keys, today's behaviour) rather than
       // blocking completion. Empty results are not written — an empty mirror
       // and no mirror must stay indistinguishable to `hasCachedNameQueue`.
+      //
+      // Bounded: this is the one await in `completeOnboarding` whose result is
+      // purely advisory, and it sits AHEAD of `markOnboardingCompleted` /
+      // `markOnboarded`. A bare `catch` contains a throw but not a stall, and a
+      // hung request here would block the completion flags — the exact escape
+      // the seed block above forbids. The timeout throws `TimeoutException`
+      // into the same catch, degrading to the documented outcome (UTC keys
+      // until the first reveal) instead of stranding the user mid-completion.
       try {
-        final rows = await _nameQueue.queue();
+        final rows =
+            await _nameQueue.queue().timeout(const Duration(seconds: 5));
         if (rows.isNotEmpty) await writeCachedNameQueue(rows);
       } catch (e) {
         debugPrint('[Onboarding] queue mirror prime failed (cap keys stay '

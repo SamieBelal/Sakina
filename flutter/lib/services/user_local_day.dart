@@ -46,6 +46,21 @@ String? debugUserTimeZoneOverride;
 
 String? _memoZone;
 
+/// The user [_memoZone] was resolved for.
+///
+/// Without this the process-global memo outlives the account. Both
+/// [_readCachedZone] and [cacheUserTimeZone] re-check `currentUserId` around
+/// their async prefs hop, but the memo short-circuits ahead of them — so on a
+/// sign-out → sign-in-as-someone-else within one process (a routine QA flow, and
+/// the reason `auth_service_signout_clear_prefs_test.dart` exists) the second
+/// user inherited the first user's zone. Clearing prefs on sign-out does not
+/// help, because a process global is not prefs, and `debugResetUserLocalDay` has
+/// no production caller. Every consumer of the resolved zone — the daily-cap key,
+/// `planQueueReveal(localUtcOffset:)`, and rule 2's same-local-day comparison —
+/// would then compute in the wrong timezone, silently, and America/Los_Angeles to
+/// Asia/Karachi is far enough to be a whole day out.
+String? _memoUserId;
+
 /// The user's calendar day plus the offset that produced it.
 class UserLocalDay {
   const UserLocalDay({
@@ -93,18 +108,22 @@ Future<String> resolveUserTimeZone() async {
   final override = debugUserTimeZoneOverride;
   if (override != null && override.isNotEmpty) return override;
 
+  // Scoped to the account that produced it — see [_memoUserId].
+  final uid = supabaseSyncService.currentUserId;
   final memo = _memoZone;
-  if (memo != null) return memo;
+  if (memo != null && _memoUserId == uid) return memo;
 
   final cached = await _readCachedZone();
   if (cached != null && cached.isNotEmpty) {
     _memoZone = cached;
+    _memoUserId = uid;
     return cached;
   }
 
   final serverZone = await _readServerZone();
   if (serverZone != null && serverZone.isNotEmpty) {
     _memoZone = serverZone;
+    _memoUserId = uid;
     await cacheUserTimeZone(serverZone);
     return serverZone;
   }
@@ -112,6 +131,7 @@ Future<String> resolveUserTimeZone() async {
   final deviceZone = await _readDeviceZone();
   if (deviceZone != null && deviceZone.isNotEmpty) {
     _memoZone = deviceZone;
+    _memoUserId = uid;
     await cacheUserTimeZone(deviceZone);
     return deviceZone;
   }
@@ -130,11 +150,13 @@ Future<void> cacheUserTimeZone(String zoneName) async {
   if (supabaseSyncService.currentUserId != userId) return;
   await prefs.setString('$userTimeZonePrefBaseKey:$userId', zoneName);
   _memoZone = zoneName;
+  _memoUserId = userId;
 }
 
 @visibleForTesting
 void debugResetUserLocalDay() {
   _memoZone = null;
+  _memoUserId = null;
   debugUserLocalDayClock = null;
   debugUserTimeZoneOverride = null;
 }
