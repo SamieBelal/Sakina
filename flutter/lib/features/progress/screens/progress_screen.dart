@@ -46,6 +46,7 @@ import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
 import 'package:sakina/features/progress/widgets/daily_loop_cta_card.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
@@ -975,13 +976,22 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           // screen so the gacha animation plays. Mirrors the natural-flow
           // sequencing in this card.
           await notifier.discoverNameWithBypass();
-          if (sheetContext.mounted) sheetContext.push('/muhasabah');
+          // Tagged even though the reveal has already run and the question will
+          // not render: an untagged push reads as `day_open`, and the tag costs
+          // nothing when no event follows it.
+          if (sheetContext.mounted) {
+            sheetContext.push(
+                '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
+          }
         },
         firstBypassAvailable: firstBypassEligible,
         userDisplayName: displayName,
         onFirstBypassRequested: (_) async {
           await notifier.discoverNameWithFirstBypass();
-          if (sheetContext.mounted) sheetContext.push('/muhasabah');
+          if (sheetContext.mounted) {
+            sheetContext.push(
+                '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
+          }
         },
         // Premium users hitting the 30/day fair-use ceiling see the same sheet
         // as free users hitting their 1/day cap, but the upgrade CTA must be a
@@ -1031,7 +1041,13 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         completedName: state.checkinName,
         onStart: () {
           HapticFeedback.mediumImpact();
-          context.push('/muhasabah');
+          // `home_cta`, and this is the tap the defer design is measured on:
+          // `daily_question_shown{entry_source:'home_cta'}` following a
+          // `daily_question_skipped` is the same-day return rate, i.e. whether
+          // "Not right now" is a deferral within the product or a polite exit
+          // from it (plan §9).
+          context.push('/muhasabah?$questionEntryQueryParam='
+              '$questionEntryHomeCta');
         },
         onReroll: _rerollName,
       ),
@@ -1061,7 +1077,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       }
       await notifier.resetToday();
       if (!mounted) return;
-      context.push('/muhasabah');
+      // `home_cta`. A re-roll re-shows the question (resetToday wipes the day
+      // blob), so this is a second, entirely legitimate `daily_question_shown`
+      // in one local day — which is why the once-per-day debug guard is scoped
+      // to `day_open` and not to the event as a whole.
+      context.push('/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
       // markUsed deliberately does NOT fire here (W4 Wave 1). The gate is asked
       // at the tap, but the charge belongs to `discoverName()`, which only marks
       // once a Name has actually been engaged. Tapping through and backing out

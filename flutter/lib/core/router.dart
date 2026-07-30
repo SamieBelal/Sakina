@@ -20,6 +20,7 @@ import '../features/onboarding/screens/comfort_opening_screen.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/onboarding/screens/paywall_screen.dart';
 import '../services/analytics_events.dart';
+import '../services/daily_question_analytics.dart';
 import 'widget_deep_link.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
@@ -245,7 +246,14 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
       GoRoute(
         path: '/muhasabah',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const MuhasabahScreen(),
+        // `?entry=` carries how the user got here into `daily_question_shown`
+        // (W4 Wave 7). Untagged means the app brought them here on open, so it
+        // reads as `day_open` — every in-app push tags itself, and
+        // `daily_question_entry_source_test.dart` fails the build if a new one
+        // forgets.
+        builder: (context, state) => MuhasabahScreen(
+          entrySource: questionEntrySourceFor(state.uri.queryParameters),
+        ),
       ),
 
       // Companion stage (full screen, no bottom nav). Tapping the Home

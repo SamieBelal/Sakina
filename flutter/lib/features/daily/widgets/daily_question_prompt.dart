@@ -11,6 +11,7 @@ import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_header.dart';
 import 'package:sakina/features/daily/widgets/daily_question_submit_button.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 
 /// The daily loop's question surface (W4 Wave 2 — plan §4, spec M2/M4).
 ///
@@ -25,10 +26,22 @@ import 'package:sakina/features/onboarding/content/problem_chips.dart';
 ///
 /// **Pure UI.** It owns no provider, claims no reward and runs no AI: the host
 /// supplies [onSubmit] and [onDefer].
+///
+/// It does own three of the wave's five analytics events (W4 Wave 7), because
+/// it is the only thing that knows them: `daily_question_shown` is this widget
+/// mounting, and a skip and an abandon never reach the provider at all. The
+/// dwell clock behind both is this mount's lifetime. `daily_question_answered`
+/// is deliberately NOT here — the provider derives `problem_category` and
+/// `input_mode` at submit, and re-deriving them up here would fork the
+/// taxonomy.
+///
+/// **The text the user typed is never in any of them.** See the privacy note in
+/// `daily_question_analytics.dart`.
 class DailyQuestionPrompt extends StatefulWidget {
   const DailyQuestionPrompt({
     required this.onSubmit,
     required this.onDefer,
+    this.entrySource = questionEntryDayOpen,
     this.commitBeat = AppMotion.feedback,
     super.key,
   });
@@ -42,6 +55,11 @@ class DailyQuestionPrompt extends StatefulWidget {
   /// day. No reveal, no reward, nothing consumed.
   final VoidCallback onDefer;
 
+  /// How the user got here — `day_open` | `widget` | `home_cta`. Reported on
+  /// `daily_question_shown` and nothing else; the outcome events do not repeat
+  /// it because Mixpanel funnels carry the first step's properties forward.
+  final String entrySource;
+
   /// The pause between filling the field from a chip and committing, so the
   /// user sees their own words land. Zero in tests.
   final Duration commitBeat;
@@ -50,7 +68,8 @@ class DailyQuestionPrompt extends StatefulWidget {
   State<DailyQuestionPrompt> createState() => _DailyQuestionPromptState();
 }
 
-class _DailyQuestionPromptState extends State<DailyQuestionPrompt> {
+class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
+    with WidgetsBindingObserver {
   final TextEditingController _controller = TextEditingController();
 
   String? _selectedChipKey;
@@ -58,6 +77,18 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt> {
   /// One commit per mount. Covers the double-tap and the type-then-tap-a-chip
   /// race in one flag, and latches the defer, which navigates away.
   bool _committing = false;
+
+  /// Time on the question, for `dwell_ms_bucket`. A [Stopwatch] rather than two
+  /// `DateTime.now()` reads because it is monotonic — a device clock that moves
+  /// under us (NTP, a timezone change, the user setting the clock) would
+  /// otherwise produce negative or absurd dwells in exactly the bucket the
+  /// short-abandon signal lives in.
+  final Stopwatch _dwell = Stopwatch()..start();
+
+  /// Whether this mount has already reported an outcome. Covers all three exits
+  /// with one flag so a background-then-navigate-away cannot report two
+  /// abandons for one question.
+  bool _outcomeReported = false;
 
   static const EdgeInsets _padding = EdgeInsets.fromLTRB(
     AppSpacing.lg,
@@ -67,21 +98,69 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Mounting IS the show. The question is on the canvas from the first frame
+    // — there is no load, no gate and no reveal in front of it — so there is no
+    // later moment that would be more truthful.
+    DailyQuestionAnalytics.shown(widget.entrySource);
+  }
+
+  @override
   void dispose() {
+    // Navigated away, popped, or replaced by the reveal. The flag is what makes
+    // the last case silent: a submit reports its own outcome from the provider
+    // and then disposes this widget a frame later.
+    _reportAbandonedIfUndecided();
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Backgrounding without deciding is an abandon, and NOT covered by
+    // [dispose]: the route stays mounted, and if the OS reaps the app from the
+    // background dispose never runs at all. Leaving it to dispose would
+    // systematically undercount the most likely way someone bails on a question
+    // about their heart — swiping away and not coming back.
+    //
+    // The honest edge, recorded because it shows up in the numbers: a user who
+    // backgrounds here, returns, and then answers produces BOTH
+    // `daily_question_abandoned` and `daily_question_answered` for one
+    // `daily_question_shown`. `_outcomeReported` only latches this widget's own
+    // events; `daily_question_answered` is emitted by the provider and stays
+    // truthful whatever happened before it. So outcomes can sum to slightly
+    // more than shows — read the abandon rate as "left at least once", not as
+    // one minus the answer rate.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _reportAbandonedIfUndecided();
+    }
+  }
+
+  void _reportAbandonedIfUndecided() {
+    if (_outcomeReported || _committing) return;
+    _outcomeReported = true;
+    DailyQuestionAnalytics.abandoned(_dwell.elapsed);
   }
 
   void _submitTyped() {
     final text = _controller.text;
     if (_committing || text.trim().isEmpty) return;
     setState(() => _committing = true);
+    // The answer's own event is the provider's (it owns `problem_category` and
+    // `input_mode`); all this has to do is stop the abandon from firing when
+    // the reveal replaces this widget.
+    _outcomeReported = true;
     HapticFeedback.selectionClick();
     widget.onSubmit(text);
   }
 
   Future<void> _submitChip(ProblemChip chip) async {
     if (_committing) return;
+    _outcomeReported = true;
     setState(() {
       _committing = true;
       _selectedChipKey = chip.chipKey;
@@ -98,6 +177,13 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt> {
   void _defer() {
     if (_committing) return;
     setState(() => _committing = true);
+    // A DEFER, never folded into the abandon. The user told us the placement
+    // was wrong for this moment and the whole loop stays collectible from home;
+    // an abandon says the question itself was wrong. Merging the two would
+    // leave us unable to tell "people want this later" from "people don't want
+    // this", which is the entire readout for this design (plan §9).
+    _outcomeReported = true;
+    DailyQuestionAnalytics.skipped(_dwell.elapsed);
     widget.onDefer();
   }
 

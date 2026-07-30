@@ -5,9 +5,13 @@ import 'package:sakina/core/widget_deep_link.dart';
 
 void main() {
   group('parseWidgetDeepLink', () {
-    test('muhasabah link → /muhasabah', () {
+    test('muhasabah link → /muhasabah?entry=widget', () {
+      // The `entry` tag is not decoration: since W4 the widget tap lands the
+      // user *in the daily question*, and `daily_question_shown` has to keep the
+      // widget path separable from day-open (plan §9). An untagged link would be
+      // counted as the app having opened the question on its own.
       expect(parseWidgetDeepLink(Uri.parse('sakina://widget/muhasabah?homeWidget')),
-          '/muhasabah');
+          '/muhasabah?entry=widget');
     });
 
     test('build-dua link → /duas (need-based, no Name seed)', () {
@@ -55,7 +59,7 @@ void main() {
         postFrame: (cb) => cb(), // fire synchronously in the test
       );
       await handler.start();
-      expect(navigated, ['/muhasabah']);
+      expect(navigated, ['/muhasabah?entry=widget']);
     });
 
     test('warm tap navigates immediately', () async {

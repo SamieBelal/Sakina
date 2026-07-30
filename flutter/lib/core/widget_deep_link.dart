@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../services/analytics_events.dart';
+import '../services/daily_question_analytics.dart';
 import '../widgets/achievement_toast.dart' show rootNavigatorKey;
 
 /// URL scheme the iOS widget's `.widgetURL` uses. MUST be registered in the
@@ -22,7 +23,12 @@ const String kWidgetUrlScheme = 'sakina';
 String? parseWidgetDeepLink(Uri? uri) {
   switch (_widgetTarget(uri)) {
     case 'muhasabah':
-      return '/muhasabah';
+      // `?entry=widget` so `daily_question_shown` can separate the widget path
+      // from day-open (W4 Wave 7, plan §9). It has to be tagged HERE and not in
+      // the handler: a widget tap lands the user in the question itself since
+      // W4, and if it arrived untagged it would be counted as the app having
+      // opened the question on its own.
+      return '/muhasabah?$questionEntryQueryParam=$questionEntryWidget';
     case 'build-dua':
       return '/duas';
     default:

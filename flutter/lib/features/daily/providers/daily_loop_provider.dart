@@ -18,6 +18,9 @@ import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+// `charCountBucket` — bucketed answer length. The verbatim answer never leaves
+// the device (W4 Wave 7); see the privacy note in that file.
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -730,6 +733,28 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       checkinInputMode: chipKey == null ? inputModeTyped : inputModeChip,
     );
 
+    // The middle of the within-wave funnel (W4 Wave 7). Emitted HERE and not
+    // from the question surface because this is where `problem_category` and
+    // `input_mode` were just derived — deriving them a second time up in the
+    // widget would fork the taxonomy the moment either side changed.
+    //
+    // **`answer.length`, never `answer`.** The user's words about what is on
+    // their heart do not go to Mixpanel: not as a property, not truncated, not
+    // hashed, and not in an error payload. What leaves the device is a bucket
+    // and a chip category. `charCountBucket` takes an int precisely so that
+    // there is no overload of it a careless refactor could hand the String to.
+    //
+    // Best-effort, for the same reason the `check_in_completed` emit below is:
+    // a telemetry throw here would escape into `discoverName`'s caller and,
+    // through `state.error`, refund a bypass for a reveal that happened.
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.dailyQuestionAnswered, {
+        AnalyticsEvents.propProblemCategory: state.checkinProblemCategory,
+        AnalyticsEvents.propInputMode: state.checkinInputMode,
+        AnalyticsEvents.propCharCountBucket: charCountBucket(answer.length),
+      });
+    } catch (_) {}
+
     dailyRewardClaimFuture = _claimDailyRewardAtSubmit();
 
     await discoverName();
@@ -764,6 +789,28 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   Future<void> _claimDailyRewardAtSubmit() async {
     try {
       final claimResult = await claimDailyReward();
+      // W4 Wave 7. The whole reason this event exists is that the claim MOVED
+      // in this wave — from opening the app to answering the question — and
+      // "the reward is now granted at submit" should be readable in the data
+      // rather than inferred from the absence of something else.
+      //
+      // Gated on `!alreadyClaimed` so it counts grants, not calls: the claim is
+      // idempotent and server-authoritative, and an idempotent replay (a second
+      // submit, a cross-device race) hands back the same ladder state without
+      // granting anything. Counting those would inflate the claim rate exactly
+      // where we are trying to see whether the re-timing preserved it.
+      //
+      // Emitted BEFORE the `mounted` check on purpose: the grant happened on
+      // the server whether or not the user is still on this route, and dropping
+      // it for a user who navigated away would bias the metric toward the
+      // people who stayed.
+      if (!claimResult.alreadyClaimed) {
+        try {
+          onAnalyticsEvent?.call(AnalyticsEvents.dailyRewardClaimed, {
+            AnalyticsEvents.propTrigger: AnalyticsEvents.triggerAnswerSubmit,
+          });
+        } catch (_) {}
+      }
       // The claim outlives no state it owns, but it does outlive the notifier
       // if the user leaves the route mid-flight — and a write to a disposed
       // StateNotifier throws.
@@ -1109,12 +1156,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // into the error state below — the bypass wrapper reads `state.error` to
       // decide commit-vs-cancel, so an analytics failure here could otherwise
       // refund a bypass that actually succeeded.
+      //
+      // EXTENDED, NEVER FORKED (W4 Wave 7, plan §9 / spec §9). `path` stays
+      // `'discover'`. The original Phase-2 prescription wanted `'feeling'` now
+      // that the loop asks a question — that would break every historical D1/D7
+      // comparison built on this event, which is the whole retention spine. The
+      // question shows up as two new PROPERTIES instead, read straight off the
+      // state Wave 3 already derived at submit rather than re-derived here.
+      //
+      // Both are null on every path that did not go through the question — a
+      // re-roll (`resetToday` returns a blank state), a restored pre-W4 day
+      // blob, the dormant `answerCheckin`. Null is the honest value there and
+      // segments cleanly as "no answer".
       try {
         onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
           'path': 'discover',
           'name': card.transliteration,
           'tier_changed': engageResult.tierChanged,
           'is_duplicate': engageResult.isDuplicate,
+          AnalyticsEvents.propProblemCategory: state.checkinProblemCategory,
+          AnalyticsEvents.propInputMode: state.checkinInputMode,
         });
       } catch (_) {}
 

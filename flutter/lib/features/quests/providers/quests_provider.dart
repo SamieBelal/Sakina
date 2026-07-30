@@ -6,6 +6,7 @@ import 'package:sakina/features/duas/providers/duas_provider.dart';
 import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -82,7 +83,10 @@ const List<BeginnerQuest> beginnerQuests = [
     xpReward: 75,
     tokenReward: 50,
     scrollReward: 5,
-    route: '/muhasabah',
+    // `?entry=home_cta` — a quest card is an in-app tap like any other (W4
+    // Wave 7). Untagged it would land as `day_open` and inflate the one entry
+    // source the app is supposed to initiate on its own.
+    route: '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta',
   ),
   BeginnerQuest(
     id: BeginnerQuestId.firstReflect,

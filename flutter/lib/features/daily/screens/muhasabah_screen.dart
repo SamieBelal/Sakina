@@ -31,6 +31,7 @@ import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -44,7 +45,13 @@ import 'package:sakina/widgets/reflect_loading.dart';
 /// Full-screen Muhasabah experience — check-in → deeper → completion.
 /// Lives at /muhasabah route. Reads from dailyLoopProvider.
 class MuhasabahScreen extends ConsumerStatefulWidget {
-  const MuhasabahScreen({super.key});
+  const MuhasabahScreen({this.entrySource = questionEntryDayOpen, super.key});
+
+  /// How the user reached this route, for `daily_question_shown` (W4 Wave 7).
+  /// The router reads it out of `/muhasabah?entry=…`; anything that arrives
+  /// untagged is the app having brought the user here on open, which is why the
+  /// default is [questionEntryDayOpen] rather than an unknown sentinel.
+  final String entrySource;
 
   @override
   ConsumerState<MuhasabahScreen> createState() => _MuhasabahScreenState();
@@ -262,6 +269,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       origin: _canvasOrigin,
       child: showQuestion
           ? DailyQuestionPrompt(
+              entrySource: widget.entrySource,
               onSubmit: _onQuestionSubmit,
               onDefer: _onQuestionDefer,
             )

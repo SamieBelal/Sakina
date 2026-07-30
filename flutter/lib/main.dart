@@ -35,6 +35,7 @@ import 'services/auth_service.dart';
 import 'services/card_collection_service.dart';
 import 'services/consumable_grants_service.dart';
 import 'services/cosmetics_service.dart';
+import 'services/daily_question_analytics.dart';
 import 'services/gating_service.dart';
 import 'services/install_id_service.dart';
 import 'services/reel_deep_link_service.dart';
@@ -372,6 +373,12 @@ Future<void> main() async {
   // Retention core-loop telemetry (2026-06-01): the daily-loop notifier has no
   // Riverpod access, so bridge its check_in_completed event the same way.
   DailyLoopNotifier.onAnalyticsEvent =
+      (event, props) => analytics.track(event, properties: props);
+  // The daily question's surface events (W4 Wave 7). Separate from the notifier
+  // hook above because a skip and an abandon never reach the provider — only
+  // the widget knows the user left without deciding, and only it holds the
+  // dwell clock. `daily_question_answered` still comes through the notifier.
+  DailyQuestionAnalytics.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // Duas + Journal telemetry (2026-06-15): the Duas/Reflect notifiers have no
   // Riverpod access, so bridge `dua_built` / `journal_entry_created` the same

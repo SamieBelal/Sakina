@@ -927,4 +927,74 @@ abstract final class AnalyticsEvents {
 
   /// Which wardrobe axis/tab. Value is an item_type ('lantern_skin'|'backdrop').
   static const String propTab = 'tab';
+
+  // ── The daily question (One Ship W4 Wave 7) ────────────────────────────────
+  // Plan §9, spec §2/§9. W4 ships alongside the paywall wave, so the T0+6wk
+  // keep read CANNOT separate their contributions — this within-wave funnel is
+  // the only way to find out whether the question itself is carrying its
+  // weight. Emitted through `DailyQuestionAnalytics.onAnalyticsEvent` (the
+  // surface) and `DailyLoopNotifier.onAnalyticsEvent` (the provider); see
+  // daily_question_analytics.dart for the wire values and the buckets.
+  //
+  // **The verbatim answer NEVER leaves the device.** Length is reported as a
+  // bucket and the meaning as a chip category; no event on this funnel — or
+  // anywhere else — carries the text the user typed. Pinned by
+  // `daily_question_analytics_test.dart`.
+  //
+  // `check_in_completed` is NOT forked for this wave: it gains
+  // [propProblemCategory] and [propInputMode] as properties and its `path`
+  // stays `'discover'`, because it is the recurring DAU event and the D1/D7
+  // retention spine.
+
+  /// The daily question was put to the user. Props: [propEntrySource].
+  static const String dailyQuestionShown = 'daily_question_shown';
+
+  /// The user answered it. Props: [propProblemCategory], [propInputMode],
+  /// [propCharCountBucket].
+  static const String dailyQuestionAnswered = 'daily_question_answered';
+
+  /// "Not right now" — the explicit defer. Props: [propDwellMsBucket]. A skip
+  /// says the *placement* was wrong for that moment; the whole loop stays
+  /// collectible from the home CTA for the rest of the day.
+  ///
+  /// **Never merge this with [dailyQuestionAbandoned].** The difference between
+  /// "people want this later" and "people don't want this" is the entire
+  /// readout for the defer design (plan §9).
+  static const String dailyQuestionSkipped = 'daily_question_skipped';
+
+  /// Backgrounded or navigated away without deciding. Props:
+  /// [propDwellMsBucket]. An abandon says the *question* was wrong.
+  static const String dailyQuestionAbandoned = 'daily_question_abandoned';
+
+  /// The daily reward was claimed. Props: [propTrigger]. Exists so the W4
+  /// re-timing of the claim (open → answer-submit) is visible in the data
+  /// rather than inferred from the absence of something else.
+  static const String dailyRewardClaimed = 'daily_reward_claimed';
+
+  /// How the user arrived at the question: `day_open` | `widget` | `home_cta`.
+  /// The widget path must stay separable from day-open.
+  static const String propEntrySource = 'entry_source';
+
+  /// The chip taxonomy's reading of the answer — a `ProblemChip.problemCategory`
+  /// or `unmatched`. Deliberately the CHIP taxonomy and not the 30-question
+  /// option bank, so the daily loop stays comparable with
+  /// `acquisition_promise.problem_category`.
+  static const String propProblemCategory = 'problem_category';
+
+  /// `typed` | `chip` — whether the answer was written or tapped.
+  static const String propInputMode = 'input_mode';
+
+  /// Bucketed answer length. NEVER the answer.
+  static const String propCharCountBucket = 'char_count_bucket';
+
+  /// Bucketed time on the question before the user skipped or abandoned.
+  static const String propDwellMsBucket = 'dwell_ms_bucket';
+
+  /// What caused a [dailyRewardClaimed]. [triggerAnswerSubmit] today.
+  static const String propTrigger = 'trigger';
+
+  /// The only [propTrigger] value W4 ships. Named rather than inlined so that
+  /// if a later wave adds a second claim trigger, the two are obviously the
+  /// same vocabulary.
+  static const String triggerAnswerSubmit = 'answer_submit';
 }
