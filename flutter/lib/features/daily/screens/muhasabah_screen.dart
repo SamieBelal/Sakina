@@ -298,10 +298,18 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // max tier engages as a duplicate, so no card shows — and blanket-dropping
     // the meaning there would leave it displayed NOWHERE. The plan permits that
     // case outright: a Store purchase can pre-own a queued Name's card.
-    final cardShowedTheName = state.cardEngageResult != null;
+    // What the card actually put on screen, or null when no card appeared.
+    // Passed as a STRING to be compared, not a flag to be trusted: the catalog's
+    // english and the deck's meaning agree for 13 of the 14 decks and disagree
+    // for al-wakeel@1 — the D1 Name — where the card says "The Trustee" and the
+    // deck says "The Trustee — the Guardian you hand your affairs to". A boolean
+    // deleted that clause; comparing keeps it.
+    final meaningTheCardShowed =
+        state.cardEngageResult == null ? null : state.engagedCard?.english;
     final deckScreens = deck == null
         ? null
-        : buildBeatScreensFromDeck(deck, nameAlreadyMet: cardShowedTheName);
+        : buildBeatScreensFromDeck(deck,
+            meaningAlreadyShown: meaningTheCardShowed);
     final hasDeck = deckScreens != null && deckScreens.isNotEmpty;
     final unrenderableDeck = deck != null && !hasDeck;
     // Only a deck the user can actually move through is abandonable — an
@@ -433,12 +441,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// Share a deck-backed reveal, sourced entirely from the deck's own beats.
   ///
   /// Nothing new is authored and nothing is generated: the Arabic and meaning
-  /// come from `name_intro`, the English name from the deck, the quotable pairing
-  /// from the opening `bridge`/`recognition` line and the closing `takeaway`.
-  /// That pairing mirrors what the AI path shares (its reframe plus its
-  /// takeaway), so the artifact reads the same either way — and
-  /// `TakeawayShareCard` already draws through `MihrabArchFrame`, so it matches
-  /// the canvas the user just came from by construction.
+  /// come from `name_intro`, the English name from the deck, and the quote from
+  /// the deck's own VERSE — its translation as the hero, its citation as the
+  /// attribution. See `shareStoryDeckCard` for why the verse rather than the
+  /// deck's opening or closing line. `TakeawayShareCard` already draws through
+  /// `MihrabArchFrame`, so the artifact matches the canvas the user just came
+  /// from by construction.
   Future<void> _shareCurrentDeck(NameStoryDeck deck) async {
     final messenger = ScaffoldMessenger.of(context);
     try {

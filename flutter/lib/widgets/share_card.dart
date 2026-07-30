@@ -217,7 +217,15 @@ Future<void> shareStoryDeckCard({
   }
 
   final nameBeat = firstOf({'name_intro'});
-  final verse = firstOf({'verse', 'comfort_verse'});
+  // The Name's OWN verse wins, with the comfort verse only as a fallback —
+  // preference order, not deck order. A single set searched positionally picked
+  // whichever came first in the beat list, and `ar-rahman@1` opens with a
+  // comfort_verse at index 1 while its own verse sits at index 7. That card went
+  // out headed "Ar-Rahman / The Most Gracious" over 2:286, "Allāh does not
+  // charge a soul except with that within its capacity" — correctly attributed,
+  // but asserting a Name-to-verse pairing the deck itself never makes, on the
+  // deck the reel hook lands on.
+  final verse = firstOf({'verse'}) ?? firstOf({'comfort_verse'});
 
   return shareTakeawayCard(
     context: context,
@@ -238,8 +246,25 @@ Future<void> shareStoryDeckCard({
 /// editorial aside and must not reach a shared card.
 String shareableVerseSource(String source) {
   final cut = source.indexOf(' (');
-  return (cut == -1 ? source : source.substring(0, cut)).trim();
+  if (cut == -1) return source.trim();
+  final aside = source.substring(cut + 2).replaceAll(')', '').trim();
+  // Accuracy qualifiers are NOT asides — they are part of the claim. Stripping
+  // "(excerpt)" from `al-ghaffar@1` presented a genuinely partial ayah (39:53
+  // opens "Say, O Prophet…" and closes differently, with no ellipsis in the
+  // quoted text) flatly as the whole verse. Quoting scripture short while
+  // implying it is complete is precisely what the content rules exist to
+  // prevent, so these survive; the reviewer's provenance notes still go.
+  if (_verseAccuracyQualifiers.contains(aside.toLowerCase())) return source.trim();
+  return source.substring(0, cut).trim();
 }
+
+const Set<String> _verseAccuracyQualifiers = {
+  'excerpt',
+  'excerpted',
+  'partial',
+  'abridged',
+  'paraphrase',
+};
 
 Future<void> _defaultShareTakeawayCard({
   required BuildContext context,

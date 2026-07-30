@@ -252,7 +252,16 @@ class DailyLoopState {
       reflectLoading: reflectLoading ?? this.reflectLoading,
       questDua: questDua ?? this.questDua,
       questReason: questReason ?? this.questReason,
-      cardEngageResult: cardEngageResult ?? this.cardEngageResult,
+      // Cleared by `resetReveal` along with the other per-reveal fields. It used
+      // to merge unconditionally, which made it write-once-sticky: `discoverName`
+      // passes null on a duplicate engage, null merged to the PREVIOUS reveal's
+      // result, and any consumer asking "did a card appear THIS time?" got yes.
+      // The overlay push survived that because it compares with
+      // `!identical(prev, next)`, but the deck's meaning-suppression had no such
+      // guard and would have hidden the meaning on a reveal that showed no card.
+      cardEngageResult: resetReveal
+          ? cardEngageResult
+          : (cardEngageResult ?? this.cardEngageResult),
       engagedCard: engagedCard ?? this.engagedCard,
       revealSource: resetReveal
           ? (revealSource ?? revealSourceGacha)

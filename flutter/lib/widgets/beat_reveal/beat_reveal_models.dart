@@ -227,8 +227,19 @@ List<BeatScreen> buildBeatScreens(
 ///  * verse/comfort_verse/dua beats hold their ENGLISH translation in `primary`
 ///    (Arabic, when present, is in `arabic`) — the inverse of the
 ///    [BeatKind.verse] screen convention, where `primary` is the Arabic.
-/// [nameAlreadyMet] drops the `name_intro` hero's MEANING line, keeping the
-/// Arabic calligraphy and the transliteration beneath it.
+/// [meaningAlreadyShown] is the meaning string a surface UPSTREAM of this deck
+/// has already displayed. The `name_intro` hero drops its meaning line only when
+/// the two match exactly; otherwise it keeps it.
+///
+/// It compares rather than assumes because the assumption was wrong. This
+/// started as a bool on the premise that the card and the deck always carry the
+/// same meaning — true for 13 of the 14 shipped decks, and false for the one
+/// that matters most: `al-wakeel@1` is position 2, the sealed D1 Name, and its
+/// card says "The Trustee" while its deck says "The Trustee — the Guardian you
+/// hand your affairs to". A bool deleted those 39 authored characters on the
+/// single most important reveal in the funnel. Comparing is also self-correcting
+/// — if the catalog and the deck drift apart later, the meaning survives instead
+/// of vanishing silently.
 ///
 /// Set it when something upstream has ALREADY named the Name. The decks were
 /// authored for the onboarding order — deck first, card after "Ameen" — so
@@ -246,7 +257,7 @@ List<BeatScreen> buildBeatScreens(
 List<BeatScreen> buildBeatScreensFromDeck(
   NameStoryDeck deck, {
   bool includePairSynergy = true,
-  bool nameAlreadyMet = false,
+  String? meaningAlreadyShown,
 }) {
   final screens = <BeatScreen>[];
 
@@ -271,7 +282,9 @@ List<BeatScreen> buildBeatScreensFromDeck(
           // hero that cannot be identified is decoration. Only the meaning goes,
           // because that is the line the card repeated.
           label: beat.transliteration,
-          source: nameAlreadyMet ? '' : beat.primary,
+          source: beat.primary.trim() == (meaningAlreadyShown ?? '').trim()
+              ? ''
+              : beat.primary,
         ));
       case 'story':
         screens.add(BeatScreen(

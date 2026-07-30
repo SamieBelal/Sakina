@@ -323,7 +323,15 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
             customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
               const CustomSemanticsAction(label: 'Next beat'): _advance,
               const CustomSemanticsAction(label: 'Previous beat'): _back,
-              const CustomSemanticsAction(label: 'Skip to duʿa'): _skipToDua,
+              // Gated exactly like the visible button. Registering it
+              // unconditionally left a screen-reader user able to trigger, on a
+              // deck's final beat, the same backward jump and spurious
+              // `reflect_flow_skipped` that was just removed for sighted users —
+              // and `_skipToDua`'s `target == _index` guard does not catch it,
+              // because on an 8-screen deck the duʿa is index 6 and the last
+              // beat is index 7.
+              if (!isDua && !isLast)
+                const CustomSemanticsAction(label: 'Skip to duʿa'): _skipToDua,
             },
             child: AnimatedSwitcher(
               duration:
@@ -365,7 +373,14 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               // emitting a spurious `reflect_flow_skipped`. The slot it vacates
               // is where the share icon belongs anyway.
               if (!isDua && !isLast) _skipButton(),
-              if (isLast && widget.onShare != null) _shareIconInline(),
+              // `!isDua` matters as much as `isLast`. The AI path's screen list
+              // always ENDS on the duʿa, so without it a second share icon
+              // appeared there — Reflect would carry two affordances at once
+              // (the floating one on its takeaway, this one on its duʿa) and the
+              // AI path would not be untouched after all. Decks end on a
+              // takeaway, so the deck path is unaffected by the guard.
+              if (isLast && !isDua && widget.onShare != null)
+                _shareIconInline(),
             ],
           ),
         ),
