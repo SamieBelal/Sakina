@@ -5,6 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
+// The chip taxonomy, not the hook screen: `problem_chips.dart` is pure content
+// (the seven chips and the free-text keyword map) with no widget or provider
+// behind it, and reusing it is what keeps the daily answer's `problem_category`
+// comparable with `acquisition_promise.problem_category` instead of forking a
+// second vocabulary (plan §9 guardrails).
+import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_events.dart';
@@ -44,6 +50,14 @@ const _scrollRewardSyncError =
 const String revealSourceQueue = 'queue';
 const String revealSourceGacha = 'gacha';
 
+/// [DailyLoopState.checkinInputMode] values — how the day's answer was given.
+/// Wire strings for the same reason as [revealSourceQueue]: Wave 7 sends them
+/// out verbatim as `input_mode`, and they round-trip through the day blob, so an
+/// unrecognised value read back from another build has to degrade rather than
+/// fail a parse.
+const String inputModeTyped = 'typed';
+const String inputModeChip = 'chip';
+
 enum DailyLoopStep { checkin, deeper, quest, completed }
 
 class DailyLoopState {
@@ -66,6 +80,20 @@ class DailyLoopState {
   final String? checkinName;
   final String? checkinNameArabic;
   final bool checkinLoading;
+
+  /// The chip taxonomy's reading of today's answer — a [ProblemChip.problemCategory]
+  /// or [problemCategoryUnmatched]. Derived at submit (W4 Wave 3) by the same
+  /// pure keyword map the onboarding hook screen uses, so a typed sentence
+  /// segments identically to the chip it would have tapped and `problem_category`
+  /// stays comparable with `acquisition_promise.problem_category`.
+  ///
+  /// Null until the user answers, and on every legacy path (`answerCheckin`, a
+  /// re-roll, a restored pre-W4 day blob).
+  final String? checkinProblemCategory;
+
+  /// [inputModeTyped] or [inputModeChip] — whether today's answer was written or
+  /// tapped. Held for Wave 7's `input_mode`; nothing reads it yet.
+  final String? checkinInputMode;
 
   // Step 2: Deeper reflect
   final ReflectResponse? reflectResult;
@@ -169,6 +197,8 @@ class DailyLoopState {
     this.checkinName,
     this.checkinNameArabic,
     this.checkinLoading = false,
+    this.checkinProblemCategory,
+    this.checkinInputMode,
     this.reflectResult,
     this.reflectStep = 0,
     this.reflectLoading = false,
@@ -212,6 +242,8 @@ class DailyLoopState {
     String? checkinName,
     String? checkinNameArabic,
     bool? checkinLoading,
+    String? checkinProblemCategory,
+    String? checkinInputMode,
     ReflectResponse? reflectResult,
     int? reflectStep,
     bool? reflectLoading,
@@ -268,6 +300,9 @@ class DailyLoopState {
       checkinName: checkinName ?? this.checkinName,
       checkinNameArabic: checkinNameArabic ?? this.checkinNameArabic,
       checkinLoading: checkinLoading ?? this.checkinLoading,
+      checkinProblemCategory:
+          checkinProblemCategory ?? this.checkinProblemCategory,
+      checkinInputMode: checkinInputMode ?? this.checkinInputMode,
       reflectResult: reflectResult ?? this.reflectResult,
       reflectStep: reflectStep ?? this.reflectStep,
       reflectLoading: reflectLoading ?? this.reflectLoading,
@@ -634,6 +669,117 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     return rows
         .where((row) => row.isSealed && row.position != justUnsealed?.position)
         .length;
+  }
+
+  /// The in-flight submit-time reward claim, so tests can await a call this
+  /// function deliberately does not await. Production never reads it.
+  @visibleForTesting
+  Future<void>? dailyRewardClaimFuture;
+
+  /// The user's answer to the day's question (W4 Wave 3 — plan §5, spec M1/M3).
+  ///
+  /// [text] is what the user wrote, or the chip's label verbatim when they
+  /// tapped one; [chipKey] is set only on a tap. Everything the loop needs from
+  /// the answer is derived here and then the ordinary [discoverName] runs
+  /// unchanged — no new AI plumbing, because there was none to add: the answer
+  /// lands in `checkinAnswers`, which `_deeperContextText` already prefers over
+  /// the card blurb, while `_deeperRequestFor` already pins `forceName` to the
+  /// Name the queue chose. So the reflection comes back written about the user's
+  /// own words, against the Name W3 promised them.
+  ///
+  /// **THE REVEAL MUST NEVER BLOCK ON THE AI, and that is why this method awaits
+  /// so little.** The April 2026 commit removed the 4-question check-in precisely
+  /// to swap an OpenAI round-trip for an instant local picker; putting a question
+  /// back in front of the reveal reintroduces the same risk, and the mitigation
+  /// is that the card plays *over* the call. `_prefetchDeeperReflection()` is
+  /// fire-and-forget inside `discoverName`, and nothing here may add an `await`
+  /// between the submit and the reveal.
+  ///
+  /// **The reward is claimed HERE, at submit — not at "Ameen"** (spec §6,
+  /// DECISION 1). `claim_daily_reward` is a 7-day escalating ladder that resets
+  /// to day 0 on a single missed claim, so tying the grant to the last tap of the
+  /// beat flow would cost a day-6 user their ladder for not tapping through every
+  /// beat. Only the *grant* moves in this wave; the animated ceremony follows the
+  /// work (Wave 4). It is deliberately NOT awaited: it is a Supabase round-trip,
+  /// and awaiting it would put a network hop between the user's answer and their
+  /// card for no benefit — the claim is idempotent and server-authoritative, so
+  /// it can land whenever it lands.
+  Future<void> submitDailyAnswer(String text, {String? chipKey}) async {
+    final answer = text.trim();
+    // Empty input never becomes an answer: it would be persisted as the day's
+    // reflection context and would drive the AI with nothing. The question
+    // surface already blocks it; this is the provider-side floor.
+    if (answer.isEmpty) return;
+    // Re-entry guard, and the reason the claim below fires exactly once per
+    // submit. `discoverName` sets `checkinLoading` synchronously before its
+    // first await, so a second call landing after this one has started sees it
+    // set; `checkinDone` covers a stale submit arriving after the day is done.
+    if (state.checkinLoading || state.checkinDone) return;
+
+    state = state.copyWith(
+      // Single-element, REPLACING rather than appending: this is one question
+      // with one answer, unlike the dormant 4-question `answerCheckin` that
+      // accumulated. Persisted by `_persistTodayState` and restored by
+      // `_loadTodayState` with no change, so it survives a cold restart.
+      checkinAnswers: [answer],
+      checkinProblemCategory: _problemCategoryFor(answer, chipKey),
+      checkinInputMode: chipKey == null ? inputModeTyped : inputModeChip,
+    );
+
+    dailyRewardClaimFuture = _claimDailyRewardAtSubmit();
+
+    await discoverName();
+  }
+
+  /// The chip taxonomy's reading of an answer.
+  ///
+  /// A tap is authoritative — its own key is used rather than re-deriving from
+  /// the label, which matters for the sign chip ("I can't put it into words"),
+  /// whose wording deliberately contains no keyword and would otherwise come
+  /// back `unmatched` instead of `unspoken`.
+  ///
+  /// Typed text goes through [matchChipKeyForText] — the same pure, offline
+  /// keyword map the onboarding hook screen uses. `ProblemChipResolver` is
+  /// deliberately NOT used: its extra work is resolving the Name *pair* from the
+  /// story-deck asset, and on this path the queue picks the Name (spec M3), so
+  /// that would be an asset read between the answer and the reveal for a value
+  /// nothing consumes. When the answer starts picking the Name — post-queue,
+  /// behind the kill switch — the resolver is what to reach for.
+  String _problemCategoryFor(String answer, String? chipKey) {
+    final chip = chipKey == null
+        ? problemChipsByKey[matchChipKeyForText(answer)]
+        : problemChipsByKey[chipKey];
+    return chip?.problemCategory ?? problemCategoryUnmatched;
+  }
+
+  /// Best-effort, and idempotent on the server. A claim failure must not touch
+  /// `state.error`: that field is what `discoverNameWithBypass` reads to decide
+  /// commit-versus-refund, so a reward hiccup could otherwise refund a bypass
+  /// whose reveal genuinely happened. Same rule as the analytics emit and the
+  /// `markUsed` block inside [discoverName].
+  Future<void> _claimDailyRewardAtSubmit() async {
+    try {
+      final claimResult = await claimDailyReward();
+      // The claim outlives no state it owns, but it does outlive the notifier
+      // if the user leaves the route mid-flight — and a write to a disposed
+      // StateNotifier throws.
+      if (!mounted) return;
+      state = state.copyWith(
+        rewardClaimResult: claimResult,
+        tokenBalance: claimResult.newTokenBalance ?? state.tokenBalance,
+        // `copyWith` ASSIGNS `error` rather than merging it, so every write
+        // silently clears it. Harmless for callers that run in sequence; not
+        // harmless for this one, which is deliberately racing `discoverName`
+        // and can land after its catch block. Clearing the error there would
+        // wipe the failure view out from under the user and — the case that
+        // actually costs money — tell `discoverNameWithBypass` to commit a
+        // bypass for a reveal that never happened.
+        error: state.error,
+      );
+    } catch (_) {
+      // Nothing the user can act on, and nothing is lost: the ladder is
+      // server-side and the next claim re-reads it.
+    }
   }
 
   /// Picks today's Name and engages it. No AI call, no questions. The UI shows
@@ -1520,6 +1666,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     return 'The user wants to go deeper with this Name of Allah.';
   }
 
+  /// Test seam — the exact request the prefetch would issue for the current
+  /// state, so W4 Wave 3 can pin the two properties spec M3 rests on (the
+  /// answer reaches the context text; `forceName` still pins the queue's Name)
+  /// without asserting on an OpenAI call that tests never make.
+  @visibleForTesting
+  ({String key, String contextText, String forceName})? debugDeeperRequest() =>
+      _deeperRequestFor(state);
+
   Future<ReflectResponse> _startDeeperReflectionRequest(
     ({String key, String contextText, String forceName}) request,
   ) {
@@ -1766,6 +1920,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         'checkinQuestionIndex': state.checkinQuestionIndex,
         'checkinAnswers': state.checkinAnswers,
         'checkinAnswer': state.checkinAnswer,
+        // Derived from the answer, and persisted alongside it so a reveal
+        // resumed after a cold restart still knows how the day was segmented —
+        // Wave 7's `check_in_completed` props must not silently become null on
+        // the one path where the user's session was interrupted.
+        'checkinProblemCategory': state.checkinProblemCategory,
+        'checkinInputMode': state.checkinInputMode,
         'checkinName': state.checkinName,
         'checkinNameArabic': state.checkinNameArabic,
         'reflectStep': state.reflectStep,
@@ -1838,6 +1998,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         checkinQuestionIndex: data['checkinQuestionIndex'] as int? ?? 0,
         checkinAnswers: savedAnswers,
         checkinAnswer: data['checkinAnswer'] as String?,
+        // Absent from any blob written before W4 Wave 3, and from every blob a
+        // re-roll or the dormant `answerCheckin` writes — null is the honest
+        // answer there, not a value to re-derive.
+        checkinProblemCategory: data['checkinProblemCategory'] as String?,
+        checkinInputMode: data['checkinInputMode'] as String?,
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,

@@ -294,16 +294,17 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       !state.checkinLoading &&
       !state.reflectLoading;
 
-  /// The user's answer. **Wave 3 wires this up** — writing it into
-  /// `checkinAnswers`, deriving `problem_category`, claiming the daily reward
-  /// and calling `discoverName()`. Until then submitting deliberately does
-  /// nothing: this wave ships the surface, not the loop behind it.
-  void _onQuestionSubmit(String text, {String? chipKey}) {
-    debugPrint(
-      '[W4 Wave 2] daily question submitted (chip: $chipKey, '
-      '${text.trim().length} chars) — Wave 3 supplies the provider wiring.',
-    );
-  }
+  /// The user's answer (W4 Wave 3). Everything it does — the answer into
+  /// `checkinAnswers`, the `problem_category` derivation, the reward claim and
+  /// the reveal — lives in [DailyLoopNotifier.submitDailyAnswer]; the screen
+  /// only hands it the text.
+  ///
+  /// Returned as a future the callback discards, deliberately: the question
+  /// surface latches its own commit, and every visible consequence arrives
+  /// through `dailyLoopProvider` state rather than through this call returning.
+  Future<void> _onQuestionSubmit(String text, {String? chipKey}) => ref
+      .read(dailyLoopProvider.notifier)
+      .submitDailyAnswer(text, chipKey: chipKey);
 
   /// "Not right now" — a DEFER, not a dismissal (spec M2).
   ///
@@ -415,13 +416,29 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // because `startDeeper` still short-circuits on the deck and no reflection
     // is ever requested. The error view at least offers a working way out; its
     // retry is suppressed below rather than offered as a no-op.
+    // Off-topic (W4 Wave 3). Before the daily loop asked anything, the context
+    // it sent to `reflectWithOpenAI` was the card's own blurb, so the
+    // classifier could never fire on this path; now the user's own sentence
+    // goes down, so it can. Reflect's exact handling is reused rather than a
+    // new branch invented: same `offTopic` flag, same `BeatFlowStatus`, same
+    // message view (`reflect_screen.dart:217-219`).
+    //
+    // It has to be caught, not ignored: the off-topic response is the DEMO
+    // response, whose Name is not the Name the user just revealed, so rendering
+    // it as an ordinary reflection would teach a different Name than the card.
+    //
+    // Deck path excluded because it has no `reflectResult` at all — a deck
+    // reveal never asks OpenAI anything.
+    final offTopic = !hasDeck && state.reflectResult?.offTopic == true;
     final status = state.error != null || unrenderableDeck
         ? BeatFlowStatus.error
-        : hasDeck
-            ? BeatFlowStatus.ready
-            : state.reflectLoading || state.reflectResult == null
-                ? BeatFlowStatus.loading
-                : BeatFlowStatus.ready;
+        : offTopic
+            ? BeatFlowStatus.offtopic
+            : hasDeck
+                ? BeatFlowStatus.ready
+                : state.reflectLoading || state.reflectResult == null
+                    ? BeatFlowStatus.loading
+                    : BeatFlowStatus.ready;
     final surface = hasDeck
         ? AnalyticsEvents.surfaceDailyUnseal
         : AnalyticsEvents.surfaceMuhasabah;
@@ -497,6 +514,19 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // and the message view drops the button entirely, leaving "Return home" —
       // which works — as the only action.
       onRetry: unrenderableDeck ? null : () => notifier.startDeeper(),
+      // `onOffTopicRetry` is deliberately left null, so the off-topic view
+      // offers only "Return home" (same treatment, same reason, as the
+      // unrenderable deck above: a button that provably cannot help).
+      //
+      // Reflect's retry means "go back to the input box", and on THIS path the
+      // input box sits in front of a reveal that has already happened. Re-entering
+      // it needs a guard against running a second reveal for the day — the
+      // phantom-second-gacha bug class this screen is built around — and that
+      // guard is a change to `_showsQuestion`, whose contract Wave 2 has only
+      // just pinned. The user keeps their card, their streak and their reward;
+      // what they lose is the day's reflection. A re-ask that reuses the same
+      // reveal is the right fix and is a follow-up, not a Wave 3 edit.
+      onOffTopicRetry: null,
       onBeatAdvanced: (index, kind) {
         _lastBeatIndex = index;
         DailyLoopNotifier.onAnalyticsEvent?.call(
