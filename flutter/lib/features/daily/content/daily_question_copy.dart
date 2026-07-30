@@ -28,12 +28,28 @@ abstract final class DailyQuestionCopy {
   /// line that spans worry → thanks.
   ///
   /// **A caption, not a placeholder** — renamed from `placeholder` by the Wave
-  /// 2 review. It renders as the field's `helperText` and is therefore visible
-  /// while the user types and on an off-topic re-ask, where the field opens
-  /// pre-filled. As a hint it vanished on the first keystroke, was never shown
-  /// on a re-ask at all, and ellipsized at large Dynamic Type. The name is part
-  /// of the fix: a constant called `placeholder` invites the next person to put
-  /// it back in `hintText`.
+  /// 2 review. It renders as a persistent line under the field and is therefore
+  /// visible while the user types and on an off-topic re-ask, where the field
+  /// opens pre-filled. As a hint it vanished on the first keystroke, was never
+  /// shown on a re-ask at all, and ellipsized at large Dynamic Type. The name
+  /// is part of the fix: a constant called `placeholder` invites the next
+  /// person to put it back in `hintText`.
+  ///
+  /// **The defect this fixed, stated so a future reader knows when it applies:
+  /// the bug was never "guidance lives in a hint". It was that the answer set
+  /// had exactly ONE carrier and that carrier was a hint.** Both halves are
+  /// required. W4 created the condition on this surface by demoting the chips
+  /// and promoting free text — the carrier moved, and nothing noticed.
+  ///
+  /// The corollary is the rule worth applying elsewhere: **the answer set must
+  /// have a carrier that cannot disappear and cannot be truncated.** A hint
+  /// fails the first (it clears on input); a `maxLines` budget fails the
+  /// second. Measured 2026-07-30, the live reel hook screen
+  /// (`hook_problem_screen.dart`) passes both — its seven chip cards wrap
+  /// freely inside `minHeight` constraints — which is why it needed no
+  /// equivalent fix. The legacy `first_checkin_screen.dart` hides its chips on
+  /// focus, losing both carriers at once; it is unfixed and out of scope,
+  /// recorded here only because it is the same rule being broken.
   static const String answerSetCaption =
       'A worry, a thanks, a question — however it comes out.';
 
