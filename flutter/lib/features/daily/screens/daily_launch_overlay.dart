@@ -31,6 +31,15 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   AppSessionNotifier?
       _session; // Captured ref so listener cleanup works after dispose
 
+  /// Captured so the listener can be removed after dispose, when `context` is
+  /// no longer usable to look the router up.
+  GoRouter? _router;
+
+  /// Set the instant this route starts leaving, by any path. Without it the
+  /// location listener below would fire on our own `go('/muhasabah')` and pop a
+  /// second time — taking the question route with it.
+  bool _leaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +59,10 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     // the frame paints immediately.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      // Armed FIRST, before any await, because the thing it guards against is a
+      // navigation that lands while this screen is still doing its own setup.
+      _router = GoRouter.of(context);
+      _router!.routerDelegate.addListener(_onLocationChanged);
       final session = ref.read(appSessionProvider);
       _session = session;
       if (!session.economyHydrated) {
@@ -89,9 +102,53 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
     }
   }
 
+  /// Gets out of the way when the app navigates somewhere else while the
+  /// day-open is up (W4 Wave 4 review, F2).
+  ///
+  /// The push site checks the location immediately before presenting, which
+  /// catches a widget deep link that has ALREADY landed. It cannot catch one
+  /// that lands a moment later: `parseWidgetDeepLink` maps the duʿā widget to
+  /// `/duas`, which lives inside the `ShellRoute`, so `.go('/duas')` swaps the
+  /// shell's child *underneath* this opaque root-navigator route and leaves it
+  /// sitting on top. The user asked for their duʿā times and got a full-screen
+  /// prompt about their heart, with one obvious button on it.
+  ///
+  /// It is not enough that dismissing costs only a tap. That tap is the
+  /// likeliest thing a person does when an unexpected full-screen overlay
+  /// appears, and the button routes into the muḥāsabah — so "they consented,
+  /// their finger moved" is not a defence. Auto-entry must never become a
+  /// hijacking: if the user has gone somewhere else, the day-open has missed
+  /// its moment and waits for the home CTA.
+  void _onLocationChanged() {
+    if (_leaving || !mounted) return;
+    final path = _router?.routerDelegate.currentConfiguration.uri.path;
+    if (path == null || path == '/') return;
+    _leaving = true;
+    // Deferred because this fires from inside the router's own notification,
+    // where popping would mutate the navigator mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // `mounted` is NOT sufficient, and assuming it was cost a real bug in
+      // review: go_router removes an imperatively-pushed root route by itself
+      // when the app `.go()`s to another ROOT route (`/muhasabah`), but not to
+      // one inside the ShellRoute (`/duas`). In the root case this route is
+      // already on its way out — still mounted, animating — so a bare `pop()`
+      // here lands on the route UNDERNEATH and destroys the destination the
+      // user was navigating to. Popping the question route is a worse bug than
+      // the one this listener exists to fix.
+      //
+      // `isCurrent` is the precise question: pop only if we are still the route
+      // on top. Pinned both ways in `day_open_routing_test.dart`.
+      final route = ModalRoute.of(context);
+      if (route == null || !route.isCurrent) return;
+      Navigator.of(context).pop();
+    });
+  }
+
   @override
   void dispose() {
     _session?.removeListener(_onSessionChange);
+    _router?.routerDelegate.removeListener(_onLocationChanged);
     super.dispose();
   }
 
@@ -105,6 +162,10 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   /// [context] is defunct immediately after it.
   void _beginMuhasabah() {
     HapticFeedback.lightImpact();
+    // Flagged before either navigation so [_onLocationChanged] does not treat
+    // our own `go('/muhasabah')` as somebody else navigating away and pop a
+    // second time.
+    _leaving = true;
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.go('/muhasabah');
@@ -115,6 +176,7 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
   /// anything about their heart.
   void _dismiss() {
     HapticFeedback.lightImpact();
+    _leaving = true;
     Navigator.of(context).pop();
   }
 

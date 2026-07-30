@@ -52,13 +52,34 @@ void main() {
   /// Stands the overlay up exactly as `progress_screen` does — pushed opaque on
   /// the ROOT navigator, over a live shell — because the bug under test is a
   /// property of that arrangement and nothing else.
+  /// Stands the overlay up exactly as `progress_screen` does — pushed opaque on
+  /// the ROOT navigator, over a live shell — because the bug under test is a
+  /// property of that arrangement and nothing else.
+  ///
+  /// The route shape mirrors production deliberately: `/` and `/duas` live
+  /// INSIDE a `ShellRoute`, `/muhasabah` is root-level. That distinction is the
+  /// whole subject of the departure tests below — go_router drops an
+  /// imperatively-pushed root route when you `.go()` to another ROOT route, but
+  /// not when you `.go()` to a route inside the shell. Flatten these into
+  /// top-level routes and the departure test passes while exercising a shape
+  /// the app does not have.
   Future<GoRouter> pumpOverlay(WidgetTester t) async {
+    final rootKey = GlobalKey<NavigatorState>();
     final router = GoRouter(
+      navigatorKey: rootKey,
       initialLocation: '/',
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (_, __) => const Scaffold(body: Text('home')),
+        ShellRoute(
+          builder: (_, __, child) => Scaffold(body: child),
+          routes: [
+            GoRoute(path: '/', builder: (_, __) => const Text('home')),
+            // Stands in for the duʿā-times destination — the one a duʿā widget
+            // tap actually reaches, and the reason it has to be in the shell.
+            GoRoute(
+              path: '/duas',
+              builder: (_, __) => const Text('the dua times'),
+            ),
+          ],
         ),
         GoRoute(
           path: '/muhasabah',
@@ -79,8 +100,7 @@ void main() {
     );
     await t.pump();
 
-    final nav = router.routerDelegate.navigatorKey.currentState!;
-    unawaited(nav.push(
+    unawaited(rootKey.currentState!.push(
       PageRouteBuilder(
         settings: const RouteSettings(name: 'DailyLaunchOverlay'),
         opaque: true,
@@ -121,6 +141,66 @@ void main() {
             '/muhasabah is exactly how a back gesture drops the user back '
             'into the day-open they just left');
     expect(router.routerDelegate.currentConfiguration.uri.path, '/muhasabah');
+  });
+
+  testWidgets('it gets out of the way when the app navigates elsewhere',
+      (t) async {
+    // F2 from the Wave 4 review. The push site checks the location immediately
+    // before presenting, which catches a widget deep link that has ALREADY
+    // landed — but not one that lands a moment later. `/duas` lives inside the
+    // ShellRoute, so `.go('/duas')` swaps the shell's child UNDERNEATH this
+    // opaque root-navigator route and leaves the day-open sitting on top of it.
+    //
+    // Someone who tapped a duʿā widget would then be looking at a full-screen
+    // prompt about their heart with one obvious button, and that button routes
+    // into the muḥāsabah. "They tapped it" is not consent to that.
+    final router = await pumpOverlay(t);
+    expect(find.byType(DailyLaunchOverlay), findsOneWidget);
+
+    router.go('/duas');
+    await t.pumpAndSettle();
+
+    expect(find.byType(DailyLaunchOverlay), findsNothing,
+        reason: 'the day-open has missed its moment — it must yield to where '
+            'the user actually asked to go, and wait for the home CTA');
+    expect(find.text('the dua times'), findsOneWidget);
+  });
+
+  testWidgets('a departure to a ROOT route does not double-pop', (t) async {
+    // The hazard the fix had to survive, and it is invisible without testing
+    // both route shapes. go_router removes an imperatively-pushed root route
+    // by itself when you `.go()` to another ROOT route — so on `/muhasabah`
+    // the overlay is already gone before our listener would act. A listener
+    // that popped unconditionally would then pop the question route too and
+    // leave the user staring at an empty navigator.
+    //
+    // The post-frame deferral is what makes this safe: by the time it runs the
+    // rebuild has landed, this widget is unmounted, and the `mounted` check
+    // declines. That is the real reason it is deferred — mutating the
+    // navigator mid-build is only the secondary one.
+    final router = await pumpOverlay(t);
+    expect(find.byType(DailyLaunchOverlay), findsOneWidget);
+
+    router.go('/muhasabah');
+    await t.pumpAndSettle();
+
+    expect(find.byType(DailyLaunchOverlay), findsNothing);
+    expect(find.text('the question'), findsOneWidget,
+        reason: 'the destination must survive — popping it is a worse bug '
+            'than the one the listener exists to fix');
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/muhasabah');
+  });
+
+  testWidgets('staying on home does NOT dismiss it', (t) async {
+    // The other half: the listener must fire on a real departure and on
+    // nothing else, or the day-open becomes impossible to show.
+    final router = await pumpOverlay(t);
+
+    router.go('/');
+    await t.pumpAndSettle();
+
+    expect(find.byType(DailyLaunchOverlay), findsOneWidget,
+        reason: 'a navigation back to the same place is not a departure');
   });
 
   testWidgets('the escape hatch returns home without routing anywhere',
