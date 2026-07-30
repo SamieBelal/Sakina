@@ -140,6 +140,40 @@ Future<void> markFreeDailyRevealTaken() async {
   await prefs.setBool(await _freeDailyRevealKey(), true);
 }
 
+/// Every day-scoped usage key this file owns, cleared — the free-reveal marker,
+/// the three free-cap counters and the three bypass counters, all for the
+/// current [_capDay] / [_today].
+///
+/// **DEVELOPER RESET ONLY. Never wire this to a user-reachable control.**
+/// Clearing these hands out another free reveal and another full day's
+/// allowance, so a user-facing button that called it would be an unlimited
+/// free-reveal exploit and would bypass the 25-token AI-bypass economy
+/// entirely. The Settings → Danger Zone "Reset Daily Loop" ships to real users
+/// and deliberately does NOT call this: it resets the day's *loop* (the blob,
+/// the gates, the rewards row) so the user can redo the muḥāsabah, not the
+/// day's *allowance*.
+///
+/// It exists because a developer reset is supposed to simulate a fresh day, and
+/// one that leaves the counters behind is lying about what it does — the redo
+/// comes back metered, which reads on device as the free-first-reveal split
+/// being broken when it is working correctly. Dev Tools already grants tokens
+/// (`devSetTokensAndScrolls`), so this adds no exposure that path did not have.
+///
+/// **Local only, and the server stays authoritative.** The bypass counters are
+/// mirrors of `user_daily_usage` columns written by `reserve_ai_bypass` /
+/// `cancel_ai_bypass`; clearing the local copy does not clear the server's, so
+/// a bypass the server has already spent is still refused. That asymmetry is
+/// the safe direction and is the reason this is a debug affordance rather than
+/// a real "start the day over".
+Future<void> devResetDailyUsageToday() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(await _freeDailyRevealKey());
+  for (final feature in const ['reflect', 'built_dua', 'discover_name']) {
+    await prefs.remove(await _todayKey(feature));
+    await prefs.remove(_bypassTodayKey(feature));
+  }
+}
+
 Future<int> getReflectUsageToday() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getInt(await _todayKey('reflect')) ?? 0;

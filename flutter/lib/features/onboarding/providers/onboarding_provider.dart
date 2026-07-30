@@ -1127,6 +1127,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     // DailyLaunchOverlay when they land on the home screen.
     await resetDailyLaunchGate();
     await resetDailyQuestionGate();
+    // No usage reset here: this is onboarding COMPLETION, not a day reset. A
+    // brand-new account has no counters to clear, and clearing them would make
+    // this a second place the allowance can be zeroed.
 
     // One resolution for the whole chain: the starter card, the persisted
     // `starter_name_id` and the queue's first row are the same Name or the

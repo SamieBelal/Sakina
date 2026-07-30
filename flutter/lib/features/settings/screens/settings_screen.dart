@@ -74,7 +74,12 @@ Future<void> performCardCollectionDangerReset({
   await resetDailyRewardsOnServer();
   await resetDailyLoopState();
   await resetDailyLaunchGate();
-    await resetDailyQuestionGate();
+  await resetDailyQuestionGate();
+  // Deliberately NOT `devResetDailyUsageToday()`. This ships — it is Settings →
+  // Danger Zone, outside the `kDebugMode` block — so clearing the day's
+  // allowance here would let any user reset their way to unlimited free
+  // reveals and skip the 25-token bypass entirely. This resets the day's LOOP
+  // so the muḥāsabah can be redone; the redo is metered, which is correct.
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -411,6 +416,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref.read(dailyLoopProvider.notifier).resetToday();
     await resetDailyLaunchGate();
     await resetDailyQuestionGate();
+    // The day's ALLOWANCE is deliberately untouched — see the note in
+    // `performCardCollectionDangerReset`. This button ships.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(duration: kSnackBarDuration, 

@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/daily_question_gate.dart';
+import 'package:sakina/services/daily_usage_service.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -303,7 +305,15 @@ Future<void> devSoftResetAll() async {
   await devResetFirstSteps();
   await clearCardCollection();
   await resetDailyLaunchGate();
-    await resetDailyQuestionGate();
+  await resetDailyQuestionGate();
+  // The day-scoped keys a "fresh day" has to mean, and that the two gates above
+  // do not cover: the free-reveal marker, the free-cap counters, the bypass
+  // counters, and the once-per-day auto-entry assert's own marker. Without
+  // these the reset re-arms the day-open and then serves it a METERED reveal —
+  // which on device reads as the free-first-reveal split being broken when it
+  // is working correctly. Developer-only; see `devResetDailyUsageToday`.
+  await devResetDailyUsageToday();
+  await DailyQuestionAnalytics.resetDailyQuestionShownDay();
 }
 
 // ---------------------------------------------------------------------------

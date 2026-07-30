@@ -252,9 +252,18 @@ abstract final class DailyQuestionAnalytics {
     );
   }
 
-  /// Clears the guard's marker. Test-only — production never needs it.
-  @visibleForTesting
-  static Future<void> debugResetShownDay() async {
+  /// Clears the guard's marker.
+  ///
+  /// **A developer reset MUST call this**, and that is not housekeeping. The
+  /// guard's whole job is to assert that auto-entry has not already asked today
+  /// — so a reset that re-arms the day-open without clearing it walks straight
+  /// into a false `AssertionError` on the very next launch, in the debug build
+  /// where someone is trying to test the day-open. An assert that fires while
+  /// you are exercising the feature it guards is an assert that gets deleted.
+  ///
+  /// Safe to leave uncalled in release: the marker is only ever read behind an
+  /// `assert`, so it costs nothing there.
+  static Future<void> resetDailyQuestionShownDay() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(supabaseSyncService.scopedKey(shownDayBaseKey));
   }
