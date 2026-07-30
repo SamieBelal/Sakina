@@ -344,15 +344,26 @@ class _NameHero extends StatelessWidget {
                 ),
                 760,
               ),
+            // The whole meaning block — gap, reserve and text — is skipped when
+            // there is no meaning, which makes the daily arch shorter than the
+            // onboarding one. **That is intended (founder, 2026-07-30), not an
+            // oversight.** Two reviews have now flagged it as the reserve
+            // failing to do its job, so: hoisting the reserve out of this guard
+            // would buy a constant height across both surfaces at the cost of a
+            // permanent blank two-line band under every daily reveal. A rare
+            // difference between surfaces was judged cheaper than a visible gap
+            // on the common path. Please do not "fix" it without re-deciding
+            // that trade.
             if (meaning.isNotEmpty) ...[
               const SizedBox(height: 6),
-              // Two lines are RESERVED whether or not the meaning fills them, so
-              // the arch keeps its height as well as its width. Without this the
-              // frame still grew by a line between "The Guide" and "The Trustee
-              // — the Guardian you hand your affairs to". The slack under a
-              // short meaning sits above the diamond rule and reads as
-              // composure; a frame that changes size between two consecutive
-              // reveals does not.
+              // Within a surface that DOES show a meaning, two lines are
+              // reserved whether or not the meaning fills them, so the arch
+              // keeps its height as well as its width. Without this the frame
+              // grew by a line between "The Guide" and "The Trustee — the
+              // Guardian you hand your affairs to". The slack under a short
+              // meaning sits above the diamond rule and reads as composure; a
+              // frame that changes size between two consecutive reveals does
+              // not.
               //
               //
               // Scaled, not a raw constant: the font it reserves for is
