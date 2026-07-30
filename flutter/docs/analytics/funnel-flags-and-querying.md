@@ -114,9 +114,20 @@ Both are **null on every path that did not go through the question** — a meter
 
 `attempt` is **a dimension, not a stage**: `1` on the first try, `2`+ after the classifier rejected an answer and asked the user to rephrase. It rides on `daily_question_answered` and `daily_question_off_topic`. Minting a separate re-ask *event* would have forked the funnel at step two and left every existing segment silently under-counting the people who had to try twice — so segment on this instead.
 
-**A re-ask does NOT emit a second `daily_question_shown`** (nor a second skip/abandon). A rephrase is a continuation of one asking, not a second one: the user was asked once and *we* failed to parse what they said, so counting it as another ask would record our classifier's failure as the user being asked again — backwards for the one thing this event exists to measure.
+**A re-ask emits NO `daily_question_shown`, NO `daily_question_skipped` and NO `daily_question_abandoned`.** A rephrase is a continuation of one asking, not a second one: the user was asked once and *we* failed to parse what they said, so counting it as another ask would record our classifier's failure as the user being asked again — backwards for the one thing this event exists to measure. An outcome without its show would corrupt those rates permanently, while the information itself stays derivable (below).
 
-**The consequence you will see in the data, which is correct and looks broken:** in the `attempt ≥ 2` slice, **`answered` exceeds `shown`**, because the re-answer emits `answered` with no new `shown` behind it. That is the design, not a bug — do not file one.
+**Two consequences in the data. Both are correct and both look broken:**
+
+1. In the `attempt ≥ 2` slice, **`answered` exceeds `shown`** — the re-answer emits `answered` with no new `shown` behind it.
+2. In that same slice **there are no abandon events at all**, so someone who gives up at the re-ask appears nowhere directly. **Do not go looking for the missing `daily_question_abandoned`; it does not exist and its absence is not a bug.**
+
+**Give-ups at the re-ask are a subtraction, not an event:**
+
+```
+daily_question_off_topic{attempt=1} − daily_question_answered{attempt=2}
+```
+
+= people who were told to rephrase and never came back with one. This is the number that says what the classifier costs, and it is the only way to see it.
 
 **`daily_question_off_topic` is a product finding, not a funnel curiosity.** The classifier has **never fired on real daily text**: before W4 the loop sent the revealed card's own blurb to the reflection engine, so it was structurally unreachable on this path, and it has only ever run against Reflect — which is opt-in and self-selected. W4 points it at every daily user's sentence about grief, money and prayer at once, **with no measured false-positive rate**.
 
@@ -198,7 +209,7 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 - **Tour `step_index` is not comparable across arms** — always pivot to `step_id` for cross-variant per-step funnels.
 - **`onboarding_started` over-counts raw events** — it fires once per `OnboardingScreen` mount, so a user killed mid-onboarding and relaunched re-fires it. As a funnel denominator, count **unique users** (or filter `entry_page == 0`), not raw event total.
 - **`daily_question_abandoned` is NOT one minus the answer rate.** Abandon fires on backgrounding as well as on navigating away (the OS can reap the app from the background, so waiting for dispose would systematically undercount the likeliest way someone bails). A user who backgrounds the question, comes back, and *then* answers emits **both** `daily_question_abandoned` and `daily_question_answered` for a single `daily_question_shown`. Outcomes therefore sum to slightly **more** than shows. Read abandon as **"left at least once"**, and compute the answer rate from `answered ÷ shown` directly rather than by subtraction.
-- **In the `attempt ≥ 2` slice, `answered` exceeds `shown`.** A re-ask emits no second `daily_question_shown` (see the `attempt` section) — correct data that reads as broken.
+- **In the `attempt ≥ 2` slice, `answered` exceeds `shown` AND there are no abandon events.** A re-ask emits no second `shown`, `skipped` or `abandoned` (see the `attempt` section) — correct data that reads as broken twice over. Someone who gives up at the re-ask is `daily_question_off_topic{attempt=1}` minus `daily_question_answered{attempt=2}`, never a `daily_question_abandoned`.
 - **`daily_question_shown` can legitimately fire twice in one local day.** A metered re-roll calls `resetToday()` and re-shows the question from `home_cta`; a user who backs out and re-taps their widget gets a second correct `widget` show. Only a second **`day_open`** show in one local day is a bug (auto-entry is once per local day), and that one is caught by a debug assert in the app. Do not treat repeat shows as double-counting without checking `entry_source`.
 - **W4 events have no history before the W4 build ships** — same rule as the Phase 1–3 events above. `daily_question_*`, `daily_reward_claimed`, and the `problem_category`/`input_mode` props on `check_in_completed` are all new in that binary.
 - **`check_in_completed` volume is unchanged by W4** — it was extended, not forked, and `path` is still `'discover'`. If its count moves at the W4 release, that is a real behaviour change (or a bug), not an instrumentation artifact.
