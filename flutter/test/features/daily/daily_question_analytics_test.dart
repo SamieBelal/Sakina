@@ -325,7 +325,19 @@ void main() {
       expect(of(AnalyticsEvents.dailyQuestionAbandoned), isEmpty);
     });
 
-    testWidgets('NOTHING the user typed is in any surface payload', (t) async {
+    testWidgets('a typed-then-DEFERRED answer reaches no surface payload',
+        (t) async {
+      // Narrow on purpose, and the name says so. This exercises the defer
+      // path, where the text never leaves the widget at all — so it proves the
+      // surface's own two events are clean, and nothing about the events that
+      // actually receive the answer. Those are the provider's, and they are
+      // swept in `the provider` group below.
+      //
+      // The previous name ("NOTHING the user typed is in any surface payload")
+      // was literally true and read as the wave's whole privacy guarantee. It
+      // is not — that is `THE ANSWER TEXT REACHES NO EVENT PAYLOAD` at the
+      // bottom of `the provider` group, which submits a real answer and sweeps
+      // every emit. Two tests, two scopes, and now two names that say which.
       const secret = 'my marriage is falling apart and I cannot say it aloud';
       await t.pumpWidget(host());
       await t.pumpAndSettle();
@@ -447,6 +459,26 @@ void main() {
 
       final checkIn = of(AnalyticsEvents.checkInCompleted);
       expect(checkIn, hasLength(1));
+
+      // EXHAUSTIVE, and this is a SCHEMA pin rather than a privacy one — the
+      // privacy guarantee is already covered by the sweep at the bottom of
+      // this group, which submits a real answer and checks every payload for
+      // the text and its fragments.
+      //
+      // What a sweep cannot catch is a new prop that is not the answer: a
+      // forked `path`, a renamed key, or a field carrying something adjacent
+      // nobody meant to ship. `check_in_completed` is the D1/D7 retention
+      // spine and therefore the event people extend — W4 Wave 7 added two
+      // props to it and W3's carried wave added two more, in one week. Pinning
+      // the key set means the next addition has to be deliberate.
+      expect(checkIn.single.props.keys.toSet(), {
+        'path',
+        'name',
+        'tier_changed',
+        'is_duplicate',
+        AnalyticsEvents.propProblemCategory,
+        AnalyticsEvents.propInputMode,
+      });
       // `path` is the D1/D7 retention spine. Changing it to `'feeling'` — as
       // the original Phase-2 prescription proposed — breaks every historical
       // comparison built on this event.
@@ -455,9 +487,6 @@ void main() {
           'heavy');
       expect(checkIn.single.props[AnalyticsEvents.propInputMode],
           inputModeTyped);
-      // Still the event it always was.
-      expect(checkIn.single.props.containsKey('name'), isTrue);
-      expect(checkIn.single.props.containsKey('tier_changed'), isTrue);
     });
 
     test('daily_reward_claimed fires once at submit, and not on a replay',

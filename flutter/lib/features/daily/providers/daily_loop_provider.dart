@@ -1669,6 +1669,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // returns — do NOT build a dashboard assuming a non-empty `questionnaire`
       // bucket until then. Best-effort (see discover-path rationale above).
       try {
+        // NOTE if this path ever goes live: it omits `problem_category` and
+        // `input_mode` entirely, where the discover path sends them as
+        // explicit nulls. Key-absent and null are different things in
+        // Mixpanel — one segments as "no data", the other as "no answer" — so
+        // a returning multi-question UI should send explicit nulls (or real
+        // values) rather than inherit this omission.
         onAnalyticsEvent?.call(AnalyticsEvents.checkInCompleted, {
           'path': 'questionnaire',
           // Cleaned name (same value shown in the UI), comparable to the

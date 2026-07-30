@@ -950,7 +950,7 @@ abstract final class AnalyticsEvents {
   static const String dailyQuestionShown = 'daily_question_shown';
 
   /// The user answered it. Props: [propProblemCategory], [propInputMode],
-  /// [propCharCountBucket].
+  /// [propCharCountBucket], [propAttempt].
   static const String dailyQuestionAnswered = 'daily_question_answered';
 
   /// "Not right now" — the explicit defer. Props: [propDwellMsBucket]. A skip
@@ -966,9 +966,9 @@ abstract final class AnalyticsEvents {
   /// [propDwellMsBucket]. An abandon says the *question* was wrong.
   static const String dailyQuestionAbandoned = 'daily_question_abandoned';
 
-  /// The daily reward was claimed. Props: [propTrigger]. Exists so the W4
-  /// re-timing of the claim (open → answer-submit) is visible in the data
-  /// rather than inferred from the absence of something else.
+  /// The daily reward was claimed. Props: [propTrigger], [propLadderDay].
+  /// Exists so the W4 re-timing of the claim (open → answer-submit) is visible
+  /// in the data rather than inferred from the absence of something else.
   static const String dailyRewardClaimed = 'daily_reward_claimed';
 
   /// The off-topic classifier rejected an answer and the user was asked to
