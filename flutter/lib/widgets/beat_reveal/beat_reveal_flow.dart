@@ -359,7 +359,13 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
                 ),
               ),
               const SizedBox(width: 10),
-              if (!isDua) _skipButton(),
+              // On the FINAL beat the skip button is worse than useless: the
+              // shipped decks end `… dua → takeaway`, so `isDua` is false there
+              // and "Skip to duʿa" renders — jumping the user BACKWARDS and
+              // emitting a spurious `reflect_flow_skipped`. The slot it vacates
+              // is where the share icon belongs anyway.
+              if (!isDua && !isLast) _skipButton(),
+              if (isLast && widget.onShare != null) _shareIconInline(),
             ],
           ),
         ),
@@ -404,6 +410,34 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
               color: AppColors.sacredInk.withValues(alpha: 0.85),
               letterSpacing: 0.2,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Share on the FINAL beat, in the top-right slot the skip button vacates.
+  ///
+  /// The floating [_shareButton] cannot be reused here: it sits at `bottom: 18`
+  /// and the Ameen pill occupies `bottom: 24` plus 56 of height, so the icon
+  /// would land on top of the primary action. This is also the better moment —
+  /// someone who has just finished the deck and is about to say Ameen is far
+  /// likelier to share than someone mid-flow. The AI path keeps the floating
+  /// button, because there the takeaway is never the last beat.
+  Widget _shareIconInline() {
+    return Semantics(
+      button: true,
+      label: 'Share this reflection',
+      child: InkResponse(
+        onTap: widget.onShare,
+        radius: 26,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            Icons.ios_share,
+            size: 21,
+            color: AppColors.sacredInk.withValues(alpha: 0.85),
           ),
         ),
       ),

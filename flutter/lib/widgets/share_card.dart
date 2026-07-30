@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:sakina/core/constants/app_colors.dart';
@@ -181,6 +182,64 @@ typedef ShareTakeawayFn = Future<void> Function({
 });
 
 ShareTakeawayFn shareTakeawayCard = _defaultShareTakeawayCard;
+
+/// Shares a story deck as a takeaway card, sourced entirely from its own beats.
+///
+/// **Why the verse and not the deck's own closing line.** The card is built as
+/// one hero quote plus a small attribution, and the deck's obvious candidates
+/// both fail as standalone quotes:
+///
+///  * the opening `bridge` is scene-setting prose (67-117 chars) written to lead
+///    somewhere, so on its own it reads as a fragment;
+///  * the closing `takeaway` hands off to the pair partner — eight of the
+///    fourteen shipped decks contain a phrase like "As-Samad — the second Name
+///    of your answer" — which is a dangling reference to anyone who did not just
+///    read the deck.
+///
+/// The verse has none of those problems. It is short (35-145 chars, median ~60),
+/// already verified in the deck's own `sources` table, and quotable by
+/// construction — and Name + verse is exactly what CLAUDE.md calls the
+/// share-worthy artifact.
+///
+/// Only the verse's ENGLISH translation goes to the card. Its Arabic is left off
+/// deliberately: the Name's calligraphy is already the hero, and a second Arabic
+/// block would both crowd the card and risk sharing a widget with Latin text.
+Future<void> shareStoryDeckCard({
+  required BuildContext context,
+  required NameStoryDeck deck,
+  Rect? sharePositionOrigin,
+}) {
+  NameStoryBeat? firstOf(Set<String> kinds) {
+    for (final beat in deck.beats) {
+      if (kinds.contains(beat.kind)) return beat;
+    }
+    return null;
+  }
+
+  final nameBeat = firstOf({'name_intro'});
+  final verse = firstOf({'verse', 'comfort_verse'});
+
+  return shareTakeawayCard(
+    context: context,
+    nameArabic: nameBeat?.arabic ?? '',
+    nameEnglish: deck.transliteration,
+    meaning: nameBeat?.primary ?? '',
+    reframeKey: verse?.primary ?? '',
+    takeaway: shareableVerseSource(verse?.source ?? ''),
+    sharePositionOrigin: sharePositionOrigin,
+  );
+}
+
+/// The citation with its reviewer note stripped.
+///
+/// A deck's `source` carries provenance written for the reviewer, not the reader
+/// — "Qur'an 58:1 (revealed for a woman whose complaint the person in the same
+/// room could not hear)". Everything from the first parenthesis on is an
+/// editorial aside and must not reach a shared card.
+String shareableVerseSource(String source) {
+  final cut = source.indexOf(' (');
+  return (cut == -1 ? source : source.substring(0, cut)).trim();
+}
 
 Future<void> _defaultShareTakeawayCard({
   required BuildContext context,
