@@ -46,6 +46,7 @@ import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
+import 'package:sakina/features/progress/widgets/daily_loop_cta_card.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -360,20 +361,44 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               _buildGreetingRow(state),
               const SizedBox(height: AppSpacing.md),
 
-              // 2. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
+              // 2. THE DAILY CTA — first thing after the greeting, on purpose
+              //    (W4 Wave 5 / plan §7).
+              //
+              //    Everything that used to sit here pushed the purpose of the
+              //    app below the fold: up to five self-collapsing promo cards
+              //    (of which HomePremiumStrip was unconditional for free users),
+              //    then a whole dashboard card — stats row, XP bar, a 152px
+              //    lantern, the streak line, a 60px Name and a teaching
+              //    paragraph — before the muḥāsabah row appeared, around 800px
+              //    into a ~700-760px viewport.
+              //
+              //    Nothing below was deleted to fix that; it was reordered.
+              //    Lifting the CTA to the top is what demotes the rest, and it
+              //    costs no feature. Ordering here is now: greeting → the job →
+              //    everything else.
+              //
+              //    Load-bearing for Wave 2's defer: "Not right now" returns the
+              //    user here with the loop still live, and this card is the only
+              //    way back in. A defer into a below-the-fold CTA is a defer
+              //    into a dead end.
+              _buildMuhasabahCta(state),
+              const SizedBox(height: AppSpacing.md),
+
+              // 3. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
               //    nothing outside occasion windows; gated by Env kill switch
               //    and the GiftService loading-gate per CLAUDE.md PR #8.
               const RamadanGiftCard(),
-              const SizedBox(height: AppSpacing.md),
 
-              // 2a. Duʿā-times card (awqāt al-ijābah). Render-gated: shows only
+              // 3a. Duʿā-times card (awqāt al-ijābah). Render-gated: shows only
               //     when there's an active or imminent duʿā window; otherwise
               //     collapses to SizedBox.shrink() (no spacer wasted). CTA-first
               //     on the sacred canvas; every tap drives Build-a-Duʿā. See
               //     docs/superpowers/specs/2026-07-15-dua-acceptance-times-widget-design.md.
+              //     Still high in the scroll because it is genuinely
+              //     time-bounded — but under the daily CTA, not over it.
               const DuaTimesCard(),
 
-              // 2b. Post-conversion referral nudge (active RC subscribers only,
+              // 3b. Post-conversion referral nudge (active RC subscribers only,
               //     until they earn their first referral grant). Self-collapses
               //     to SizedBox.shrink() for everyone else (no spacer here — the
               //     card owns its own bottom margin only when shown, so a hidden
@@ -381,19 +406,19 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //     hard paywall removed, on the welcome side of the wall.
               const ReferralNudgeCard(),
 
-              // 2c. Add-the-widget nudge — shown once the user has a streak
+              // 3c. Add-the-widget nudge — shown once the user has a streak
               //     (they've felt the loop), until dismissed. Adoption is the
               //     gating factor for widget retention. Self-collapses like the
               //     referral card, so no spacer needed here.
               const WidgetInstallNudgeCard(),
 
-              // 2d. Home → Premium strip — free-user upgrade entry point,
-              //     placed just above the muḥāsabah CTA (inside the dashboard
-              //     card below). Self-collapses to SizedBox.shrink() for premium
-              //     users, so no spacer needed here.
+              // 3d. Home → Premium strip. Was unconditional and ABOVE the daily
+              //     CTA — an upgrade ad outranking the core loop for every free
+              //     user, every open. Same strip, same audience, now below the
+              //     thing they came for.
               const HomePremiumStrip(),
 
-              // 3. Unified dashboard card
+              // 4. Unified dashboard card
               _buildDashboardCard(state, hero),
               // Just enough to breathe above the bottom nav. The
               // SingleChildScrollView's pagePadding already adds ~24px
@@ -794,11 +819,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             textAlign: TextAlign.center,
           ).animate().fadeIn(duration: 500.ms, delay: 500.ms),
 
-          // Muhasabah row
-          const SizedBox(height: 16),
-          Container(height: 1, color: AppColors.dividerLight),
-          const SizedBox(height: 14),
-          _buildMuhasabahRow(state),
+          // The muḥāsabah row used to sit here, between this divider and the
+          // Quests one. That shared rhythm is exactly what made the purpose of
+          // the app read as the fourth item in a settings list, so it moved out
+          // of the card entirely (W4 Wave 5). What remains below — Quests,
+          // Anchor Names, Daily Rewards — is genuinely a navigation stack, and
+          // now looks like one.
 
           // Quests
           const SizedBox(height: 16),
@@ -947,156 +973,82 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     }();
   }
 
-  Widget _buildMuhasabahRow(DailyLoopState state) {
-    final completed = state.currentStep == DailyLoopStep.completed;
-    final inProgress =
-        state.checkinDone || state.currentStep != DailyLoopStep.checkin;
-    final promptLabel = _buildMuhasabahPromptLabel(state);
+  /// The home screen's primary daily CTA (W4 Wave 5).
+  ///
+  /// The visual design lives in [DailyLoopCtaCard]; gating stays here, because
+  /// `_discoverInFlight` is State, the cap sheet needs this screen's context,
+  /// and the card is deliberately pure presentation.
+  Widget _buildMuhasabahCta(DailyLoopState state) {
+    final DailyLoopCtaState ctaState;
+    if (state.currentStep == DailyLoopStep.completed) {
+      ctaState = DailyLoopCtaState.completed;
+    } else if (state.checkinDone ||
+        state.currentStep != DailyLoopStep.checkin) {
+      ctaState = DailyLoopCtaState.inProgress;
+    } else {
+      // Also where Wave 2's "Not right now" defer lands: the day marker is
+      // written, but nothing was consumed and no Name was met, so the whole
+      // loop — question, reveal and reward — is still collectible from here.
+      // That is the entire reason the defer is a defer and not an exit, so this
+      // branch must keep rendering the inviting face, not a spent one.
+      ctaState = DailyLoopCtaState.notStarted;
+    }
 
-    // Tour anchor: TourAnchor wraps both conditional branches so the tour
-    // overlay can anchor onto the active CTA (Begin Muḥāsabah today, or
-    // Seek Another Name once checked in). The anchor name doesn't change
-    // even though the underlying widget swaps — that's intentional, the
-    // step name is just "the muhasabah CTA on home".
+    // Tour anchor: same surface and anchorId as before the restructure, still
+    // wrapping every branch so the tour anchors onto whichever face the CTA is
+    // wearing. The id is deliberately NOT renamed alongside the copy — it names
+    // the position on the screen, not the label.
     return TourAnchor(
       surface: TourSurface.home,
       anchorId: 'beginMuhasabahCta',
-      child: _buildMuhasabahRowInner(state, completed, inProgress, promptLabel),
-    );
-  }
-
-  Widget _buildMuhasabahRowInner(
-    DailyLoopState state,
-    bool completed,
-    bool inProgress,
-    String promptLabel,
-  ) {
-    if (completed) {
-      return GestureDetector(
-        onTap: () async {
-          // Synchronous re-entry guard. A double-tap that lands while the
-          // first call is still inside `GatingService.canUse()` previously
-          // passed the gate twice and fired `markUsed` twice — same shape as
-          // the reflect/duas D-E5 race. Set the flag BEFORE any await; the
-          // try/finally clears it on every exit including early returns.
-          if (_discoverInFlight) return;
-          _discoverInFlight = true;
-          try {
-            HapticFeedback.mediumImpact();
-            final notifier = ref.read(dailyLoopProvider.notifier);
-            final gate =
-                await GatingService().canUse(GatedFeature.discoverName);
-            if (!gate.allowed) {
-              if (mounted) _showDiscoverGateSheet(context, gate.reason);
-              return;
-            }
-            await notifier.resetToday();
-            if (!mounted) return;
-            context.push('/muhasabah');
-            // markUsed deliberately does NOT fire here (W4 Wave 1). The gate is
-            // asked at the tap — a capped user has to be told before they're
-            // asked to disclose anything — but the charge belongs to
-            // `discoverName()`, which the muhasabah route's one-shot trigger
-            // runs, and which only marks once a Name has actually been engaged.
-            // Tapping through and backing out must cost nothing.
-            //
-            // The warmup-exhaustion sheet moved with it: `discoverName` parks
-            // the outcome on `DailyLoopState.warmupJustExhausted` and
-            // muhasabah_screen's ref.listen fires the sheet. It has to be that
-            // screen — this one is already behind the pushed route by then.
-          } finally {
-            _discoverInFlight = false;
-          }
+      child: DailyLoopCtaCard(
+        state: ctaState,
+        completedName: state.checkinName,
+        onStart: () {
+          HapticFeedback.mediumImpact();
+          context.push('/muhasabah');
         },
-        behavior: HitTestBehavior.opaque,
-        child: Row(
-          children: [
-            const Icon(Icons.explore_outlined,
-                color: AppColors.secondary, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Discover a New Name',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    promptLabel,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textTertiaryLight,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
-    }
-
-    // Not started or in progress
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        context.push('/muhasabah');
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.play_circle_outline_rounded,
-                color: Colors.white, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    inProgress ? 'Continue Muhāsabah' : 'Begin Muhāsabah',
-                    style: AppTypography.labelMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    promptLabel,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.bodySmall.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: Colors.white.withValues(alpha: 0.7), size: 14),
-          ],
-        ),
+        onReroll: _rerollName,
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 300.ms);
+    ).animate().fadeIn(duration: 400.ms, delay: 150.ms);
   }
 
-  String _buildMuhasabahPromptLabel(DailyLoopState state) {
-    final prompt = state.todaysQuestion?.question.trim();
-    if (prompt == null || prompt.isEmpty) {
-      return 'Daily spiritual check-in';
+  /// The metered re-roll behind the completed state's "Meet another Name".
+  ///
+  /// The day's first reveal is free and unmetered; this is the one that is
+  /// gated, so `canUse` is asked BEFORE navigating — a capped user has to meet
+  /// the cap sheet here rather than after being asked what is on their heart.
+  Future<void> _rerollName() async {
+    // Synchronous re-entry guard. A double-tap that lands while the first call
+    // is still inside `GatingService.canUse()` previously passed the gate twice
+    // and fired `markUsed` twice — same shape as the reflect/duas D-E5 race.
+    // Set the flag BEFORE any await; the try/finally clears it on every exit
+    // including early returns.
+    if (_discoverInFlight) return;
+    _discoverInFlight = true;
+    try {
+      HapticFeedback.mediumImpact();
+      final notifier = ref.read(dailyLoopProvider.notifier);
+      final gate = await GatingService().canUse(GatedFeature.discoverName);
+      if (!gate.allowed) {
+        if (mounted) _showDiscoverGateSheet(context, gate.reason);
+        return;
+      }
+      await notifier.resetToday();
+      if (!mounted) return;
+      context.push('/muhasabah');
+      // markUsed deliberately does NOT fire here (W4 Wave 1). The gate is asked
+      // at the tap, but the charge belongs to `discoverName()`, which only marks
+      // once a Name has actually been engaged. Tapping through and backing out
+      // must cost nothing.
+      //
+      // The warmup-exhaustion sheet moved with it: `discoverName` parks the
+      // outcome on `DailyLoopState.warmupJustExhausted` and muhasabah_screen's
+      // ref.listen fires the sheet. It has to be that screen — this one is
+      // already behind the pushed route by then.
+    } finally {
+      _discoverInFlight = false;
     }
-
-    return 'Today: $prompt';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
