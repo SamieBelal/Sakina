@@ -210,6 +210,27 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           !identical(prevResult, nextResult)) {
         _pushCardRevealOverlay(next);
       }
+      // One-shot warmup-exhaustion sheet, on the rising edge of the flag
+      // `discoverName` sets when `markUsed` took this user's discover-name
+      // warmup from 1 to 0. Before W4 Wave 1 the two discover CTAs awaited
+      // `markUsed` themselves and fired this directly; the charge moved into the
+      // provider, so the signal has to come back through state. Mirrors
+      // duas_screen's `buildWarmupJustExhausted` branch exactly.
+      //
+      // This screen and not progress_screen: every non-bypass discover now runs
+      // from here (the day-open one-shot in initState, "Seek Another Name", and
+      // the home CTA, which pushes this route before the reveal starts). Only
+      // one listener may own it or the sheet shows twice.
+      if (next.warmupJustExhausted != null &&
+          prev?.warmupJustExhausted == null) {
+        WarmupExhaustedSheet.show(
+          context,
+          feature: next.warmupJustExhausted!,
+          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        ).whenComplete(
+          ref.read(dailyLoopProvider.notifier).dismissWarmupExhausted,
+        );
+      }
     });
 
     final state = ref.watch(dailyLoopProvider);
@@ -801,40 +822,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       }
                       await notifier.resetToday();
                       if (!mounted) return;
-                      await notifier.discoverName();
-                      if (!mounted) return;
-                      // Decrement on success only — and success now has to be
-                      // checked, not assumed.
+                      // The charge lives inside `discoverName` now (W4 Wave 1) —
+                      // it marks at its own tail, only once a Name has actually
+                      // been engaged, so the "decrement on success only" contract
+                      // this call site used to enforce by reading `state.error`
+                      // is enforced at the source instead. `premium` still rides
+                      // down so the tap costs one RevenueCat round-trip, not two.
                       //
-                      // This used to mark unconditionally, on the premise that
-                      // "discoverName has no observable failure mode (it's an
-                      // in-app card pick backed by a local lookup)". W3 made that
-                      // false: the reveal now awaits an `unseal_next_name` RPC
-                      // and a queue select. `discoverName` catches its own
-                      // exceptions into `state.error` and returns NORMALLY, so an
-                      // offline or 500 reveal looked like a success here and
-                      // consumed the user's one free reveal for a reveal that did
-                      // not happen — after which the retry meets the cap sheet
-                      // and costs 25 tokens, while the server may already have
-                      // spent the queue position.
+                      // Why that contract exists, kept here because it is the
+                      // reason the naive version is wrong: `discoverName` awaits
+                      // an `unseal_next_name` RPC and a queue select, catches its
+                      // own exceptions into `state.error`, and returns NORMALLY.
+                      // An offline or 500 reveal therefore LOOKS like success to
+                      // a caller — and consuming on it burns the user's one free
+                      // reveal for a reveal that did not happen, after which the
+                      // retry meets the cap sheet and costs 25 tokens while the
+                      // server may already have spent the queue position.
                       //
-                      // `state.error` is the same signal `discoverNameWithBypass`
-                      // uses to decide commit-versus-refund, so this reads the
-                      // established contract rather than inventing one.
-                      if (ref.read(dailyLoopProvider).error != null) return;
-                      final outcome = await GatingService().markUsed(
-                        GatedFeature.discoverName,
-                        isPremiumHint: premium,
-                      );
-                      if (outcome == UsageOutcome.warmupJustExhausted &&
-                          mounted) {
-                        WarmupExhaustedSheet.show(
-                          context,
-                          feature: GatedFeature.discoverName,
-                          onUpgrade: () =>
-                              GoRouter.of(context).push('/paywall'),
-                        );
-                      }
+                      // The warmup-exhaustion sheet fires from the ref.listen in
+                      // build(), off `state.warmupJustExhausted`.
+                      await notifier.discoverName(isPremiumHint: premium);
                     } finally {
                       _discoverInFlight = false;
                     }

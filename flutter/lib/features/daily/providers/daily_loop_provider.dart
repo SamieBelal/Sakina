@@ -138,6 +138,18 @@ class DailyLoopState {
   // Daily reward
   final DailyRewardClaimResult? rewardClaimResult;
 
+  /// Non-null for exactly one state transition after the reveal that decremented
+  /// this user's discover-name warmup budget from 1 to 0. The screen layer
+  /// (`muhasabah_screen`) fires [WarmupExhaustedSheet] on the rising edge and
+  /// then calls [DailyLoopNotifier.dismissWarmupExhausted].
+  ///
+  /// This exists because W4 Wave 1 moved `markUsed` off the CTA and into
+  /// [DailyLoopNotifier.discoverName]: the `UsageOutcome` that used to be
+  /// returned straight to a widget now has to travel back out through state.
+  /// Mirrors `DuasState.buildWarmupJustExhausted`, which solves the identical
+  /// problem for build-a-dua.
+  final GatedFeature? warmupJustExhausted;
+
   // Error
   final String? error;
 
@@ -180,6 +192,7 @@ class DailyLoopState {
     this.streakMilestoneScrolls,
     this.streakLapseRestorable = false,
     this.lapsePreLapseStreak = 0,
+    this.warmupJustExhausted,
     this.error,
   });
 
@@ -231,6 +244,12 @@ class DailyLoopState {
     int? streakMilestoneScrolls,
     bool? streakLapseRestorable,
     int? lapsePreLapseStreak,
+    GatedFeature? warmupJustExhausted,
+
+    /// Explicit clear for [DailyLoopState.warmupJustExhausted] — the `?? this.x`
+    /// merge cannot express "back to null", and a sticky flag would re-fire the
+    /// sheet on the next rising edge the screen observes.
+    bool clearWarmupJustExhausted = false,
     String? error,
   }) {
     return DailyLoopState(
@@ -288,6 +307,9 @@ class DailyLoopState {
       streakLapseRestorable:
           streakLapseRestorable ?? this.streakLapseRestorable,
       lapsePreLapseStreak: lapsePreLapseStreak ?? this.lapsePreLapseStreak,
+      warmupJustExhausted: clearWarmupJustExhausted
+          ? null
+          : (warmupJustExhausted ?? this.warmupJustExhausted),
       error: error,
     );
   }
@@ -624,7 +646,37 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// with an approved story deck parks it in `state.revealDeck` and the AI
   /// prefetch is skipped entirely; everything else keeps the AI reflection with
   /// the Name forced.
-  Future<void> discoverName() async {
+  ///
+  /// **Consumption (W4 Wave 1).** This function owns `GatingService.markUsed`.
+  /// It used to fire at the CTA, before navigation — which was survivable while
+  /// the tap led straight to the reveal, and stops being survivable the moment a
+  /// question sits between the two: opening the prompt and backing out would
+  /// burn the user's one free reveal for the day. `canUse` stays at the CTA (a
+  /// capped user must be told BEFORE being asked to disclose anything); the
+  /// charge happens here, at the tail, only once a Name has actually been
+  /// engaged. See plan `2026-07-30-one-ship-04-daily-loop-restructure.md` §3 and
+  /// spec §8.
+  ///
+  /// [consumeFreeUsage] is false on the two bypass paths, mirroring
+  /// `DuasNotifier._doBuild` and `ReflectNotifier._doSubmit`: the
+  /// `reserve_ai_bypass` / `claim_first_bypass` RPCs already increment the
+  /// daily-uses row server-side, and warmup is a pre-bypass mechanic. Marking
+  /// again there would double-count.
+  ///
+  /// [isPremiumHint] lets a caller that already resolved premium for its `canUse`
+  /// check hand the answer down, keeping the whole tap to one RevenueCat
+  /// round-trip.
+  Future<void> discoverName({
+    bool consumeFreeUsage = true,
+    bool? isPremiumHint,
+  }) async {
+    // Re-entry guard, and now a *charging* guard. `checkinLoading` is the same
+    // in-flight signal the muhasabah screen's one-shot post-frame trigger and
+    // both bypass wrappers already read, so this adds no new concept — but with
+    // `markUsed` living in here it is what makes a double-tap consume once even
+    // if a caller's own synchronous guard (`_discoverInFlight` on the two CTAs)
+    // is ever bypassed or forgotten. Set synchronously below, before any await.
+    if (state.checkinLoading) return;
     state = state.copyWith(checkinLoading: true, error: null);
 
     try {
@@ -882,6 +934,51 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           'is_duplicate': engageResult.isDuplicate,
         });
       } catch (_) {}
+
+      // ---- Consume the daily allowance (W4 Wave 1) --------------------------
+      //
+      // ORDERING IS LOAD-BEARING, three ways:
+      //
+      //  1. LAST, and after the reveal write. Everything above either succeeded
+      //     or threw into the catch below. Landing here is the only proof the
+      //     user actually got a Name — `engageCard` has committed, the reveal is
+      //     already on screen (state was written at the copyWith above, and none
+      //     of the tail awaits block it), and the day blob is persisted. An
+      //     earlier position would charge for work that can still fail.
+      //
+      //  2. INSIDE ITS OWN try/catch, not the outer one. The outer catch writes
+      //     `state.error`, and `state.error` is the signal
+      //     `discoverNameWithBypass` reads to decide commit-versus-cancel. A
+      //     SharedPreferences or upsert failure in here must never flip a reveal
+      //     that HAPPENED into an error — that would refund a bypass the user
+      //     genuinely spent and re-offer a reveal the server already granted.
+      //     Same rationale as the analytics emit directly above. The failure mode
+      //     this accepts is failing open (an uncharged reveal), which is the
+      //     right way round.
+      //
+      //  3. AFTER `_resolveQueueRows()`, which is now automatic by being here.
+      //     `daily_usage_service._capDay()` keys the counter user-locally once a
+      //     queue mirror exists and UTC otherwise; at the CTA that read happened
+      //     before the first authoritative queue read, so a queue user's very
+      //     first charge could land under the UTC key and lock out their next
+      //     local day (see the note in `onboarding_provider._seedNameQueue`).
+      if (consumeFreeUsage) {
+        try {
+          final outcome = await GatingService().markUsed(
+            GatedFeature.discoverName,
+            isPremiumHint: isPremiumHint,
+          );
+          // The 1 → 0 warmup transition is a one-shot UI moment, and the sheet
+          // now has to be fired by whoever is on screen rather than by the CTA
+          // that used to await this call. `mounted` because the tail awaits give
+          // dispose plenty of room to land first.
+          if (mounted && outcome == UsageOutcome.warmupJustExhausted) {
+            state = state.copyWith(
+              warmupJustExhausted: GatedFeature.discoverName,
+            );
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       debugPrint('[DISCOVER NAME ERROR] $e');
       state = state.copyWith(
@@ -902,10 +999,26 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// Runs the real [discoverName] body, or the test-only override when one
   /// has been injected via the constructor seam. Centralized so both bypass
   /// wrappers share the same indirection point.
+  /// [consumeFreeUsage] is false for both wrappers: the bypass RPCs own the
+  /// daily-counter increment server-side (`reserve_ai_bypass` /
+  /// `claim_first_bypass`), and the warmup budget is a pre-bypass mechanic — a
+  /// user with warmup left is never gated, so never offered a bypass. Marking
+  /// here would charge the reveal twice. Matches `submitBuildWithBypass` /
+  /// `submitWithBypass` on the other two gated features.
+  ///
+  /// `isPremiumHint: false` is not passed on purpose: `reserveBypass` already
+  /// short-circuits premium users, so no premium read is owed here at all.
   Future<void> _runDiscoverName() {
     final override = _discoverNameOverride;
     if (override != null) return override(this);
-    return discoverName();
+    return discoverName(consumeFreeUsage: false);
+  }
+
+  /// Clears the one-shot warmup-exhaustion signal after
+  /// [WarmupExhaustedSheet] has been shown and dismissed.
+  void dismissWarmupExhausted() {
+    if (state.warmupJustExhausted == null) return;
+    state = state.copyWith(clearWarmupJustExhausted: true);
   }
 
   Future<void> discoverNameWithBypass() async {

@@ -46,7 +46,6 @@ import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
 import 'package:sakina/features/paywall/widgets/lapsed_trial_sheet.dart';
-import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/adjusted_arabic_display.dart';
 import 'package:sakina/widgets/animated_xp_bar.dart';
 import 'package:sakina/widgets/sakina_loader.dart';
@@ -994,18 +993,17 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
             await notifier.resetToday();
             if (!mounted) return;
             context.push('/muhasabah');
-            // markUsed fires here (not on the muhasabah screen) because the
-            // discoverName flow is initiated from this CTA — the muhasabah
-            // route is just where the gacha animation plays out.
-            final outcome =
-                await GatingService().markUsed(GatedFeature.discoverName);
-            if (outcome == UsageOutcome.warmupJustExhausted && mounted) {
-              WarmupExhaustedSheet.show(
-                context,
-                feature: GatedFeature.discoverName,
-                onUpgrade: () => GoRouter.of(context).push('/paywall'),
-              );
-            }
+            // markUsed deliberately does NOT fire here (W4 Wave 1). The gate is
+            // asked at the tap — a capped user has to be told before they're
+            // asked to disclose anything — but the charge belongs to
+            // `discoverName()`, which the muhasabah route's one-shot trigger
+            // runs, and which only marks once a Name has actually been engaged.
+            // Tapping through and backing out must cost nothing.
+            //
+            // The warmup-exhaustion sheet moved with it: `discoverName` parks
+            // the outcome on `DailyLoopState.warmupJustExhausted` and
+            // muhasabah_screen's ref.listen fires the sheet. It has to be that
+            // screen — this one is already behind the pushed route by then.
           } finally {
             _discoverInFlight = false;
           }

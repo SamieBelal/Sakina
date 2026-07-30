@@ -29,18 +29,35 @@
 // lapsed-trial sheet via post-frame callbacks). Instead we pin the bugs at
 // two complementary levels:
 //
-//   1. A behavioral test on a stub widget that mirrors the EXACT
-//      production guard pattern (State field + try/finally around
-//      GatingService.canUse + markUsed). Exercises real `GatingService` so
-//      `discover_name_uses` is a true side-effect probe — same approach as
-//      the reflect/duas tests, just lifted into a State-class harness
-//      because the guard lives on a screen rather than a notifier.
+//   1. A behavioral test on a stub widget that mirrors the production guard
+//      shape (State field + try/finally around an async CTA body). Exercises
+//      real `GatingService` so `discover_name_uses` is a true side-effect
+//      probe — same approach as the reflect/duas tests, just lifted into a
+//      State-class harness because the guard lives on a screen rather than a
+//      notifier.
 //
 //   2. A source-level invariant on `progress_screen.dart` that fails if
 //      anyone reverts to the buggy `_showDiscoverGateSheet(BuildContext)`
 //      single-arg shape, the hardcoded `push('/paywall')` upgrade callback,
 //      or removes the `_discoverInFlight` guard. Mirrors the muhasabah
 //      `muhasabah_screen_source_test.dart` idiom already used in this repo.
+//
+// UPDATED by W4 Wave 1 (plan 2026-07-30-one-ship-04): `markUsed` no longer
+// lives at either CTA — it moved into `DailyLoopNotifier.discoverName`, so that
+// opening the daily question and backing out cannot burn the user's one free
+// reveal. `canUse` STAYS at the CTA, and so does `_discoverInFlight`.
+//
+// What that does to this file:
+//   - The stub below still pins the guard SHAPE, which is what Bug A was
+//     about, but the work it guards is now `canUse` + the provider call. It is
+//     a model of the shape, not a copy of the current CTA body.
+//   - Two new source-level pins assert the negative: neither screen may call
+//     `GatingService().markUsed` again. That is the regression this wave is
+//     protecting against, and it is invisible to any behavioral test that does
+//     not wire the whole screen.
+//   - The consumption contract itself (charged once, on success only, never on
+//     the bypass paths) is pinned behaviorally in
+//     `test/features/daily/discover_name_mark_used_test.dart`.
 
 import 'dart:async';
 import 'dart:io';
@@ -77,11 +94,13 @@ void main() {
       'two synchronous taps in the same microtask only fire markUsed once '
       '(pre-loading race — pinned by _discoverInFlight, NOT by any post-await flag)',
       (tester) async {
-        // Stub widget mirroring the EXACT production guard pattern from
+        // Stub widget mirroring the production guard shape from
         // progress_screen.dart `_buildMuhasabahRow` (completed state) and
         // muhasabah_screen.dart `_buildCompleted` "Seek Another Name" CTA.
-        // The pattern under test is the State-field flag + try/finally
-        // around the GatingService canUse/markUsed sequence.
+        // The pattern under test is the State-field flag + try/finally around
+        // an async CTA body. `markUsed` stands in here for the work the real
+        // CTAs now delegate to `discoverName` — the point is that a second tap
+        // must not reach it, wherever it lives.
         final controller = _DiscoverCtaController();
         await tester.pumpWidget(
           MaterialApp(
@@ -255,6 +274,25 @@ void main() {
             'on an exception path and locking the CTA permanently.',
       );
     });
+
+    test('the CTA gates but does not CONSUME (W4 Wave 1)', () {
+      // The negative pin. `canUse` belongs here — a capped user has to be told
+      // before being asked to disclose anything — but `markUsed` does not:
+      // with a question between the tap and the reveal, marking at the tap
+      // means opening the prompt and backing out burns the day's free reveal.
+      // The charge lives at the tail of `DailyLoopNotifier.discoverName`,
+      // where a Name has demonstrably been engaged.
+      expect(source.contains('canUse(GatedFeature.discoverName)'), isTrue,
+          reason: 'the gate check must stay at the CTA');
+      expect(
+        RegExp(r'markUsed\s*\(').hasMatch(source),
+        isFalse,
+        reason: 'progress_screen must not call GatingService.markUsed. If this '
+            'fails, someone moved consumption back onto the tap and a user who '
+            'opens the daily question and backs out is charged for a reveal '
+            'they never saw.',
+      );
+    });
   });
 
   group('Bug B + structural pins on muhasabah_screen.dart', () {
@@ -288,6 +326,19 @@ void main() {
           reason:
               'The completed-state CTA must follow the canonical guard shape '
               '(see progress_screen pin for details).');
+    });
+
+    test('the "Seek Another Name" CTA gates but does not CONSUME (W4 Wave 1)',
+        () {
+      expect(source.contains('canUse('), isTrue,
+          reason: 'the gate check must stay at the CTA');
+      expect(
+        RegExp(r'markUsed\s*\(').hasMatch(source),
+        isFalse,
+        reason: 'muhasabah_screen must not call GatingService.markUsed — the '
+            'charge belongs to discoverName, which only marks once a Name has '
+            'actually been engaged. See the progress_screen pin for why.',
+      );
     });
   });
 }
