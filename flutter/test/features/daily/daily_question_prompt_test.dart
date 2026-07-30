@@ -21,6 +21,18 @@ const double axLargest = 3.1;
 /// the rendered box to be at least as tall. A truncated caption is shorter than
 /// its own text, which is precisely the failure `hintMaxLines: 3` produced and
 /// which "no exception was thrown" could never have caught.
+///
+/// **If you extend this rig to a scrolling surface, do not loop the scales
+/// inside one `testWidgets`.** A lazy `ListView` keeps its scroll offset across
+/// `pumpWidget` calls in the same test, so the second and third scale passes
+/// start part-way down the list and downward-only scrolling can never reach
+/// what is above them. Measuring the live hook screen that way reported three
+/// chips "unreachable at AX5" that were on screen the whole time — a false
+/// positive against the highest-stakes surface in the product, caught only
+/// because the missing chips were the *first* three, which is not a plausible
+/// failure for a top-anchored list. Reset the position, or split the test.
+/// This caption lives in a `Column`, so the trap does not apply here — it
+/// applies the moment someone reuses the approach.
 void expectCaptionIsWhole(WidgetTester t, double scale) {
   final finder = find.text(DailyQuestionCopy.answerSetCaption);
   expect(finder, findsOneWidget, reason: 'caption missing at scale $scale');
