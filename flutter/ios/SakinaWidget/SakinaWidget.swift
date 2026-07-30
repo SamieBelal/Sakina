@@ -264,6 +264,24 @@ private struct AwaitingHero: View {
 /// the footer reads as a matched pair. Uses Outfit (the app's Latin UI font).
 private struct StreakChip: View {
     let display: NameDisplay
+
+    /// Drops the `.atRisk` loss copy back to the neutral count.
+    ///
+    /// Set in the **awaiting** state only (W4 Wave 6 review, F2). The 8 PM
+    /// timeline entry resolves `.atRisk` whenever the user has not revealed
+    /// yet — which IS the awaiting state — so the widget read "What's on your
+    /// heart today?" directly above "Don't lose your 5". That is a guilt
+    /// mechanic underneath an invitation, on a Home Screen surface seen dozens
+    /// of times a day, and plan §2 rule 6 forbids it. The wave made the hero
+    /// valence-neutral for exactly that reason; this carries the same rule one
+    /// line down.
+    ///
+    /// The streak still shows — the count, the flame, the gold. Only the
+    /// framing changes, and only here: outside awaiting the chip is untouched,
+    /// because a user who HAS reflected is being told about a streak they are
+    /// keeping rather than one they are about to lose.
+    var suppressLossFraming: Bool = false
+
     var body: some View {
         switch display.streakState {
         case .hidden:
@@ -278,8 +296,13 @@ private struct StreakChip: View {
             pill("\(display.streak)", icon: "flame.fill",
                  fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
         case .atRisk:
-            pill("Don't lose your \(display.streak)", icon: "flame.fill",
-                 fg: Palette.amber, bg: Palette.amber.opacity(0.18))
+            if suppressLossFraming {
+                pill("\(display.streak)", icon: "flame.fill",
+                     fg: Palette.goldInk, bg: Palette.gold.opacity(0.16))
+            } else {
+                pill("Don't lose your \(display.streak)", icon: "flame.fill",
+                     fg: Palette.amber, bg: Palette.amber.opacity(0.18))
+            }
         }
     }
 
@@ -350,7 +373,8 @@ private struct MediumView: View {
                 // already does. Founder, 2026-07-29.
                 HStack(alignment: .center, spacing: 6) {
                     if display.streakState != .hidden {
-                        StreakChip(display: display)
+                        StreakChip(display: display,
+                                   suppressLossFraming: display.awaitingReveal)
                         Spacer(minLength: 4)
                     }
                     Link(destination: widgetDeepLinkURL(display.nameKey, build: true) ?? URL(string: "sakina://widget/muhasabah")!) {
@@ -408,7 +432,7 @@ private struct SmallView: View {
         // second prompt. (`.hidden` is unreachable here — awaiting requires a
         // payload, and `.done` requires personalized, which awaiting is not.)
         if display.awaitingReveal {
-            StreakChip(display: display)
+            StreakChip(display: display, suppressLossFraming: true)
         } else {
             nameFooter
         }
