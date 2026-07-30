@@ -17,6 +17,7 @@ import '../../../services/analytics_event_names.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/card_collection_service.dart' show CardTier;
 import '../../../services/launch_gate_service.dart';
+import '../../../services/name_queue_cache.dart';
 import '../../../services/name_queue_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/referral_service.dart';
@@ -1190,6 +1191,31 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
           'id_count': queueIds.length,
           'error_class': e.runtimeType.toString(),
         });
+      }
+
+      // Prime the queue mirror NOW, not on the first daily reveal.
+      //
+      // The mirror is what `daily_usage_service` probes to decide whether this
+      // user's daily-cap keys are user-local or UTC (W3 §7a). Left unprimed,
+      // the cohort only goes live once `discoverName` performs its own
+      // authoritative read — which is AFTER the CTA has already called
+      // `markUsed` under the UTC key. For a UTC-7 user revealing at 20:00 local
+      // on D1, that use is recorded against the UTC date, which is the SAME
+      // string as their local date the next morning: their entire D2 reads as
+      // already-used and the promised second Name is unreachable for a full
+      // day. Priming here closes that window before the first cap write.
+      //
+      // Best-effort by design: an authoritative read, so it is right for both
+      // the fresh seed and the already-seeded re-entry, and a failure simply
+      // leaves the mirror empty (UTC keys, today's behaviour) rather than
+      // blocking completion. Empty results are not written — an empty mirror
+      // and no mirror must stay indistinguishable to `hasCachedNameQueue`.
+      try {
+        final rows = await _nameQueue.queue();
+        if (rows.isNotEmpty) await writeCachedNameQueue(rows);
+      } catch (e) {
+        debugPrint('[Onboarding] queue mirror prime failed (cap keys stay '
+            'UTC until the first reveal): $e');
       }
     }
 
