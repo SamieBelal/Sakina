@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/name_queue_cache.dart';
 import 'package:sakina/services/name_queue_service.dart';
-import 'package:sakina/services/name_stories_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/token_service.dart';
@@ -20,17 +18,16 @@ import '../../support/fake_supabase_sync_service.dart';
 /// Inside its 20h floor `unseal_next_name` returns the most recently unsealed
 /// row rather than null. The planner is supposed to keep us out of that branch,
 /// but it mirrors the floor from the DEVICE clock against a possibly stale cache
-/// while the RPC re-derives it server-side — so they disagree on ordinary drift
-/// at the floor's edge, after a failed authoritative read, and when a user sets
-/// their clock forward on purpose. Unguarded, that last case is rewarded: the D0
-/// Name is re-revealed as today's queue reveal, with a Silver dignity floor and
-/// a free tier-up on a card the user already owns.
+/// while the RPC re-derives it from the server clock — so they disagree on
+/// ordinary drift at the floor's edge, after a failed authoritative read, and
+/// when a user sets their clock forward on purpose. Without the guard, that last
+/// case is rewarded: the D0 Name is re-revealed as today's queue reveal, with a
+/// Silver dignity floor and a free tier-up on a card the user already owns.
 ///
-/// The discriminator is **did the position move** — was it still sealed in the
-/// pre-call view — not whether its Name is already owned. The second test is the
-/// regression guard against reintroducing an owned-Name check: a queued Name's
-/// card can legitimately be pre-owned from a Store purchase or a prior tier-up
-/// pull (plan §11), and that unseal must still happen.
+/// A row counts as held only when BOTH halves hold — the pre-call view already
+/// had the position unsealed, AND its Name is already in the collection. The
+/// last two tests pin each half, because either alone discards a row that
+/// should be revealed.
 class _FreeUser extends PurchaseService {
   _FreeUser() : super.test();
   @override
@@ -42,18 +39,6 @@ void main() {
   tzdata.initializeTimeZones();
 
   final nowUtc = DateTime.utc(2026, 8, 4, 3, 0);
-
-  /// Al-Wakeel — one of the 14 approved decks, so the deck resolves for real
-  /// rather than through a fixture.
-  const deckedNameId = 35;
-  const deckedDeckId = 'al-wakeel@1';
-
-  /// The asset bundle isn't available in a unit test, so the real decks are
-  /// read off disk (same seam as `queue_deck_reveal_test.dart`).
-  final stories = NameStoriesService(
-    loadAsset: (_) async =>
-        File(NameStoriesService.assetPath).readAsStringSync(),
-  );
 
   late FakeSupabaseSyncService fakeSync;
 
@@ -85,7 +70,7 @@ void main() {
       };
 
   Future<void> settle() =>
-      Future<void>.delayed(const Duration(milliseconds: 50));
+      Future<void>.delayed(const Duration(milliseconds: 20));
 
   /// Lets the constructor's `_initialize()` land before the reveal runs, so a
   /// late `copyWith` (which clears `error` unconditionally) can't mask what
@@ -95,8 +80,8 @@ void main() {
     expect(notifier.state.loaded, isTrue);
   }
 
-  test('a row whose position was already unsealed in the pre-call view is an '
-      'ordinary gacha reveal, not a repeat of the D0 Name', () async {
+  test('a held RPC row (already-met Name) yields an ordinary gacha reveal, not '
+      'a repeat of the D0 Name', () async {
     // D0 already happened: the user met Name 11 at the onboarding reveal.
     await engageCard(11);
     expect((await getCardCollection()).tierFor(11), 1);
@@ -104,11 +89,9 @@ void main() {
     // The client's view says position 1 was unsealed 30h ago — outside the
     // floor — so the planner returns QueueUnseal. The server disagrees (clock
     // drift, a stale mirror, or a deliberately forwarded device clock) and is
-    // still inside its floor, so it hands back the row it last unsealed. That
-    // position was already unsealed here before we asked: nothing moved.
+    // still inside its floor, so it hands back the row it last unsealed.
     var rpcCalls = 0;
     final notifier = DailyLoopNotifier(
-      storiesService: stories,
       nameQueueService: NameQueueService(
         currentUserId: () => fakeSync.userId,
         selectRows: (_) async => [
@@ -135,7 +118,8 @@ void main() {
     expect(notifier.state.error, isNull, reason: 'the user still gets a reveal');
     expect(notifier.state.checkinDone, isTrue);
 
-    // Honest about what it is: an ordinary pull, exactly what QueueHold gives.
+    // The reveal is honest about what it is: an ordinary pull, exactly what
+    // QueueHold produces.
     expect(notifier.state.revealSource, revealSourceGacha);
     expect(notifier.state.revealQueuePosition, isNull);
     expect(notifier.state.revealDeck, isNull);
@@ -147,29 +131,35 @@ void main() {
 
     // Still refuses to hand over a Name promised for a later day.
     expect(debugLastPickExclude, contains(22));
+
+    // The mirror is corrected even though the row was discarded, so the next
+    // plan agrees with the server instead of asking again.
+    final cached = await readCachedNameQueue();
+    expect(
+      cached.firstWhere((r) => r.position == 1).unsealedAt,
+      nowUtc.subtract(const Duration(hours: 5)),
+      reason: 'the server timestamp replaces the drifted client one',
+    );
   });
 
-  test('a genuine advance onto an ALREADY-OWNED Name is still a queue reveal',
-      () async {
-    // The regression guard against discriminating on `discoveredIds`. A queued
-    // Name's card can legitimately be pre-owned — a Store purchase, or a prior
-    // tier-up pull — and plan §11 permits it: "the unseal still happens and
-    // reads correctly". Position 2 was SEALED in the pre-call view, so the
-    // server did advance, and owning the card changes nothing about that.
-    await engageCard(deckedNameId); // pre-owned at Bronze
-    expect((await getCardCollection()).tierFor(deckedNameId), 1);
-
+  test('a held row whose Name was never met is still revealed', () async {
+    // Half one of the guard alone ("we already knew this position was
+    // unsealed") would discard this. The position is spent server-side and its
+    // Name was never taught — that promise is still owed, and revealing it is
+    // the same recovery QueueResume performs once the row ages out of the
+    // planner's resume window.
     final notifier = DailyLoopNotifier(
-      storiesService: stories,
       nameQueueService: NameQueueService(
         currentUserId: () => fakeSync.userId,
         selectRows: (_) async => [
           serverRow(1, 11,
               unsealedAt: nowUtc.subtract(const Duration(hours: 30))),
-          serverRow(2, deckedNameId),
+          serverRow(2, 22),
         ],
-        callRpc: (_, __) async =>
-            [serverRow(2, deckedNameId, unsealedAt: nowUtc)],
+        callRpc: (_, __) async => [
+          serverRow(1, 11,
+              unsealedAt: nowUtc.subtract(const Duration(hours: 30))),
+        ],
       ),
     );
     addTearDown(notifier.dispose);
@@ -178,22 +168,23 @@ void main() {
     await notifier.discoverName();
     await settle();
 
-    expect(notifier.state.error, isNull);
-    expect(notifier.state.engagedCard!.id, deckedNameId);
+    expect(notifier.state.engagedCard!.id, 11);
     expect(notifier.state.revealSource, revealSourceQueue);
-    expect(notifier.state.revealQueuePosition, 2);
-    expect(notifier.state.revealDeck?.deckId, deckedDeckId,
-        reason: 'the promised Name still arrives with its authored deck');
-    // Engaged as a re-encounter tier-up, not as a first discovery.
-    expect((await getCardCollection()).tierFor(deckedNameId), 2);
-    expect(notifier.state.cardEngageResult, isNotNull);
+    expect(notifier.state.revealQueuePosition, 1);
   });
 
-  test('a genuinely new row is a queue reveal', () async {
-    await engageCard(11);
+  test('a genuine advance onto an already-owned Name is still a queue reveal',
+      () async {
+    // Half two of the guard alone ("its Name is already in the collection")
+    // would discard this. It is reachable: when the queue mirror is
+    // unavailable the ordinary pull runs with an empty `sealedQueueNameIds`
+    // and can hand over a Name that is still sealed on the server, so the
+    // eventual real unseal of that position lands on a Name already owned.
+    // That is a re-encounter, and re-encounter tier-up is deliberate
+    // (queue_reveal_tier_floor_test pins the economy side).
+    await engageCard(22);
 
     final notifier = DailyLoopNotifier(
-      storiesService: stories,
       nameQueueService: NameQueueService(
         currentUserId: () => fakeSync.userId,
         selectRows: (_) async => [
@@ -213,6 +204,34 @@ void main() {
     expect(notifier.state.engagedCard!.id, 22);
     expect(notifier.state.revealSource, revealSourceQueue);
     expect(notifier.state.revealQueuePosition, 2);
+  });
+
+  test('a genuinely new row is still a queue reveal', () async {
+    // Same shape, but the server actually advanced: position 2 comes back and
+    // its Name has never been met. The guard must not touch this.
+    await engageCard(11);
+
+    final notifier = DailyLoopNotifier(
+      nameQueueService: NameQueueService(
+        currentUserId: () => fakeSync.userId,
+        selectRows: (_) async => [
+          serverRow(1, 11,
+              unsealedAt: nowUtc.subtract(const Duration(hours: 30))),
+          serverRow(2, 22),
+        ],
+        callRpc: (_, __) async => [serverRow(2, 22, unsealedAt: nowUtc)],
+      ),
+    );
+    addTearDown(notifier.dispose);
+    await warmUp(notifier);
+
+    await notifier.discoverName();
+    await settle();
+
+    expect(notifier.state.error, isNull);
+    expect(notifier.state.engagedCard!.id, 22);
+    expect(notifier.state.revealSource, revealSourceQueue);
+    expect(notifier.state.revealQueuePosition, 2);
     expect((await getCardCollection()).tierFor(22), 2,
         reason: 'the Silver dignity floor still applies to a real unseal');
   });
@@ -224,7 +243,6 @@ void main() {
     // the QueueUnseal branch only, so this path must be unchanged.
     var rpcCalls = 0;
     final notifier = DailyLoopNotifier(
-      storiesService: stories,
       nameQueueService: NameQueueService(
         currentUserId: () => fakeSync.userId,
         selectRows: (_) async => [
