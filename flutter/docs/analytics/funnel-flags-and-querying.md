@@ -1,7 +1,7 @@
 # Funnel analytics: feature-flag dimensions & how to query
 
 **Audience:** anyone (human or AI agent) querying Mixpanel for the onboarding → guided tour → paywall funnel.
-**Last updated:** 2026-07-30 — added **the daily question funnel (One Ship W4)**: five new events, `entry_source`, the bucket boundaries, and the `check_in_completed` extension (`path` is still `'discover'`). Read the abandon-vs-answer caveat in Gotchas before computing an abandon rate. Previous update: 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
+**Last updated:** 2026-07-30 — added **the daily question funnel (One Ship W4)**: six new events, `entry_source`, `attempt`, the bucket boundaries, and the `check_in_completed` extension (`path` is still `'discover'`). Two caveats to read before trusting a number: abandon is not one minus the answer rate, and in the `attempt ≥ 2` slice `answered` exceeds `shown` by design. Previous update: 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
 **Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md).
 **Mixpanel project:** `4013350`. **RevenueCat project:** `proje6681c8c`.
 
@@ -99,15 +99,28 @@ Both are **null on every path that did not go through the question** — a meter
 
 | Event | Props | Fires when |
 |---|---|---|
-| `daily_question_shown` | `entry_source` | the question surface mounts |
-| `daily_question_answered` | `problem_category`, `input_mode`, `char_count_bucket` | the answer is submitted |
+| `daily_question_shown` | `entry_source` | the question surface mounts — **not on a re-ask** |
+| `daily_question_answered` | `problem_category`, `input_mode`, `char_count_bucket`, `attempt` | the answer is submitted |
+| `daily_question_off_topic` | `attempt` | the classifier rejected an answer and asked the user to rephrase |
 | `daily_question_skipped` | `dwell_ms_bucket` | the explicit **"Not right now"** tap |
 | `daily_question_abandoned` | `dwell_ms_bucket` | backgrounded or navigated away **without deciding** |
-| `daily_reward_claimed` | `trigger` (`answer_submit`) | the daily reward is actually granted |
+| `daily_reward_claimed` | `trigger` (`answer_submit`), `day` | the daily reward is actually granted |
 
 **`daily_question_skipped` and `daily_question_abandoned` are NOT the same event and must never be merged.** A skip says the *placement* was wrong for that moment — the user deferred, and the question, reveal and reward all stay collectible from the home CTA for the rest of the day. An abandon says the *question* was wrong. The difference between "people want this later" and "people don't want this" is the entire readout for the defer design.
 
-**`daily_reward_claimed` counts grants, not calls.** The claim RPC is idempotent and server-authoritative; a replay returns the same ladder state without granting anything and emits nothing. *(Ladder position — `day` — is approved but NOT yet emitted as of `21494e6`. Delete this parenthesis when it ships.)*
+**`daily_reward_claimed` counts grants, not calls.** The claim RPC is idempotent and server-authoritative; a replay returns the same ladder state without granting anything and emits nothing. `day` is the 7-day ladder position (1-7) the grant landed on.
+
+### `attempt`, and the off-topic classifier — read this before trusting the funnel
+
+`attempt` is **a dimension, not a stage**: `1` on the first try, `2`+ after the classifier rejected an answer and asked the user to rephrase. It rides on `daily_question_answered` and `daily_question_off_topic`. Minting a separate re-ask *event* would have forked the funnel at step two and left every existing segment silently under-counting the people who had to try twice — so segment on this instead.
+
+**A re-ask does NOT emit a second `daily_question_shown`** (nor a second skip/abandon). A rephrase is a continuation of one asking, not a second one: the user was asked once and *we* failed to parse what they said, so counting it as another ask would record our classifier's failure as the user being asked again — backwards for the one thing this event exists to measure.
+
+**The consequence you will see in the data, which is correct and looks broken:** in the `attempt ≥ 2` slice, **`answered` exceeds `shown`**, because the re-answer emits `answered` with no new `shown` behind it. That is the design, not a bug — do not file one.
+
+**`daily_question_off_topic` is a product finding, not a funnel curiosity.** The classifier has **never fired on real daily text**: before W4 the loop sent the revealed card's own blurb to the reflection engine, so it was structurally unreachable on this path, and it has only ever run against Reflect — which is opt-in and self-selected. W4 points it at every daily user's sentence about grief, money and prayer at once, **with no measured false-positive rate**.
+
+So `daily_question_off_topic ÷ daily_question_answered` is a genuine first-run measurement, and a high rate means **a large number of people are being asked to re-type something that was hard to type once**. The question that number answers is *should we loosen the classifier* — not *how is the funnel doing*. Watch it from day one rather than at the T0+2wk read.
 
 ### `entry_source` — and the default that makes it trustworthy
 
@@ -162,7 +175,12 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 - If skippers do not come back, "Not right now" is a polite way out of the core loop rather than a deferral within it. This is the headline metric for the whole skip design, not a secondary one.
 
 **Did moving the reward claim preserve the ladder:**
-- `daily_reward_claimed{trigger='answer_submit'}` per user per day, against `check_in_completed`. The claim moved from *opening the app* to *answering the question* precisely so a day-6 user would not lose their 7-day escalating ladder by not tapping through every beat. *(Reading the ladder position directly needs the `day` prop — see the note above.)*
+- `daily_reward_claimed{trigger='answer_submit'}` per user per day, against `check_in_completed`. The claim moved from *opening the app* to *answering the question* precisely so a day-6 user would not lose their 7-day escalating ladder by not tapping through every beat.
+- **Break down by `day`** for the direct read: a healthy re-timing shows users climbing to 6 and 7; everyone stuck at 1 means the ladder is resetting and the move did not do its job.
+
+**Is the off-topic classifier hurting people:**
+- `daily_question_off_topic` ÷ `daily_question_answered{attempt=1}`. See the section above for why this is a first-run number with no prior baseline, and why a high one is a reason to loosen the classifier rather than a funnel curiosity.
+- The people it cost: `daily_question_off_topic{attempt=1}` minus `daily_question_answered{attempt=2}` — asked to rephrase and never came back with one.
 
 ---
 
@@ -180,6 +198,7 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 - **Tour `step_index` is not comparable across arms** — always pivot to `step_id` for cross-variant per-step funnels.
 - **`onboarding_started` over-counts raw events** — it fires once per `OnboardingScreen` mount, so a user killed mid-onboarding and relaunched re-fires it. As a funnel denominator, count **unique users** (or filter `entry_page == 0`), not raw event total.
 - **`daily_question_abandoned` is NOT one minus the answer rate.** Abandon fires on backgrounding as well as on navigating away (the OS can reap the app from the background, so waiting for dispose would systematically undercount the likeliest way someone bails). A user who backgrounds the question, comes back, and *then* answers emits **both** `daily_question_abandoned` and `daily_question_answered` for a single `daily_question_shown`. Outcomes therefore sum to slightly **more** than shows. Read abandon as **"left at least once"**, and compute the answer rate from `answered ÷ shown` directly rather than by subtraction.
+- **In the `attempt ≥ 2` slice, `answered` exceeds `shown`.** A re-ask emits no second `daily_question_shown` (see the `attempt` section) — correct data that reads as broken.
 - **`daily_question_shown` can legitimately fire twice in one local day.** A metered re-roll calls `resetToday()` and re-shows the question from `home_cta`; a user who backs out and re-taps their widget gets a second correct `widget` show. Only a second **`day_open`** show in one local day is a bug (auto-entry is once per local day), and that one is caught by a debug assert in the app. Do not treat repeat shows as double-counting without checking `entry_source`.
 - **W4 events have no history before the W4 build ships** — same rule as the Phase 1–3 events above. `daily_question_*`, `daily_reward_claimed`, and the `problem_category`/`input_mode` props on `check_in_completed` are all new in that binary.
 - **`check_in_completed` volume is unchanged by W4** — it was extended, not forked, and `path` is still `'discover'`. If its count moves at the W4 release, that is a real behaviour change (or a bug), not an instrumentation artifact.
