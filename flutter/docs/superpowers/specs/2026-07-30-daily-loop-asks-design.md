@@ -110,6 +110,24 @@ Render it where the spinner currently is, on the sacred canvas, and defer `disco
 
 **Off-topic and empty input** reuse Reflect's existing handling (`reflect_provider.dart:774`), not a new branch.
 
+#### Skip = defer, not dismiss (founder, 2026-07-30)
+
+The exit is **"Not right now"**, and it leaves the entire loop live on home for the rest of the day. Tapping the promoted CTA re-enters the same flow from the top.
+
+This is a better answer to the auto-entry problem than a bare close button, and it is the dominant external pattern rather than a divergence from it: Duolingo makes the next step unmissable and still leaves the tap to the user; Stoic auto-opens its check-in but ships an off switch; Finch lets you skip a goal and meets the skip without punishment. It also materially reduces the free-text friction risk — *"type, or come back to it whenever"* is a far smaller daily ask than *"type now."*
+
+**Skip defers the reward too — it does not grant it.** Question, reveal and reward move as one unit.
+
+*Why this and not "skip but still collect":* granting on skip rebuilds exactly the inversion §6 exists to correct. A user learns within two days that open → skip → collect → leave is the efficient path, and the daily reward is once again payment for launching the app — worse than today, because today they at least sit through the ceremony. Nothing is lost by deferring: the reward stays collectible all day by doing the muḥāsabah. A user only misses it by never doing the practice at all, which is already true today of a user who never opens the app.
+
+**Skip writes the day marker.** Auto-entry happens **at most once per local day**; after a skip, the home CTA is the only entry. Without this, every app open that day re-throws the question, which is nagging — and nagging a user who already said "not right now" is the fastest way to make the exit feel fake.
+
+**No new CTA state.** A deferred day *is* a not-started day, which the emerald filled button already renders. This only works because M5 promotes that button above the fold — a defer into a below-the-fold CTA is a defer into a dead end.
+
+**Skip and abandon are different events** (§9). A skip says the *placement* was wrong for that moment; a close/back says the *question* was wrong. Conflating them leaves us unable to distinguish "people want this later" from "people don't want this."
+
+**Copy:** *"Not right now."* Nothing guilt-shaped on the way out, and nothing on the way back in that references having skipped.
+
 ### M3 — The queue keeps picking the Name; the answer shapes the reflection
 
 This is the reconciliation that lets this wave coexist with the seven-Name promise W3 just built, and it is nearly free.
@@ -259,6 +277,7 @@ The audit covered the daily loop; this is the sweep for everything *else* that r
 | M2 | **Free text primary**, chips demoted to quick-fill — a deliberate divergence from the one-tap-first research | 2026-07-30 |
 | M4 copy | *"What's on your heart today?"* + a placeholder spanning worry → thanks | 2026-07-30 |
 | §8a | Ships to **all users**, not cohort-gated. Name *selection* stays cohort-scoped | 2026-07-30 |
+| Skip | **"Not right now" defers the whole loop** — question, reveal *and* reward — to the home CTA for the rest of the day. Skip writes the day marker (auto-entry at most once/day). Skip does **not** grant the reward | 2026-07-30 |
 | Rotation | One fixed opener for v1; rotate in W6 only if the funnel shows sameness costing us | 2026-07-30 |
 
 **Nothing is blocking.** Remaining judgement calls are build-time and mine to make unless they turn out to be product questions in disguise — in which case they come back here.

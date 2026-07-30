@@ -64,7 +64,8 @@ The single most dangerous edit in the wave, and everything else depends on it. T
 - **Header:** `What's on your heart today?` · **placeholder:** `A worry, a thanks, a question — however it comes out.`
 - **Free-text field primary.** Reuse the keyboard-safety pattern every text screen uses: `LayoutBuilder → SingleChildScrollView → ConstrainedBox → IntrinsicHeight`.
 - **7 problem chips demoted underneath** as quick-fill; tapping one fills and submits.
-- **Visible close** → home. This is the NN/g exit and the thing that keeps a user who opened the app for duʿā times from being trapped.
+- **"Not right now" → defers the whole loop to the home CTA** for the rest of the day (spec M2). This is the exit, and it is a *defer*, not a dismissal: question, reveal and reward all remain collectible by tapping the promoted CTA. Skipping does **not** grant the reward.
+- **Skip writes the day marker**, so auto-entry happens at most once per local day. After a skip the home CTA is the only entry — the question must not re-throw on every subsequent open.
 - Calm entrance animation per `app_motion.dart` — no urgency mechanics, no timer, no auto-advance, no skip-pressure copy.
 - Muḥāsabah introduced as a **gloss**, never as the button.
 
@@ -124,7 +125,9 @@ Constants into `analytics_event_names.dart` (append-only; coordinate with W6's a
 **New within-wave funnel** (spec §2 — this carries the attribution weight the coarse cohort read cannot):
 - `daily_question_shown{entry_source}` — `entry_source` ∈ `day_open` | `widget` | `home_cta`, so the widget path is separable from day-open.
 - `daily_question_answered{problem_category, input_mode, char_count_bucket}` — bucketed length, never the text. **The verbatim answer is never sent to Mixpanel.**
-- `daily_question_abandoned{dwell_ms_bucket}` — the exit tap. This is the number that tells us whether the question is the thing people bounce off.
+- `daily_question_skipped{dwell_ms_bucket}` — "Not right now". A deliberate defer: the *placement* was wrong for that moment.
+- `daily_question_abandoned{dwell_ms_bucket}` — backgrounded or navigated away without deciding. The *question* was wrong. **These two must never be merged** — the difference between "people want this later" and "people don't want this" is the whole readout.
+- **Same-day return rate is the headline metric for the skip design:** `daily_question_shown{entry_source:'home_cta'}` following a skip, over skips. If skippers do not come back, the defer is a polite exit from the product rather than a deferral within it.
 - `daily_reward_claimed{trigger:'answer_submit'}` — so the re-timing is visible in the data rather than inferred.
 
 **Guardrails:**
@@ -141,7 +144,8 @@ Wave 1 lands **first and alone**. After it: Waves 2 → 3 are serial (3 consumes
 ## 11. Test plan
 
 - **Gating (Wave 1):** abandon consumes nothing · complete consumes once · double-tap consumes once · bypass refund on failure · warmup exhaustion still surfaces.
-- **Question surface:** renders for `checkin` and not for `deeper`/`completed` · close lands on home with no state written · chip tap and typed text produce the same `problem_category` for equivalent input · keyboard does not overflow · RTL isolation.
+- **Question surface:** renders for `checkin` and not for `deeper`/`completed` · chip tap and typed text produce the same `problem_category` for equivalent input · keyboard does not overflow · RTL isolation.
+- **Skip / defer:** "Not right now" lands on home with **no reveal, no reward, nothing consumed** · the day marker is written so a second open the same day does **not** re-throw the question · the home CTA renders its not-started (emerald) state and re-enters the full flow · completing after a skip claims the reward normally · a skip followed by no return leaves the ladder to reset exactly as a missed day does today.
 - **Answer → reflection:** `checkinAnswers` reaches `_deeperContextText` · `forceName` still pins the queue's Name during D1–D7 · reveal does not await the AI · off-topic branch renders.
 - **Reward re-timing:** claim fires at submit exactly once · idempotent on replay · a user who abandons after submit keeps the ladder · the ladder still resets after a genuinely missed day.
 - **Entry paths:** widget tap → question · day-open → question · home CTA → question · completing by widget writes the launch-gate marker so day-open does not re-fire.
@@ -156,9 +160,10 @@ Wave 1 lands **first and alone**. After it: Waves 2 → 3 are serial (3 consumes
 
 1. **`markUsed` (Wave 1)** — small in lines, large in blast radius. Mitigated by landing alone with its own tests.
 2. **Latency at day-open.** We are reintroducing exactly what the April 2026 commit removed. Mitigated by playing the reveal over the call; watched via the abandoned event.
-3. **Typing daily is heavier than tapping**, and contradicts the one-tap-first research (spec M2 records the divergence and the reasoning). The chips are the hedge; the funnel is the detector.
+3. **Typing daily is heavier than tapping**, and contradicts the one-tap-first research (spec M2 records the divergence and the reasoning). The chips are the hedge, the defer is the pressure valve, and the funnel is the detector. **Materially reduced** by the skip design — "type, or come back to it whenever" is a much smaller daily ask than "type now."
 4. **Reflect and the daily loop converge.** W5's free-tier design assumed more separation than this leaves. Flag forward, do not solve here.
 5. **Shipping to all users** widens the population changing mid-window. Accepted under D9; the within-wave funnel is the compensation.
+6. **The defer could become an exit rather than a deferral.** If most users skip and never return the same day, we have shipped a polite way out of the core loop. `daily_question_skipped` → `daily_question_shown{entry_source:'home_cta'}` is the tripwire, and it is worth watching from day one rather than at the T0+2wk read.
 
 ## 13. Open questions
 
