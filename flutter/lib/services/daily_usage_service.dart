@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:sakina/services/name_queue_cache.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/user_local_day.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -51,9 +53,43 @@ String _today() {
   return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 }
 
-String _todayKey(String feature) {
+/// The date that keys the free-cap counters.
+///
+/// **Legacy users get `_today()` — the UTC day, byte-for-byte as before.**
+/// Queue-cohort users (anyone with mirrored `user_name_queue` rows) get their
+/// **user-local** day, because `unseal_next_name` advances on the user-local day.
+/// With a UTC key, a UTC-7 user who revealed at 20:00 Monday local has already
+/// spent "Tuesday UTC" and is capped until 17:00 Tuesday local — while the server
+/// would have unsealed their Tuesday Name at 00:00. Before W2 that was an
+/// invisible annoyance on a generic daily reveal; after W2 it is a written promise
+/// on the plan screen, broken for most of the Americas. (W3 plan §7a / D-W3-3.)
+///
+/// **Deliberately NARROW.** Only this prefs key moves:
+///  - `_upsertToday`'s `usage_date` stays `_today()`. The server row is keyed
+///    `(user_id, usage_date)` in UTC and carries all three `*_uses` counters.
+///  - `_bypassTodayKey` stays `_today()`. The bypass counters on that same row are
+///    written server-side by `reserve_ai_bypass` / `cancel_ai_bypass` in UTC.
+///  - `_findTodayUsageRow` stays `_today()`, because it matches server rows.
+///
+/// Re-keying the row itself would desynchronise bypass accounting against the
+/// server and force this change to ship together with W4's bypass removal.
+///
+/// **ACCEPTED, BOUNDED COST.** On a day where the user's local date and the UTC
+/// date differ, `hydrateDailyUsageCacheFromPayload` writes the server's UTC-day
+/// count into a local-day key, so a multi-device queue user can drift by at most
+/// one use for that day. Likewise, the day the cohort probe first flips (the first
+/// authoritative queue read of a freshly-seeded user) re-keys the counter once,
+/// worth at most one extra reveal. This is the same bound W1 accepted for the
+/// weekly pool's once-ever init hop, and `discoverName` grants no tokens — so
+/// naming the bound is the fix, not eliminating it.
+Future<String> _capDay() async {
+  if (!await hasCachedNameQueue()) return _today();
+  return userLocalDayString(clock: _nowUtc);
+}
+
+Future<String> _todayKey(String feature) async {
   return supabaseSyncService.scopedKey(
-    'daily_usage_${feature}_${_today()}',
+    'daily_usage_${feature}_${await _capDay()}',
   );
 }
 
@@ -65,17 +101,17 @@ String _bypassTodayKey(String feature) {
 
 Future<int> getReflectUsageToday() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(_todayKey('reflect')) ?? 0;
+  return prefs.getInt(await _todayKey('reflect')) ?? 0;
 }
 
 Future<int> getBuiltDuaUsageToday() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(_todayKey('built_dua')) ?? 0;
+  return prefs.getInt(await _todayKey('built_dua')) ?? 0;
 }
 
 Future<int> getDiscoverNameUsageToday() async {
   final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(_todayKey('discover_name')) ?? 0;
+  return prefs.getInt(await _todayKey('discover_name')) ?? 0;
 }
 
 Future<int> getReflectBypassesUsedToday() async {
@@ -95,7 +131,7 @@ Future<int> getDiscoverNameBypassesUsedToday() async {
 
 Future<int> incrementReflectUsage() async {
   final prefs = await SharedPreferences.getInstance();
-  final key = _todayKey('reflect');
+  final key = await _todayKey('reflect');
   final current = prefs.getInt(key) ?? 0;
   final updated = current + 1;
   await prefs.setInt(key, updated);
@@ -105,7 +141,7 @@ Future<int> incrementReflectUsage() async {
 
 Future<int> incrementBuiltDuaUsage() async {
   final prefs = await SharedPreferences.getInstance();
-  final key = _todayKey('built_dua');
+  final key = await _todayKey('built_dua');
   final current = prefs.getInt(key) ?? 0;
   final updated = current + 1;
   await prefs.setInt(key, updated);
@@ -115,7 +151,7 @@ Future<int> incrementBuiltDuaUsage() async {
 
 Future<int> incrementDiscoverNameUsage() async {
   final prefs = await SharedPreferences.getInstance();
-  final key = _todayKey('discover_name');
+  final key = await _todayKey('discover_name');
   final current = prefs.getInt(key) ?? 0;
   final updated = current + 1;
   await prefs.setInt(key, updated);
@@ -163,9 +199,9 @@ Future<void> _upsertToday(SharedPreferences prefs) async {
   final userId = supabaseSyncService.currentUserId;
   if (userId == null) return;
 
-  final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
-  final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
-  final discoverNameUses = prefs.getInt(_todayKey('discover_name')) ?? 0;
+  final reflectUses = prefs.getInt(await _todayKey('reflect')) ?? 0;
+  final builtDuaUses = prefs.getInt(await _todayKey('built_dua')) ?? 0;
+  final discoverNameUses = prefs.getInt(await _todayKey('discover_name')) ?? 0;
 
   // Composite unique key: (user_id, usage_date). onConflict must name both
   // columns or PostgREST falls back to the PK and silently fails every
@@ -196,13 +232,13 @@ Future<void> hydrateDailyUsageCacheFromPayload(
   final serverBuiltDua = (section['built_dua_uses'] as num?)?.toInt();
   final serverDiscoverName = (section['discover_name_uses'] as num?)?.toInt();
   if (serverReflect != null) {
-    await prefs.setInt(_todayKey('reflect'), serverReflect);
+    await prefs.setInt(await _todayKey('reflect'), serverReflect);
   }
   if (serverBuiltDua != null) {
-    await prefs.setInt(_todayKey('built_dua'), serverBuiltDua);
+    await prefs.setInt(await _todayKey('built_dua'), serverBuiltDua);
   }
   if (serverDiscoverName != null) {
-    await prefs.setInt(_todayKey('discover_name'), serverDiscoverName);
+    await prefs.setInt(await _todayKey('discover_name'), serverDiscoverName);
   }
   // TEST-B regression-pin (plan 2026-05-23): without bypass-counter
   // hydration, a multi-device user (or a fresh reinstall) would see a stale
@@ -249,9 +285,9 @@ Future<void> seedDailyUsageToSupabaseFromLocalCache() async {
   if (userId == null) return;
 
   final prefs = await SharedPreferences.getInstance();
-  final reflectUses = prefs.getInt(_todayKey('reflect')) ?? 0;
-  final builtDuaUses = prefs.getInt(_todayKey('built_dua')) ?? 0;
-  final discoverNameUses = prefs.getInt(_todayKey('discover_name')) ?? 0;
+  final reflectUses = prefs.getInt(await _todayKey('reflect')) ?? 0;
+  final builtDuaUses = prefs.getInt(await _todayKey('built_dua')) ?? 0;
+  final discoverNameUses = prefs.getInt(await _todayKey('discover_name')) ?? 0;
   if (reflectUses <= 0 && builtDuaUses <= 0 && discoverNameUses <= 0) return;
 
   await supabaseSyncService.upsertRow(
