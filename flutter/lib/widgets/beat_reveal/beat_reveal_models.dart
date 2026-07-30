@@ -227,9 +227,26 @@ List<BeatScreen> buildBeatScreens(
 ///  * verse/comfort_verse/dua beats hold their ENGLISH translation in `primary`
 ///    (Arabic, when present, is in `arabic`) — the inverse of the
 ///    [BeatKind.verse] screen convention, where `primary` is the Arabic.
+/// [nameAlreadyMet] drops the `name_intro` hero's MEANING line, keeping the
+/// Arabic calligraphy and the transliteration beneath it.
+///
+/// Set it when something upstream has ALREADY named the Name. The decks were
+/// authored for the onboarding order — deck first, card after "Ameen" — so
+/// `name_intro` is genuinely the introduction there. The daily loop inverts it:
+/// `CardRevealOverlay` shows the tier badge, then `card.transliteration`, then
+/// `card.english`, and the deck opens two taps later. Left whole, the arch
+/// restates the transliteration AND the meaning within about five seconds of the
+/// card doing it (and on D1 it is the third showing, after the D0 sealed tease
+/// displayed the same three fields).
+///
+/// The calligraphy is the one thing the card cannot give — it renders Arabic
+/// small — so it stays, and the transliteration stays with it so a reader who
+/// cannot read Arabic still knows which Name this is. What goes is the meaning
+/// line alone, which is the sentence the card had just finished delivering.
 List<BeatScreen> buildBeatScreensFromDeck(
   NameStoryDeck deck, {
   bool includePairSynergy = true,
+  bool nameAlreadyMet = false,
 }) {
   final screens = <BeatScreen>[];
 
@@ -249,8 +266,12 @@ List<BeatScreen> buildBeatScreensFromDeck(
         screens.add(BeatScreen(
           kind: BeatKind.name,
           arabic: beat.arabic,
+          // The transliteration STAYS either way: it is the only thing telling a
+          // reader who cannot read Arabic which Name they are looking at, and a
+          // hero that cannot be identified is decoration. Only the meaning goes,
+          // because that is the line the card repeated.
           label: beat.transliteration,
-          source: beat.primary,
+          source: nameAlreadyMet ? '' : beat.primary,
         ));
       case 'story':
         screens.add(BeatScreen(
