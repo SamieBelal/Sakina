@@ -67,6 +67,15 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// twice — same shape as the reflect/duas D-E5 race.
   bool _discoverInFlight = false;
 
+  /// One warmup sheet at a time. The two entry points below are mutually
+  /// exclusive in principle — a flag already set at mount produces no
+  /// transition for the listener, and a flag set after mount arrives when the
+  /// mount read has already run and found nothing — but they can collide in the
+  /// single frame between `initState` and the post-frame callback, and showing
+  /// this sheet twice is exactly what the "only one listener may own this"
+  /// comment below exists to prevent.
+  bool _warmupSheetShowing = false;
+
   /// Lifetime count of beat-flow advances (decision 4A). Null until loaded from
   /// prefs; the first-run "tap to continue" hint shows while this is < 3 (or
   /// whenever the guided tour is active — decision 10A). Bumped on first advance.
@@ -177,6 +186,56 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // regressed the first time. If a future wave needs to start a reveal
     // without a tap, it belongs behind an explicit, latched user intent, not
     // behind "the screen mounted".
+    //
+    // The one thing that DOES read state at mount is the warmup sheet below,
+    // and it is not an exception to that rule: it starts nothing, grants
+    // nothing and charges nothing. It only presents a signal the provider has
+    // already recorded.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showWarmupExhaustedSheet(ref.read(dailyLoopProvider).warmupJustExhausted);
+    });
+  }
+
+  /// The "that was your last free one" sheet, from either entry point.
+  ///
+  /// **Why a mount-time read exists at all (W4 Wave 1 review, F1).**
+  /// `dailyLoopProvider` is a plain `StateNotifierProvider`, not autoDispose, so
+  /// the notifier outlives this route. `markUsed` sits at the tail of
+  /// `discoverName` behind a Supabase round-trip, so a user who taps Return to
+  /// Home right after their card reveal — an ordinary thing to do — leaves
+  /// while the charge is still in flight. `mounted` on the notifier is still
+  /// true, so the flag gets set with nobody watching, and `ref.listen` only
+  /// fires on transitions that happen *after* it subscribes. Coming back later
+  /// never fired it: `prev` is already non-null. `dismissWarmupExhausted` is
+  /// only called from this sheet, so the flag stayed stuck set and the
+  /// exhaustion was announced to the user exactly never — they met the cap
+  /// sheet cold on their next re-roll instead.
+  ///
+  /// Nothing about the charge or the cap was wrong; the user simply lost the
+  /// one moment where the free tier explains itself. In a wave whose defining
+  /// decision was refusing to quietly reduce that tier, silently dropping its
+  /// explanation is the wrong trade.
+  ///
+  /// Reading the pending flag once on mount is deliberately smaller than moving
+  /// the sheet to a route-independent host: it keeps the single-listener
+  /// property that stops the sheet showing twice, and it keeps this screen the
+  /// only owner — which the comment at the listener explains is load-bearing,
+  /// because progress_screen is already behind the pushed route by the time the
+  /// flag is set.
+  void _showWarmupExhaustedSheet(GatedFeature? feature) {
+    if (feature == null || _warmupSheetShowing) return;
+    _warmupSheetShowing = true;
+    WarmupExhaustedSheet.show(
+      context,
+      feature: feature,
+      onUpgrade: () => GoRouter.of(context).push('/paywall'),
+    ).whenComplete(() {
+      _warmupSheetShowing = false;
+      // Clears the provider flag, which is what stops the mount read from
+      // re-showing the sheet on every subsequent visit to this route.
+      ref.read(dailyLoopProvider.notifier).dismissWarmupExhausted();
+    });
   }
 
   @override
@@ -237,13 +296,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // is set. Pinned by `muhasabah_question_step_test.dart`.
       if (next.warmupJustExhausted != null &&
           prev?.warmupJustExhausted == null) {
-        WarmupExhaustedSheet.show(
-          context,
-          feature: next.warmupJustExhausted!,
-          onUpgrade: () => GoRouter.of(context).push('/paywall'),
-        ).whenComplete(
-          ref.read(dailyLoopProvider.notifier).dismissWarmupExhausted,
-        );
+        _showWarmupExhaustedSheet(next.warmupJustExhausted!);
       }
     });
 
