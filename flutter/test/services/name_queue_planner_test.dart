@@ -97,11 +97,77 @@ void main() {
     });
 
     test('the local offset actually moves the day comparison', () {
-      // Unsealed 2026-08-04T01:00Z. In UTC that is Aug 4, NOT the pinned
-      // localToday of Aug 3 — so with a zero offset rule 2 must not fire.
-      final rows = [row(1, 11, DateTime.utc(2026, 8, 4, 1)), row(2, 22)];
-      expect(plan(rows, offset: laOffset), isA<QueueResume>());
-      expect(plan(rows, offset: Duration.zero), isA<QueueHold>());
+      // Deliberately a LATER clock than the rest of this group. At the reference
+      // now (Aug 4 03:00Z) every instant whose zero-offset day is Aug 4 is also
+      // within 20h, so the floor clause of rule 2 subsumes the day clause and the
+      // offset cannot be the sole decider. Late in the user's local day it can.
+      //
+      // now = Aug 4 23:00Z → LA local Aug 4 16:00, so localToday is Aug 4.
+      // Floor edge is Aug 4 03:00Z, and the row below sits 21h back — outside it.
+      final now = DateTime.utc(2026, 8, 4, 23);
+      final today = DateTime.utc(2026, 8, 4);
+      final rows = [row(1, 11, DateTime.utc(2026, 8, 4, 2)), row(2, 22)];
+
+      // LA: the row is Aug 3 19:00 local — the user's PREVIOUS day, and outside
+      // the floor, so nothing resumes and the queue may advance.
+      expect(
+        plan(rows, now: now, today: today, offset: laOffset),
+        isA<QueueUnseal>(),
+      );
+      // Zero offset: the same instant is Aug 4 — the user's today — so it
+      // resumes. Only the offset changed.
+      expect(
+        plan(rows, now: now, today: today, offset: Duration.zero),
+        isA<QueueResume>(),
+      );
+    });
+
+    test('an unmet unseal from the PREVIOUS local day still inside the floor '
+        'resumes — the lost-response case', () {
+      // The abandonment that local-day-only scoping missed, and the reason rule 2
+      // now also accepts inside-the-floor rows.
+      //
+      // The unseal COMMITS server-side at Aug 4 04:00Z — Aug 3 21:00 LA, late on
+      // the user's previous local day — and the response is lost (RPC timeout
+      // after commit, or the process dies). The user returns at Aug 4 23:00Z
+      // (Aug 4 16:00 local): a different local day, but only 19h later, so still
+      // inside the 20h floor.
+      //
+      // Old behaviour: rule 2 missed it (previous local day) and rule 3 fired →
+      // QueueHold → an ordinary pull. By the next day the floor had cleared and
+      // rule 5 unsealed min(sealed) — position 3 — leaving position 2 spent and
+      // its Name never taught. For position 2 that silently drops the D1 deck.
+      final p = plan(
+        [
+          row(1, 11, DateTime.utc(2026, 8, 1, 15)),
+          row(2, 22, DateTime.utc(2026, 8, 4, 4)),
+          row(3, 33),
+        ],
+        discovered: {11},
+        now: DateTime.utc(2026, 8, 4, 23),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(p, isA<QueueResume>());
+      expect((p as QueueResume).row.position, 2);
+      expect(p.row.nameId, 22);
+    });
+
+    test('a MET Name from the previous local day inside the floor does NOT '
+        'resume', () {
+      // The widened window must not weaken the "same Name on two consecutive
+      // mornings" guard: being met is still disqualifying, which is what makes
+      // the resume path close itself after a successful reveal.
+      final p = plan(
+        [
+          row(1, 11, DateTime.utc(2026, 8, 1, 15)),
+          row(2, 22, DateTime.utc(2026, 8, 4, 4)),
+          row(3, 33),
+        ],
+        discovered: {11, 22},
+        now: DateTime.utc(2026, 8, 4, 23),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(p, isA<QueueHold>());
     });
   });
 

@@ -101,13 +101,21 @@ class DailyLoopState {
   final CollectibleName? engagedCard;
 
   // ------------------------------------------------------------------
-  // Queue-driven reveal (W3 §3e). All in-memory: DailyLoopState is not
-  // persisted — only a `daily_loop_$date` prefs flag is.
+  // Queue-driven reveal (W3 §3e). [revealSource], [revealQueuePosition] and the
+  // revealed Name's id round-trip through the `daily_loop_$date` blob, so a cold
+  // restart mid-flow resumes the same reveal instead of running a second one.
+  // The deck itself is not persisted — it is bundled content, so the id is the
+  // only durable part and re-resolving is a local asset read.
   // ------------------------------------------------------------------
 
   /// [revealSourceQueue] when today's Name came from `user_name_queue`,
   /// [revealSourceGacha] when it came from `pickNextCard`. Drives copy register
   /// and the analytics props Wave 5 adds.
+  ///
+  /// Wire strings rather than an enum for two reasons: they go straight out as
+  /// the `name_source` analytics prop, and — the stronger one — they are a
+  /// **persisted prefs format**, so an unrecognised value read back from an older
+  /// or newer build has to degrade safely rather than fail a parse.
   final String revealSource;
 
   /// The queue position (1-7) behind the reveal, or null on a gacha reveal.
@@ -665,10 +673,25 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           // than silently substituting a random Name: state.error refunds any
           // bypass, and the RPC's per-local-day idempotence means a retry returns
           // this same row instead of burning another position.
-          throw StateError(
-            'queue position ${queueRow.position} points at unknown '
-            'name_id ${queueRow.nameId}',
+          // The position is spent but its Name isn't in the catalog — a bad seed,
+          // or a server-side catalog shrink (`engageCard` already contemplates
+          // one). Throwing here bricked the whole local day rather than costing
+          // one reveal: the unseal has committed, so every retry re-plans to
+          // QueueResume for this same row and re-throws, and `discoverName`
+          // cannot succeed again until the 20h floor clears and rule 5 advances
+          // past the position — losing the user's muḥāsabah AND their streak for
+          // the day, burning a cap or a bypass on each attempt.
+          //
+          // So: never substitute a random Name for a *resolvable* queue row, but
+          // don't brick the loop for an unresolvable one. Fall through to the
+          // ordinary pull as an honest gacha reveal — no Silver floor, no deck,
+          // `revealSource` 'gacha'. The position is already spent either way, and
+          // a degraded reveal beats no reveal plus a broken streak.
+          debugPrint(
+            '[DISCOVER] queue position ${queueRow.position} points at unknown '
+            'name_id ${queueRow.nameId} — falling through to an ordinary pull',
           );
+          queueRow = null;
         }
       }
 
@@ -737,6 +760,30 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // also what makes the single most important comeback moment in the funnel
       // the one reveal with no network dependency on OpenAI (§3b, §4).
       if (deck == null) _prefetchDeeperReflection();
+
+      // Persist the reveal, so a cold restart resumes it instead of running a
+      // second one.
+      //
+      // `discoverName` never wrote the day blob — only `completeDeeper` and the
+      // dormant `answerCheckin` did — so on a process kill between the card
+      // landing and "Ameen" there was no blob at all: `_loadTodayState` returned
+      // at `raw == null`, `checkinDone` came back false, and the screen's
+      // post-frame guard re-ran this function. The planner then returns
+      // QueueHold (the position was unsealed minutes ago, and its Name is now in
+      // `discoveredIds`, so rule 2 skips and rule 3 fires), which hands the user
+      // a DIFFERENT random Name with an AI reflection — while the D1 Name whose
+      // queue position the server already spent, and whose card was already
+      // granted, is never taught. It also duplicated `engageCard`, the history
+      // row and `check_in_completed`.
+      //
+      // Writing it here is also what makes `_loadTodayState`'s reveal-restore
+      // branch reachable at all; without this line those three persisted keys
+      // were dead code.
+      //
+      // Safe next to the grant: `_persistTodayState` swallows every error
+      // internally, so it cannot flip `state.error` and break the bypass
+      // commit-versus-refund contract.
+      await _persistTodayState();
 
       // Save to history
       try {
@@ -1560,6 +1607,16 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,
+        // Rehydrate the card the persisted id names, through the same helper
+        // `discoverName` uses. Without it the restore forked from the live path:
+        // `_deeperContextText` reads `engagedCard` for the Name's meaning and
+        // its "Teaching shown" line, and on the discover path no earlier branch
+        // catches (`checkinAnswers` is empty, `checkinAnswer` null) — so every
+        // restored NON-deck reveal fell through to the generic fallback and the
+        // prefetched reflection lost its context. `forceName` still pinned the
+        // Name, so this degraded prompt quality rather than choosing wrongly.
+        engagedCard:
+            revealNameId == null ? null : findCollectibleById(revealNameId),
         // All three reveal fields are specified together, which is the only
         // condition under which `resetReveal` may be set.
         resetReveal: true,

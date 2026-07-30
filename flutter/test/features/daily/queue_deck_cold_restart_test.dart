@@ -3,9 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
+import 'package:sakina/services/name_queue_service.dart';
 import 'package:sakina/services/name_stories_service.dart';
+import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:sakina/services/token_service.dart';
+import 'package:sakina/services/user_local_day.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../../support/fake_supabase_sync_service.dart';
 
@@ -25,6 +30,7 @@ import '../../support/fake_supabase_sync_service.dart';
 /// entered. Absence of the row is absence of the call.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tzdata.initializeTimeZones();
 
   /// Al-Wakeel — queue position 2 of the `anxiety` pair, and one of the 14
   /// approved decks. Real shipped content on purpose: a fixture would paper over
@@ -39,8 +45,15 @@ void main() {
 
   late FakeSupabaseSyncService fakeSync;
 
-  /// The persisted blob as `_persistTodayState` writes it, at the exact moment
-  /// the reveal has landed and the deck has not been tapped through yet.
+  /// The persisted blob at the exact moment the reveal has landed and the deck
+  /// has not been tapped through yet.
+  ///
+  /// **Hand-written, and that is a liability** — it is why the review caught what
+  /// this file missed. When these tests were first written `discoverName` did not
+  /// call `_persistTodayState` at all, so this shape was one production never
+  /// produced and the restore branch under test was unreachable. The
+  /// `round-trips through the real writer` test at the bottom is the guard
+  /// against that recurring; keep it passing and these stay honest.
   Map<String, Object> midFlowBlob({
     required String revealSource,
     int? revealNameId = deckedNameId,
@@ -118,13 +131,115 @@ void main() {
   test('a blob written before this change degrades to the AI reflection',
       () async {
     // Forward-compatibility: a user mid-flow across the release upgrade has a
-    // blob with no reveal keys at all. It must resume, not throw.
-    install(midFlowBlob(revealSource: revealSourceGacha, revealNameId: null));
+    // blob with NO reveal keys at all — not merely a null `revealNameId`, which
+    // is what this test used to assert while still emitting `revealSource` and
+    // `revealQueuePosition` that a pre-change blob could never contain.
+    final key = FakeSupabaseSyncService(userId: 'user-A')
+        .scopedKey('daily_loop_2026-08-04');
+    install({
+      key: jsonEncode({
+        'checkinDone': true,
+        'deeperDone': false,
+        'questDone': false,
+        'currentStep': 0,
+        'checkinAnswers': const <String>[],
+        'checkinName': 'Al-Wakeel',
+        'reflectStep': 0,
+      }),
+    });
 
     final notifier = await restart();
 
     expect(notifier.state.revealDeck, isNull);
+    expect(notifier.state.revealSource, revealSourceGacha,
+        reason: 'the absent key defaults, it does not throw');
+    expect(notifier.state.revealQueuePosition, isNull);
     expect(notifier.state.checkinDone, isTrue,
         reason: 'the rest of the restore is unaffected');
   });
+
+  test('the reveal round-trips through the real writer', () async {
+    // The test that would have caught the original defect, and the reason the
+    // hand-written blobs above are trustworthy.
+    //
+    // Every other test in this file installs a blob by hand. That is why nobody
+    // noticed `discoverName` did not call `_persistTodayState` at all: the restore
+    // branch was correct code behind a condition production never satisfied. This
+    // drives the WRITER — a real queue-driven reveal — then reads what landed in
+    // prefs and hands it to a second notifier, so the writer and reader are
+    // pinned as a pair.
+    install(const {});
+    PurchaseService.debugSetOverride(_FreeUser());
+    addTearDown(PurchaseService.debugClearOverride);
+    debugResetUserLocalDay();
+    debugUserTimeZoneOverride = 'America/Los_Angeles';
+    addTearDown(() {
+      debugResetUserLocalDay();
+      debugUserTimeZoneOverride = null;
+    });
+    await hydrateTokenCache(balance: 100, totalSpent: 0);
+
+    Map<String, dynamic> serverRow(int position, int nameId,
+            {DateTime? unsealedAt}) =>
+        {
+          'position': position,
+          'name_id': nameId,
+          'unsealed_at': unsealedAt?.toIso8601String(),
+        };
+
+    final live = DailyLoopNotifier(
+      storiesService: stories,
+      nameQueueService: NameQueueService(
+        currentUserId: () => fakeSync.userId,
+        // Position 1 met long ago and outside the floor; position 2 sealed.
+        selectRows: (_) async => [
+          serverRow(1, 11, unsealedAt: DateTime.utc(2026, 8, 1, 15)),
+          serverRow(2, deckedNameId),
+        ],
+        callRpc: (_, __) async => [
+          serverRow(2, deckedNameId,
+              unsealedAt: DateTime.utc(2026, 8, 4, 2, 30)),
+        ],
+      ),
+    );
+    addTearDown(live.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    await live.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(live.state.revealSource, revealSourceQueue);
+    expect(live.state.revealDeck?.deckId, deckedDeckId);
+
+    // The blob must actually be on disk — this is the assertion whose absence
+    // let the bug through.
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(fakeSync.scopedKey('daily_loop_2026-08-04'));
+    expect(raw, isNotNull,
+        reason: 'discoverName must persist the reveal, or the restore branch in '
+            '_loadTodayState is unreachable and a restart runs a SECOND reveal');
+    final blob = jsonDecode(raw!) as Map<String, dynamic>;
+    expect(blob['checkinDone'], isTrue);
+    expect(blob['deeperDone'], isFalse);
+    expect(blob['revealSource'], revealSourceQueue);
+    expect(blob['revealQueuePosition'], 2);
+    expect(blob['revealNameId'], deckedNameId);
+
+    // Now the reader half, against the writer's own output.
+    final resumed = DailyLoopNotifier(storiesService: stories);
+    addTearDown(resumed.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(resumed.state.checkinDone, isTrue);
+    expect(resumed.state.revealSource, revealSourceQueue);
+    expect(resumed.state.revealQueuePosition, 2);
+    expect(resumed.state.revealDeck?.deckId, deckedDeckId,
+        reason: 'the same authored deck, rebuilt from the persisted id');
+  });
+}
+
+class _FreeUser extends PurchaseService {
+  _FreeUser() : super.test();
+  @override
+  Future<bool> isPremium() async => false;
 }

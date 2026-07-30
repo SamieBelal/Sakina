@@ -83,7 +83,8 @@ final class QueueAbsent extends QueueRevealPlan {
 /// Rules are applied **in this order**, and the order is load-bearing:
 ///
 /// 1. no rows → [QueueAbsent]
-/// 2. a row unsealed on [localToday] whose Name is unmet → [QueueResume]
+/// 2. an unmet unsealed row, on [localToday] or still inside
+///    [nameQueueUnsealFloor] → [QueueResume]
 /// 3. the most recent unseal is inside [nameQueueUnsealFloor] → [QueueHold]
 /// 4. every position unsealed → [QueueExhausted]
 /// 5. otherwise → [QueueUnseal]
@@ -111,20 +112,38 @@ QueueRevealPlan planQueueReveal({
   if (queue.isEmpty) return const QueueAbsent();
 
   final unsealed = queue.where((row) => row.unsealedAt != null).toList();
+  final floorEdge = nowUtc.toUtc().subtract(nameQueueUnsealFloor);
 
-  // Rule 2 — unsealed on the user's local day but never met. Lowest position
-  // first so a (theoretically impossible) double unseal resumes the earlier
-  // promise rather than the later one.
-  final unmetToday = unsealed
+  // Rule 2 — unsealed but never met. Lowest position first so a (theoretically
+  // impossible) double unseal resumes the earlier promise rather than the later
+  // one.
+  //
+  // The window is "on the user's local day OR still inside the floor", not local
+  // day alone. Local day alone missed the most likely abandonment there is: an
+  // unseal that COMMITS server-side late on day D whose response is lost — an
+  // RPC timeout after commit, or the process dying. On D+1 a local-day-only rule
+  // 2 cannot match (previous day) while rule 3 does (still inside 20h), so the
+  // plan is QueueHold and the reveal is an ordinary pull; by D+2 the floor has
+  // cleared and rule 5 unseals min(sealed), which is now the position AFTER the
+  // lost one. That position is spent and its Name is never presented as a queue
+  // reveal — for position 2 it silently drops the D1 deck, the comeback moment
+  // the whole wave exists for.
+  //
+  // Resuming inside the floor is exactly the row `unseal_next_name` hands back
+  // there anyway, so this asks the client to honour a promise the server was
+  // already making. The "same Name on two consecutive mornings" guard is
+  // untouched: a met Name can never resume, and the first successful reveal puts
+  // it in [discoveredIds], so the resume path closes itself.
+  final resumable = unsealed
       .where((row) =>
           !discoveredIds.contains(row.nameId) &&
-          _isSameLocalDay(row.unsealedAt!, localToday, localUtcOffset))
+          (_isSameLocalDay(row.unsealedAt!, localToday, localUtcOffset) ||
+              row.unsealedAt!.toUtc().isAfter(floorEdge)))
       .toList()
     ..sort((a, b) => a.position.compareTo(b.position));
-  if (unmetToday.isNotEmpty) return QueueResume(unmetToday.first);
+  if (resumable.isNotEmpty) return QueueResume(resumable.first);
 
   // Rule 3 — inside the server's 20h floor, so the RPC cannot advance.
-  final floorEdge = nowUtc.toUtc().subtract(nameQueueUnsealFloor);
   final hasRecentUnseal = unsealed.any(
     (row) => row.unsealedAt!.toUtc().isAfter(floorEdge),
   );

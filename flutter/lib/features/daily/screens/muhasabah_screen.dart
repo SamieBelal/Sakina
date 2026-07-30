@@ -710,11 +710,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                       await notifier.resetToday();
                       if (!mounted) return;
                       await notifier.discoverName();
-                      // Decrement on success — mirrors reflect provider's
-                      // post-success markUsed pattern. discoverName has no
-                      // observable failure mode here (it's an in-app card
-                      // pick backed by a local lookup), so it's safe to mark
-                      // used immediately after the call.
+                      if (!mounted) return;
+                      // Decrement on success only — and success now has to be
+                      // checked, not assumed.
+                      //
+                      // This used to mark unconditionally, on the premise that
+                      // "discoverName has no observable failure mode (it's an
+                      // in-app card pick backed by a local lookup)". W3 made that
+                      // false: the reveal now awaits an `unseal_next_name` RPC
+                      // and a queue select. `discoverName` catches its own
+                      // exceptions into `state.error` and returns NORMALLY, so an
+                      // offline or 500 reveal looked like a success here and
+                      // consumed the user's one free reveal for a reveal that did
+                      // not happen — after which the retry meets the cap sheet
+                      // and costs 25 tokens, while the server may already have
+                      // spent the queue position.
+                      //
+                      // `state.error` is the same signal `discoverNameWithBypass`
+                      // uses to decide commit-versus-refund, so this reads the
+                      // established contract rather than inventing one.
+                      if (ref.read(dailyLoopProvider).error != null) return;
                       final outcome = await GatingService().markUsed(
                         GatedFeature.discoverName,
                         isPremiumHint: premium,

@@ -103,8 +103,19 @@ void main() {
     expect((await getCardCollection()).discoveredIds, isEmpty);
   });
 
-  test('a queue row pointing at an unknown name_id fails rather than '
-      'substituting a random Name', () async {
+  test('a queue row pointing at an unknown name_id degrades to an ordinary '
+      'pull instead of bricking the day', () async {
+    // This used to throw, which cost the whole local day rather than one reveal:
+    // the unseal has already committed, so every retry re-planned to
+    // QueueResume for the same row and re-threw. `discoverName` could not
+    // succeed again until the 20h floor cleared and rule 5 advanced past the
+    // position — losing the user's muḥāsabah AND their streak for that day, and
+    // burning a cap or a bypass on every attempt. A server-side catalog shrink
+    // is enough to trigger it; `engageCard` already contemplates one.
+    //
+    // The rule that survives is narrower than "never substitute": never
+    // substitute a random Name for a RESOLVABLE queue row. An unresolvable one
+    // degrades to an honest gacha reveal.
     final notifier = DailyLoopNotifier(
       nameQueueService: NameQueueService(
         currentUserId: () => fakeSync.userId,
@@ -118,9 +129,18 @@ void main() {
     await notifier.discoverName();
     await settle();
 
-    expect(notifier.state.error, isNotNull);
-    expect(notifier.state.engagedCard, isNull);
-    expect(debugLastPickExclude, isNull);
+    expect(notifier.state.error, isNull, reason: 'the day is not bricked');
+    expect(notifier.state.engagedCard, isNotNull,
+        reason: 'the user still gets a reveal');
+    // Honest about what it is: no queue attribution, so no Silver dignity floor
+    // and no deck.
+    expect(notifier.state.revealSource, revealSourceGacha);
+    expect(notifier.state.revealQueuePosition, isNull);
+    expect(notifier.state.revealDeck, isNull);
+    // It went through the ordinary pull, and still refused to hand over a Name
+    // the user is promised on a later day.
+    expect(debugLastPickExclude, isNotNull);
+    expect(debugLastPickExclude, contains(22));
   });
 
   test('a failed RLS select falls back to the advisory cache', () async {
