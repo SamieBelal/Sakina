@@ -1,7 +1,7 @@
 # Funnel analytics: feature-flag dimensions & how to query
 
 **Audience:** anyone (human or AI agent) querying Mixpanel for the onboarding → guided tour → paywall funnel.
-**Last updated:** 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
+**Last updated:** 2026-07-30 — added **the daily question funnel (One Ship W4)**: five new events, `entry_source`, the bucket boundaries, and the `check_in_completed` extension (`path` is still `'discover'`). Read the abandon-vs-answer caveat in Gotchas before computing an abandon rate. Previous update: 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
 **Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md).
 **Mixpanel project:** `4013350`. **RevenueCat project:** `proje6681c8c`.
 
@@ -78,6 +78,61 @@ The deck events additionally carry `deck_id` + `name_id`, and `reveal_deck_aband
 
 ---
 
+## The daily question funnel (One Ship W4)
+
+**Why this one is instrumented harder than it looks like it needs to be.** W4 (the daily loop asks a question) ships **in the same release as the paywall wave**, and the One Ship's keep read is a pre/post comparison against a trailing-90d baseline with **no control arm**. At the T0+6wk read we will know whether the ship worked and **not which half did it** — that trade was accepted deliberately (spec §2). This within-wave funnel is the compensation: it is the only way to find out whether the *question* carried its weight.
+
+### `check_in_completed` was EXTENDED, not forked
+
+`path` is still **`'discover'`**. The original prescription wanted `'feeling'` now that the loop asks something; that would have broken every historical D1/D7 comparison built on this event, which is the retention spine. Instead it gained two properties:
+
+| New prop | Values |
+|---|---|
+| `problem_category` | a `ProblemChip.problemCategory` (`anxiety`/`heavy`/`guilt`/`far_from_allah`/`rizq`/`unseen`/`unspoken`) or `unmatched` |
+| `input_mode` | `typed` \| `chip` |
+
+Both are **null on every path that did not go through the question** — a metered re-roll (`resetToday()` returns a blank state), a restored pre-W4 day blob, the dormant `answerCheckin`. Null is the honest value and segments cleanly as "no answer"; do not read it as a data gap.
+
+`problem_category` reuses the **7-chip taxonomy**, deliberately NOT the 30-question onboarding option bank — that is a different vocabulary (emotions, avoidances, needs) and reusing it would fork segmentation away from `acquisition_promise.problem_category` and make the daily loop incomparable to onboarding. A typed sentence is keyword-mapped to the same chip key a tap would have produced, so the two input modes segment identically.
+
+### The five new events
+
+| Event | Props | Fires when |
+|---|---|---|
+| `daily_question_shown` | `entry_source` | the question surface mounts |
+| `daily_question_answered` | `problem_category`, `input_mode`, `char_count_bucket` | the answer is submitted |
+| `daily_question_skipped` | `dwell_ms_bucket` | the explicit **"Not right now"** tap |
+| `daily_question_abandoned` | `dwell_ms_bucket` | backgrounded or navigated away **without deciding** |
+| `daily_reward_claimed` | `trigger` (`answer_submit`) | the daily reward is actually granted |
+
+**`daily_question_skipped` and `daily_question_abandoned` are NOT the same event and must never be merged.** A skip says the *placement* was wrong for that moment — the user deferred, and the question, reveal and reward all stay collectible from the home CTA for the rest of the day. An abandon says the *question* was wrong. The difference between "people want this later" and "people don't want this" is the entire readout for the defer design.
+
+**`daily_reward_claimed` counts grants, not calls.** The claim RPC is idempotent and server-authoritative; a replay returns the same ladder state without granting anything and emits nothing. *(Ladder position — `day` — is approved but NOT yet emitted as of `21494e6`. Delete this parenthesis when it ships.)*
+
+### `entry_source` — and the default that makes it trustworthy
+
+| Value | Means |
+|---|---|
+| `day_open` | the app put the question in front of the user on open. **The only entry the app initiates on the user's behalf.** |
+| `widget` | a home-screen widget tap (deliberately takes precedence over the day-open overlay) |
+| `home_cta` | any in-app tap — the home CTA, a metered re-roll, a quest card, a cap-sheet bypass |
+
+Every in-app navigation to `/muhasabah` tags itself `?entry=…`; an **untagged** navigation is the day-open path and reads as `day_open`. That default is why the day-open route needs no ceremony, and it is the scheme's one weakness — a new untagged push added later would silently inflate `day_open` rather than showing up as an obviously wrong value. `test/features/daily/daily_question_entry_source_test.dart` greps `lib/` and fails the build on any untagged navigation, with a two-file allowlist. **If that test is ever weakened, stop trusting `entry_source` splits.**
+
+### Bucket boundaries
+
+Bucketed on the device, never computed from a raw value in Mixpanel — **the raw values are not sent**.
+
+| `char_count_bucket` | `1_20` \| `21_60` \| `61_140` \| `141_300` \| `301_plus` — inclusive upper, as the names read |
+|---|---|
+| **`dwell_ms_bucket`** | `0_2s` \| `2_5s` \| `5_15s` \| `15_60s` \| `60s_plus` — **exclusive** upper (`0_2s` is [0, 2000)) |
+
+### Privacy — the rule that outranks every metric here
+
+**The user's verbatim answer never leaves the device.** Not as a property, not truncated, not hashed, not in an error payload, and not on the off-topic path. What ships is a bucketed character count and a chip category. This is enforced structurally (`charCountBucket` takes an `int`, so no refactor can hand it the String) and by a test that asserts the answer text — and every distinctive word of it — appears in **no** emitted payload on any path. If you ever see answer text in Mixpanel, that is an incident, not a feature.
+
+---
+
 ## How to query — worked examples
 
 **Slim vs full tour, full funnel** (the A/B read):
@@ -97,6 +152,18 @@ The deck events additionally carry `deck_id` + `name_id`, and `reveal_deck_aband
 
 **Only the live trimmed cohort:** filter `flag_onboarding_trim = true`.
 
+**Did the question itself carry its weight (the W4 within-wave read):**
+- Funnel: `daily_question_shown` → `daily_question_answered` → `check_in_completed{path='discover'}`.
+- Break down by **`entry_source`** to see whether the day-open, the widget and the home CTA convert differently — a question that works when the user chose to open it and fails when the app opened it is a *placement* finding, not a question finding.
+- Break down `daily_question_answered` by **`input_mode`** for the free-text-vs-chips bet: free text primary was a deliberate divergence from the one-tap-first research, and the chips are the hedge. If chip share is overwhelming, the divergence did not pay.
+
+**Is the defer a deferral or an exit (the tripwire worth watching from day one):**
+- Same-day return rate = `daily_question_skipped` → `daily_question_shown{entry_source='home_cta'}` **by the same user, same local day**, over skips.
+- If skippers do not come back, "Not right now" is a polite way out of the core loop rather than a deferral within it. This is the headline metric for the whole skip design, not a secondary one.
+
+**Did moving the reward claim preserve the ladder:**
+- `daily_reward_claimed{trigger='answer_submit'}` per user per day, against `check_in_completed`. The claim moved from *opening the app* to *answering the question* precisely so a day-6 user would not lose their 7-day escalating ladder by not tapping through every beat. *(Reading the ladder position directly needs the `day` prop — see the note above.)*
+
 ---
 
 ## Gotchas (read before trusting a number)
@@ -112,4 +179,8 @@ The deck events additionally carry `deck_id` + `name_id`, and `reveal_deck_aband
 - **`subscription_started` (server) carries no `placement`** — for surface attribution use the client `trial_started`.
 - **Tour `step_index` is not comparable across arms** — always pivot to `step_id` for cross-variant per-step funnels.
 - **`onboarding_started` over-counts raw events** — it fires once per `OnboardingScreen` mount, so a user killed mid-onboarding and relaunched re-fires it. As a funnel denominator, count **unique users** (or filter `entry_page == 0`), not raw event total.
+- **`daily_question_abandoned` is NOT one minus the answer rate.** Abandon fires on backgrounding as well as on navigating away (the OS can reap the app from the background, so waiting for dispose would systematically undercount the likeliest way someone bails). A user who backgrounds the question, comes back, and *then* answers emits **both** `daily_question_abandoned` and `daily_question_answered` for a single `daily_question_shown`. Outcomes therefore sum to slightly **more** than shows. Read abandon as **"left at least once"**, and compute the answer rate from `answered ÷ shown` directly rather than by subtraction.
+- **`daily_question_shown` can legitimately fire twice in one local day.** A metered re-roll calls `resetToday()` and re-shows the question from `home_cta`; a user who backs out and re-taps their widget gets a second correct `widget` show. Only a second **`day_open`** show in one local day is a bug (auto-entry is once per local day), and that one is caught by a debug assert in the app. Do not treat repeat shows as double-counting without checking `entry_source`.
+- **W4 events have no history before the W4 build ships** — same rule as the Phase 1–3 events above. `daily_question_*`, `daily_reward_claimed`, and the `problem_category`/`input_mode` props on `check_in_completed` are all new in that binary.
+- **`check_in_completed` volume is unchanged by W4** — it was extended, not forked, and `path` is still `'discover'`. If its count moves at the W4 release, that is a real behaviour change (or a bug), not an instrumentation artifact.
 - **Do NOT flip `tour_ab_enabled` mid-experiment.** Variant assignment is a stable per-user hash *while the flag is on*; toggling it off mid-run reassigns in-flight users to slim (and a force-killed user resuming the tour can switch arms). Set it once at experiment start, leave it until the read is done.
