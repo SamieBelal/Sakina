@@ -20,17 +20,51 @@ class WidgetSyncInputs {
     required this.checkedInToday,
   });
 
-  final AllahName name;
+  /// The Name to advertise, or **null until the user has actually met one
+  /// today** (W4 Wave 6). Null is not "unknown" — it is a positive statement
+  /// that no Name is being claimed yet, and the widget renders the invitation
+  /// instead of a Name.
+  final AllahName? name;
+
   final bool personalized;
   final bool checkedInToday;
+
+  /// True when today's Name has not been revealed yet. The widget must not name
+  /// a Name in this state.
+  bool get awaitingReveal => name == null;
 }
 
 String _ymd(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// Pure: decide which Name the widget shows. If the user checked in today, show
-/// the Name they received (personalized); otherwise the deterministic daily
-/// Name. Local-time day boundary, matching `getTodaysName()` (spec §10.4/§5.5).
+/// the Name they received (personalized). **Otherwise show no Name at all.**
+/// Local-time day boundary, matching `getTodaysName()` (spec §10.4/§5.5).
+///
+/// **Why the pre-check-in Name is now withheld (W4 Wave 6 / plan §8).** This
+/// used to return `todaysName` — `getTodaysName()`, a deterministic
+/// day-of-year rotation — with `personalized: false`. That Name has never had
+/// anything to do with the Name the user actually receives: the reveal comes
+/// from the queue planner for cohort users and `pickNextCard` for everyone
+/// else. The widget was advertising a Name it would not deliver.
+///
+/// Harmless while the reveal was a blind gacha nobody had been promised
+/// anything about. Corrosive now that the reveal is the answer to a question
+/// the user was asked — the widget would be pre-empting, and contradicting, the
+/// thing the loop is for.
+///
+/// **Why withholding rather than showing the queue's real next Name**, which
+/// plan §8 offers as the alternative: the iOS extension recomputes its own
+/// timeline offline, pre-baking a next-midnight entry and refreshing on
+/// `.after(nextMidnight)`. To show tomorrow's queue Name it would have to know
+/// the queue, the server-side unseal, and its 20-hour floor — and even then it
+/// would be guessing, because a `QueueHold` or `QueueExhausted` plan falls
+/// through to an ordinary gacha pull. There is no Name that can be shown
+/// pre-reveal and still be true. Withholding is the only option that is correct
+/// offline, and it needs no knowledge of the queue at all.
+///
+/// The logged-out path is untouched: with no payload the extension keeps its
+/// own catalog rotation, which is honest — it is content, not a promise.
 WidgetSyncInputs composeWidgetSyncState({
   required List<CheckInRecord> history,
   required AllahName todaysName,
@@ -47,8 +81,8 @@ WidgetSyncInputs composeWidgetSyncState({
           name: matched, personalized: true, checkedInToday: true);
     }
   }
-  return WidgetSyncInputs(
-      name: todaysName, personalized: false, checkedInToday: false);
+  return const WidgetSyncInputs(
+      name: null, personalized: false, checkedInToday: false);
 }
 
 /// Loads the committed anchor snapshot from the app bundle (the same file the
@@ -118,10 +152,14 @@ Future<void> syncHomeWidget({DateTime Function()? clock}) async {
       todaysName: getTodaysName(),
       now: now,
     );
-    final anchor = await _anchorCatalog.anchorFor(inputs.name);
+    final name = inputs.name;
+    // No Name, no anchor. The anchor is that Name's teaching line, so carrying
+    // one for a Name we are deliberately not naming would smuggle the claim
+    // back in through the copy.
+    final anchor = name == null ? '' : await _anchorCatalog.anchorFor(name);
     final lanternSkinId = await resolveWidgetLanternSkin();
     await widgetDataService.syncWidget(
-      name: inputs.name,
+      name: name,
       anchor: anchor,
       streak: streak,
       checkedInToday: inputs.checkedInToday,

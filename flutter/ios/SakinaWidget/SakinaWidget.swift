@@ -41,6 +41,10 @@ private struct NameDisplay {
     let streak: Int
     /// nil = don't show a streak (logged out); .done/.pending/.atRisk otherwise.
     let streakState: StreakState
+    /// True when today's Name has not been revealed yet, so there is no Name to
+    /// show. The Name fields are empty in this state and views MUST render the
+    /// invitation instead. See `resolve(at:phase:)`.
+    let awaitingReveal: Bool
 }
 
 private enum StreakState { case hidden, zero, done, pending, atRisk }
@@ -124,10 +128,38 @@ private func resolve(at date: Date, phase: RenderPhase) -> NameDisplay {
             isSameLocalDay($0.updated_at, date, cal)
     } ?? false
 
+    // `awaiting` = signed in, but today's Name has not been revealed yet, so
+    // there is no Name to show (W4 Wave 6). The app used to send a day-of-year
+    // rotation here and this extension ignored it and computed its own — either
+    // way the widget was naming a Name that had nothing to do with the reveal,
+    // which comes from the queue planner or `pickNextCard`. Harmless while the
+    // reveal was a blind gacha; a broken promise now that it is the answer to a
+    // question the user was asked.
+    //
+    // Nothing is guessed to replace it. Showing the queue's next Name cannot be
+    // made correct offline: this provider pre-bakes a next-midnight entry and
+    // then sleeps on `.after(nextMidnight)`, so it would have to know the
+    // server-side unseal and its 20-hour floor, and would still be wrong
+    // whenever the plan holds or the queue is exhausted and the reveal falls
+    // through to an ordinary pull.
+    //
+    // Also date-guarded: a payload from a previous day says nothing about
+    // today, so it decays back to the catalog rotation rather than freezing the
+    // widget in an invitation forever if the app is never opened again.
+    let awaiting = payload.map {
+        $0.mode == "awaiting" && isSameLocalDay($0.updated_at, date, cal)
+    } ?? false
+
     let base: (key: String, arabic: String, translit: String, english: String, anchor: String)
     if personalized, let p = payload {
         base = (p.name_key, p.arabic, p.transliteration, p.name_english, p.anchor)
+    } else if awaiting {
+        // Deliberately empty: the awaiting views render none of these, and
+        // leaving a Name here is a Name some future reader will show.
+        base = ("", "", "", "", "")
     } else if let catalog = catalog, !catalog.names.isEmpty {
+        // Logged out, or a stale payload — the catalog rotation is honest here
+        // because it is content, not a promise about the user's own day.
         let row = dailyRow(for: date, catalog: catalog, cal: cal)
         base = (row.name_key, row.arabic, row.transliteration, row.english, row.anchor)
     } else {
@@ -151,7 +183,8 @@ private func resolve(at date: Date, phase: RenderPhase) -> NameDisplay {
 
     return NameDisplay(nameKey: base.key, arabic: base.arabic,
                        transliteration: base.translit, english: base.english,
-                       anchor: base.anchor, streak: streak, streakState: state)
+                       anchor: base.anchor, streak: streak, streakState: state,
+                       awaitingReveal: awaiting)
 }
 
 private enum RenderPhase { case current, eveningAtRisk, nextDay }
@@ -201,6 +234,32 @@ private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
     return URL(string: "sakina://widget/\(path)?homeWidget")
 }
 
+/// The pre-reveal hero: what stands where the Name stands, before there is a
+/// Name. Says exactly what the home CTA and the question screen say, so the
+/// widget, the button and the prompt are one sentence rather than three.
+///
+/// Valence-neutral on purpose (spec M4) — a widget that asks what is *weighing*
+/// on you has no slot for the honest answer on a good day, and this one is on
+/// the Home Screen where it is read dozens of times.
+private struct AwaitingHero: View {
+    /// Arabic-hero point size of the family this replaces, so the invitation
+    /// occupies the same optical weight as the Name it stands in for.
+    let heroSize: CGFloat
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "sparkles")
+                .font(.system(size: heroSize * 0.42))
+                .foregroundColor(Palette.gold)
+            Text("What's on your heart today?")
+                .font(.custom("Outfit", size: heroSize * 0.36)).fontWeight(.semibold)
+                .foregroundColor(Palette.emerald)
+                .multilineTextAlignment(.center)
+                .lineLimit(3).minimumScaleFactor(0.6)
+        }
+    }
+}
+
 /// A capsule pill that visually matches the Dua pill (same padding/shape), so
 /// the footer reads as a matched pair. Uses Outfit (the app's Latin UI font).
 private struct StreakChip: View {
@@ -241,30 +300,43 @@ private struct MediumView: View {
     var body: some View {
         HStack(spacing: 14) {
             VStack(spacing: 6) {
-                Text(display.arabic)
-                    .font(.custom("ArefRuqaa-Regular", size: 44))
-                    .foregroundColor(Palette.emerald)
-                    .environment(\.layoutDirection, .rightToLeft)
-                    .minimumScaleFactor(0.45).lineLimit(1)
-                Text(display.transliteration)
-                    .font(.custom("Outfit", size: 16)).fontWeight(.bold)
-                    .foregroundColor(Palette.ink)
-                    .lineLimit(1).minimumScaleFactor(0.5)
+                if display.awaitingReveal {
+                    AwaitingHero(heroSize: 44)
+                } else {
+                    Text(display.arabic)
+                        .font(.custom("ArefRuqaa-Regular", size: 44))
+                        .foregroundColor(Palette.emerald)
+                        .environment(\.layoutDirection, .rightToLeft)
+                        .minimumScaleFactor(0.45).lineLimit(1)
+                    Text(display.transliteration)
+                        .font(.custom("Outfit", size: 16)).fontWeight(.bold)
+                        .foregroundColor(Palette.ink)
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                }
             }
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 4) {
                 // Anchor is the hook — no redundant "A NAME FOR YOU" label.
                 // Shrink-to-fit: the full anchor ALWAYS shows (up to 3 lines).
-                Text(display.anchor)
+                // Pre-reveal there is no anchor (it is the Name's teaching line),
+                // so the slot carries the invitation's second half instead.
+                Text(display.awaitingReveal
+                     ? "Answer today's question to meet your Name."
+                     : display.anchor)
                     .font(.custom("Outfit", size: 15)).fontWeight(.medium)
                     .foregroundColor(Palette.ink)
                     .lineLimit(3).minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
-                Text(display.english)
-                    .font(.custom("Outfit", size: 12))
-                    .foregroundColor(Palette.ink.opacity(0.65))
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                // The Name's meaning. Omitted entirely pre-reveal rather than
+                // rendered empty — an empty Text still reserves a line and would
+                // leave a visible gap where a meaning used to be.
+                if !display.awaitingReveal {
+                    Text(display.english)
+                        .font(.custom("Outfit", size: 12))
+                        .foregroundColor(Palette.ink.opacity(0.65))
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                }
                 // Matched capsule pills, vertically centered: streak (status) and
                 // Dua (action) read as a proper pair.
                 //
@@ -309,15 +381,19 @@ private struct SmallView: View {
     var body: some View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
-            Text(display.arabic)
-                .font(.custom("ArefRuqaa-Regular", size: 40))
-                .foregroundColor(Palette.emerald)
-                .environment(\.layoutDirection, .rightToLeft)
-                .minimumScaleFactor(0.45).lineLimit(1)
-            Text(display.transliteration)
-                .font(.custom("Outfit", size: 17)).fontWeight(.bold)
-                .foregroundColor(Palette.ink)
-                .lineLimit(1).minimumScaleFactor(0.5)
+            if display.awaitingReveal {
+                AwaitingHero(heroSize: 40)
+            } else {
+                Text(display.arabic)
+                    .font(.custom("ArefRuqaa-Regular", size: 40))
+                    .foregroundColor(Palette.emerald)
+                    .environment(\.layoutDirection, .rightToLeft)
+                    .minimumScaleFactor(0.45).lineLimit(1)
+                Text(display.transliteration)
+                    .font(.custom("Outfit", size: 17)).fontWeight(.bold)
+                    .foregroundColor(Palette.ink)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+            }
             Spacer(minLength: 0)
             footer
         }
@@ -326,6 +402,19 @@ private struct SmallView: View {
     }
 
     @ViewBuilder private var footer: some View {
+        // Pre-reveal the hero already asks the question, so the footer carries
+        // the streak rather than repeating the CTA underneath it. This is the
+        // "lantern + streak, no Name" state plan §8 asks for: status, not a
+        // second prompt. (`.hidden` is unreachable here — awaiting requires a
+        // payload, and `.done` requires personalized, which awaiting is not.)
+        if display.awaitingReveal {
+            StreakChip(display: display)
+        } else {
+            nameFooter
+        }
+    }
+
+    @ViewBuilder private var nameFooter: some View {
         switch display.streakState {
         case .done:
             // Reward: the streak chip (they've reflected today).

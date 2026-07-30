@@ -26,10 +26,13 @@ void main() {
     );
     expect(s.personalized, isTrue);
     expect(s.checkedInToday, isTrue);
-    expect(s.name.transliteration, checkinName.transliteration);
+    expect(s.name?.transliteration, checkinName.transliteration);
   });
 
-  test('no check-in today → daily Name, not personalized', () {
+  // UPDATED by W4 Wave 6: pre-check-in the widget no longer advertises the
+  // day-of-year rotation, because that Name has never been the one the reveal
+  // delivers. See widget_awaiting_reveal_test.dart for the full contract.
+  test('no check-in today → NO Name (awaiting), not the daily rotation', () {
     final s = composeWidgetSyncState(
       history: [_record('2026-07-13', 'Al-Wakeel')],
       todaysName: today,
@@ -37,7 +40,8 @@ void main() {
     );
     expect(s.personalized, isFalse);
     expect(s.checkedInToday, isFalse);
-    expect(s.name.transliteration, today.transliteration);
+    expect(s.name, isNull);
+    expect(s.awaitingReveal, isTrue);
   });
 
   test('unknown returned Name falls back to today', () {
@@ -47,6 +51,6 @@ void main() {
       now: now,
     );
     expect(s.checkedInToday, isTrue);
-    expect(s.name.transliteration, today.transliteration);
+    expect(s.name?.transliteration, today.transliteration);
   });
 }

@@ -22,6 +22,7 @@ import 'package:sakina/services/name_queue_service.dart';
 import 'package:sakina/services/name_stories_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/user_local_day.dart';
+import 'package:sakina/services/widget_sync.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -926,6 +927,31 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       try {
         await _markStreakAndHandleMilestones();
       } catch (_) {}
+
+      // Re-push the home-screen widget now that today's Name actually exists
+      // (W4 Wave 6 / plan §8).
+      //
+      // Until this point the widget is deliberately in its `awaiting` state,
+      // naming no Name — see `composeWidgetSyncState`. This is the moment that
+      // stops being true, and waiting for the next `sync_all_user_data` to
+      // notice would leave the widget inviting the user to a muḥāsabah they
+      // just finished, for hours.
+      //
+      // Placed here, after the history row and the streak mark, because those
+      // are precisely the two things the payload is composed from:
+      // `composeWidgetSyncState` flips to personalized off a history row dated
+      // today, and the streak count comes from the mark above. Pushing earlier
+      // would publish a half-built payload.
+      //
+      // Deliberately wired to the REVEAL rather than to "Ameen": the widget's
+      // claim is "you have met today's Name", which is true from here on
+      // whether or not the user taps through the rest of the flow. It is also
+      // why Waves 3 and 4 can move the day-open around without touching this.
+      //
+      // Fire-and-forget: `syncHomeWidget` swallows its own errors, and the
+      // payload write is de-duplicated inside `WidgetDataService`, so a
+      // redundant call is free.
+      unawaited(syncHomeWidget());
 
       // Retention: the recurring core-loop DAU event (Home "Begin Muḥāsabah"
       // discover path). Powers D1/D7/D30 retention + habit-formation analysis.

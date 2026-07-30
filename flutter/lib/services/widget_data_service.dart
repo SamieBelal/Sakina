@@ -263,13 +263,25 @@ class WidgetDataService {
   /// timeline when the serialized payload actually changed.
   ///
   /// [personalized] true means [name] is the Name the user received in today's
-  /// muḥāsabah; false means it's the deterministic daily Name (a hint — the
-  /// extension may recompute it offline).
+  /// muḥāsabah.
+  ///
+  /// [name] is **null when today's Name has not been revealed yet** (W4 Wave 6).
+  /// That emits `mode: 'awaiting'` with the Name fields blank, and the extension
+  /// renders the invitation instead of naming a Name. It is a positive
+  /// statement, not missing data: the widget used to advertise a day-of-year
+  /// rotation that had nothing to do with the reveal, which the loop now makes
+  /// into a broken promise rather than a harmless placeholder.
+  ///
+  /// The blank fields are deliberate — a Name left in the payload "just in
+  /// case" is a Name some future reader will render. Older installed widget
+  /// builds degrade safely: they only ever read these fields when
+  /// `mode == 'personalized'`, so an unrecognised `'awaiting'` falls through to
+  /// their own catalog rotation, i.e. exactly today's behaviour.
   ///
   /// [lanternSkinId] is the user's equipped skin; pass null to keep the last
   /// known one (an equip may have set it since the previous sync).
   Future<void> syncWidget({
-    required AllahName name,
+    required AllahName? name,
     required String anchor,
     required int streak,
     required bool checkedInToday,
@@ -280,12 +292,14 @@ class WidgetDataService {
       _equippedSkin = widgetEligibleSkinId(lanternSkinId);
     }
     final payload = WidgetNamePayload(
-      mode: personalized ? 'personalized' : 'daily',
-      nameKey: widgetNameKeyFor(name),
-      name: name.transliteration,
-      nameEnglish: name.english,
-      arabic: name.arabic,
-      transliteration: name.transliteration,
+      mode: personalized
+          ? 'personalized'
+          : (name == null ? 'awaiting' : 'daily'),
+      nameKey: name == null ? '' : widgetNameKeyFor(name),
+      name: name?.transliteration ?? '',
+      nameEnglish: name?.english ?? '',
+      arabic: name?.arabic ?? '',
+      transliteration: name?.transliteration ?? '',
       anchor: anchor,
       checkedInToday: checkedInToday,
       streak: streak,
