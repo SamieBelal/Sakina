@@ -73,7 +73,7 @@
 - **The backlog is re-ranked depth-first: (1) Reflect re-entry, (2) 99-Name arc, (3) journal insights, (4) gift-a-dua (with day-one Mixpanel instrumentation + §G4 test), (5) intention/harvest appointment, (6) TTS.** Payers are 2.6-3.4× depth users, Reflect re-entry literally re-delivers Reel 1's contract, and manufactured frequency doesn't convert. (§V6.5.5, §V6.8.D5)
 - **Cut outright: the reward-strip re-curve, streak-countdown Live Activity, two-chest adhkar scaffolding, churn-flag intervention, garden companion, Rive migration.** Each was justified by the retired reverse-trial choreography or is superseded by shipped work (lantern, Lottie pipeline). (§V6.5.4, §V6.7)
 - **Ramadan = "30 Names for 30 Nights" with a generosity posture: 14-day trial via a seasonal RC offering (new users), offer-code campaign (existing users), `placement:'eid_recap'` paywall + Shawwal winback, cap-loosening framed as bounded from day one, reversion on Eid+3 never Eid day.** Hallow's Lent ≈25% of annual revenue proves the season, and in-window tightening in a worship month is the one unforgivable move. (§V6.5.3, §V6.8.D6)
-- **The feeling-first core-loop rewire (Begin Muḥāsabah → problem/feeling input → `reflectWithOpenAI`) is the FIRST item after the keep decision, not part of the One Ship.** The D1-D7 queue seam covers the promise window; the full rewire is too large to ride the launch under one-change-at-a-time. (§V6.8.A5)
+- ~~**The feeling-first core-loop rewire (Begin Muḥāsabah → problem/feeling input → `reflectWithOpenAI`) is the FIRST item after the keep decision, not part of the One Ship.** The D1-D7 queue seam covers the promise window; the full rewire is too large to ride the launch under one-change-at-a-time. (§V6.8.A5)~~ **[OVERTURNED 2026-07-30 — D9. It rides the One Ship as W4.]**
 
 ---
 
@@ -87,7 +87,7 @@
 3. ✅ Deck pipeline — **author = Claude, reviewer = founder** (revises §V6.8.A3's "founder authors"): Claude drafts each deck with every story/verse/dua claim traced to a reputable cited source (hadith citations verified against sunnah.com / Quran.com at draft time — never from memory; anything not fully verifiable is flagged, not shipped); the founder reviews each deck + its sources and records sign-off per deck. Ship-gate unchanged: a chip renders only when BOTH its decks carry recorded sign-off. Verses/duas still come ONLY from the verified catalog (AI-selection rule) — authoring covers story beats + bridge copy, never scripture.
 4. ✅ Day boundaries — audited 2026-07-25: streaks have per-user tz (`user_notification_preferences.timezone` + local-date column); muhasabah/rewards/usage are uniform UTC; **quests have a local-vs-UTC inconsistency bug** (rotation local, persistence UTC — fix in W1); weekly pool + local-midnight unseal are new builds on the streak-tz pattern.
 5. ✅ Free-tier integers — **PINNED: warmup 3 Reflect + 3 Build-a-Dua lifetime; weekly pool 3 combined, Monday per-user local reset; `discoverName` 1/day free forever** (app_config dials).
-6. ✅ Paywall — **APPROVED 2026-07-25** (`../content/2026-07-25-paywall-DRAFT.md` + mock): 3 pages (`value_depth`/`trial_timeline`/`plan_select`), contract-keyed page 1, Apple-Day-6 timeline, shipped benefits checklist on plan page, surfaces map (onboarding ceremony / condensed soft_inapp / LapsedTrialSheet separate). Adversarially reviewed (2 blockers fixed: journal-honesty, Day-5 second-clock). Aesthetics at W4 build per DESIGN.md; copy freezes at T0. **⇒ ALL SIX PHASE 0 DECISIONS CLOSED.**
+6. ✅ Paywall — **APPROVED 2026-07-25** (`../content/2026-07-25-paywall-DRAFT.md` + mock): 3 pages (`value_depth`/`trial_timeline`/`plan_select`), contract-keyed page 1, Apple-Day-6 timeline, shipped benefits checklist on plan page, surfaces map (onboarding ceremony / condensed soft_inapp / LapsedTrialSheet separate). Adversarially reviewed (2 blockers fixed: journal-honesty, Day-5 second-clock). Aesthetics at W5 build per DESIGN.md; copy freezes at T0. **⇒ ALL SIX PHASE 0 DECISIONS CLOSED.**
 
 > **Researched draft for ①+② (2026-07-25, awaiting founder sign-off).** Two-agent web research: evidence side (Muslim Youth Helpline 2019, N=1,077 young Western Muslims recruited via social media — the reel demographic; ISPU/Pew/Yaqeen/Khalil Center) + demand side (IslamQA/SeekersGuidance category volumes, dua-search taxonomies, viral reel framings, competitor intakes — Sabr, Hallow, Hisn al-Muslim). Convergent top struggles: anxiety (63% / #1 dua demand) · sadness-hopelessness (52%) · family conflict (47%) · far-from-Allah/iman-low (30% named UNPROMPTED; IslamQA's biggest category is Psychological & Social; no Hallow analogue — the differentiator) · sin-guilt-repentance cycles (#1 ask-a-scholar emotional topic; 31% of young men porn-guilt) · loneliness/marriage (+ 40% of men tell nobody) · rizq/money.
 >
@@ -167,20 +167,29 @@
 - Daily reveal consults `user_name_queue`; D1 reveal = Name #2's unseal deck on the same surface; stated feeling overrides the Name with the unseal deck offered immediately after.
 - Unseal timing on per-user local midnight. Second-Name lifecycle events wired (`source:'widget'` unseal attribution may trail the ship per §V6.8.E; guardrail queries may not).
 
-**W4. Gate + free tier (Flutter + RC + gating):**
+**W4. Daily-loop restructure — the loop asks (Flutter). [ADDED 2026-07-30 — D9; everything below shifted by one]:**
+- Day-open order reversed: streak/lantern become ambient state on open, the question comes first, the reward ceremony and streak increment land after completion (§6 of the spec is the open decision on how far this goes). `DailyLaunchOverlay` stops handing off nothing and routes into `/muhasabah`.
+- The question renders in `DailyLoopStep.checkin` (today an empty slot falling through to a spinner), on the sacred canvas, with a marked exit. Not in the overlay, and **not** by reviving `answerCheckin()` — that deletion still proceeds.
+- The answer writes into `DailyLoopState.checkinAnswers` before `_prefetchDeeperReflection()`, so the reflection is written about the stated problem against the queue's Name via the existing `forceName` seam. **While the queue is live (D1-D7) the answer shapes the reflection only; the queue keeps picking the Name.** After exhaustion it may pick via `ProblemChipResolver`.
+- Valence-neutral question with a real good-day branch (§7 of the spec is the open decision). Chip taxonomy reused from onboarding so `problem_category` stays comparable — **not** the 30-question bank, which is a different vocabulary.
+- Home: CTA above the fold and out of the divider stack, renamed to the job (muḥāsabah kept as a taught gloss, Hallow's Examen treatment), promo/stat clutter above it cut, and a real design for the completed state.
+- **Prerequisite, lands first and alone:** move `markUsed` out of the CTA tap (`progress_screen.dart:988-1001`) into `discoverName()`, or a user who opens the question and backs out burns their 1/day reveal. Touches both bypass wrappers and the `state.error` refund invariant.
+- Spec: [`../specs/2026-07-30-daily-loop-asks-design.md`](../specs/2026-07-30-daily-loop-asks-design.md). Evidence: `docs/research/2026-07-29-daily-loop-internal-audit.md` + `docs/research/2026-07-29-day-open-loops-external-research.md`.
+
+**W5. Gate + free tier (Flutter + RC + gating):**
 - New multi-page paywall (pages per decision 0.1.6, `page_id` strings): value pages echo problem/Name, depth-register copy only; $59.99 annual anchor; the 7-day-trial offering becomes the RC default at T0 (weekly SKU trial → 7-day; exit-offer strings updated); legacy offering retained in RC for kill-switch revert.
 - Dismiss → home + one-time "always free" card; no ReferUnlock chain; visible close; re-present ≤1/session start, ≤2 offer surfaces/week; no countdown UI (RC's system trial-end notice is the one allowed clock).
 - `gating_service.dart` + `daily_usage_service.dart`: new-cohort config — warmup ~3/feature, weekly pool (reflect+builtDua only, server-mirrored), bypass removed incl. `claimFirstBypass`, `DailyCapSheet` premium-only variant, IAP→sub banner trigger retired for the new cohort (legacy users keep bypass behavior only until their softener window ends — then the whole subsystem is deleted, §V6.10), `discoverName` exempt (1/day permanent, all users). Dials in `app_config`.
 - `LapsedTrialSheet`: "3-day" copy → 7-day; wire to RC trial-lapse for the new flow's store trial.
 - Reverse-trial close-out: readout addendum written; in-flight `trial_premium_until` honored; flag flip only after both; retire `reverse_trial_onboarding.dart` + `trial_expiry_service.dart` after last in-flight trial + winback grace; delete the `reverse_trial_experiment_enabled` config key + `assignPaywallArm` + the `paywall_experiment_assigned` dedup key; freeze `paywall_exp_arm`.
 
-**W5. Instrumentation (rides the same release):**
+**W6. Instrumentation (rides the same release):**
 - Constants in `analytics_event_names.dart`; emit via `onAnalyticsEvent` hook. Super properties at boot/capture: `onboarding_flow`, `reel_hook`, `contract`, `problem_category`, `free_tier_cohort`; people property `names_met`.
 - Events: `reel_source_captured`, deck events on the beat spine (`beat_kind` gains `recognition`/`comfort_verse`), `reveal_deck_completed/abandoned`, `second_name_teased/unseal_available/unsealed{source}`, `paywall_page_viewed{page_id}`, `paywall_viewed{placement:'onboarding'}`, `paywall_closed`, `ai_taste_consumed{feature, allowance, remaining}`, `ai_allowance_exhausted`, `free_tier_entered`, stable `step_id` on onboarding steps, install→signup (ASC), RC↔Mixpanel cohort-reconciliation query (post-T0 `signup_completed` × `onboarding_flow`) documented in the readout doc.
 - Debug-assert: `ai_bypass_offered` never fires for a new-cohort user.
 - Verify-or-add the never-superseded v1 Phase-4 holes: `reflect_started/completed`, `names_browse_viewed`, `dua_read` (Reflect was zero-instrumented at diagnosis; confirm what shipped work already covers before minting).
 
-**W6. Pre-ship QA gates:**
+**W7. Pre-ship QA gates:**
 - Tripwire grep extended: firewall patterns ("sign"/"meant for you" near price, "waiting for you"+Name adjacency, countdown UI, guilt phrases, "X of 99" on purchase surfaces, tier-word+Name adjacency e.g. "Bronze Name") + `check_no_fake_strings.sh`.
 - Refresh `docs/qa/ui-map.md` for the new onboarding (it still documents the legacy 27-page indices and the One Ship makes it more stale).
 - Acceptance test (must pass on device): a reel-install user who pays nothing and dismisses everything still receives BOTH promised Names with full decks within 48h.
@@ -197,7 +206,7 @@
 
 ### Phase 3 — After the keep decision (T0+6wk)
 
-- **On keep:** delete the legacy flow (see hygiene ledger below) → execute the all-users softener wave (30-day notice → new tier for every legacy free user; schedule so it completes before Ramadan prep; review-keyword scan runs through it) → ship welcome/backup offers (~$39.99 first-year SKU, once-ever, 24h) via ship-and-watch → Phase B notifications (queue-based "a Name for what you're carrying") → feeling-first core-loop rewire (v1 Phase 2) as the first big rock → 3d-vs-7d trial only as conditional ship-and-watch if leakage concentrates late.
+- **On keep:** delete the legacy flow (see hygiene ledger below) → execute the all-users softener wave (30-day notice → new tier for every legacy free user; schedule so it completes before Ramadan prep; review-keyword scan runs through it) → ship welcome/backup offers (~$39.99 first-year SKU, once-ever, 24h) via ship-and-watch → Phase B notifications (queue-based "a Name for what you're carrying") → ~~feeling-first core-loop rewire (v1 Phase 2) as the first big rock~~ **(moved into the ship as W4, D9)** → 3d-vs-7d trial only as conditional ship-and-watch if leakage concentrates late.
 - **Backlog, depth-first (signal-gated):** Reflect re-entry → 99-Name arc → journal insights → gift-a-dua (instrumented, §G4 test) → intention/harvest appointment → TTS.
 - **Ramadan (design ~Nov-Dec 2026):** seasonal RC offering (14-day trial), offer-code campaign, eid_recap paywall + Shawwal winback, Eid+3 ramp-down; Jumu'ah beat earlier (mostly shipped).
 
@@ -278,17 +287,17 @@ at the flow's lowest-emotion point, but emits `reel_source_selected{source}` rat
 the specified `reel_source_captured`, and **no `reel_hook` super property is registered
 anywhere**. Consequence: the answer tags one event instead of segmenting the funnel —
 which matters, because this doc calls reel-source capture "the plan's biggest measurement
-hole". Deferred to W5; setup steps (including that organic Instagram gives the app
+hole". Deferred to W6; setup steps (including that organic Instagram gives the app
 nothing to capture, and ASC Campaign Links as the free first-party substitute) are in
 `TODO.md`.
 
 **D6 — Part of the §B dismissal item shipped early, in the W2 timeframe.** The
-ReferUnlock chain is **deleted** (2026-07-29) rather than waiting for W4: its card
+ReferUnlock chain is **deleted** (2026-07-29) rather than waiting for W5: its card
 advertised a 7-day trial against a THREE_DAYS App Store offer, its "Start free trial" CTA
 called `Navigator.maybePop()` and started no trial, and it asked a user who had declined
 twice and never used the app to recommend it to three friends. Still outstanding from the
 same bullet: the **3s-hidden close button** (`_closeButtonRevealDelay` is still live) and
-the one-time reverent **"always free" card**, which does not exist. Do both with W4.
+the one-time reverent **"always free" card**, which does not exist. Do both with W5.
 
 **D7 — New decision not in this plan: the referral share ask is gated on consistency.**
 `resolveReferralNudge` now requires `currentStreak >= 7` — the app's own first streak
@@ -300,12 +309,38 @@ gift/referral" exclusion was NOT ported — on inspection it blocked ordinary A�
 referral chains rather than abuse, and `apply_referral` already blocks self-referral
 server-side.
 
-**D8 — Interim paywall work, to be reverted by W4.** The existing paywall was trimmed to
+**D8 — Interim paywall work, to be reverted by W5.** The existing paywall was trimmed to
 one viewport (duplicate honest-billing paragraph, "No payment due today", the "YOU'RE 1
 STEP AWAY" eyebrow and the "Everything premium unlocks" label all removed) so Restore /
 Terms / Privacy reach the thumb, and its trial copy was corrected from 7 days to **3**,
 matching App Store Connect (`sakina_sub_annual`, subscription 6762153970, FREE_TRIAL /
 THREE_DAYS; both RC subs P3D). A latent bug surfaced during the trim: the microcopy
 hardcoded the annual package and the literal "/year", so selecting Weekly quoted the
-annual price. **W4 moves the real offering to 7 days — the corrected copy must flip back
+annual price. **W5 moves the real offering to 7 days — the corrected copy must flip back
 in the same change that updates RevenueCat, not before and not after.**
+
+**D9 — The feeling-first core-loop rewire is folded INTO the ship as a new W4; gate + free
+tier and everything after it shift by one.** Founder decision 2026-07-30, overturning
+§V6.8.A5's deferral of the rewire to the first post-keep slot. Two facts drove it. First,
+**the deferral was never about product doubt** — this plan calls the rewire *"the retention
+fix"*, ranks it **#2 of 5** and estimates ~1 week; it was deferred purely for measurement
+hygiene, because the ship's read is pre/post with no control arm. Second, **that freeze is
+defined relative to T0, and T0 has not happened**, so folding it in before release does not
+break one-change-at-a-time — it enlarges what the keep read measures as a single unit.
+Weighed against a **D0→D1 return rate of 31%** (69% never come back — the largest leak in
+the funnel by volume, and one of the two pieces the diagnosis names as broken), waiting six
+weeks to fix the loop that leak flows through was the worse trade.
+
+**The price, recorded so it is not rediscovered at the keep read:** we will know whether the
+ship worked; we will **not** be able to separate the paywall's contribution from the loop
+change's. Consequence for W6: the within-wave funnel (question shown → answered → reveal
+completed) has to carry the attribution weight the cohort read cannot, so it is not optional
+instrumentation.
+
+Full design, including the two decisions still open (where the reward ceremony lands; what
+the good-day answer returns): [`../specs/2026-07-30-daily-loop-asks-design.md`](../specs/2026-07-30-daily-loop-asks-design.md).
+Two corrections to earlier claims are recorded there: the 4-question check-in was removed as
+**unreachable dead code**, not on user evidence (and the EMA meta-analysis says it would not
+have failed on question count either), and the good-day branch needs **no newly authored
+scripture** — `normalizeApprovedVerses` already constrains the AI to an approved catalog that
+covers the gratitude Names.

@@ -8,7 +8,7 @@
 W1 is the migrations-first workstream of the One Ship. Everything here is **additive and invisible to shipped clients** — safe to apply to prod before the app release (exempt from one-change-at-a-time), with ONE deliberate exception called out in "Cohort activation" below.
 
 **Scope:** `user_name_queue` + RPCs · `user_profiles` new columns + weekly-pool server authority · timezone-input hardening · `sync_all_user_data` extension · app_config dials · staged (NOT applied) softener-wave scripts · the quest local-vs-UTC client fix (decision 0.1.4).
-**Non-goals:** onboarding UI (W2), daily-loop seam (W3), gating/paywall wiring (W4), analytics events (W5).
+**Non-goals:** onboarding UI (W2), daily-loop seam (W3), gating/paywall wiring (W5), analytics events (W6).
 
 ---
 

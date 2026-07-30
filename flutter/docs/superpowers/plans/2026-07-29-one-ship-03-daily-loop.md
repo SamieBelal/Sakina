@@ -8,7 +8,7 @@
 W3 is the smallest change that makes the plan screen's promise true on Day 1. The server half already shipped in W1 and is live on prod; the client half of the *data access* shipped early in `NameQueueService`. What is missing is a **decision layer**: which Name today's reveal opens, what it renders, and what happens when the queue can't answer.
 
 **Scope:** the `discoverName()` seam · the D1 deck reveal · the stated-feeling override · empty/exhausted/offline/legacy degradation · the day-boundary collision between the UTC usage cap and the user-local unseal · the dignity floor on the first seven reveals · the second-Name lifecycle events.
-**Non-goals:** the feeling-first core-loop rewire (§V6.8.A5 — explicitly the FIRST post-keep item, not this ship) · the paywall and free-tier limits (W4) · the funnel super-properties and `reel_hook` (W5, divergence D5) · Phase B notifications reading the queue (post-ship) · the rating gate (see §11, D2).
+**Non-goals:** the feeling-first core-loop rewire (**no longer post-keep — it became W4 on 2026-07-30, master-plan D9; still not W3's job**) · the paywall and free-tier limits (W5) · the funnel super-properties and `reel_hook` (W6, divergence D5) · Phase B notifications reading the queue (post-ship) · the rating gate (see §11, D2).
 
 ---
 
@@ -95,7 +95,7 @@ Three ordering constraints, all load-bearing:
 
 - **The unseal RPC runs before `engageCard`.** Nothing may be granted for a reveal that then fails to resolve a Name.
 - **The RPC call is the only new `await` that may throw out of the try.** It stays inside `discoverName`'s existing `try`, so a failure lands in `state.error` and the bypass wrappers refund correctly — the reveal genuinely did not happen. `unsealNext()` deliberately lets errors propagate (its dartdoc), and this is the single place that catches them. §5 covers what the user sees.
-- **`_prefetchDeeperReflection()` must NOT fire on a deck-backed reveal.** It is currently unconditional at `:517`. Leaving it would spend an OpenAI call whose result is thrown away and (post-W4) could count against an allowance.
+- **`_prefetchDeeperReflection()` must NOT fire on a deck-backed reveal.** It is currently unconditional at `:517`. Leaving it would spend an OpenAI call whose result is thrown away and (post-W5) could count against an allowance.
 
 ### 3c. Tier still comes from the existing path, and there is no gacha to consult
 
@@ -186,7 +186,7 @@ It is not a corner case. For UTC-7, the UTC day rolls at **17:00 local**. A user
 
 - New `lib/services/user_local_day.dart`: `Future<DateTime> userLocalDay({DateTime Function()? clock})` resolving the user's IANA zone from the same source the server uses (`user_notification_preferences.timezone`, already client-written and now validated by W1 Migration A), cached in scoped prefs, falling back to the device zone and then UTC. One helper, one fallback ladder, injectable clock — mirroring `debugDailyUsageClock`.
 - `daily_usage_service._today()` becomes local-dated **only** when the user has queue rows; legacy users keep the UTC key byte-for-byte, so there is no re-key blip for anyone already installed and a kill-switch revert restores the old key exactly.
-- Safe because: the client is the writer of `usage_date` for these counters, `_findTodayUsageRow` compares against the same `_today()`, and the sync payload's `daily_usage` section already returns a **UTC ±1-day** window (`20260727100300:175`) which contains any local date. The `reflect`/`built_dua` counters are untouched (they move to the server-side, already-local `consume_weekly_allowance` in W4). The one genuine cross-writer is the bypass counter, owned server-side by `reserve_ai_bypass` in UTC — and W4 removes the bypass for exactly this cohort in the same release, which is why the two changes must not be separated.
+- Safe because: the client is the writer of `usage_date` for these counters, `_findTodayUsageRow` compares against the same `_today()`, and the sync payload's `daily_usage` section already returns a **UTC ±1-day** window (`20260727100300:175`) which contains any local date. The `reflect`/`built_dua` counters are untouched (they move to the server-side, already-local `consume_weekly_allowance` in W5). The one genuine cross-writer is the bypass counter, owned server-side by `reserve_ai_bypass` in UTC — and W5 removes the bypass for exactly this cohort in the same release, which is why the two changes must not be separated.
 - The alternative, if review rejects it: keep UTC and soften the plan-screen and CTA copy so no surface implies a calendar day. That is cheaper and worse — it makes the artifact vaguer to protect an implementation detail.
 
 **b. Queue cache.** New `lib/services/name_queue_cache.dart` — scoped-prefs JSON mirror of the rows, written after every successful `queue()` / `unsealNext()`, read by the planner so the reveal never blocks a frame on a round trip. Same idiom as `starter_name_cache.dart`. The cache is advisory: it may say "sealed row exists" but only the RPC may move a position.
@@ -209,7 +209,7 @@ Two things to say plainly rather than bury:
 
 ## 9. Second-Name lifecycle analytics
 
-Grep confirms `second_name` appears nowhere in `lib/`. Three constants go into `lib/services/analytics_event_names.dart` (append-only — the One Ship's W5 also appends there; conflicts are trivial but the two workstreams should not edit the same block):
+Grep confirms `second_name` appears nowhere in `lib/`. Three constants go into `lib/services/analytics_event_names.dart` (append-only — the One Ship's W6 also appends there; conflicts are trivial but the two workstreams should not edit the same block):
 
 | event | fires | props |
 |---|---|---|
@@ -242,15 +242,15 @@ Tests: `test/features/reflect/sealed_name_offer_test.dart`, `test/features/daily
 **Wave 5 — Analytics + attribution.** `analytics_event_names.dart` · `daily_loop_provider.dart` (three emits) · `onboarding_reveal_screen.dart` / `sealed_name_tease.dart` (the tease emit) · `lib/services/reveal_entry_source.dart` (new) · `widget_deep_link.dart` + `notification_service.dart` (stamp only) · `main.dart` (hook wiring).
 Tests: `test/features/daily/second_name_analytics_test.dart`, `test/features/onboarding/second_name_teased_test.dart`, `test/services/reveal_entry_source_test.dart`.
 
-**Parallelism.** Wave 1 must land first — everything reads the planner. After it: **Waves 4 and 5 can run in parallel with each other**, and Wave 4 can start as soon as Wave 2 has landed the state fields it reads. **Waves 2, 3 and 5 cannot be parallelised with each other**: all three edit `daily_loop_provider.dart`, and Wave 3's deck branch depends on Wave 2's `revealSource`. Practically: agent A takes 1 → 2 → 3 serially; agent B takes 4 after 2 lands; agent C takes 5 last (it touches the provider again and needs Wave 3's surface value). `analytics_event_names.dart` is also appended to by the One Ship's W5 — coordinate, or accept a trivial merge.
+**Parallelism.** Wave 1 must land first — everything reads the planner. After it: **Waves 4 and 5 can run in parallel with each other**, and Wave 4 can start as soon as Wave 2 has landed the state fields it reads. **Waves 2, 3 and 5 cannot be parallelised with each other**: all three edit `daily_loop_provider.dart`, and Wave 3's deck branch depends on Wave 2's `revealSource`. Practically: agent A takes 1 → 2 → 3 serially; agent B takes 4 after 2 lands; agent C takes 5 last (it touches the provider again and needs Wave 3's surface value). `analytics_event_names.dart` is also appended to by the One Ship's W6 — coordinate, or accept a trivial merge.
 
 ## 11. Deliberately out of scope
 
 - **The rating gate does NOT move.** Founder call 2026-07-28 (D2) supersedes the plan-of-record's "relocate to post-D1-unseal" (§V6.8.A8). It stays in onboarding after the plan screen. W3 builds no rating surface, and `rating_gate_screen.dart` is not touched. Note for anyone tempted to revisit: despite its name it calls `InAppReview.requestReview()` directly, and iOS rate-limits to 3 prompts/365 days.
-- **The feeling-first core-loop rewire** (Begin Muḥāsabah → problem input → `reflectWithOpenAI`). §V6.8.A5 makes it the first item *after* the keep decision. §7c delivers the "offered immediately after" half only.
+- **The feeling-first core-loop rewire** (Begin Muḥāsabah → problem input → `reflectWithOpenAI`). ~~§V6.8.A5 makes it the first item *after* the keep decision.~~ **[AMENDED 2026-07-30 — master-plan D9: it now rides the ship as W4, immediately after this wave. Still out of scope *here*, and W4 depends on this wave's queue seam.]** §7c delivers the "offered immediately after" half only.
 - **Phase B notifications** reading `user_name_queue` for today's Name. Templates are frozen (`reel_v1`) until the keep read; the freeze clock started 2026-07-25.
-- **`reel_hook` super property and `reel_source_captured`** — divergence D5, W5's problem.
-- **The `names_met` people property and the server-side "met" definition** (§V6.8.D4). W5/post-ship. W3 does not introduce a competing definition — it writes the same `user_checkin_history` row it writes today.
+- **`reel_hook` super property and `reel_source_captured`** — divergence D5, W6's problem.
+- **The `names_met` people property and the server-side "met" definition** (§V6.8.D4). W6/post-ship. W3 does not introduce a competing definition — it writes the same `user_checkin_history` row it writes today.
 - **Store exclusion of sealed queue Names.** A Store purchase can pre-own a queued Name's card; the plan already permits already-owned Names to become tier-upgrade pulls, so the unseal still happens and reads correctly. Excluding them from the Store is a separate product call.
 - **`sync_all_user_data` returning queue rows.** The RLS select plus the §7b cache covers W3; adding a sync section is a migration and a prod pre-flight for no gain.
 - **Any new migration at all.** W3 is client-only. If a wave finds it needs SQL, that is a signal the design drifted — stop and re-review.
@@ -277,14 +277,14 @@ Beyond the per-wave lists above, the following must be true at the end.
 
 **Full suite + `flutter analyze` green.** The baseline is genuinely green on this branch (2337/0), so a failure is a real failure. The two historically flaky tests (`purchase_service_premium_started`, the `find_duas` eval) were fixed on master; if either resurfaces it is pre-existing and not W3's.
 
-**Device pass (rolls into W6):** onboarding → next local day → open the app → D1 deck lands, card is Silver, "Ameen" completes; a reel user who dismisses every offer receives both promised Names with full decks within 48h (the plan's acceptance test); airplane mode at the daily reveal shows retry, not a wrong Name; RTL isolation on the deck beats and the Reflect offer card.
+**Device pass (rolls into W7):** onboarding → next local day → open the app → D1 deck lands, card is Silver, "Ameen" completes; a reel user who dismisses every offer receives both promised Names with full decks within 48h (the plan's acceptance test); airplane mode at the daily reveal shows retry, not a wrong Name; RTL isolation on the deck beats and the Reflect offer card.
 
 ## 13. Review & security notes
 
 - **No new server surface.** W3 adds no migration, no RPC, no RLS policy. The only privileged operation it performs is one call to an already-shipped SECURITY DEFINER function that takes no arguments and derives its user from `auth.uid()`.
 - **The accepted residual risk is unchanged, not widened.** W1 review F4 accepted that the client chooses *which* Names at seed time, on the grounds that Name choice carries no economy value and matches the shipped `discoverName` posture. W3 does not touch seeding and adds no new client-asserted input to any economy path. The §8 floor is the one place a tier value is chosen client-side, and it is chosen in the same function that already chooses Bronze today.
 - **Re-attack list for the adversarial pass:** (1) can a client force a second unseal in a day by manipulating the device clock or timezone? — the planner is advisory, the RPC re-derives both the local day and the 20h floor server-side; (2) can the `QueueResume` rule be used to re-award a card? — `engageCard` is idempotent on `(user_id, name_id)` and re-encounters clamp/tier-up rather than re-grant; (3) can `floorTier` be reached from a non-queue caller? — every other call site keeps the default, assert it in the test; (4) does the local-day cap key let a user mint an extra daily reveal by changing timezone? — worst case one extra reveal on the day the zone changes, the same bound W1 accepted for the weekly pool ("once-ever init hop"), and `discoverName` grants no tokens.
-- **Copy review is a gate, not a nicety.** Every new string goes through the firewall grep that W6 extends: no Name adjacent to "waiting", no clock or countdown anywhere near the unseal, no tier word adjacent to a Name, and none of these surfaces sit near a price.
+- **Copy review is a gate, not a nicety.** Every new string goes through the firewall grep that W7 extends: no Name adjacent to "waiting", no clock or countdown anywhere near the unseal, no tier word adjacent to a Name, and none of these surfaces sit near a price.
 - **Founder eyeball after Wave 3**, on device, on a real second day (or with the clock seams driven): the D1 deck is the moment the whole ship is selling, and it cannot be judged from a widget test.
 
 ## 14. Divergences found while writing this plan
@@ -302,7 +302,7 @@ Beyond the per-wave lists above, the following must be true at the end.
 
 ## 15. Open questions (founder / eng)
 
-1. **Local-day cap.** Make the `discover_name` day key user-local for queue-cohort users only (recommended — it is the difference between the D1 promise holding and not holding in the Americas), or keep UTC and soften the plan-screen and CTA copy so no surface implies a calendar day? Note the recommended option is only coherent alongside W4's bypass removal; the two must ship together.
+1. **Local-day cap.** Make the `discover_name` day key user-local for queue-cohort users only (recommended — it is the difference between the D1 promise holding and not holding in the Americas), or keep UTC and soften the plan-screen and CTA copy so no surface implies a calendar day? Note the recommended option is only coherent alongside W5's bypass removal; the two must ship together.
 2. **Silver floor on positions 2-7.** §V6.8.A9 requires it in the One Ship and D0-Silver→D1-Bronze is a visible regression without it — but it is a real economy change (seven cards skip the Bronze rung). Confirm.
 3. **Analytics surface for the D1 deck:** mint `daily_unseal` (recommended — keeps the onboarding deck-completion health metric clean) or reuse `onboarding_reveal`?
 4. **Failed unseal while offline:** retry-only (recommended), or also offer "reveal another Name instead" as a secondary action after a failed retry?

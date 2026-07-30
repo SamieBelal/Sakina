@@ -1,6 +1,6 @@
 # Paywall Draft — Decision ⑥ (One Ship hybrid gate)
 
-**Status: APPROVED (founder, 2026-07-25) — structure + copy locked; visual polish happens at W4 build per DESIGN.md (mock is layout/copy fidelity only). Copy FREEZES at T0.**
+**Status: APPROVED (founder, 2026-07-25) — structure + copy locked; visual polish happens at W5 build per DESIGN.md (mock is layout/copy fidelity only). Copy FREEZES at T0.**
 Architecture per §V5.3/§V6.3 (Rootd hybrid): front-loaded at onboarding's emotional peak, hard-looking, dismissible-to-limited-free, real RC **7-day trial**, **$59.99/yr** anchor. Mock: [`../mocks/2026-07-25-paywall-mock.html`](../mocks/2026-07-25-paywall-mock.html).
 
 ## Decision: 3 pages, stable `page_id`s: `value_depth` → `trial_timeline` → `plan_select`
@@ -26,7 +26,7 @@ Headline: **Try everything free for 7 days.**
 - **Day 6** — Apple reminds you before your trial ends.
 - **Day 7** — your plan begins. Cancel anytime before — no charge.
 Footnote: *No charge today.* · CTA: Continue.
-*(Review fix B2: the reminder rides Apple's SYSTEM trial-end notice — the plan's "one allowed clock" — no app-scheduled second clock, no new W4 task, and true regardless of the user's notification-permission state. S1: "in one tap" removed — iOS cancellation is multi-step.)*
+*(Review fix B2: the reminder rides Apple's SYSTEM trial-end notice — the plan's "one allowed clock" — no app-scheduled second clock, no new W5 task, and true regardless of the user's notification-permission state. S1: "in one tap" removed — iOS cancellation is multi-step.)*
 
 ## Page 3 — `plan_select`
 Headline: **Choose how you continue.**

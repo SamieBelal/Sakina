@@ -5,7 +5,7 @@
 **Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first` (rebased 2026-07-28 onto master `433c537` = lantern cosmetics PR #61 merged; was off `44f8628` = W1 merged, W1 schema live on prod, dormant)
 **Parents:** distilled doc Phase 1 → W2 (incl. the founder-approved hook-screen UX spec + mock) · plan of record §V5.1/§V6.8 · `2026-07-25-name-stories-deck-format.md` · decks in `docs/superpowers/content/decks/` (12 approved; anxiety pair = DRAFT v2 awaiting founder) · W1 plan (binding notes)
 
-W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck reveal → real-queue plan screen → deferred signup, default-on for new users with the complete legacy flow retained behind the `reel_first_onboarding_enabled` kill switch. No paywall changes (W4), no daily-loop changes (W3), no analytics beyond stubs the screens need (W5 completes).
+W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck reveal → real-queue plan screen → deferred signup, default-on for new users with the complete legacy flow retained behind the `reel_first_onboarding_enabled` kill switch. No paywall changes (W5), no daily-loop changes (W3), no analytics beyond stubs the screens need (W6 completes).
 
 ---
 
@@ -15,7 +15,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 - Current hook screen `first_checkin_screen.dart`: emotion chips (hardcoded `:41-48`), 2-line text field primary, chips hidden on focus `:151-155`, two-step commit, ~36pt chips — all condemned by the approved UX spec. Keep only the 60ms stagger-fade pattern (`:198-199`).
 - Current reveal = `CardRevealOverlay` at hardcoded **Bronze** (`first_checkin_screen.dart:320-321`) + `StarterNameData` 7-Name emotion map (`demo_result_card.dart:130-167`) — both replaced.
 - `BeatRevealFlow` (`lib/widgets/beat_reveal/`): consumes `ReflectResponse` only; `BeatKind` enum at `beat_reveal_models.dart:6`; two call sites (reflect/muhasabah) use static `onAnalyticsEvent` hooks; **no onboarding surface constant exists**.
-- **No machine-readable decks exist** — the 14 approved decks are markdown prose. No `install_id`/alias machinery exists. `docs/qa/ui-map.md` does not exist (W6 creates it).
+- **No machine-readable decks exist** — the 14 approved decks are markdown prose. No `install_id`/alias machinery exists. `docs/qa/ui-map.md` does not exist (W7 creates it).
 - Deferred-signup precedent: `pending_referral` prefs key + pure parser + cold/warm link capture in `main.dart:51-113` — the pattern `sakina://reel|feel` clones.
 - W1 server objects live, zero client references yet: `seed_name_queue` (refuses re-seed — call once, treat raise as non-fatal), `unseal_next_name`, `acquisition_promise`/`onboarding_flow`/`first_problem_text` columns (freeze only after `onboarding_completed=true`; MUST ride the final persist in `saveOnboardingData`, `auth_service.dart:273-303`), sync now returns the six W1 profile keys (client parser ignores them until extended).
 - Tour trigger chain mapped: suppression seams are `progress_screen.dart:165-172` + an early return in `resumeForGate()` (`onboarding_tour_controller.dart:238`) — keyed on the user's `onboarding_flow`, NOT on flag flips (kill-switch revert must restore the tour).
@@ -60,7 +60,7 @@ W2 is the client rebuild of onboarding: reel-voice hook screen → story-deck re
 
 **D1. Questions between reveal and signup** (all single-tap, question-scaffold reuse): "How long have you been carrying this?" (pacing + AI-context field), aspiration (sign-register variant when contract='sign') → queue rows 3-7, reminder-time screen retained as-is. The §V6.8.A6 orphan questions (age/prayer-frequency/familiarity/dua-topics/commitment/attribution/intention) are **absent from the reel flow** (files stay for legacy).
 **D2. Plan screen rebuild** (`personalized_plan_screen` successor): renders the **real 7-Name queue** (Name₁ met ✓, Name₂ sealed-tomorrow, 3-7 as veiled silhouettes) + the 8-stamp journey track pre-stamped 2/8 (arrived + first Name; replaces the legacy journey timeline) — **rendered as a filling BAR since 2026-07-29, semantics unchanged (D3)**. Copy in depth register, no worship-streak framing.
-**D3. Post-reveal "Where did you find us?"** single-tap (TikTok/IG/friend/other) → stored in state. **⚠️ SHIPPED AS `reel_source_selected{source}`, not the specified `reel_source_captured`, and NO `reel_hook` super property exists (D5). W5 work; setup steps in TODO.md.**
+**D3. Post-reveal "Where did you find us?"** single-tap (TikTok/IG/friend/other) → stored in state. **⚠️ SHIPPED AS `reel_source_selected{source}`, not the specified `reel_source_captured`, and NO `reel_hook` super property exists (D5). W6 work; setup steps in TODO.md.**
 
 ## Wave E — Flow assembly, deferred signup, deep links
 
@@ -84,7 +84,7 @@ Who is actually exposed: users onboarded before the gate shipped were backfilled
   - **F1a (this wave) — kill the trigger and collapse the stage.** This is where the danger lives. Remove the tour trigger (`progress_screen.dart:165-172`, `onboarding_tour_controller.start()` / `resumeForGate()`), unmount `OnboardingTourOverlayHost`, and make **`tourCompleted` vestigial (always true)** in `app_session.dart` + `onboarding_stage.dart` + `onboarding_gate_service.dart` + `tour_service.dart`. Once nothing can enter stage `tour`, **no user of any flow can be stranded without a paywall surface** — the bug class is gone by construction rather than by guard. Touches ~10 files.
   - **F1b (post-keep cleanup, NOT this wave) — remove the inert remains.** The `TourAnchor` GlobalKeys scattered through duas/journal/muhasabah/progress/settings become harmless dead weight once nothing reads them; likewise `tour_anchor_registry`, `tour_route_observer`, `onboarding_tour_step`, `coachmark_overlay`, `coachmark_step`. **`deferred_celebrations_provider` needs care, not a blind delete** — it exists solely to withhold gamification celebrations while the tour runs, so removing it means those celebrations start firing live; that is a behaviour change to schedule deliberately.
   - **Consequence, accepted by the founder:** the kill switch no longer restores the tour. Flipping it yields the trimmed flow *without* it. Since the tour is the ~48% leak, there is no scenario where we would want it back — but this is a one-way door and it is recorded as such.
-  - **Pre-W4 gate behaviour, unchanged from the original F1.2:** reel users see the existing `PaywallScreen(placement: placementOnboarding)` as the final-gate page, dismissible, then stage `app`. W4 replaces its contents; the position is already right.
+  - **Pre-W5 gate behaviour, unchanged from the original F1.2:** reel users see the existing `PaywallScreen(placement: placementOnboarding)` as the final-gate page, dismissible, then stage `app`. W5 replaces its contents; the position is already right.
 
 **F2. Rating gate STAYS in the reel flow** (founder call — reversing the original "relocate to post-D1-unseal"). Placement: **after the plan screen**, so it lands on the payoff rather than before it. ⚠️ Note when building: despite the name, `rating_gate_screen.dart` is **not** a two-step "are you enjoying Sakina?" gate — it calls `InAppReview.instance.requestReview()` directly (`:66-78`). iOS silently rate-limits to 3 prompts/365 days, so a user who has not yet received value can burn one of three attempts on a low rating. Existing `os_prompt_available` instrumentation tells us who actually saw the system sheet.
 
@@ -95,7 +95,7 @@ Who is actually exposed: users onboarded before the gate shipped were backfilled
   - **Explicitly do NOT earn one:** Collection, Journal, Duas tab, streaks, widgets (Wave G covers them), the daily unseal (the plan screen sets it up, and Wave H strengthens that).
   - **⚠️ Guardrails are binding, not optional.** Per-surface hints with no global budget is precisely the Clippy failure mode the Wave G mascot research names (excessive interruption). Three rules: **max one hint per session**; **none during the first session after onboarding** (the user has just come through ~18 pages — a hint there reads as more onboarding); and a **lifetime cap**, so this cannot quietly grow into a hint system as features ship.
 
-**F4. Tests:** rewrite the index-pinned files for the current page counts; a test asserting **no blocking overlay can be constructed on the reel path** (the F1 bug class, pinned so it cannot return); first-visit-hint tests (once-ever, non-blocking, auto-fade, and each guardrail); `flutter analyze` + full suite green; RTL/Arabic isolation on all new surfaces (W6 re-verifies on device).
+**F4. Tests:** rewrite the index-pinned files for the current page counts; a test asserting **no blocking overlay can be constructed on the reel path** (the F1 bug class, pinned so it cannot return); first-visit-hint tests (once-ever, non-blocking, auto-fade, and each guardrail); `flutter analyze` + full suite green; RTL/Arabic isolation on all new surfaces (W7 re-verifies on device).
 
 ## Wave G — The lantern in onboarding (added 2026-07-28)
 
@@ -152,7 +152,7 @@ A (content+spine) → B (hook) → C (reveal+queue) → D (questions+plan) → E
 
 ## Review record (2026-07-26)
 
-Adversarial eng+flow review, all 13 findings folded in. Blockers: **(1)** "clamp the gacha roll" was fiction — no tier roll exists (first discovery is hardcoded Bronze); reveal award is now deterministic Silver, weighted roll deferred post-keep. **(2)** naive tour suppression stranded reel users in stage `tour` with no paywall surface — F1 rebuilt: reel completion latches `tourCompleted`+`paywallCleared` synchronously, pre-W4 gate = existing onboarding-placement paywall. Majors: day-0 race → synchronous session mirror; three-flow kill-switch semantics (fallback = trimmed, not legacy-27); queue-seed raise-swallowing → pre-check + disjointness test; anxiety pair is DRAFT v2 not approved (blocking dependency); blank dua beat → standalone dua fields on `BeatScreen`. Minors: prefs-wipe ordering, tier clamp not increment, reel `totalSegments`, social-auth landing constant, `/welcome` unchanged note, snake_case `beat_kind` wire names, cite fixes. Also recorded: aspiration→AI-teaching-context + notification-rotation consumers are deliberately deferred (W3 / Phase B).
+Adversarial eng+flow review, all 13 findings folded in. Blockers: **(1)** "clamp the gacha roll" was fiction — no tier roll exists (first discovery is hardcoded Bronze); reveal award is now deterministic Silver, weighted roll deferred post-keep. **(2)** naive tour suppression stranded reel users in stage `tour` with no paywall surface — F1 rebuilt: reel completion latches `tourCompleted`+`paywallCleared` synchronously, pre-W5 gate = existing onboarding-placement paywall. Majors: day-0 race → synchronous session mirror; three-flow kill-switch semantics (fallback = trimmed, not legacy-27); queue-seed raise-swallowing → pre-check + disjointness test; anxiety pair is DRAFT v2 not approved (blocking dependency); blank dua beat → standalone dua fields on `BeatScreen`. Minors: prefs-wipe ordering, tier clamp not increment, reel `totalSegments`, social-auth landing constant, `/welcome` unchanged note, snake_case `beat_kind` wire names, cite fixes. Also recorded: aspiration→AI-teaching-context + notification-rotation consumers are deliberately deferred (W3 / Phase B).
 
 ## Open items for founder
 
@@ -231,7 +231,7 @@ next reader to re-derive an answer that already exists.
 - **D3** journey track renders as a bar; `onboardingReelTotalSegments` 14 → 15.
 - **D4** free text is a modal.
 - **D5** `reel_source_selected` shipped in place of `reel_source_captured`; no `reel_hook`
-  super property — the one genuine W2 gap, deferred to W5.
+  super property — the one genuine W2 gap, deferred to W6.
 - **H5 sign-chip promotion never landed** — see the struck line in Wave H above.
 
 ### Beyond this doc's scope, shipped in the same window

@@ -175,7 +175,7 @@ Progress bar hidden on `0`, `1`, `9`, `10`, `18` (hook, reveal, plan, rating gat
 
 ## 9. Analytics
 
-New constants (stubs here; **W5 completes them and must also add `flag_reel_first`** as a super property, carried over from the Wave E review P3-9):
+New constants (stubs here; **W6 completes them and must also add `flag_reel_first`** as a super property, carried over from the Wave E review P3-9):
 
 - `onboarding_intake_answered { question_id, answer }` — one event, `question_id` ∈ `h1_duration | h2_heaviest | h3_told_anyone | h4_names_known | h5_would_help | h6_time | h7_free_text`. One event name with a dimension, not seven names, so the intake funnel is a single segmentable series.
 - `h5_would_help` carries `selection_count` and the ordered `selections` array — the blend inputs, needed to evaluate whether multi-select beat single-select.

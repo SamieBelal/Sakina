@@ -174,7 +174,7 @@ Lead with the lantern: it continues the beat that just happened. **Onboarding or
 - **Cost.** The painter runs blur + bloom + a fragment shader. `RepaintBoundary` and `VisibilityDetector` bounding are already in place; still, measure on the oldest supported device before committing to four surfaces.
 - Use `renderableLanternSkinProvider` for the skin at every placement — never hardcode `LanternSkin.classicGold` — so the equipped skin follows the user everywhere, consistent with master's "every surface" work. The pre-auth fallback handles the new-user case for free.
 - `ambient: true` only on the dark sacred canvas (NEW-A). Everywhere else `ambient: false`.
-- Analytics constants land here as stubs; **W5 completes them** and must add `flag_reel_first` as a super property (carried over from the Wave E review, P3-9). New events: `onboarding_widget_previewed{widget_kind}`, `onboarding_widget_cta{widget_kind}`, `onboarding_widget_skipped`, `lantern_kindled`.
+- Analytics constants land here as stubs; **W6 completes them** and must add `flag_reel_first` as a super property (carried over from the Wave E review, P3-9). New events: `onboarding_widget_previewed{widget_kind}`, `onboarding_widget_cta{widget_kind}`, `onboarding_widget_skipped`, `lantern_kindled`.
 
 ---
 
