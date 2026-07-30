@@ -108,6 +108,31 @@ void main() {
             'first open of the day');
   });
 
+  test('resetting the daily loop re-arms the question, not just the overlay',
+      () async {
+    // The bug this closes: W4 Wave 4 added a SECOND day-open gate, and every
+    // "reset the daily loop" path in the app cleared only the first. Settings,
+    // dev tools and the post-onboarding reset all called
+    // `resetDailyLaunchGate()` alone — so the UTC gate re-armed, the local
+    // auto-entry marker did not, and `shouldAutoEnterDailyQuestion()` kept
+    // returning false for the rest of the local day. A user (or a QA pass)
+    // asking for a fresh day got a half-reset one.
+    await markDailyLaunchShown();
+    await markDailyQuestionAutoEnteredToday();
+    expect(await shouldAutoEnterDailyQuestion(), isFalse);
+
+    // Clearing only the launch gate is NOT enough — this is the half-reset.
+    await resetDailyLaunchGate();
+    resetLaunchGateMemoryGuard();
+    expect(await shouldAutoEnterDailyQuestion(), isFalse,
+        reason: 'the local marker still suppresses — which is exactly why '
+            'every reset path has to clear both');
+
+    await resetDailyQuestionGate();
+    expect(await shouldAutoEnterDailyQuestion(), isTrue,
+        reason: 'both cleared: the day is genuinely fresh again');
+  });
+
   test('an unreadable marker fails OPEN', () async {
     // No marker at all is the same shape as a marker that could not be read:
     // the user must never be locked out of the day's question by a prefs

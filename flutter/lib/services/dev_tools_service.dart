@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -302,6 +303,7 @@ Future<void> devSoftResetAll() async {
   await devResetFirstSteps();
   await clearCardCollection();
   await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
 }
 
 // ---------------------------------------------------------------------------

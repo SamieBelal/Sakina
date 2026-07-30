@@ -16,6 +16,7 @@ import '../content/problem_chips.dart';
 import '../../../services/analytics_event_names.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/card_collection_service.dart' show CardTier;
+import '../../../services/daily_question_gate.dart';
 import '../../../services/launch_gate_service.dart';
 import '../../../services/name_queue_cache.dart';
 import '../../../services/name_queue_service.dart';
@@ -1125,6 +1126,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     // Reset the daily launch gate so the new user always sees the day-0
     // DailyLaunchOverlay when they land on the home screen.
     await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
 
     // One resolution for the whole chain: the starter card, the persisted
     // `starter_name_id` and the queue's first row are the same Name or the

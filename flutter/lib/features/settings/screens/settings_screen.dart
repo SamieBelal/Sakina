@@ -16,6 +16,7 @@ import 'package:sakina/features/dua_times/providers/dua_notification_scheduler_p
 import 'package:sakina/features/dua_times/providers/dua_window_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -73,6 +74,7 @@ Future<void> performCardCollectionDangerReset({
   await resetDailyRewardsOnServer();
   await resetDailyLoopState();
   await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -408,6 +410,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await resetDailyRewardsOnServer();
     await ref.read(dailyLoopProvider.notifier).resetToday();
     await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(duration: kSnackBarDuration, 

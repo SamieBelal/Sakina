@@ -20,6 +20,7 @@ import 'package:sakina/services/achievements_service.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/dev_tools_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
@@ -715,6 +716,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
           () => _run(() async {
             await ref.read(dailyLoopProvider.notifier).resetToday();
             await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
           }),
           destructive: true,
         ),
@@ -725,6 +727,7 @@ class _DevToolsScreenState extends ConsumerState<DevToolsScreen> {
             await clearCardCollection();
             await ref.read(dailyLoopProvider.notifier).resetToday();
             await resetDailyLaunchGate();
+    await resetDailyQuestionGate();
           }),
           destructive: true,
         ),
