@@ -265,7 +265,9 @@ class _AmbientFrame extends ConsumerWidget {
   String _timeGreeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'Assalamu Alaykum. Allah is with you.';
-    if (h < 17) return 'Assalamu Alaykum. Take a moment to reflect.';
+    // Not "take a moment to reflect" — Reflect is a distinct feature tab, and
+    // the day-open must not look like it is pointing there.
+    if (h < 17) return 'Assalamu Alaykum. Take a moment.';
     return 'Assalamu Alaykum. End the day with remembrance.';
   }
 }
