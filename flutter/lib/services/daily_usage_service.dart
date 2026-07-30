@@ -99,6 +99,47 @@ String _bypassTodayKey(String feature) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// The free first muḥāsabah of the day (W4 Wave 1)
+//
+// The day's FIRST reveal is free and unmetered; only re-rolls are metered.
+// That is not new policy — it is what the app has always done, by accident of
+// the "Begin Muḥāsabah" CTA doing no gating at all while the two re-roll CTAs
+// ("Discover a New Name", "Seek Another Name") gated and charged. A free user
+// past warmup therefore got one unmetered daily reveal PLUS one metered
+// re-roll. W4 moved the charge into `discoverName`, which would have collapsed
+// those two into one — an unannounced takeaway for ~1,343 existing users, in a
+// wave that ships to everyone. This marker keeps the old shape intact.
+//
+// It is also a safety property, not only an economic one: the day-open reveal
+// is where the user is asked what is on their heart. That surface must never be
+// able to answer a disclosure with a paywall, so it must never consult a cap.
+//
+// Keyed off [_capDay] — the SAME day string as the cap counters — so the free
+// reveal and the metered allowance can never disagree about when the day turned
+// over. Local-only and deliberately not synced: the day-open reveal has never
+// been counted server-side, so a multi-device user gets one free reveal per
+// device per day exactly as they do today. Swept on sign-out with every other
+// `scopedKey` (see `auth_service`).
+Future<String> _freeDailyRevealKey() async {
+  return supabaseSyncService.scopedKey('daily_free_reveal_${await _capDay()}');
+}
+
+/// Whether the user has already taken their free, unmetered reveal today.
+/// False means the next successful reveal is the day's first and costs nothing.
+Future<bool> hasTakenFreeDailyRevealToday() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(await _freeDailyRevealKey()) ?? false;
+}
+
+/// Records that the free daily reveal has been spent. Called by
+/// `DailyLoopNotifier.discoverName` only after a Name has actually been
+/// engaged — never on a reveal that failed.
+Future<void> markFreeDailyRevealTaken() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(await _freeDailyRevealKey(), true);
+}
+
 Future<int> getReflectUsageToday() async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getInt(await _todayKey('reflect')) ?? 0;

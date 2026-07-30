@@ -19,6 +19,20 @@
 //      daily counter server-side — and a bypass whose reveal fails is refunded.
 //   6. The warmup 1 → 0 transition still surfaces `warmupJustExhausted`, now via
 //      `DailyLoopState` rather than a return value handed to a widget.
+//
+// And the free-tier split, which is what keeps this wave from being a takeaway:
+//
+//   0. THE DAY'S FIRST REVEAL IS FREE AND UNMETERED. Only re-rolls are metered.
+//      This is not new policy — "Begin Muḥāsabah" has never gated or charged,
+//      so a free user past warmup has always had one unmetered daily reveal
+//      plus one metered re-roll. Charging the day-open reveal (which moving
+//      `markUsed` into `discoverName` would have done unqualified) would have
+//      halved the free tier for every existing user, silently, in a wave that
+//      ships to all of them.
+//
+//      Consequence for reading the rest of this file: any test that means to
+//      exercise the METERED path calls `takeFreeDailyReveal()` in its setup.
+//      A test that does not is exercising the free first-of-day path.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,6 +96,11 @@ void main() {
 
   Future<int> usageToday() => daily_usage.getDiscoverNameUsageToday();
 
+  /// Spends the day's free, unmetered reveal so the NEXT one is a metered
+  /// re-roll — the state a user is in after their day-open muḥāsabah.
+  Future<void> takeFreeDailyReveal() =>
+      daily_usage.markFreeDailyRevealTaken();
+
   /// A notifier whose real `discoverName` body always fails at the unseal RPC —
   /// the reveal genuinely does not happen. Mirrors the failure injection in
   /// `discover_name_dispose_cancel_test.dart` REGRESSION 8.
@@ -95,6 +114,97 @@ void main() {
           callRpc: (_, __) async => throw StateError('unseal exploded'),
         ),
       );
+
+  // -------------------------------------------------------------------------
+  // 0. The free first reveal of the day, and the metered re-roll after it.
+  // -------------------------------------------------------------------------
+
+  test('the day\'s FIRST reveal consumes nothing', () async {
+    await exhaustWarmup();
+    final notifier = DailyLoopNotifier();
+    addTearDown(notifier.dispose);
+
+    await notifier.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(notifier.state.checkinDone, isTrue, reason: 'the reveal happened');
+    expect(await usageToday(), 0,
+        reason: 'the day-open reveal has never been metered and must not '
+            'start being metered now — that would halve the free tier for '
+            'every existing user');
+    expect(await daily_usage.hasTakenFreeDailyRevealToday(), isTrue,
+        reason: 'but it IS spent, so the next reveal is a re-roll');
+
+    final gate = await GatingService().canUse(GatedFeature.discoverName);
+    expect(gate.allowed, isTrue,
+        reason: 'the metered re-roll is still available — this is the '
+            'effective 2/day the app has always given');
+  });
+
+  test('the first reveal does not touch warmup either', () async {
+    final notifier = DailyLoopNotifier();
+    addTearDown(notifier.dispose);
+
+    await notifier.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(await warmupRemaining(), 5,
+        reason: 'warmup is spent on re-rolls, exactly as it was before W4');
+  });
+
+  test('first reveal free, re-roll metered, second re-roll meets the cap',
+      () async {
+    // The whole free-tier shape in one test, in the order a user meets it.
+    await exhaustWarmup();
+    final notifier = DailyLoopNotifier();
+    addTearDown(notifier.dispose);
+
+    // Day-open.
+    await notifier.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(await usageToday(), 0);
+    expect(await (GatingService().canUse(GatedFeature.discoverName))
+        .then((g) => g.allowed), isTrue);
+
+    // Re-roll: "Discover a New Name" / "Seek Another Name" resets first.
+    await notifier.resetToday();
+    await notifier.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(await usageToday(), 1,
+        reason: 'the re-roll is the metered one, and resetToday() wiping the '
+            'day blob must NOT make it look like a fresh first-of-day');
+
+    // Second re-roll: the cap sheet, at exactly the moment it appears today.
+    final gate = await GatingService().canUse(GatedFeature.discoverName);
+    expect(gate.allowed, isFalse);
+    expect(gate.reason, GateReason.dailyCap);
+  });
+
+  test('a FAILED first reveal does not spend the free daily reveal', () async {
+    final notifier = failingNotifier();
+    addTearDown(notifier.dispose);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    await notifier.discoverName();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(notifier.state.error, isNotNull);
+    expect(await daily_usage.hasTakenFreeDailyRevealToday(), isFalse,
+        reason: 'an offline day-open must not cost the free reveal — the '
+            'retry has to still be the free one');
+  });
+
+  test('the free reveal comes back the next day', () async {
+    await daily_usage.markFreeDailyRevealTaken();
+    expect(await daily_usage.hasTakenFreeDailyRevealToday(), isTrue);
+
+    // Same seam the cap counters use, so the free reveal and the metered
+    // allowance can never disagree about when the day turned over.
+    daily_usage.debugDailyUsageClock = () => DateTime.utc(2099, 1, 2, 12);
+    addTearDown(() => daily_usage.debugDailyUsageClock = null);
+
+    expect(await daily_usage.hasTakenFreeDailyRevealToday(), isFalse);
+  });
 
   // -------------------------------------------------------------------------
   // 1. Asking the gate costs nothing.
@@ -126,9 +236,10 @@ void main() {
   // 2 + 3. Consumed on success, exactly once; never on failure.
   // -------------------------------------------------------------------------
 
-  test('a completed reveal consumes the daily allowance exactly once',
+  test('a completed re-roll consumes the daily allowance exactly once',
       () async {
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     final notifier = DailyLoopNotifier();
     addTearDown(notifier.dispose);
 
@@ -145,8 +256,9 @@ void main() {
     expect(gate.reason, GateReason.dailyCap);
   });
 
-  test('a reveal that fails consumes nothing', () async {
+  test('a re-roll that fails consumes nothing', () async {
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     final notifier = failingNotifier();
     addTearDown(notifier.dispose);
     // Let _initialize land first — copyWith clears `error`, so a late-resolving
@@ -167,7 +279,8 @@ void main() {
     expect(gate.allowed, isTrue, reason: 'the user may still retry today');
   });
 
-  test('a failed reveal does not burn warmup either', () async {
+  test('a failed re-roll does not burn warmup either', () async {
+    await takeFreeDailyReveal();
     final notifier = failingNotifier();
     addTearDown(notifier.dispose);
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -185,6 +298,7 @@ void main() {
 
   test('two concurrent discoverName calls consume once', () async {
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     final notifier = DailyLoopNotifier();
     addTearDown(notifier.dispose);
 
@@ -218,6 +332,7 @@ void main() {
     // client-side markUsed here would double-count the same reveal. Same
     // contract as `submitBuildWithBypass` / `submitWithBypass`.
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     await daily_usage.incrementDiscoverNameUsage();
 
     fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
@@ -250,6 +365,7 @@ void main() {
   test('a bypass-funded reveal that fails is refunded and consumes nothing',
       () async {
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     fakeSync.rpcHandlers['reserve_ai_bypass'] = (_) async => {
           'ok': true,
           'reservation_id': 'r-refund',
@@ -286,6 +402,7 @@ void main() {
 
   test('the day-1 freebie path does not mark used either', () async {
     await exhaustWarmup();
+    await takeFreeDailyReveal();
     await daily_usage.incrementDiscoverNameUsage();
     fakeSync.rpcHandlers['claim_first_bypass'] =
         (_) async => {'ok': true, 'bypasses_used': 1};
@@ -307,8 +424,9 @@ void main() {
   // 6. Warmup.
   // -------------------------------------------------------------------------
 
-  test('a warmup reveal decrements warmup and leaves the daily counter alone',
+  test('a warmup re-roll decrements warmup and leaves the daily counter alone',
       () async {
+    await takeFreeDailyReveal();
     final notifier = DailyLoopNotifier();
     addTearDown(notifier.dispose);
 
@@ -322,9 +440,10 @@ void main() {
         reason: 'only the 1 → 0 transition raises the signal');
   });
 
-  test('the warmup 1 → 0 reveal still surfaces warmupJustExhausted', () async {
+  test('the warmup 1 → 0 re-roll still surfaces warmupJustExhausted', () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(warmupKey(), 1);
+    await takeFreeDailyReveal();
 
     final notifier = DailyLoopNotifier();
     addTearDown(notifier.dispose);
@@ -347,9 +466,10 @@ void main() {
         reason: 'clearing the signal must not disturb the rest of the state');
   });
 
-  test('a reveal that fails never raises warmupJustExhausted', () async {
+  test('a re-roll that fails never raises warmupJustExhausted', () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(warmupKey(), 1);
+    await takeFreeDailyReveal();
 
     final notifier = failingNotifier();
     addTearDown(notifier.dispose);

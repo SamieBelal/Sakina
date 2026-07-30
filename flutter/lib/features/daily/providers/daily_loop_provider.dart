@@ -13,6 +13,7 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
+import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/name_queue_cache.dart';
@@ -657,6 +658,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// engaged. See plan `2026-07-30-one-ship-04-daily-loop-restructure.md` §3 and
   /// spec §8.
   ///
+  /// **The day's first reveal is free and unmetered; only re-rolls are metered.**
+  /// This preserves the pre-W4 shape rather than inventing one — "Begin
+  /// Muḥāsabah" never gated or charged, so a free user past warmup has always
+  /// had one unmetered daily reveal plus one metered re-roll. The marker lives
+  /// in `daily_usage_service` alongside the cap counters.
+  ///
   /// [consumeFreeUsage] is false on the two bypass paths, mirroring
   /// `DuasNotifier._doBuild` and `ReflectNotifier._doSubmit`: the
   /// `reserve_ai_bypass` / `claim_first_bypass` RPCs already increment the
@@ -964,18 +971,42 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       //     local day (see the note in `onboarding_provider._seedNameQueue`).
       if (consumeFreeUsage) {
         try {
-          final outcome = await GatingService().markUsed(
-            GatedFeature.discoverName,
-            isPremiumHint: isPremiumHint,
-          );
-          // The 1 → 0 warmup transition is a one-shot UI moment, and the sheet
-          // now has to be fired by whoever is on screen rather than by the CTA
-          // that used to await this call. `mounted` because the tail awaits give
-          // dispose plenty of room to land first.
-          if (mounted && outcome == UsageOutcome.warmupJustExhausted) {
-            state = state.copyWith(
-              warmupJustExhausted: GatedFeature.discoverName,
+          // The day's FIRST reveal is free and unmetered; only re-rolls are
+          // metered. This preserves today's behaviour exactly rather than
+          // introducing it: the "Begin Muḥāsabah" CTA has never gated or
+          // charged, while the two re-roll CTAs did — so a free user past
+          // warmup has always had one unmetered daily reveal plus one metered
+          // re-roll. Charging here would have quietly halved that for every
+          // existing user, in a wave that ships to all of them.
+          //
+          // It is a safety property too. The day-open reveal is where W4 asks
+          // what is on the user's heart; that surface must never be able to
+          // answer a disclosure with a cap sheet. Because the free reveal
+          // consults no gate at all, it cannot.
+          //
+          // The marker lives next to the cap counters in `daily_usage_service`
+          // and shares their `_capDay()` key, so the two can never disagree
+          // about when the day turned over. It is read HERE rather than passed
+          // down by the caller because the re-roll signal cannot survive the
+          // trip: the home CTA calls `resetToday()` (which wipes the day blob)
+          // and then navigates, so whatever fires the reveal on the other side
+          // of that push has no idea it was a re-roll.
+          if (!await daily_usage.hasTakenFreeDailyRevealToday()) {
+            await daily_usage.markFreeDailyRevealTaken();
+          } else {
+            final outcome = await GatingService().markUsed(
+              GatedFeature.discoverName,
+              isPremiumHint: isPremiumHint,
             );
+            // The 1 → 0 warmup transition is a one-shot UI moment, and the
+            // sheet now has to be fired by whoever is on screen rather than by
+            // the CTA that used to await this call. `mounted` because the tail
+            // awaits give dispose plenty of room to land first.
+            if (mounted && outcome == UsageOutcome.warmupJustExhausted) {
+              state = state.copyWith(
+                warmupJustExhausted: GatedFeature.discoverName,
+              );
+            }
           }
         } catch (_) {}
       }

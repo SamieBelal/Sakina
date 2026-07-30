@@ -23,6 +23,7 @@ W4 makes the daily loop ask the question the reels sell. Day-open routes into a 
 - `claimDailyReward()` is already called at `daily_loop_provider.dart:1160`, idempotent, with a comment that the overlay may have claimed first.
 - `claim_daily_reward` (`20260417000000_daily_reward_premium_multiplier.sql:86-92`) is a 7-day escalating ladder that **resets to day 0** when `last_claim_date` is neither today nor yesterday.
 - `progress_screen.dart:975-1010` — CTA calls `canUse` then `markUsed` **before** the reveal, behind a `_discoverInFlight` re-entry guard added after a double-tap double-charged.
+- **CORRECTED 2026-07-30 during Wave 1** — that is only the *re-roll* CTA. The day-open path is **neither gated nor metered**: `progress_screen.dart:1046-1050` ("Begin Muḥāsabah") pushes `/muhasabah` with no `canUse` at all, and the screen's one-shot fires `discoverName()` unmetered. Only the two re-roll CTAs — "Discover a New Name" (`:975-1010`) and "Seek Another Name" (`muhasabah_screen.dart:780-841`) — ever charged. **A free user past warmup therefore has an effective 2 reveals/day: one unmetered day-open plus one metered re-roll**, and the 5-use warmup budget is spent on re-rolls only. `dailyFreeDiscoverNames = 1` is correct for what it governs; it simply never governed the day-open path. This went unrecorded, which is how Wave 1 nearly shipped a silent halving of the free tier.
 - `parseWidgetDeepLink` (`widget_deep_link.dart:22-31`) → `/muhasabah`; handler comment (`:49-51`): a widget tap **takes precedence over the launch overlay**.
 - `syncHomeWidget` (`widget_sync.dart:111-130`) pushes `todaysName: getTodaysName()` with `personalized:false` until check-in — a date rotation unrelated to the queue.
 - `TourRouteObserver:29` treats route name `'DailyLaunchOverlay'` as blocking.
@@ -46,13 +47,19 @@ The single most dangerous edit in the wave, and everything else depends on it. T
 
 **Change:** `canUse` stays at the CTA (so a capped user is told *before* being asked to disclose anything); `markUsed` moves into `discoverName()`, firing only once a Name has actually been engaged.
 
+**And the free tier is held exactly where it is.** Per the §1 correction, moving `markUsed` into `discoverName()` unqualified would have charged the day-open reveal for the first time ever, cutting a post-warmup free user from an effective 2 reveals/day to 1. This wave ships to **all** users, and §8a already went out of its way to avoid an unannounced takeaway on the reward ladder — silently removing a free reveal is the same class of thing. So Wave 1 splits it: **the day's first reveal is free and unmetered; only re-rolls are metered.** Net behaviour is identical to today, with the abandon-costs-nothing fix on top. `dailyFreeDiscoverNames` stays 1.
+
+The marker (`daily_usage_service.hasTakenFreeDailyRevealToday` / `markFreeDailyRevealTaken`) is keyed off the same `_capDay()` as the cap counters, so the free reveal and the metered allowance cannot disagree about when the day turned over. It is read inside `discoverName` rather than passed down, because the re-roll signal cannot survive the trip: the home CTA calls `resetToday()` (wiping the day blob) and then navigates, so whatever fires the reveal on the other side of that push has no idea it was a re-roll.
+
+This is a **safety** property as much as an economic one: the day-open reveal is where W4 asks what is on the user's heart, and that surface must never be able to answer a disclosure with a cap sheet. Because the free reveal consults no gate at all, it cannot. Any later wave that adds gating to the day-open path has to solve that first.
+
 **What this drags in, and must not break:**
 - `discoverNameWithBypass` (`:763-788`) and `discoverNameWithFirstBypass` (`:795-821`) — the reserve/commit/cancel machinery.
 - The refund invariant: `state.error` decides commit-versus-cancel. If `markUsed` now fires inside the same method that sets `state.error`, ordering matters.
 - `_discoverInFlight` (`progress_screen.dart:983`) must survive.
 - Pinned by `discover_name_dispose_cancel_test.dart`.
 
-**Tests:** open the question and abandon → nothing consumed. Complete → consumed exactly once. Double-tap → consumed once. Bypass purchase then failure → refunded. Warmup 5th use → `warmupJustExhausted` still surfaces.
+**Tests:** open the question and abandon → nothing consumed. Complete → consumed exactly once. Double-tap → consumed once. Bypass purchase then failure → refunded. Warmup 5th use → `warmupJustExhausted` still surfaces. Plus the split: first-of-day → nothing consumed; the re-roll after it → consumed once; the re-roll after *that* → meets the cap sheet at exactly the moment it does today.
 
 *Ships and is verified before any question UI exists.*
 
