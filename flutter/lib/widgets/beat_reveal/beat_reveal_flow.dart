@@ -73,6 +73,18 @@ class BeatRevealFlow extends StatefulWidget {
   /// else — the two AI surfaces keep the ripple loader.
   final Widget? loadingView;
 
+  /// Replaces the default off-topic line, and adds a second, quieter line under
+  /// it. Reflect leaves both null and keeps the string it has always shown.
+  ///
+  /// The daily loop needs its own wording because the two surfaces are not in
+  /// the same situation. In Reflect the user typed into a box whose only job is
+  /// to be reflected on, and being asked to rephrase costs them nothing. In the
+  /// daily loop they answered *"What's on your heart today?"*, have already
+  /// been given their Name, and are being asked to say it again — so the line
+  /// has to read as an invitation rather than a rejection.
+  final String? offTopicMessage;
+  final String? offTopicBody;
+
   const BeatRevealFlow({
     super.key,
     required this.status,
@@ -92,6 +104,8 @@ class BeatRevealFlow extends StatefulWidget {
     this.readStoryAnchorBuilder,
     this.ameenAnchorBuilder,
     this.loadingView,
+    this.offTopicMessage,
+    this.offTopicBody,
   });
 
   @override
@@ -260,7 +274,9 @@ class _BeatRevealFlowState extends State<BeatRevealFlow> {
         );
       case BeatFlowStatus.offtopic:
         return _MessageView(
-          message: "Share how you're feeling, and I'll find a Name for it.",
+          message: widget.offTopicMessage ??
+              "Share how you're feeling, and I'll find a Name for it.",
+          secondary: widget.offTopicBody,
           primaryLabel: 'Try again',
           onPrimary: widget.onOffTopicRetry,
           onReturnHome: widget.onReturnHome,
@@ -586,6 +602,10 @@ class _LoadingView extends StatelessWidget {
 // ── Error / off-topic (shared warm, in-canvas layout) ──────────────────────
 class _MessageView extends StatelessWidget {
   final String message;
+
+  /// An optional quieter line under [message]. Only the daily loop's off-topic
+  /// view uses it; every other message here is a single line by design.
+  final String? secondary;
   final String primaryLabel;
   final VoidCallback? onPrimary;
   final VoidCallback? onReturnHome;
@@ -593,6 +613,7 @@ class _MessageView extends StatelessWidget {
   const _MessageView({
     required this.message,
     required this.primaryLabel,
+    this.secondary,
     this.onPrimary,
     this.onReturnHome,
   });
@@ -615,6 +636,17 @@ class _MessageView extends StatelessWidget {
                 color: AppColors.sacredInk,
               ),
             ),
+            if (secondary != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                secondary!,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium.copyWith(
+                  height: 1.45,
+                  color: AppColors.sacredInk.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
             const SizedBox(height: 28),
             if (onPrimary != null)
               GestureDetector(

@@ -8,6 +8,7 @@ import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
+import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/streaks/providers/cosmetics_ui_providers.dart';
 import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
@@ -270,6 +271,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       child: showQuestion
           ? DailyQuestionPrompt(
               entrySource: widget.entrySource,
+              // Their own words back, so a rephrase is an edit rather than a
+              // retype. Null on the ordinary first ask.
+              initialText: state.awaitingReAnswer
+                  ? state.checkinAnswers.firstOrNull
+                  : null,
+              isReAsk: state.awaitingReAnswer,
               onSubmit: _onQuestionSubmit,
               onDefer: _onQuestionDefer,
             )
@@ -295,10 +302,19 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// [DailyLoopState] starts on [DailyLoopStep.checkin] with nothing done, so
   /// without it a user whose day is already complete would meet the question
   /// for the frames before `_initialize()` restores today's state.
+  ///
+  /// **`awaitingReAnswer` is the single exception to `!checkinDone`**, and the
+  /// narrowness is the point. `!checkinDone` is what stops a revealed day from
+  /// re-entering the question and running a second `discoverName` — the
+  /// phantom-second-gacha bug class. The off-topic re-ask needs the question
+  /// back on a day that IS revealed, so it gets one explicitly-named flag
+  /// rather than a loosened condition, and `submitDailyAnswer` refuses to
+  /// reveal while that flag is what let it in. Both halves have to agree for a
+  /// second reveal to happen, and neither can drift into agreeing by accident.
   static bool _showsQuestion(DailyLoopState state) =>
       state.loaded &&
       state.currentStep == DailyLoopStep.checkin &&
-      !state.checkinDone &&
+      (!state.checkinDone || state.awaitingReAnswer) &&
       !state.checkinLoading &&
       !state.reflectLoading;
 
@@ -520,19 +536,20 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // and the message view drops the button entirely, leaving "Return home" —
       // which works — as the only action.
       onRetry: unrenderableDeck ? null : () => notifier.startDeeper(),
-      // `onOffTopicRetry` is deliberately left null, so the off-topic view
-      // offers only "Return home" (same treatment, same reason, as the
-      // unrenderable deck above: a button that provably cannot help).
+      // Rephrase, reusing the reveal that already happened. `_showsQuestion`
+      // makes its one exception for `awaitingReAnswer` and `submitDailyAnswer`
+      // skips `discoverName` in that state, so this cannot produce a second
+      // reveal, a second charge or a second reward — only a fresh reflection
+      // against the same Name.
       //
-      // Reflect's retry means "go back to the input box", and on THIS path the
-      // input box sits in front of a reveal that has already happened. Re-entering
-      // it needs a guard against running a second reveal for the day — the
-      // phantom-second-gacha bug class this screen is built around — and that
-      // guard is a change to `_showsQuestion`, whose contract Wave 2 has only
-      // just pinned. The user keeps their card, their streak and their reward;
-      // what they lose is the day's reflection. A re-ask that reuses the same
-      // reveal is the right fix and is a follow-up, not a Wave 3 edit.
-      onOffTopicRetry: null,
+      // Clearing the cached off-topic result is half the fix: without it the
+      // rejected response outlived the answer, and a user who went home and
+      // came back met it again with no way past.
+      onOffTopicRetry: () => notifier.reopenQuestionAfterOffTopic(),
+      // Copy the user's own words back to them, never an error. See
+      // `DailyQuestionCopy.offTopicHeader`.
+      offTopicMessage: DailyQuestionCopy.offTopicHeader,
+      offTopicBody: DailyQuestionCopy.offTopicBody,
       onBeatAdvanced: (index, kind) {
         _lastBeatIndex = index;
         DailyLoopNotifier.onAnalyticsEvent?.call(

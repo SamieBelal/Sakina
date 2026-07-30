@@ -971,6 +971,21 @@ abstract final class AnalyticsEvents {
   /// rather than inferred from the absence of something else.
   static const String dailyRewardClaimed = 'daily_reward_claimed';
 
+  /// The off-topic classifier rejected an answer and the user was asked to
+  /// rephrase. Props: [propAttempt].
+  ///
+  /// **This exists because the classifier has never fired on real daily text.**
+  /// Before W4 the daily loop sent the revealed card's own blurb to the
+  /// reflection engine, so `classifyOffTopic` was structurally unreachable on
+  /// this path; it has only ever run against Reflect, which is opt-in and
+  /// self-selected. W4 points it at every daily user's sentence about grief,
+  /// money and prayer at once, with no measured false-positive rate. Counted
+  /// against [dailyQuestionAnswered] this gives that rate — and if it is high,
+  /// it is a large number of people being asked to re-type something that was
+  /// hard to type once, which would otherwise surface only as an unexplained
+  /// retention dip.
+  static const String dailyQuestionOffTopic = 'daily_question_off_topic';
+
   /// How the user arrived at the question: `day_open` | `widget` | `home_cta`.
   /// The widget path must stay separable from day-open.
   static const String propEntrySource = 'entry_source';
@@ -989,6 +1004,15 @@ abstract final class AnalyticsEvents {
 
   /// Bucketed time on the question before the user skipped or abandoned.
   static const String propDwellMsBucket = 'dwell_ms_bucket';
+
+  /// Which try at answering this is — `1` for the first, `2`+ after an
+  /// off-topic re-ask. On [dailyQuestionAnswered] and [dailyQuestionOffTopic].
+  ///
+  /// **A dimension, never a stage.** The funnel is shown → answered →
+  /// completed, and minting a separate re-ask event would fork it at step two,
+  /// leaving every existing segment silently under-counting the people who had
+  /// to try twice. Segment on this instead.
+  static const String propAttempt = 'attempt';
 
   /// What caused a [dailyRewardClaimed]. [triggerAnswerSubmit] today.
   static const String propTrigger = 'trigger';

@@ -102,6 +102,23 @@ class DailyLoopState {
   /// tapped. Held for Wave 7's `input_mode`; nothing reads it yet.
   final String? checkinInputMode;
 
+  /// Which try at answering today's question this is — 1 for the first, 2+
+  /// after an off-topic re-ask. Zero before the user has answered at all.
+  final int checkinAttempt;
+
+  /// The user's answer came back off-topic and they have been invited to
+  /// rephrase (W4 Wave 3 follow-up).
+  ///
+  /// The ONE state in which the question surface is shown again while
+  /// [checkinDone] is true. It is what lets the re-ask reuse the reveal instead
+  /// of running a second one: `_showsQuestion` admits the question, and
+  /// [DailyLoopNotifier.submitDailyAnswer] re-runs only the reflection.
+  ///
+  /// Persisted, and that is not incidental — a force-quit while the user is
+  /// rephrasing must come back to the question, not to a second reveal that
+  /// would spend another queue position and teach a different Name.
+  final bool awaitingReAnswer;
+
   // Step 2: Deeper reflect
   final ReflectResponse? reflectResult;
   final int reflectStep; // 0=name, 1=reflection, 2=story, 3=dua
@@ -206,6 +223,8 @@ class DailyLoopState {
     this.checkinLoading = false,
     this.checkinProblemCategory,
     this.checkinInputMode,
+    this.checkinAttempt = 0,
+    this.awaitingReAnswer = false,
     this.reflectResult,
     this.reflectStep = 0,
     this.reflectLoading = false,
@@ -251,7 +270,20 @@ class DailyLoopState {
     bool? checkinLoading,
     String? checkinProblemCategory,
     String? checkinInputMode,
+    int? checkinAttempt,
+    bool? awaitingReAnswer,
     ReflectResponse? reflectResult,
+
+    /// Explicit clear for [DailyLoopState.reflectResult] — the `?? this.x`
+    /// merge cannot express "back to null", and the off-topic re-ask has to,
+    /// or the stale off-topic response outlives the answer that produced it and
+    /// the user meets it again the moment they re-enter from home.
+    ///
+    /// Deliberately NOT the same treatment for `error`: that field's merge
+    /// semantics are being fixed in their own commit (see the follow-up task),
+    /// and two agents changing `copyWith`'s semantics in sequence is how the
+    /// subtle version of that bug ships.
+    bool clearReflectResult = false,
     int? reflectStep,
     bool? reflectLoading,
     BrowseDua? questDua,
@@ -310,7 +342,10 @@ class DailyLoopState {
       checkinProblemCategory:
           checkinProblemCategory ?? this.checkinProblemCategory,
       checkinInputMode: checkinInputMode ?? this.checkinInputMode,
-      reflectResult: reflectResult ?? this.reflectResult,
+      checkinAttempt: checkinAttempt ?? this.checkinAttempt,
+      awaitingReAnswer: awaitingReAnswer ?? this.awaitingReAnswer,
+      reflectResult:
+          clearReflectResult ? null : (reflectResult ?? this.reflectResult),
       reflectStep: reflectStep ?? this.reflectStep,
       reflectLoading: reflectLoading ?? this.reflectLoading,
       questDua: questDua ?? this.questDua,
@@ -436,6 +471,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   ReflectResponse? _deeperReflectResult;
   String? _deeperReflectKey;
   int _deeperReflectGeneration = 0;
+
+  /// The attempt whose off-topic rejection has already been reported. Keyed on
+  /// the attempt rather than a bool so a rephrase that is ALSO rejected counts
+  /// again — a user rejected twice is the case worth seeing.
+  int? _offTopicReportedAttempt;
 
   /// Test-only seam for [discoverName]. When non-null, the bypass wrappers
   /// ([discoverNameWithBypass], [discoverNameWithFirstBypass]) invoke this
@@ -711,6 +751,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// and awaiting it would put a network hop between the user's answer and their
   /// card for no benefit — the claim is idempotent and server-authoritative, so
   /// it can land whenever it lands.
+  ///
+  /// **A re-ask after an off-topic answer runs the same method and reveals
+  /// nothing.** [awaitingReAnswer] is the only state in which a submit is
+  /// accepted while [DailyLoopState.checkinDone] is true, and in it the reveal
+  /// is skipped entirely: the card, the Name, the streak and the reward are all
+  /// already the user's, and only the reflection is retried. That is what makes
+  /// "rephrase" cost nothing — no second `discoverName`, no second queue
+  /// position, no second charge, no second claim.
   Future<void> submitDailyAnswer(String text, {String? chipKey}) async {
     final answer = text.trim();
     // Empty input never becomes an answer: it would be persisted as the day's
@@ -720,8 +768,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // Re-entry guard, and the reason the claim below fires exactly once per
     // submit. `discoverName` sets `checkinLoading` synchronously before its
     // first await, so a second call landing after this one has started sees it
-    // set; `checkinDone` covers a stale submit arriving after the day is done.
-    if (state.checkinLoading || state.checkinDone) return;
+    // set; `checkinDone` covers a stale submit arriving after the day is done —
+    // EXCEPT during an off-topic re-ask, which is the one legitimate way to
+    // answer a day that is already revealed.
+    final isReAnswer = state.awaitingReAnswer;
+    if (state.checkinLoading) return;
+    if (state.checkinDone && !isReAnswer) return;
 
     state = state.copyWith(
       // Single-element, REPLACING rather than appending: this is one question
@@ -731,6 +783,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       checkinAnswers: [answer],
       checkinProblemCategory: _problemCategoryFor(answer, chipKey),
       checkinInputMode: chipKey == null ? inputModeTyped : inputModeChip,
+      checkinAttempt: state.checkinAttempt + 1,
+      // Consumed. A second off-topic result sets it again (see
+      // [reopenQuestionAfterOffTopic]); leaving it set here would let the next
+      // ordinary submit skip its reveal.
+      awaitingReAnswer: false,
     );
 
     // The middle of the within-wave funnel (W4 Wave 7). Emitted HERE and not
@@ -747,17 +804,94 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // Best-effort, for the same reason the `check_in_completed` emit below is:
     // a telemetry throw here would escape into `discoverName`'s caller and,
     // through `state.error`, refund a bypass for a reveal that happened.
+    //
+    // `attempt` added by the Wave 3 off-topic follow-up — a DIMENSION on this
+    // event, deliberately not a `daily_question_re_asked` event of its own.
+    // The funnel is shown → answered → completed; a new event at step two would
+    // fork it, and every segment built on the original would silently
+    // under-count the people who had to try twice.
     try {
       onAnalyticsEvent?.call(AnalyticsEvents.dailyQuestionAnswered, {
         AnalyticsEvents.propProblemCategory: state.checkinProblemCategory,
         AnalyticsEvents.propInputMode: state.checkinInputMode,
         AnalyticsEvents.propCharCountBucket: charCountBucket(answer.length),
+        AnalyticsEvents.propAttempt: state.checkinAttempt,
       });
     } catch (_) {}
+
+    // A re-ask stops here. The reveal already happened on attempt 1 and the
+    // reward was claimed with it, so all that is owed is a fresh reflection
+    // against the SAME Name — `_deeperRequestFor` still pins `forceName` to
+    // `checkinName`, so the rephrased answer cannot change which Name the user
+    // is taught, only what is said about it.
+    if (isReAnswer) {
+      await _persistTodayState();
+      await startDeeper();
+      return;
+    }
 
     dailyRewardClaimFuture = _claimDailyRewardAtSubmit();
 
     await discoverName();
+  }
+
+  /// Invite the user to rephrase after the classifier rejected their answer
+  /// (W4 Wave 3 follow-up).
+  ///
+  /// The off-topic response is the DEMO response — a different Name than the
+  /// one the card just showed — so it can never be rendered as the day's
+  /// reflection. Before this existed the off-topic view offered only "Return
+  /// home", which made a misclassification terminal for the day and, because
+  /// the rejected result stayed cached, met the user again the moment they
+  /// re-entered from home. Both halves of that are fixed here.
+  ///
+  /// **Nothing the user has earned is given back.** The card, the tier, the
+  /// streak day and the reward all stand; only the reflection is retried.
+  Future<void> reopenQuestionAfterOffTopic() async {
+    // Idempotent, and narrow on purpose: this is reachable only from the
+    // off-topic view, and re-entering the question from any other state would
+    // be the phantom-second-gacha bug class this screen is built around.
+    if (state.reflectResult?.offTopic != true) return;
+
+    // Drop the rejected reflection AND its cache. Bumping the generation is
+    // what makes an in-flight request for the old answer land on the floor
+    // instead of overwriting the new one.
+    _deeperReflectGeneration++;
+    _deeperReflectFuture = null;
+    _deeperReflectResult = null;
+    _deeperReflectKey = null;
+
+    state = state.copyWith(
+      // Back to the question. `checkinDone` deliberately stays true — the
+      // reveal happened and must not happen again; `awaitingReAnswer` is what
+      // tells `_showsQuestion` to make an exception for it.
+      awaitingReAnswer: true,
+      currentStep: DailyLoopStep.checkin,
+      clearReflectResult: true,
+      reflectLoading: false,
+      reflectStep: 0,
+    );
+    await _persistTodayState();
+  }
+
+  /// Reports that the classifier rejected this attempt, at most once per
+  /// attempt.
+  ///
+  /// **The known limit, recorded rather than papered over:** the latch is
+  /// in-memory, so a cold restart that re-requests the same off-topic answer
+  /// emits a second time for one answer. Persisting it would buy exact
+  /// per-answer counts at the cost of another field whose only job is metric
+  /// hygiene, and the distortion is smaller than the one Wave 7 already
+  /// documents for `daily_question_abandoned`. Read the rate as an upper bound.
+  void _noteOffTopic(ReflectResponse result) {
+    if (!result.offTopic) return;
+    if (_offTopicReportedAttempt == state.checkinAttempt) return;
+    _offTopicReportedAttempt = state.checkinAttempt;
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.dailyQuestionOffTopic, {
+        AnalyticsEvents.propAttempt: state.checkinAttempt,
+      });
+    } catch (_) {}
   }
 
   /// The chip taxonomy's reading of an answer.
@@ -1834,6 +1968,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         reflectStep: 1,
         error: null,
       );
+      _noteOffTopic(_deeperReflectResult!);
       return;
     }
 
@@ -1858,6 +1993,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         reflectStep:
             1, // skip step 0 (name display) — user saw the name in gacha
       );
+      // Both assignment sites report, because either can be the one that puts
+      // an off-topic result in front of the user: this is the cold path, the
+      // early return above is the prefetch already having landed.
+      _noteOffTopic(result);
 
       // No token reward for entering deeper reflection — muhasabah is its
       // own reward (the card pull). Tokens come from quests, daily login
@@ -2030,6 +2169,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // the one path where the user's session was interrupted.
         'checkinProblemCategory': state.checkinProblemCategory,
         'checkinInputMode': state.checkinInputMode,
+        'checkinAttempt': state.checkinAttempt,
+        // The one that matters on a force-quit: a user killed mid-rephrase
+        // comes back to the question, not to a second reveal that would spend
+        // another queue position and teach a different Name.
+        'awaitingReAnswer': state.awaitingReAnswer,
         'checkinName': state.checkinName,
         'checkinNameArabic': state.checkinNameArabic,
         'reflectStep': state.reflectStep,
@@ -2107,6 +2251,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // answer there, not a value to re-derive.
         checkinProblemCategory: data['checkinProblemCategory'] as String?,
         checkinInputMode: data['checkinInputMode'] as String?,
+        checkinAttempt: (data['checkinAttempt'] as num?)?.toInt() ?? 0,
+        awaitingReAnswer: data['awaitingReAnswer'] as bool? ?? false,
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,

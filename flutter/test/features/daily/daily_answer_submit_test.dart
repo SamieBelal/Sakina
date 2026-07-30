@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/screens/muhasabah_screen.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
@@ -519,20 +520,19 @@ void main() {
       ),
     );
 
-    // Reflect's exact copy, reached through Reflect's exact status — the
-    // off-topic response is the DEMO response, so rendering it as an ordinary
-    // reflection would teach a Name the user never revealed.
-    expect(
-      find.text("Share how you're feeling, and I'll find a Name for it."),
-      findsOneWidget,
-    );
-    // The escape hatch survives (plan §2 rule 7).
+    // Reflect's status, the daily loop's copy — the off-topic response is the
+    // DEMO response, so rendering it as an ordinary reflection would teach a
+    // Name the user never revealed.
+    //
+    // The wording is the daily surface's own (`DailyQuestionCopy.offTopic*`),
+    // not the Reflect string this originally asserted: the two surfaces are not
+    // in the same situation, and the rephrase path is pinned in full by
+    // `off_topic_re_ask_test.dart`.
+    expect(find.text(DailyQuestionCopy.offTopicHeader), findsOneWidget);
+    expect(find.text(DailyQuestionCopy.offTopicBody), findsOneWidget);
+    // The escape hatch survives (plan §2 rule 7), alongside the rephrase.
     expect(find.text('Return home'), findsOneWidget);
-    // And no retry button: on this path "try again" would mean re-entering a
-    // question that sits in front of a reveal which has already happened, so
-    // it is dropped rather than offered as a no-op. Same treatment the
-    // unrenderable deck gets.
-    expect(find.text('Try again'), findsNothing);
+    expect(find.text('Try again'), findsOneWidget);
   });
 
   testWidgets('an on-topic answer does not', (t) async {

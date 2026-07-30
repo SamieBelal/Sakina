@@ -403,6 +403,12 @@ void main() {
         AnalyticsEvents.propInputMode: inputModeTyped,
         // 31 characters.
         AnalyticsEvents.propCharCountBucket: '21_60',
+        // Added by the Wave 3 off-topic re-ask follow-up: `attempt` is a
+        // DIMENSION on this event rather than a `daily_question_re_asked` event
+        // of its own, which would fork the funnel at step two. 1 is the
+        // ordinary first answer; a rephrase after the classifier rejects one
+        // reports 2. Exercised in full by `off_topic_re_ask_test.dart`.
+        AnalyticsEvents.propAttempt: 1,
       });
     });
 

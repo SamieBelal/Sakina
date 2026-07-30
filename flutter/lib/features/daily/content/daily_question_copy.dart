@@ -48,4 +48,22 @@ abstract final class DailyQuestionCopy {
 
   /// Frames the chips as the shortcut they are — "or", never "instead".
   static const String chipsLead = 'Or start from one of these';
+
+  /// Shown when the off-topic classifier rejects an answer (W4 Wave 3
+  /// follow-up). Founder copy, 2026-07-30.
+  ///
+  /// **It never tells the user they were wrong.** No "invalid", no "couldn't
+  /// understand", no suggestion that the app failed to comprehend them — the
+  /// failure is ours and we simply do not mention it. The person most likely to
+  /// trip the classifier is the person who wrote the least, and being told your
+  /// sentence about what you are carrying did not parse is the worst possible
+  /// moment to meet a machine.
+  ///
+  /// [offTopicHeader] is a question rather than a statement so it reads as an
+  /// invitation, and [offTopicBody] deliberately echoes [placeholder] — a
+  /// re-ask is the same invitation repeated, not a new error state. *"A few
+  /// words is enough"* lowers the bar explicitly.
+  static const String offTopicHeader = 'Say a little more?';
+  static const String offTopicBody =
+      'However it comes out — a worry, a thanks, a few words is enough.';
 }

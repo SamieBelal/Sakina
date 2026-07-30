@@ -42,6 +42,8 @@ class DailyQuestionPrompt extends StatefulWidget {
     required this.onSubmit,
     required this.onDefer,
     this.entrySource = questionEntryDayOpen,
+    this.initialText,
+    this.isReAsk = false,
     this.commitBeat = AppMotion.feedback,
     super.key,
   });
@@ -60,6 +62,27 @@ class DailyQuestionPrompt extends StatefulWidget {
   /// it because Mixpanel funnels carry the first step's properties forward.
   final String entrySource;
 
+  /// What to put in the field on open — the user's previous answer, when they
+  /// are being asked to rephrase after an off-topic result.
+  ///
+  /// Making someone re-write a sentence about what they are carrying because a
+  /// classifier did not like it is a small cruelty, and an empty box reads as
+  /// *"that was deleted"*. The caret goes to the END so the keyboard opens
+  /// ready to append rather than to overwrite.
+  final String? initialText;
+
+  /// Whether this mount is a re-ask rather than the day's first question.
+  ///
+  /// Suppresses `daily_question_shown`, for two reasons. The soft one: the app
+  /// did not put the question in front of the user, the user asked for it back.
+  /// The hard one: Wave 7's debug guard asserts that
+  /// `daily_question_shown{entry_source: day_open}` fires at most once per
+  /// local day, and a re-ask remounts this widget with the screen's original
+  /// entry source — so emitting would trip that assert on the most ordinary
+  /// possible path. The re-ask stays countable through `attempt` on
+  /// `daily_question_answered`.
+  final bool isReAsk;
+
   /// The pause between filling the field from a chip and committing, so the
   /// user sees their own words land. Zero in tests.
   final Duration commitBeat;
@@ -70,7 +93,11 @@ class DailyQuestionPrompt extends StatefulWidget {
 
 class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     with WidgetsBindingObserver {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialText ?? '',
+  )..selection = TextSelection.collapsed(
+      offset: (widget.initialText ?? '').length,
+    );
 
   String? _selectedChipKey;
 
@@ -104,7 +131,11 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     // Mounting IS the show. The question is on the canvas from the first frame
     // — there is no load, no gate and no reveal in front of it — so there is no
     // later moment that would be more truthful.
-    DailyQuestionAnalytics.shown(widget.entrySource);
+    //
+    // Except on a re-ask, which is the user asking for the question back rather
+    // than the app putting it to them, and which would trip Wave 7's
+    // once-per-local-day day_open assert. See [DailyQuestionPrompt.isReAsk].
+    if (!widget.isReAsk) DailyQuestionAnalytics.shown(widget.entrySource);
   }
 
   @override
@@ -143,6 +174,16 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
   void _reportAbandonedIfUndecided() {
     if (_outcomeReported || _committing) return;
     _outcomeReported = true;
+    // A re-ask emitted no `daily_question_shown`, so it must not emit an
+    // outcome either — an abandon without its show would inflate the abandon
+    // rate against a denominator it was never in.
+    //
+    // Giving up at the re-ask is still fully visible, just from the other side:
+    // `daily_question_off_topic{attempt:1}` minus
+    // `daily_question_answered{attempt:2}` is exactly the people who were asked
+    // to rephrase and did not. That is the number to watch if the classifier
+    // turns out to fire often.
+    if (widget.isReAsk) return;
     DailyQuestionAnalytics.abandoned(_dwell.elapsed);
   }
 
@@ -183,7 +224,10 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     // leave us unable to tell "people want this later" from "people don't want
     // this", which is the entire readout for this design (plan §9).
     _outcomeReported = true;
-    DailyQuestionAnalytics.skipped(_dwell.elapsed);
+    // Suppressed on a re-ask for the same denominator reason as the abandon
+    // above: no show, no outcome. The behaviour is unchanged — declining to
+    // rephrase still returns home with everything already earned intact.
+    if (!widget.isReAsk) DailyQuestionAnalytics.skipped(_dwell.elapsed);
     widget.onDefer();
   }
 
