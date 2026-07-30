@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/widgets/daily_question_chip.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
+import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
-import 'package:sakina/features/daily/widgets/daily_question_submit_button.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 
 // The daily question surface (W4 Wave 2 — plan §4/§11, spec M2/M4).
@@ -132,15 +132,23 @@ void main() {
     );
   });
 
-  testWidgets('teaches muḥāsabah as a gloss, never as a button', (t) async {
+  testWidgets('does not teach muḥāsabah — the CTA one tap earlier already did',
+      (t) async {
     await t.pumpWidget(host());
     await t.pumpAndSettle();
 
-    expect(find.text(DailyQuestionCopy.gloss), findsOneWidget);
-    for (final label in [DailyQuestionCopy.submit, DailyQuestionCopy.defer]) {
-      expect(label.toLowerCase().contains('muh'), isFalse,
-          reason: 'muḥāsabah is the taught word, never the CTA label');
-    }
+    // The density pass removed the gloss from THIS surface. The home CTA the
+    // user tapped to arrive already carries `DailyLoopCtaCopy.notStartedGloss`,
+    // so rendering it here put the same definition on two consecutive screens —
+    // and this was the copy the user had least earned, arriving before they had
+    // done anything.
+    expect(find.text(DailyQuestionCopy.gloss), findsNothing);
+
+    // The rule the gloss existed to satisfy is unchanged and still pinned:
+    // muḥāsabah is a taught word, never an action label. If the word ever
+    // returns to this screen it must not arrive as a button.
+    expect(DailyQuestionCopy.defer.toLowerCase().contains('muh'), isFalse,
+        reason: 'muḥāsabah is the taught word, never the CTA label');
   });
 
   testWidgets('renders the seven approved chip labels, verbatim and in order',
@@ -183,7 +191,7 @@ void main() {
 
     await t.enterText(find.byType(TextField), 'my brother is unwell');
     await t.pumpAndSettle();
-    await t.tap(find.text(DailyQuestionCopy.submit));
+    await t.tap(find.byKey(DailyQuestionField.sendButtonKey));
     await t.pumpAndSettle();
 
     expect(submissions, hasLength(1));
@@ -197,10 +205,23 @@ void main() {
 
     await t.enterText(find.byType(TextField), '   ');
     await t.pumpAndSettle();
-    await t.tap(find.byType(DailyQuestionSubmitButton), warnIfMissed: false);
+    await t.tap(find.byKey(DailyQuestionField.sendButtonKey), warnIfMissed: false);
     await t.pumpAndSettle();
 
     expect(submissions, isEmpty);
+  });
+
+  testWidgets('the send control is present before a single character is typed',
+      (t) async {
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    // The whole reason the arrow lives inside the field rather than appearing
+    // on first keystroke: while someone is deciding what to say, a screen with
+    // no visible submit affordance gives them no answer to "how do I send
+    // this?". Hiding it until there is text was mocked and rejected for
+    // exactly this. If it ever regresses to appear-on-input, this fails.
+    expect(find.byKey(DailyQuestionField.sendButtonKey), findsOneWidget);
   });
 
   testWidgets('commits exactly once, however hard it is tapped', (t) async {
@@ -235,7 +256,11 @@ void main() {
     for (final finder in [
       find.byType(DailyQuestionChip),
       find.byType(DailyQuestionDeferLink),
-      find.byType(DailyQuestionSubmitButton),
+      // The send control's VISIBLE circle is 34pt so it does not crowd the text
+      // beside it, but its tap target is a transparent 44pt box around that
+      // circle — so it is held to the same floor as everything else here, not
+      // excused from it.
+      find.byKey(DailyQuestionField.sendButtonKey),
     ]) {
       for (final element in finder.evaluate()) {
         final size = t.getSize(find.byElementPredicate((e) => e == element));

@@ -23,8 +23,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/widgets/daily_question_chip.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
+import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
-import 'package:sakina/features/daily/widgets/daily_question_submit_button.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -302,7 +302,7 @@ void main() {
 
       await t.enterText(find.byType(TextField), 'everything feels heavy');
       await t.pump();
-      await t.tap(find.byType(DailyQuestionSubmitButton));
+      await t.tap(find.byKey(DailyQuestionField.sendButtonKey));
       await t.pumpAndSettle();
 
       // The reveal replaces the question a frame later.

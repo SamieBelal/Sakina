@@ -59,19 +59,44 @@ abstract final class DailyQuestionCopy {
   ///
   /// Transliterated in Latin script, so no `Text` on this screen mixes Arabic
   /// and English.
+  ///
+  /// **Not rendered on this surface any more** (density pass, founder
+  /// 2026-07-30), and kept rather than deleted because the wording is approved
+  /// and the teaching rule behind it still stands.
+  ///
+  /// It was removed here because the definition was appearing **twice in four
+  /// seconds**: the home CTA the user taps to arrive already carries
+  /// `DailyLoopCtaCopy.notStartedGloss`, which teaches the same word in the
+  /// same breath. Of the two, this was the copy the user had least earned — it
+  /// arrives before they have done anything at all.
+  ///
+  /// If muḥāsabah is ever taught on this screen again, the rule is unchanged:
+  /// a gloss, never a button label, and never a second copy of a definition the
+  /// previous screen just gave.
   static const String gloss =
       'Muḥāsabah — the daily habit of taking account of your own heart.';
 
-  /// Neutral on purpose: no urgency, no promise of a reward, nothing that reads
-  /// as a price for the answer above it.
-  static const String submit = 'Continue';
+  // **`submit` and `chipsLead` were removed in the density pass** (founder,
+  // 2026-07-30). Their rationale is kept here because the constraints outlived
+  // the strings.
+  //
+  //  * `submit = 'Continue'` labelled a standalone pill under the field. That
+  //    pill was disabled for the whole time the user was deciding what to say,
+  //    occupying the best space on the screen to say nothing. The send control
+  //    is now an always-present arrow inside the field itself
+  //    (`daily_question_field.dart`), so there is no label to write. If a
+  //    labelled button ever returns, the original constraint stands: neutral,
+  //    no urgency, no promise of a reward, nothing that reads as a price for
+  //    the answer above it.
+  //  * `chipsLead = 'Or start from one of these'` introduced the options. Once
+  //    they stopped being outlined pills and became a quiet list, the label was
+  //    saying what the layout already said. Its framing constraint also stands
+  //    if it returns: "or", never "instead" — the options are a shortcut
+  //    through the field, not a competing input.
 
   /// A defer, not a dismissal (spec M2). Nothing guilt-shaped on the way out,
   /// and nothing on the way back in references having skipped.
   static const String defer = 'Not right now';
-
-  /// Frames the chips as the shortcut they are — "or", never "instead".
-  static const String chipsLead = 'Or start from one of these';
 
   /// Shown when the off-topic classifier rejects an answer (W4 Wave 3
   /// follow-up). Founder copy, 2026-07-30.

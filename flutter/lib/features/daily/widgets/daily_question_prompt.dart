@@ -10,7 +10,6 @@ import 'package:sakina/features/daily/widgets/daily_question_chip_list.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_header.dart';
-import 'package:sakina/features/daily/widgets/daily_question_submit_button.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 
@@ -308,24 +307,20 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // **No gloss** (density pass, founder 2026-07-30). This screen used to
+        // teach muḥāsabah here, one line under the question — but the home CTA
+        // the user tapped a second earlier already carries
+        // `DailyLoopCtaCopy.notStartedGloss`, teaching the same word in the
+        // same breath. The definition was duplicated across two consecutive
+        // screens, and this was the copy of it the user had least earned: it
+        // arrives before they have done anything. `DailyQuestionCopy.gloss` is
+        // retained for the surface that has earned it, not deleted.
         rise(
-          const DailyQuestionHeader(
-            title: DailyQuestionCopy.header,
-            gloss: DailyQuestionCopy.gloss,
-          ),
+          const DailyQuestionHeader(title: DailyQuestionCopy.header),
           delay: Duration.zero,
           travel: AppMotion.riseLarge,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        rise(
-          DailyQuestionField(
-            controller: _controller,
-            enabled: !_committing,
-            onSubmitted: _submitTyped,
-          ),
-          delay: AppMotion.beat,
-        ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         // The answer set, as a persistent caption rather than the field's hint
         // (Wave 2 review F1). It says a grateful answer is permitted, which is
         // the job the chips used to do by simply existing — so it has to be
@@ -333,6 +328,12 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
         // pre-filled. A hint is neither. No `maxLines`: this line wraps as far
         // as it needs to at any Dynamic Type step, because truncating it turns
         // the question back into "what's wrong".
+        //
+        // **Above the field, not below it** (density pass). Underneath, it sat
+        // between the input and its action and read as a footnote to the box.
+        // Here it completes the question — *this is what I am asking, and this
+        // is what counts as an answer* — before the box appears, which is the
+        // order the sentence is actually in.
         rise(
           Text(
             DailyQuestionCopy.answerSetCaption,
@@ -342,20 +343,26 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
               height: 1.35,
             ),
           ),
-          delay: AppMotion.beat,
+          delay: Duration.zero,
+          travel: AppMotion.riseLarge,
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.lg),
+        // The send control lives INSIDE this field now — see `_SendButton` in
+        // `daily_question_field.dart` for why the standalone "Continue" pill
+        // went. In short: it was disabled for the entire time the user was
+        // deciding, occupying the best space on the screen to say nothing, and
+        // hiding it until first keystroke left no visible answer to "how do I
+        // send this?" at exactly the moment someone is working out what to say.
         rise(
-          DailyQuestionSubmitButton(
+          DailyQuestionField(
             controller: _controller,
-            label: DailyQuestionCopy.submit,
-            onTap: _submitTyped,
+            enabled: !_committing,
+            onSubmitted: _submitTyped,
           ),
           delay: AppMotion.beat,
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         DailyQuestionChipList(
-          leadLabel: DailyQuestionCopy.chipsLead,
           selectedChipKey: _selectedChipKey,
           onChipTapped: _submitChip,
         ),

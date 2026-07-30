@@ -28,6 +28,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/screens/muhasabah_screen.dart';
+import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -578,7 +579,11 @@ void main() {
 
     await t.enterText(find.byType(TextField), 'my mind will not stop racing');
     await t.pump();
-    await t.tap(find.text('Continue'));
+    // The send control is the arrow inside the field, not a "Continue" pill —
+    // the density pass moved it there so the affordance is visible before the
+    // user has typed anything. Found by semantics rather than by glyph so a
+    // future icon change does not break the seam this test exists to pin.
+    await t.tap(find.byKey(DailyQuestionField.sendButtonKey));
     await t.pump();
     await t.pump(const Duration(seconds: 2));
 

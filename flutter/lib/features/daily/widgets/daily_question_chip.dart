@@ -6,7 +6,7 @@ import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
 import 'package:sakina/features/onboarding/widgets/problem_chip_card.dart';
 
-/// One quick-fill chip under the daily question's text field (W4 Wave 2).
+/// One quick-fill option under the daily question's text field (W4 Wave 2).
 ///
 /// The onboarding hook screen's [ProblemChipCard] cannot be reused here: it is
 /// built for a cream canvas (`textPrimaryLight` on `backgroundLight`, a
@@ -15,10 +15,22 @@ import 'package:sakina/features/onboarding/widgets/problem_chip_card.dart';
 /// verbatim from `problem_chips.dart`, never re-worded here — the treatment is
 /// not.
 ///
-/// Demoted on purpose: an outlined pill, not a filled row, because the field
-/// above it is the primary input (spec M2). The outline is `sacredTrack` (22%
-/// cream), the label `sacredInk` — gold is barred from text on this canvas
-/// (DESIGN.md §2.3 / `app_colors.dart`).
+/// **A quiet row, not an outlined pill** (density pass, founder 2026-07-30).
+/// These were seven full-width bordered pills, which put seven more outlined
+/// containers on a screen that already had a field and a button — and on device
+/// the result read as a survey rather than a question. Stripping the borders
+/// removed more perceived weight than any other single change, because the
+/// chrome was most of the noise; the labels themselves were never the problem
+/// and are unchanged.
+///
+/// **The labels stay full sentences.** Shortening them to nouns ("Racing mind",
+/// "Unseen") was mocked and rejected: these are the ICP's own words, and being
+/// recognised in your own language is the entire job of the option set. A
+/// compressed label turns recognition into a taxonomy.
+///
+/// The gold dot is the only affordance, and it is deliberate — gold as a
+/// non-text accent is sanctioned on this canvas (DESIGN.md §2.3), and it marks
+/// these as choices rather than a bulleted list without reinstating a border.
 class DailyQuestionChip extends StatelessWidget {
   const DailyQuestionChip({
     required this.chip,
@@ -29,8 +41,16 @@ class DailyQuestionChip extends StatelessWidget {
   });
 
   /// Apple's floor, and the reason this is a `constraints.minHeight` rather
-  /// than a fixed height: the pill grows with Dynamic Type instead of clipping.
+  /// than a fixed height: the row grows with Dynamic Type instead of clipping.
+  ///
+  /// It survived the density pass untouched. Removing a border does not license
+  /// removing a tap target — the row is the same size to a finger and quieter
+  /// only to the eye.
   static const double minTapHeight = 44;
+
+  /// The marker's diameter. Small enough to read as punctuation rather than as
+  /// a bullet, large enough to be visible at 45% opacity on the sign row.
+  static const double _dotSize = 5;
 
   final ProblemChip chip;
 
@@ -44,6 +64,15 @@ class DailyQuestionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The sign chip ("I can't put it into words") is distinguished by
+    // TYPOGRAPHY ONLY — lighter weight and softer ink, never a different
+    // surface or spacing. A tinted row would read as pre-selected, and
+    // inconsistent spacing reads as a layout bug; that ruling comes from the
+    // onboarding hook screen (plan §W2.6) and holds here for the same reason.
+    // Someone who genuinely cannot name what they are carrying must not feel
+    // they are picking the odd one out.
+    final isSign = chip.isSign;
+
     return Semantics(
       button: true,
       selected: selected,
@@ -60,24 +89,50 @@ class DailyQuestionChip extends StatelessWidget {
             duration: AppMotion.feedback,
             curve: AppMotion.enter,
             constraints: const BoxConstraints(minHeight: minTapHeight),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm + 2,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             decoration: BoxDecoration(
+              // Selection is a wash rather than an outline, so committing does
+              // not reintroduce the chrome the pass removed.
               color: selected
-                  ? AppColors.sacredInk.withValues(alpha: 0.16)
+                  ? AppColors.sacredInk.withValues(alpha: 0.10)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: AppColors.sacredTrack),
-            ),
-            child: Text(
-              chip.label,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.sacredInk,
-                height: 1.3,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+              // A hairline between rows, not around them: it separates without
+              // enclosing. 8% cream is under the threshold where it reads as a
+              // border in its own right.
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.sacredInk.withValues(alpha: 0.08),
+                ),
               ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(width: AppSpacing.xs),
+                Container(
+                  width: _dotSize,
+                  height: _dotSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.secondary
+                        .withValues(alpha: isSign ? 0.40 : 0.75),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm + 2),
+                Expanded(
+                  child: Text(
+                    chip.label,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: isSign
+                          ? AppColors.sacredInk.withValues(alpha: 0.70)
+                          : AppColors.sacredInk,
+                      fontWeight: isSign ? FontWeight.w300 : null,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
