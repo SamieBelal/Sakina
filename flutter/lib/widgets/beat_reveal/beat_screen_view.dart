@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
@@ -286,8 +288,26 @@ class _NameHero extends StatelessWidget {
             .scaleXY(begin: 0.6, end: 1, delay: 480.ms, duration: 460.ms, curve: Curves.easeOutBack)
         : const MihrabCrestOrnament(size: 26);
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 360),
+    // The arch is a CONSTANT vessel: same width for every Name, whatever the
+    // meaning line happens to be.
+    //
+    // This used to be `maxWidth`, a ceiling rather than a width, over a
+    // `MainAxisSize.min` column — so the frame shrink-wrapped its content. The
+    // meanings run 9 to 51 characters ("The Guide" against "The Trustee — the
+    // Guardian you hand your affairs to"), and 12 of the 14 shipped decks are
+    // short, so short Names collapsed the arch to roughly the width of their
+    // Arabic while the two long ones pushed it to the full 360. Consecutive
+    // reveals changed the frame's PROPORTION, which reads as inconsistency
+    // rather than as responsiveness — the Name is what should vary, not the
+    // vessel around it.
+    //
+    // `min` against the viewport so the fixed width still yields on a narrow
+    // device (SE-class) instead of overflowing.
+    final archWidth =
+        math.min(360.0, MediaQuery.sizeOf(context).width - AppSpacing.xl);
+
+    return SizedBox(
+      width: archWidth,
       child: MihrabArchFrame(
         animate: animate,
         child: Column(
@@ -322,14 +342,29 @@ class _NameHero extends StatelessWidget {
               ),
             if (meaning.isNotEmpty) ...[
               const SizedBox(height: 6),
+              // Two lines are RESERVED whether or not the meaning fills them, so
+              // the arch keeps its height as well as its width. Without this the
+              // frame still grew by a line between "The Guide" and "The Trustee
+              // — the Guardian you hand your affairs to". The slack under a
+              // short meaning sits above the diamond rule and reads as
+              // composure; a frame that changes size between two consecutive
+              // reveals does not.
+              //
+              // DELETE THIS ConstrainedBox to see width-only stabilisation.
               _in(
-                Text(
-                  meaning,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.sacredInk,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 17,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: _meaningLineHeight * 2,
+                  ),
+                  child: Text(
+                    meaning,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyLarge.copyWith(
+                      color: AppColors.sacredInk,
+                      fontStyle: FontStyle.italic,
+                      fontSize: _meaningFontSize,
+                      height: _meaningLineHeightFactor,
+                    ),
                   ),
                 ),
                 860,
@@ -343,6 +378,13 @@ class _NameHero extends StatelessWidget {
     );
   }
 }
+
+/// The Name's meaning line, pinned so the two-line reserve in the arch can be
+/// computed rather than eyeballed. Changing either value changes the reserved
+/// height with it, which is the point — they must not drift apart.
+const double _meaningFontSize = 17;
+const double _meaningLineHeightFactor = 1.35;
+const double _meaningLineHeight = _meaningFontSize * _meaningLineHeightFactor;
 
 /// Small centered gold diamond flanked by hairlines — the reference mockup's
 /// mid-card separator.
