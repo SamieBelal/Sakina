@@ -49,9 +49,27 @@ class _FreeUser extends PurchaseService {
 
 /// A notifier whose state can be set directly, for the widget-level branch
 /// tests. `skipInitForTests` keeps Supabase, gating and the AI seam out.
+///
+/// `discoverName` is stubbed for the same reason the Wave 2 suite stubs it:
+/// the real one is a long chain of awaits (queue select, unseal RPC,
+/// `engageCard`, prefs) that outlives the pumped frames, so the widget test
+/// would be racing a teardown that disposes the notifier mid-flight — a state
+/// write on a disposed StateNotifier throws, intermittently, from a zone the
+/// test cannot catch. Nothing here is testing `discoverName`; the provider
+/// suite above drives the real one directly.
 class _StubLoop extends DailyLoopNotifier {
   _StubLoop(DailyLoopState initial) : super(skipInitForTests: true) {
     state = initial;
+  }
+
+  int discoverCalls = 0;
+
+  @override
+  Future<void> discoverName({
+    bool consumeFreeUsage = true,
+    bool? isPremiumHint,
+  }) async {
+    discoverCalls++;
   }
 }
 
@@ -563,13 +581,12 @@ void main() {
     await t.tap(find.text('Continue'));
     await t.pump();
     await t.pump(const Duration(seconds: 2));
-    // The reveal lands the screen on the check-in result, whose TourAnchor
-    // arms a 500ms VisibilityDetector timer. Drain it rather than leave a
-    // pending timer behind the disposed tree.
-    await t.pump(const Duration(seconds: 1));
 
     expect(notifier.state.checkinAnswers, ['my mind will not stop racing'],
         reason: 'the answer reached the provider, not a debugPrint');
     expect(notifier.state.checkinProblemCategory, 'anxiety');
+    expect(notifier.discoverCalls, 1,
+        reason: 'and the reveal ran off the answer — one reveal, from the '
+            'user\'s own tap, never from the screen having mounted');
   });
 }
