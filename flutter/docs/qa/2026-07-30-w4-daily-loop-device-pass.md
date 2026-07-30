@@ -207,6 +207,20 @@ of the day, when the day-open genuinely wants to fire.
 5. ❌ 🔴 If you land back in the day-open frame, the overlay was left mounted
    underneath — an opaque route that was routed past rather than popped.
 
+**Then repeat, and this time double-tap "Begin today" as fast as you can.**
+
+6. ✅ You reach the question once, and a single back-swipe reaches home.
+7. ❌ If two taps pop twice, you land somewhere unexpected — or on an empty
+   navigator.
+
+⚠️ **This one is unverified by execution.** The reviewer established that
+`ModalRoute` wraps its content in `IgnorePointer` while the route animates out,
+so the second tap cannot land — but that was read in the Flutter SDK source,
+never tapped on a device. Unlike the CTAs, which needed an explicit
+`_discoverInFlight` guard, this path is protected only by framework behaviour
+nobody here has observed. If it turns out not to hold, the fix is the same
+guard the CTAs use.
+
 ---
 
 ## 7. Cross-midnight — the UTC/local seam ✨
@@ -257,7 +271,16 @@ riskiest edit in the wave.
    you have typed your sentence.
 4. ✅ The **day's first reveal is free and unmetered** for everyone.
 5. If you can reach warmup exhaustion (5 discovers), ✅ the warmup-exhausted
-   sheet still appears, once.
+   sheet still appears, **once**, and over the reveal rather than before it.
+
+   ⚠️ **Unverified by execution.** Tests pin that the flag reaches state and
+   that the sheet fires on the rising edge — but the sheet *appearing over the
+   reveal, in the right order*, has only ever been asserted in a widget test.
+   Two waves moved this: Wave 1 rerouted the signal through state when the
+   charge left the CTA, and a review fix added a mount-time read so leaving the
+   screen mid-charge does not lose it. Both are device-only to confirm.
+   Also ✅ that it does **not** appear twice — the mount read and the rising
+   edge are two paths to the same sheet.
 
 ---
 
