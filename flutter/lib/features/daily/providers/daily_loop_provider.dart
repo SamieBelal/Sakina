@@ -324,6 +324,27 @@ class DailyLoopState {
     /// sheet on the next rising edge the screen observes.
     bool clearWarmupJustExhausted = false,
     String? error,
+
+    /// Explicit clear for [DailyLoopState.error], matching
+    /// [clearReflectResult]'s shape rather than inventing a second convention.
+    ///
+    /// **`error` used to be ASSIGNED rather than merged**, so every state write
+    /// that did not name it silently wiped an error already set. The visible
+    /// symptom was a failure view vanishing; the expensive one was that
+    /// `discoverNameWithBypass` reads `state.error` to decide commit-versus-
+    /// cancel, so a cleared error told it to **commit a bypass for a reveal
+    /// that never happened** — the user pays 25 tokens and gets nothing. Wave 3
+    /// patched the one racing write it had found (`_claimDailyRewardAtSubmit`)
+    /// by passing `error: state.error` through; this makes the whole class
+    /// impossible instead of that one instance.
+    ///
+    /// Every write that genuinely means "clear it" now says so, and there are
+    /// only five: `discoverName` and the dormant `answerCheckin` at entry, and
+    /// the three `startDeeper` paths. All five are "a new attempt is starting,
+    /// or the thing that failed has now succeeded" — which is also why a stale
+    /// error cannot get stuck on screen: every path that can set one has a
+    /// retry that explicitly clears it.
+    bool clearError = false,
   }) {
     return DailyLoopState(
       loaded: loaded ?? this.loaded,
@@ -389,7 +410,7 @@ class DailyLoopState {
       warmupJustExhausted: clearWarmupJustExhausted
           ? null
           : (warmupJustExhausted ?? this.warmupJustExhausted),
-      error: error,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -959,17 +980,18 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // if the user leaves the route mid-flight — and a write to a disposed
       // StateNotifier throws.
       if (!mounted) return;
+      // No `error:` passthrough any more. This write is deliberately racing
+      // `discoverName` and can land after its catch block, so clearing the
+      // error here would wipe the failure view out from under the user and —
+      // the case that actually costs money — tell `discoverNameWithBypass` to
+      // commit a bypass for a reveal that never happened. It used to need an
+      // explicit `error: state.error` to avoid that, because `copyWith`
+      // ASSIGNED the field. `copyWith` now merges it like every other field, so
+      // preserving it is the default and the guard is structural rather than
+      // something each racing caller has to remember.
       state = state.copyWith(
         rewardClaimResult: claimResult,
         tokenBalance: claimResult.newTokenBalance ?? state.tokenBalance,
-        // `copyWith` ASSIGNS `error` rather than merging it, so every write
-        // silently clears it. Harmless for callers that run in sequence; not
-        // harmless for this one, which is deliberately racing `discoverName`
-        // and can land after its catch block. Clearing the error there would
-        // wipe the failure view out from under the user and — the case that
-        // actually costs money — tell `discoverNameWithBypass` to commit a
-        // bypass for a reveal that never happened.
-        error: state.error,
       );
     } catch (_) {
       // Nothing the user can act on, and nothing is lost: the ladder is
@@ -1026,7 +1048,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     // if a caller's own synchronous guard (`_discoverInFlight` on the two CTAs)
     // is ever bypassed or forgotten. Set synchronously below, before any await.
     if (state.checkinLoading) return;
-    state = state.copyWith(checkinLoading: true, error: null);
+    state = state.copyWith(checkinLoading: true, clearError: true);
 
     try {
       // No token charge here — discover is gated by daily caps, not tokens
@@ -1530,7 +1552,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     state = state.copyWith(
       checkinAnswers: updatedAnswers,
       checkinLoading: true,
-      error: null,
+      clearError: true,
     );
 
     try {
@@ -1964,7 +1986,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // Skip step 0 (name display) for the same reason the AI path does — the
         // gacha card reveal already showed the Name.
         reflectStep: 1,
-        error: null,
+        clearError: true,
       );
       return;
     }
@@ -1982,7 +2004,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         reflectResult: _deeperReflectResult,
         reflectLoading: false,
         reflectStep: 1,
-        error: null,
+        clearError: true,
       );
       _noteOffTopic(_deeperReflectResult!);
       return;
@@ -1997,7 +2019,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       currentStep: DailyLoopStep.deeper,
       reflectLoading: true,
       reflectStep: 1, // skip step 0 (name display) — user just saw it in gacha
-      error: null,
+      clearError: true,
     );
 
     try {
