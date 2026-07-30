@@ -127,12 +127,23 @@ class _DailyQuestionFieldState extends State<DailyQuestionField> {
             focusedBorder: _border(AppColors.secondary),
           ),
         ),
+        // **Vertically centred, not bottom-anchored.** The chat-app convention
+        // is to pin send to the bottom so it tracks the last line being typed,
+        // and that is what this was — but this field opens at ONE line and most
+        // answers are one to three, so bottom-anchoring read as misaligned in
+        // the state the user actually meets. Centring is correct at one line
+        // and stays acceptable as the field grows to six; the field is a single
+        // composition, not a message thread, so nothing depends on the button
+        // tracking the caret.
         Positioned(
           right: 2,
-          bottom: 2,
-          child: _SendButton(
-            active: _hasText && widget.enabled,
-            onTap: widget.onSubmitted,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: _SendButton(
+              active: _hasText && widget.enabled,
+              onTap: widget.onSubmitted,
+            ),
           ),
         ),
       ],

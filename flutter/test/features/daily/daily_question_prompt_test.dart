@@ -288,6 +288,36 @@ void main() {
     expectDeferIsOnScreen(t);
   });
 
+  testWidgets('the canvas is painted OUTSIDE the Scaffold, not as its body',
+      (t) async {
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    // Why this is pinned rather than left to whoever reads the build method:
+    // as the Scaffold's BODY, the gradient is resized away by
+    // `resizeToAvoidBottomInset` when the keyboard opens — and on iOS 26,
+    // whose keyboard is inset with rounded corners, the strip it does not
+    // cover then showed the transparent Scaffold as a hard BLACK frame on
+    // three sides, against an emerald canvas. Painting it outside makes the
+    // gradient cover the whole route, so whatever the keyboard exposes is
+    // canvas.
+    //
+    // It is invisible in every screenshot without a keyboard, which is exactly
+    // why it needs a test rather than an eye.
+    final gradientAboveScaffold = find.ancestor(
+      of: find.byType(Scaffold),
+      matching: find.byWidgetPredicate(
+        (w) => w is DecoratedBox && w.decoration is BoxDecoration
+            ? (w.decoration as BoxDecoration).gradient != null
+            : false,
+      ),
+    );
+    expect(gradientAboveScaffold, findsOneWidget,
+        reason: 'the sacred canvas must wrap the Scaffold — as its body it is '
+            'resized away with the keyboard and the exposed strip renders '
+            'black');
+  });
+
   testWidgets('the answer-set caption is never truncated, up to AX5',
       (t) async {
     // This test used to be called "nothing clips at the largest Dynamic Type

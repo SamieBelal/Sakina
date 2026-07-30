@@ -233,14 +233,24 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // Transparent: the gradient below is the only surface, so the screen can
-      // be crossed into through `SacredCanvasThreshold` without a seam.
-      backgroundColor: Colors.transparent,
-      body: DecoratedBox(
-        decoration:
-            const BoxDecoration(gradient: AppColors.sacredCanvasGradient),
-        child: SafeArea(
+    // **The gradient wraps the Scaffold rather than being its body.**
+    //
+    // It used to be the body, with a transparent Scaffold behind it — and that
+    // is fine until the keyboard opens. `resizeToAvoidBottomInset` shrinks the
+    // BODY to sit above the keyboard, so on iOS 26, whose keyboard is inset
+    // with rounded corners, the strip the keyboard does not cover fell outside
+    // the body entirely and showed the transparent Scaffold as **black**: a
+    // hard black frame around three sides of the keyboard, against an emerald
+    // canvas.
+    //
+    // Painting the gradient outside the Scaffold makes it cover the whole
+    // route, so whatever the keyboard exposes is canvas. The Scaffold stays
+    // transparent, which is the contract `SacredCanvasThreshold` crosses on.
+    return DecoratedBox(
+      decoration: const BoxDecoration(gradient: AppColors.sacredCanvasGradient),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
           child: Column(
             children: [
               Expanded(
@@ -252,11 +262,13 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
                   // sits OUTSIDE the LayoutBuilder so `constraints.maxHeight`
                   // is already the height the column actually gets.
                   child: LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints:
-                            BoxConstraints(minHeight: constraints.maxHeight),
-                        child: IntrinsicHeight(child: _column(context)),
+                    builder: (context, constraints) => _fadeAtBottom(
+                      SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(minHeight: constraints.maxHeight),
+                          child: IntrinsicHeight(child: _column(context)),
+                        ),
                       ),
                     ),
                   ),
@@ -283,6 +295,31 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
       ),
     );
   }
+
+  /// Dissolves the last few points of the scrolling region into the canvas.
+  ///
+  /// With the keyboard up the scroll viewport is short, and its bottom edge was
+  /// **guillotining an option mid-word** — a chip sliced horizontally through
+  /// its own text, with the pinned exit floating below it. A hard cut reads as
+  /// a rendering fault rather than as "there is more here"; a fade reads as
+  /// depth, which is also the house treatment on the canvas.
+  ///
+  /// Self-hiding: when the content fits, the bottom of this region is empty
+  /// canvas, so fading it changes nothing visible. It only appears when there
+  /// is something to cut.
+  ///
+  /// `dstIn` multiplies the child's alpha by the shader's, so the gradient runs
+  /// from transparent at the very bottom to opaque a short way up.
+  Widget _fadeAtBottom(Widget child) => ShaderMask(
+        shaderCallback: (rect) => const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [Colors.transparent, Colors.black],
+          stops: [0.0, 0.055],
+        ).createShader(rect),
+        blendMode: BlendMode.dstIn,
+        child: child,
+      );
 
   Widget _column(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;

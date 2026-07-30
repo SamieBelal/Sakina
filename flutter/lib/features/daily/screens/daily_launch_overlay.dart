@@ -324,13 +324,33 @@ class _AmbientFrame extends ConsumerWidget {
     );
   }
 
+  /// Time-of-day warmth, and **no claim about where in the day this sits**
+  /// (founder, 2026-07-30).
+  ///
+  /// The evening line used to read *"End the day with remembrance."* — written
+  /// for the old day-open, which was a streak-and-reward ceremony that made no
+  /// claim about what you were about to do. W4 repurposed this frame as the
+  /// entrance to the question and inherited the copy without re-reading it, so
+  /// after 5pm the screen said **"End the day"** directly above a button
+  /// reading **"Begin today"**.
+  ///
+  /// The deeper reason it had to go is that the loop has no position in the
+  /// day at all. It is once per day, whenever you do it: the queue unseals on
+  /// the user's local midnight and the reward ladder runs on calendar days, so
+  /// someone at 7am and someone at 11pm are both doing *today's* muḥāsabah.
+  /// Any copy claiming a slot — "start", "end" — promises something the
+  /// mechanic does not keep.
+  ///
+  /// So these stay time-aware in *tone* and say nothing about *task*. The
+  /// evening line is present-tense and deliberately the most inviting of the
+  /// three, because it is the one most likely to be read by someone tired.
   String _timeGreeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'Assalamu Alaykum. Allah is with you.';
     // Not "take a moment to reflect" — Reflect is a distinct feature tab, and
     // the day-open must not look like it is pointing there.
     if (h < 17) return 'Assalamu Alaykum. Take a moment.';
-    return 'Assalamu Alaykum. End the day with remembrance.';
+    return 'Assalamu Alaykum. However the day has gone.';
   }
 }
 
