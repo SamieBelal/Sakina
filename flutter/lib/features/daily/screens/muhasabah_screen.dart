@@ -298,18 +298,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // max tier engages as a duplicate, so no card shows — and blanket-dropping
     // the meaning there would leave it displayed NOWHERE. The plan permits that
     // case outright: a Store purchase can pre-own a queued Name's card.
-    // What the card actually put on screen, or null when no card appeared.
-    // Passed as a STRING to be compared, not a flag to be trusted: the catalog's
-    // english and the deck's meaning agree for 13 of the 14 decks and disagree
-    // for al-wakeel@1 — the D1 Name — where the card says "The Trustee" and the
-    // deck says "The Trustee — the Guardian you hand your affairs to". A boolean
-    // deleted that clause; comparing keeps it.
-    final meaningTheCardShowed =
-        state.cardEngageResult == null ? null : state.engagedCard?.english;
+    // The meaning the user has already read, compared rather than assumed.
+    //
+    // Unconditional, and the earlier `cardEngageResult != null` gate was
+    // guarding nothing: `_buildCheckinResult` renders `card.english` on EVERY
+    // path and hosts the "Go Deeper" button itself, so the deck cannot be
+    // reached without passing the meaning on the way in. The gate's stated
+    // rationale — that a duplicate engage shows no card and would leave the
+    // meaning displayed nowhere — was simply false. Dropping it also removes a
+    // dependency on per-reveal state staleness and a cold-restart asymmetry.
+    //
+    // A STRING because the catalog and the decks do not always agree: 13 of the
+    // 14 match byte-for-byte, and al-wakeel@1 — the D1 Name — does not, where the
+    // card says "The Trustee" and the deck says "The Trustee — the Guardian you
+    // hand your affairs to". Comparing keeps that clause; a boolean deleted it.
+    final meaningAlreadyRead = state.engagedCard?.english;
     final deckScreens = deck == null
         ? null
         : buildBeatScreensFromDeck(deck,
-            meaningAlreadyShown: meaningTheCardShowed);
+            meaningAlreadyShown: meaningAlreadyRead);
     final hasDeck = deckScreens != null && deckScreens.isNotEmpty;
     final unrenderableDeck = deck != null && !hasDeck;
     // Only a deck the user can actually move through is abandonable — an
@@ -436,8 +443,6 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     );
   }
 
-  /// Shares the muḥāsabah takeaway as the emerald mihrab card (Name + meaning +
-  /// key line + takeaway). Only fires from the takeaway beat's share icon.
   /// Share a deck-backed reveal, sourced entirely from the deck's own beats.
   ///
   /// Nothing new is authored and nothing is generated: the Arabic and meaning
@@ -457,6 +462,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     }
   }
 
+  /// Shares the muḥāsabah takeaway as the emerald mihrab card (Name + meaning +
+  /// key line + takeaway). The AI path only — it fires from the floating share
+  /// icon on the takeaway beat, which is never the last screen there because the
+  /// duʿa always follows. The deck path uses [_shareCurrentDeck] instead.
   Future<void> _shareCurrentMuhasabah(ReflectResponse? result) async {
     if (result == null) return;
     final messenger = ScaffoldMessenger.of(context);
