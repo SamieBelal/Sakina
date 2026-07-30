@@ -25,8 +25,16 @@ abstract final class DailyQuestionCopy {
   /// legitimate answer. With free text there is nothing else doing that job, so
   /// without this line the question silently means *"what's wrong"* — and a
   /// good day is a first-class answer here. Any change to [header] must keep a
-  /// placeholder that spans worry → thanks.
-  static const String placeholder =
+  /// line that spans worry → thanks.
+  ///
+  /// **A caption, not a placeholder** — renamed from `placeholder` by the Wave
+  /// 2 review. It renders as the field's `helperText` and is therefore visible
+  /// while the user types and on an off-topic re-ask, where the field opens
+  /// pre-filled. As a hint it vanished on the first keystroke, was never shown
+  /// on a re-ask at all, and ellipsized at large Dynamic Type. The name is part
+  /// of the fix: a constant called `placeholder` invites the next person to put
+  /// it back in `hintText`.
+  static const String answerSetCaption =
       'A worry, a thanks, a question — however it comes out.';
 
   /// Muḥāsabah is taught as a one-line gloss and is **never** the button label
@@ -60,7 +68,7 @@ abstract final class DailyQuestionCopy {
   /// moment to meet a machine.
   ///
   /// [offTopicHeader] is a question rather than a statement so it reads as an
-  /// invitation, and [offTopicBody] deliberately echoes [placeholder] — a
+  /// invitation, and [offTopicBody] deliberately echoes [answerSetCaption] — a
   /// re-ask is the same invitation repeated, not a new error state. *"A few
   /// words is enough"* lowers the bar explicitly.
   static const String offTopicHeader = 'Say a little more?';

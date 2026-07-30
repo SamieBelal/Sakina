@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_motion.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
+import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/widgets/daily_question_chip_list.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
@@ -319,9 +320,27 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
         rise(
           DailyQuestionField(
             controller: _controller,
-            hintText: DailyQuestionCopy.placeholder,
             enabled: !_committing,
             onSubmitted: _submitTyped,
+          ),
+          delay: AppMotion.beat,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        // The answer set, as a persistent caption rather than the field's hint
+        // (Wave 2 review F1). It says a grateful answer is permitted, which is
+        // the job the chips used to do by simply existing — so it has to be
+        // readable while the user types, and on a re-ask where the field opens
+        // pre-filled. A hint is neither. No `maxLines`: this line wraps as far
+        // as it needs to at any Dynamic Type step, because truncating it turns
+        // the question back into "what's wrong".
+        rise(
+          Text(
+            DailyQuestionCopy.answerSetCaption,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.sacredInk.withValues(alpha: 0.80),
+              fontWeight: FontWeight.w300,
+              height: 1.35,
+            ),
           ),
           delay: AppMotion.beat,
         ),

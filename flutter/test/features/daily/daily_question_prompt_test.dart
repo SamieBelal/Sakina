@@ -9,6 +9,50 @@ import 'package:sakina/features/onboarding/content/problem_chips.dart';
 
 // The daily question surface (W4 Wave 2 — plan §4/§11, spec M2/M4).
 
+/// iOS's largest accessibility text size (AX5). The old tests called
+/// `TextScaler.linear(2.0)` "the largest Dynamic Type step"; it is not close.
+const double axLargest = 3.1;
+
+/// Asserts the answer-set caption renders in full — every line of it, with no
+/// ellipsis.
+///
+/// Measured rather than eyeballed: lay the string out unconstrained in the
+/// caption's own resolved style at the caption's own render width, and require
+/// the rendered box to be at least as tall. A truncated caption is shorter than
+/// its own text, which is precisely the failure `hintMaxLines: 3` produced and
+/// which "no exception was thrown" could never have caught.
+void expectCaptionIsWhole(WidgetTester t, double scale) {
+  final finder = find.text(DailyQuestionCopy.answerSetCaption);
+  expect(finder, findsOneWidget, reason: 'caption missing at scale $scale');
+  final widget = t.widget<Text>(finder);
+  final box = t.getSize(finder);
+
+  final unconstrained = TextPainter(
+    text: TextSpan(
+        text: DailyQuestionCopy.answerSetCaption, style: widget.style),
+    textDirection: TextDirection.ltr,
+    textScaler: TextScaler.linear(scale),
+  )..layout(maxWidth: box.width);
+
+  expect(box.height, greaterThanOrEqualTo(unconstrained.height - 0.5),
+      reason: 'the caption is clipped at scale $scale — it needs '
+          '${unconstrained.height.toStringAsFixed(1)}pt and was given '
+          '${box.height.toStringAsFixed(1)}pt. This line is the only thing '
+          'telling the user a grateful answer is permitted; truncated, the '
+          'question silently means "what\'s wrong".');
+
+  final painterAtMaxLines = TextPainter(
+    text: TextSpan(
+        text: DailyQuestionCopy.answerSetCaption, style: widget.style),
+    textDirection: TextDirection.ltr,
+    textScaler: TextScaler.linear(scale),
+    maxLines: widget.maxLines,
+  )..layout(maxWidth: box.width);
+  expect(painterAtMaxLines.didExceedMaxLines, isFalse,
+      reason: 'maxLines=${widget.maxLines} ellipsizes the caption at scale '
+          '$scale');
+}
+
 /// The escape hatch has to be *on screen*, not merely mounted somewhere below
 /// the fold (plan §2 rule 7).
 void expectDeferIsOnScreen(WidgetTester t) {
@@ -35,6 +79,8 @@ void main() {
   Widget host({
     TextScaler textScaler = TextScaler.noScaling,
     double keyboardInset = 0,
+    String? initialText,
+    bool isReAsk = false,
   }) =>
       MaterialApp(
         home: Builder(
@@ -47,6 +93,8 @@ void main() {
               // No beat in tests — the fill-then-commit pause is UX, not
               // behaviour, and waiting on it would only slow every case.
               commitBeat: Duration.zero,
+              initialText: initialText,
+              isReAsk: isReAsk,
               onSubmit: (text, {String? chipKey}) =>
                   submissions.add((text: text, chipKey: chipKey)),
               onDefer: () => defers++,
@@ -55,20 +103,20 @@ void main() {
         ),
       );
 
-  testWidgets('asks the approved question and keeps the placeholder',
+  testWidgets('asks the approved question and keeps the answer-set caption',
       (t) async {
     await t.pumpWidget(host());
     await t.pumpAndSettle();
 
     expect(find.text(DailyQuestionCopy.header), findsOneWidget);
-    // The placeholder is the ONLY thing telling the user a grateful answer is
+    // The caption is the ONLY thing telling the user a grateful answer is
     // permitted (spec M4). If a redesign drops it, the question silently means
     // "what's wrong" — so it is pinned by its exact text, not by its presence.
-    expect(find.text(DailyQuestionCopy.placeholder), findsOneWidget);
+    expect(find.text(DailyQuestionCopy.answerSetCaption), findsOneWidget);
     expect(
-      DailyQuestionCopy.placeholder.contains('thanks'),
+      DailyQuestionCopy.answerSetCaption.contains('thanks'),
       isTrue,
-      reason: 'the placeholder must span worry → thanks',
+      reason: 'the caption must span worry → thanks',
     );
   });
 
@@ -203,21 +251,57 @@ void main() {
     expectDeferIsOnScreen(t);
   });
 
-  testWidgets('nothing clips at the largest Dynamic Type step', (t) async {
+  testWidgets('the answer-set caption is never truncated, up to AX5',
+      (t) async {
+    // This test used to be called "nothing clips at the largest Dynamic Type
+    // step" and asserted only that no exception was thrown — which read as
+    // coverage that did not exist, and is how the caption shipped ellipsized.
+    // It now asserts the thing it claims, at a scale that really is the
+    // largest: iOS AX5 is ≈3.1, not the 2.0 this used.
     t.view.physicalSize = const Size(320 * 3, 568 * 3);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
 
-    await t.pumpWidget(host(textScaler: const TextScaler.linear(2.0)));
-    await t.pumpAndSettle();
+    for (final scale in [1.0, 2.0, axLargest]) {
+      await t.pumpWidget(host(textScaler: TextScaler.linear(scale)));
+      await t.pumpAndSettle();
 
-    expect(t.takeException(), isNull);
-    expect(find.text(DailyQuestionCopy.header), findsOneWidget);
-    expectDeferIsOnScreen(t);
+      expect(t.takeException(), isNull, reason: 'at scale $scale');
+      expect(find.text(DailyQuestionCopy.header), findsOneWidget);
+      expectCaptionIsWhole(t, scale);
+      expectDeferIsOnScreen(t);
+    }
   });
 
-  testWidgets('VoiceOver reads the question as a header and the placeholder '
-      'as the field hint', (t) async {
+  testWidgets('the caption survives the first keystroke', (t) async {
+    // The hole underneath the truncation: a `hintText` disappears the moment
+    // the field is non-empty, so the one line telling the user a grateful
+    // answer is permitted used to vanish as they started answering.
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+    expect(find.text(DailyQuestionCopy.answerSetCaption), findsOneWidget);
+
+    await t.enterText(find.byType(TextField), 'a');
+    await t.pumpAndSettle();
+
+    expect(find.text(DailyQuestionCopy.answerSetCaption), findsOneWidget,
+        reason: 'the answer set is not a placeholder — it stays while they '
+            'type');
+  });
+
+  testWidgets('the caption is shown on a re-ask, where the field is pre-filled',
+      (t) async {
+    // The sharpest case: after "Say a little more?" the field opens holding
+    // the user's own words, so a hint would never render at all — at exactly
+    // the moment they most need to know what kind of answer is permitted.
+    await t.pumpWidget(host(initialText: 'how do i bake bread', isReAsk: true));
+    await t.pumpAndSettle();
+
+    expect(find.text(DailyQuestionCopy.answerSetCaption), findsOneWidget);
+  });
+
+  testWidgets('VoiceOver reads the question as a header and the caption '
+      'as part of the field', (t) async {
     final handle = t.ensureSemantics();
     await t.pumpWidget(host());
     await t.pumpAndSettle();
@@ -227,7 +311,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.bySemanticsLabel(DailyQuestionCopy.placeholder),
+      find.bySemanticsLabel(DailyQuestionCopy.answerSetCaption),
       findsAtLeastNWidgets(1),
     );
     expect(find.bySemanticsLabel(DailyQuestionCopy.defer), findsOneWidget);

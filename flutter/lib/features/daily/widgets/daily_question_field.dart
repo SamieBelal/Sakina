@@ -11,17 +11,12 @@ import 'package:sakina/core/theme/app_typography.dart';
 class DailyQuestionField extends StatelessWidget {
   const DailyQuestionField({
     required this.controller,
-    required this.hintText,
     required this.enabled,
     required this.onSubmitted,
     super.key,
   });
 
   final TextEditingController controller;
-
-  /// The approved placeholder. Passed in rather than owned here so the copy has
-  /// exactly one home (`DailyQuestionPrompt.placeholderLabel`).
-  final String hintText;
 
   final bool enabled;
   final VoidCallback onSubmitted;
@@ -42,17 +37,28 @@ class DailyQuestionField extends StatelessWidget {
       cursorColor: AppColors.sacredInk,
       style: AppTypography.bodyLarge.copyWith(color: AppColors.sacredInk),
       decoration: InputDecoration(
-        // Rides `hintText` so VoiceOver reads it as the field's hint straight
-        // after the header. At 80% cream rather than `sacredInkFaint`:
-        // DESIGN.md puts functional text on this canvas at >=80%, and this line
-        // is the only thing telling the user a grateful answer is permitted.
-        hintText: hintText,
-        hintMaxLines: 3,
-        hintStyle: AppTypography.bodyLarge.copyWith(
-          color: AppColors.sacredInk.withValues(alpha: 0.80),
-          fontWeight: FontWeight.w300,
-          height: 1.35,
-        ),
+        // **No hint, and no helper either** (W4 Wave 2 review F1).
+        //
+        // The answer-set line that used to live here as `hintText` now renders
+        // as a caption under this field, owned by `DailyQuestionPrompt`. It is
+        // the only thing telling the user a grateful answer is permitted (spec
+        // M4), and neither slot on a `TextField` can hold it safely:
+        //
+        //  * A HINT disappears the moment the field is non-empty — so the line
+        //    vanished on the first keystroke, and was never shown at all on an
+        //    off-topic re-ask, where the field opens pre-filled with the user's
+        //    own words. That is precisely when someone needs to know what kind
+        //    of answer is permitted.
+        //  * `hintMaxLines: 3` plus `InputDecorator`'s ellipsis truncated it to
+        //    "A worry, a thanks, a ques…" at large Dynamic Type, silently
+        //    reverting the question to meaning "what's wrong".
+        //  * A HELPER persists, but `InputDecorator` sizes the helper slot from
+        //    `helperMaxLines` and clips to it — measured at one line, 20pt for
+        //    a 100pt string. Trading a hint's threshold for a helper's is not a
+        //    fix.
+        //
+        // A plain caption below has no line budget at anyone's discretion, so
+        // there is no font-dependent threshold left to get wrong.
         filled: true,
         fillColor: AppColors.sacredInk.withValues(alpha: 0.08),
         contentPadding: const EdgeInsets.all(AppSpacing.md),
