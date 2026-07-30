@@ -538,7 +538,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     state = state.copyWith(lastXpGained: 0);
   }
 
-  String get _todayKey {
+  /// Where today's loop state is stored, keyed by the user's **local** day.
+  ///
+  /// This used to be keyed by the UTC date, and that was a real, daily,
+  /// user-facing bug for everyone west of UTC. A user in California who did
+  /// their muḥāsabah at 4pm wrote `daily_loop_<Jul 30>`; by 5pm the UTC date had
+  /// rolled to Jul 31, so the key no longer resolved, the state loaded as
+  /// fresh, and the home CTA went back to inviting them to a muḥāsabah they had
+  /// already done — the same evening, with the card already in their
+  /// collection. East of UTC it fires in the morning instead.
+  ///
+  /// The day the user is living in is the local one: the queue unseals on local
+  /// midnight and Wave 4's auto-entry marker is already local. This is the last
+  /// piece of the daily loop that was not.
+  ///
+  /// Async because resolving the zone is (memoised per process, so this is a
+  /// map lookup after the first call).
+  Future<String> _todayKey() async {
+    final local = await userLocalDayString(clock: debugDailyLoopClock);
+    return supabaseSyncService.scopedKey('daily_loop_$local');
+  }
+
+  /// The pre-fix UTC key, read once on load so the change does not throw away
+  /// the state of whoever is mid-loop when they update.
+  ///
+  /// Without this, everyone whose UTC and local dates currently differ would
+  /// see exactly the bug being fixed, once, on the update itself — and for
+  /// legacy (non-queue) users a forgotten state can mean a second reveal in one
+  /// local day, which is the thing the whole day key exists to prevent.
+  String get _legacyUtcTodayKey {
     final now = debugDailyLoopClock();
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -1743,6 +1771,20 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     state = state.copyWith(error: message);
   }
 
+  /// Test seams for the day-key round trip.
+  ///
+  /// The local-day suite has to persist under one clock and read under another
+  /// to exercise the UTC-rollover regression at all, which is not reachable
+  /// through any production entry point in a single test.
+  @visibleForTesting
+  Future<void> debugPersistTodayState() => _persistTodayState();
+
+  @visibleForTesting
+  Future<void> debugLoadTodayState() => _loadTodayState();
+
+  @visibleForTesting
+  void debugSetState(DailyLoopState next) => state = next;
+
   /// Test seam — exposes `_handleXpAward` so the EconomyEvents XpGranted
   /// contract can be exercised without driving the full muhasabah/discovery
   /// flow. Production callsites all go through `_handleStreakMilestones`.
@@ -1802,7 +1844,10 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     _deeperReflectKey = null;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_todayKey);
+    // Both keys: a reset must not leave the legacy UTC blob behind for the
+    // migration read in `_loadTodayState` to pick straight back up.
+    await prefs.remove(await _todayKey());
+    await prefs.remove(_legacyUtcTodayKey);
     state = const DailyLoopState();
     await _initialize();
   }
@@ -2222,7 +2267,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         'revealQueuePosition': state.revealQueuePosition,
         'revealNameId': state.engagedCard?.id,
       };
-      await prefs.setString(_todayKey, jsonEncode(data));
+      await prefs.setString(await _todayKey(), jsonEncode(data));
     } catch (_) {
       // Non-critical — silently fail
     }
@@ -2231,7 +2276,24 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   Future<void> _loadTodayState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_todayKey);
+      final key = await _todayKey();
+      var raw = prefs.getString(key);
+
+      // One-time migration off the old UTC key. Only consulted when the local
+      // key misses, so it cannot resurrect a genuinely finished day: the legacy
+      // key is itself date-stamped, so yesterday's blob has yesterday's UTC
+      // date in it and will not match today's read either.
+      if (raw == null) {
+        final legacy = _legacyUtcTodayKey;
+        if (legacy != key) {
+          raw = prefs.getString(legacy);
+          if (raw != null) {
+            await prefs.setString(key, raw);
+            await prefs.remove(legacy);
+          }
+        }
+      }
+
       if (raw == null) return;
 
       final data = jsonDecode(raw) as Map<String, dynamic>;

@@ -214,7 +214,13 @@ void main() {
     // The blob must actually be on disk — this is the assertion whose absence
     // let the bug through.
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(fakeSync.scopedKey('daily_loop_2026-08-04'));
+    // **The LOCAL day, not the UTC one.** The clock here is 03:00 UTC on Aug 4,
+    // which in America/Los_Angeles — the zone this test installs — is still
+    // 8pm on Aug 3. The day key follows the day the user is living in, because
+    // keying it to UTC meant a Californian who did their muḥāsabah in the
+    // afternoon had the app forget it a few hours later and re-invite them.
+    // This assertion previously read `2026-08-04` and so was pinning the bug.
+    final raw = prefs.getString(fakeSync.scopedKey('daily_loop_2026-08-03'));
     expect(raw, isNotNull,
         reason: 'discoverName must persist the reveal, or the restore branch in '
             '_loadTodayState is unreachable and a restart runs a SECOND reveal');
