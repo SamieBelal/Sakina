@@ -183,6 +183,46 @@ void main() {
               'host screen gates it with canUse + _discoverInFlight');
     });
 
+    testWidgets('the re-roll can actually show a ripple', (tester) async {
+      // Regression: the card was a decorated `Container`, so the InkWell's
+      // nearest `Material` ancestor was the Scaffold — and the splash was
+      // painted UNDERNEATH the card's opaque `primaryLight` fill. The tap
+      // worked; the feedback was invisible.
+      //
+      // Untestable by tapping: a splash that paints nowhere still fires
+      // `onTap`, so the tap test above passed throughout. What is testable is
+      // the structural precondition — a `Material` between the card and the
+      // InkWell, with the fill on an `Ink` so it lands on that Material's
+      // canvas rather than over it.
+      await tester.pumpWidget(host(
+        DailyLoopCtaCard(
+          state: DailyLoopCtaState.completed,
+          completedName: 'Al-Wadud',
+          onStart: () {},
+          onReroll: () {},
+        ),
+      ));
+
+      expect(
+        find.descendant(
+          of: find.byType(DailyLoopCtaCard),
+          matching: find.byType(Material),
+        ),
+        findsAtLeastNWidgets(1),
+        reason: 'the InkWell needs a Material INSIDE the card, or its ripple '
+            'is drawn on the Scaffold beneath an opaque fill',
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DailyLoopCtaCard),
+          matching: find.byType(Ink),
+        ),
+        findsOneWidget,
+        reason: 'the fill must be an Ink decoration so it shares the '
+            "Material's canvas with the splash",
+      );
+    });
+
     testWidgets('the re-roll target clears 44pt', (tester) async {
       await tester.pumpWidget(host(
         DailyLoopCtaCard(
@@ -292,6 +332,54 @@ void main() {
       final dashboard = source.substring(dashboardStart, dashboardEnd);
       expect(dashboard.contains('_buildMuhasabahCta('), isFalse,
           reason: 'the CTA must not be rendered from inside the dashboard card');
+    });
+
+    test('nothing may be inserted between the greeting and the CTA', () {
+      // THE PINS ABOVE GUARD REORDERING. THIS ONE GUARDS ACCUMULATION, WHICH IS
+      // HOW IT ACTUALLY BROKE.
+      //
+      // Nobody ever decided to put the daily CTA 800px down the scroll. Things
+      // piled up above it — a promo card, a premium strip, a stats block — each
+      // addition locally reasonable, none of them "moving the CTA". The
+      // `cta < gift`, `cta < premium`, `cta < dashboard` assertions are blind to
+      // that: insert a hero banner, or a bare `SizedBox(height: 400)`, between
+      // the greeting and the CTA and every one of them still passes while the
+      // CTA sits below the fold again.
+      //
+      // So this asserts what the wave actually promises — *first thing after
+      // the greeting* — rather than "before three specific widgets that
+      // happened to exist in July 2026".
+      //
+      // If you are here because this failed: the fix is almost never to relax
+      // it. Whatever you are adding belongs BELOW the CTA. The one legitimate
+      // change is spacing, which is why a bare SizedBox is allowed through.
+      final greeting = source.indexOf('_buildGreetingRow(state)');
+      final cta = source.indexOf('_buildMuhasabahCta(state)');
+      expect(greeting, greaterThan(0));
+      expect(cta, greaterThan(greeting));
+
+      final between = source.substring(greeting + '_buildGreetingRow(state)'.length, cta);
+      // Strip comments — the gap is mostly the note explaining why it is a gap.
+      final code = between
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty && !l.startsWith('//'))
+          .join(' ');
+
+      // The ONE legitimate inhabitant: a spacing box expressed in design-system
+      // tokens. Deliberately not `SizedBox(height: <any number>)` — a literal
+      // `SizedBox(height: 400)` pushes the CTA off the fold just as effectively
+      // as a widget does, and it is the cheaper mistake to make.
+      final leftovers = code
+          .replaceAll(
+              RegExp(r'const SizedBox\(height: AppSpacing\.\w+\),?'), '')
+          .replaceAll(RegExp(r'[,\s]'), '');
+
+      expect(leftovers, isEmpty,
+          reason: 'Something now renders between the greeting and the daily '
+              'CTA: "$code". That is exactly how the CTA ended up ~800px into '
+              'a ~700-760px viewport the first time — not by being moved, but '
+              'by being buried. Put it below the CTA instead.');
     });
 
     test('the 11px question subtitle is gone', () {

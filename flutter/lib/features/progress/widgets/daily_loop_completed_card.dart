@@ -22,48 +22,64 @@ class DailyLoopCompletedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metName = name?.trim();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md + 2,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: AppColors.primary, size: 24),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Today\'s muḥāsabah is complete',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w600,
+    // `Material` + `Ink`, not a decorated `Container` — and the difference is
+    // invisible until you tap it. An `InkWell` paints its splash on the nearest
+    // `Material` ANCESTOR; with a plain `Container` that ancestor is the
+    // Scaffold, so the ripple was drawn *underneath* this card's opaque
+    // `primaryLight` fill and never seen. `Ink` moves the decoration onto the
+    // Material's own canvas so the splash lands on top of it.
+    //
+    // It matters here more than anywhere else on the card: the re-roll is the
+    // ONLY interactive element on it, and past the day's free reveal that tap
+    // can cost 25 tokens — the exact place a user needs to see that their tap
+    // registered. `_Invitation` in `daily_loop_cta_card.dart` already does this
+    // correctly, so this was an inconsistency inside one wave rather than a
+    // house-style question.
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md + 2,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    color: AppColors.primary, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Today\'s muḥāsabah is complete',
+                    style: AppTypography.labelLarge.copyWith(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                ),
+              ],
+            ),
+            if (metName != null && metName.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'You sat with $metName.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
                 ),
               ),
             ],
-          ),
-          if (metName != null && metName.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(
-              'You sat with $metName.',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
+            _RerollAction(onTap: onReroll),
           ],
-          const SizedBox(height: 6),
-          _RerollAction(onTap: onReroll),
-        ],
+        ),
       ),
     );
   }
