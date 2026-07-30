@@ -65,24 +65,57 @@ String _ymd(DateTime d) =>
 ///
 /// The logged-out path is untouched: with no payload the extension keeps its
 /// own catalog rotation, which is honest — it is content, not a promise.
+/// **The day boundary is the user's, not UTC** (W4 Wave 6 review, F1).
+///
+/// [lastReflectedLocalDay] is `YYYY-MM-DD` in the user's LOCAL calendar,
+/// cached by `markActiveToday` on the reveal path — see
+/// [lastReflectedLocalCacheKey]. It is the only signal available offline that
+/// can answer "did this user reflect during *their* day".
+///
+/// It replaces what used to be here: `r.date == _ymd(now)`, matching a **UTC**
+/// date string (`CheckInRecord.date` is written from `debugDailyLoopClock`,
+/// which is `.toUtc()`) against a **local** one. Those disagree for hours every
+/// day — the whole evening in the Americas, the whole morning east of UTC — and
+/// the mismatch used to be invisible because a failed match just fell through
+/// to a rotation nobody had been promised. Once the failure means `awaiting`,
+/// it says "What's on your heart today?" to someone who just answered it.
+///
+/// **Matching on UTC instead would not fix it, it would move it.** A UTC-7 user
+/// revealing at 20:00 local Monday writes a Tuesday-UTC row; a UTC widget
+/// agrees that evening, but at 08:00 local Tuesday — a new local day, nothing
+/// revealed — the row still matches and the widget shows last night's Name as
+/// today's. A stale invitation is annoying; a stale Name is a lie about the
+/// user's own day, and it hides the fact that a new Name is waiting.
+///
+/// The history row is still where the NAME comes from — only the yes/no moved.
+/// The most recent record is today's by construction when
+/// [lastReflectedLocalDay] says the user reflected today.
 WidgetSyncInputs composeWidgetSyncState({
   required List<CheckInRecord> history,
   required AllahName todaysName,
   required DateTime now,
+  required String? lastReflectedLocalDay,
 }) {
-  final today = _ymd(now);
-  for (final r in history) {
-    if (r.date == today) {
-      final matched = allahNames.firstWhere(
-        (n) => n.transliteration == r.nameReturned,
-        orElse: () => todaysName,
-      );
-      return WidgetSyncInputs(
-          name: matched, personalized: true, checkedInToday: true);
-    }
+  if (lastReflectedLocalDay == null || lastReflectedLocalDay != _ymd(now)) {
+    return const WidgetSyncInputs(
+        name: null, personalized: false, checkedInToday: false);
   }
-  return const WidgetSyncInputs(
-      name: null, personalized: false, checkedInToday: false);
+  if (history.isEmpty) {
+    // Reflected today, but no record to name — withhold rather than guess.
+    // Reachable when the history cache is cleared independently of the streak
+    // cache; the invitation is wrong here, but a Name we cannot source would
+    // be worse.
+    return const WidgetSyncInputs(
+        name: null, personalized: false, checkedInToday: false);
+  }
+  // Newest first — `saveCheckinRecord` inserts at the head.
+  final latest = history.first;
+  final matched = allahNames.firstWhere(
+    (n) => n.transliteration == latest.nameReturned,
+    orElse: () => todaysName,
+  );
+  return WidgetSyncInputs(
+      name: matched, personalized: true, checkedInToday: true);
 }
 
 /// Loads the committed anchor snapshot from the app bundle (the same file the
@@ -151,6 +184,7 @@ Future<void> syncHomeWidget({DateTime Function()? clock}) async {
       history: history,
       todaysName: getTodaysName(),
       now: now,
+      lastReflectedLocalDay: await getLastReflectedLocalDay(),
     );
     final name = inputs.name;
     // No Name, no anchor. The anchor is that Name's teaching line, so carrying

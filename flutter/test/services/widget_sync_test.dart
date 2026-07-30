@@ -23,6 +23,7 @@ void main() {
       history: [_record('2026-07-14', 'Al-Wakeel')],
       todaysName: today,
       now: now,
+      lastReflectedLocalDay: '2026-07-14',
     );
     expect(s.personalized, isTrue);
     expect(s.checkedInToday, isTrue);
@@ -37,6 +38,7 @@ void main() {
       history: [_record('2026-07-13', 'Al-Wakeel')],
       todaysName: today,
       now: now,
+      lastReflectedLocalDay: '2026-07-13',
     );
     expect(s.personalized, isFalse);
     expect(s.checkedInToday, isFalse);
@@ -49,6 +51,7 @@ void main() {
       history: [_record('2026-07-14', 'Not-A-Real-Name')],
       todaysName: today,
       now: now,
+      lastReflectedLocalDay: '2026-07-14',
     );
     expect(s.checkedInToday, isTrue);
     expect(s.name?.transliteration, today.transliteration);

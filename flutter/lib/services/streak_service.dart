@@ -319,6 +319,23 @@ class StreakState {
 const String _currentStreakKey = 'sakina_current_streak';
 const String _longestStreakKey = 'sakina_longest_streak';
 const String _lastActiveKey = 'sakina_last_active';
+
+/// Local cache of `user_streaks.last_reflected_local` — the LOCAL calendar day
+/// the user last reflected on (W4 Wave 6 review, F1).
+///
+/// The value was already computed and sent to the server by [markActiveToday];
+/// it just had nowhere to live on the device. It does now, because the
+/// home-screen widget has to answer "did this user reflect during *their*
+/// day?" while offline, and every other signal available to it is UTC:
+/// `last_active` here, `CheckInRecord.date`, and the daily-loop state key.
+///
+/// A UTC date cannot answer that question — one UTC date spans two local days —
+/// so the widget was showing "What's on your heart today?" to users who had
+/// just finished, every evening in the Americas and every morning east of UTC.
+///
+/// Public so widget tests can seed it the way production writes it. Scoped, so
+/// sign-out sweeps it with every other `scopedKey`.
+const String lastReflectedLocalCacheKey = 'sakina_last_reflected_local';
 const String _activityLogKey = 'sakina_activity_log';
 const String _preLapseStreakKey = 'sakina_pre_lapse_streak';
 const String _lapsedAtKey = 'sakina_lapsed_at';
@@ -415,6 +432,15 @@ String _todayLocalString() {
 DateTime _parseUtcDate(String isoDate) {
   final parsed = DateTime.parse(isoDate).toUtc();
   return DateTime.utc(parsed.year, parsed.month, parsed.day);
+}
+
+/// The LOCAL calendar day (`YYYY-MM-DD`) the user last reflected on, or null if
+/// they never have on this device. Read by `syncHomeWidget` to decide whether
+/// today's Name has been met — see [lastReflectedLocalCacheKey].
+Future<String?> getLastReflectedLocalDay() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(
+      supabaseSyncService.scopedKey(lastReflectedLocalCacheKey));
 }
 
 Future<StreakState> getStreak() async {
@@ -632,6 +658,13 @@ Future<StreakState> _markActiveTodayImpl() async {
     currentStreak: currentStreak,
     longestStreak: longestStreak,
     lastActive: today,
+  );
+  // The same value the server upsert above carries, kept on the device too.
+  // Written on BOTH paths — the local-only (signed-out) branch never reaches
+  // that upsert, and the widget still has to be right for it.
+  await prefs.setString(
+    supabaseSyncService.scopedKey(lastReflectedLocalCacheKey),
+    _todayLocalString(),
   );
   await _setCachedLapse(prefs,
       preLapseStreak: preLapseStreak, lapsedAt: lapsedAtIso);

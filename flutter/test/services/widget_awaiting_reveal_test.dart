@@ -78,6 +78,7 @@ void main() {
         history: const [],
         todaysName: alMalik,
         now: DateTime(2026, 7, 30, 9),
+        lastReflectedLocalDay: null,
       );
 
       expect(s.name, isNull,
@@ -94,6 +95,7 @@ void main() {
         history: [record('2026-07-30', 'Al-Wadud')],
         todaysName: alMalik,
         now: DateTime(2026, 7, 30, 9),
+        lastReflectedLocalDay: '2026-07-30',
       );
 
       expect(s.name?.transliteration, 'Al-Wadud');
@@ -107,6 +109,7 @@ void main() {
         history: [record('2026-07-29', 'Al-Wadud')],
         todaysName: alMalik,
         now: DateTime(2026, 7, 30, 9),
+        lastReflectedLocalDay: '2026-07-29',
       );
 
       expect(s.name, isNull,
