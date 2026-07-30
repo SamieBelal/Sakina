@@ -220,10 +220,13 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // provider, so the signal has to come back through state. Mirrors
       // duas_screen's `buildWarmupJustExhausted` branch exactly.
       //
-      // This screen and not progress_screen: every non-bypass discover now runs
-      // from here (the day-open one-shot in initState, "Seek Another Name", and
-      // the home CTA, which pushes this route before the reveal starts). Only
-      // one listener may own it or the sheet shows twice.
+      // This screen and not progress_screen: every non-bypass discover runs
+      // from here — since W4 Wave 2 that means the user's answer on the
+      // question surface and "Seek Another Name", the home CTA having become a
+      // push of this route rather than a reveal of its own. Only one listener
+      // may own this or the sheet shows twice, and it must stay on THIS screen:
+      // progress_screen is already behind the pushed route by the time the flag
+      // is set. Pinned by `muhasabah_question_step_test.dart`.
       if (next.warmupJustExhausted != null &&
           prev?.warmupJustExhausted == null) {
         WarmupExhaustedSheet.show(

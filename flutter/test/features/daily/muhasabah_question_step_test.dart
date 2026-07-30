@@ -6,6 +6,7 @@ import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/daily/screens/muhasabah_screen.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
+import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
@@ -34,6 +35,10 @@ class _StubLoop extends DailyLoopNotifier {
   }) async {
     discoverCalls++;
   }
+
+  /// Pushes a state change the way the real provider would, so the screen's
+  /// `ref.listen` sees a rising edge.
+  void emit(DailyLoopState next) => state = next;
 }
 
 void main() {
@@ -162,6 +167,28 @@ void main() {
     expect(await dailyQuestionDeferredToday(), isFalse,
         reason: 'tomorrow the question is asked again — the defer was for '
             'today, not forever');
+  });
+
+  testWidgets('the warmup-exhausted sheet still fires on the rising edge',
+      (t) async {
+    // W4 Wave 1 moved `markUsed` into `discoverName()`, so the exhaustion
+    // signal now comes back through `DailyLoopState.warmupJustExhausted` and
+    // ONLY this screen's `ref.listen` fires the sheet — progress_screen is
+    // already behind the pushed route by then. Wave 2 rewrote this screen's
+    // initState and its canvas branching; nothing else here would notice if
+    // that listener were dropped or reordered in the process.
+    final notifier = await pump(t, stateOn(DailyLoopStep.checkin));
+    expect(find.byType(WarmupExhaustedSheet), findsNothing);
+
+    notifier.emit(
+      stateOn(DailyLoopStep.checkin)
+          .copyWith(warmupJustExhausted: GatedFeature.discoverName),
+    );
+    await t.pump();
+    await t.pump(const Duration(seconds: 1));
+
+    expect(find.byType(WarmupExhaustedSheet), findsOneWidget,
+        reason: 'the free user has to be told their warmup is spent');
   });
 
   testWidgets('the marker is scoped to the account', (t) async {
