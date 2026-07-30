@@ -301,14 +301,18 @@ class _NameHero extends StatelessWidget {
     // rather than as responsiveness — the Name is what should vary, not the
     // vessel around it.
     //
-    // `min` against the viewport so the fixed width still yields on a narrow
-    // device (SE-class) instead of overflowing.
-    final archWidth =
-        math.min(360.0, MediaQuery.sizeOf(context).width - AppSpacing.xl);
-
-    return SizedBox(
-      width: archWidth,
-      child: MihrabArchFrame(
+    // Measured against the width this widget is ACTUALLY laid out in, not the
+    // window. An earlier version subtracted a margin from `MediaQuery.sizeOf`,
+    // which was dead arithmetic: the content already sits inside the screen's
+    // 30px horizontal padding, so the incoming maxWidth is window-60 and
+    // `SizedBox` clamps to its parent regardless — the subtracted term could
+    // never win. Reading the real constraint says what it means and drops the
+    // MediaQuery dependency. 360 is the cap on roomy devices; narrower ones
+    // simply get their available width, so the arch stays constant per device.
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: math.min(360.0, constraints.maxWidth),
+        child: MihrabArchFrame(
         animate: animate,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -350,11 +354,20 @@ class _NameHero extends StatelessWidget {
               // composure; a frame that changes size between two consecutive
               // reveals does not.
               //
-              // DELETE THIS ConstrainedBox to see width-only stabilisation.
+              //
+              // Scaled, not a raw constant: the font it reserves for is
+              // text-scaled, so an unscaled reserve silently stops reserving
+              // anything. At textScaler 2.0 one line is already 45.9 — the whole
+              // unscaled two-line budget — so the stabilisation would lapse for
+              // exactly the users who most need a predictable layout, in a file
+              // whose own contract is that text scale is honoured and never
+              // capped.
               _in(
                 ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: _meaningLineHeight * 2,
+                  constraints: BoxConstraints(
+                    minHeight:
+                        MediaQuery.textScalerOf(context).scale(_meaningLineHeight) *
+                            2,
                   ),
                   child: Text(
                     meaning,
@@ -370,9 +383,10 @@ class _NameHero extends StatelessWidget {
                 860,
               ),
             ],
-            const SizedBox(height: 20),
-            _in(_DividerDiamond(), 960),
-          ],
+              const SizedBox(height: 20),
+              _in(_DividerDiamond(), 960),
+            ],
+          ),
         ),
       ),
     );
