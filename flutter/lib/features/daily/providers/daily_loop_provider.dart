@@ -18,6 +18,7 @@ import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/name_queue_cache.dart';
 import 'package:sakina/services/name_queue_planner.dart';
 import 'package:sakina/services/name_queue_service.dart';
+import 'package:sakina/services/name_stories_service.dart';
 import 'package:sakina/services/streak_service.dart';
 import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/token_service.dart';
@@ -113,8 +114,13 @@ class DailyLoopState {
   final int? revealQueuePosition;
 
   /// The pre-authored deck for the revealed Name, when one exists. Only
-  /// positions 1-2 have approved decks; 3-7 fall through to the AI reflection.
-  /// **Always null in W3 Wave 2** — Wave 3 resolves and renders it.
+  /// positions 1-2 have approved decks today; 3-7 fall through to the AI
+  /// reflection. Non-null only on a queue-driven reveal (§4) — a legacy user who
+  /// gachas into a decked Name still gets exactly today's experience.
+  ///
+  /// When set, the reveal has NO OpenAI dependency at all: `discoverName` skips
+  /// the prefetch, `startDeeper` skips the request, and the beat flow renders
+  /// `buildBeatScreensFromDeck` instead of a [ReflectResponse].
   final NameStoryDeck? revealDeck;
 
   /// How many positions are still sealed. Lets the home CTA subtitle (Wave 4)
@@ -300,7 +306,13 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     /// whose uid comes from [supabaseSyncService], matching every other write
     /// path in this notifier.
     @visibleForTesting NameQueueService? nameQueueService,
+
+    /// Injectable so deck-reveal tests can drive the asset read. Production
+    /// leaves it null and shares the process-wide instance, whose parse is
+    /// cached for the app's lifetime.
+    @visibleForTesting NameStoriesService? storiesService,
   })  : _discoverNameOverride = discoverNameOverride,
+        _stories = storiesService ?? nameStoriesService,
         _nameQueue = nameQueueService ??
             NameQueueService(
               currentUserId: () => supabaseSyncService.currentUserId,
@@ -350,6 +362,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// callers leave it null and get the real implementation.
   final Future<void> Function(DailyLoopNotifier self)? _discoverNameOverride;
   final NameQueueService _nameQueue;
+  final NameStoriesService _stories;
 
   /// Static analytics hook (mirrors [GatingService.onAnalyticsEvent]). This
   /// notifier is a service-layer StateNotifier with no Riverpod access; main.dart
@@ -589,6 +602,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// `pickNextCard` stops deciding *who* and becomes the fallback. A user with no
   /// queue rows — every legacy user, and every kill-switch-reverted user — runs
   /// this function's original path with an empty `exclude` set.
+  ///
+  /// What the reveal then RENDERS is decided here too (§4): a queue-driven Name
+  /// with an approved story deck parks it in `state.revealDeck` and the AI
+  /// prefetch is skipped entirely; everything else keeps the AI reflection with
+  /// the Name forced.
   Future<void> discoverName() async {
     state = state.copyWith(checkinLoading: true, error: null);
 
@@ -655,6 +673,27 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       }
 
       final queueDriven = queueCard != null;
+
+      // The rule is content-driven, not position-driven (§4): a pre-authored
+      // deck if one exists for the revealed Name, else the existing AI
+      // reflection. Today only positions 1-2 carry approved decks, so in
+      // practice only D1 is a deck reveal — but the day a founder approves an
+      // aspiration deck, D4 becomes one with no code change.
+      //
+      // Gated on the queue source so a legacy user who happens to gacha into a
+      // decked Name still gets exactly today's experience.
+      //
+      // Resolved before `engageCard` (nothing is granted yet) and inside its own
+      // catch: a bundle read that fails is not a failed reveal. Letting it throw
+      // would error a reveal the server already spent a position on, and the
+      // AI reflection is a complete fallback.
+      NameStoryDeck? deck;
+      if (queueCard != null) {
+        try {
+          deck = await _stories.deckForName(queueCard.id);
+        } catch (_) {}
+      }
+
       final card = queueCard ??
           pickNextCard(
             collection,
@@ -690,14 +729,14 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         resetReveal: true,
         revealSource: queueDriven ? revealSourceQueue : revealSourceGacha,
         revealQueuePosition: queueDriven ? queueRow!.position : null,
-        // revealDeck stays null in Wave 2 by design; Wave 3 resolves it.
+        revealDeck: deck,
         queueSealedRemaining: _sealedRemainingAfter(queueRows, queueRow),
       );
-      // Wave 3: make this conditional on `state.revealDeck == null`. It is
-      // unconditional here only because revealDeck is always null in this wave —
-      // a deck-backed reveal must not spend an OpenAI call whose result is
-      // thrown away (and, post-W4, could count against an allowance).
-      _prefetchDeeperReflection();
+      // A deck-backed reveal must NOT spend an OpenAI call whose result is
+      // thrown away (and, post-W4, could count against an allowance). It is
+      // also what makes the single most important comeback moment in the funnel
+      // the one reveal with no network dependency on OpenAI (§3b, §4).
+      if (deck == null) _prefetchDeeperReflection();
 
       // Save to history
       try {
@@ -1264,6 +1303,24 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   }
 
   Future<void> startDeeper() async {
+    // Deck path (§4): the pre-authored beats ARE the content, so crossing to the
+    // sacred canvas is a pure state flip. Without this short-circuit the "Go
+    // Deeper" tap would fire the very OpenAI call `discoverName` skipped, which
+    // is the whole point of a reveal that cannot fail on an OpenAI outage.
+    // `muhasabah_screen._buildBeatFlow` reads `revealDeck` and renders
+    // `buildBeatScreensFromDeck`, so no `reflectResult` is ever needed.
+    if (state.revealDeck != null) {
+      state = state.copyWith(
+        currentStep: DailyLoopStep.deeper,
+        reflectLoading: false,
+        // Skip step 0 (name display) for the same reason the AI path does — the
+        // gacha card reveal already showed the Name.
+        reflectStep: 1,
+        error: null,
+      );
+      return;
+    }
+
     final request = _deeperRequestFor(state);
     if (request == null) {
       state =
@@ -1471,6 +1528,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       );
 
       if (checkinDone && !deeperDone) {
+        // Known, accepted gap: `revealDeck` is in-memory only (the persisted
+        // blob carries no queue fields), so a cold restart between the reveal
+        // and "Ameen" resumes on the AI reflection instead of the deck. Both
+        // teach the same Name — `checkinName` is restored — and re-resolving
+        // would mean persisting and re-validating the reveal source. Revisit
+        // only if the D1 deck-completion metric shows a restart-shaped dip.
         _prefetchDeeperReflection();
       }
     } catch (_) {

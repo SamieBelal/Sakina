@@ -49,6 +49,13 @@ abstract final class AnalyticsEvents {
   // `reveal_deck_abandoned` when the deck is left unfinished. Constants only in
   // W2-A4; the emitters land with the reveal screen.
   static const surfaceOnboardingReveal = 'onboarding_reveal';
+  // The Day-1 queue unseal's deck reveal (One Ship W3 Wave 3). It rides the
+  // SAME beat spine — `reflect_beat_advanced`, `reveal_deck_completed`,
+  // `reveal_deck_abandoned` — and is separated only by this surface value.
+  // Deliberately NOT `onboarding_reveal`: reusing it would fold D1 completions
+  // into the onboarding deck-completion rate, which is a named T0+2wk health
+  // metric, and the two must stay separable (plan §4, OQ-3 decided).
+  static const surfaceDailyUnseal = 'daily_unseal';
   static const revealDeckCompleted = 'reveal_deck_completed';
   static const revealDeckAbandoned = 'reveal_deck_abandoned';
   // The 7-Name queue seed failing at the end of onboarding (One Ship W2-C2).

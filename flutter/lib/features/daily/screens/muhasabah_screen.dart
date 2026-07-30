@@ -19,6 +19,7 @@ import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
 import 'package:sakina/features/tour/providers/deferred_celebrations_provider.dart';
 import 'package:sakina/features/tour/providers/onboarding_tour_controller.dart';
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/achievement_checker.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_event_names.dart';
@@ -68,6 +69,65 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// as "grow from the centre of the screen".
   final GlobalKey _goDeeperKey = GlobalKey();
   Offset? _canvasOrigin;
+
+  // ------------------------------------------------------------------
+  // Deck-reveal lifecycle (W3 §4). Only ever touched when the daily reveal is
+  // deck-backed; the AI path leaves all three untouched.
+  // ------------------------------------------------------------------
+
+  /// The deck currently on the canvas, cached from `_buildBeatFlow` so [dispose]
+  /// can close the reveal out without reading a provider on a torn-down state.
+  /// A pure cache — assigning it has no user-visible effect, so it does not
+  /// belong in the `ref.listen` dispatch the rest of this screen uses.
+  NameStoryDeck? _abandonableDeck;
+
+  /// Latest beat the user reached — the `beat_index` on an abandonment.
+  int _lastBeatIndex = 0;
+
+  /// Latches, mirroring `OnboardingRevealLatch`: completion and abandonment are
+  /// mutually exclusive and each fires at most once per mount, so a deck the
+  /// user finished never also counts as abandoned when the route unwinds.
+  ///
+  /// One deck per mount is the assumption, and it holds: only queue position 2
+  /// carries a deck today, and a second reveal on the same day is a `QueueHold`
+  /// or an exhausted-queue pull — both gacha, both AI-backed.
+  bool _deckCompleted = false;
+  bool _deckAbandoned = false;
+
+  void _emitDeck(String event, NameStoryDeck deck,
+      [Map<String, dynamic> extra = const {}]) {
+    DailyLoopNotifier.onAnalyticsEvent?.call(event, {
+      AnalyticsEvents.propSurface: AnalyticsEvents.surfaceDailyUnseal,
+      'deck_id': deck.deckId,
+      'name_id': deck.nameId,
+      ...extra,
+    });
+  }
+
+  void _emitDeckCompleted(NameStoryDeck deck) {
+    if (_deckCompleted) return;
+    _deckCompleted = true;
+    _emitDeck(AnalyticsEvents.revealDeckCompleted, deck);
+  }
+
+  /// A deck left unfinished — the explicit back tap AND any other unwind of the
+  /// route (system back, `go('/')` from elsewhere), which is why [dispose] calls
+  /// this too. Without the second path the D1 completion rate would only ever
+  /// see the polite exits.
+  void _emitDeckAbandoned() {
+    final deck = _abandonableDeck;
+    if (deck == null || _deckCompleted || _deckAbandoned) return;
+    _deckAbandoned = true;
+    _emitDeck(AnalyticsEvents.revealDeckAbandoned, deck, {
+      AnalyticsEvents.propBeatIndex: _lastBeatIndex,
+    });
+  }
+
+  @override
+  void dispose() {
+    _emitDeckAbandoned();
+    super.dispose();
+  }
 
   void _captureGoDeeperOrigin() {
     final box = _goDeeperKey.currentContext?.findRenderObject() as RenderBox?;
@@ -194,11 +254,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   }
 
   Widget _buildBeatFlow(DailyLoopState state, DailyLoopNotifier notifier) {
+    // Deck path (W3 §4): a queue-driven reveal of a Name with an approved story
+    // deck renders the pre-authored beats instead of an AI reflection. There is
+    // no `reflectResult` behind it and there never will be — `discoverName`
+    // skipped the prefetch and `startDeeper` skips the request — so the deck
+    // itself is the readiness signal. `includeVerses`/`includeName` don't apply:
+    // the deck's beat list is already the final order and carries its own verse
+    // and duʿā beats.
+    final deck = state.revealDeck;
+    _abandonableDeck = deck;
     final status = state.error != null
         ? BeatFlowStatus.error
-        : state.reflectLoading || state.reflectResult == null
-            ? BeatFlowStatus.loading
-            : BeatFlowStatus.ready;
+        : deck != null
+            ? BeatFlowStatus.ready
+            : state.reflectLoading || state.reflectResult == null
+                ? BeatFlowStatus.loading
+                : BeatFlowStatus.ready;
+    final surface = deck != null
+        ? AnalyticsEvents.surfaceDailyUnseal
+        : AnalyticsEvents.surfaceMuhasabah;
 
     // Force the hint whenever the tour is active so the `readStoryCta` anchor
     // (which wraps the hint) is present on every tour path, incl. resume — the
@@ -209,15 +283,21 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
     return BeatRevealFlow(
       status: status,
-      response: state.reflectResult,
+      response: deck != null ? null : state.reflectResult,
+      screens: deck == null ? null : buildBeatScreensFromDeck(deck),
       // The gacha card reveal already showed the Name; don't repeat it as the
       // opening hero beat (see daily_loop_provider "skip step 0" decision).
       includeName: false,
       showFirstRunHint: showHint,
       onFirstAdvance: _bumpHintAdvances,
-      onShare: () => _shareCurrentMuhasabah(state.reflectResult),
+      // The share card is built from the AI response's takeaway; the deck path
+      // has none, so the icon stays off rather than becoming a dead tap.
+      onShare: deck != null
+          ? null
+          : () => _shareCurrentMuhasabah(state.reflectResult),
       onAmeen: () {
         HapticFeedback.mediumImpact();
+        if (deck != null) _emitDeckCompleted(deck);
         final tieredUp = state.cardEngageResult?.tierChanged == true;
         final qn = ref.read(questsProvider.notifier);
         qn.onMuhasabahCompleted();
@@ -236,6 +316,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         ref.invalidate(cosmeticsStateProvider);
       },
       onReturnHome: () {
+        _emitDeckAbandoned();
         // If the user backs out of the beat flow without completing (taps
         // the left zone at beat 0 before "Ameen"), the streak-milestone
         // flag may already be set from discoverName() but the `completed`
@@ -259,10 +340,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       },
       onRetry: () => notifier.startDeeper(),
       onBeatAdvanced: (index, kind) {
+        _lastBeatIndex = index;
         DailyLoopNotifier.onAnalyticsEvent?.call(
           AnalyticsEvents.reflectBeatAdvanced,
           {
-            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceMuhasabah,
+            AnalyticsEvents.propSurface: surface,
             AnalyticsEvents.propBeatIndex: index,
             AnalyticsEvents.propBeatKind: kind.wireName,
           },
@@ -272,7 +354,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         DailyLoopNotifier.onAnalyticsEvent?.call(
           AnalyticsEvents.reflectFlowSkipped,
           {
-            AnalyticsEvents.propSurface: AnalyticsEvents.surfaceMuhasabah,
+            AnalyticsEvents.propSurface: surface,
             AnalyticsEvents.propFromBeatIndex: from,
           },
         );
