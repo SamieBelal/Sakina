@@ -43,6 +43,17 @@ class NameStoryDeck {
   /// `good` is the only value that may ship — see [NameStoriesService].
   final String reviewVerdict;
 
+  /// Whether this deck can be drawn at all — at least one beat whose kind the
+  /// beat flow recognises.
+  ///
+  /// A deck can be approved and still be unrenderable if every one of its beats
+  /// carries a kind the builder skips. The CI ship gate rejects unknown kinds,
+  /// so this should never be false in practice; it exists so that "should never"
+  /// degrades to the AI reflection instead of to a dead end the user cannot
+  /// clear. Callers that hold a deck for RENDERING must check this before
+  /// committing to the deck path.
+  bool get hasRenderableBeat => beats.any((beat) => beat.isRenderable);
+
   const NameStoryDeck({
     required this.deckId,
     required this.nameId,
@@ -137,7 +148,46 @@ class NameStoryBeat {
   /// accepted here exactly as the ship gate accepts them.
   bool get isPairSynergy =>
       kind == 'pair_synergy' || label.toLowerCase().contains('synergy');
+
+  /// Whether the beat flow can draw this beat at all.
+  ///
+  /// See [renderableNameStoryBeatKinds] for why this predicate lives in the
+  /// model layer rather than beside the builder that consumes it.
+  bool get isRenderable => renderableNameStoryBeatKinds.contains(kind);
 }
+
+/// The deck wire kinds `buildBeatScreensFromDeck` knows how to draw.
+///
+/// **Why this lives here and not next to the builder.** "Can this deck be
+/// rendered?" is a question the *provider* has to answer — a deck that produces
+/// no screens must not be parked in `DailyLoopState.revealDeck`, because
+/// `startDeeper` short-circuits on `revealDeck != null` and would strand the
+/// user on a view whose only action is a retry that returns to the same state.
+/// The builder lives in `lib/widgets/`, and a provider importing the widget
+/// layer to ask a question about its own data is the wrong direction. The
+/// vocabulary is a property of the deck asset, so it belongs beside the deck.
+///
+/// This is deliberately the DECK's wire vocabulary, not the beat flow's
+/// `BeatKind`. `BeatKind` is a rendering concept (which screen template to use)
+/// and correctly stays in the widget layer; these are the strings the authored
+/// JSON carries. The two are mapped, not equal — `bridge` becomes
+/// `BeatKind.keyLine`, `name_intro` becomes `BeatKind.name`.
+///
+/// Kept in sync with the builder's switch by
+/// `test/widgets/beat_reveal/renderable_beat_kinds_test.dart`, which fails if a
+/// kind is added to one and not the other. A drift here is silent: the builder
+/// would skip a beat this set calls renderable, or the provider would discard a
+/// deck the builder could have drawn.
+const Set<String> renderableNameStoryBeatKinds = {
+  'bridge',
+  'recognition',
+  'name_intro',
+  'story',
+  'verse',
+  'comfort_verse',
+  'dua',
+  'takeaway',
+};
 
 /// One row of a deck's verification table.
 class NameStorySource {

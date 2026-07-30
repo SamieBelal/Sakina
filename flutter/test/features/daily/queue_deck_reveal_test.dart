@@ -255,6 +255,10 @@ void main() {
     Future<DailyLoopNotifier> pumpToCanvas(
       WidgetTester t, {
       NameStoriesService? storiesOverride,
+      // False only for the undrawable-deck case: the provider now drops such a
+      // deck before it reaches state, so asserting it landed would contradict
+      // the behaviour under test.
+      bool expectDeck = true,
     }) async {
       mockPrefs({
         ...seedCollection(tiers: {deckedNameId: 3}),
@@ -282,7 +286,9 @@ void main() {
       expect(notifier.state.checkinDone, isTrue);
       await t.pumpAndSettle();
 
-      expect(notifier.state.revealDeck?.deckId, deckedDeckId);
+      if (expectDeck) {
+        expect(notifier.state.revealDeck?.deckId, deckedDeckId);
+      }
       expect(notifier.state.cardEngageResult, isNull,
           reason: 'a maxed re-encounter is a duplicate — no reveal overlay');
 
@@ -458,21 +464,28 @@ void main() {
       DailyLoopNotifier.onAnalyticsEvent = (e, p) => events.add((e, p));
 
       final notifier =
-          await pumpToCanvas(t, storiesOverride: unrenderableStories());
+          await pumpToCanvas(t,
+              storiesOverride: unrenderableStories(), expectDeck: false);
+
+      // The drop now happens in the PROVIDER, not the screen. That is the
+      // difference between "the dead end is dressed up better" and "there is no
+      // dead end": `startDeeper` short-circuits on `revealDeck != null`, so as
+      // long as an undrawable deck sat in state the AI reflection was
+      // unreachable and the only offered action was a retry into the same
+      // state. Dropping it upstream restores the fallback the deck path was
+      // always supposed to have.
+      expect(notifier.state.revealDeck, isNull,
+          reason: 'an undrawable deck must never reach DailyLoopState — it is '
+              'what makes startDeeper short-circuit away from the AI path');
 
       final flow = t.widget<BeatRevealFlow>(find.byType(BeatRevealFlow));
       expect(flow.screens, isNull,
           reason: 'one deck signal feeds every branch — an empty screen list '
               'must not be handed over as though it were a deck');
-      expect(flow.status, BeatFlowStatus.error,
-          reason: 'ready + no screens is the dead end: it falls into the '
-              "flow's own empty-message view");
-      expect(find.text('Try Again'), findsNothing,
-          reason: 'the retry calls startDeeper(), which short-circuits on the '
-              'same deck and returns to this exact state — a provably dead '
-              'button');
-      expect(find.text('Return home'), findsOneWidget,
-          reason: 'the one action offered has to actually go somewhere');
+      expect(aiCalls(), isNotEmpty,
+          reason: 'the reveal fell through to the AI reflection, which is the '
+              'whole point: an approved-but-undrawable deck degrades to the '
+              'ordinary path instead of stranding the user');
 
       // And it never counts as an abandoned deck when the route unwinds — a
       // deck that could not be completed would skew the completion rate.

@@ -761,6 +761,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       if (queueCard != null) {
         try {
           deck = await _stories.deckForName(queueCard.id);
+          // An undrawable deck is not a deck. Parking one here would strand the
+          // user: `startDeeper` short-circuits on `revealDeck != null`, so the
+          // screen would show the "couldn't prepare your reflection" view whose
+          // only action is a retry that returns to the identical state. Dropping
+          // it restores the AI reflection as a working fallback.
+          if (deck != null && !deck.hasRenderableBeat) deck = null;
         } catch (_) {}
       }
 
@@ -1637,6 +1643,8 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           revealNameId != null) {
         try {
           deck = await _stories.deckForName(revealNameId);
+          // Same rule as the live path: an undrawable deck is not a deck.
+          if (deck != null && !deck.hasRenderableBeat) deck = null;
         } catch (_) {
           // A failed bundle read resumes on the AI reflection below — the same
           // fallback `discoverName` uses.
