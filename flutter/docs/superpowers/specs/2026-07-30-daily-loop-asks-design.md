@@ -1,6 +1,6 @@
 # W4 — The daily loop asks
 
-**Status: SPEC — sequencing approved by the founder 2026-07-30 (this becomes W4; gate + free tier slides to W5). Two decisions still open and marked as such: §6 (where the reward ceremony lands) and §7 (the good-day answer). Everything else below is settled enough to build.**
+**Status: SPEC — SETTLED 2026-07-30. Sequencing approved (this becomes W4; gate + free tier slides to W5). Both product decisions closed in the same session: §6 = ceremony after the work, with the reward *claimed* at answer-submit; §7 = one generic question whose answer space carries the good day, no separate gratitude branch. Input is free text primary (Reflect-shaped) per founder direction. Ships to all users, not cohort-gated (§8a). Implementation plan: [`../plans/2026-07-30-one-ship-04-daily-loop-restructure.md`](../plans/2026-07-30-one-ship-04-daily-loop-restructure.md).**
 **Date:** 2026-07-30
 **Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first`
 **Parents:** `2026-07-23-conversion-refactor-changes-and-implementation.md` (master plan — this wave overturns its §V6.8.A5 deferral, see §2) · `2026-07-29-one-ship-03-daily-loop.md` (W3, whose queue seam this builds on) · `2026-07-03-reel-first-conversion-refactor.md` §Phase-2 (the original prescription, ranked #2 of 5 at ~1 week) · `docs/analytics/2026-07-14-conversion-diagnosis-and-research.md` (the leak table)
@@ -68,9 +68,26 @@ Streak and lantern become **ambient state** on open, not a modal ceremony. The q
 
 *The one genuine pro-pre-reward finding is narrower than it looks.* Nunes & Drèze's endowed progress (19% → 34% redemption) licenses pre-granting **progress toward a goal not yet started, with a stated reason** — it does not license handing over the day's payoff before the day's work. Showing the streak *counter* on open is endowed progress. Spending the *ceremony* pre-work is not.
 
-*Shape:* **streak state before (quiet, glanceable), ceremony after (loud, animated, once).*
+*Shape:* **streak state before (quiet, glanceable), ceremony after (loud, animated, once).**
 
 This kills three of the four taps.
+
+**Refinement that removes almost all the migration risk (founder, 2026-07-30).** Separate the *grant* from the *ceremony*: **claim the reward when the user submits their answer**, run the ceremony at "Ameen".
+
+The reason this matters is the ladder. `claim_daily_reward` is a 7-day escalating ladder (5 / 10 / 15 tokens, streak freeze at day 4) and it resets hard:
+
+```sql
+if stored_last_claim is not null
+    and stored_last_claim <> today_utc
+    and stored_last_claim <> yesterday_utc then
+  stored_day := 0;
+```
+
+Today, *opening the app* keeps that ladder alive. Move the claim all the way to "Ameen" and a user at day 6 who opens without time to tap through the whole reflection loses the ladder they would have kept — one missed claim resets to day 1. Claiming at answer-submit keeps the incentive pointed at the practice (you must show up **and** answer) without punishing someone for not finishing every beat.
+
+**Nothing is removed from anyone's balance, and the streak is a separate system entirely** (`markActiveToday` / `logActivity`) — untouched by this re-timing.
+
+`claimDailyReward()` stays idempotent and server-authoritative. It is already called from `daily_loop_provider.dart:1160` with a comment noting the launch overlay may have claimed first; moving the trigger changes *when*, never *who decides*.
 
 ### M2 — The question goes in `DailyLoopStep.checkin`, not in the overlay
 
@@ -81,6 +98,17 @@ Render it where the spinner currently is, on the sacred canvas, and defer `disco
 *The escape hatch is not optional.* NN/g heuristic #3 — a clearly marked exit that does not require an extended dialogue. A returning user who opened the app to reread yesterday's Name must not have to declare a burden to get there. Of every app the external research could verify, **exactly one (Stoic) auto-opens into a check-in, and it ships an off switch.** Duolingo — the app most associated with compulsion — explicitly does not auto-enter; it removed doubt about which choice, not the choice.
 
 *The transferable pattern, from Glorify:* **don't auto-enter the app; auto-advance the session.** Once the user taps in, everything after the first tap chains without a decision.
+
+**Input shape — free text primary (founder direction, 2026-07-30).** The screen is Reflect-shaped: a text field as the primary input, with the 7 problem chips demoted underneath as quick-fill. This diverges from the external research, which found one-tap-first universal and free text always *after* a tap-selected state — recorded as a deliberate divergence, not an oversight, on two grounds:
+
+1. **It is the reel promise literally.** Reflect already is *free text → `reflectWithOpenAI` → Name + verses + duʿā*; the daily loop becoming the same surface (plus card, streak, XP) is the whole point of the wave.
+2. **Payers are depth users** — 3.0× reflections, 2.8× Reflect usage, near-identical check-in counts. The people who type are the people who pay. *Honest caveat: that is correlational. Depth users type; making people type does not demonstrably create depth users.* The chips underneath are the hedge for the day someone has nothing to write.
+
+**No loss of segmentation.** `ProblemChipResolver.forFreeText` / `matchChipKeyForText` already keyword-map typed text to a chip key, so `problem_category` is derived on the typed path too and stays comparable with onboarding.
+
+**Latency is genuinely reintroduced.** The April 2026 commit that removed the questions did it precisely to swap an AI round-trip for an instant local picker. Mitigation: the call runs *behind the card-reveal animation* — the user sees their card while the reflection is being written, never a spinner. The reveal is not allowed to block on the AI.
+
+**Off-topic and empty input** reuse Reflect's existing handling (`reflect_provider.dart:774`), not a new branch.
 
 ### M3 — The queue keeps picking the Name; the answer shapes the reflection
 
@@ -106,6 +134,23 @@ For a faith app this is not a compromise. Gratitude and self-accounting are the 
 
 **Vary the framing, not the schema.** Fatigue is a function of days and sameness (~15% decline in entries over 20 days; *"the same sort of questions every day so it's a little bit monotonous"*), not of item count. Rotate how the question is asked; keep what it collects stable.
 
+#### The approved copy (founder, 2026-07-30)
+
+> ### What's on your heart today?
+> *placeholder:* `A worry, a thanks, a question — however it comes out.`
+
+**Why this phrasing and not the alternatives we considered:**
+
+- **"What's on your heart today?"** over *"How is your heart today?"* — the screen's primary input is a text field, and "how is" invites *"fine"* while "what's on" invites a sentence. Phrase the prompt for the answer you want typed.
+- **Over *"What's weighing on you right now?"*** — this is the onboarding hook line and the strongest ICP resonance we have, and its continuity value is real (the user meets the same question at signup and on day 2). It was considered and set aside because it presupposes a burden **every single day**, which is the failure the evidence is most emphatic about. Keep it for the reels.
+- **Over *"What are you bringing to Allah today?"*** — stronger deen-register and genuinely two-sided, but heavier; a daily prompt is worn every day and this one asks for a posture before it asks for a sentence.
+
+**The placeholder is load-bearing, not decoration.** With chips, the answer set itself showed the user that gratitude was a legitimate answer. With free text there is nothing else doing that job — so without the placeholder the question silently means *"what's wrong."* Any copy change to the header must keep a placeholder that spans worry → thanks.
+
+**This closes the good-day question (§7) without a separate branch.** The answer space carries the valence, so a grateful answer flows into the same engine and comes back with a Name and verses appropriate to it — `normalizeApprovedVerses` already covers the gratitude Names (Ash-Shakur, Al-Wahhab, Al-Kareem, Al-Basit, Ar-Razzaq). No new chip, no new mapping, no authored scripture.
+
+**Rotation is deferred to W6, deliberately.** One fixed opener for v1, instrumented; rotate only once the funnel shows sameness actually costing us. Rotating on day one would mean we could never tell which framing performed.
+
 ### M5 — Home: promote the CTA, name it the job, cut what outranks it
 
 - **Move the CTA above the fold** and out of the divider stack, so it stops reading as a sibling of Quests and Daily Rewards.
@@ -115,39 +160,37 @@ For a faith app this is not a compromise. Gratitude and self-accounting are the 
 
 **Note the honest framing of this move:** the CTA is, in saturation terms, the loudest pixel on the page — it is the only *filled* button on the screen. This is a **prominence and rhythm** problem, not a colour problem. Making it bigger and greener is not the fix; moving it above the fold and breaking it out of the settings-stack rhythm is.
 
-## 6. DECISION 1 — where the daily reward ceremony lands
+## 6. DECISION 1 — where the daily reward ceremony lands — **CLOSED**
 
-**Open. Founder's call.** M1 says the ceremony belongs after the work; the question is what happens to the *reward economy* when it moves.
+**Decided 2026-07-30: ceremony after the work, reward *claimed* at answer-submit.**
 
-| | Option | What it costs |
-|---|---|---|
-| **A** *(recommended)* | Ceremony + streak increment fire after the muḥāsabah completes. Streak counter still visible, quiet, on open. | A user who opens and doesn't finish doesn't collect that session. Correct incentive, and it is what every comparable app does — but it can read as a takeaway to a user who is used to collecting on open. |
-| **B** | Reward claim stays on open; only the *animated* ceremony moves after completion. | No economy change at all, and the visible celebration still lands on real work. But the daily reward — the thing with actual token value — is still granted for opening the app, so the incentive stays pointed at opening rather than practising. |
-| **C** | Reward stays exactly as-is; this wave only changes routing and the question. | Zero economy risk, smallest diff. Leaves the inversion in place — we would still spend the day's celebration on an act that hasn't happened. |
+M1 carries the reasoning and the ladder-reset detail. In short: the animated ceremony and the streak increment land after "Ameen", but `claimDailyReward()` fires the moment the user submits their answer, so nobody loses the escalating reward ladder for failing to tap through every beat of a reflection. Nothing leaves anyone's balance; the streak system is untouched.
 
-**Recommendation: A**, with the ambient streak counter on open so nothing feels *removed*, only re-timed. If A reads as too aggressive, B is a coherent halfway house; C is not — it declines the move rather than staging it.
+*Options B (claim on open, animate at the end) and C (leave it entirely) were considered and rejected — B keeps the token grant pointed at opening the app rather than practising, and C declines the move rather than staging it.*
 
-**Whatever we pick, `claim_daily_reward()` stays idempotent and server-authoritative.** Moving *when* we call it must not move *who decides* it.
+## 7. DECISION 2 — what the good-day answer returns — **CLOSED**
 
-## 7. DECISION 2 — what the good-day answer actually returns
+**Decided 2026-07-30: the question is generic and the answer space carries the good day. No separate gratitude branch, no new chip, no new mapping.** See the approved copy under M4 — the placeholder (*"A worry, a thanks, a question"*) is what makes a grateful answer a first-class one.
 
-**Open. Founder's call.** And it is cheaper than I told you on 2026-07-29 — I said the positive branch was "the one part with a real content cost rather than a code cost." **That was wrong, and the correction is worth having in writing:**
+The findings that made this cheap are worth keeping, because I got them wrong first. On 2026-07-29 I called the positive branch "the one part with a real content cost rather than a code cost." **That was wrong:**
 
 - Scripture on the reflection path is **not** AI-generated. `normalizeApprovedVerses` (`reflection_verse_catalog.dart:1138-1163`) drops anything the model returns that isn't in the approved catalog, then falls back to approved-verses-for-Name. The AI selects; it never authors.
 - **The catalog already covers the gratitude Names** — Ash-Shakur, Al-Wahhab, Al-Kareem, Al-Basit, Ar-Razzaq all have approved verses.
 - Decks are **optional** on the daily path. W3 already drops an undrawable deck and falls through to the AI beat path, so a Name without an authored deck renders fine.
 
-So the positive branch needs **a chip, a keyword bucket, and a Name mapping** — not newly authored scripture. The remaining question is what it *returns*:
+Because free text (not a chip set) is the primary input, the gratitude case needs **no branch at all** — the user's own words go to the same engine, and the approved-verse floor covers where it lands. What the placeholder buys is that they know a grateful sentence is a permitted answer.
 
-| | Option | Trade |
-|---|---|---|
-| **A** *(recommended)* | A real gratitude branch: the good-day answer routes to Names of shukr / provision / bestowal, with approved verses that already exist. | ~1 new chip + a `ProblemChipResolver` bucket + Name mapping. Makes the question honestly two-sided on day one. |
-| **B** | The good-day answer skips the reframe and goes straight to the day's Name unadorned — "nothing heavy today" gets the Name without consolation framing. | Zero new mapping. But it risks reading as *the answer didn't matter*, which is the decorative-question failure the research is most emphatic about. |
-| **C** | Ship problem-only now, add the positive branch in W6. | Smallest wave. Also means shipping a loop that asks what's wrong every single day — the thing the evidence says teaches users to lie to us. |
+**Note for anyone reopening this:** a *gratitude chip on the onboarding hook screen* would be a different question and would still need the W7 ship-gate (two verified decks per rendered chip). This wave adds nothing to that screen — it is the daily loop only, where one Name is revealed and no pair is required.
 
-**Recommendation: A.** The cost collapsed once the verse catalog was checked, and it is the difference between a question and an interrogation.
+## 8a. Scope — this ships to everyone, not just the new cohort
 
-**Constraint that binds all three:** authored decks for gratitude Names would still need the W7 ship-gate (two verified decks per rendered chip) *if* a gratitude chip ever appears on the **onboarding hook screen**. It is not appearing there in this wave — this is the daily loop only, where a single Name is revealed and no pair is required.
+**Decided 2026-07-30.** W1–W3 are cohort-scoped because they change what a *new signup* is promised. This wave changes how the daily loop works for anyone who opens the app, and the leak it targets — 31% D0→D1 — is not exclusive to new signups.
+
+The argument for gating it was the reward re-timing reading as a takeaway to the ~1,343 existing users. **Claiming at answer-submit (§6) removes that**: the change becomes "answer the question to collect", which is a fair exchange rather than a loss, and the ladder survives.
+
+*The cost, recorded:* shipping to all users means the pre/post keep read now spans a population that also changed mid-window. Given D9 already accepted coarse attribution for this ship, this does not make the read materially worse — but it is a second reason the within-wave funnel (§9) has to stand on its own.
+
+*What stays cohort-scoped regardless:* Name **selection**. Queue-cohort users get the queue's Name (forced); legacy users are `QueueAbsent` and keep the existing `pickNextCard` pull. Both get the question, and for both the answer shapes the reflection.
 
 ## 8. The single most dangerous edit
 
@@ -170,10 +213,32 @@ Fixing it means moving `markUsed` into `discoverName()`, which drags in both byp
 - **New funnel, and it has to be clean** (see §2): `daily_question_shown` → `daily_question_answered{problem_category}` → the existing completion event. Because cohort-level attribution is coarse this ship, this within-wave funnel is how we find out whether the question itself is carrying its weight.
 - Reuse the chip taxonomy, **not** the 30-question option bank. The bank is a different vocabulary (emotions, avoidances, needs) that doesn't map onto `problem_category`; reusing it would fork segmentation away from `acquisition_promise.problem_category` and make the daily loop incomparable to onboarding.
 
+## 9a. Every surface this touches
+
+The audit covered the daily loop; this is the sweep for everything *else* that reads or writes the same state. Three of these are bugs you would only find on device.
+
+**The home-screen widget — no entry changes needed, three consequences.** `parseWidgetDeepLink` (`widget_deep_link.dart:22-31`) maps a tap to `.go('/muhasabah')`, and the handler's own comment records that a widget tap **deliberately takes precedence over the launch overlay**. Because the question renders on the muḥāsabah screen and not inside the overlay, a widget tap lands *in the question* for free.
+
+1. **The reward must be claimed from the loop, not the overlay.** The overlay owns the claim today. A widget user never sees the overlay — so unless the claim hangs off answer-submit, they complete the whole muḥāsabah and collect nothing. This makes the widget path *better* than today's.
+2. **The launch-gate marker must be set on completion too.** `sakina_launch_gate` is written by the overlay path (`launch_gate_state.dart:24-29`). Enter by widget, finish the loop, open the app normally an hour later → `shouldShowDailyLaunch()` is still true and the day-open fires again on a day already done.
+3. **The widget shows a Name before the user has earned one.** `syncHomeWidget` (`widget_sync.dart:111-130`) passes `todaysName: getTodaysName()` — a deterministic date rotation — and `personalized: false` until check-in. So there are **three different "today's Name"** in the product: the widget's rotation, the launch overlay's separate rotation (`daily_launch_overlay.dart:213-218`), and the actual queue/gacha reveal. They do not agree. Harmless today; corrosive once the reveal is a ceremony the user earns by answering. **Fix in this wave:** pre-check-in, the widget shows lantern + streak and withholds the Name (or shows the queue's real next Name) rather than advertising one we won't deliver.
+
+**The launch overlay** (`daily_launch_overlay.dart`) loses its reward step from the front and keeps only ambient streak state, or disappears from the open path entirely. Its route name is load-bearing — `TourRouteObserver:29` treats `'DailyLaunchOverlay'` as blocking — so whatever survives must not trap a user who came in for duʿā times.
+
+**`progress_screen.dart`** gives up the `canUse`/`markUsed` pair at the CTA (§8), the 11px question subtitle (`_buildMuhasabahPromptLabel`), and the CTA's position in the divider stack. Its `_discoverInFlight` re-entry guard must survive the refactor — it exists because a double-tap previously passed the gate twice.
+
+**`reflect_screen.dart` and the sealed-Name offer.** Reflect and the daily loop become nearly the same surface (free text → `reflectWithOpenAI` → Name). The distinction is now *once-a-day-and-awards-a-card* versus *gated-but-repeatable*. W3's carried `sealed_name_offer.dart` — the Reflect epilogue pointing at the sealed Name — still makes sense, but its copy should be re-read once the daily loop also asks.
+
+**Notifications.** Templates are frozen at `reel_v1` until the keep read, and Phase B (queue-based "a Name for what you're carrying") is post-ship. **This wave adds no notification copy.** Worth stating explicitly because a daily question is exactly the kind of thing that invites a "you haven't answered today" nudge — which would be a guilt mechanic and trips the copy firewall.
+
+**Live Activities / duʿā-times widget** — unaffected. A Live Activity `Link` is delivered straight to GoRouter, not through the widget-click stream, so it does not pass this path at all.
+
+**`app_config` dials.** The question surface needs a kill switch consistent with the rest of the ship — one key that reverts the daily loop to the current no-question `discoverName` path, verified on device before submission.
+
 ## 10. Deliberately out of scope
 
 - **No mood graph, ever.** In **11 of 11** relevant studies participants reported the monitoring itself confronted them with a worsening mood; reviewers warn daily mood monitoring without an attached therapeutic component *"might have either no effect or even make depression worse."* Our protection is structural and already built: the answer is met with a Name, verses and a duʿā — **a response, not a chart**. Adding a trend line would throw that away. This is a safety rule, not a scope call.
-- **No free-text as the first ask.** Universally one-tap first across every verified app; text is offered after a tap-selected state. The hook screen's demoted-free-text pattern is the precedent to copy.
+- ~~**No free-text as the first ask.**~~ **[REVERSED 2026-07-30 — founder direction. Free text IS the primary input; see M2. The research finding it contradicts is real and is recorded there as a deliberate divergence, with the chips retained underneath as the low-effort floor.]**
 - **No reviving `answerCheckin()`** — its deletion proceeds as scheduled.
 - **No auto-entry without a marked exit** (§M2).
 - **The daily problem→Name match stays free forever** (master plan `:522`), and `discoverName` keeps its permanent 1/day free cap for all users (§V6.8.B3). Paywalling the daily reveal would kill the streak engine. W5's tightening must not reach this path.
@@ -184,8 +249,16 @@ Fixing it means moving `markUsed` into `discoverName()`, which drags in both byp
 
 **Merge-conflict warning:** W3's Waves 4–5 are unbuilt and also edit `daily_loop_provider.dart`. A question insertion is a fourth writer on the same function. Either land the carried W3 items first or accept the merge.
 
-## 12. Open questions for the founder
+## 12. Decision log
 
-1. **§6** — where does the daily reward ceremony land? (recommend A)
-2. **§7** — what does the good-day answer return? (recommend A)
-3. **Question rotation** — M4 says vary the framing, not the schema. Do we rotate copy across a small approved set, or keep one fixed neutral opener for v1 and rotate in W6? (I lean: one fixed opener now, instrument it, rotate once we can see whether sameness is actually costing us.)
+| | Decision | Resolved |
+|---|---|---|
+| Sequencing | Restructure becomes W4; gate + free tier slides to W5 | 2026-07-30, master-plan D9 |
+| §6 | Ceremony after the work; reward **claimed at answer-submit** so the escalating ladder survives a half-finished session | 2026-07-30 |
+| §7 | One generic question; the answer space carries the good day; no separate gratitude branch | 2026-07-30 |
+| M2 | **Free text primary**, chips demoted to quick-fill — a deliberate divergence from the one-tap-first research | 2026-07-30 |
+| M4 copy | *"What's on your heart today?"* + a placeholder spanning worry → thanks | 2026-07-30 |
+| §8a | Ships to **all users**, not cohort-gated. Name *selection* stays cohort-scoped | 2026-07-30 |
+| Rotation | One fixed opener for v1; rotate in W6 only if the funnel shows sameness costing us | 2026-07-30 |
+
+**Nothing is blocking.** Remaining judgement calls are build-time and mine to make unless they turn out to be product questions in disguise — in which case they come back here.
