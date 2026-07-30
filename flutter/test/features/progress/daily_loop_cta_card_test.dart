@@ -61,7 +61,15 @@ void main() {
         ),
       ));
 
-      expect(find.text('Name what you\'re carrying'), findsOneWidget);
+      expect(find.text('What\'s on your heart today?'), findsOneWidget);
+      expect(
+        find.textContaining('carrying'),
+        findsNothing,
+        reason: 'the label must stay VALENCE-NEUTRAL (spec M4). A CTA that '
+            'presupposes weight — "Name what you\'re carrying" — leaves no '
+            'slot for the honest answer on a good day, one tap upstream of a '
+            'question that was made neutral on purpose.',
+      );
       expect(
         find.text('Begin Muhāsabah'),
         findsNothing,

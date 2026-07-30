@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -278,6 +279,12 @@ void main() {
           child: const MaterialApp(home: MuhasabahScreen()),
         ),
       );
+      // W4 Wave 2 removed the screen's mount-time auto-trigger — landing on
+      // /muhasabah now shows the question, and the reveal starts from the
+      // user's answer. These tests are about what the reveal RENDERS, not about
+      // how it was started, so the answer is stood in for by calling the
+      // provider directly (which is exactly what Wave 3's submit will do).
+      unawaited(notifier.discoverName());
       // `ReflectLoading` breathes on a repeating controller, so the reveal is
       // driven with explicit frames rather than settled.
       for (var i = 0; i < 80 && !notifier.state.checkinDone; i++) {

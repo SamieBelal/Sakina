@@ -14,6 +14,7 @@ import 'package:sakina/features/streaks/providers/freeze_burn_provider.dart';
 import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
+import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
@@ -29,6 +30,7 @@ import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -153,19 +155,20 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   void initState() {
     super.initState();
     _loadHintAdvances();
-    // One-shot: if the user landed here with no check-in done yet today,
-    // fire discoverName once. Every other state-change side effect is
-    // dispatched from the ref.listen in build(); no other code path in
-    // this widget calls discoverName implicitly. That's what closes the
-    // "phantom second gacha on Return to Home" bug class — there's no
-    // in-build auto-trigger left to race against provider invalidation.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final state = ref.read(dailyLoopProvider);
-      if (!state.checkinDone && !state.checkinLoading) {
-        ref.read(dailyLoopProvider.notifier).discoverName();
-      }
-    });
+    // NOTHING auto-fires here any more (W4 Wave 2). Landing on this route with
+    // no check-in done shows [DailyQuestionPrompt]; `discoverName()` runs from
+    // the user's own answer instead of from a post-frame callback.
+    //
+    // The rule the deleted one-shot existed to keep still holds, and is the
+    // reason this comment survives its trigger: **no code path in this widget
+    // may call discoverName implicitly.** Every state-change side effect is
+    // dispatched from the ref.listen in build(), which fires on rising edges
+    // and so cannot re-fire on a provider invalidation. That is what closes the
+    // "phantom second gacha on Return to Home" bug class — an in-build (or
+    // post-frame) auto-trigger racing provider invalidation is exactly how it
+    // regressed the first time. If a future wave needs to start a reveal
+    // without a tap, it belongs behind an explicit, latched user intent, not
+    // behind "the screen mounted".
   }
 
   @override
@@ -243,12 +246,23 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // SacredCanvasThreshold animates the crossing in both directions. It must
     // stay the outermost widget so the bloom origin, which is in screen
     // coordinates, coincides with its own local space.
-    final onCanvas = state.currentStep == DailyLoopStep.deeper;
+    // The question shares the canvas with the beat flow deliberately (plan §4):
+    // both are the same emerald surface, so the crossing from the answer into
+    // the reveal has no seam, and leaving the question dissolves off the canvas
+    // through the same threshold the "Ameen" exit uses.
+    final showQuestion = _showsQuestion(state);
+    final onCanvas =
+        state.currentStep == DailyLoopStep.deeper || showQuestion;
 
     return SacredCanvasThreshold(
       onCanvas: onCanvas,
       origin: _canvasOrigin,
-      child: onCanvas
+      child: showQuestion
+          ? DailyQuestionPrompt(
+              onSubmit: _onQuestionSubmit,
+              onDefer: _onQuestionDefer,
+            )
+          : onCanvas
           ? _buildBeatFlow(state, notifier)
           : Scaffold(
               backgroundColor: AppColors.backgroundLight,
@@ -261,6 +275,55 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               ),
             ),
     );
+  }
+
+  /// Whether this mount is asking the daily question rather than showing a
+  /// reveal (W4 Wave 2).
+  ///
+  /// `loaded` is part of the condition and not an afterthought: a fresh
+  /// [DailyLoopState] starts on [DailyLoopStep.checkin] with nothing done, so
+  /// without it a user whose day is already complete would meet the question
+  /// for the frames before `_initialize()` restores today's state.
+  static bool _showsQuestion(DailyLoopState state) =>
+      state.loaded &&
+      state.currentStep == DailyLoopStep.checkin &&
+      !state.checkinDone &&
+      !state.checkinLoading &&
+      !state.reflectLoading;
+
+  /// The user's answer. **Wave 3 wires this up** — writing it into
+  /// `checkinAnswers`, deriving `problem_category`, claiming the daily reward
+  /// and calling `discoverName()`. Until then submitting deliberately does
+  /// nothing: this wave ships the surface, not the loop behind it.
+  void _onQuestionSubmit(String text, {String? chipKey}) {
+    debugPrint(
+      '[W4 Wave 2] daily question submitted (chip: $chipKey, '
+      '${text.trim().length} chars) — Wave 3 supplies the provider wiring.',
+    );
+  }
+
+  /// "Not right now" — a DEFER, not a dismissal (spec M2).
+  ///
+  /// Nothing is revealed, nothing is claimed and nothing is consumed: the whole
+  /// loop stays collectible from the home CTA for the rest of the day. The only
+  /// thing written is the local-day marker, so auto-entry happens at most once
+  /// per local day and a user who already said "not right now" is not asked
+  /// again on every subsequent open.
+  ///
+  /// The write is awaited so a fast force-quit cannot lose it, but it cannot
+  /// fail the exit: `markDailyQuestionDeferredToday` swallows its own errors,
+  /// because an escape hatch that a prefs failure can jam shut is not an escape
+  /// hatch (plan §2 rule 7).
+  ///
+  /// **Only the explicit tap writes the marker.** Backing out with system back
+  /// is an *abandonment*, not a defer — different signal, different event
+  /// (Wave 7), and a user who left without deciding has not asked us to stop
+  /// asking. If Wave 4's day-open wants "auto-entry at most once per local day"
+  /// to hold across that path too, the stamp belongs at auto-entry, not here.
+  Future<void> _onQuestionDefer() async {
+    await markDailyQuestionDeferredToday();
+    if (!mounted) return;
+    context.go('/');
   }
 
   Future<void> _loadHintAdvances() async {
@@ -579,8 +642,10 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     if (state.checkinDone && state.checkinName != null) {
       return _buildCheckinResult(state, notifier);
     }
-    // Fresh state — initState's postFrame fires discoverName which flips
-    // checkinLoading=true on the next frame. Show loading meanwhile.
+    // Everything the question doesn't own: the frames before `_initialize()`
+    // has restored today's state, and any step this switch doesn't render.
+    // Once `loaded` lands, `_showsQuestion` takes the checkin step over in
+    // build() and this is never the check-in view again (W4 Wave 2).
     return const ReflectLoading();
   }
 

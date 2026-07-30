@@ -70,9 +70,22 @@ class DailyLoopCtaCard extends StatelessWidget {
     }
     final resuming = state == DailyLoopCtaState.inProgress;
     return _Invitation(
+      // The not-started label is the question itself, verbatim. Two reasons,
+      // and the first is a constraint rather than a preference:
+      //
+      //  * It has to be VALENCE-NEUTRAL (spec M4). An earlier draft read "Name
+      //    what you're carrying" — warmer writing, and quietly wrong: it
+      //    presupposes weight, and a prompt that presupposes weight leaves no
+      //    slot for the honest answer on a good day ("nothing, alhamdulillah").
+      //    Users learn within a couple of weeks to either invent a problem or
+      //    stop opening the app. The question was made neutral deliberately, so
+      //    putting the burden framing back one tap upstream of it undoes that,
+      //    and someone having a fine day may simply not tap.
+      //  * Saying exactly what the next screen says makes the tap read as
+      //    continuing rather than switching.
       title: resuming
           ? 'Pick up where you left off'
-          : 'Name what you\'re carrying',
+          : 'What\'s on your heart today?',
       gloss: resuming
           ? 'Your muḥāsabah is still open.'
           : 'Your daily muḥāsabah — a moment to check in with your heart.',
