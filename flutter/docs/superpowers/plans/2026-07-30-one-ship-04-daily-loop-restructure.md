@@ -100,7 +100,8 @@ This is a **safety** property as much as an economic one: the day-open reveal is
 ## 6. Wave 4 — day-open and the ceremony
 
 - `DailyLaunchOverlay` stops being a two-step ceremony gate. Streak and lantern become **ambient**; the overlay routes into `/muhasabah` instead of `_dismiss()`-ing to home.
-- The **animated ceremony + streak increment** move behind `completeDeeper()` ("Ameen"). The **grant** already happened at submit (Wave 3).
+- The **animated ceremony** moves behind `completeDeeper()` ("Ameen"). The **grant** already happened at submit (Wave 3).
+- **CORRECTED 2026-07-30 — the streak increment does NOT move.** This line originally read "animated ceremony + streak increment", written without checking where the streak lives. `_markStreakAndHandleMilestones()` is called from `discoverName()` (`:957`); moving it would mean a user who answers, receives their Name, then abandons before "Ameen" **loses their streak day** — a worse takeaway than the reward-ladder problem §6 exists to solve, since the streak drives the lantern, freezes, milestones and the retention spine. The rule for the whole wave: **grant at engagement, celebrate at completion.** With the claim at submit and the streak staying put, `completeDeeper()` gains **no economy writes at all** — only the marker writes below and the ceremony presentation.
 - **The launch-gate marker must be written on completion by any entry path** (`launch_gate_state.dart:24-29`), or a widget user who finishes the loop gets the day-open again an hour later.
 - Whatever survives of the overlay keeps a visible exit — its route name is load-bearing for `TourRouteObserver`.
 - **The UTC/local seam:** the launch gate is UTC (deliberately, to agree with `claim_daily_reward`); the queue unseal is user-local. They can disagree by up to a day near midnight. W3 fought this once — pin it with a test rather than find it on device.

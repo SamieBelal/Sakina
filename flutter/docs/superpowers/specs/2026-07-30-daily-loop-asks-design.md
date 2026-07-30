@@ -62,7 +62,9 @@ What the old path plausibly *did* get wrong, and what we must not repeat: it was
 
 ### M1 — Reverse the day-open order
 
-Streak and lantern become **ambient state** on open, not a modal ceremony. The question comes first. The reward ceremony and the streak increment land **after** completion.
+Streak and lantern become **ambient state** on open, not a modal ceremony. The question comes first. The reward ceremony lands **after** completion.
+
+> **CORRECTED 2026-07-30 during Wave 4 groundwork — this section originally said "the reward ceremony *and the streak increment* land after completion", and that was wrong.** `_markStreakAndHandleMilestones()` is called from `discoverName()` (`daily_loop_provider.dart:957`), not from the ceremony — the sentence was written without checking where the streak actually lives. Applied literally it would mean **a user who answers, receives their Name, and then abandons before "Ameen" loses their streak day** — a far worse takeaway than the reward-ladder problem this section exists to solve, because the streak drives the lantern, the freezes, the milestones and the whole retention spine. **The streak increment does not move.** Only the *animated celebration* moves behind completion. The rule across this whole wave is one sentence: **grant at engagement, celebrate at completion.**
 
 *Evidence:* the pattern is unanimous and we are currently inverted against all of it. Duolingo increments the streak in the **post-lesson** sequence. Finch's pet is energised *by* the completed check-in and then goes adventuring. Calm's mood check-in sits **after** the meditation — and still produced its measured lift, which is evidence a check-in need not be a gate to pay off. Glorify's tree waters after the devotional. **No verified comparable app gates the day's reward before the day's action.** We do.
 
