@@ -1017,6 +1017,13 @@ abstract final class AnalyticsEvents {
   /// What caused a [dailyRewardClaimed]. [triggerAnswerSubmit] today.
   static const String propTrigger = 'trigger';
 
+  /// The 7-day escalating ladder position a [dailyRewardClaimed] landed on
+  /// (1-7). The claim was re-timed to answer-submit specifically to protect
+  /// this ladder from a single missed day resetting it, so this is the field
+  /// that says whether the re-timing worked: users climbing to 6 and 7 means
+  /// yes, everyone stuck at 1 means no.
+  static const String propLadderDay = 'day';
+
   /// The only [propTrigger] value W4 ships. Named rather than inlined so that
   /// if a later wave adds a second claim trigger, the two are obviously the
   /// same vocabulary.

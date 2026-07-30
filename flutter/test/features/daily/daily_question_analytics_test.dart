@@ -472,6 +472,10 @@ void main() {
       expect(of(AnalyticsEvents.dailyRewardClaimed), hasLength(1));
       expect(of(AnalyticsEvents.dailyRewardClaimed).single.props, {
         AnalyticsEvents.propTrigger: AnalyticsEvents.triggerAnswerSubmit,
+        // The ladder position the fake RPC returns. This is the field that
+        // says whether re-timing the claim to answer-submit actually protected
+        // the 7-day ladder it was moved to protect.
+        AnalyticsEvents.propLadderDay: 3,
       });
 
       // A second submit is refused by the re-entry guard; even if the claim

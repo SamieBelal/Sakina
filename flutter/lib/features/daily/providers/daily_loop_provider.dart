@@ -942,6 +942,16 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         try {
           onAnalyticsEvent?.call(AnalyticsEvents.dailyRewardClaimed, {
             AnalyticsEvents.propTrigger: AnalyticsEvents.triggerAnswerSubmit,
+            // The ladder position this claim landed on (1-7). The whole reason
+            // the claim moved to answer-submit was to PROTECT this ladder —
+            // `claim_daily_reward` resets to day 0 on a single missed claim, so
+            // tying the grant to "Ameen" would have cost a day-6 user theirs.
+            // Without the field we would be trusting that decision with the
+            // data sitting right there unrecorded: a healthy re-timing shows
+            // users climbing to 6 and 7, a broken one shows everyone stuck at
+            // 1. Not sensitive — a position in a 7-day cycle, nothing about
+            // what the user said.
+            AnalyticsEvents.propLadderDay: claimResult.day,
           });
         } catch (_) {}
       }
