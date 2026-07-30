@@ -46,9 +46,22 @@ String? _widgetTarget(Uri? uri) {
 /// Cold launch: the tap URI resolves before the router/auth are ready, so it is
 /// QUEUED and replayed after the first frame. Warm taps navigate immediately.
 /// The router's own redirect gates unauthenticated users to `/welcome`, so a
-/// logged-out tap simply lands on the funnel — no special-casing needed. A
-/// widget tap takes precedence over the daily launch overlay because it drives
-/// a `.go()` to a full-screen route after first frame. Spec §10.3.
+/// logged-out tap simply lands on the funnel — no special-casing needed.
+///
+/// **On precedence over the daily launch overlay — corrected 2026-07-30 (W4
+/// Wave 4).** This comment used to claim a widget tap simply wins "because it
+/// drives a `.go()` to a full-screen route after first frame". That holds for
+/// `muhasabah` → `/muhasabah`, which is a root-level route. It is **false for
+/// `build-dua` → `/duas`**, which lives inside the `ShellRoute` alongside `/`:
+/// going there swaps the shell's child but does not remove an opaque route
+/// already pushed on the root navigator.
+///
+/// Both paths also genuinely race — the overlay's own gate does a network
+/// reconcile before pushing, and this handler replays after the first frame —
+/// so ordering was never guaranteed in either direction. The fix lives at the
+/// push site (`progress_screen._maybeShowDailyLaunch`), which now checks where
+/// the user actually is before presenting the day-open, rather than assuming
+/// this handler got there first. Spec §10.3 / §9a.
 class WidgetDeepLinkHandler {
   WidgetDeepLinkHandler({
     void Function(String location)? navigate,

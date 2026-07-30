@@ -32,6 +32,7 @@ import 'package:sakina/features/home/widgets/home_premium_strip.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/lapsed_trial_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -215,7 +216,11 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   Future<void> _maybeShowDailyLaunch() async {
-    final should = await shouldShowDailyLaunch();
+    // The UTC reward gate AND the user-local "have we already asked today"
+    // marker, in one call. W4 Wave 4 added the second one — see
+    // `daily_question_gate.dart` for why the two clocks stay separate and why
+    // their disagreement is resolved toward not-asking.
+    final should = await shouldAutoEnterDailyQuestion();
     if (!mounted) return;
     if (!should) {
       setState(() => _launchGateReady = true);
@@ -231,6 +236,26 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         return;
       }
       setState(() => _launchGateReady = true);
+      // **Where the user actually is, not just whether this screen is still
+      // mounted** (W4 Wave 4).
+      //
+      // `shouldAutoEnterDailyQuestion` does a network reconcile, and the
+      // home-widget deep link replays after the first frame too, so the two
+      // race. `parseWidgetDeepLink` maps the duʿā widget to `/duas`, which
+      // lives INSIDE the ShellRoute — the same shell as `/`. When the reconcile
+      // wins, `.go('/duas')` lands underneath this opaque root-navigator route
+      // and the `mounted` check above does not catch it.
+      //
+      // Before this wave that cost a stray dismiss tap. It costs much more now:
+      // this overlay's primary action routes into `/muhasabah`, so the app
+      // would take someone who asked for their duʿā times and put a question
+      // about their heart in front of them. Auto-entry must never become a
+      // hijacking — if the user has gone somewhere else, the day-open has
+      // missed its moment and waits for the home CTA.
+      if (GoRouterState.of(context).uri.path != '/') {
+        completer.complete();
+        return;
+      }
       await Navigator.of(context, rootNavigator: true).push(
         PageRouteBuilder(
           // Named so TourRouteObserver can detect it as a blocking route

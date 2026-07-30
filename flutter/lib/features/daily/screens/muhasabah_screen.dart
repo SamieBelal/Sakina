@@ -15,6 +15,7 @@ import 'package:sakina/features/daily/providers/daily_rewards_provider.dart';
 import 'package:sakina/features/daily/reveal/reveal_spec.dart';
 import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
+import 'package:sakina/features/daily/widgets/daily_reward_ceremony.dart';
 import 'package:sakina/features/daily/widgets/streak_milestone_overlay.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/features/tour/models/onboarding_tour_step.dart';
@@ -30,7 +31,6 @@ import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
-import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -308,27 +308,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
   /// "Not right now" — a DEFER, not a dismissal (spec M2).
   ///
-  /// Nothing is revealed, nothing is claimed and nothing is consumed: the whole
-  /// loop stays collectible from the home CTA for the rest of the day. The only
-  /// thing written is the local-day marker, so auto-entry happens at most once
-  /// per local day and a user who already said "not right now" is not asked
-  /// again on every subsequent open.
+  /// Nothing is revealed, nothing is claimed, nothing is consumed: the whole
+  /// loop stays collectible from the home CTA for the rest of the day. It
+  /// writes nothing either, and **that is the point** — this handler awaits
+  /// exactly zero futures, so no prefs hiccup and no slow disk can sit between
+  /// the user's tap and the exit. An escape hatch that can fail to open is not
+  /// an escape hatch (plan §2 rule 7).
   ///
-  /// The write is awaited so a fast force-quit cannot lose it, but it cannot
-  /// fail the exit: `markDailyQuestionDeferredToday` swallows its own errors,
-  /// because an escape hatch that a prefs failure can jam shut is not an escape
-  /// hatch (plan §2 rule 7).
+  /// **The day marker moved to auto-entry** (founder, 2026-07-30 — W4 Wave 4).
+  /// Wave 2 stamped it here, which meant a user who left with the system back
+  /// gesture had not "deferred" and got the question thrown at them again on the
+  /// next open. Preventing nagging has to hold however someone left, so
+  /// `daily_question_gate.dart` is stamped when the app *asks* rather than when
+  /// the user declines. Consequently, arriving here by home CTA or widget tap
+  /// and backing out stamps nothing at all — correctly: auto-entry never
+  /// happened, and a user-initiated entry cannot nag by definition.
   ///
-  /// **Only the explicit tap writes the marker.** Backing out with system back
-  /// is an *abandonment*, not a defer — different signal, different event
-  /// (Wave 7), and a user who left without deciding has not asked us to stop
-  /// asking. If Wave 4's day-open wants "auto-entry at most once per local day"
-  /// to hold across that path too, the stamp belongs at auto-entry, not here.
-  Future<void> _onQuestionDefer() async {
-    await markDailyQuestionDeferredToday();
-    if (!mounted) return;
-    context.go('/');
-  }
+  /// Skip-versus-abandon is still a real distinction; it lives in the analytics
+  /// events (Wave 7), because that is about signal, not about frequency.
+  void _onQuestionDefer() => context.go('/');
 
   Future<void> _loadHintAdvances() async {
     try {
@@ -893,6 +891,14 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                // The reward ceremony, now that the work is done (W4 Wave 4 —
+                // spec M1). The grant itself landed back at answer-submit; this
+                // is the acknowledgement that used to be a two-tap gate BEFORE
+                // the user had done anything.
+                if (state.rewardClaimResult != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  DailyRewardCeremony(result: state.rewardClaimResult),
+                ],
                 const SizedBox(height: AppSpacing.xl),
                 // Seek Another Name — primary CTA
                 GestureDetector(

@@ -18,10 +18,14 @@ import 'package:sakina/services/bypass_flow_mixin.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/checkin_history_service.dart';
 import 'package:sakina/services/cosmetics_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
+// Re-exports `launch_gate_state.dart`, which is where `markDailyLaunchShown`
+// actually lives — see the cycle note in `launch_gate_service.dart`.
+import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/name_queue_cache.dart';
 import 'package:sakina/services/name_queue_planner.dart';
 import 'package:sakina/services/name_queue_service.dart';
@@ -1823,6 +1827,45 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     );
     await _persistTodayState();
     await _awardDailyNoor();
+    await _markDayOpenSatisfied();
+  }
+
+  /// Stamps both day-open markers on completion, by **any** entry path (W4
+  /// Wave 4 — plan §6).
+  ///
+  /// This lives here rather than in `muhasabah_screen.onAmeen` because
+  /// [completeDeeper] is the one place every entry converges — day-open, the
+  /// home CTA, and a home-screen widget tap, which reaches `/muhasabah`
+  /// directly and never passes the overlay at all. (`advanceReflectStep` also
+  /// reaches `completed`, but it has had no caller outside this file since the
+  /// beat flow took over; it is dead, and scheduled for deletion alongside
+  /// `answerCheckin`.) Putting the write in the UI would have covered one
+  /// caller of one path.
+  ///
+  /// **Two markers, two clocks, both needed:**
+  ///
+  /// * [markDailyLaunchShown] is UTC, and closes the bug the widget path had
+  ///   all along: enter by widget, finish the whole loop, open the app an hour
+  ///   later, and `shouldShowDailyLaunch()` was still true — day-open fired on
+  ///   a day already done.
+  /// * [markDailyQuestionAutoEnteredToday] is user-local, and is the belt to
+  ///   that brace. The UTC gate *will* legitimately reopen after UTC midnight
+  ///   on the same local evening (a UTC-7 user finishing at 16:00 local is
+  ///   already into the next UTC day), and without the local stamp the question
+  ///   would be asked twice in one evening. See `daily_question_gate.dart` for
+  ///   why the clocks stay separate.
+  ///
+  /// Best-effort, exactly like [_awardDailyNoor]: completion is the
+  /// user-visible contract, and a prefs failure must never make the Ameen tap
+  /// look like it did nothing. The markers each swallow their own errors too —
+  /// this catch is the backstop, not the only one.
+  Future<void> _markDayOpenSatisfied() async {
+    try {
+      await markDailyLaunchShown();
+      await markDailyQuestionAutoEnteredToday();
+    } catch (_) {
+      // Costs at most one redundant day-open; the next completion re-stamps.
+    }
   }
 
   /// The daily-muḥāsabah Noor grant (spec §3). THE earn path for the wardrobe

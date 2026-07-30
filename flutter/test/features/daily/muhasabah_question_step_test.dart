@@ -133,12 +133,10 @@ void main() {
     expect(find.byType(DailyQuestionPrompt), findsNothing);
   });
 
-  testWidgets('"Not right now" goes home having changed nothing but the '
-      'day marker', (t) async {
+  testWidgets('"Not right now" goes home having changed nothing at all',
+      (t) async {
     final notifier = await pump(t, stateOn(DailyLoopStep.checkin));
     final before = notifier.state;
-
-    expect(await dailyQuestionDeferredToday(), isFalse);
 
     await t.tap(find.byType(DailyQuestionDeferLink));
     await t.pump();
@@ -150,23 +148,12 @@ void main() {
     expect(notifier.discoverCalls, 0);
     expect(identical(notifier.state, before), isTrue,
         reason: 'a defer writes no daily-loop state at all');
-    // The one thing it does write: auto-entry happens at most once per local
-    // day, so the next open does not re-throw the question at someone who
-    // already said "not right now".
-    expect(await dailyQuestionDeferredToday(), isTrue);
-  });
-
-  testWidgets('the day marker expires with the local day', (t) async {
-    await pump(t, stateOn(DailyLoopStep.checkin));
-    await t.tap(find.byType(DailyQuestionDeferLink));
-    await t.pump();
-    await t.pump(const Duration(seconds: 2));
-    expect(await dailyQuestionDeferredToday(), isTrue);
-
-    debugDailyQuestionGateClock = () => DateTime.utc(2026, 8, 5, 12);
-    expect(await dailyQuestionDeferredToday(), isFalse,
-        reason: 'tomorrow the question is asked again — the defer was for '
-            'today, not forever');
+    // W4 Wave 4 moved the day marker to auto-entry. Arriving by home CTA or
+    // widget tap and backing out stamps NOTHING — auto-entry never happened,
+    // and a user-initiated entry cannot nag by definition. The handler awaits
+    // nothing, which is what makes the exit unfailable.
+    expect(await dailyQuestionAutoEnteredToday(), isFalse,
+        reason: 'only the app asking unprompted stamps the marker');
   });
 
   testWidgets('the warmup-exhausted sheet still fires on the rising edge',
@@ -191,18 +178,18 @@ void main() {
         reason: 'the free user has to be told their warmup is spent');
   });
 
-  testWidgets('the marker is scoped to the account', (t) async {
-    await pump(t, stateOn(DailyLoopStep.checkin));
-    await t.tap(find.byType(DailyQuestionDeferLink));
-    await t.pump();
-    await t.pump(const Duration(seconds: 2));
-    expect(await dailyQuestionDeferredToday(), isTrue);
+  test('the auto-entry marker is scoped to the account', () async {
+    // Exercised against the gate directly now that the stamp lives at
+    // auto-entry rather than behind the defer tap (W4 Wave 4) — no widget is
+    // involved in writing it, so none is involved in pinning it.
+    await markDailyQuestionAutoEnteredToday();
+    expect(await dailyQuestionAutoEnteredToday(), isTrue);
 
     SupabaseSyncService.debugSetInstance(
       FakeSupabaseSyncService(userId: 'user-2'),
     );
-    expect(await dailyQuestionDeferredToday(), isFalse,
+    expect(await dailyQuestionAutoEnteredToday(), isFalse,
         reason: "one device's second account must not inherit the first's "
-            'defer');
+            'auto-entry');
   });
 }
