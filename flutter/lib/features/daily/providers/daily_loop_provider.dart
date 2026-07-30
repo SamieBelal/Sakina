@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/daily_questions.dart';
 import 'package:sakina/core/constants/duas.dart';
+import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/bypass_flow_mixin.dart';
@@ -14,7 +15,11 @@ import 'package:sakina/services/cosmetics_service.dart';
 import 'package:sakina/services/daily_rewards_service.dart';
 import 'package:sakina/services/economy_events.dart';
 import 'package:sakina/services/gating_service.dart';
+import 'package:sakina/services/name_queue_cache.dart';
+import 'package:sakina/services/name_queue_planner.dart';
+import 'package:sakina/services/name_queue_service.dart';
 import 'package:sakina/services/streak_service.dart';
+import 'package:sakina/services/user_local_day.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -30,6 +35,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _scrollRewardSyncError =
     'We couldn\'t save your scroll reward. Please try again.';
+
+/// [DailyLoopState.revealSource] values. Wire strings, not an enum, because they
+/// go straight out as the `name_source` analytics prop.
+const String revealSourceQueue = 'queue';
+const String revealSourceGacha = 'gacha';
 
 enum DailyLoopStep { checkin, deeper, quest, completed }
 
@@ -89,6 +99,28 @@ class DailyLoopState {
   final CardEngageResult? cardEngageResult;
   final CollectibleName? engagedCard;
 
+  // ------------------------------------------------------------------
+  // Queue-driven reveal (W3 §3e). All in-memory: DailyLoopState is not
+  // persisted — only a `daily_loop_$date` prefs flag is.
+  // ------------------------------------------------------------------
+
+  /// [revealSourceQueue] when today's Name came from `user_name_queue`,
+  /// [revealSourceGacha] when it came from `pickNextCard`. Drives copy register
+  /// and the analytics props Wave 5 adds.
+  final String revealSource;
+
+  /// The queue position (1-7) behind the reveal, or null on a gacha reveal.
+  final int? revealQueuePosition;
+
+  /// The pre-authored deck for the revealed Name, when one exists. Only
+  /// positions 1-2 have approved decks; 3-7 fall through to the AI reflection.
+  /// **Always null in W3 Wave 2** — Wave 3 resolves and renders it.
+  final NameStoryDeck? revealDeck;
+
+  /// How many positions are still sealed. Lets the home CTA subtitle (Wave 4)
+  /// render without a second fetch.
+  final int queueSealedRemaining;
+
   // Daily reward
   final DailyRewardClaimResult? rewardClaimResult;
 
@@ -116,6 +148,10 @@ class DailyLoopState {
     this.questReason,
     this.cardEngageResult,
     this.engagedCard,
+    this.revealSource = revealSourceGacha,
+    this.revealQueuePosition,
+    this.revealDeck,
+    this.queueSealedRemaining = 0,
     this.rewardClaimResult,
     this.streakCount = 0,
     this.xpTotal = 0,
@@ -154,6 +190,19 @@ class DailyLoopState {
     String? questReason,
     CardEngageResult? cardEngageResult,
     CollectibleName? engagedCard,
+    String? revealSource,
+    int? revealQueuePosition,
+    NameStoryDeck? revealDeck,
+    int? queueSealedRemaining,
+
+    /// Set only by the reveal write in [DailyLoopNotifier.discoverName], which
+    /// specifies all reveal fields at once. Without it the `?? this.x` merge
+    /// would leave a stale `revealQueuePosition` on a subsequent same-day gacha
+    /// reveal (premium 30/day fair-use), mislabelling it in analytics. Every
+    /// other `copyWith` caller leaves it false and the reveal fields survive —
+    /// which they must, because Wave 3's deck has to live from the reveal write
+    /// until `DailyLoopStep.deeper` renders.
+    bool resetReveal = false,
     DailyRewardClaimResult? rewardClaimResult,
     int? streakCount,
     int? xpTotal,
@@ -191,6 +240,14 @@ class DailyLoopState {
       questReason: questReason ?? this.questReason,
       cardEngageResult: cardEngageResult ?? this.cardEngageResult,
       engagedCard: engagedCard ?? this.engagedCard,
+      revealSource: resetReveal
+          ? (revealSource ?? revealSourceGacha)
+          : (revealSource ?? this.revealSource),
+      revealQueuePosition: resetReveal
+          ? revealQueuePosition
+          : (revealQueuePosition ?? this.revealQueuePosition),
+      revealDeck: resetReveal ? revealDeck : (revealDeck ?? this.revealDeck),
+      queueSealedRemaining: queueSealedRemaining ?? this.queueSealedRemaining,
       rewardClaimResult: rewardClaimResult ?? this.rewardClaimResult,
       streakCount: streakCount ?? this.streakCount,
       xpTotal: xpTotal ?? this.xpTotal,
@@ -237,7 +294,17 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     /// When true, skips [_initialize] (and the EconomyEvents subscription).
     /// ONLY for widget tests that pump the sheet and don't need real state.
     @visibleForTesting bool skipInitForTests = false,
+
+    /// Injectable so queue tests can drive the RLS select and the unseal RPC
+    /// without a Supabase client. Production leaves it null and gets a service
+    /// whose uid comes from [supabaseSyncService], matching every other write
+    /// path in this notifier.
+    @visibleForTesting NameQueueService? nameQueueService,
   })  : _discoverNameOverride = discoverNameOverride,
+        _nameQueue = nameQueueService ??
+            NameQueueService(
+              currentUserId: () => supabaseSyncService.currentUserId,
+            ),
         super(const DailyLoopState()) {
     if (skipInitForTests) return;
     // Subscribe BEFORE _initialize so consumable grants that fire while
@@ -282,6 +349,7 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   /// without driving the full Supabase + card-service surface. Production
   /// callers leave it null and get the real implementation.
   final Future<void> Function(DailyLoopNotifier self)? _discoverNameOverride;
+  final NameQueueService _nameQueue;
 
   /// Static analytics hook (mirrors [GatingService.onAnalyticsEvent]). This
   /// notifier is a service-layer StateNotifier with no Riverpod access; main.dart
@@ -481,8 +549,46 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   // Discover a Name — skip questions, straight to gacha
   // ---------------------------------------------------------------------------
 
-  /// Instantly picks a name (smart priority: undiscovered → lowest tier) and
-  /// engages it. No AI call, no questions. The UI shows the gacha animation.
+  /// The queue rows to plan today's reveal from: the authoritative RLS select
+  /// when it's reachable, the advisory prefs mirror when it isn't.
+  ///
+  /// A network failure here must NOT fail the reveal — that is what the mirror is
+  /// for (§5 "Offline with a cached queue"). It also cannot *cause* an unseal: the
+  /// rows only feed the planner, and only `unseal_next_name` moves a position. A
+  /// user with no rows in either place is `QueueAbsent`, i.e. today's exact path.
+  Future<List<NameQueueRow>> _resolveQueueRows() async {
+    try {
+      final rows = await _nameQueue.queue();
+      await writeCachedNameQueue(rows);
+      return rows;
+    } catch (_) {
+      try {
+        return await readCachedNameQueue();
+      } catch (_) {
+        return const [];
+      }
+    }
+  }
+
+  /// Sealed positions left after this reveal, for the Wave 4 home CTA subtitle.
+  /// [justUnsealed] is folded in because [rows] is the pre-unseal view.
+  int _sealedRemainingAfter(
+    List<NameQueueRow> rows,
+    NameQueueRow? justUnsealed,
+  ) {
+    if (rows.isEmpty) return 0;
+    return rows
+        .where((row) => row.isSealed && row.position != justUnsealed?.position)
+        .length;
+  }
+
+  /// Picks today's Name and engages it. No AI call, no questions. The UI shows
+  /// the gacha animation.
+  ///
+  /// Which Name comes from `user_name_queue` when the user has one (W3 §3b):
+  /// `pickNextCard` stops deciding *who* and becomes the fallback. A user with no
+  /// queue rows — every legacy user, and every kill-switch-reverted user — runs
+  /// this function's original path with an empty `exclude` set.
   Future<void> discoverName() async {
     state = state.copyWith(checkinLoading: true, error: null);
 
@@ -494,8 +600,76 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
       // inside the flow, every step is free for the user.
       final collection = await getCardCollection();
       final maxTier = await premiumTierCeiling();
-      final card = pickNextCard(collection, maxTier: maxTier);
-      final engageResult = await engageCard(card.id, maxTier: maxTier);
+
+      final queueRows = await _resolveQueueRows();
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      final plan = planQueueReveal(
+        queue: queueRows,
+        discoveredIds: collection.discoveredIds,
+        nowUtc: debugDailyLoopClock(),
+        localToday: localDay.day,
+        localUtcOffset: localDay.utcOffset,
+      );
+
+      // The unseal RPC runs BEFORE engageCard, so nothing is ever granted for a
+      // reveal that then fails to resolve a Name. It is deliberately inside this
+      // function's existing `try`: `unsealNext()` lets errors propagate (see its
+      // dartdoc) and this is the single place that catches them, so a failure
+      // lands in state.error and the bypass wrappers refund correctly — the
+      // reveal genuinely did not happen. See §5 for what the user sees.
+      NameQueueRow? queueRow;
+      switch (plan) {
+        case QueueUnseal():
+          // A null result means another device drained the queue between the
+          // advisory read and this call. Treat as exhausted and pull normally —
+          // the user sees a reveal, not an error.
+          queueRow = await _nameQueue.unsealNext();
+          if (queueRow != null) {
+            try {
+              await mergeCachedNameQueueRow(queueRow);
+            } catch (_) {}
+          }
+        case QueueResume(:final row):
+          // The RPC already consumed this position on an earlier attempt today;
+          // re-present it rather than asking again, which would skip the Name.
+          queueRow = row;
+        case QueueHold():
+        case QueueExhausted():
+        case QueueAbsent():
+          queueRow = null;
+      }
+
+      CollectibleName? queueCard;
+      if (queueRow != null) {
+        queueCard = findCollectibleById(queueRow.nameId);
+        if (queueCard == null) {
+          // The position is spent but its Name isn't in the catalog. Fail rather
+          // than silently substituting a random Name: state.error refunds any
+          // bypass, and the RPC's per-local-day idempotence means a retry returns
+          // this same row instead of burning another position.
+          throw StateError(
+            'queue position ${queueRow.position} points at unknown '
+            'name_id ${queueRow.nameId}',
+          );
+        }
+      }
+
+      final queueDriven = queueCard != null;
+      final card = queueCard ??
+          pickNextCard(
+            collection,
+            maxTier: maxTier,
+            // Empty for a legacy user, so their pull is bit-identical.
+            exclude: sealedQueueNameIds(queueRows),
+          );
+      final engageResult = await engageCard(
+        card.id,
+        maxTier: maxTier,
+        // The dignity floor on the first seven reveals (§8): a queue-driven
+        // first discovery lands at Silver so D1 isn't a visible downgrade from
+        // D0's Silver starter card.
+        floorTier: queueDriven ? 2 : 1,
+      );
 
       CardEngageResult? cardResult;
       if (engageResult.tierChanged) {
@@ -513,7 +687,16 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         checkinLoading: false,
         cardEngageResult: cardResult,
         engagedCard: card,
+        resetReveal: true,
+        revealSource: queueDriven ? revealSourceQueue : revealSourceGacha,
+        revealQueuePosition: queueDriven ? queueRow!.position : null,
+        // revealDeck stays null in Wave 2 by design; Wave 3 resolves it.
+        queueSealedRemaining: _sealedRemainingAfter(queueRows, queueRow),
       );
+      // Wave 3: make this conditional on `state.revealDeck == null`. It is
+      // unconditional here only because revealDeck is always null in this wave —
+      // a deck-backed reveal must not spend an OpenAI call whose result is
+      // thrown away (and, post-W4, could count against an allowance).
       _prefetchDeeperReflection();
 
       // Save to history

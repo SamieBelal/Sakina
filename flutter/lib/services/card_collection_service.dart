@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/economy_events.dart';
@@ -1789,6 +1790,16 @@ String _normalize(String s) {
   return r;
 }
 
+/// Lookup by catalog id. Null when the id isn't in the live catalog — which is
+/// the signal a queue row's `name_id` cannot be resolved to a card, and the
+/// caller must not grant anything for a Name it can't render (W3 §3b).
+CollectibleName? findCollectibleById(int id) {
+  for (final n in currentCollectibleNames()) {
+    if (n.id == id) return n;
+  }
+  return null;
+}
+
 CollectibleName? findCollectibleByName(String name) {
   final norm = _normalize(name);
   final cards = currentCollectibleNames();
@@ -1812,17 +1823,44 @@ CollectibleName? findCollectibleByName(String name) {
   return null;
 }
 
+/// Records the `exclude` set handed to the most recent [pickNextCard] call.
+/// Tests only; production never reads it.
+@visibleForTesting
+Set<int>? debugLastPickExclude;
+
 /// Smart name picker for the gacha flow:
 /// 1. Undiscovered names first (random)
 /// 2. Lowest-tier discovered names next (bronze before silver)
 /// 3. All maxed — random gold card (duplicate)
-CollectibleName pickNextCard(CardCollectionState collection, {int maxTier = 3}) {
+///
+/// [exclude] holds `name_id`s that must not be handed over as a *new discovery*
+/// — in practice the user's still-sealed `user_name_queue` positions (W3 §3d).
+/// Without it, a premium user's second or third reveal of the day can pull a Name
+/// the plan screen says they will meet on day 5, after which "unsealing" it is a
+/// tier-upgrade of a card they already own and the promise reads as a bug.
+///
+/// Applied to the **undiscovered bucket only**. The tier-up buckets are
+/// legitimate: a sealed Name whose card is already owned (a Store purchase) still
+/// unseals and still reads correctly, so excluding it there would only starve the
+/// ladder. [exclude] is empty for every legacy caller, which is what keeps their
+/// pull bit-identical.
+///
+/// Test seam: [debugLastPickExclude] records the set the last call was given, so
+/// "the legacy reveal passes an empty exclude" can be pinned directly rather than
+/// inferred from an outcome that happens to look right.
+CollectibleName pickNextCard(
+  CardCollectionState collection, {
+  int maxTier = 3,
+  Set<int> exclude = const {},
+}) {
+  debugLastPickExclude = exclude;
   final rand = math.Random();
   final cards = currentCollectibleNames();
 
   // Priority 1: undiscovered names
-  final undiscovered =
-      cards.where((n) => !collection.isDiscovered(n.id)).toList();
+  final undiscovered = cards
+      .where((n) => !collection.isDiscovered(n.id) && !exclude.contains(n.id))
+      .toList();
   if (undiscovered.isNotEmpty) {
     return undiscovered[rand.nextInt(undiscovered.length)];
   }
@@ -2018,7 +2056,22 @@ Future<CardCollectionState> getCardCollection() async {
 
 /// Engage with a card — discover it or upgrade its tier.
 /// Each re-encounter tiers up immediately (no cooldown).
-Future<CardEngageResult> engageCard(int cardId, {int maxTier = 3}) async {
+///
+/// [floorTier] is the lowest tier a **first discovery** may land at. Default 1
+/// (Bronze) — every existing call site is bit-identical. `discoverName` passes 2
+/// (Silver) for a queue-driven reveal so D1 doesn't read as a downgrade from D0's
+/// Silver starter card, which is the defect §V6.8.A9 exists to fix (W3 §8).
+///
+/// Binding rule check: the tier is chosen **client-side and written through this
+/// function's existing economy path**, exactly as today's Bronze is.
+/// `unseal_next_name` returns no tier and grants nothing — unsealing a Name never
+/// directly grants tokens, XP or tier (W1 review F4). Re-encounter and duplicate
+/// logic are untouched, and the tier can never step down.
+Future<CardEngageResult> engageCard(
+  int cardId, {
+  int maxTier = 3,
+  int floorTier = 1,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final scopedCollectionKey = supabaseSyncService.scopedKey(_collectionKey);
   final scopedSeenKey = supabaseSyncService.scopedKey(_seenKey);
@@ -2064,11 +2117,13 @@ Future<CardEngageResult> engageCard(int cardId, {int maxTier = 3}) async {
   bool tierChanged = false;
 
   if (isNew) {
-    // First encounter — discover at Bronze (tier 1)
+    // First encounter — discover at Bronze (tier 1), or at the caller's dignity
+    // floor when one is passed. Clamped to maxTier so a free user's Gold ceiling
+    // still holds, and never below 1.
     ids.add(cardId);
     dates[cardId] = todayStr;
     tierUpDates[cardId] = todayStr;
-    newTier = 1;
+    newTier = floorTier.clamp(1, maxTier);
     tierChanged = true;
   } else if (currentTier < maxTier) {
     // Re-encounter — tier up immediately
