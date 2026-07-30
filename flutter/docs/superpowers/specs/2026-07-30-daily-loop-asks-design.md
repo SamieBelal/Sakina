@@ -184,7 +184,11 @@ For a faith app this is not a compromise. Gratitude and self-accounting are the 
 
 **Decided 2026-07-30: ceremony after the work, reward *claimed* at answer-submit.**
 
-M1 carries the reasoning and the ladder-reset detail. In short: the animated ceremony and the streak increment land after "Ameen", but `claimDailyReward()` fires the moment the user submits their answer, so nobody loses the escalating reward ladder for failing to tap through every beat of a reflection. Nothing leaves anyone's balance; the streak system is untouched.
+M1 carries the reasoning and the ladder-reset detail. In short: **the animated ceremony** lands after "Ameen", but `claimDailyReward()` fires the moment the user submits their answer, so nobody loses the escalating reward ladder for failing to tap through every beat of a reflection. Nothing leaves anyone's balance.
+
+**The streak increment does NOT move** — see the correction under M1. `_markStreakAndHandleMilestones()` lives in `discoverName()`, so moving it behind completion would cost a user their streak day for abandoning after the reveal, which is a worse takeaway than the one this decision exists to prevent. Two things move behind "Ameen": the ceremony **presentation**, and nothing else. Net: **`completeDeeper()` gains no economy writes at all** — only the day-marker writes from §9a and the celebration.
+
+*This paragraph carried the original wrong sentence for one revision after M1 was fixed, which is exactly the failure mode worth naming: a decision section and its reasoning section can drift apart, and a reader checking "what did we decide" will hit this one, not M1. Keep them in sync or delete one.*
 
 *Options B (claim on open, animate at the end) and C (leave it entirely) were considered and rejected — B keeps the token grant pointed at opening the app rather than practising, and C declines the move rather than staging it.*
 
