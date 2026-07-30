@@ -88,10 +88,15 @@ class DailyRewardCeremony extends StatelessWidget {
         .scaleXY(begin: 0.94, end: 1.0, duration: 400.ms, delay: 250.ms);
   }
 
+  /// Non-mutating on purpose. This used to `earned.removeLast()`, which was
+  /// safe only because `build()` happens to construct a fresh list on every
+  /// call — a caller that hoisted or reused that list would have watched its
+  /// contents disappear one item per rebuild. A formatter has no business
+  /// consuming its input.
   String _sentenceFor(List<String> earned) {
     if (earned.isEmpty) return 'Your daily reward is yours.';
     if (earned.length == 1) return 'You earned ${earned.first}.';
-    final last = earned.removeLast();
-    return 'You earned ${earned.join(', ')} and $last.';
+    final head = earned.sublist(0, earned.length - 1);
+    return 'You earned ${head.join(', ')} and ${earned.last}.';
   }
 }
