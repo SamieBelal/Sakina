@@ -283,7 +283,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // in `BeatRevealFlow`'s own empty-message view, whose retry calls
     // `startDeeper()` — which short-circuits on `revealDeck != null` and returns
     // to the identical state.
-    final deckScreens = deck == null ? null : buildBeatScreensFromDeck(deck);
+    // `nameAlreadyMet`: on THIS path the gacha `CardRevealOverlay` has just
+    // shown the badge, the transliteration and the meaning, so the deck's
+    // `name_intro` beat would restate them within seconds. It keeps the Arabic
+    // calligraphy — the one thing the card renders too small to carry — and the
+    // transliteration under it, so a reader who cannot read Arabic still knows
+    // which Name this is. Only the meaning line is dropped. Onboarding passes
+    // nothing, because there the deck runs BEFORE the card and the beat really
+    // is the introduction.
+    //
+    // Conditional, NOT always-on: the card only appears when the engage changed
+    // a tier (`cardEngageResult` is non-null exactly then, and the `ref.listen`
+    // below pushes the overlay off it). A queue Name the user already owns at
+    // max tier engages as a duplicate, so no card shows — and blanket-dropping
+    // the meaning there would leave it displayed NOWHERE. The plan permits that
+    // case outright: a Store purchase can pre-own a queued Name's card.
+    final cardShowedTheName = state.cardEngageResult != null;
+    final deckScreens = deck == null
+        ? null
+        : buildBeatScreensFromDeck(deck, nameAlreadyMet: cardShowedTheName);
     final hasDeck = deckScreens != null && deckScreens.isNotEmpty;
     final unrenderableDeck = deck != null && !hasDeck;
     // Only a deck the user can actually move through is abandonable — an
@@ -322,10 +340,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       includeName: false,
       showFirstRunHint: showHint,
       onFirstAdvance: _bumpHintAdvances,
-      // The share card is built from the AI response's takeaway; the deck path
-      // has none, so the icon stays off rather than becoming a dead tap.
+      // Both paths share now. The deck has no `reflectResult` behind it, so it
+      // builds the card from its own beats instead — see [_shareCurrentDeck].
+      // The flow puts this on the final beat for a deck (the takeaway IS last
+      // there) and on the takeaway beat for the AI path.
       onShare: hasDeck
-          ? null
+          ? () => _shareCurrentDeck(deck!)
           : () => _shareCurrentMuhasabah(state.reflectResult),
       onAmeen: () {
         HapticFeedback.mediumImpact();
@@ -410,6 +430,25 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
   /// Shares the muḥāsabah takeaway as the emerald mihrab card (Name + meaning +
   /// key line + takeaway). Only fires from the takeaway beat's share icon.
+  /// Share a deck-backed reveal, sourced entirely from the deck's own beats.
+  ///
+  /// Nothing new is authored and nothing is generated: the Arabic and meaning
+  /// come from `name_intro`, the English name from the deck, the quotable pairing
+  /// from the opening `bridge`/`recognition` line and the closing `takeaway`.
+  /// That pairing mirrors what the AI path shares (its reframe plus its
+  /// takeaway), so the artifact reads the same either way — and
+  /// `TakeawayShareCard` already draws through `MihrabArchFrame`, so it matches
+  /// the canvas the user just came from by construction.
+  Future<void> _shareCurrentDeck(NameStoryDeck deck) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await shareStoryDeckCard(context: context, deck: deck);
+    } catch (e) {
+      debugPrint('[SHARE ERROR] $e');
+      showShareErrorSnackBar(messenger);
+    }
+  }
+
   Future<void> _shareCurrentMuhasabah(ReflectResponse? result) async {
     if (result == null) return;
     final messenger = ScaffoldMessenger.of(context);
