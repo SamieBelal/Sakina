@@ -109,8 +109,9 @@ void main() {
     PurchaseService.debugClearOverride();
   });
 
-  DailyLoopNotifier makeNotifier() => DailyLoopNotifier(
-        storiesService: stories,
+  DailyLoopNotifier makeNotifier({NameStoriesService? storiesOverride}) =>
+      DailyLoopNotifier(
+        storiesService: storiesOverride ?? stories,
         nameQueueService: NameQueueService(
           currentUserId: () => fakeSync.userId,
           selectRows: (_) async => queueRows,
@@ -251,7 +252,10 @@ void main() {
     /// re-encounter is a duplicate: `cardEngageResult` stays null and the
     /// CardRevealOverlay (whose looping animations cannot be settled) never
     /// pushes, leaving the beat flow as the only thing under test.
-    Future<DailyLoopNotifier> pumpToCanvas(WidgetTester t) async {
+    Future<DailyLoopNotifier> pumpToCanvas(
+      WidgetTester t, {
+      NameStoriesService? storiesOverride,
+    }) async {
       mockPrefs({
         ...seedCollection(tiers: {deckedNameId: 3}),
         // Past the first-run hint, whose pulse repeats forever and would make
@@ -263,7 +267,7 @@ void main() {
 
       // No `addTearDown(dispose)` here: the ProviderScope owns the overridden
       // notifier and disposes it when the tree unmounts.
-      final notifier = makeNotifier();
+      final notifier = makeNotifier(storiesOverride: storiesOverride);
       await t.pumpWidget(
         ProviderScope(
           overrides: [dailyLoopProvider.overrideWith((_) => notifier)],
@@ -392,6 +396,94 @@ void main() {
           events.where((e) => e.$1 == AnalyticsEvents.revealDeckAbandoned),
           isEmpty,
           reason: 'a finished deck must never also count as abandoned');
+    });
+
+    testWidgets('a throwing analytics hook cannot swallow the Ameen',
+        (t) async {
+      // `_emitDeckCompleted` runs inside `onAmeen` BEFORE `completeDeeper()`, so
+      // an uncaught throw from the hook took the whole completion with it: no
+      // `deeperDone`, no persist, no daily Noor — the user's tap did nothing.
+      var hookThrew = false;
+      DailyLoopNotifier.onAnalyticsEvent = (e, _) {
+        if (e != AnalyticsEvents.revealDeckCompleted) return;
+        hookThrew = true;
+        throw StateError('analytics transport is down');
+      };
+
+      final notifier = await pumpToCanvas(t);
+      final beats = notifier.state.revealDeck!.beats.length;
+      final size = t.getSize(find.byType(BeatRevealFlow));
+      for (var i = 0; i < beats; i++) {
+        await t.tapAt(Offset(size.width * 0.8, size.height * 0.5));
+        await t.pumpAndSettle();
+      }
+      await t.tap(find.text('Ameen'));
+      // The pill holds ~1.1s on a real timer before firing onAmeen.
+      await t.pump(const Duration(milliseconds: 1200));
+      await t.pumpAndSettle();
+
+      expect(hookThrew, isTrue,
+          reason: 'the hook has to have actually thrown, or this pins nothing');
+      expect(notifier.state.currentStep, DailyLoopStep.completed,
+          reason: 'telemetry is best-effort — it must never sit between the '
+              'tap and the state change it causes');
+    });
+
+    /// A deck for the same Name and id as the real one whose every beat carries
+    /// a kind `buildBeatScreensFromDeck` does not know — its `default: continue`
+    /// arm drops the beat, so the deck renders to zero screens. Approved
+    /// (`review_verdict: good`) so the service still hands it over: the case
+    /// under test is a deck that reaches the screen and renders to nothing.
+    NameStoriesService unrenderableStories() => NameStoriesService(
+          loadAsset: (_) async => jsonEncode([
+            {
+              'deck_id': deckedDeckId,
+              'name_id': deckedNameId,
+              'transliteration': 'Al-Wakeel',
+              'chip_keys': ['anxiety'],
+              'position_in_pair': 2,
+              'review_verdict': 'good',
+              'beats': [
+                {'kind': 'not_a_beat_kind', 'primary': 'dropped'},
+                {'kind': 'also_not_a_beat_kind', 'primary': 'dropped'},
+              ],
+              'sources': const [],
+            }
+          ]),
+        );
+
+    testWidgets('a deck that renders to zero beats is not treated as a deck',
+        (t) async {
+      final events = <(String, Map<String, dynamic>)>[];
+      DailyLoopNotifier.onAnalyticsEvent = (e, p) => events.add((e, p));
+
+      final notifier =
+          await pumpToCanvas(t, storiesOverride: unrenderableStories());
+
+      final flow = t.widget<BeatRevealFlow>(find.byType(BeatRevealFlow));
+      expect(flow.screens, isNull,
+          reason: 'one deck signal feeds every branch — an empty screen list '
+              'must not be handed over as though it were a deck');
+      expect(flow.status, BeatFlowStatus.error,
+          reason: 'ready + no screens is the dead end: it falls into the '
+              "flow's own empty-message view");
+      expect(find.text('Try Again'), findsNothing,
+          reason: 'the retry calls startDeeper(), which short-circuits on the '
+              'same deck and returns to this exact state — a provably dead '
+              'button');
+      expect(find.text('Return home'), findsOneWidget,
+          reason: 'the one action offered has to actually go somewhere');
+
+      // And it never counts as an abandoned deck when the route unwinds — a
+      // deck that could not be completed would skew the completion rate.
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [dailyLoopProvider.overrideWith((_) => notifier)],
+          child: const MaterialApp(home: SizedBox.shrink()),
+        ),
+      );
+      expect(events.where((e) => e.$1 == AnalyticsEvents.revealDeckAbandoned),
+          isEmpty);
     });
   });
 }

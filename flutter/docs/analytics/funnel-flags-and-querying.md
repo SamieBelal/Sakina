@@ -1,7 +1,7 @@
 # Funnel analytics: feature-flag dimensions & how to query
 
 **Audience:** anyone (human or AI agent) querying Mixpanel for the onboarding → guided tour → paywall funnel.
-**Last updated:** 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
+**Last updated:** 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
 **Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md).
 **Mixpanel project:** `4013350`. **RevenueCat project:** `proje6681c8c`.
 
@@ -61,6 +61,23 @@ Every event also carries the super properties above. Build funnels by chaining t
 
 ---
 
+## The `surface` property — four screens share one beat-flow event set
+
+The tap-through reflection flow (`BeatRevealFlow`) is one widget rendered by four different screens, and they all emit the **same event names**. `surface` is an **event property** (not a super property) and is the ONLY thing separating them. Never query a `reveal_deck_*` or `reflect_beat_*` event without it.
+
+| `surface` | Emitted by | Events carrying it |
+|---|---|---|
+| `onboarding_reveal` | `onboarding_reveal_screen.dart` | `lantern_kindled` · `reveal_deck_completed` · `reveal_deck_abandoned` |
+| `daily_unseal` | `muhasabah_screen.dart`, deck path (the D1 queue unseal) | `reveal_deck_completed` · `reveal_deck_abandoned` · `reflect_beat_advanced` · `reflect_flow_skipped` |
+| `muhasabah` | `muhasabah_screen.dart`, AI path (the ordinary daily reflection) | `reflect_beat_advanced` · `reflect_flow_skipped` |
+| `reflect` | `reflect_screen.dart` | `reflect_beat_advanced` · `reflect_flow_skipped` |
+
+The deck events additionally carry `deck_id` + `name_id`, and `reveal_deck_abandoned` carries `beat_index` (how far the user got before leaving).
+
+**Onboarding deck-completion rate** — the named T0+2wk health metric — is `reveal_deck_completed` ÷ (`reveal_deck_completed` + `reveal_deck_abandoned`), **filtered to `surface = onboarding_reveal`**. `daily_unseal` was minted specifically so the D1 reveal stays out of that number.
+
+---
+
 ## How to query — worked examples
 
 **Slim vs full tour, full funnel** (the A/B read):
@@ -91,6 +108,7 @@ Every event also carries the super properties above. Build funnels by chaining t
 - **`onboarding_answer_captured` has NO `step_name`** (it was historically wrong-mapped). Use `key` (canonical question id) + the `flag_onboarding_trim` super property.
 - **`paywall_viewed` is single-source** (as of Phase 4): only `PaywallScreen.initState` emits it, always with `placement`. The IAP-to-sub banner's old duplicate `paywall_viewed{trigger:...}` was removed (it still fires `iap_to_sub_banner_tapped` as the entry-point signal). No more soft-in-app double-count.
 - **Identity resets on sign-out / delete-account** (Phase 4): `AnalyticsService.reset()` now fires there, so a new user on the same device starts a fresh distinct_id. Pre-Phase-4 data may show cross-user contamination on shared/QA devices.
+- **`reveal_deck_*` must be filtered by `surface`** — `onboarding_reveal` and `daily_unseal` share the event names, so an unfiltered query folds D1 into the onboarding deck-completion metric and double-counts users who saw both.
 - **`subscription_started` (server) carries no `placement`** — for surface attribution use the client `trial_started`.
 - **Tour `step_index` is not comparable across arms** — always pivot to `step_id` for cross-variant per-step funnels.
 - **`onboarding_started` over-counts raw events** — it fires once per `OnboardingScreen` mount, so a user killed mid-onboarding and relaunched re-fires it. As a funnel denominator, count **unique users** (or filter `entry_page == 0`), not raw event total.

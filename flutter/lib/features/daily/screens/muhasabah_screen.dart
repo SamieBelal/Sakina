@@ -94,14 +94,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   bool _deckCompleted = false;
   bool _deckAbandoned = false;
 
+  /// Telemetry is best-effort and must never sit between the user's tap and the
+  /// state change it causes. [_emitDeckCompleted] runs inside `onAmeen` BEFORE
+  /// `completeDeeper()`, so an uncaught throw from the hook would swallow the
+  /// completion outright — no `deeperDone`, no persist, no daily Noor, and the
+  /// Ameen tap does nothing. The bare catch is the same rule every provider-side
+  /// emit follows (see the `check_in_completed` block in daily_loop_provider),
+  /// and it covers the [dispose]-time abandonment too, where a throw would
+  /// surface as a framework error while the route unwinds.
   void _emitDeck(String event, NameStoryDeck deck,
       [Map<String, dynamic> extra = const {}]) {
-    DailyLoopNotifier.onAnalyticsEvent?.call(event, {
-      AnalyticsEvents.propSurface: AnalyticsEvents.surfaceDailyUnseal,
-      'deck_id': deck.deckId,
-      'name_id': deck.nameId,
-      ...extra,
-    });
+    try {
+      DailyLoopNotifier.onAnalyticsEvent?.call(event, {
+        AnalyticsEvents.propSurface: AnalyticsEvents.surfaceDailyUnseal,
+        'deck_id': deck.deckId,
+        'name_id': deck.nameId,
+        ...extra,
+      });
+    } catch (_) {
+      // Best-effort — see above.
+    }
   }
 
   void _emitDeckCompleted(NameStoryDeck deck) {
@@ -262,15 +274,35 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // the deck's beat list is already the final order and carries its own verse
     // and duʿā beats.
     final deck = state.revealDeck;
-    _abandonableDeck = deck;
-    final status = state.error != null
+    // Built ONCE and then used as the single deck signal for every branch below.
+    // `buildBeatScreensFromDeck` skips beats whose kind it doesn't know
+    // (`default: continue`), so an approved deck whose every beat is unknown
+    // yields an EMPTY list — and a deck the flow cannot render must not count as
+    // a deck for the status while not counting as one for the screens. That
+    // split is what made the empty case a dead end: `ready` + no screens lands
+    // in `BeatRevealFlow`'s own empty-message view, whose retry calls
+    // `startDeeper()` — which short-circuits on `revealDeck != null` and returns
+    // to the identical state.
+    final deckScreens = deck == null ? null : buildBeatScreensFromDeck(deck);
+    final hasDeck = deckScreens != null && deckScreens.isNotEmpty;
+    final unrenderableDeck = deck != null && !hasDeck;
+    // Only a deck the user can actually move through is abandonable — an
+    // unrenderable one never shows a beat, and counting it would put a deck that
+    // could not be completed into the completion-rate denominator.
+    _abandonableDeck = hasDeck ? deck : null;
+    // An unrenderable deck is an error, not a wait: falling through to the AI
+    // path's `loading` would strand the user on a spinner with no chrome at all,
+    // because `startDeeper` still short-circuits on the deck and no reflection
+    // is ever requested. The error view at least offers a working way out; its
+    // retry is suppressed below rather than offered as a no-op.
+    final status = state.error != null || unrenderableDeck
         ? BeatFlowStatus.error
-        : deck != null
+        : hasDeck
             ? BeatFlowStatus.ready
             : state.reflectLoading || state.reflectResult == null
                 ? BeatFlowStatus.loading
                 : BeatFlowStatus.ready;
-    final surface = deck != null
+    final surface = hasDeck
         ? AnalyticsEvents.surfaceDailyUnseal
         : AnalyticsEvents.surfaceMuhasabah;
 
@@ -283,8 +315,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
 
     return BeatRevealFlow(
       status: status,
-      response: deck != null ? null : state.reflectResult,
-      screens: deck == null ? null : buildBeatScreensFromDeck(deck),
+      response: hasDeck ? null : state.reflectResult,
+      screens: hasDeck ? deckScreens : null,
       // The gacha card reveal already showed the Name; don't repeat it as the
       // opening hero beat (see daily_loop_provider "skip step 0" decision).
       includeName: false,
@@ -292,12 +324,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       onFirstAdvance: _bumpHintAdvances,
       // The share card is built from the AI response's takeaway; the deck path
       // has none, so the icon stays off rather than becoming a dead tap.
-      onShare: deck != null
+      onShare: hasDeck
           ? null
           : () => _shareCurrentMuhasabah(state.reflectResult),
       onAmeen: () {
         HapticFeedback.mediumImpact();
-        if (deck != null) _emitDeckCompleted(deck);
+        if (hasDeck) _emitDeckCompleted(deck!);
         final tieredUp = state.cardEngageResult?.tierChanged == true;
         final qn = ref.read(questsProvider.notifier);
         qn.onMuhasabahCompleted();
@@ -338,7 +370,11 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         }
         if (mounted) context.go('/');
       },
-      onRetry: () => notifier.startDeeper(),
+      // `startDeeper()` short-circuits on `revealDeck != null`, so on an
+      // unrenderable deck the retry provably re-enters the same state. Pass null
+      // and the message view drops the button entirely, leaving "Return home" —
+      // which works — as the only action.
+      onRetry: unrenderableDeck ? null : () => notifier.startDeeper(),
       onBeatAdvanced: (index, kind) {
         _lastBeatIndex = index;
         DailyLoopNotifier.onAnalyticsEvent?.call(
