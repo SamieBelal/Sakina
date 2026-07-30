@@ -1490,6 +1490,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         'checkinName': state.checkinName,
         'checkinNameArabic': state.checkinNameArabic,
         'reflectStep': state.reflectStep,
+        // Enough to rebuild the reveal on a cold restart. The deck itself is
+        // NOT persisted — it is bundled content, so the id is the only durable
+        // part and re-resolving it is a local asset read.
+        'revealSource': state.revealSource,
+        'revealQueuePosition': state.revealQueuePosition,
+        'revealNameId': state.engagedCard?.id,
       };
       await prefs.setString(_todayKey, jsonEncode(data));
     } catch (_) {
@@ -1514,6 +1520,35 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
               .toList() ??
           [];
 
+      final revealSource = data['revealSource'] as String? ?? revealSourceGacha;
+      final revealNameId = (data['revealNameId'] as num?)?.toInt();
+
+      // Rebuild the deck across a cold restart.
+      //
+      // Without this, a user who revealed their D1 Name and then had the app
+      // killed before "Ameen" — a phone call, a swipe-away, iOS reclaiming
+      // memory — came back to the AI reflection instead of the authored deck,
+      // because `checkinDone` is restored and so `discoverName` never re-runs.
+      // That is the one reveal the plan promises has no OpenAI dependency, on
+      // the single most important comeback day in the funnel, so it is worth
+      // one local asset read to get right rather than a documented hole.
+      //
+      // Only mid-flow (`checkinDone && !deeperDone`) and only for a queue
+      // reveal: a legacy gacha reveal must resume exactly as it does today,
+      // even if its Name happens to have a deck.
+      NameStoryDeck? deck;
+      if (checkinDone &&
+          !deeperDone &&
+          revealSource == revealSourceQueue &&
+          revealNameId != null) {
+        try {
+          deck = await _stories.deckForName(revealNameId);
+        } catch (_) {
+          // A failed bundle read resumes on the AI reflection below — the same
+          // fallback `discoverName` uses.
+        }
+      }
+
       state = state.copyWith(
         checkinDone: checkinDone,
         deeperDone: deeperDone,
@@ -1525,15 +1560,17 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         checkinName: data['checkinName'] as String?,
         checkinNameArabic: data['checkinNameArabic'] as String?,
         reflectStep: data['reflectStep'] as int? ?? 0,
+        // All three reveal fields are specified together, which is the only
+        // condition under which `resetReveal` may be set.
+        resetReveal: true,
+        revealSource: revealSource,
+        revealQueuePosition: (data['revealQueuePosition'] as num?)?.toInt(),
+        revealDeck: deck,
       );
 
-      if (checkinDone && !deeperDone) {
-        // Known, accepted gap: `revealDeck` is in-memory only (the persisted
-        // blob carries no queue fields), so a cold restart between the reveal
-        // and "Ameen" resumes on the AI reflection instead of the deck. Both
-        // teach the same Name — `checkinName` is restored — and re-resolving
-        // would mean persisting and re-validating the reveal source. Revisit
-        // only if the D1 deck-completion metric shows a restart-shaped dip.
+      // Unchanged rule from `discoverName`: prefetch only when there is no deck
+      // to render, so a restored deck reveal still spends no OpenAI call.
+      if (checkinDone && !deeperDone && deck == null) {
         _prefetchDeeperReflection();
       }
     } catch (_) {
