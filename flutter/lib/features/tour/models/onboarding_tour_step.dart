@@ -160,7 +160,13 @@ const List<OnboardingTourStepDef> kSlimOnboardingTourSteps = [
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
     anchorId: 'beginMuhasabahCta',
-    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
+    // Positional, not by name. This string used to read "Tap Begin
+    // Muhāsabah to start" and went stale the moment W4 Wave 5 renamed the
+    // CTA — leaving a coachmark pointing at a control that no longer went by
+    // that name, which reads as the app being broken rather than as a hint.
+    // The step spotlights its anchor, so "here" is both truer and impossible
+    // to drift. Pinned by tour_cta_copy_drift_test.dart.
+    message: 'Assalamu alaikum, {name} 👋 Tap here to begin today\'s reflection.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),
@@ -279,7 +285,13 @@ const List<OnboardingTourStepDef> kFullOnboardingTourSteps = [
     id: 'home.beginMuhasabah',
     surface: TourSurface.home,
     anchorId: 'beginMuhasabahCta',
-    message: 'Assalamu alaikum, {name} 👋 Tap Begin Muhāsabah to start.',
+    // Positional, not by name. This string used to read "Tap Begin
+    // Muhāsabah to start" and went stale the moment W4 Wave 5 renamed the
+    // CTA — leaving a coachmark pointing at a control that no longer went by
+    // that name, which reads as the app being broken rather than as a hint.
+    // The step spotlights its anchor, so "here" is both truer and impossible
+    // to drift. Pinned by tour_cta_copy_drift_test.dart.
+    message: 'Assalamu alaikum, {name} 👋 Tap here to begin today\'s reflection.',
     interactive: true,
     hint: 'Tap to continue ↗',
   ),

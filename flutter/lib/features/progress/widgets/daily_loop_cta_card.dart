@@ -5,6 +5,28 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/progress/widgets/daily_loop_completed_card.dart';
 
+/// The CTA's user-facing labels, in one place.
+///
+/// Not premature tidying — it is the fix for a bug that already shipped. The
+/// guided tour hard-coded the old label ("Tap Begin Muhāsabah to start"), the
+/// label changed twice in one day, and the tour kept instructing users to tap a
+/// control that no longer went by that name. An instruction naming a control the
+/// user cannot find reads as the app being broken.
+///
+/// The rule that follows from it: **nothing outside this file may quote these
+/// strings.** Anything pointing at the CTA refers to it by position — the tour
+/// spotlights the anchor, so "tap here" is both truer and undriftable.
+/// `tour_cta_copy_drift_test.dart` enforces both halves.
+abstract final class DailyLoopCtaCopy {
+  /// Deliberately valence-neutral, and deliberately the question the next
+  /// screen asks (spec M4). See the note at the `title:` site below.
+  static const String notStarted = 'What\'s on your heart today?';
+  static const String notStartedGloss =
+      'Your daily muḥāsabah — a moment to check in with your heart.';
+  static const String inProgress = 'Pick up where you left off';
+  static const String inProgressGloss = 'Your muḥāsabah is still open.';
+}
+
 /// Which face the home CTA is wearing.
 enum DailyLoopCtaState {
   /// Nothing done today. Also the state a user lands in after Wave 2's
@@ -84,11 +106,11 @@ class DailyLoopCtaCard extends StatelessWidget {
       //  * Saying exactly what the next screen says makes the tap read as
       //    continuing rather than switching.
       title: resuming
-          ? 'Pick up where you left off'
-          : 'What\'s on your heart today?',
+          ? DailyLoopCtaCopy.inProgress
+          : DailyLoopCtaCopy.notStarted,
       gloss: resuming
-          ? 'Your muḥāsabah is still open.'
-          : 'Your daily muḥāsabah — a moment to check in with your heart.',
+          ? DailyLoopCtaCopy.inProgressGloss
+          : DailyLoopCtaCopy.notStartedGloss,
       icon: resuming
           ? Icons.play_circle_outline_rounded
           : Icons.favorite_outline_rounded,
