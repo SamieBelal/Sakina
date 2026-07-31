@@ -144,8 +144,23 @@ QueueRevealPlan planQueueReveal({
   if (resumable.isNotEmpty) return QueueResume(resumable.first);
 
   // Rule 3 — inside the server's 20h floor, so the RPC cannot advance.
+  //
+  // **Position 1 is excluded, exactly as the server excludes it.**
+  // `unseal_next_name` scopes its floor to `position > 1`
+  // (20260727130000_unseal_floor_excludes_seed_position.sql) because position
+  // 1's `unsealed_at` is the SEED's `now()`, stamped during onboarding — it is
+  // not an unseal at all. Counting it here made the client hold on a promise
+  // the server was ready to keep: someone who onboards Monday evening and
+  // opens the app Tuesday morning is inside 20h of the SEED, so this returned
+  // QueueHold and never asked, while `unseal_next_name` would have handed back
+  // position 2. They got an ordinary fallback pull instead of the D1 deck —
+  // the comeback moment the whole wave exists for, missed by the users most
+  // likely to come back (the ones who return the next morning).
+  //
+  // Rule 4 below still counts position 1, because for EXHAUSTION it is
+  // genuinely spent: its Name was met during onboarding.
   final hasRecentUnseal = unsealed.any(
-    (row) => row.unsealedAt!.toUtc().isAfter(floorEdge),
+    (row) => row.position > 1 && row.unsealedAt!.toUtc().isAfter(floorEdge),
   );
   if (hasRecentUnseal) return const QueueHold();
 
@@ -161,12 +176,11 @@ QueueRevealPlan planQueueReveal({
 /// Fed to `pickNextCard(exclude:)` so an extra same-day fallback pull cannot
 /// hand over a Name the plan screen says the user will meet on a later day
 /// (§3d). Empty for a legacy user, which is what keeps their pull bit-identical.
-Set<int> sealedQueueNameIds(List<NameQueueRow> queue) => queue
-    .where((row) => row.isSealed)
-    .map((row) => row.nameId)
-    .toSet();
+Set<int> sealedQueueNameIds(List<NameQueueRow> queue) =>
+    queue.where((row) => row.isSealed).map((row) => row.nameId).toSet();
 
-bool _isSameLocalDay(DateTime unsealedAtUtc, DateTime localToday, Duration offset) {
+bool _isSameLocalDay(
+    DateTime unsealedAtUtc, DateTime localToday, Duration offset) {
   final local = unsealedAtUtc.toUtc().add(offset);
   return local.year == localToday.year &&
       local.month == localToday.month &&

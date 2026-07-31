@@ -46,7 +46,9 @@ void main() {
         row(1, 11, DateTime.utc(2026, 8, 1, 15)),
         row(2, 22, DateTime.utc(2026, 8, 4, 1)),
         row(3, 33),
-      ], discovered: {11});
+      ], discovered: {
+        11
+      });
       expect(p, isA<QueueResume>());
       expect((p as QueueResume).row.nameId, 22);
       expect(p.row.position, 2);
@@ -60,7 +62,10 @@ void main() {
         row(1, 11, DateTime.utc(2026, 8, 1, 15)),
         row(2, 22, DateTime.utc(2026, 8, 4, 1)),
         row(3, 33),
-      ], discovered: {11, 22});
+      ], discovered: {
+        11,
+        22
+      });
       expect(p, isNot(isA<QueueResume>()));
       expect(p, isA<QueueHold>());
     });
@@ -122,7 +127,8 @@ void main() {
       );
     });
 
-    test('an unmet unseal from the PREVIOUS local day still inside the floor '
+    test(
+        'an unmet unseal from the PREVIOUS local day still inside the floor '
         'resumes — the lost-response case', () {
       // The abandonment that local-day-only scoping missed, and the reason rule 2
       // now also accepts inside-the-floor rows.
@@ -152,7 +158,8 @@ void main() {
       expect(p.row.nameId, 22);
     });
 
-    test('a MET Name from the previous local day inside the floor does NOT '
+    test(
+        'a MET Name from the previous local day inside the floor does NOT '
         'resume', () {
       // The widened window must not weaken the "same Name on two consecutive
       // mornings" guard: being met is still disqualifying, which is what makes
@@ -172,29 +179,47 @@ void main() {
   });
 
   group('rule 3 — the 20h server floor', () {
+    // **Every case here uses position 2+ as the recent unseal.** These used to
+    // put the timestamp on position 1 and assert QueueHold, which pinned a
+    // client that disagreed with its own server: `unseal_next_name` scopes the
+    // floor to `position > 1`, because position 1's `unsealed_at` is the SEED's
+    // `now()` rather than an unseal. See the seed group below for the case that
+    // was actually broken.
     test('last unseal 19h59m ago → QueueHold', () {
       // 2026-08-03T07:01Z is 19h59m before 2026-08-04T03:00Z.
       final p = plan([
-        row(1, 11, DateTime.utc(2026, 8, 3, 7, 1)),
-        row(2, 22),
-      ], discovered: {11});
+        row(1, 11, DateTime.utc(2026, 7, 20, 5)),
+        row(2, 22, DateTime.utc(2026, 8, 3, 7, 1)),
+        row(3, 33),
+      ], discovered: {
+        11,
+        22
+      });
       expect(p, isA<QueueHold>());
     });
 
     test('last unseal 20h01m ago → QueueUnseal', () {
       // 2026-08-03T06:59Z is 20h01m before 2026-08-04T03:00Z.
       final p = plan([
-        row(1, 11, DateTime.utc(2026, 8, 3, 6, 59)),
-        row(2, 22),
-      ], discovered: {11});
+        row(1, 11, DateTime.utc(2026, 7, 20, 5)),
+        row(2, 22, DateTime.utc(2026, 8, 3, 6, 59)),
+        row(3, 33),
+      ], discovered: {
+        11,
+        22
+      });
       expect(p, isA<QueueUnseal>());
     });
 
     test('exactly 20h ago is NOT inside the floor', () {
       final p = plan([
-        row(1, 11, DateTime.utc(2026, 8, 3, 7)),
-        row(2, 22),
-      ], discovered: {11});
+        row(1, 11, DateTime.utc(2026, 7, 20, 5)),
+        row(2, 22, DateTime.utc(2026, 8, 3, 7)),
+        row(3, 33),
+      ], discovered: {
+        11,
+        22
+      });
       expect(p, isA<QueueUnseal>());
     });
 
@@ -203,8 +228,93 @@ void main() {
         row(1, 11, DateTime.utc(2026, 7, 20, 5)),
         row(2, 22, DateTime.utc(2026, 8, 3, 20)),
         row(3, 33),
-      ], discovered: {11, 22});
+      ], discovered: {
+        11,
+        22
+      });
       expect(p, isA<QueueHold>());
+    });
+  });
+
+  group("rule 3 — position 1's seed timestamp is not an unseal", () {
+    // The client's floor has to agree with the server's, and the server's
+    // (20260727130000_unseal_floor_excludes_seed_position.sql) reads:
+    //
+    //   select max(q.unsealed_at) ... where q.user_id = v_uid and q.position > 1
+    //
+    // Position 1 is stamped by `seed_name_queue` at onboarding. Treating that
+    // as an unseal put the client in QueueHold for the first 20 hours of every
+    // new user's life — silently, without ever asking the server, on the exact
+    // path W3 exists to serve.
+
+    test('onboarded 8pm, back at 9am the next morning → asks the server', () {
+      // 13 hours after the seed, so inside the floor if position 1 counted.
+      // Both the local day AND the calendar day have turned over; the server
+      // would unseal position 2 here, and the client must let it.
+      final p = plan(
+        [
+          row(1, 11, DateTime.utc(2026, 8, 3, 20)), // seeded at onboarding
+          row(2, 22),
+          row(3, 33),
+        ],
+        discovered: {11}, // Name 1 was met during onboarding
+        now: DateTime.utc(2026, 8, 4, 9),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(
+        p,
+        isA<QueueUnseal>(),
+        reason: 'holding here loses the D1 deck for every user who comes back '
+            'the next morning — the most valuable returning cohort there is',
+      );
+    });
+
+    test('a seed only 2h old still asks — the server owns the same-day rule',
+        () {
+      // Deliberately aggressive: the client does NOT re-implement "one per
+      // local day". `unseal_next_name` is idempotent per local day and returns
+      // the existing row, so asking early costs a round trip and never a
+      // double unseal. Holding, by contrast, costs the deck.
+      final p = plan(
+        [row(1, 11, DateTime.utc(2026, 8, 4, 7)), row(2, 22)],
+        discovered: {11},
+        now: DateTime.utc(2026, 8, 4, 9),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(p, isA<QueueUnseal>());
+    });
+
+    test('but a real unseal on position 2 still holds', () {
+      // The guard the exclusion must not weaken: once a genuine unseal has
+      // happened, the floor applies as before.
+      final p = plan(
+        [
+          row(1, 11, DateTime.utc(2026, 8, 3, 20)),
+          row(2, 22, DateTime.utc(2026, 8, 4, 7)),
+          row(3, 33),
+        ],
+        discovered: {11, 22},
+        now: DateTime.utc(2026, 8, 4, 9),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(p, isA<QueueHold>());
+    });
+
+    test('position 1 still counts toward exhaustion', () {
+      // The other half of the change: excluded from the FLOOR, not from the
+      // queue. All seven spent is still exhausted, and rule 4 must not start
+      // reporting a seeded position as available.
+      final p = plan(
+        [
+          row(1, 11, DateTime.utc(2026, 7, 20, 5)),
+          for (var i = 2; i <= 7; i++)
+            row(i, i * 10, DateTime.utc(2026, 7, 20 + i, 5)),
+        ],
+        discovered: {11, 20, 30, 40, 50, 60, 70},
+        now: DateTime.utc(2026, 8, 4, 9),
+        today: DateTime.utc(2026, 8, 4),
+      );
+      expect(p, isA<QueueExhausted>());
     });
   });
 
@@ -213,14 +323,31 @@ void main() {
       final p = plan([
         for (var i = 1; i <= 7; i++)
           row(i, i * 10, DateTime.utc(2026, 7, 20 + i, 5)),
-      ], discovered: {10, 20, 30, 40, 50, 60, 70});
+      ], discovered: {
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70
+      });
       expect(p, isA<QueueExhausted>());
     });
 
     test('exhausted but inside the floor is QueueHold (rule 3 first)', () {
       final p = plan([
-        for (var i = 1; i <= 7; i++) row(i, i * 10, DateTime.utc(2026, 8, 4, 1)),
-      ], discovered: {10, 20, 30, 40, 50, 60, 70});
+        for (var i = 1; i <= 7; i++)
+          row(i, i * 10, DateTime.utc(2026, 8, 4, 1)),
+      ], discovered: {
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70
+      });
       expect(p, isA<QueueHold>());
     });
   });
@@ -231,7 +358,9 @@ void main() {
         row(1, 11, DateTime.utc(2026, 8, 1, 15)),
         row(2, 22),
         row(3, 33),
-      ], discovered: {11});
+      ], discovered: {
+        11
+      });
       expect(p, isA<QueueUnseal>());
     });
 
@@ -250,7 +379,8 @@ void main() {
       expect(ids, {22, 33});
     });
 
-    test('is empty for a legacy user, which keeps their pull bit-identical', () {
+    test('is empty for a legacy user, which keeps their pull bit-identical',
+        () {
       expect(sealedQueueNameIds(const []), isEmpty);
     });
 
