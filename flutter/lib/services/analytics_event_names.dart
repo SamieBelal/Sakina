@@ -64,6 +64,14 @@ abstract final class AnalyticsEvents {
   // behind it — their daily unseal opens on an empty queue.
   //   props: id_count, error_class (the class, never the raw driver message)
   static const nameQueueSeedFailed = 'name_queue_seed_failed';
+
+  /// A seed that failed during onboarding was retried successfully at app
+  /// open. Props: `id_count`, `seeded` (false = rows already existed, i.e. an
+  /// earlier attempt had landed and only its response was lost).
+  ///
+  /// Read against [nameQueueSeedFailed]: the two should converge. A gap that
+  /// does not close is users still walking around without their D1 promise.
+  static const nameQueueSeedRepaired = 'name_queue_seed_repaired';
   // "Where did you find us?" (One Ship W2-D3). The screen buys the user
   // nothing, so this event is its ENTIRE reason to exist: organic reels carry
   // no attributed click, and the tap is the only source signal there is. A

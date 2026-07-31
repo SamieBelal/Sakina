@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import '../services/consumable_grants_service.dart';
 import '../services/launch_gate_service.dart';
 import '../widgets/achievement_toast.dart';
+import '../services/name_queue_repair.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_gate_service.dart';
 import '../services/purchase_service.dart';
@@ -531,6 +532,15 @@ class AppSessionNotifier extends ChangeNotifier {
       unawaited(_notificationService.syncTimezone());
       if (_hasOnboarded) {
         unawaited(_notificationService.requestPermissionIfPreviouslyEnabled());
+        // Repair a queue seed that failed during onboarding. Almost always a
+        // single prefs read that finds nothing; when it finds something, it is
+        // the difference between a user receiving the second Name they were
+        // promised and never hearing about it again. See `name_queue_repair`.
+        //
+        // Here rather than at boot because it needs an authenticated session,
+        // and gated on `_hasOnboarded` because a user still IN onboarding has
+        // `completeOnboarding` itself ahead of them.
+        unawaited(retryPendingQueueSeed());
       }
     } catch (_) {
       _hydrationFailed = true;

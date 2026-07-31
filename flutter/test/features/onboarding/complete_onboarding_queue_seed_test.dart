@@ -9,6 +9,7 @@ import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/services/card_collection_service.dart' show CardTier;
+import 'package:sakina/services/name_queue_repair.dart';
 import 'package:sakina/services/name_queue_service.dart';
 import 'package:sakina/services/name_stories_service.dart';
 import 'package:sakina/services/notification_service.dart';
@@ -269,7 +270,39 @@ void main() {
 
     expect(ctx.log, contains('markCompleted'));
     expect(session.hasOnboarded, isTrue);
+    // The BLOB is still cleared, and that is still right: a retained blob
+    // restarts onboarding against a queue the server has already frozen. What
+    // was missing is the far smaller thing below.
     expect(await storedOnboardingState(), isNull);
+  });
+
+  test('a seed failure leaves behind something that can repair it', () async {
+    // Without this the failure was terminal. `completeOnboarding` never runs
+    // again, nothing else seeds, and `planQueueReveal` returns QueueAbsent for
+    // the rest of the account's life — so the plan screen's promise that the
+    // second Name arrives tomorrow silently never comes true, for a user whose
+    // only sin was a dropped connection on day 0.
+    final ctx = await buildReelNotifier(queueError: StateError('rls denied'));
+
+    await ctx.notifier.completeOnboarding(buildSession());
+
+    expect(
+      await pendingQueueSeedIds(),
+      isNotEmpty,
+      reason: 'the ids are the promise; recording them is what makes the '
+          'app-open retry in `app_session` able to keep it',
+    );
+  });
+
+  test('a successful seed records nothing to retry', () async {
+    // The other half: a repair record written on the happy path would make
+    // every launch re-check a queue that is already correct, and would make
+    // `name_queue_seed_repaired` meaningless as a signal.
+    final ctx = await buildReelNotifier();
+
+    await ctx.notifier.completeOnboarding(buildSession());
+
+    expect(await pendingQueueSeedIds(), isNull);
   });
 
   test('a seed failure emits name_queue_seed_failed with the error class',

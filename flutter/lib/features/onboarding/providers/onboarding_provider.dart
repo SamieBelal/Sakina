@@ -19,6 +19,7 @@ import '../../../services/card_collection_service.dart' show CardTier;
 import '../../../services/daily_question_gate.dart';
 import '../../../services/launch_gate_service.dart';
 import '../../../services/name_queue_cache.dart';
+import '../../../services/name_queue_repair.dart';
 import '../../../services/name_queue_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/referral_service.dart';
@@ -500,8 +501,7 @@ class OnboardingState {
       dailyTime: dailyTime ?? this.dailyTime,
       // Explicit clear: H7 is the one intake answer a user can take back —
       // emptying the field must be able to erase a note they already wrote.
-      intakeNote:
-          clearIntakeNote ? null : (intakeNote ?? this.intakeNote),
+      intakeNote: clearIntakeNote ? null : (intakeNote ?? this.intakeNote),
       reelSource: reelSource ?? this.reelSource,
       reelId: reelId ?? this.reelId,
       reelPairOverride: reelPairOverride ?? this.reelPairOverride,
@@ -1196,6 +1196,20 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
           'id_count': queueIds.length,
           'error_class': e.runtimeType.toString(),
         });
+        // **And leave something behind that can fix it.**
+        //
+        // Reporting the failure was all this did, and a few lines below
+        // completion deletes the local onboarding state — so one dropped
+        // connection on a day-0 cellular handoff left the user permanently
+        // without a queue. `completeOnboarding` never runs again, nothing else
+        // seeds, and `planQueueReveal` returns QueueAbsent forever: the plan
+        // screen promised seven Names and the second one silently never came.
+        //
+        // Just the ids, not the onboarding blob — that clearing is deliberate
+        // (a retained blob restarts onboarding against a queue the server has
+        // already frozen). Replaying them is idempotent: `seedIfEmpty`
+        // pre-checks with a SELECT.
+        await recordPendingQueueSeed(queueIds);
       }
 
       // Prime the queue mirror NOW, not on the first daily reveal.

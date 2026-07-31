@@ -42,10 +42,24 @@ import '../widgets/queue_plan_header.dart';
 /// they were cut to the single H1 subline plus H4's projection.
 ///
 /// The rule is not repealed, it is unpaid: **H2, H3 and H6 now surface nowhere
-/// in the product.** All three are persisted, and W3 already plans to read
-/// `heaviestTime` and `dailyTime` as AI context (see the note at
-/// `onboarding_provider.dart:318`) — that is where the debt should be settled,
-/// not by putting the paragraphs back.
+/// in the product.** W3 plans to read `heaviestTime` and `dailyTime` as AI
+/// context (see the note at `onboarding_provider.dart:318`) — that is where the
+/// debt should be settled, not by putting the paragraphs back.
+///
+/// **Correction (review, 2026-07-31): "All three are persisted" was false.**
+/// H2 partly survives because `setHeaviestTime` derives `reminderTime`, which
+/// does ride to the server. H3 (`toldAnyone`) and H6 (`dailyTime`), and the
+/// free-text H8 (`intakeNote`), live ONLY in the local onboarding blob — and
+/// `completeOnboarding` deletes that blob as its last act. So today the app
+/// asks whether you have been able to tell anyone, takes a free-text note, and
+/// then drops both on the floor minutes later.
+///
+/// That makes the questions extractive by this wave's own rule, and the free
+/// text is the sharpest case: it is the most personal thing the flow collects
+/// and the only one with no consequence at all. Either give them a server home
+/// with a named consumer, or cut the screens — but the current state is the one
+/// combination the rule was written to forbid. Recorded here rather than fixed
+/// unilaterally because which way it goes is a product call.
 class QueuePlanScreen extends ConsumerWidget {
   const QueuePlanScreen({
     required this.onNext,
