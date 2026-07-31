@@ -71,9 +71,18 @@ economy to disrupt — only one to avoid devaluing before it starts.
 
 **3 touch `noor_balance`:** `award_noor`, `unlock_cosmetic`, `cosmetics_guard`. `sync_all_user_data` touches both.
 
-**Five of the fifteen are bypass functions W5 deletes anyway** (`reserve_ai_bypass`,
-`cancel_ai_bypass`, `_replay_reservation_response`, and the bypass branches of `spend_tokens`
-and `sync_all_user_data`). The real conversion target is **~10 functions**.
+**Three of the fifteen disappear with the bypass** — `reserve_ai_bypass`,
+`cancel_ai_bypass`, `_replay_reservation_response`. **The real conversion target is 12
+functions**, two of which (`spend_tokens`, `sync_all_user_data`) merely *lose a bypass
+branch* and still have to be converted.
+
+> **Corrected 2026-07-31 (second pass).** This paragraph first read "Five of the fifteen are
+> bypass functions W5 deletes anyway … the real conversion target is ~10 functions." That
+> subtracted `spend_tokens` and `sync_all_user_data` from the workload, but only their bypass
+> *branches* go — the functions survive and are two of the most load-bearing ones in the
+> merge (`sync_all_user_data` is the dual-emit in §5.2.3). Sizing the work at ~10 understates
+> it by the two that matter most. Verified against `pg_proc` in production 2026-07-31: 15
+> functions reference `user_tokens`, all SECURITY DEFINER, exactly as listed above.
 
 ### Client surface
 
@@ -200,6 +209,11 @@ because every later step encodes them. Record in the D10 entry, not in this file
    that must not be skipped — the collision history in `20260727100300` is the precedent.
 4. Extend the freemium-guard trigger to cover `noor_balance` the way it covers the token and
    bypass columns. A client-writable currency is a client-mintable currency.
+   **Precision, verified 2026-07-31 — the gap is INSERT, not UPDATE.** `noor_balance` is
+   *already* protected on UPDATE by `trg_cosmetics_guard` → `cosmetics_guard()`. What it is
+   not covered by is `guard_user_profiles_insert_server_columns` (BEFORE INSERT), which
+   guards `free_tier_cohort`, all three `weekly_pool_*` columns and `softener_notice_ends_at`
+   but not `noor_balance`. Close the INSERT hole; do not re-implement the UPDATE guard.
 
 **Tests:** pgtap for every converted function — cohort branch both ways, `>= 0` floor,
 idempotency, and a guard test asserting a direct client UPDATE of `noor_balance` is rejected.

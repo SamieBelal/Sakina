@@ -341,4 +341,12 @@ Stated plainly, because each of these is an easy and wrong inference:
 | "What to pull — the metrics" (primary, secondary, guardrails) | **Dead as instructions.** Preserved as the design record. |
 | "How to decide which arm wins" (P ≥ 95%, retention veto, tie → control) | **Never applied and never will be.** No arm was chosen by this rule. |
 | "Which build/config to keep after the decision" | **Superseded by W5.** Both the "control wins" flag flip and the "treatment wins" code change are void — the paywall those rows describe is being replaced. `hard_paywall_after_tour_enabled` (still `true` in prod) and `post_tour_paywall_mode` (`soft`) are now W5's business, not this experiment's. |
-| Gotchas | **Still accurate** for querying historical events, with two fixes: (a) the test-ID list is now **64** distinct_ids, not 54 — always read the current [`docs/qa/mixpanel-orphaned-distinct-ids.json`](../qa/mixpanel-orphaned-distinct-ids.json) rather than the count quoted in prose; (b) `paywall_exp_arm` is now historical-only per A6. |
+| Gotchas | **Still accurate** for querying historical events, with two fixes: (a) the test-ID list is longer than the 54 quoted there — always read the current [`docs/qa/mixpanel-orphaned-distinct-ids.json`](../qa/mixpanel-orphaned-distinct-ids.json) rather than any count quoted in prose (see the correction below); (b) `paywall_exp_arm` is now historical-only per A6. |
+
+> **Corrected 2026-07-31 (second pass).** This row first said the list "is now **64**
+> distinct_ids". The file's `distinct_ids` array actually holds **66** entries; **64** is the
+> value of the file's own `count` key, which is itself stale and disagrees with the array it
+> describes. The sibling edit in [`funnel-flags-and-querying.md`](./funnel-flags-and-querying.md)
+> said 66 in the same commit, so the two documents contradicted each other. **Neither number
+> should be relied on: count the `distinct_ids` array at read time.** Do not trust the file's
+> `count` field either until someone reconciles it.

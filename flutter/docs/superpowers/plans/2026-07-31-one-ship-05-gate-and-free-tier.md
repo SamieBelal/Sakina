@@ -46,14 +46,58 @@ are not.
 So W5's free-tier work is **almost entirely client**. The server contract is built, tested,
 and idle.
 
+> **⚠️ Two of the three gaps above CLOSED the same day (2026-07-31) — this section is a
+> snapshot, not current state.** Commits `0823b5e` (warmup budgets become server dials),
+> `88db130` (dials primed at boot in `main.dart`) and `41da747` landed after this was
+> written:
+>
+> - **"`gating_service.dart:133` … never reads `app_config`" is now FALSE.** `gating_service`
+>   carries `warmupSizeConfigKey` and an async `warmupBudgetFor()`; the hardcoded
+>   `warmupBudget` map survives only as the documented offline fallback. **§4.D.1 is done.**
+> - **`warmup_discover_name_size` now exists in code** (`gating_service.dart:166`,
+>   `main.dart:257`) with a committed migration `20260731090000_warmup_discover_name_size.sql`
+>   seeding it to `3` — which answers §7's open decision in the recommended direction.
+> - **But that migration is NOT applied to production.** Re-checked 2026-07-31: `app_config`
+>   holds `warmup_reflect_size=3`, `warmup_built_dua_size=3`, `weekly_pool_size=3` and **no
+>   `warmup_discover_name_size` row.** Until it is applied, the client reads a missing key and
+>   silently takes the offline fallback (`discoverName: 5`) — i.e. the D10② 3-re-roll warmup
+>   is not actually in force. **Apply before T0.**
+>
+> Still true and unchanged: **zero** references to `consume_weekly_allowance` in `lib/` or
+> `test/` (re-verified after these commits).
+>
+> Also closed: §5's "extend `scripts/check_no_fake_strings.sh` with the firewall patterns"
+> shipped as `cb9251f`.
+
 ## 2. Verified baseline — everything else
 
 **Paywall.** `lib/features/onboarding/screens/paywall_screen.dart`, **1,741 lines**, one page.
-Reached from **14** `push('/paywall')` call sites plus 3 router builders and
-`onboarding_screen.dart:1044` — **none of them pass a placement**, because the parameter does
-not exist. `_closeButtonRevealDelay = Duration(seconds: 3)` is still live (`:115`, `:308`).
-`_planHasTrial` (`:230`) checks whether the **product** has an intro offer, never whether
-**this user** is eligible.
+Reached from **13** `push('/paywall')` call sites plus 3 router builders and
+`onboarding_screen.dart:1044`. `_closeButtonRevealDelay = Duration(seconds: 3)` is still live
+(`:119`, `:312`). `_planHasTrial` (`:234`) checks whether the **product** has an intro offer,
+never whether **this user** is eligible.
+
+> **Corrected 2026-07-31 (second pass) — the `placement` claim above was wrong.** This
+> plan's first draft said "**none of them pass a placement**, because the parameter does not
+> exist." **The parameter exists and has shipped.** Verified against the committed tree:
+>
+> | Claim | Truth |
+> |---|---|
+> | "the parameter does not exist" | `PaywallScreen.placement` is declared at `paywall_screen.dart:34` (optional, `= AnalyticsEvents.placementSoftInApp`), documented at `:43-48`, and stamped onto **every** analytics event the screen emits (`propPlacement`, ~15 sites) |
+> | "none of them pass a placement" | all **3 router builders** pass one explicitly — `/paywall` → `placementSoftInApp` (`router.dart:168`), `kOnboardingPaywallPath` → `placementHardWall`, `kOnboardingSoftPaywallPath` → arm-aware; and `onboarding_screen.dart:1045` passes `placementOnboarding` |
+> | four constants, not two | `analytics_event_names.dart` carries `placementOnboarding`, `placementHardWall`, `placementSoftInApp`, `placementPostTrialSoft` |
+> | "14 push call sites" | **13** real `push('/paywall')` call sites; the 14th grep hit is a comment in `iap_to_sub_upsell_banner.dart` |
+>
+> **What is actually true, and what W5 therefore has to do.** The 13 in-app pushes cannot
+> carry a placement — a `context.push('/paywall')` by path constructs the widget through the
+> router builder, which hardcodes `soft_inapp`. So every in-app upsell collapses into one
+> undifferentiated placement, and the default makes a missed placement silent rather than a
+> compile error. §4.C.1 below is therefore **not "introduce `placement`"** — it is: give the
+> push sites a typed way to carry one, and make the parameter **required** so the default
+> can no longer swallow a miss.
+>
+> Also drifted, not wrong: `:115`/`:308`/`:230` above were off by four lines against the same
+> 1,741-line file; corrected inline. Grep the symbols, never the line numbers.
 
 **Store.** ASC `sakina_sub_annual` (subscription `6762153970`): `FREE_TRIAL / THREE_DAYS`,
 `numberOfPeriods 1`, `startDate 2026-04-29`, `endDate null`, **configured per territory**
@@ -161,9 +205,12 @@ sees the non-trial variant.
 
 ### C — The 3-page paywall
 
-1. **Introduce `placement`** (`onboarding` | `soft_inapp` | future) as a required parameter,
-   and pass it from all 14 push sites + 3 router builders + `onboarding_screen.dart:1044`.
-   This is mechanical but touches the most files; do it first and alone.
+1. **Make `placement` required, and let the push sites carry one** — *not* "introduce" it;
+   see the correction in §2, the parameter already exists with a `soft_inapp` default.
+   Drop the default so a miss is a compile error, give the **13** `push('/paywall')` sites a
+   typed way to pass one (they currently route through the builder and all collapse to
+   `soft_inapp`), and keep the 3 router builders + `onboarding_screen.dart:1044` passing
+   theirs. This is mechanical but touches the most files; do it first and alone.
 2. Build the three pages against the approved copy and the mock: `value_depth` (contract-keyed,
    renders **the actual Silver card widget** — not a re-draw; the reveal awards a deterministic
    Silver and the two surfaces must not disagree) → `trial_timeline` → `plan_select` (the five
@@ -237,7 +284,7 @@ sees the non-trial variant.
 | Build and store disagree on duration | Ship together (§3.2); derive from `periodNumberOfUnits` so it cannot recur |
 | Ineligible user charged instantly after "7 days free" | B.3 — per-user RC eligibility, non-trial variant |
 | Weekly-pool RPC fails → user charged twice or locked out | Fail open; local cache reconciles on next sync |
-| A placement is missed at one of the 17 entry points | Make `placement` **required**, so a miss is a compile error |
+| A placement is missed at one of the 17 entry points (13 pushes + 3 builders + onboarding) | Make `placement` **required** — today's `soft_inapp` default means a miss is silent, not a compile error |
 | Cap-sheet copy ships false | D.5 is a blocker on the pool, not follow-up |
 
 ---
