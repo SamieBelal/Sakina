@@ -80,11 +80,21 @@ class _DailyQuestionFieldState extends State<DailyQuestionField> {
           maxLines: 6,
           textCapitalization: TextCapitalization.sentences,
           // Deliberately NOT `keyboardType.multiline` — that turns the return
-          // key into a newline and removes the only way forward for anyone on
-          // an external keyboard or dictation (same reasoning as
-          // free_text_dialog). The send button below is the on-screen path.
+          // key into a newline, and a newline is not what anyone wants from
+          // this key here.
           textInputAction: TextInputAction.done,
-          onSubmitted: (_) => widget.onSubmitted(),
+          // **The keyboard's checkmark DISMISSES; it does not submit** (founder,
+          // 2026-07-30). Overriding `onEditingComplete` is what does it —
+          // Flutter's default implementation both submits and unfocuses.
+          //
+          // This is only safe because the send arrow exists. The original
+          // wiring routed this key straight to submit precisely because it was
+          // the sole way forward for anyone on an external keyboard or using
+          // dictation; with an always-visible arrow that constraint is met, and
+          // an accidental return on a composition about something painful no
+          // longer commits it. Typing becomes a mode you step out of, which is
+          // also what makes the un-pinned exit below reachable again.
+          onEditingComplete: () => FocusScope.of(context).unfocus(),
           cursorColor: AppColors.sacredInk,
           style: AppTypography.bodyLarge.copyWith(color: AppColors.sacredInk),
           decoration: InputDecoration(

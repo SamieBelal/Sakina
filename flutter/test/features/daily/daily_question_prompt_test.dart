@@ -67,14 +67,43 @@ void expectCaptionIsWhole(WidgetTester t, double scale) {
 
 /// The escape hatch has to be *on screen*, not merely mounted somewhere below
 /// the fold (plan §2 rule 7).
+///
+/// **Keyboard-down only.** The exit used to be pinned outside the scroll view
+/// so this held at every size in every state — but with the keyboard up that
+/// made it a row floating over a half-cut option list. It now sits at the end
+/// of the scrolling column (founder, 2026-07-30).
+///
+/// Rule 7 still holds, by a different route: the exit is on screen without
+/// scrolling whenever the keyboard is down, and the keyboard's return key now
+/// dismisses rather than submits, so getting back to it is one tap the user is
+/// already reaching for. See [expectDeferIsReachable] for the keyboard-up
+/// contract, which is weaker on purpose.
 void expectDeferIsOnScreen(WidgetTester t) {
   final finder = find.byType(DailyQuestionDeferLink);
   expect(finder, findsOneWidget);
   final rect = t.getRect(finder);
   final screen = t.view.physicalSize / t.view.devicePixelRatio;
   expect(rect.bottom, lessThanOrEqualTo(screen.height),
-      reason: 'the exit must not sit below the bottom edge');
+      reason: 'with the keyboard down the exit must not sit below the bottom '
+          'edge — an escape hatch the user has to go looking for is not one');
   expect(rect.top, greaterThanOrEqualTo(0.0));
+}
+
+/// The keyboard-up contract: the exit must still be *reachable*, i.e. mounted
+/// and scrollable to, even though it is no longer guaranteed to be in view.
+///
+/// Deliberately weaker than [expectDeferIsOnScreen]. What it rules out is the
+/// case that actually matters — an exit that has been unmounted, detached from
+/// the scrollable, or pushed somewhere no scroll can reach.
+Future<void> expectDeferIsReachable(WidgetTester t) async {
+  final finder = find.byType(DailyQuestionDeferLink);
+  expect(finder, findsOneWidget, reason: 'the exit must still exist');
+  // `ensureVisible`, not `scrollUntilVisible`: the content of a
+  // SingleChildScrollView is already built, so there is nothing to drag into
+  // existence — the scrollable simply has to be asked to reveal it.
+  await t.ensureVisible(finder);
+  await t.pumpAndSettle();
+  expectDeferIsOnScreen(t);
 }
 
 void main() {
@@ -130,6 +159,56 @@ void main() {
       isTrue,
       reason: 'the caption must span worry → thanks',
     );
+  });
+
+  testWidgets('the exit is in view without scrolling on a normal screen',
+      (t) async {
+    // Plan §2 rule 7, held on the screen size most users actually have. The
+    // exit moved from a pinned row outside the scroll view into the end of the
+    // scrolling column (founder, 2026-07-30), because pinned it floated over a
+    // half-cut option list whenever the keyboard was up.
+    //
+    // What that trades away is the guarantee at the extremes: on a 320pt-wide
+    // phone the labels wrap and the content outgrows the viewport at any text
+    // size, so there the exit scrolls. This is the case in between, and it has
+    // to hold — an escape hatch you have to go looking for is not one.
+    t.view.physicalSize = const Size(390 * 3, 844 * 3); // iPhone 14/15
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    expectDeferIsOnScreen(t);
+  });
+
+  testWidgets('the keyboard return key dismisses rather than submitting',
+      (t) async {
+    // Founder, 2026-07-30. The checkmark used to fire `onSubmitted` straight
+    // into the loop, which meant an accidental return on a composition about
+    // something painful committed it. It now unfocuses, and the gold arrow is
+    // the only thing that submits.
+    //
+    // Safe only BECAUSE that arrow exists: the original wiring routed this key
+    // to submit precisely because it was the sole way forward for anyone on an
+    // external keyboard or using dictation.
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    await t.enterText(find.byType(TextField), 'my brother is unwell');
+    await t.testTextInput.receiveAction(TextInputAction.done);
+    await t.pumpAndSettle();
+
+    expect(submissions, isEmpty,
+        reason: 'the return key must not commit the answer');
+    expect(find.text('my brother is unwell'), findsOneWidget,
+        reason: 'and it must not clear what they wrote either');
+
+    // The arrow still does submit.
+    await t.tap(find.byKey(DailyQuestionField.sendButtonKey));
+    await t.pumpAndSettle();
+    expect(submissions, hasLength(1));
+    expect(submissions.single.text, 'my brother is unwell');
   });
 
   testWidgets('does not teach muḥāsabah — the CTA one tap earlier already did',
@@ -283,9 +362,11 @@ void main() {
 
     expect(t.takeException(), isNull);
     expect(find.text(DailyQuestionCopy.header), findsOneWidget);
-    // The exit is pinned outside the scroll view precisely so it survives
-    // this case — visible, hit-testable, and above the keyboard.
-    expectDeferIsOnScreen(t);
+    // With the keyboard up the exit scrolls with everything else rather than
+    // floating above the keyboard. What must hold is that it is still there
+    // and still reachable — and that dismissing the keyboard brings it back
+    // into view, which is the path the user actually takes.
+    await expectDeferIsReachable(t);
   });
 
   testWidgets('the canvas is painted OUTSIDE the Scaffold, not as its body',
@@ -336,7 +417,16 @@ void main() {
       expect(t.takeException(), isNull, reason: 'at scale $scale');
       expect(find.text(DailyQuestionCopy.header), findsOneWidget);
       expectCaptionIsWhole(t, scale);
-      expectDeferIsOnScreen(t);
+      // **Reachable, not necessarily in view — on this screen size, at every
+      // scale.** 320pt wide is narrow enough that the option labels wrap to
+      // two lines each, so the content exceeds a 568pt viewport even at
+      // default type. Pinning the exit outside the scroll view was the only
+      // thing that kept it on screen here, and unpinning gives that up
+      // knowingly: an exit that scrolls with everything else is coherent,
+      // whereas an exit pinned in place while the QUESTION scrolls away is
+      // not. The strict in-view contract is checked on a normal-sized screen
+      // by 'the exit is in view without scrolling on a normal screen'.
+      await expectDeferIsReachable(t);
     }
   });
 

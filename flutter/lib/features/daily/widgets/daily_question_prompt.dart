@@ -251,75 +251,26 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: _padding,
-                  // The house pattern for every text-entry screen: the column
-                  // may grow past the viewport (Dynamic Type, a raised
-                  // keyboard) without ever overflowing the bottom. The padding
-                  // sits OUTSIDE the LayoutBuilder so `constraints.maxHeight`
-                  // is already the height the column actually gets.
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => _fadeAtBottom(
-                      SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints:
-                              BoxConstraints(minHeight: constraints.maxHeight),
-                          child: IntrinsicHeight(child: _column(context)),
-                        ),
-                      ),
-                    ),
-                  ),
+          child: Padding(
+            padding: _padding,
+            // The house pattern for every text-entry screen: the column may
+            // grow past the viewport (Dynamic Type, a raised keyboard) without
+            // ever overflowing the bottom. The padding sits OUTSIDE the
+            // LayoutBuilder so `constraints.maxHeight` is already the height
+            // the column actually gets.
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(child: _column(context)),
                 ),
               ),
-              // **Outside the scroll view on purpose.** Seven chips plus a
-              // multi-line field overflow an iPhone SE before Dynamic Type is
-              // even considered, and an escape hatch the user has to go
-              // looking for is not one (plan §2 rule 7). Pinning it here is
-              // the only arrangement where the exit is visible at every screen
-              // size and every type scale — and, because the Scaffold resizes
-              // for the keyboard, it stays above the keyboard too.
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.lg,
-                  right: AppSpacing.lg,
-                  bottom: AppSpacing.sm,
-                ),
-                child: _deferLink(),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-
-  /// Dissolves the last few points of the scrolling region into the canvas.
-  ///
-  /// With the keyboard up the scroll viewport is short, and its bottom edge was
-  /// **guillotining an option mid-word** — a chip sliced horizontally through
-  /// its own text, with the pinned exit floating below it. A hard cut reads as
-  /// a rendering fault rather than as "there is more here"; a fade reads as
-  /// depth, which is also the house treatment on the canvas.
-  ///
-  /// Self-hiding: when the content fits, the bottom of this region is empty
-  /// canvas, so fading it changes nothing visible. It only appears when there
-  /// is something to cut.
-  ///
-  /// `dstIn` multiplies the child's alpha by the shader's, so the gradient runs
-  /// from transparent at the very bottom to opaque a short way up.
-  Widget _fadeAtBottom(Widget child) => ShaderMask(
-        shaderCallback: (rect) => const LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.transparent, Colors.black],
-          stops: [0.0, 0.055],
-        ).createShader(rect),
-        blendMode: BlendMode.dstIn,
-        child: child,
-      );
 
   Widget _column(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
@@ -403,6 +354,29 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
           selectedChipKey: _selectedChipKey,
           onChipTapped: _submitChip,
         ),
+        // **In the scroll flow, not pinned above the keyboard** (founder,
+        // 2026-07-30). It used to sit outside the scroll view so it was on
+        // screen at every size — but with the keyboard up that made it a
+        // floating row hovering over a half-cut option list, which is what it
+        // looked like on device.
+        //
+        // Plan §2 rule 7 still holds, by a different route: the exit is visible
+        // without scrolling whenever the keyboard is DOWN, and the keyboard's
+        // return key now dismisses rather than submits, so getting back to it
+        // is one tap that the user is already reaching for. Typing is a mode
+        // you leave, not a trap.
+        // A plain gap, NOT a `Spacer`. This column sits inside an
+        // `IntrinsicHeight`, where a flex child has no intrinsic height to
+        // contribute and the measurement goes wrong — it inflated the column
+        // to 780pt on a 568pt screen and pushed the exit off the bottom at
+        // every text scale, which is the opposite of the point.
+        //
+        // The exit therefore sits directly under the last option rather than
+        // being pushed to the bottom of the viewport. That reads better
+        // anyway: it belongs to the list of things you can do here, not to the
+        // chrome.
+        const SizedBox(height: AppSpacing.lg),
+        _deferLink(),
       ],
     );
   }
