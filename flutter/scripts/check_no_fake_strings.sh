@@ -79,4 +79,149 @@ if [ -d "${LIB_DIR}/widgets" ] && grep -rniE "${MONEY_RE}" "${LIB_DIR}/widgets" 
   exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# Gate copy firewall (One Ship W5 §5; rules from the parent plan §V6.3.1 +
+# docs/superpowers/content/2026-07-25-paywall-DRAFT.md "Firewall self-check").
+#
+# A monetization surface in a worship app is exactly where copy drift does real
+# harm, so these patterns fail the release rather than relying on review memory.
+#
+# SCOPE IS THE WHOLE DESIGN HERE. Every one of these words appears legitimately
+# somewhere in lib/ — "not an accident" is teaching content in allah_names.dart,
+# "Silver Names" is quest copy, "Ar-Raheem is waiting for you to call" is a
+# verified knowledge_base passage. Scanning all of lib/ would fire on every one
+# of them and the gate would be disabled within a week. So the scan is limited
+# to the PURCHASE SURFACES plus the paywall-prefixed strings, which is also the
+# literal scope of the rules: they govern copy shown next to a price.
+#
+# This is the paywall half of the firewall. W7 owns the full-app sweep.
+
+# The surfaces a price or a purchase CTA can appear on. Anything that renders a
+# plan, a price, an upgrade CTA, or a cap/lapse upsell belongs here.
+_PURCHASE_SURFACES=(
+  "${LIB_DIR}/features/onboarding/screens/paywall_screen.dart"
+  "${LIB_DIR}/features/paywall"
+  "${LIB_DIR}/widgets/upgrade_required_sheet.dart"
+  "${LIB_DIR}/widgets/iap_to_sub_upsell_banner.dart"
+  "${LIB_DIR}/features/home/widgets/home_premium_strip.dart"
+  "${LIB_DIR}/features/settings/widgets/settings_premium_card.dart"
+)
+STRINGS_FILE="${LIB_DIR}/core/constants/app_strings.dart"
+
+# Emit the scanned corpus as `path:line:text`. Two sources, because paywall copy
+# is split: the screens hold some literals inline, but most of it is centralized
+# as `AppStrings.paywall*` constants in one 394-line file shared with the whole
+# app — so scanning that file wholesale would drag in every unrelated string.
+#
+# 1. Purchase-surface files, with comment-only lines stripped. Doc comments in
+#    these files quote the banned phrases to explain the rules —
+#    lantern_kindle_beat.dart literally says `never uses "sign" or "meant for
+#    you"` — and flagging the comment that documents a rule for violating it is
+#    the fastest way to teach people to ignore this script.
+# 2. Only the purchase-prefixed constant blocks from app_strings.dart. awk spans
+#    the declaration through its terminating `;` because the long strings wrap
+#    onto continuation lines, where a line-based grep would miss the value.
+_purchase_copy() {
+  local existing=()
+  local p
+  for p in "${_PURCHASE_SURFACES[@]}"; do
+    [ -e "${p}" ] && existing+=("${p}")
+  done
+  if [ ${#existing[@]} -gt 0 ]; then
+    grep -rn '' "${existing[@]}" | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///?|\*)' || true
+  fi
+  if [ -f "${STRINGS_FILE}" ]; then
+    awk '/^[[:space:]]*static const (paywall|trial|upgrade|softGate|capSheet|lapsed|warmupExhausted|premium|subscribe|restore)[A-Za-z0-9_]* =/{f=1} f{print FILENAME":"NR":"$0} f&&/;[[:space:]]*$/{f=0}' "${STRINGS_FILE}" || true
+  fi
+}
+PURCHASE_COPY="$(_purchase_copy || true)"
+
+# Each rule: a regex, and the error shown when it fires.
+_firewall() {
+  local label="$1" re="$2" msg="$3"
+  if printf '%s\n' "${PURCHASE_COPY}" | grep -nEi "${re}" ; then
+    echo ""
+    echo "ERROR: gate copy firewall — ${label}."
+    echo "${msg}"
+    echo "See docs/superpowers/content/2026-07-25-paywall-DRAFT.md 'Firewall self-check'."
+    exit 1
+  fi
+}
+
+# Rule 1 — no "sign" / "meant for you" on a price surface. The reel's second
+# contract uses sign language legitimately in the REVEAL DECK ("you didn't find
+# this by accident"); the violation is recycling that recognition beat to sell.
+# Expressed as presence-on-a-purchase-surface rather than textual adjacency to a
+# `$` — on these files every string is already next to a price.
+# NOTE: bare "sign" is deliberately absent — "Sign in" / "Sign up" / "signOut"
+# would swamp it. Only the recognition phrasings are matched.
+# On `\\\\?` see the apostrophe note above rule 5.
+_firewall "'sign' / 'meant for you' framing next to a price" \
+  "(meant for you|meant to find|this is a sign|it\\\\?'?s a sign|a sign for you|(not an|no) accident|by accident)" \
+  "Recognition framing sells the divine as the product. Keep sign language in
+the reveal deck, never on a purchase surface."
+
+# Rule 2 — no countdown / timer UI on a purchase surface. The RevenueCat system
+# trial-end notice is the ONLY allowed clock.
+# Copy-level only, on purpose — see the deferred code-level check below.
+_firewall "countdown / urgency copy" \
+  "(ends|expires|expiring)[[:space:]]+in[[:space:]]|hurry|time (is )?running out|act (now|fast)|only[[:space:]]+[0-9]+[[:space:]]+(left|remaining)|[0-9]+[[:space:]]*(hours?|minutes?|days?)[[:space:]]+(left|remaining)" \
+  "Scarcity is stated plainly once, never counted down. The only permitted clock
+is RevenueCat's system trial-end reminder."
+
+# Rule 3 — no arc-count on a purchase surface. "X of 99 Names" sells something
+# that is free forever, which reads as deception after the user dismisses.
+_firewall "arc-count ('X of 99') on a purchase surface" \
+  "[0-9]+[[:space:]]*(of|/)[[:space:]]*99|of 99 names" \
+  "The 99 Names are free forever. Counting them on a gate sells a thing we give
+away. Sell depth, never the arc."
+
+# Rule 4 — tier vocabulary attaches to the CARD, never to the Name. "a Bronze
+# Name of Allah" is banned copy; "an Emerald card for every Name" is correct,
+# and the token-adjacency form below distinguishes them without a false positive.
+_firewall "card-tier word attached to a Name" \
+  "(bronze|silver|gold|emerald)[[:space:]]+(name|al-|ar-|as-|an-|ash-|at-)" \
+  "Tier vocabulary describes the CARD, never the Name of Allah. Write
+'an Emerald card for As-Salam', never 'the Emerald As-Salam'."
+
+# Rule 5 — no guilt / loss framing.
+# TIGHTENED to second-person threats. A broad /lose|miss/ fires on the shipped
+# benefit copy "Never lose your spiritual streak" and "3 streak freezes so you
+# never lose progress" — those state what premium PROTECTS, which is a promise,
+# not a threat. "Don't lose your streak" is the banned shape. The difference is
+# who the sentence points at, so the pattern requires the second person.
+#
+# `\\\\?` before each apostrophe matches an OPTIONAL LITERAL BACKSLASH, because
+# inside a single-quoted Dart string an apostrophe is escaped: the source reads
+# `'Don\'t lose your streak'`. Without this the regex silently misses every
+# contraction in real Dart copy — the first cut of this rule did, and only
+# appeared to pass its own probe because the probe also said "last chance".
+# (Double quotes are safe here where the money check needs single ones: these
+# patterns contain no `$` for bash to eat.)
+_firewall "guilt / loss framing" \
+  "((do ?n\\\\?'?o?t|dont|you\\\\?'ll|you will|you\\\\?'d|before you)[[:space:]]+(lose|miss)|last chance|before (it|they|this)(\\\\?'s| is) gone|miss out|going to lose|about to lose|you\\\\?'ll regret)" \
+  "Payment is never motivated by fear of loss. State what premium gives, not
+what the user will lose."
+
+# Rule 6 — THE REVERENCE RULE. Copy may never attribute waiting, wanting,
+# disappointment, or any stance toward the user's purchase decision to Allah or
+# to a Name. This is the line that does real harm if crossed, and it is crossed
+# by accident (a writer reaches for warmth and personifies).
+# Scoped to purchase surfaces like the rest: knowledge_base.dart contains the
+# verified teaching sentence "Ar-Raheem is waiting for you to call", which is
+# scholarly content, not a sales line. A tripwire must not adjudicate scripture.
+_firewall "a stance attributed to Allah or a Name on a purchase surface" \
+  "(allah|a[lrsn]-[a-z]+)[^\"']{0,40}(is waiting|are waiting|awaits|is calling|misses you|wants you to|is disappointed|expects you)" \
+  "Payment never buys the divine, and Allah is never staged as waiting on a
+purchase. Rewrite so the sentence is about the user, never about Him."
+
+# DEFERRED — code-level countdown detection (rule 2, second half).
+# `grep -nE 'Timer\(|Timer\.periodic|countdown' ` over the purchase surfaces
+# currently returns ONE hit: paywall_screen.dart's `_closeButtonTimer =
+# Timer(_closeButtonRevealDelay, ...)`, the 3-second hidden close button. That
+# is a genuine dark pattern and W5 Wave C deletes it (D6: the 3s-hidden close
+# button does not carry over). Enabling the check now would ship a permanently
+# red gate, so it lands with Wave C instead — add it once that Timer is gone.
+
 echo "OK: no FAKE_DO_NOT_SHIP_ placeholders or fabricated monetary claims in lib/."
+echo "OK: gate copy firewall clean on the purchase surfaces."
