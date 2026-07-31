@@ -22,6 +22,8 @@ import '../features/onboarding/screens/paywall_screen.dart';
 import '../services/analytics_events.dart';
 import '../services/daily_question_analytics.dart';
 import 'widget_deep_link.dart';
+import '../features/paywall/paywall_navigation.dart';
+import '../features/paywall/paywall_placement.dart';
 import '../features/paywall/screens/cancellation_feedback_deeplink_screen.dart';
 import '../features/referrals/screens/my_referrals_screen.dart';
 import '../widgets/achievement_toast.dart';
@@ -161,11 +163,14 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
       // Standalone paywall (for already-onboarded users hitting the upgrade
       // sheet from journal save limits, etc). Does NOT fire completeOnboarding.
       GoRoute(
-        path: '/paywall',
+        path: paywallRoutePath,
         parentNavigatorKey: rootNavigatorKey,
+        // The placement rides in as the route's `extra` (see
+        // `pushPaywall`), so a future surface that is not the generic in-app
+        // upsell can route here without inheriting the wrong attribution.
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
-          placement: AnalyticsEvents.placementSoftInApp,
+          placement: placementFromRouteExtra(state.extra),
           onComplete: () => GoRouter.of(context).pop(),
         ),
       ),
@@ -180,7 +185,7 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           hardGate: true,
-          placement: AnalyticsEvents.placementHardWall,
+          placement: PaywallPlacement.hardWall,
           onComplete: () => GoRouter.of(context).go('/'),
         ),
       ),

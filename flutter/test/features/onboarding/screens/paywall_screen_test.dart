@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 
 void main() {
   // Repeating breathing-CTA + SAVE-badge shimmer animations introduced
@@ -20,7 +21,10 @@ void main() {
     return UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        home: PaywallScreen(onComplete: () {}),
+        home: PaywallScreen(
+          onComplete: () {},
+          placement: PaywallPlacement.softInApp,
+        ),
       ),
     );
   }

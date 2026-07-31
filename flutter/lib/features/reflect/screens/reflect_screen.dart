@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:sakina/core/utils/keyboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,8 @@ import 'package:sakina/widgets/beat_reveal/beat_reveal_flow.dart';
 import 'package:sakina/widgets/beat_reveal/beat_reveal_models.dart';
 import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
@@ -129,7 +130,9 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
             onUpgrade: buildPaywallUpgradeCallback(
               reason: next.gateResult!.reason,
               pushPaywall: () {
-                if (mounted) GoRouter.of(context).push('/paywall');
+                if (mounted) {
+                  pushPaywall(context, placement: PaywallPlacement.softInApp);
+                }
               },
             ),
           ).whenComplete(notifier.dismissGate);
@@ -143,7 +146,8 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
         WarmupExhaustedSheet.show(
           context,
           feature: next.warmupJustExhausted!,
-          onUpgrade: () => GoRouter.of(context).push('/paywall'),
+          onUpgrade: () =>
+              pushPaywall(context, placement: PaywallPlacement.softInApp),
         ).whenComplete(notifier.dismissWarmupExhausted);
       }
       // Journal-limit upsell (decision 18A): NEVER surface it over the beat

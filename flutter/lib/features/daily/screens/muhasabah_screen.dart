@@ -41,6 +41,8 @@ import 'package:sakina/services/gating_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
@@ -233,7 +235,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     WarmupExhaustedSheet.show(
       context,
       feature: feature,
-      onUpgrade: () => GoRouter.of(context).push('/paywall'),
+      onUpgrade: () =>
+          pushPaywall(context, placement: PaywallPlacement.softInApp),
     ).whenComplete(() {
       _warmupSheetShowing = false;
       // Clears the provider flag, which is what stops the mount read from
@@ -793,7 +796,9 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         onUpgrade: buildPaywallUpgradeCallback(
           reason: reason,
           pushPaywall: () {
-            if (mounted) GoRouter.of(context).push('/paywall');
+            if (mounted) {
+              pushPaywall(context, placement: PaywallPlacement.softInApp);
+            }
           },
         ),
       );

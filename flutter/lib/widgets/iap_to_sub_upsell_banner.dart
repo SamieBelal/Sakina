@@ -7,6 +7,8 @@ import '../core/constants/app_colors.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/theme/app_typography.dart';
 import '../features/daily/providers/daily_rewards_provider.dart';
+import '../features/paywall/paywall_navigation.dart';
+import '../features/paywall/paywall_placement.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
 import '../services/gating_service.dart';
@@ -328,7 +330,7 @@ class _IapToSubUpsellBannerState extends ConsumerState<IapToSubUpsellBanner> {
     // (which IS a descendant of GoRouter). Fall back to the local context
     // for tests that wire a router directly above the banner.
     final navContext = rootNavigatorKey.currentContext ?? context;
-    navContext.push('/paywall');
+    pushPaywall(navContext, placement: PaywallPlacement.softInApp);
   }
 
   Future<void> _onDismissTap() async {

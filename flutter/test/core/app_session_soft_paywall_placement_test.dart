@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
 import 'package:sakina/features/paywall/paywall_experiment.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -46,7 +47,7 @@ void main() {
 
   test('defaults to post_tour_soft + unassigned before hydration', () {
     final s = buildSession();
-    expect(s.softPaywallPlacement, AnalyticsEvents.placementPostTourSoft);
+    expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft);
     expect(s.paywallArm, AnalyticsEvents.armUnassigned);
     s.dispose();
   });
@@ -57,7 +58,7 @@ void main() {
       arm: PaywallArm.treatmentReverseTrial,
     );
     await s.hydrateOnboardingGate();
-    expect(s.softPaywallPlacement, AnalyticsEvents.placementPostTrialSoft,
+    expect(s.softPaywallPlacement, PaywallPlacement.postTrialSoft,
         reason: 'expired reverse trial = treatment Day-3 soft gate');
     expect(s.paywallArm, 'treatment_reverse_trial');
     s.dispose();
@@ -69,7 +70,7 @@ void main() {
       arm: PaywallArm.controlNoTrial,
     );
     await s.hydrateOnboardingGate();
-    expect(s.softPaywallPlacement, AnalyticsEvents.placementPostTourSoft,
+    expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft,
         reason: 'control arm keeps the generic post-tour soft placement');
     expect(s.paywallArm, 'control_no_trial');
     s.dispose();
@@ -82,12 +83,12 @@ void main() {
       arm: PaywallArm.treatmentReverseTrial,
     );
     await s.hydrateOnboardingGate();
-    expect(s.softPaywallPlacement, AnalyticsEvents.placementPostTrialSoft);
+    expect(s.softPaywallPlacement, PaywallPlacement.postTrialSoft);
 
     // Mirror the signedOut reset path used by the other gate flags so the next
     // user on a shared device isn't tagged with the previous user's arm/expiry.
     s.resetSoftPaywallPlacementForSignOut();
-    expect(s.softPaywallPlacement, AnalyticsEvents.placementPostTourSoft);
+    expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft);
     expect(s.paywallArm, AnalyticsEvents.armUnassigned);
     s.dispose();
   });

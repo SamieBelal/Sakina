@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -96,7 +97,10 @@ void main() {
         analyticsProvider.overrideWithValue(AnalyticsService()),
       ],
       child: MaterialApp(
-        home: PaywallScreen(onComplete: () {}),
+        home: PaywallScreen(
+          onComplete: () {},
+          placement: PaywallPlacement.softInApp,
+        ),
       ),
     );
   }

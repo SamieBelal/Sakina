@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/onboarding/onboarding_stage.dart';
 import '../features/paywall/paywall_experiment.dart';
+import '../features/paywall/paywall_placement.dart';
 import '../features/paywall/reverse_trial_onboarding.dart'
     show paywallExperimentAssignedBaseKey;
 import '../services/analytics_event_names.dart';
@@ -198,9 +199,9 @@ class AppSessionNotifier extends ChangeNotifier {
   /// gate), else `post_tour_soft` (control / generic). Read by the router to
   /// build the soft `PaywallScreen` and by the screen for its view/dismiss
   /// events.
-  String get softPaywallPlacement => _trialExpired
-      ? AnalyticsEvents.placementPostTrialSoft
-      : AnalyticsEvents.placementPostTourSoft;
+  PaywallPlacement get softPaywallPlacement => _trialExpired
+      ? PaywallPlacement.postTrialSoft
+      : PaywallPlacement.postTourSoft;
 
   /// The experiment arm wire value for the soft-paywall events (`arm` prop).
   /// Resolves to the persisted assignment (`control_no_trial` /

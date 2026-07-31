@@ -8,6 +8,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/paywall_experiment.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
@@ -176,7 +177,7 @@ void main() {
   late RecordingAnalyticsService analytics;
 
   Widget buildSubject({
-    required String placement,
+    required PaywallPlacement placement,
     bool hardGate = false,
     bool inOnboardingFlow = true,
   }) {
@@ -242,7 +243,7 @@ void main() {
   testWidgets('initState emits paywall_viewed with placement + hard_gate',
       (tester) async {
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementHardWall, hardGate: true,
+      buildSubject(placement: PaywallPlacement.hardWall, hardGate: true,
           inOnboardingFlow: false),
     );
     await tester.pumpAndSettle();
@@ -257,7 +258,7 @@ void main() {
   testWidgets('paywall_viewed fires exactly once for the onboarding surface',
       (tester) async {
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementOnboarding),
+      buildSubject(placement: PaywallPlacement.onboarding),
     );
     await tester.pumpAndSettle();
 
@@ -283,7 +284,7 @@ void main() {
     // shimmer doesn't hang pumpAndSettle) and dismisses the reveal exactly like
     // paywall_screen_test.dart::dismissPremiumReveal.
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementOnboarding),
+      buildSubject(placement: PaywallPlacement.onboarding),
     );
     await tester.pumpAndSettle();
 
@@ -327,7 +328,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementSoftInApp),
+      buildSubject(placement: PaywallPlacement.softInApp),
     );
     await tester.pumpAndSettle();
 
@@ -351,7 +352,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      buildSubject(placement: AnalyticsEvents.placementSoftInApp),
+      buildSubject(placement: PaywallPlacement.softInApp),
     );
     await tester.pumpAndSettle();
 
@@ -480,7 +481,7 @@ void main() {
 
     await tester.pumpWidget(
       buildSubject(
-        placement: AnalyticsEvents.placementHardWall,
+        placement: PaywallPlacement.hardWall,
         hardGate: true,
         inOnboardingFlow: false,
       ),

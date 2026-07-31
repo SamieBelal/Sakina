@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/screens/onboarding_screen.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
-import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 
@@ -155,7 +155,7 @@ void main() {
     await tester.pump();
 
     final paywall = tester.widget<PaywallScreen>(find.byType(PaywallScreen));
-    expect(paywall.placement, AnalyticsEvents.placementOnboarding);
+    expect(paywall.placement, PaywallPlacement.onboarding);
 
     await tester.pump(const Duration(seconds: 4));
   });

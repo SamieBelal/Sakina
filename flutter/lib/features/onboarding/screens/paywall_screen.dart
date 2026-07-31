@@ -16,6 +16,7 @@ import '../../../core/app_session.dart';
 import '../../../features/daily/providers/daily_rewards_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../paywall/paywall_placement.dart';
 import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/card_collection_service.dart';
@@ -29,9 +30,9 @@ import 'package:sakina/core/constants/app_durations.dart';
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     required this.onComplete,
+    required this.placement,
     this.inOnboardingFlow = true,
     this.hardGate = false,
-    this.placement = AnalyticsEvents.placementSoftInApp,
     super.key,
   }) : assert(!(hardGate && inOnboardingFlow),
             'hardGate is post-onboarding; it must not also run the '
@@ -39,13 +40,16 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
   final VoidCallback onComplete;
 
-  /// Which of the three paywall surfaces this instance represents, used as the
-  /// `placement` property on every analytics event the screen emits so the
-  /// paywall→purchase funnel is segmentable per surface. One of
-  /// [AnalyticsEvents.placementOnboarding] (onboarding PageView),
-  /// [AnalyticsEvents.placementHardWall] (post-tour entry wall), or
-  /// [AnalyticsEvents.placementSoftInApp] (in-app upsell, the default).
-  final String placement;
+  /// Which paywall surface this instance represents. Its
+  /// [PaywallPlacement.analyticsValue] is the `placement` property on every
+  /// analytics event the screen emits, so the paywall→purchase funnel is
+  /// segmentable per surface.
+  ///
+  /// REQUIRED with no default (W5 Wave C.1): a new entry point that forgets to
+  /// name its surface must fail to compile, not silently report itself as an
+  /// in-app upsell. Wave C.2 branches the layout on this. Navigate to the
+  /// `/paywall` route with `pushPaywall(context, placement: ...)`.
+  final PaywallPlacement placement;
 
   /// When `true`, this is the post-tour HARD ENTRY WALL (decision C4): no close
   /// X, back is blocked, and a successful trial start sets the durable
@@ -283,7 +287,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ref.read(analyticsProvider).track(
         AnalyticsEvents.paywallViewed,
         properties: {
-          AnalyticsEvents.propPlacement: widget.placement,
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
           'hard_gate': widget.hardGate,
         },
       );
@@ -293,12 +297,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     // so the post-trial view is distinguishable from the control's immediate
     // soft view. The `arm` comes from the session (no experiment access in the
     // Riverpod-free services). Control keeps the generic `paywall_viewed` above.
-    if (widget.placement == AnalyticsEvents.placementPostTrialSoft) {
+    if (widget.placement == PaywallPlacement.postTrialSoft) {
       try {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.trialPaywallSurfaced,
           properties: {
-            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             AnalyticsEvents.propArm: ref.read(appSessionProvider).paywallArm,
             AnalyticsEvents.propHardGate: false,
           },
@@ -365,7 +369,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     try {
       ref.read(analyticsProvider).track(
         AnalyticsEvents.paywallSafetyValveUsed,
-        properties: {AnalyticsEvents.propPlacement: widget.placement},
+        properties: {
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue
+        },
       );
     } catch (_) {}
     ref.read(appSessionProvider).bypassGateForSession();
@@ -421,9 +427,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   /// Whether this paywall instance is the post-tour soft gate (either arm's
   /// surface). Drives the `soft_gate_dismissed` emission on X / dismiss.
-  bool get _isPostTourSoftGate =>
-      widget.placement == AnalyticsEvents.placementPostTourSoft ||
-      widget.placement == AnalyticsEvents.placementPostTrialSoft;
+  bool get _isPostTourSoftGate => widget.placement.isPostTourSoftGate;
 
   Future<void> _doClose() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
@@ -437,7 +441,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.softGateDismissed,
           properties: {
-            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             AnalyticsEvents.propArm: ref.read(appSessionProvider).paywallArm,
           },
         );
@@ -574,7 +578,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped,
         properties: {
           'plan': _planName,
-          AnalyticsEvents.propPlacement: widget.placement,
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
         });
     HapticFeedback.mediumImpact();
     setState(() {
@@ -610,7 +614,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.purchaseSheetPresented,
           properties: {
-            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             'plan': _planName,
           },
         );
@@ -626,7 +630,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           ref.read(analyticsProvider).track(
             AnalyticsEvents.purchaseSheetFailed,
             properties: {
-              AnalyticsEvents.propPlacement: widget.placement,
+              AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
               'reason': 'entitlement_inactive',
             },
@@ -648,7 +652,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         properties: {
           'plan': _planName,
           'hard_gate': widget.hardGate,
-          AnalyticsEvents.propPlacement: widget.placement,
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
         },
       );
 
@@ -662,7 +666,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           ref.read(analyticsProvider).track(
             AnalyticsEvents.purchaseSheetCancelled,
             properties: {
-              AnalyticsEvents.propPlacement: widget.placement,
+              AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
             },
           );
@@ -672,7 +676,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           ref.read(analyticsProvider).track(
             AnalyticsEvents.purchaseSheetFailed,
             properties: {
-              AnalyticsEvents.propPlacement: widget.placement,
+              AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
               'reason': errorCode.toString(),
             },
@@ -689,7 +693,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.purchaseSheetFailed,
           properties: {
-            AnalyticsEvents.propPlacement: widget.placement,
+            AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             'plan': _planName,
             'reason': e.runtimeType.toString(),
           },

@@ -41,6 +41,8 @@ import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/features/paywall/lapsed_soft_gate_analytics.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/features/paywall/upgrade_callback.dart';
 import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/services/analytics_provider.dart';
@@ -205,7 +207,8 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         context,
         momentsDuringTrial: decision.activity.momentsDuringTrial,
         daysActiveDuringTrial: decision.activity.daysActiveDuringTrial,
-        onUpgrade: () => GoRouter.of(context).push('/paywall'),
+        onUpgrade: () =>
+            pushPaywall(context, placement: PaywallPlacement.softInApp),
         onDismiss: () => recordLapsedSoftGateDismissed(
           analytics,
           placement: AnalyticsEvents.placementPostTrialSoft,
@@ -1001,7 +1004,9 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         onUpgrade: buildPaywallUpgradeCallback(
           reason: reason,
           pushPaywall: () {
-            if (mounted) GoRouter.of(context).push('/paywall');
+            if (mounted) {
+              pushPaywall(context, placement: PaywallPlacement.softInApp);
+            }
           },
         ),
       );

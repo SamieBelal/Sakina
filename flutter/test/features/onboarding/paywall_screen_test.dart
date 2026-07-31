@@ -8,6 +8,7 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
@@ -178,6 +179,7 @@ void main() {
       ],
       child: MaterialApp(
         home: PaywallScreen(
+          placement: PaywallPlacement.softInApp,
           onComplete: () {
             completed = true;
           },

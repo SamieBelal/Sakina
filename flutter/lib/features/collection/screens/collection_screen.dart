@@ -9,6 +9,8 @@ import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
 import 'package:sakina/features/collection/providers/card_collection_provider.dart';
 import 'package:sakina/features/collection/providers/tier_up_scroll_provider.dart';
+import 'package:sakina/features/paywall/paywall_navigation.dart';
+import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
@@ -272,7 +274,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
                           onTap: entry.premiumLocked
                               ? () {
                                   HapticFeedback.lightImpact();
-                                  context.push('/paywall');
+                                  pushPaywall(context,
+                                      placement: PaywallPlacement.softInApp);
                                 }
                               : null);
                     }

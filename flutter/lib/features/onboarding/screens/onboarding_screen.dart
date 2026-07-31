@@ -11,6 +11,7 @@ import '../../../services/analytics_provider.dart';
 import '../../../services/analytics_events.dart';
 import '../../../services/app_config_service.dart';
 import '../../../services/reel_deep_link_service.dart';
+import '../../paywall/paywall_placement.dart';
 import '../../paywall/reverse_trial_onboarding.dart';
 import '../content/problem_chips.dart';
 import '../providers/onboarding_provider.dart';
@@ -1042,7 +1043,7 @@ class OnboardingFinalGate extends ConsumerWidget {
       builder: (context, _) {
         if (alwaysShowPaywall || !session.hardPaywallFlowEnabled) {
           return PaywallScreen(
-            placement: AnalyticsEvents.placementOnboarding,
+            placement: PaywallPlacement.onboarding,
             onComplete: onComplete,
           );
         }
