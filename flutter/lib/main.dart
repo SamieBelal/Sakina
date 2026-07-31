@@ -245,6 +245,16 @@ Future<void> main() async {
         // the user gets the HARD wall that launch, and `soft` only takes
         // effect a launch later once the background refresh lands.
         'post_tour_paywall_mode',
+        // Free-tier warmup dials (W5 D.1). Primed so a fresh install that
+        // reaches its first gate check before any background refresh reads the
+        // server's number rather than the generous offline fallback in
+        // `GatingService.warmupBudget`. Priming is best-effort by design: a
+        // miss only means the user gets MORE free uses that launch, never
+        // fewer — the fallbacks are the permissive direction.
+        // Keep in lockstep with `GatingService.warmupSizeConfigKey`.
+        'warmup_reflect_size',
+        'warmup_built_dua_size',
+        'warmup_discover_name_size',
       ]).timeout(const Duration(milliseconds: 1500), onTimeout: () {}),
     );
   }
