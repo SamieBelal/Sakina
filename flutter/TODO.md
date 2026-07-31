@@ -377,7 +377,11 @@ and daily rewards, so the ~704k backfill exposure only moves one way. The
 figures above are a 2026-07-31 snapshot, not a constant.
 
 **Steps when ready:** §5 of the plan — decide → server functions converted
-(~10 live, five more deleted with the bypass anyway) → one idempotent stamped
+(**12 live**; only 3 — `reserve_ai_bypass` / `cancel_ai_bypass` /
+`_replay_reservation_response` — are deleted with the bypass. Corrected
+2026-07-31: an earlier "~10 live, five deleted" also subtracted `spend_tokens`
+and `sync_all_user_data`, which only lose a *branch* and still need converting)
+→ one idempotent stamped
 backfill (`user_tokens` retained read-only as the audit trail) → client swap +
 Store SKU retirement (gated on a Mixpanel `pack_purchased` check, test IDs
 excluded) → one plain sentence in the softener notice → drop the table one
