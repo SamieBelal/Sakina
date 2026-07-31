@@ -1,0 +1,220 @@
+# One Ship W5 — the gate and the free tier
+
+**Status: PLAN — ready to build. One founder decision open (§7). One wave is date-gated (§4.A).**
+**Date:** 2026-07-31
+**Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first`
+**Parents:** `2026-07-23-conversion-refactor-changes-and-implementation.md` §W5 + **D10** · `2026-07-26-one-ship-01-data-layer.md` (built the server side this consumes)
+**Approved content:** [`../content/2026-07-25-paywall-DRAFT.md`](../content/2026-07-25-paywall-DRAFT.md) — copy locked, freezes at T0
+**Mock:** [`../mocks/2026-07-31-paywall-visual-mock.html`](../mocks/2026-07-31-paywall-visual-mock.html)
+
+W5 replaces the single-page paywall with the approved 3-page gate, wires the client to the
+tightened free tier W1 already built server-side, moves the real store trial from 3 days to 7,
+and closes out the reverse-trial experiment.
+
+**Non-goals:** any currency work — the tokens→Noor merge is **DEFERRED to the softener wave**
+(`2026-07-31-one-currency-noor-merge.md`, tracked in `TODO.md`) · the **$59.99 price rise, CUT**
+(D10①; annual stays $49.99) · instrumentation (W6) · the softener wave itself (post-keep) ·
+deleting the legacy flow (post-keep).
+
+---
+
+## 1. The surprise: W1 already built most of the server side, and prod already has it
+
+Read against production 2026-07-31. **This materially shrinks W5** — the plan's W5 bullet
+reads as though `gating_service` + `daily_usage_service` + new RPCs are all ahead of us. They
+are not.
+
+**Already applied to prod (migration `20260727100200`):**
+
+- Columns on `user_profiles`: `free_tier_cohort` (`'reel_v1'|'legacy'`, **server-assigned in
+  `handle_new_user`**, never client-writable), `weekly_pool_used`, `weekly_pool_week_start`,
+  `weekly_pool_reset_at`, `softener_notice_ends_at`.
+- **`consume_weekly_allowance(p_feature text) → jsonb`**, SECURITY DEFINER. Exists and works.
+- Freemium-guard triggers rejecting client writes to every one of those columns, on both
+  UPDATE and INSERT.
+- `app_config` dials, live: `warmup_reflect_size = 3`, `warmup_built_dua_size = 3`,
+  `weekly_pool_size = 3`, `new_signup_cohort = 'legacy'` (flips at T0),
+  `reel_first_onboarding_enabled = true`.
+
+**The gap: the client uses none of it.**
+
+- **Zero** references to `consume_weekly_allowance` anywhere in `lib/` or `test/`.
+- `gating_service.dart:133` still hardcodes `warmupBudget = {reflect: 10, builtDua: 10,
+  discoverName: 5}` and **never reads `app_config`**. The 3/3 dials are live and ignored.
+- There is **no `warmup_discover_name_size` key** — D10② needs one (see §7).
+
+So W5's free-tier work is **almost entirely client**. The server contract is built, tested,
+and idle.
+
+## 2. Verified baseline — everything else
+
+**Paywall.** `lib/features/onboarding/screens/paywall_screen.dart`, **1,741 lines**, one page.
+Reached from **14** `push('/paywall')` call sites plus 3 router builders and
+`onboarding_screen.dart:1044` — **none of them pass a placement**, because the parameter does
+not exist. `_closeButtonRevealDelay = Duration(seconds: 3)` is still live (`:115`, `:308`).
+`_planHasTrial` (`:230`) checks whether the **product** has an intro offer, never whether
+**this user** is eligible.
+
+**Store.** ASC `sakina_sub_annual` (subscription `6762153970`): `FREE_TRIAL / THREE_DAYS`,
+`numberOfPeriods 1`, `startDate 2026-04-29`, `endDate null`, **configured per territory**
+(~175 rows). Annual price **$49.99** (AED 199.99 in the AE tier). RC mirrors `P3D` on both
+`sakina_sub_annual` and `sakina_sub_weekly`. RC snapshot: 19 active subs, MRR $154, 1 active
+store trial.
+
+**"3 days" is hardcoded in Dart, not read from the store** — `paywallCtaTrial`,
+`paywallTrialMicrocopyTemplate`, `paywallTrialMicrocopyWeeklyTemplate`,
+`paywallExitOfferAccept`, `paywallExitOfferBody`, plus `lapsed_trial_sheet.dart:5` and `:107`.
+
+**Reverse trial — the close-out is date-gated and the date is imminent.** 24 accounts hold an
+**active** app-granted `trial_premium_until`; 457 ever did; **the last one expires
+2026-08-03 20:45 UTC.** `reverse_trial_onboarding.dart` is **already deleted**;
+`trial_expiry_service.dart` and `assignPaywallArm` (`app_session.dart:694-707`) remain, and
+`onboarding_tour_step.dart:39` notes it is load-bearing until close-out.
+
+**Cap sheets.** `DailyCapSheet` renders "Unlock unlimited" → `/paywall`, a 25-token bypass
+middle slot, and "Maybe later"; **no route to buying tokens** — under 25 the button is dead.
+Both sheets' body copy promises a **daily** reset (D10③) and goes false under a weekly pool.
+
+**Missing entirely:** the one-time "always free" dismissal card (D6 says build it with W5).
+
+---
+
+## 3. Ordering constraints (read before scheduling)
+
+1. **Wave A cannot start before 2026-08-04** — the last in-flight reverse trial must expire.
+2. **Wave B's store change and its copy change must ship together.** The duration lives in
+   Dart strings, so a build that says "7 days" against a `P3D` product, or the reverse, lies
+   at the moment of payment. Create the 7-day ASC offers **first, dated**, then ship the build.
+3. **Wave C before Wave D's routing.** The cap sheet's upgrade CTA must land on the condensed
+   `soft_inapp` placement, which C creates.
+4. **Nothing in W5 touches currency.** See non-goals.
+
+---
+
+## 4. The waves
+
+### A — Reverse-trial close-out *(unblocks 2026-08-04)*
+
+1. Write the readout addendum (`docs/analytics/reverse-trial-experiment-readout.md`) —
+   what the arms showed, and that the app-granted `trial_activated` was **never** a
+   RevenueCat trial and never counted as revenue.
+2. Confirm zero rows with `trial_premium_until > now()` before deleting anything. In-flight
+   trials are honored to expiry; there is no early revocation.
+3. Delete `trial_expiry_service.dart`, `assignPaywallArm`, the
+   `paywall_experiment_assigned` dedup key, and the `reverse_trial_experiment_enabled`
+   config key. Freeze `paywall_exp_arm` as Mixpanel history — no code reads it again.
+4. Drop the `onboarding_tour_step.dart:39` comment's dependency note.
+
+**Done when:** `grep -r assignPaywallArm lib` is empty and the suite is green.
+
+### B — The trial: 3 days → 7 days
+
+1. **ASC, first.** Create 7-day `FREE_TRIAL` introductory offers across all territories with
+   an explicit start date; end the 3-day offers on the day before. **A gap means no trial at
+   all** while the app promises one — verify continuity per territory, not just for USA.
+2. Verify RC reflects `P7D` on both SKUs before shipping any build.
+3. **Fix the eligibility bug — this is the real defect, and it predates W5.** Apple grants one
+   introductory offer per Apple ID per subscription group, ever. Anyone who used the 3-day
+   trial is **ineligible** for the 7-day one, and today's `_planHasTrial` cannot tell. Read
+   RevenueCat's per-user intro eligibility and render non-trial copy + a "Subscribe" CTA when
+   the user does not qualify. Shouting "Start my 7 days free" at someone who will be charged
+   instantly is the version of this bug that costs refunds.
+4. **Derive the duration from the store, not from a constant** —
+   `intro.periodNumberOfUnits` / `periodUnit` — so copy can never again disagree with what
+   StoreKit will grant. Then update the string sites in §2 to render from it.
+5. `LapsedTrialSheet`: 3-day → 7-day (`:5`, `:107`), wired to RC trial-lapse.
+
+**Done when:** a device StoreKit run grants 7 days, and a previously-trialed sandbox account
+sees the non-trial variant.
+
+### C — The 3-page paywall
+
+1. **Introduce `placement`** (`onboarding` | `soft_inapp` | future) as a required parameter,
+   and pass it from all 14 push sites + 3 router builders + `onboarding_screen.dart:1044`.
+   This is mechanical but touches the most files; do it first and alone.
+2. Build the three pages against the approved copy and the mock: `value_depth` (contract-keyed,
+   renders **the actual Silver card widget** — not a re-draw; the reveal awards a deterministic
+   Silver and the two surfaces must not disagree) → `trial_timeline` → `plan_select` (the five
+   shipped `paywallPremiumBenefit1-5` strings verbatim, $49.99/yr, $0.96/wk, weekly as a
+   de-emphasized text row).
+3. **`soft_inapp` is a condensed single screen**, never the 3-page ceremony mid-task:
+   trigger-specific value line + plan cards + plain terms.
+4. **Delete `_closeButtonRevealDelay`.** ✕ visible from page one, ≥44pt hit area on every page.
+5. Build the one-time **"always free" dismissal card** → home. Re-present ≤1/session start,
+   ≤2 offer surfaces/week.
+6. House rules, from the mock's audit: no drop shadows on chrome, card radius 14 / control
+   radius 12, titles at `displayLarge` 34/700/−0.02em, gold as fill only (`goldInk` for any
+   gold text), 450ms `easeOutCubic` staggered entry, every page scrollable on <812pt frames
+   with the CTA pinned and **Restore / Terms / Privacy reachable** (a hidden Restore is an App
+   Store review risk).
+7. Firewall check on every string: no "sign"/"meant for you" near a price, no countdown UI, no
+   arc-count, no guilt framing, no tier word beside a Name.
+
+### D — The free tier, client side
+
+1. **Read the dials.** `gating_service` stops hardcoding `warmupBudget` and reads
+   `warmup_reflect_size` / `warmup_built_dua_size` (+ the new discover key, §7) from
+   `app_config`, with the current constants as offline fallbacks.
+2. **Call `consume_weekly_allowance`** for `reflect` and `builtDua` on the `reel_v1` cohort,
+   replacing the local daily cap. Server is the authority; the local counter becomes a cache.
+   `discoverName` is **exempt from the pool** and stays on its own path.
+3. **`discoverName` → a genuine 1/day (D10②).** The day-open check-in stays **free and
+   consults no gate** — the marker in `daily_loop_provider.dart:1425` is the mechanism and
+   must not be touched. Re-rolls become premium after a **3-use lifetime warmup**. This is
+   `reel_v1` only; legacy keeps today's effective 2/day.
+4. **Remove the bypass for `reel_v1`** — `claimFirstBypass` included. The `DailyCapSheet`
+   middle slot disappears; the sheet becomes headline + "Unlock unlimited" → **`soft_inapp`**
+   + "Maybe later". Legacy keeps the bypass until the softener wave. Retire the IAP→sub banner
+   trigger for the new cohort. **Keep the premium short-circuit at `gating_service.dart`
+   intact** — premium must never reach `reserveBypass`.
+5. **Fix the two false strings (D10③), blocking on the pool:**
+   `DailyCapSheet._body` — *"Tomorrow's reflection is on us…"* — and
+   `WarmupExhaustedSheet._body` — *"From tomorrow you'll get one a day…"*. Under a Monday-reset
+   weekly pool, tomorrow is not on us and you do not get one a day. New copy must state the
+   real reset, and the cohort branch means **both variants have to exist** while legacy users
+   are still on daily.
+6. **Settings → Danger Zone must still never clear `daily_free_reveal_*` / `daily_usage_*`.**
+   It is not debug-gated; clearing them ships unlimited free reveals.
+
+---
+
+## 5. Tests
+
+- **pgtap:** none new — the server is built and covered. Re-run the existing weekly-pool and
+  guard suites after any client change that writes near those columns.
+- **Unit:** cohort branching in `gating_service` both ways · warmup falls back to constants
+  when `app_config` is unreachable · `discoverName` day-open consults no gate (mutation: make
+  it consult one, the test must fail) · re-roll warmup decrements exactly once under
+  double-tap · `consume_weekly_allowance` failure fails **open**, never charging twice.
+- **Widget:** each paywall page renders at 390×844 and 440×956 · ✕ present on page one from
+  frame zero · Restore/Terms/Privacy inside the viewport · the ineligible-user variant renders
+  "Subscribe", never "7 days free".
+- **Copy tripwire:** extend `scripts/check_no_fake_strings.sh` with the firewall patterns
+  (price adjacency, countdown, guilt, arc-count, tier-word+Name) — W7 owns the full sweep, but
+  the paywall patterns should land with the paywall.
+- **Device (physical, StoreKit):** 7-day trial start · previously-trialed account · restore ·
+  dismissal → always-free card → home.
+
+---
+
+## 6. Risks
+
+| Risk | Mitigation |
+|---|---|
+| ASC territory gap → no trial while the app promises one | Create dated 7-day offers before ending the 3-day ones; verify per territory |
+| Build and store disagree on duration | Ship together (§3.2); derive from `periodNumberOfUnits` so it cannot recur |
+| Ineligible user charged instantly after "7 days free" | B.3 — per-user RC eligibility, non-trial variant |
+| Weekly-pool RPC fails → user charged twice or locked out | Fail open; local cache reconciles on next sync |
+| A placement is missed at one of the 17 entry points | Make `placement` **required**, so a miss is a compile error |
+| Cap-sheet copy ships false | D.5 is a blocker on the pool, not follow-up |
+
+---
+
+## 7. Open decision
+
+**The `warmup_discover_name_size` dial does not exist.** D10② chose option (a) — 3 re-roll
+warmups — but `app_config` carries only `warmup_reflect_size` and `warmup_built_dua_size`, and
+the client's hardcoded `discoverName: 5` governs re-rolls today. Confirm the value is **3** and
+it ships as an `app_config` key like its siblings (recommended — it is a permanent tuning knob,
+not a flag, and it needs no deletion date). If it should instead be a constant, say so; the
+difference is whether it is tunable after T0 without a release.
