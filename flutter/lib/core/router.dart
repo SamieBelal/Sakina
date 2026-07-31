@@ -126,6 +126,12 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
     observers: [tourRouteObserver],
     initialLocation: appSession.hasOnboarded ? '/' : '/welcome',
     refreshListenable: appSession,
+    // Keeps the `/paywall` placement alive across a re-parse. `appSession`
+    // notifies often (hydration, token refresh, gate latches) and every
+    // notification re-parses the encoded route information — which drops a
+    // non-JSON-encodable `extra` to null without this. See
+    // `paywallPlacementExtraCodec`.
+    extraCodec: paywallPlacementExtraCodec,
     redirect: (context, state) {
       // Widget + Live Activity deep links arrive as a full `sakina://widget/...`
       // URI. The home widget routes via `HomeWidget.widgetClicked`, but a Live
