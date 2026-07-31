@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Sakina W5 paywall — 3-page gate, visual pass against DESIGN.md">
+<title>Sakina — W5 Paywall (3 pages)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231B6B4A'/><path d='M16 7l2.6 5.9L25 14l-4.5 4.6 1 6.4-5.5-3-5.5 3 1-6.4L7 14l6.4-1.1z' fill='%23C8985E'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Aref+Ruqaa:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ══ DESIGN.md tokens — light mode (§2.1), spacing (§4), type (§3.1) ══ */
+:root{
+  --bg:#FBF7F2; --surface:#FFFFFF; --alt:#F3EDE4;
+  --em:#1B6B4A; --em-deep:#17553C; --em-glow:#1F7A55; --em-tint:#E8F5EE;
+  --gold:#C8985E; --gold-ink:#9A6F37; --gold-tint:#F5EBD9;
+  --ink:#1A1A2E; --ink2:#6B7280; --ink3:#9CA3AF;
+  --bd:#E5E0D8; --div:#F0EBE3; --sacred-ink:#F6EFE4;
+
+  /* §4 — 4px grid */
+  --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px; --xxl:48px;
+  --r-card:14px; --r-btn:12px;          /* cards 14, controls 12 */
+
+  /* §5 motion */
+  --ease:cubic-bezier(.22,.61,.36,1);   /* easeOutCubic */
+  --beat:450ms;
+
+  /* z scale */
+  --z-art:1; --z-chrome:10; --z-notch:30; --z-overlay:40;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{
+  font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:#24221e; color:#e6e0d6; padding:var(--xl) var(--lg) var(--xxl);
+}
+:focus-visible{outline:2px solid var(--em-glow);outline-offset:3px;border-radius:4px}
+
+/* ══ page chrome (the dark review surround, not the app) ══ */
+.wrap{max-width:1320px;margin:0 auto}
+.masthead h1{font-size:23px;font-weight:600;color:#f2ece1;letter-spacing:-.02em}
+.masthead p{margin-top:var(--sm);font-size:14px;font-weight:300;color:#a7a096;
+  line-height:1.7;max-width:74ch;text-wrap:pretty}
+.masthead p b{color:#ded7cb;font-weight:500}
+.ctrls{margin-top:var(--md);display:flex;gap:var(--sm);flex-wrap:wrap}
+.btn{background:#332f2a;color:#e6e0d6;border:1px solid #4a453e;border-radius:10px;
+  padding:9px 15px;cursor:pointer;font-family:inherit;font-size:13px;
+  transition:background .2s var(--ease),border-color .2s var(--ease),transform .12s var(--ease)}
+.btn:hover{background:#3e3933;border-color:#5f594f}
+.btn:active{transform:translateY(1px)}
+.btn[aria-pressed="true"]{background:var(--em);border-color:var(--em-glow);color:#fff}
+
+.rail{margin-top:var(--lg);display:flex;gap:34px;overflow-x:auto;
+  padding-bottom:var(--lg);align-items:flex-start;scroll-behavior:smooth}
+.slot{flex-shrink:0}
+.cap{margin-bottom:10px;font-size:12px;font-weight:500;color:#9b9489;letter-spacing:.02em}
+.cap em{color:#6d685f;font-weight:300;font-style:normal}
+
+/* ══ device ══ */
+.phone{width:390px;height:844px;background:var(--bg);border-radius:52px;
+  border:11px solid #0c0b0a;overflow:hidden;position:relative}
+.notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);
+  width:118px;height:33px;background:#0c0b0a;border-radius:20px;z-index:var(--z-notch)}
+/* §2.4 geometric accent at 6% — the 5–8% rule */
+.phone::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.06;
+  background-image:
+    repeating-linear-gradient(45deg,var(--em) 0 1px,transparent 1px 28px),
+    repeating-linear-gradient(-45deg,var(--em) 0 1px,transparent 1px 28px)}
+
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:58px var(--lg) 26px;z-index:var(--z-art)}   /* §4 page gutter = 24 */
+
+.close{position:absolute;top:56px;right:14px;width:44px;height:44px;border:1px solid var(--bd);
+  border-radius:50%;background:rgba(251,247,242,.86);color:var(--ink2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-family:inherit;
+  z-index:var(--z-chrome);transition:background .2s var(--ease),transform .12s var(--ease)}
+.close:hover{background:var(--alt)}
+.close:active{transform:scale(.96)}
+
+.steps{display:flex;gap:6px;justify-content:center;height:44px;align-items:center;flex-shrink:0}
+.steps i{width:20px;height:2px;border-radius:1px;background:var(--bd);
+  transition:width .25s var(--ease),background .25s var(--ease)}
+.steps i.on{background:var(--em);width:28px}
+
+/* §3.1 — displayLarge 34/1.2/-0.02em is the standard main-screen title */
+h2.title{font-size:34px;font-weight:700;color:var(--ink);line-height:1.2;
+  letter-spacing:-.02em;text-wrap:balance}
+.lede{margin-top:10px;font-size:17px;font-weight:400;color:var(--ink2);line-height:1.5}
+
+.body{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.body.scrolls{overflow-y:auto;
+  -webkit-mask-image:linear-gradient(to bottom,#000 92%,transparent);
+  mask-image:linear-gradient(to bottom,#000 92%,transparent)}
+.body::-webkit-scrollbar{display:none}
+.pin{flex-shrink:0;padding-top:var(--md)}
+
+/* ══ page 1 — the Silver card they just earned ══
+   Palette + structure lifted from silver_mini_ornate_card.dart, so the paywall
+   shows the SAME artifact the reveal handed them. It is a cool dark slate card
+   with silver metallics and a gold medallion ring — NOT an emerald card.       */
+:root{
+  --slv-bg-mid:#353847; --slv-bg-dark:#2A2D3A;
+  --slv-bright:#CDD0D6; --slv-core:#A8A9AD; --slv-dim:#6B6E78; --slv-glow:#B8C8E0;
+}
+.art{margin:var(--lg) auto var(--xs);width:152px;height:206px;border-radius:var(--r-btn);
+  position:relative;overflow:hidden;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%,var(--slv-bg-mid),var(--slv-bg-dark) 118%);
+  box-shadow:0 10px 26px -8px rgba(42,45,58,.55)}
+/* 8% silver geometric wash — the same 5–8% rule as the canvas */
+.art .weave{position:absolute;inset:0;opacity:.08;
+  background-image:
+    repeating-linear-gradient(45deg,var(--slv-dim) 0 1px,transparent 1px 15px),
+    repeating-linear-gradient(-45deg,var(--slv-dim) 0 1px,transparent 1px 15px)}
+.art::after{content:'';position:absolute;inset:6px;border-radius:8px;
+  border:1px solid rgba(168,169,173,.5);
+  box-shadow:inset 0 0 0 1px rgba(205,208,214,.18)}
+.art .medallion{position:relative;width:84px;height:84px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:1.5px solid rgba(200,152,94,.42)}
+.art .medallion::before{content:'';position:absolute;width:104px;height:104px;border-radius:50%;
+  background:radial-gradient(circle,rgba(184,200,224,.16),transparent 70%)}
+.art .ar{font-family:'Aref Ruqaa',serif;font-size:27px;color:var(--slv-bright);
+  position:relative;line-height:1.5;text-align:center}
+.art .rom{margin-top:14px;font-size:10.5px;color:rgba(205,208,214,.72);
+  letter-spacing:.16em;position:relative;font-weight:500}
+.art .tier{position:absolute;bottom:12px;font-size:10px;letter-spacing:.12em;
+  color:rgba(200,152,94,.85);font-weight:600}
+
+ul.gains{margin-top:var(--lg);list-style:none;display:flex;flex-direction:column;gap:var(--md)}
+ul.gains li{display:flex;gap:12px;align-items:flex-start}
+.glyph{width:32px;height:32px;border-radius:10px;background:var(--em-tint);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center}
+.glyph svg{width:16px;height:16px;stroke:var(--em);fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+ul.gains .t{font-size:16px;color:var(--ink);font-weight:400;line-height:1.42;padding-top:6px}
+
+/* ══ page 2 — trial timeline ══
+   The three moments SPAN the page instead of stacking at the top. The empty
+   middle was the page failing to say the one thing it exists to say: that seven
+   days is a stretch of time. A long thread says it without a word of new copy. */
+.tl{margin-top:var(--xl);list-style:none;flex:1;display:flex;flex-direction:column}
+.tl li{display:flex;gap:var(--md);flex:1}
+.tl li:last-child{flex:0 0 auto}
+.tl .rail2{display:flex;flex-direction:column;align-items:center;width:18px;flex-shrink:0}
+.node{width:16px;height:16px;border-radius:50%;background:var(--em);margin-top:4px;
+  box-shadow:0 0 0 6px var(--em-tint);flex-shrink:0}
+.node.gold{background:var(--gold);box-shadow:0 0 0 6px var(--gold-tint)}
+.node.open{background:var(--bg);border:2px solid var(--bd);box-shadow:0 0 0 6px var(--alt)}
+/* the thread carries the progression: emerald → gold → resolved grey */
+.thread{width:2px;flex:1;min-height:44px;margin:8px 0;border-radius:1px}
+.thread.a{background:linear-gradient(to bottom,var(--em),var(--gold))}
+.thread.b{background:linear-gradient(to bottom,var(--gold),var(--bd))}
+.tl .tx{padding-bottom:var(--lg);padding-top:2px}
+.tl .h{display:block;font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.tl .d{display:block;font-size:16px;font-weight:400;color:var(--ink2);
+  margin-top:6px;line-height:1.5;max-width:30ch;text-wrap:pretty}
+/* reassurance belongs next to the action, not floating in dead space */
+.nocharge{text-align:center;font-size:15px;color:var(--em);font-weight:500;
+  padding-bottom:var(--md)}
+
+/* ══ page 3 — plan select ══ */
+.seclbl{margin-top:var(--lg);font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--ink2)}
+ul.bens{margin-top:12px;list-style:none;display:flex;flex-direction:column;gap:10px}
+ul.bens li{display:flex;gap:10px;align-items:flex-start}
+.tick{width:22px;height:22px;border-radius:50%;background:var(--em-tint);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;margin-top:1px}
+.tick svg{width:14px;height:14px;stroke:var(--em);fill:none;stroke-width:2.6;
+  stroke-linecap:round;stroke-linejoin:round}
+ul.bens .t{font-size:15px;color:var(--ink);font-weight:400;line-height:1.35}
+
+.plan{margin-top:var(--lg);width:100%;text-align:left;font-family:inherit;cursor:pointer;
+  border:1.5px solid var(--em);border-radius:var(--r-card);padding:15px 16px;
+  background:var(--em-tint);position:relative;
+  transition:background .2s var(--ease),border-color .2s var(--ease)}
+.plan[aria-checked="false"]{border:1px solid var(--bd);background:var(--surface)}
+.plan .nm{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.plan .pr{font-size:15px;color:var(--ink2);font-weight:400;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.plan .save{margin-top:5px;display:inline-block;font-size:12px;font-weight:600;
+  color:var(--gold-ink);background:var(--gold-tint);padding:2px 8px;border-radius:6px}
+.plan .flag{position:absolute;top:-10px;right:14px;background:var(--em);color:#fff;
+  font-size:11.5px;font-weight:500;padding:3px 10px;border-radius:7px}
+.wk{margin-top:10px;width:100%;background:none;border:none;font-family:inherit;
+  font-size:15px;color:var(--ink2);font-weight:400;cursor:pointer;padding:11px;
+  border-radius:var(--r-btn);font-variant-numeric:tabular-nums;
+  transition:background .2s var(--ease),color .2s var(--ease)}
+.wk:hover{background:var(--alt);color:var(--ink)}
+.wk[aria-checked="true"]{color:var(--ink);font-weight:500;background:var(--alt)}
+
+/* §4 — elevation 0 everywhere. Buttons: radius 12, no shadow. */
+.cta{width:100%;background:var(--em);color:#fff;border:none;border-radius:var(--r-btn);
+  padding:18px;font-family:inherit;font-size:17px;font-weight:600;cursor:pointer;
+  letter-spacing:-.01em;transition:background .2s var(--ease),transform .12s var(--ease)}
+.cta:hover{background:var(--em-deep)}
+.cta:active{transform:translateY(1px)}
+.terms{margin-top:10px;text-align:center;font-size:13px;color:var(--ink2);
+  font-weight:400;line-height:1.5;font-variant-numeric:tabular-nums}
+.always{margin-top:var(--sm);text-align:center;font-size:13px;color:var(--ink2);
+  font-weight:300;line-height:1.5;text-wrap:pretty}
+.legal{margin-top:12px;display:flex;justify-content:center;gap:var(--lg)}
+.legal button{background:none;border:none;font-family:inherit;font-size:12px;
+  color:var(--ink3);cursor:pointer;padding:6px 2px;transition:color .2s var(--ease)}
+.legal button:hover{color:var(--ink2)}
+
+/* ══ dismissal ══ */
+.dismiss{position:absolute;inset:0;background:var(--bg);z-index:var(--z-overlay);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:var(--xxl) var(--xl);text-align:center;gap:var(--lg)}
+.dismiss.on{display:flex;animation:rise var(--beat) var(--ease) both}
+.dismiss .orn{width:56px;height:56px;border-radius:50%;background:var(--gold-tint);
+  display:flex;align-items:center;justify-content:center}
+.dismiss .orn svg{width:26px;height:26px;stroke:var(--gold-ink);fill:none;stroke-width:1.3;
+  stroke-linejoin:round}
+.dismiss p{font-size:19px;color:var(--ink);font-weight:300;line-height:1.6;
+  letter-spacing:-.01em;text-wrap:pretty}
+.dismiss .go{background:none;border:1.5px solid var(--em);color:var(--em);
+  border-radius:var(--r-btn);padding:14px 32px;font-family:inherit;font-size:16px;
+  font-weight:500;cursor:pointer;transition:background .2s var(--ease)}
+.dismiss .go:hover{background:var(--em-tint)}
+
+/* ══ §5 motion — staggered entry, fade + small travel, 450ms easeOutCubic ══ */
+@keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.stagger>*{animation:rise var(--beat) var(--ease) both}
+.stagger>*:nth-child(1){animation-delay:.04s}
+.stagger>*:nth-child(2){animation-delay:.10s}
+.stagger>*:nth-child(3){animation-delay:.16s}
+.stagger>*:nth-child(4){animation-delay:.22s}
+.stagger>*:nth-child(5){animation-delay:.28s}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ══ notes ══ */
+.notes{margin-top:var(--lg);font-size:14px;font-weight:300;color:#a7a096;line-height:1.75;max-width:82ch}
+.notes b{color:#ded7cb;font-weight:500}
+.notes h3{font-size:14px;font-weight:600;color:#e8e1d5;margin-bottom:var(--sm);letter-spacing:-.01em}
+.notes ul{margin:0 0 var(--lg) 20px}
+.notes li{margin-bottom:7px}
+.flagbox{border-left:2px solid var(--gold);padding:2px 0 2px var(--md);color:#c4bcae}
+.flagbox b{color:#e8dcc4}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header class="masthead">
+  <h1>W5 paywall — 3 pages, second visual pass</h1>
+  <p>
+    Copy and structure are the <b>approved 2026-07-25 draft</b>, unaltered. This pass fixes the house rules
+    the first draft broke: <b>no drop shadows on UI chrome</b> (DESIGN.md §4 — separation is border + background),
+    card radius <b>14</b> / control radius <b>12</b>, titles on <b>displayLarge 34/700/−0.02em</b>,
+    gold demoted to fills and <code>goldInk</code>, and the app's signature <b>450ms easeOutCubic staggered entry</b>.
+    Prices are now the real ones: <b>$49.99/yr, $0.96 a week</b>. Your five premium benefits are on page 3,
+    verbatim, using the shipped 22px tick row.
+  </p>
+  <div class="ctrls">
+    <button class="btn" id="bp" aria-pressed="true" onclick="setContract('problem')">Contract: problem chip</button>
+    <button class="btn" id="bs" aria-pressed="false" onclick="setContract('sign')">Contract: sign chip</button>
+    <button class="btn" onclick="showDismiss()">Dismissal card</button>
+    <button class="btn" onclick="replay()">Replay entry motion</button>
+  </div>
+</header>
+
+<div class="rail">
+
+  <!-- ══════════ PAGE 1 ══════════ -->
+  <section class="slot">
+    <div class="cap">Page 1 <em>· value_depth</em></div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <button class="close" onclick="showDismiss()" aria-label="Close">✕</button>
+        <div class="steps"><i class="on"></i><i></i><i></i></div>
+        <div class="body stagger" id="body1">
+          <h2 class="title" id="h1">You've met As-Salam.</h2>
+          <p class="lede" id="s1">Premium goes deeper into what you named:</p>
+          <div class="art">
+            <div class="weave"></div>
+            <div class="medallion"><span class="ar" id="car">السَّلَامُ</span></div>
+            <div class="rom" id="crom">AS-SALAM</div>
+            <div class="tier">Silver</div>
+          </div>
+          <ul class="gains">
+            <li>
+              <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9l-3.3 3.4.8 4.7L12 15l-4 2.1.8-4.7L5.5 9l4.6-1.4z"/></svg></span>
+              <span class="t" id="b1">A personal reflection on the weight you named, every day</span>
+            </li>
+            <li>
+              <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 20V11a6 6 0 0 1 12 0v9"/><path d="M4 20h16"/></svg></span>
+              <span class="t" id="b2">Your own duʿā, built for what you carry</span>
+            </li>
+            <li>
+              <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l3.5 3.5V21H6z"/><path d="M9 11h7M9 15h5"/></svg></span>
+              <span class="t">Every reflection and duʿā, kept in your journal</span>
+            </li>
+          </ul>
+        </div>
+        <div class="pin"><button class="cta">Continue</button></div>
+      </div>
+      <div class="dismiss" id="d1"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PAGE 2 ══════════ -->
+  <section class="slot">
+    <div class="cap">Page 2 <em>· trial_timeline</em></div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <button class="close" onclick="showDismiss()" aria-label="Close">✕</button>
+        <div class="steps"><i></i><i class="on"></i><i></i></div>
+        <div class="body stagger" id="body2">
+          <h2 class="title">Try everything free for 7 days.</h2>
+          <ul class="tl">
+            <li>
+              <span class="rail2"><span class="node"></span><span class="thread a"></span></span>
+              <span class="tx"><span class="h">Today</span>
+                <span class="d">Everything unlocks: daily reflections and your own duʿās, saved to your journal.</span></span>
+            </li>
+            <li>
+              <span class="rail2"><span class="node gold"></span><span class="thread b"></span></span>
+              <span class="tx"><span class="h">Day 6</span>
+                <span class="d">Apple reminds you before your trial ends.</span></span>
+            </li>
+            <li>
+              <span class="rail2"><span class="node open"></span></span>
+              <span class="tx"><span class="h">Day 7</span>
+                <span class="d">Your plan begins. Cancel anytime before — no charge.</span></span>
+            </li>
+          </ul>
+        </div>
+        <div class="pin">
+          <p class="nocharge">No charge today.</p>
+          <button class="cta">Continue</button>
+        </div>
+      </div>
+      <div class="dismiss" id="d2"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ PAGE 3 ══════════ -->
+  <section class="slot">
+    <div class="cap">Page 3 <em>· plan_select — your benefits list lives here</em></div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <button class="close" onclick="showDismiss()" aria-label="Close">✕</button>
+        <div class="steps"><i></i><i></i><i class="on"></i></div>
+        <div class="body scrolls stagger" id="body3">
+          <h2 class="title">Choose how you continue.</h2>
+          <p class="seclbl">Everything in Premium</p>
+          <ul class="bens">
+            <li><span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7"/></svg></span><span class="t">Unlimited reflections, duʿās &amp; Name discoveries</span></li>
+            <li><span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7"/></svg></span><span class="t">5× daily rewards, every single day</span></li>
+            <li><span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7"/></svg></span><span class="t">Exclusive Emerald cards for every Name</span></li>
+            <li><span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7"/></svg></span><span class="t">A monthly gift of tokens &amp; scrolls</span></li>
+            <li><span class="tick" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7"/></svg></span><span class="t">3 streak freezes so you never lose progress</span></li>
+          </ul>
+          <button class="plan" id="pa" role="radio" aria-checked="true" onclick="pick('a')">
+            <span class="flag">7 days free first</span>
+            <span class="nm">Yearly</span>
+            <span class="pr" style="display:block">$49.99/year · $0.96 a week</span>
+            <span class="save">Save 50% vs weekly</span>
+          </button>
+          <button class="wk" id="pw" role="radio" aria-checked="false" onclick="pick('w')">
+            Weekly — $4.99/week · 7 days free first
+          </button>
+        </div>
+        <div class="pin">
+          <button class="cta">Start my 7 days free</button>
+          <p class="terms" id="tm">Free for 7 days, then $49.99/year. Cancel anytime in Settings.</p>
+          <p class="always">The 99 Names, your daily Name and its story, and your streak stay free — always.</p>
+          <div class="legal"><button>Restore</button><button>Terms</button><button>Privacy</button></div>
+        </div>
+      </div>
+      <div class="dismiss" id="d3"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="notes">
+  <h3>Third pass — the card, and page 2's dead middle</h3>
+  <ul>
+    <li><b>The card is the Silver card now.</b> Page 1 previously drew an emerald card labelled "Silver",
+      which is two errors at once. The onboarding reveal awards a deterministic <b>Silver</b> tier
+      (<code>queue_plan_screen.dart:76</code>), and a Silver card in this app is a <b>cool dark slate</b> ground
+      (<code>#353847 → #2A2D3A</code>) with silver metallics and a <b>gold medallion ring</b> — palette and structure
+      taken from <code>silver_mini_ornate_card.dart</code>. The paywall must show the exact artifact the user just
+      watched land, or the two surfaces contradict each other on the page where trust is being asked for.</li>
+    <li><b>Page 2 spans instead of stacking.</b> The three moments now distribute down the full height, the thread
+      between them runs emerald → gold → resolved grey, and "No charge today." moved down beside the CTA where a
+      reassurance belongs. Nothing was added. The empty middle wasn't a content shortage — it was the page failing
+      to say the one thing it exists to say, which is that seven days is a <em>stretch of time</em>. A long thread
+      says that without a word of new copy, and the alternative (filling it with more selling) is exactly what this
+      page's transparency job forbids.</li>
+    <li><b>Day labels stepped up to 20px</b> so "Today / Day 6 / Day 7" carry the page, with descriptions capped at
+      ~30 characters per line so they read as beats rather than paragraphs.</li>
+  </ul>
+
+  <h3>Second pass — house rules</h3>
+  <ul>
+    <li><b>Killed the CTA drop shadow.</b> DESIGN.md §4: <em>"There are no drop shadows in the theme. Separation is border + background only."</em> The button now sits flat like every other elevated button in the app. The only remaining shadow is on the revealed card, tinted to the emerald it sits on — that one is an illustrated artifact, not chrome.</li>
+    <li><b>Radii corrected to the system:</b> plan card 14, buttons 12, icon chips tighter at 10. The first pass used 16–18 throughout, which read soft in a way nothing else in the app does.</li>
+    <li><b>Titles moved to displayLarge</b> — 34/700/−0.02em, the documented standard for main screen titles. They were 29/600, which is why the pages felt quieter than the rest of the app.</li>
+    <li><b>Gold is fills only.</b> The dismissal ornament now strokes in <code>goldInk #9A6F37</code>; bright gold at ~2.2:1 on cream fails contrast for anything that carries meaning.</li>
+    <li><b>Copy drift reverted.</b> The first pass shouted the badge as "7 DAYS FREE FIRST" and the tier as "SILVER" — the approved copy is sentence case, and copy is locked.</li>
+    <li><b>The benefit row is the shipped one</b> — 22px circle, <code>primaryLight</code> fill, 14px check, 10px gap, bodyMedium at 1.35. Lifted from <code>paywall_screen.dart:852</code> so the two surfaces can't drift.</li>
+    <li><b>Motion added:</b> staggered fade + 9px rise, 450ms easeOutCubic — the same beat-advance rhythm as the sacred canvas. Hover and pressed states on everything tappable; honours <code>prefers-reduced-motion</code>.</li>
+    <li><b>Prices are real now:</b> $49.99/year and $0.96 a week, matching App Store Connect and the shipped <code>paywallAnnualPerWeek</code> constant. The "Save 50% vs weekly" chip uses the existing <code>paywallAnnualBadge</code> claim, restated so the math is checkable against the weekly row right below it.</li>
+    <li><b>Page 3 scrolls</b> with a soft bottom mask, CTA pinned — the 844pt frame can't hold title + five benefits + two plans + terms + legal, and a hidden Restore button is an App Store review risk.</li>
+  </ul>
+
+  <div class="flagbox">
+    <b>One thing I did not add.</b> High-converting paywalls almost always carry social proof at the decision
+    moment — a rating, a count, a line from a review. Sakina's copy firewall doesn't forbid it, but the approved
+    draft has none and the reverence posture makes "join 12,000 believers" the wrong register. If you want it,
+    the honest version is a single App Store rating line above the plan cards, and it needs your call before I add it —
+    it changes locked copy.
+  </div>
+</div>
+
+</main>
+
+<script>
+const CONTRACT = {
+  problem:{ h:"You've met As-Salam.", s:"Premium goes deeper into what you named:",
+    b1:"A personal reflection on the weight you named, every day",
+    b2:"Your own duʿā, built for what you carry", ar:"السَّلَامُ", rom:"AS-SALAM" },
+  sign:{ h:"You've met Ar-Rahman — the first Name of your journey.", s:"Premium goes deeper, every day:",
+    b1:"A personal reflection to sit with, every day",
+    b2:"Your own duʿā — even when you can't find the words", ar:"الرَّحْمَٰنُ", rom:"AR-RAHMAN" }
+};
+function setContract(k){
+  const c = CONTRACT[k];
+  h1.textContent=c.h; s1.textContent=c.s; b1.textContent=c.b1; b2.textContent=c.b2;
+  car.textContent=c.ar; crom.textContent=c.rom;
+  bp.setAttribute('aria-pressed', k==='problem'); bs.setAttribute('aria-pressed', k==='sign');
+  restart(body1);
+}
+function pick(k){
+  const annual = k==='a';
+  pa.setAttribute('aria-checked', annual);
+  pw.setAttribute('aria-checked', !annual);
+  tm.textContent = annual
+    ? 'Free for 7 days, then $49.99/year. Cancel anytime in Settings.'
+    : 'Free for 7 days, then $4.99/week. Cancel anytime in Settings.';
+}
+const CARD = `<span class="orn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5l2.5 5.7L20.5 9.3l-4.3 4.4 1 6.3L12 17l-5.2 3 1-6.3L3.5 9.3l6-1.1z"/></svg></span>
+  <p>The 99 Names, your daily Name and its story, and your streak are yours — always free.</p>
+  <button class="go" onclick="hideDismiss()">Continue</button>`;
+const panels = () => [d1,d2,d3];
+function showDismiss(){ panels().forEach(p=>{p.innerHTML=CARD; p.classList.add('on')}); }
+function hideDismiss(){ panels().forEach(p=>p.classList.remove('on')); }
+function restart(el){ el.style.animation='none'; el.offsetHeight; el.style.animation='';
+  [...el.children].forEach(c=>{c.style.animation='none'; c.offsetHeight; c.style.animation=''}); }
+function replay(){ hideDismiss(); [body1,body2,body3].forEach(restart); }
+</script>
+</body>
+</html>

@@ -348,3 +348,54 @@ Two corrections to earlier claims are recorded there: the 4-question check-in wa
 have failed on question count either), and the good-day branch needs **no newly authored
 scripture** — `normalizeApprovedVerses` already constrains the AI to an approved catalog that
 covers the gratitude Names.
+
+**D10 — W5 founder decisions, 2026-07-31 (paywall build kickoff).** Four calls, taken after
+the live App Store Connect / RevenueCat config was read rather than the plan's text.
+
+*① The $59.99 anchor is CUT — annual stays at **$49.99**.* The plan asserted a $59.99 anchor
+in the W5 bullet and the approved paywall draft. ASC actually sells `sakina_sub_annual` at
+**$49.99** (verified 2026-07-31; AED 199.99 in the AE tier), and `app_strings.dart` agrees
+(`paywallAnnualPrice`, `paywallAnnualPerWeek = $0.96`). Shipping the drafted page would have
+been a **20% price rise smuggled inside a paywall redesign** — a separate decision with its
+own rules for existing subscribers (price preservation or consent, and they can decline).
+Founder: do not raise it. Consequence: the paywall copy uses $49.99 / $0.96 a week, the
+"Save 50% vs weekly" claim is restated so the math is checkable against the weekly row, and
+**W5 loses the price-migration task entirely**. The 3→7-day trial change now stands alone.
+
+*② `discoverName` becomes a genuine 1/day, with a 3-re-roll warmup.* Resolves the ⚠️
+2026-07-30 correction above. The day-open check-in is **one per day, free, permanently
+ungated** — no gate consulted, per the safety property. A *second* Name the same day is
+premium, after a **lifetime warmup of 3 re-rolls** (option (a); the alternative, premium from
+minute one, was rejected because a gate nobody has bumped into sells nothing — same reasoning
+as the ~3 warmup on Reflect and Build-a-Duʿā). New cohort only; existing users keep today's
+effective 2/day until the softener wave. Supporting argument recorded at decision time: while
+the D1-D7 queue is live, a free re-roll lets the user pull a Name **out of the order the plan
+screen just promised them**, so removing it makes the queue's promise coherent rather than
+merely cheaper. Streaks are unaffected — W4 grants the streak day inside `discoverName` at
+engagement, and one reveal a day is one grant a day.
+
+*③ Two shipped strings become FALSE the moment the weekly pool ships — fix in the same
+change.* Both cap sheets promise a **daily** reset:
+`DailyCapSheet._body` — *"Tomorrow's reflection is on us. Or unlock unlimited now."* — and
+`WarmupExhaustedSheet._body` — *"From tomorrow you'll get one a day. Or unlock unlimited
+now."* Under a 3-per-week Monday-reset pool, tomorrow is **not** on us and you do **not** get
+one a day. This is the app breaking a promise on the surface where it asks for money, so it
+is a blocker on the pool, not follow-up polish. (Found by tracing the cap path for the
+founder's question about what a capped user actually sees; it was on no wave's task list.)
+
+*④ Cap behaviour after W5: paywall only, no tokens.* Recorded because the current behaviour
+was not written down anywhere. Today `DailyCapSheet` renders **"Unlock unlimited"** →
+`GoRouter.push('/paywall')` as the primary, a **25-token bypass** as a middle slot, and
+"Maybe later". There is **no route from that sheet to buying tokens** — under 25, the middle
+button simply goes dead with a hint, which is a dead end. W5 removes the middle slot for the
+new cohort, leaving headline + paywall + dismiss. The paywall it opens must be the condensed
+**`soft_inapp`** placement with a trigger-specific line, never the 3-page ceremony mid-task.
+
+*Open, created by ④ — the token economy loses its main sink.* Audited 2026-07-31: tier-up
+cards cost **scrolls**, lantern cosmetics cost **Noor**, and neither touches tokens. After the
+bypass is deleted the **only remaining token sink is the paid streak restore**
+(`streak_rescue_sheet.dart:292`). Tokens are still sold as IAP (`sakina_tokens_100/250/500`),
+premium still advertises *"A monthly gift of tokens & scrolls"* (`paywallPremiumBenefit4`),
+and two achievements (`tokens_spent_100/500`) become near-unreachable. Selling a currency
+whose main use we just removed is the one outcome to avoid; needs a founder call before the
+bypass deletion lands.
