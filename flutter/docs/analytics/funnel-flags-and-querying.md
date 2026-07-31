@@ -197,7 +197,9 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 
 ## Gotchas (read before trusting a number)
 
-- **Always exclude the 54 test distinct_ids** in `docs/qa/mixpanel-orphaned-distinct-ids.json`.
+- **Always exclude the test distinct_ids** in `docs/qa/mixpanel-orphaned-distinct-ids.json` —
+  the file is the source of truth and the list grows. (It said "54" until 2026-07-31, when the
+  file actually held 66. Do not re-hardcode a count here; read the file.)
 - **Conversion events only from ≥2026-06-03** (`trial_started` shipped then).
 - **New events (Phases 1–3) ship in the app binary** — they only populate for users on the **next release build**. `dua_built`, `journal_entry_created`, `purchase_sheet_*`, `tour_offered`, `tour_backgrounded`, `placement`, and all `flag_*`/`tour_variant`/real `app_version` super properties have **no history before that build ships**. Don't expect them on the current live cohort.
 - **Super properties don't backfill.** They attach going forward from when they're set (boot for flags, tour-start for `tour_variant`). The earliest events of a session may predate `tour_variant`/`is_premium`.

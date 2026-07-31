@@ -67,9 +67,25 @@ store trial.
 
 **Reverse trial — the close-out is date-gated and the date is imminent.** 24 accounts hold an
 **active** app-granted `trial_premium_until`; 457 ever did; **the last one expires
-2026-08-03 20:45 UTC.** `reverse_trial_onboarding.dart` is **already deleted**;
-`trial_expiry_service.dart` and `assignPaywallArm` (`app_session.dart:694-707`) remain, and
-`onboarding_tour_step.dart:39` notes it is load-bearing until close-out.
+2026-08-03 20:45 UTC.**
+
+> **Corrected 2026-07-31 — this plan's first draft got two facts wrong.** It claimed
+> `reverse_trial_onboarding.dart` was "already deleted" and put `assignPaywallArm` in
+> `app_session.dart`. Both came from grepping the wrong directory. The truth, verified:
+>
+> | Symbol / file | Actually at | Note |
+> |---|---|---|
+> | `reverse_trial_onboarding.dart` | **`lib/features/paywall/`** — **still present**, 6,071 bytes | also declares `paywallExperimentAssignedBaseKey` + `resolveAndApplyPaywallExperiment` |
+> | `assignPaywallArm` | **`lib/features/paywall/paywall_experiment.dart:47`** | with the `PaywallArm` enum + `analyticsValue` |
+> | `_defaultPaywallArm` (the *reader*) | `app_session.dart:699-708` | **also wired as a constructor default at `:79`** — removal touches both |
+> | `trial_expiry_service.dart` | `lib/services/` | as stated |
+>
+> **And one consequence the plan missed:** `paywall_experiment.dart:1` imports `tourBucket`
+> from `onboarding_tour_step.dart:438`, which is documented at `:449` as "kept because
+> `tourBucket` backs `assignPaywallArm`". The tour A/B concluded in July, so **deleting
+> `assignPaywallArm` orphans `tourBucket` + `assignTourVariant` + `TourVariant`** — both
+> experiments' bucketing machinery dies together. Fold that sweep into Wave A rather than
+> leaving it behind. Tests pin the hash, so they come out too.
 
 **Cap sheets.** `DailyCapSheet` renders "Unlock unlimited" → `/paywall`, a 25-token bypass
 middle slot, and "Maybe later"; **no route to buying tokens** — under 25 the button is dead.
@@ -100,12 +116,28 @@ Both sheets' body copy promises a **daily** reset (D10③) and goes false under 
    RevenueCat trial and never counted as revenue.
 2. Confirm zero rows with `trial_premium_until > now()` before deleting anything. In-flight
    trials are honored to expiry; there is no early revocation.
-3. Delete `trial_expiry_service.dart`, `assignPaywallArm`, the
-   `paywall_experiment_assigned` dedup key, and the `reverse_trial_experiment_enabled`
-   config key. Freeze `paywall_exp_arm` as Mixpanel history — no code reads it again.
-4. Drop the `onboarding_tour_step.dart:39` comment's dependency note.
+3. Delete, in this order (**grep for the symbol — do not trust these line numbers, three
+   agents were editing concurrently when they were recorded**):
+   - `lib/features/paywall/reverse_trial_onboarding.dart` — including
+     `paywallExperimentAssignedBaseKey` and `resolveAndApplyPaywallExperiment`
+   - `lib/features/paywall/paywall_experiment.dart` — `assignPaywallArm`, `PaywallArm`,
+     `analyticsValue`
+   - `lib/services/trial_expiry_service.dart`
+   - `_defaultPaywallArm` in `app_session.dart` — **both** the function body and the
+     constructor default that references it
+   - the `reverse_trial_experiment_enabled` config key — **only after the build that stops
+     reading it is live**, never before
+4. **Sweep the orphaned bucketing.** `tourBucket` / `assignTourVariant` / `TourVariant` in
+   `onboarding_tour_step.dart` survive solely because they backed `assignPaywallArm`; the
+   tour A/B itself concluded 2026-07-25. With the paywall arm gone they are dead. Delete
+   them and the tests that pin the hash, and drop the `:39` dependency note.
+5. Freeze `paywall_exp_arm` as Mixpanel history — historical events only, never re-added,
+   never recycled for a future paywall experiment. `onboarding_flow` is a *different*
+   property and must never be unioned with it. Precedent: `flag_tour_ab`, retired the same
+   way 2026-07-25.
 
-**Done when:** `grep -r assignPaywallArm lib` is empty and the suite is green.
+**Done when:** `grep -rn "assignPaywallArm\|tourBucket\|PaywallArm" lib` is empty and the
+suite is green.
 
 ### B — The trial: 3 days → 7 days
 
