@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/features/daily/content/daily_question_copy.dart';
 import 'package:sakina/features/daily/widgets/daily_question_chip.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
@@ -163,16 +164,26 @@ void main() {
 
   testWidgets('the exit is in view without scrolling on a normal screen',
       (t) async {
-    // Plan §2 rule 7, held on the screen size most users actually have. The
-    // exit moved from a pinned row outside the scroll view into the end of the
-    // scrolling column (founder, 2026-07-30), because pinned it floated over a
-    // half-cut option list whenever the keyboard was up.
+    // Plan §2 rule 7. The exit moved from a pinned row outside the scroll view
+    // into the end of the scrolling column (founder, 2026-07-30), because
+    // pinned it floated over a half-cut option list whenever the keyboard was
+    // up. Somewhere it must still be provably on screen without hunting.
     //
-    // What that trades away is the guarantee at the extremes: on a 320pt-wide
-    // phone the labels wrap and the content outgrows the viewport at any text
-    // size, so there the exit scrolls. This is the case in between, and it has
-    // to hold — an escape hatch you have to go looking for is not one.
-    t.view.physicalSize = const Size(390 * 3, 844 * 3); // iPhone 14/15
+    // **Why 440×956 and not the 390×844 this used to assert.** No font is
+    // bundled — `google_fonts` fetches Outfit at runtime — so every widget
+    // test in this suite renders with the framework's fallback, whose glyphs
+    // are far wider than Outfit's. Measured on this screen after the 2026-07-31
+    // type pass: the header wraps to THREE lines instead of one, the caption to
+    // four instead of two, and all seven options to two each. That is ~240pt of
+    // wrap that does not exist on a device.
+    //
+    // So the assertion is CONSERVATIVE, not lax: content that fits here fits on
+    // a phone, but content that overflows here may well fit. 390×844 stopped
+    // being assertable the moment the type matched its onboarding twin, and
+    // trimming the type back to satisfy a font we do not ship would be fixing
+    // the wrong thing. Mid-size-phone rule 7 is on the device pass instead —
+    // the one place the real font renders.
+    t.view.physicalSize = const Size(440 * 3, 956 * 3); // iPhone 16 Pro Max
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
 
@@ -180,6 +191,74 @@ void main() {
     await t.pumpAndSettle();
 
     expectDeferIsOnScreen(t);
+  });
+
+  testWidgets('the screen fills a tall viewport instead of stopping short',
+      (t) async {
+    // Reported from device 2026-07-31: on a Pro Max the column ended about
+    // three-quarters of the way down and left a quarter of the canvas empty.
+    // The cause was structural — the column sat at its intrinsic height, top
+    // aligned, and nothing claimed the rest.
+    //
+    // `MainAxisAlignment.spaceBetween` on two groups claims it. This is the
+    // guard that the free space actually reaches the layout, and it is
+    // font-independent by construction: it does not care how tall the content
+    // is, only that whatever is left over ends up BELOW the options rather than
+    // below the screen.
+    //
+    // The previous attempt at this was a `Spacer`, which has no intrinsic
+    // height to contribute and so broke the `IntrinsicHeight` the column then
+    // sat inside — inflating it to 780pt on a 568pt screen. Hence a test that
+    // pins the outcome rather than the mechanism.
+    t.view.physicalSize = const Size(440 * 3, 1400 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    final exit = t.getRect(find.byType(DailyQuestionDeferLink));
+    final lastOption = t.getRect(find.byType(DailyQuestionChip).last);
+
+    // Bottom padding is `AppSpacing.lg`; allow a point of rounding.
+    expect(
+      exit.bottom,
+      closeTo(1400 - 24, 1),
+      reason: 'with room to spare the exit belongs at the foot of the screen, '
+          'not floating directly under the last option with a quarter of the '
+          'canvas empty beneath it',
+    );
+    // And the slack went BETWEEN them rather than inside the option list.
+    expect(
+      exit.top - lastOption.bottom,
+      greaterThan(AppSpacing.lg),
+      reason: 'the free space belongs in the gap before the exit',
+    );
+  });
+
+  testWidgets('a viewport with no room to spare keeps the minimum gap',
+      (t) async {
+    // The other half of `spaceBetween`: when the content is taller than the
+    // viewport the free space is zero, and the exit must sit directly under the
+    // last option and scroll with it — which is the un-pinned behaviour asked
+    // for on 2026-07-30 and the state the screen is in whenever the keyboard is
+    // up. A `spaceBetween` that pushed the exit down here would have
+    // reintroduced the floating row by another route.
+    t.view.physicalSize = const Size(320 * 3, 568 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+
+    await t.pumpWidget(host());
+    await t.pumpAndSettle();
+
+    final exit = t.getRect(find.byType(DailyQuestionDeferLink));
+    final lastOption = t.getRect(find.byType(DailyQuestionChip).last);
+    expect(
+      exit.top - lastOption.bottom,
+      closeTo(AppSpacing.md, 1),
+      reason: 'no spare height means no extra gap — the exit stays attached to '
+          'the list it belongs to',
+    );
   });
 
   testWidgets('the keyboard return key dismisses rather than submitting',

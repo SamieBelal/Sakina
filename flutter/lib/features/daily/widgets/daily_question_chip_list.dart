@@ -22,11 +22,15 @@ class DailyQuestionChipList extends StatelessWidget {
   const DailyQuestionChipList({
     required this.selectedChipKey,
     required this.onChipTapped,
+    this.compact = false,
     super.key,
   });
 
   /// The chip whose commit is in flight; every other chip recedes.
   final String? selectedChipKey;
+
+  /// Passed straight through to every row — see [DailyQuestionChip.compact].
+  final bool compact;
 
   final ValueChanged<ProblemChip> onChipTapped;
 
@@ -48,9 +52,9 @@ class DailyQuestionChipList extends StatelessWidget {
             padding: EdgeInsets.zero,
             child: DailyQuestionChip(
               chip: problemChips[i],
+              compact: compact,
               selected: selectedChipKey == problemChips[i].chipKey,
-              dimmed:
-                  anySelected && selectedChipKey != problemChips[i].chipKey,
+              dimmed: anySelected && selectedChipKey != problemChips[i].chipKey,
               onTap: () => onChipTapped(problemChips[i]),
             )
                 .animate(

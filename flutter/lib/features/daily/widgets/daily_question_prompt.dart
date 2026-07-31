@@ -117,12 +117,24 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
   /// abandons for one question.
   bool _outcomeReported = false;
 
-  static const EdgeInsets _padding = EdgeInsets.fromLTRB(
-    AppSpacing.lg,
-    AppSpacing.xl,
-    AppSpacing.lg,
-    AppSpacing.lg,
-  );
+  /// Short screens (SE and friends) get the compacted rhythm. One breakpoint
+  /// for the whole surface — header step, row padding and every gap — computed
+  /// here and threaded down, rather than each widget reading `MediaQuery` and
+  /// drifting apart over time.
+  ///
+  /// 700pt and the metrics behind it are `hook_problem_screen.dart`'s, which
+  /// asks this same question in onboarding and had them tuned on device.
+  static const double _compactHeightThreshold = 700;
+
+  EdgeInsets _padding(bool compact) => EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        // The question wants air above it. `xl` alone put the header almost
+        // against the status bar, which is the other half of "no presence" —
+        // a hero line that starts at the top edge reads as a toolbar title.
+        compact ? AppSpacing.md : AppSpacing.xl + AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      );
 
   @override
   void initState() {
@@ -246,13 +258,15 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     // Painting the gradient outside the Scaffold makes it cover the whole
     // route, so whatever the keyboard exposes is canvas. The Scaffold stays
     // transparent, which is the contract `SacredCanvasThreshold` crosses on.
+    final compact = MediaQuery.sizeOf(context).height < _compactHeightThreshold;
+
     return DecoratedBox(
       decoration: const BoxDecoration(gradient: AppColors.sacredCanvasGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
           child: Padding(
-            padding: _padding,
+            padding: _padding(compact),
             // The house pattern for every text-entry screen: the column may
             // grow past the viewport (Dynamic Type, a raised keyboard) without
             // ever overflowing the bottom. The padding sits OUTSIDE the
@@ -262,7 +276,7 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
               builder: (context, constraints) => SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(child: _column(context)),
+                  child: _column(context, compact: compact),
                 ),
               ),
             ),
@@ -272,7 +286,7 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     );
   }
 
-  Widget _column(BuildContext context) {
+  Widget _column(BuildContext context, {required bool compact}) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     // Entrances overlap rather than queue (`app_motion.dart`): each layer
@@ -292,67 +306,104 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
               curve: AppMotion.enter,
             );
 
+    // **Two groups, `spaceBetween`.** The ask and its options are one unit; the
+    // exit is not. Any height the viewport has left over after the unit lands
+    // between them, so on a tall device the screen bottoms out at the exit
+    // instead of stopping three-quarters of the way down and leaving a quarter
+    // of the canvas empty (founder, 2026-07-31, from a Pro Max screenshot).
+    //
+    // `MainAxisAlignment`, NOT a `Spacer` — and this is the distinction that
+    // broke it last time. A flex child has no intrinsic height to contribute,
+    // so inside the `IntrinsicHeight` this column used to sit in, `Spacer`
+    // inflated the measurement to 780pt on a 568pt screen and pushed the exit
+    // off the bottom at every text size. `MainAxisAlignment` needs no flex
+    // child: `RenderFlex` computes the free space from the column's FINAL
+    // constrained height, which the `ConstrainedBox(minHeight:)` above has
+    // already raised to the viewport. The `IntrinsicHeight` is gone with the
+    // `Spacer` that needed it.
+    //
+    // Nothing about the keyboard-up behaviour changes. With the keyboard up
+    // the viewport shrinks below the column's own height, the free space is
+    // zero, and the exit sits directly under the last option and scrolls —
+    // which is exactly the un-pinned behaviour asked for on 2026-07-30.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // **No gloss** (density pass, founder 2026-07-30). This screen used to
-        // teach muḥāsabah here, one line under the question — but the home CTA
-        // the user tapped a second earlier already carries
-        // `DailyLoopCtaCopy.notStartedGloss`, teaching the same word in the
-        // same breath. The definition was duplicated across two consecutive
-        // screens, and this was the copy of it the user had least earned: it
-        // arrives before they have done anything. `DailyQuestionCopy.gloss` is
-        // retained for the surface that has earned it, not deleted.
-        rise(
-          const DailyQuestionHeader(title: DailyQuestionCopy.header),
-          delay: Duration.zero,
-          travel: AppMotion.riseLarge,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        // The answer set, as a persistent caption rather than the field's hint
-        // (Wave 2 review F1). It says a grateful answer is permitted, which is
-        // the job the chips used to do by simply existing — so it has to be
-        // readable while the user types, and on a re-ask where the field opens
-        // pre-filled. A hint is neither. No `maxLines`: this line wraps as far
-        // as it needs to at any Dynamic Type step, because truncating it turns
-        // the question back into "what's wrong".
-        //
-        // **Above the field, not below it** (density pass). Underneath, it sat
-        // between the input and its action and read as a footnote to the box.
-        // Here it completes the question — *this is what I am asking, and this
-        // is what counts as an answer* — before the box appears, which is the
-        // order the sentence is actually in.
-        rise(
-          Text(
-            DailyQuestionCopy.answerSetCaption,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.sacredInk.withValues(alpha: 0.80),
-              fontWeight: FontWeight.w300,
-              height: 1.35,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // **No gloss** (density pass, founder 2026-07-30). This screen used to
+            // teach muḥāsabah here, one line under the question — but the home CTA
+            // the user tapped a second earlier already carries
+            // `DailyLoopCtaCopy.notStartedGloss`, teaching the same word in the
+            // same breath. The definition was duplicated across two consecutive
+            // screens, and this was the copy of it the user had least earned: it
+            // arrives before they have done anything. `DailyQuestionCopy.gloss` is
+            // retained for the surface that has earned it, not deleted.
+            rise(
+              DailyQuestionHeader(
+                title: DailyQuestionCopy.header,
+                compact: compact,
+              ),
+              delay: Duration.zero,
+              travel: AppMotion.riseLarge,
             ),
-          ),
-          delay: Duration.zero,
-          travel: AppMotion.riseLarge,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        // The send control lives INSIDE this field now — see `_SendButton` in
-        // `daily_question_field.dart` for why the standalone "Continue" pill
-        // went. In short: it was disabled for the entire time the user was
-        // deciding, occupying the best space on the screen to say nothing, and
-        // hiding it until first keystroke left no visible answer to "how do I
-        // send this?" at exactly the moment someone is working out what to say.
-        rise(
-          DailyQuestionField(
-            controller: _controller,
-            enabled: !_committing,
-            onSubmitted: _submitTyped,
-          ),
-          delay: AppMotion.beat,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        DailyQuestionChipList(
-          selectedChipKey: _selectedChipKey,
-          onChipTapped: _submitChip,
+            SizedBox(height: compact ? AppSpacing.xs + 2 : AppSpacing.sm + 2),
+            // The answer set, as a persistent caption rather than the field's hint
+            // (Wave 2 review F1). It says a grateful answer is permitted, which is
+            // the job the chips used to do by simply existing — so it has to be
+            // readable while the user types, and on a re-ask where the field opens
+            // pre-filled. A hint is neither. No `maxLines`: this line wraps as far
+            // as it needs to at any Dynamic Type step, because truncating it turns
+            // the question back into "what's wrong".
+            //
+            // **Above the field, not below it** (density pass). Underneath, it sat
+            // between the input and its action and read as a footnote to the box.
+            // Here it completes the question — *this is what I am asking, and this
+            // is what counts as an answer* — before the box appears, which is the
+            // order the sentence is actually in.
+            //
+            // **`bodyLarge` at w400, not `bodyMedium` at w300** (founder,
+            // 2026-07-31). This line is the whole of the permission to answer with
+            // something good, and at 15pt hairline it read as fine print under the
+            // question — the one register it must never have. Still quieter than
+            // the header by two full steps and by 15% of ink, which is all the
+            // subordination it needs.
+            rise(
+              Text(
+                DailyQuestionCopy.answerSetCaption,
+                style: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.sacredInk.withValues(alpha: 0.85),
+                  height: 1.4,
+                ),
+              ),
+              delay: Duration.zero,
+              travel: AppMotion.riseLarge,
+            ),
+            SizedBox(height: compact ? AppSpacing.md : AppSpacing.lg + 4),
+            // The send control lives INSIDE this field now — see `_SendButton` in
+            // `daily_question_field.dart` for why the standalone "Continue" pill
+            // went. In short: it was disabled for the entire time the user was
+            // deciding, occupying the best space on the screen to say nothing, and
+            // hiding it until first keystroke left no visible answer to "how do I
+            // send this?" at exactly the moment someone is working out what to say.
+            rise(
+              DailyQuestionField(
+                controller: _controller,
+                enabled: !_committing,
+                onSubmitted: _submitTyped,
+              ),
+              delay: AppMotion.beat,
+            ),
+            SizedBox(height: compact ? AppSpacing.md : AppSpacing.lg),
+            DailyQuestionChipList(
+              selectedChipKey: _selectedChipKey,
+              compact: compact,
+              onChipTapped: _submitChip,
+            ),
+          ],
         ),
         // **In the scroll flow, not pinned above the keyboard** (founder,
         // 2026-07-30). It used to sit outside the scroll view so it was on
@@ -365,25 +416,23 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
         // return key now dismisses rather than submits, so getting back to it
         // is one tap that the user is already reaching for. Typing is a mode
         // you leave, not a trap.
-        // A plain gap, NOT a `Spacer`. This column sits inside an
-        // `IntrinsicHeight`, where a flex child has no intrinsic height to
-        // contribute and the measurement goes wrong — it inflated the column
-        // to 780pt on a 568pt screen and pushed the exit off the bottom at
-        // every text scale, which is the opposite of the point.
         //
-        // The exit therefore sits directly under the last option rather than
-        // being pushed to the bottom of the viewport. That reads better
-        // anyway: it belongs to the list of things you can do here, not to the
-        // chrome.
-        const SizedBox(height: AppSpacing.lg),
-        _deferLink(),
+        // The minimum gap; the `spaceBetween` above adds whatever the viewport
+        // has spare on top of it. On a short screen that is nothing and the
+        // exit sits directly under the last option.
+        Padding(
+          padding: EdgeInsets.only(
+            top: compact ? AppSpacing.md : AppSpacing.lg,
+          ),
+          child: _deferLink(),
+        ),
       ],
     );
   }
 
-  /// Last to arrive — after every chip has landed. Not wrapped in `rise`: it
-  /// lives outside the scrolling column, and a translate there would slide the
-  /// pinned row against a fixed edge.
+  /// Last to arrive — after every chip has landed. Not wrapped in `rise`: a
+  /// translate would slide it against whatever edge the free space has just
+  /// pushed it to.
   Widget _deferLink() => DailyQuestionDeferLink(
         label: DailyQuestionCopy.defer,
         onTap: _defer,

@@ -31,12 +31,20 @@ import 'package:sakina/features/onboarding/widgets/problem_chip_card.dart';
 /// The gold dot is the only affordance, and it is deliberate — gold as a
 /// non-text accent is sanctioned on this canvas (DESIGN.md §2.3), and it marks
 /// these as choices rather than a bulleted list without reinstating a border.
+///
+/// **The label is `bodyLarge`, matching [ProblemChipCard]** (founder,
+/// 2026-07-31). Stripping the borders was right; shrinking the words with them
+/// was not. The same seven sentences render at 17pt in onboarding, and at 15pt
+/// here they read as a caption of the option rather than as the option — which
+/// is half of why the screen had no presence. The taxonomy was already shared;
+/// now the type is too.
 class DailyQuestionChip extends StatelessWidget {
   const DailyQuestionChip({
     required this.chip,
     required this.selected,
     required this.dimmed,
     required this.onTap,
+    this.compact = false,
     super.key,
   });
 
@@ -59,6 +67,13 @@ class DailyQuestionChip extends StatelessWidget {
 
   /// Another chip owns it — recede so the chosen line reads alone.
   final bool dimmed;
+
+  /// Short screens keep the tighter row. At the roomy padding seven 54pt rows
+  /// cost 70pt more than seven 44pt ones, which on a 568pt screen is the
+  /// difference between the seventh option — "I can't put it into words" —
+  /// sitting above the fold or below it. The onboarding twin guards the same
+  /// row for the same reason (`hook_problem_screen.dart`).
+  final bool compact;
 
   final VoidCallback onTap;
 
@@ -89,7 +104,9 @@ class DailyQuestionChip extends StatelessWidget {
             duration: AppMotion.feedback,
             curve: AppMotion.enter,
             constraints: const BoxConstraints(minHeight: minTapHeight),
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            padding: EdgeInsets.symmetric(
+              vertical: compact ? AppSpacing.sm : AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               // Selection is a wash rather than an outline, so committing does
               // not reintroduce the chrome the pass removed.
@@ -123,7 +140,7 @@ class DailyQuestionChip extends StatelessWidget {
                 Expanded(
                   child: Text(
                     chip.label,
-                    style: AppTypography.bodyMedium.copyWith(
+                    style: AppTypography.bodyLarge.copyWith(
                       color: isSign
                           ? AppColors.sacredInk.withValues(alpha: 0.70)
                           : AppColors.sacredInk,
