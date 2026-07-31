@@ -16,10 +16,12 @@ const String kWidgetUrlScheme = 'sakina';
 /// if [uri] is not a recognised widget link. Kept pure so it is unit-testable
 /// without the platform channel or a live router.
 ///
-/// Widget links look like `sakina://widget/muhasabah?homeWidget` or
-/// `sakina://widget/build-dua?homeWidget` (the `homeWidget` marker is appended
-/// by the home_widget plugin). Build-a-dua is need-based (free text), not tied
-/// to a Name, so no `name_key` is carried.
+/// Daily-Name widget links look like
+/// `sakina://widget/muhasabah?homeWidget&source=home_widget` or
+/// `sakina://widget/build-dua?homeWidget&source=home_widget`. The
+/// `homeWidget` marker is appended for home_widget delivery, while `source`
+/// preserves analytics attribution through iOS URL handling. Build-a-dua is
+/// need-based (free text), not tied to a Name, so no `name_key` is carried.
 String? parseWidgetDeepLink(Uri? uri) {
   switch (_widgetTarget(uri)) {
     case 'muhasabah':
@@ -117,11 +119,13 @@ class WidgetDeepLinkHandler {
       'target': _widgetTarget(uri) == 'build-dua' ? 'build_dua' : 'muhasabah',
       'launch': cold ? 'cold' : 'warm',
       // Which widget drove the tap — the duʿā-times widget tags its link
-      // `source=dua_times_widget`; the daily-Name widget carries no source, so
-      // it defaults to `home_widget`. Lets the two be told apart (both can
-      // deep-link to Build-a-Duʿā).
-      AnalyticsEvents.propSource: uri?.queryParameters[AnalyticsEvents.propSource] ??
-          AnalyticsEvents.widgetSourceHomeWidget,
+      // `source=dua_times_widget`, while the daily-Name widget tags
+      // `source=home_widget`. Older links without a source still default to
+      // `home_widget`. Lets the two be told apart (both can deep-link to
+      // Build-a-Duʿā).
+      AnalyticsEvents.propSource:
+          uri?.queryParameters[AnalyticsEvents.propSource] ??
+              AnalyticsEvents.widgetSourceHomeWidget,
     });
     _navigate(location);
   }

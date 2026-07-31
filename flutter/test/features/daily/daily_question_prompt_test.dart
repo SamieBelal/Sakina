@@ -7,6 +7,7 @@ import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 import 'package:sakina/features/daily/widgets/daily_question_field.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 
 // The daily question surface (W4 Wave 2 — plan §4/§11, spec M2/M4).
 
@@ -41,8 +42,8 @@ void expectCaptionIsWhole(WidgetTester t, double scale) {
   final box = t.getSize(finder);
 
   final unconstrained = TextPainter(
-    text: TextSpan(
-        text: DailyQuestionCopy.answerSetCaption, style: widget.style),
+    text:
+        TextSpan(text: DailyQuestionCopy.answerSetCaption, style: widget.style),
     textDirection: TextDirection.ltr,
     textScaler: TextScaler.linear(scale),
   )..layout(maxWidth: box.width);
@@ -55,8 +56,8 @@ void expectCaptionIsWhole(WidgetTester t, double scale) {
           'question silently means "what\'s wrong".');
 
   final painterAtMaxLines = TextPainter(
-    text: TextSpan(
-        text: DailyQuestionCopy.answerSetCaption, style: widget.style),
+    text:
+        TextSpan(text: DailyQuestionCopy.answerSetCaption, style: widget.style),
     textDirection: TextDirection.ltr,
     textScaler: TextScaler.linear(scale),
     maxLines: widget.maxLines,
@@ -123,6 +124,7 @@ void main() {
     double keyboardInset = 0,
     String? initialText,
     bool isReAsk = false,
+    String entrySource = questionEntryDayOpen,
   }) =>
       MaterialApp(
         home: Builder(
@@ -137,6 +139,7 @@ void main() {
               commitBeat: Duration.zero,
               initialText: initialText,
               isReAsk: isReAsk,
+              entrySource: entrySource,
               onSubmit: (text, {String? chipKey}) =>
                   submissions.add((text: text, chipKey: chipKey)),
               onDefer: () => defers++,
@@ -290,16 +293,13 @@ void main() {
     expect(submissions.single.text, 'my brother is unwell');
   });
 
-  testWidgets('does not teach muḥāsabah — the CTA one tap earlier already did',
-      (t) async {
-    await t.pumpWidget(host());
+  testWidgets('Home CTA does not repeat the muḥāsabah gloss', (t) async {
+    await t.pumpWidget(host(entrySource: questionEntryHomeCta));
     await t.pumpAndSettle();
 
-    // The density pass removed the gloss from THIS surface. The home CTA the
-    // user tapped to arrive already carries `DailyLoopCtaCopy.notStartedGloss`,
-    // so rendering it here put the same definition on two consecutive screens —
-    // and this was the copy the user had least earned, arriving before they had
-    // done anything.
+    // The Home CTA already carries `DailyLoopCtaCopy.notStartedGloss`, so
+    // rendering it again here would put the same definition on two consecutive
+    // screens. Direct entry paths are pinned separately below.
     expect(find.text(DailyQuestionCopy.gloss), findsNothing);
 
     // The rule the gloss existed to satisfy is unchanged and still pinned:
@@ -307,6 +307,22 @@ void main() {
     // returns to this screen it must not arrive as a button.
     expect(DailyQuestionCopy.defer.toLowerCase().contains('muh'), isFalse,
         reason: 'muḥāsabah is the taught word, never the CTA label');
+  });
+
+  testWidgets('day-open teaches muḥāsabah because no CTA came first',
+      (t) async {
+    await t.pumpWidget(host(entrySource: questionEntryDayOpen));
+    await t.pumpAndSettle();
+
+    expect(find.text(DailyQuestionCopy.gloss), findsOneWidget);
+  });
+
+  testWidgets('widget entry teaches muḥāsabah because no CTA came first',
+      (t) async {
+    await t.pumpWidget(host(entrySource: questionEntryWidget));
+    await t.pumpAndSettle();
+
+    expect(find.text(DailyQuestionCopy.gloss), findsOneWidget);
   });
 
   testWidgets('renders the seven approved chip labels, verbatim and in order',
@@ -363,7 +379,8 @@ void main() {
 
     await t.enterText(find.byType(TextField), '   ');
     await t.pumpAndSettle();
-    await t.tap(find.byKey(DailyQuestionField.sendButtonKey), warnIfMissed: false);
+    await t.tap(find.byKey(DailyQuestionField.sendButtonKey),
+        warnIfMissed: false);
     await t.pumpAndSettle();
 
     expect(submissions, isEmpty);
@@ -399,6 +416,7 @@ void main() {
     await t.pumpWidget(host());
     await t.pumpAndSettle();
 
+    await expectDeferIsReachable(t);
     await t.tap(find.byType(DailyQuestionDeferLink));
     await t.pumpAndSettle();
 
@@ -534,10 +552,12 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text(DailyQuestionCopy.answerSetCaption), findsOneWidget);
+    expect(find.text(DailyQuestionCopy.gloss), findsNothing,
+        reason: 'a re-ask already taught the term on its first question mount');
   });
 
-  testWidgets('VoiceOver reads the question as a header and the caption '
-      'as part of the field', (t) async {
+  testWidgets('VoiceOver reads the question as a header and names the field',
+      (t) async {
     final handle = t.ensureSemantics();
     await t.pumpWidget(host());
     await t.pumpAndSettle();
@@ -550,6 +570,11 @@ void main() {
       find.bySemanticsLabel(DailyQuestionCopy.answerSetCaption),
       findsAtLeastNWidgets(1),
     );
+    final field = t.getSemantics(find.byType(EditableText));
+    expect(field.flagsCollection.isTextField, isTrue);
+    expect(field.label, DailyQuestionCopy.answerFieldLabel,
+        reason: 'an unnamed text field gives VoiceOver users no indication '
+            'that this is where their answer belongs');
     expect(find.bySemanticsLabel(DailyQuestionCopy.defer), findsOneWidget);
     handle.dispose();
   });

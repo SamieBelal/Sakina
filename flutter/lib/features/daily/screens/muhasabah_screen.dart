@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -32,6 +34,7 @@ import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/services/card_collection_service.dart';
+import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
 import 'package:sakina/services/gating_service.dart';
@@ -193,7 +196,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // already recorded.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _showWarmupExhaustedSheet(ref.read(dailyLoopProvider).warmupJustExhausted);
+      _showWarmupExhaustedSheet(
+          ref.read(dailyLoopProvider).warmupJustExhausted);
     });
   }
 
@@ -315,8 +319,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     // the reveal has no seam, and leaving the question dissolves off the canvas
     // through the same threshold the "Ameen" exit uses.
     final showQuestion = _showsQuestion(state);
-    final onCanvas =
-        state.currentStep == DailyLoopStep.deeper || showQuestion;
+    final onCanvas = state.currentStep == DailyLoopStep.deeper || showQuestion;
 
     return SacredCanvasThreshold(
       onCanvas: onCanvas,
@@ -334,17 +337,17 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
               onDefer: _onQuestionDefer,
             )
           : onCanvas
-          ? _buildBeatFlow(state, notifier)
-          : Scaffold(
-              backgroundColor: AppColors.backgroundLight,
-              body: SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: _buildContent(state, notifier),
+              ? _buildBeatFlow(state, notifier)
+              : Scaffold(
+                  backgroundColor: AppColors.backgroundLight,
+                  body: SafeArea(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        child: _buildContent(state, notifier),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
     );
   }
 
@@ -386,24 +389,26 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   /// "Not right now" — a DEFER, not a dismissal (spec M2).
   ///
   /// Nothing is revealed, nothing is claimed, nothing is consumed: the whole
-  /// loop stays collectible from the home CTA for the rest of the day. It
-  /// writes nothing either, and **that is the point** — this handler awaits
-  /// exactly zero futures, so no prefs hiccup and no slow disk can sit between
-  /// the user's tap and the exit. An escape hatch that can fail to open is not
-  /// an escape hatch (plan §2 rule 7).
+  /// loop stays collectible from the home CTA for the rest of the day. The
+  /// navigation stays synchronous, so no prefs hiccup or slow disk can sit
+  /// between the user's tap and the exit. A best-effort marker write continues
+  /// after Home is visible so day-open does not immediately ask again.
   ///
   /// **The day marker moved to auto-entry** (founder, 2026-07-30 — W4 Wave 4).
   /// Wave 2 stamped it here, which meant a user who left with the system back
   /// gesture had not "deferred" and got the question thrown at them again on the
   /// next open. Preventing nagging has to hold however someone left, so
-  /// `daily_question_gate.dart` is stamped when the app *asks* rather than when
-  /// the user declines. Consequently, arriving here by home CTA or widget tap
-  /// and backing out stamps nothing at all — correctly: auto-entry never
-  /// happened, and a user-initiated entry cannot nag by definition.
+  /// `daily_question_gate.dart` is stamped when the app *asks* rather than only
+  /// when the user declines. A defer from the Home CTA or widget still stamps
+  /// it, because otherwise the next launch can auto-enter and turn “Not right
+  /// now” into “ask me again immediately.”
   ///
   /// Skip-versus-abandon is still a real distinction; it lives in the analytics
   /// events (Wave 7), because that is about signal, not about frequency.
-  void _onQuestionDefer() => context.go('/');
+  void _onQuestionDefer() {
+    unawaited(suppressDailyQuestionAutoEntryToday());
+    context.go('/');
+  }
 
   Future<void> _loadHintAdvances() async {
     try {
@@ -769,11 +774,9 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   void _showDiscoverGateSheet(GateReason reason) {
     () async {
       final balance = (await getTokens()).balance;
-      final bypassesUsed =
-          await daily_usage.getDiscoverNameBypassesUsedToday();
+      final bypassesUsed = await daily_usage.getDiscoverNameBypassesUsedToday();
       final premium = await PurchaseService().isPremium();
-      final firstBypassEligible =
-          await GatingService().firstBypassEligible();
+      final firstBypassEligible = await GatingService().firstBypassEligible();
       final displayName = await GatingService().displayName();
       if (!mounted) return;
       final notifier = ref.read(dailyLoopProvider.notifier);

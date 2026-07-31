@@ -127,8 +127,8 @@ void main() {
     expect(find.text('Your Starting Name'), findsNothing);
   });
 
-  testWidgets('Begin pops the day-open BEFORE routing, so back does not '
-      'land in it again', (t) async {
+  testWidgets('Begin leaves Home under the question for back navigation',
+      (t) async {
     final router = await pumpOverlay(t);
     expect(find.byType(DailyLaunchOverlay), findsOneWidget);
 
@@ -140,7 +140,13 @@ void main() {
         reason: 'an opaque root-navigator route left mounted under '
             '/muhasabah is exactly how a back gesture drops the user back '
             'into the day-open they just left');
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/muhasabah');
+    expect(router.canPop(), isTrue,
+        reason: 'the standard iOS back gesture needs Home below the question');
+
+    router.pop();
+    await t.pumpAndSettle();
+    expect(find.text('home'), findsOneWidget,
+        reason: 'back from the day-open question must return Home');
   });
 
   testWidgets('it gets out of the way when the app navigates elsewhere',

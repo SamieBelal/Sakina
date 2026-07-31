@@ -53,6 +53,12 @@ abstract final class DailyQuestionCopy {
   static const String answerSetCaption =
       'A worry, a thanks, a question — however it comes out.';
 
+  /// Stable accessible name for the editable control. The visible caption
+  /// explains what kinds of answers count; this shorter label tells assistive
+  /// technology which control receives that answer without repeating the whole
+  /// caption whenever the field gains focus.
+  static const String answerFieldLabel = 'Your answer';
+
   /// Muḥāsabah is taught as a one-line gloss and is **never** the button label
   /// (plan §4): the CTA is the job to be done, the word teaches rather than
   /// gates — Hallow's treatment of Lectio Divina and the Examen.
@@ -60,19 +66,11 @@ abstract final class DailyQuestionCopy {
   /// Transliterated in Latin script, so no `Text` on this screen mixes Arabic
   /// and English.
   ///
-  /// **Not rendered on this surface any more** (density pass, founder
-  /// 2026-07-30), and kept rather than deleted because the wording is approved
-  /// and the teaching rule behind it still stands.
-  ///
-  /// It was removed here because the definition was appearing **twice in four
-  /// seconds**: the home CTA the user taps to arrive already carries
-  /// `DailyLoopCtaCopy.notStartedGloss`, which teaches the same word in the
-  /// same breath. Of the two, this was the copy the user had least earned — it
-  /// arrives before they have done anything at all.
-  ///
-  /// If muḥāsabah is ever taught on this screen again, the rule is unchanged:
-  /// a gloss, never a button label, and never a second copy of a definition the
-  /// previous screen just gave.
+  /// Rendered conditionally: day-open and widget entrants bypass the Home CTA,
+  /// so this surface teaches the term for them. Home-CTA entrants and re-asks
+  /// omit it because they saw the same definition one screen earlier. The rule
+  /// remains: a gloss, never a button label, and never a second copy of a
+  /// definition the previous screen just gave.
   static const String gloss =
       'Muḥāsabah — the daily habit of taking account of your own heart.';
 

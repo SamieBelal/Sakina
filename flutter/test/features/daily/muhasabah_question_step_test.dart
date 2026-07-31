@@ -7,6 +7,7 @@ import 'package:sakina/features/daily/screens/muhasabah_screen.dart';
 import 'package:sakina/features/daily/widgets/daily_question_defer_link.dart';
 import 'package:sakina/features/daily/widgets/daily_question_prompt.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
+import 'package:sakina/services/daily_question_analytics.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/user_local_day.dart';
@@ -74,7 +75,11 @@ void main() {
         checkinDone: checkinDone,
       );
 
-  Future<_StubLoop> pump(WidgetTester t, DailyLoopState initial) async {
+  Future<_StubLoop> pump(
+    WidgetTester t,
+    DailyLoopState initial, {
+    String entrySource = questionEntryDayOpen,
+  }) async {
     final notifier = _StubLoop(initial);
     final router = GoRouter(
       initialLocation: '/muhasabah',
@@ -85,7 +90,7 @@ void main() {
         ),
         GoRoute(
           path: '/muhasabah',
-          builder: (_, __) => const MuhasabahScreen(),
+          builder: (_, __) => MuhasabahScreen(entrySource: entrySource),
         ),
       ],
     );
@@ -126,16 +131,21 @@ void main() {
     expect(find.byType(DailyQuestionPrompt), findsNothing);
   });
 
-  testWidgets('an unloaded state does not — the question must not flash '
+  testWidgets(
+      'an unloaded state does not — the question must not flash '
       'before today has been restored', (t) async {
     await pump(t, const DailyLoopState());
 
     expect(find.byType(DailyQuestionPrompt), findsNothing);
   });
 
-  testWidgets('"Not right now" goes home having changed nothing at all',
+  testWidgets('"Not right now" goes home and suppresses another ask today',
       (t) async {
-    final notifier = await pump(t, stateOn(DailyLoopStep.checkin));
+    final notifier = await pump(
+      t,
+      stateOn(DailyLoopStep.checkin),
+      entrySource: questionEntryHomeCta,
+    );
     final before = notifier.state;
 
     await t.tap(find.byType(DailyQuestionDeferLink));
@@ -148,12 +158,9 @@ void main() {
     expect(notifier.discoverCalls, 0);
     expect(identical(notifier.state, before), isTrue,
         reason: 'a defer writes no daily-loop state at all');
-    // W4 Wave 4 moved the day marker to auto-entry. Arriving by home CTA or
-    // widget tap and backing out stamps NOTHING — auto-entry never happened,
-    // and a user-initiated entry cannot nag by definition. The handler awaits
-    // nothing, which is what makes the exit unfailable.
-    expect(await dailyQuestionAutoEnteredToday(), isFalse,
-        reason: 'only the app asking unprompted stamps the marker');
+    expect(await dailyQuestionAutoEnteredToday(), isTrue,
+        reason: 'deferring from a user-initiated entry must stop day-open from '
+            'asking again on the next launch that same local day');
   });
 
   testWidgets('the warmup-exhausted sheet still fires on the rising edge',

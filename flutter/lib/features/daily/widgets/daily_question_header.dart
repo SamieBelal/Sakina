@@ -8,17 +8,12 @@ import 'package:sakina/core/theme/app_typography.dart';
 /// jump lands on it. Latin script throughout, so no `Text` here mixes
 /// directions.
 ///
-/// **The taught gloss is gone** (density pass, founder 2026-07-30). This used
-/// to render `DailyQuestionCopy.gloss` under the title — teaching muḥāsabah one
-/// line beneath the question. The home CTA the user tapped a second earlier
-/// already teaches the same word (`DailyLoopCtaCopy.notStartedGloss`), so the
-/// definition appeared on two consecutive screens, and this was the copy the
-/// user had least earned: it arrives before they have done anything at all.
-///
-/// The rule it was built to satisfy has not changed and still holds — the word
-/// is taught as a gloss and is never a button label (plan §4, Hallow's
-/// treatment of Lectio Divina and the Examen). It is simply taught once, on the
-/// surface that earned it, rather than twice in four seconds.
+/// **The taught gloss is owned by the parent.** `DailyQuestionPrompt` renders
+/// the approved definition for day-open and widget entry, where a user may not
+/// have seen the Home CTA's explanation. It omits the gloss after that CTA and
+/// on re-ask, avoiding duplicate copy on consecutive screens. Keeping the
+/// definition outside this header also preserves one clean heading semantic
+/// for VoiceOver. The word remains explanatory copy, never a button label.
 ///
 /// **Sized to match its twin, not to the smallest headline in the scale**
 /// (founder, 2026-07-31). This rendered `headlineMedium` — 20pt, the bottom of

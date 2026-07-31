@@ -154,21 +154,21 @@ class _DailyLaunchOverlayState extends ConsumerState<DailyLaunchOverlay> {
 
   /// Hands off into the day's question (W4 Wave 4 — spec M1).
   ///
-  /// **Pops before it routes, and the order is load-bearing.** This route is
-  /// pushed `opaque: true` on the ROOT navigator, so a bare `go('/muhasabah')`
-  /// would leave the day-open mounted *underneath* the muḥāsabah route — and a
-  /// back gesture from the question would land the user right back in the
-  /// day-open they just left. The router is captured before the pop because
+  /// **Pops before it pushes, and the order is load-bearing.** This route is
+  /// pushed `opaque: true` on the ROOT navigator, so routing before the pop
+  /// would leave the day-open mounted underneath the question. After the pop,
+  /// `push` places the question above Home so the standard iOS back gesture has
+  /// somewhere valid to return. The router is captured before the pop because
   /// [context] is defunct immediately after it.
   void _beginMuhasabah() {
     HapticFeedback.lightImpact();
     // Flagged before either navigation so [_onLocationChanged] does not treat
-    // our own `go('/muhasabah')` as somebody else navigating away and pop a
+    // our own `push('/muhasabah')` as somebody else navigating away and pop a
     // second time.
     _leaving = true;
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
-    router.go('/muhasabah');
+    router.push('/muhasabah');
   }
 
   /// The escape hatch (plan §2 rule 7). Someone who opened the app for their

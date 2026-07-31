@@ -22,6 +22,7 @@ class DailyQuestionField extends StatefulWidget {
   const DailyQuestionField({
     required this.controller,
     required this.enabled,
+    required this.semanticsLabel,
     required this.onSubmitted,
     super.key,
   });
@@ -39,6 +40,7 @@ class DailyQuestionField extends StatefulWidget {
   final TextEditingController controller;
 
   final bool enabled;
+  final String semanticsLabel;
   final VoidCallback onSubmitted;
 
   @override
@@ -72,69 +74,72 @@ class _DailyQuestionFieldState extends State<DailyQuestionField> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        TextField(
-          controller: widget.controller,
-          enabled: widget.enabled,
-          // One line at rest, growing to six. See the class dartdoc.
-          minLines: 1,
-          maxLines: 6,
-          textCapitalization: TextCapitalization.sentences,
-          // Deliberately NOT `keyboardType.multiline` — that turns the return
-          // key into a newline, and a newline is not what anyone wants from
-          // this key here.
-          textInputAction: TextInputAction.done,
-          // **The keyboard's checkmark DISMISSES; it does not submit** (founder,
-          // 2026-07-30). Overriding `onEditingComplete` is what does it —
-          // Flutter's default implementation both submits and unfocuses.
-          //
-          // This is only safe because the send arrow exists. The original
-          // wiring routed this key straight to submit precisely because it was
-          // the sole way forward for anyone on an external keyboard or using
-          // dictation; with an always-visible arrow that constraint is met, and
-          // an accidental return on a composition about something painful no
-          // longer commits it. Typing becomes a mode you step out of, which is
-          // also what makes the un-pinned exit below reachable again.
-          onEditingComplete: () => FocusScope.of(context).unfocus(),
-          cursorColor: AppColors.sacredInk,
-          style: AppTypography.bodyLarge.copyWith(color: AppColors.sacredInk),
-          decoration: InputDecoration(
-            // **No hint, and no helper either** (W4 Wave 2 review F1).
+        Semantics(
+          label: widget.semanticsLabel,
+          child: TextField(
+            controller: widget.controller,
+            enabled: widget.enabled,
+            // One line at rest, growing to six. See the class dartdoc.
+            minLines: 1,
+            maxLines: 6,
+            textCapitalization: TextCapitalization.sentences,
+            // Deliberately NOT `keyboardType.multiline` — that turns the return
+            // key into a newline, and a newline is not what anyone wants from
+            // this key here.
+            textInputAction: TextInputAction.done,
+            // **The keyboard's checkmark DISMISSES; it does not submit** (founder,
+            // 2026-07-30). Overriding `onEditingComplete` is what does it —
+            // Flutter's default implementation both submits and unfocuses.
             //
-            // The answer-set line that used to live here as `hintText` now
-            // renders as a caption owned by `DailyQuestionPrompt`. It is the
-            // only thing telling the user a grateful answer is permitted (spec
-            // M4), and neither slot on a `TextField` can hold it safely:
-            //
-            //  * A HINT disappears the moment the field is non-empty — so the
-            //    line vanished on the first keystroke, and was never shown at
-            //    all on an off-topic re-ask, where the field opens pre-filled
-            //    with the user's own words. That is precisely when someone
-            //    needs to know what kind of answer is permitted.
-            //  * `hintMaxLines: 3` plus `InputDecorator`'s ellipsis truncated
-            //    it to "A worry, a thanks, a ques…" at large Dynamic Type,
-            //    silently reverting the question to meaning "what's wrong".
-            //  * A HELPER persists, but `InputDecorator` sizes the helper slot
-            //    from `helperMaxLines` and clips to it — measured at one line,
-            //    20pt for a 100pt string. Trading a hint's threshold for a
-            //    helper's is not a fix.
-            //
-            // A plain caption above has no line budget at anyone's discretion,
-            // so there is no font-dependent threshold left to get wrong.
-            filled: true,
-            fillColor: AppColors.sacredInk.withValues(alpha: 0.08),
-            // Right padding clears the send button so a long line never runs
-            // underneath it.
-            contentPadding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              _SendButton.tapTarget + AppSpacing.xs,
-              AppSpacing.md,
+            // This is only safe because the send arrow exists. The original
+            // wiring routed this key straight to submit precisely because it was
+            // the sole way forward for anyone on an external keyboard or using
+            // dictation; with an always-visible arrow that constraint is met, and
+            // an accidental return on a composition about something painful no
+            // longer commits it. Typing becomes a mode you step out of, which is
+            // also what makes the un-pinned exit below reachable again.
+            onEditingComplete: () => FocusScope.of(context).unfocus(),
+            cursorColor: AppColors.sacredInk,
+            style: AppTypography.bodyLarge.copyWith(color: AppColors.sacredInk),
+            decoration: InputDecoration(
+              // **No hint, and no helper either** (W4 Wave 2 review F1).
+              //
+              // The answer-set line that used to live here as `hintText` now
+              // renders as a caption owned by `DailyQuestionPrompt`. It is the
+              // only thing telling the user a grateful answer is permitted (spec
+              // M4), and neither slot on a `TextField` can hold it safely:
+              //
+              //  * A HINT disappears the moment the field is non-empty — so the
+              //    line vanished on the first keystroke, and was never shown at
+              //    all on an off-topic re-ask, where the field opens pre-filled
+              //    with the user's own words. That is precisely when someone
+              //    needs to know what kind of answer is permitted.
+              //  * `hintMaxLines: 3` plus `InputDecorator`'s ellipsis truncated
+              //    it to "A worry, a thanks, a ques…" at large Dynamic Type,
+              //    silently reverting the question to meaning "what's wrong".
+              //  * A HELPER persists, but `InputDecorator` sizes the helper slot
+              //    from `helperMaxLines` and clips to it — measured at one line,
+              //    20pt for a 100pt string. Trading a hint's threshold for a
+              //    helper's is not a fix.
+              //
+              // A plain caption above has no line budget at anyone's discretion,
+              // so there is no font-dependent threshold left to get wrong.
+              filled: true,
+              fillColor: AppColors.sacredInk.withValues(alpha: 0.08),
+              // Right padding clears the send button so a long line never runs
+              // underneath it.
+              contentPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                _SendButton.tapTarget + AppSpacing.xs,
+                AppSpacing.md,
+              ),
+              border: _border(AppColors.sacredTrack),
+              enabledBorder: _border(AppColors.sacredTrack),
+              disabledBorder: _border(AppColors.sacredTrack),
+              // Gold as a non-text accent only — never as a label colour.
+              focusedBorder: _border(AppColors.secondary),
             ),
-            border: _border(AppColors.sacredTrack),
-            enabledBorder: _border(AppColors.sacredTrack),
-            disabledBorder: _border(AppColors.sacredTrack),
-            // Gold as a non-text accent only — never as a label colour.
-            focusedBorder: _border(AppColors.secondary),
           ),
         ),
         // **Vertically centred, not bottom-anchored.** The chat-app convention

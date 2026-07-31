@@ -167,7 +167,7 @@ private struct CompanionProvider: TimelineProvider {
 // MARK: - Views
 
 private func companionDeepLink() -> URL? {
-    URL(string: "sakina://widget/muhasabah?homeWidget")
+    URL(string: "sakina://widget/muhasabah?homeWidget&source=home_widget")
 }
 
 private struct StreakBadge: View {

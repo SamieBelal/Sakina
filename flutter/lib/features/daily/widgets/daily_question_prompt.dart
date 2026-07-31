@@ -57,9 +57,10 @@ class DailyQuestionPrompt extends StatefulWidget {
   /// day. No reveal, no reward, nothing consumed.
   final VoidCallback onDefer;
 
-  /// How the user got here — `day_open` | `widget` | `home_cta`. Reported on
-  /// `daily_question_shown` and nothing else; the outcome events do not repeat
-  /// it because Mixpanel funnels carry the first step's properties forward.
+  /// How the user got here — `day_open` | `widget` | `home_cta`. It controls
+  /// whether this surface needs to teach the muḥāsabah gloss and is reported on
+  /// `daily_question_shown`; outcome events do not repeat it because Mixpanel
+  /// funnels carry the first step's properties forward.
   final String entrySource;
 
   /// What to put in the field on open — the user's previous answer, when they
@@ -125,6 +126,13 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
   /// 700pt and the metrics behind it are `hook_problem_screen.dart`'s, which
   /// asks this same question in onboarding and had them tuned on device.
   static const double _compactHeightThreshold = 700;
+
+  /// Direct entry paths bypass the Home CTA, which is otherwise the only place
+  /// that teaches the word. A re-ask has already shown this same surface once,
+  /// so repeating the definition there would create the duplication this rule
+  /// is designed to avoid.
+  bool get _showsGloss =>
+      !widget.isReAsk && widget.entrySource != questionEntryHomeCta;
 
   EdgeInsets _padding(bool compact) => EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -334,14 +342,6 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // **No gloss** (density pass, founder 2026-07-30). This screen used to
-            // teach muḥāsabah here, one line under the question — but the home CTA
-            // the user tapped a second earlier already carries
-            // `DailyLoopCtaCopy.notStartedGloss`, teaching the same word in the
-            // same breath. The definition was duplicated across two consecutive
-            // screens, and this was the copy of it the user had least earned: it
-            // arrives before they have done anything. `DailyQuestionCopy.gloss` is
-            // retained for the surface that has earned it, not deleted.
             rise(
               DailyQuestionHeader(
                 title: DailyQuestionCopy.header,
@@ -350,7 +350,27 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
               delay: Duration.zero,
               travel: AppMotion.riseLarge,
             ),
-            SizedBox(height: compact ? AppSpacing.xs + 2 : AppSpacing.sm + 2),
+            if (_showsGloss) ...[
+              const SizedBox(height: AppSpacing.xs),
+              rise(
+                Text(
+                  DailyQuestionCopy.gloss,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.sacredInk.withValues(alpha: 0.72),
+                    height: 1.35,
+                  ),
+                ),
+                delay: Duration.zero,
+                travel: AppMotion.riseLarge,
+              ),
+            ],
+            SizedBox(
+              height: _showsGloss
+                  ? AppSpacing.xs
+                  : compact
+                      ? AppSpacing.xs + 2
+                      : AppSpacing.sm + 2,
+            ),
             // The answer set, as a persistent caption rather than the field's hint
             // (Wave 2 review F1). It says a grateful answer is permitted, which is
             // the job the chips used to do by simply existing — so it has to be
@@ -393,6 +413,7 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
               DailyQuestionField(
                 controller: _controller,
                 enabled: !_committing,
+                semanticsLabel: DailyQuestionCopy.answerFieldLabel,
                 onSubmitted: _submitTyped,
               ),
               delay: AppMotion.beat,

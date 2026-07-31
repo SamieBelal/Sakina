@@ -7,14 +7,12 @@
 /// route itself — a user who taps that CTA gets the full flow from the top. It
 /// gates only the app's decision to ask *unprompted*.
 ///
-/// **The stamp is written at auto-entry, not at the exit** (founder,
-/// 2026-07-30). Wave 2 first wrote it from the "Not right now" handler, which
-/// left a hole: someone who backed out with the system gesture had not
-/// "deferred", so the question was thrown at them again on the next open. The
-/// marker's job is preventing nagging, and that has to hold regardless of *how*
-/// they left. The skip-versus-abandon distinction is real and still matters — it
-/// lives in the analytics events (Wave 7), because that is about signal, not
-/// about frequency.
+/// **The primary stamp is written at auto-entry, not only at the exit**
+/// (founder, 2026-07-30). That covers every way out of an automatic ask,
+/// including the system back gesture. An explicit defer also stamps the marker
+/// when the user entered from Home or a widget; without that second case, the
+/// next launch could auto-enter and make "Not right now" feel ignored. The
+/// skip-versus-abandon distinction lives in analytics rather than frequency.
 ///
 /// A consequence, accepted deliberately: the stamp lands *before* the user does
 /// anything, so a crash immediately after auto-entry costs that day's auto-entry.
@@ -98,6 +96,14 @@ Future<void> markDailyQuestionAutoEnteredToday() async {
         '[daily_question_gate] could not write the auto-entry marker: $e');
   }
 }
+
+/// Suppresses automatic question entry for the rest of the current local day.
+///
+/// This names the defer intent without pretending that a Home-CTA or widget
+/// entry was itself automatic. It deliberately shares the same marker: the gate
+/// only needs one answer to “may the app ask unprompted again today?”.
+Future<void> suppressDailyQuestionAutoEntryToday() =>
+    markDailyQuestionAutoEnteredToday();
 
 /// Whether the question has already been auto-entered during the current local
 /// day.

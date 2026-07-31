@@ -10,17 +10,21 @@ void main() {
       // user *in the daily question*, and `daily_question_shown` has to keep the
       // widget path separable from day-open (plan §9). An untagged link would be
       // counted as the app having opened the question on its own.
-      expect(parseWidgetDeepLink(Uri.parse('sakina://widget/muhasabah?homeWidget')),
+      expect(
+          parseWidgetDeepLink(
+              Uri.parse('sakina://widget/muhasabah?homeWidget')),
           '/muhasabah?entry=widget');
     });
 
     test('build-dua link → /duas (need-based, no Name seed)', () {
-      expect(parseWidgetDeepLink(Uri.parse('sakina://widget/build-dua?homeWidget')),
+      expect(
+          parseWidgetDeepLink(
+              Uri.parse('sakina://widget/build-dua?homeWidget')),
           '/duas');
       // Any stray name_key is ignored — build-a-dua is not Name-based.
       expect(
-        parseWidgetDeepLink(
-            Uri.parse('sakina://widget/build-dua?name_key=al-wakil&homeWidget')),
+        parseWidgetDeepLink(Uri.parse(
+            'sakina://widget/build-dua?name_key=al-wakil&homeWidget')),
         '/duas',
       );
     });
@@ -44,17 +48,20 @@ void main() {
     });
 
     test('unknown widget target → null', () {
-      expect(parseWidgetDeepLink(Uri.parse('sakina://widget/unknown?homeWidget')),
+      expect(
+          parseWidgetDeepLink(Uri.parse('sakina://widget/unknown?homeWidget')),
           isNull);
     });
   });
 
   group('WidgetDeepLinkHandler', () {
-    test('cold-launch URI is replayed (after first frame) to navigate', () async {
+    test('cold-launch URI is replayed (after first frame) to navigate',
+        () async {
       final navigated = <String>[];
       final handler = WidgetDeepLinkHandler(
         navigate: navigated.add,
-        initialUri: () async => Uri.parse('sakina://widget/muhasabah?homeWidget'),
+        initialUri: () async =>
+            Uri.parse('sakina://widget/muhasabah?homeWidget'),
         clicks: const Stream<Uri?>.empty(),
         postFrame: (cb) => cb(), // fire synchronously in the test
       );
@@ -88,7 +95,8 @@ void main() {
       final controller = StreamController<Uri?>();
       final handler = WidgetDeepLinkHandler(
         navigate: (_) {},
-        initialUri: () async => Uri.parse('sakina://widget/muhasabah?homeWidget'),
+        initialUri: () async => Uri.parse(
+            'sakina://widget/muhasabah?homeWidget&source=home_widget'),
         clicks: controller.stream,
         postFrame: (cb) => cb(),
       );
@@ -96,7 +104,7 @@ void main() {
       controller.add(Uri.parse('sakina://widget/build-dua?homeWidget')); // warm
       await Future<void>.delayed(Duration.zero);
 
-      // No `source` param on the daily-Name widget links → default home_widget.
+      // Production daily-Name links explicitly preserve home-widget source.
       expect(events, [
         {
           'event': 'widget_opened',
@@ -115,7 +123,8 @@ void main() {
       handler.dispose();
     });
 
-    test('duʿā-times widget tap carries source=dua_times_widget (disambiguation)',
+    test(
+        'duʿā-times widget tap carries source=dua_times_widget (disambiguation)',
         () async {
       final events = <Map<String, dynamic>>[];
       WidgetDeepLinkHandler.onAnalyticsEvent =
@@ -131,8 +140,8 @@ void main() {
       );
       await handler.start();
       // The duʿā-times widget's link (SakinaDuaTimesWidget.duaDeepLinkURL).
-      controller.add(
-          Uri.parse('sakina://widget/build-dua?homeWidget&source=dua_times_widget'));
+      controller.add(Uri.parse(
+          'sakina://widget/build-dua?homeWidget&source=dua_times_widget'));
       await Future<void>.delayed(Duration.zero);
 
       expect(events.single['source'], 'dua_times_widget');

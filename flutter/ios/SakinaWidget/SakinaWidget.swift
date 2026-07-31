@@ -231,7 +231,7 @@ private struct Provider: TimelineProvider {
 private func widgetDeepLinkURL(_ nameKey: String, build: Bool = false) -> URL? {
     // build-a-dua is need-based (free text), not tied to a Name, so no name_key.
     let path = build ? "build-dua" : "muhasabah"
-    return URL(string: "sakina://widget/\(path)?homeWidget")
+    return URL(string: "sakina://widget/\(path)?homeWidget&source=home_widget")
 }
 
 /// The pre-reveal hero: what stands where the Name stands, before there is a
