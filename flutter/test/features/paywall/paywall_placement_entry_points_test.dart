@@ -47,8 +47,11 @@ void main() {
   group('paywall placement — entry points', () {
     test('no bare push to the paywall route anywhere in lib/', () {
       // `push('/paywall')`, `push("/paywall")`, `pushReplacement`, `go`, …
+      // and the same thing spelled with the route constant — `push(
+      // paywallRoutePath)` reaches the route just as bare, and a scan that
+      // only knew the string literal let it through.
       final bare = RegExp(
-        r'''\.(push|pushReplacement|pushNamed|go|replace)\s*\(\s*['"]/paywall['"]''',
+        r'''\.(push|pushReplacement|pushNamed|go|replace)\s*\(\s*(['"]/paywall['"]|paywallRoutePath)''',
       );
       final offenders = <String>[];
       for (final entry in _libSources()) {
