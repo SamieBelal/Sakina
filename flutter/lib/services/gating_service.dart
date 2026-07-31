@@ -118,16 +118,28 @@ class GatingService {
   /// paying).
   static const int premiumDailyFairUseCap = 30;
 
-  /// Token cost to bypass the daily cap for one extra AI use. Mirrors the
-  /// server's `app_config.bypass_token_cost` seed value (PR 1 migration
-  /// `20260523000000_ai_bypass_reservations_and_rpcs.sql`). Server is the
-  /// source of truth — the constant here is a defensive fallback used by
-  /// the DailyCapSheet copy when the server value hasn't been hydrated yet.
+  /// Token cost to bypass the daily cap for one extra AI use. Seeded server-side
+  /// by `20260523000000_ai_bypass_reservations_and_rpcs.sql`.
+  ///
+  /// **Correction 2026-07-31: this constant is NOT a fallback — it is the only
+  /// value the client ever uses.** The docstring here previously claimed the
+  /// server was the source of truth and this was "a defensive fallback used by
+  /// the DailyCapSheet copy when the server value hasn't been hydrated yet".
+  /// There is no hydration: these two comments are the *only* references to
+  /// `bypass_token_cost` / `max_bypasses_per_day` anywhere in `lib/`.
+  ///
+  /// That made the prod dial an operational trap — tuning
+  /// `app_config.bypass_token_cost` changes what the RPC charges while the
+  /// sheet keeps quoting 25, so the user is told one price and charged another.
+  /// Deliberately left unwired rather than fixed: W5 removes the bypass for the
+  /// `reel_v1` cohort and the whole subsystem is deleted after the softener wave
+  /// (§V6.10), so this is code with a scheduled death. See
+  /// [warmupSizeConfigKey] for how a dial that *is* read looks.
   static const int bypassTokenCost = 25;
 
-  /// Maximum number of bypass spends per feature per day. Matches the
-  /// server's `app_config.max_bypasses_per_day` seed value. Same fallback
-  /// rationale as [bypassTokenCost].
+  /// Maximum number of bypass spends per feature per day. Same story as
+  /// [bypassTokenCost] — `app_config.max_bypasses_per_day` exists server-side
+  /// and nothing client-side reads it.
   static const int maxBypassesPerDayPerFeature = 2;
 
   /// Lifetime warmup budgets per feature — **offline fallbacks only**.
