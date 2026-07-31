@@ -1,6 +1,16 @@
 # One Currency — merge tokens and scrolls into Noor
 
-**Status: PLAN — two founder decisions open (§3). Everything else is scoped and verified.**
+> **⛔ DEFERRED — founder decision 2026-07-31. Do NOT pick this up during W5.**
+> The whole of it moves to the **softener wave** (post-keep-decision). W5 does **zero**
+> currency work — not the cohort branch, not the Store SKUs, not the benefit string.
+> Deferral is safe because nothing becomes false (tokens still buy streak restores,
+> scrolls still buy tier-ups) and nobody loses value they paid for (the bypass removal is
+> cohort-scoped, so every existing token holder keeps it until this same wave).
+> Tracked in [`TODO.md`](../../../TODO.md) → *One currency: merge tokens + tier-up scrolls
+> into Noor*. **§4 below still describes a W5-riding cohort branch — that is superseded by
+> this banner; there is no W5 component any more.**
+
+**Status: DEFERRED (see banner). Two founder decisions remain open for whenever it runs (§3).**
 **Date:** 2026-07-31
 **Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first`
 **Parents:** `2026-07-23-conversion-refactor-changes-and-implementation.md` §W5 + **D10** (the decision that created this) · `2026-07-25-lantern-cosmetics-01-backend-economy.md` (the Noor economy this merges into)

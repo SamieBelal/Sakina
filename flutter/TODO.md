@@ -324,3 +324,61 @@ appear as fresh arrivals in any reel→purchase join.
 **Surfaced by:** W2 completeness audit, 2026-07-29.
 
 ---
+
+## One currency: merge tokens + tier-up scrolls into Noor
+
+**Trigger:** the **softener wave** (post-T0+6wk keep decision, completed before
+Ramadan prep). Not before. That wave already sends a 30-day notice, already
+migrates every legacy free user, and already deletes the bypass subsystem —
+which touches the same functions this work converts. Doing it there costs one
+extra sentence in a message you are already sending; doing it earlier costs a
+second disruption and a currency change inside the window you are measuring
+conversion in.
+
+**Full plan (do not re-derive — the research is expensive):**
+[`docs/superpowers/plans/2026-07-31-one-currency-noor-merge.md`](./docs/superpowers/plans/2026-07-31-one-currency-noor-merge.md)
+
+**What:** Sakina runs three soft currencies — tokens, tier-up scrolls, Noor —
+against three separate sinks, which is why none of them is liquid. Collapse
+them into Noor.
+
+**Why it is NOT urgent (verified 2026-07-31, so nobody re-panics about it):**
+
+- **Nothing is false.** After W5 removes the AI bypass, tokens still buy streak
+  restores (100/250/500 by pre-lapse streak) and scrolls still buy card
+  tier-ups. `paywallPremiumBenefit4` ("A monthly gift of tokens & scrolls")
+  stays *true* — weaker, not a lie. No copy-firewall problem.
+- **Nobody loses what they paid for.** The bypass removal is cohort-scoped, so
+  every existing token holder keeps the bypass until this same wave. New-cohort
+  users never had it and never bought tokens for it.
+- **The economy was already inert.** 348,024 tokens outstanding across 1,362
+  accounts; **2,775 ever spent, by 31 users.** 0.8% of everything ever minted.
+  Removing the bypass did not break a working economy.
+
+**The two things that will bite whoever picks this up:**
+
+1. **Scrolls cannot be scoped out.** `tier_up_scrolls` is a *column on
+   `user_tokens`*. Leaving scrolls behind means keeping that table alive as a
+   one-column vestige.
+2. **The price ladders do not line up.** A tier-up costs **5 scrolls**; a
+   lantern skin costs **120–300 Noor**. Merge scrolls 1:1 and every card upgrade
+   in the game becomes free. Converting scrolls therefore *requires* repricing
+   tier-ups onto the Noor ladder first — and at the obvious repricing
+   (100/200 Noor) the combined backfill hands **~704,000 Noor** to the base,
+   roughly two to four free cosmetics each. That giveaway is the real cost of
+   this work, and it is an economics decision, not an engineering one. The plan
+   recommends 1:1 on tokens **with a per-account cap**.
+
+**Two decisions still open** (§3 of the plan): whether scrolls fold in, and the
+conversion rate.
+
+**⚠️ Re-read the numbers before acting.** Balances grow daily from signup grants
+and daily rewards, so the ~704k backfill exposure only moves one way. The
+figures above are a 2026-07-31 snapshot, not a constant.
+
+**Steps when ready:** §5 of the plan — decide → server functions converted
+(~10 live, five more deleted with the bypass anyway) → one idempotent stamped
+backfill (`user_tokens` retained read-only as the audit trail) → client swap +
+Store SKU retirement (gated on a Mixpanel `pack_purchased` check, test IDs
+excluded) → one plain sentence in the softener notice → drop the table one
+release later, inside the legacy-deletion sweep already scheduled for then.
