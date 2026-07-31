@@ -289,6 +289,39 @@ sees the non-trial variant.
 
 ---
 
+## 6b. ⚠️ The `warmup_discover_name_size` dial is INERT on its own (found 2026-07-31, review)
+
+**Applying the migration achieves nothing by itself.** Verified against production:
+
+- `handle_new_user` reads `warmup_reflect_size` but **not** `warmup_discover_name_size`, and
+  never stamps `warmup_discover_name_remaining`.
+- That column's default is **5** — the legacy number, not D10②'s 3.
+- `sync_all_user_data` returns the column on every launch and `hydrateFromProfile` writes it
+  straight into prefs. Batch sync runs before any re-roll gate, so the local counter is **5**,
+  and a stored counter short-circuits the dial read entirely.
+
+So the client reads 3 from `app_config` only in the pre-sync window, and after the
+`pushToServer` fix (`70d05cb`) it does not even persist that. **D10②'s 3-re-roll warmup is
+not in force, with or without the migration.**
+
+Completing it needs a **server** change: either stamp the column from the dial in
+`handle_new_user`'s `reel_v1` branch, or lower the column default. Both touch the signup
+trigger and both interact with the cohort branching this plan assigns to D.2/D.3 — so this
+belongs **in D.2/D.3, not as a standalone migration**. Apply
+`20260731090000_warmup_discover_name_size.sql` together with that work, not before it: alone
+it is inert, and inert-but-applied invites the belief that the decision has shipped.
+
+Two lesser findings from the same review, recorded so they are not rediscovered:
+
+- **`_refresh` never stamps a timestamp for a key absent from `app_config`**, so `stale` stays
+  true forever and every `getInt` on a missing key fires a detached network call. Bounded and
+  pre-existing (shared with `getBool`/`getString`), but it is live *right now* for
+  `warmup_discover_name_size` precisely because that key is deliberately unapplied.
+- **Read-modify-write race on the warmup counter** — two concurrent `markUsed` calls decrement
+  once, not twice. Pre-existing, fails open (one extra free use), and already tracked as D.3
+  test work ("decrements exactly once under double-tap"). Fixing it needs a mutex on the hot
+  path.
+
 ## 7. Open decision
 
 **The `warmup_discover_name_size` dial does not exist.** D10② chose option (a) — 3 re-roll
