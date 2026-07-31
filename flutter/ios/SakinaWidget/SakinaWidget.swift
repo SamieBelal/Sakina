@@ -470,7 +470,28 @@ private struct SmallView: View {
 private struct AccessoryView: View {
     let display: NameDisplay
 
+    /// The awaiting state is neutral here too (W4 Wave 6 review, F2).
+    ///
+    /// The small and medium families already suppress loss framing while the
+    /// user has not answered yet — `AwaitingHero` plus
+    /// `StreakChip(suppressLossFraming: true)`. This view was missed, and it is
+    /// the WORST place to miss it: the Lock Screen is the highest-frequency
+    /// surface in the app, ~80–100 glances a day.
+    ///
+    /// The 8 PM timeline entry resolves `.atRisk` whenever the reveal has not
+    /// happened, which IS the awaiting state — so an evening glance read
+    /// "Don't lose your 5" / "Reflect before midnight" about a question the app
+    /// had not yet asked. Plan §2 rule 6 forbids exactly that: no guilt
+    /// mechanic under an invitation, and no clock near the reveal.
+    ///
+    /// `.pending`'s "Keep your 5" goes the same way while awaiting. It is
+    /// softer than the `.atRisk` copy but it is the same move, and `StreakChip`
+    /// resolves both to the bare count. The streak still shows; only the
+    /// framing changes, and only here — outside awaiting every branch below is
+    /// untouched, because a user who HAS reflected is being told about a streak
+    /// they are keeping rather than one they are about to lose.
     private var title: String {
+        if display.awaitingReveal { return "What's on your heart today?" }
         switch display.streakState {
         case .done:    return display.transliteration        // reward: the Name you received
         case .pending: return "Reflect today"                // gentle nudge
@@ -481,19 +502,30 @@ private struct AccessoryView: View {
     }
 
     @ViewBuilder private var subtitle: some View {
-        switch display.streakState {
-        case .done:
-            Label("\(display.streak) · \(display.english)", systemImage: "flame.fill")
-                .labelStyle(.titleAndIcon)
-        case .pending:
-            Label("Keep your \(display.streak)", systemImage: "flame.fill")
-                .labelStyle(.titleAndIcon)
-        case .atRisk:
-            Text("Reflect before midnight")
-        case .zero:
-            Text("Start your streak")
-        case .hidden:
-            Text(display.english)
+        if display.awaitingReveal {
+            // The count, the flame — never the loss. Mirrors
+            // `StreakChip(suppressLossFraming: true)` exactly.
+            if display.streak > 0 {
+                Label("\(display.streak)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            } else {
+                Text("Start your streak")
+            }
+        } else {
+            switch display.streakState {
+            case .done:
+                Label("\(display.streak) · \(display.english)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            case .pending:
+                Label("Keep your \(display.streak)", systemImage: "flame.fill")
+                    .labelStyle(.titleAndIcon)
+            case .atRisk:
+                Text("Reflect before midnight")
+            case .zero:
+                Text("Start your streak")
+            case .hidden:
+                Text(display.english)
+            }
         }
     }
 

@@ -253,4 +253,94 @@ void main() {
               'widget between the user and their Name');
     });
   });
+
+  group('no loss framing while the question is still unanswered', () {
+    // Plan §2 rule 6: no guilt mechanic under an invitation, and no clock near
+    // the reveal. The awaiting state is precisely "the app has asked and the
+    // user has not answered yet", and the 8 PM timeline entry resolves
+    // `.atRisk` for exactly that state — so every evening glance was a
+    // deadline about a question the app had not yet been answered.
+    //
+    // Small and medium got this right at Wave 6 (`AwaitingHero`,
+    // `StreakChip(suppressLossFraming: true)`). `AccessoryView` was missed, and
+    // it is the worst one to miss: the Lock Screen is the highest-frequency
+    // surface in the app.
+    //
+    // A source test because the alternative is an Xcode snapshot target that
+    // does not exist, and because the property is about which BRANCH the copy
+    // sits behind — cheap to state, easy to break, invisible in review.
+    late String swift;
+
+    setUpAll(() {
+      swift = File('ios/SakinaWidget/SakinaWidget.swift').readAsStringSync();
+    });
+
+    /// The body of a Swift `private struct <name>: View { … }`, matched by
+    /// brace balance so a nested type cannot end the slice early, and with
+    /// `//` lines stripped.
+    ///
+    /// The strip is not cosmetic. The first version of this test scanned the
+    /// raw source and failed against the CORRECT code, because the doc comment
+    /// explaining the fix quotes the very strings the fix removes. A test that
+    /// cannot tell code from prose about code would have been "fixed" by
+    /// deleting the explanation.
+    String structBody(String name) {
+      final start = swift.indexOf('private struct $name: View {');
+      expect(start, greaterThan(0), reason: '$name not found');
+      var depth = 0;
+      for (var i = swift.indexOf('{', start); i < swift.length; i++) {
+        if (swift[i] == '{') depth++;
+        if (swift[i] == '}') {
+          depth--;
+          if (depth == 0) {
+            return swift
+                .substring(start, i + 1)
+                .split('\n')
+                .where((l) => !l.trimLeft().startsWith('//'))
+                .join('\n');
+          }
+        }
+      }
+      fail('unbalanced braces in $name');
+    }
+
+    test('AccessoryView branches on awaitingReveal at all', () {
+      expect(
+        structBody('AccessoryView').contains('display.awaitingReveal'),
+        isTrue,
+        reason: 'without this branch the Lock Screen falls through to the '
+            'streakState switch, where awaiting resolves to .atRisk every '
+            'evening',
+      );
+    });
+
+    for (final phrase in [
+      "Don't lose your",
+      'Reflect before midnight',
+      'Keep your',
+    ]) {
+      test('AccessoryView guards "$phrase" behind the answered state', () {
+        final body = structBody('AccessoryView');
+        final at = body.indexOf(phrase);
+        if (at < 0) return; // removed entirely — also fine
+        final guard = body.indexOf('display.awaitingReveal');
+        expect(
+          guard,
+          allOf(greaterThan(0), lessThan(at)),
+          reason: '"$phrase" must sit after the awaiting check, never before '
+              'it — on a surface glanced at 80–100 times a day it is the '
+              'difference between an invitation and a deadline',
+        );
+      });
+    }
+
+    test('the small family still suppresses it', () {
+      // The Wave 6 fix, pinned so this group covers every family rather than
+      // just the one that regressed.
+      expect(
+        structBody('SmallView').contains('suppressLossFraming: true'),
+        isTrue,
+      );
+    });
+  });
 }
