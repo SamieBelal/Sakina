@@ -25,7 +25,36 @@ class AppConfigService {
   /// swallows the NPE).
   AppConfigService.forTest() : _supabase = null;
 
+  /// Cache-only service: answers from SharedPreferences, never refreshes.
+  /// The production twin of [forTest], handed out by [resolve] when Supabase
+  /// is not initialized (a build booted with empty env keys, or a read that
+  /// races `Supabase.initialize`). Reading last-known config is strictly
+  /// better than crashing or hardcoding.
+  AppConfigService._cacheOnly() : _supabase = null;
+
   final SupabaseClient? _supabase;
+
+  /// Memoized production instance for [resolve].
+  static AppConfigService? _shared;
+
+  /// Riverpod-free accessor for plain singletons that cannot reach
+  /// [appConfigServiceProvider] — `GatingService` is one. Resolves to the real
+  /// service once Supabase is initialized (and memoizes it); before that,
+  /// returns a cache-only service so the caller still sees any value already
+  /// in SharedPreferences and falls back cleanly when there is none.
+  ///
+  /// Never memoizes the cache-only path — a gate check that happens to run
+  /// before `Supabase.initialize` must not permanently blind the app to
+  /// config refreshes.
+  static AppConfigService resolve() {
+    final existing = _shared;
+    if (existing != null) return existing;
+    try {
+      return _shared = AppConfigService(Supabase.instance.client);
+    } catch (_) {
+      return AppConfigService._cacheOnly();
+    }
+  }
 
   static const _cacheKey = 'app_config_cache_v1';
   static const _cacheTtl = Duration(hours: 6);
@@ -96,6 +125,47 @@ class AppConfigService {
     } catch (_) {
       // Not valid JSON → a legacy plain string entry; use it verbatim.
       return raw;
+    }
+  }
+
+  /// Returns the integer value of [key] from `app_config`.
+  /// Returns [fallback] if no cached value exists AND the network fetch fails,
+  /// or if the stored jsonb value is not a number. Mirrors [getBool] /
+  /// [getString] exactly: same cache-key scheme, same 6h stale-while-revalidate
+  /// TTL, same [primeCache] participation — reads cache first, refreshes in the
+  /// background if stale, and NEVER blocks on the network.
+  ///
+  /// A stale cached value beats the fallback on purpose: an offline launch must
+  /// see the last-known dial, not a constant the server moved off months ago.
+  Future<int> getInt(String key, {required int fallback}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_valueKey(key));
+    final cachedAtMs = prefs.getInt(_timestampKey(key)) ?? 0;
+    final stale =
+        DateTime.now().millisecondsSinceEpoch - cachedAtMs > _cacheTtl.inMilliseconds;
+
+    if (raw != null && !stale) return _asInt(raw) ?? fallback;
+
+    // Stale or missing: fire refresh in background, return what we have.
+    unawaited(_refresh(key));
+    if (raw == null) return fallback;
+    return _asInt(raw) ?? fallback;
+  }
+
+  /// Interprets a cached raw value as an int. `_refresh` stores values
+  /// JSON-encoded, so a jsonb number `3` round-trips as the string `'3'`.
+  /// Returns null — so the caller falls back — when the stored value is not a
+  /// number (bool / object / non-numeric string). A quoted numeric string
+  /// (`'"3"'`) is accepted so a dial seeded as text still reads.
+  int? _asInt(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is num) return decoded.toInt();
+      if (decoded is String) return int.tryParse(decoded.trim());
+      return null;
+    } catch (_) {
+      // Not valid JSON → a legacy plain entry; accept it if it parses.
+      return int.tryParse(raw.trim());
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/app_config_service.dart';
 import 'package:sakina/services/daily_usage_service.dart' as daily;
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -129,12 +130,51 @@ class GatingService {
   /// rationale as [bypassTokenCost].
   static const int maxBypassesPerDayPerFeature = 2;
 
-  /// Lifetime warmup budgets per feature.
+  /// Lifetime warmup budgets per feature — **offline fallbacks only**.
+  ///
+  /// The live numbers are server dials ([warmupSizeConfigKey]); read them
+  /// through [warmupBudgetFor], never this map. These constants answer only
+  /// when the dial has never been cached AND the fetch fails — an offline
+  /// first launch. They are deliberately the MORE GENEROUS legacy values: a
+  /// config read that cannot complete must let the user through, never harden
+  /// the gate.
   static const Map<GatedFeature, int> warmupBudget = {
     GatedFeature.reflect: 10,
     GatedFeature.builtDua: 10,
     GatedFeature.discoverName: 5,
   };
+
+  /// `app_config` key carrying the live lifetime warmup size for each feature.
+  /// Seeded server-side by `20260727100200_free_tier_cohort_weekly_pool.sql`
+  /// (reflect / built_dua) and `20260731090000_warmup_discover_name_size.sql`
+  /// (discover_name). Permanent tuning knobs, not flags — no deletion date.
+  static const Map<GatedFeature, String> warmupSizeConfigKey = {
+    GatedFeature.reflect: 'warmup_reflect_size',
+    GatedFeature.builtDua: 'warmup_built_dua_size',
+    GatedFeature.discoverName: 'warmup_discover_name_size',
+  };
+
+  /// The live lifetime warmup budget for [feature], read from `app_config`
+  /// with [warmupBudget] as the offline fallback.
+  ///
+  /// Cheap on the hot path by construction: [AppConfigService.getInt] answers
+  /// from a SharedPreferences cache (6h stale-while-revalidate) and never
+  /// awaits the network — a stale entry is returned immediately while a
+  /// refresh runs detached. And the gate only reaches here when the user's
+  /// per-feature warmup counter has no cached value at all (see
+  /// [_readWarmupRemaining]'s `??`), so the steady-state gate check does not
+  /// touch config at all.
+  ///
+  /// A dial of `0` is legitimate ("no warmup for this feature"); a negative
+  /// one is corruption and falls back rather than inverting the gate.
+  Future<int> warmupBudgetFor(GatedFeature feature) async {
+    final fallback = warmupBudget[feature]!;
+    final value = await AppConfigService.resolve().getInt(
+      warmupSizeConfigKey[feature]!,
+      fallback: fallback,
+    );
+    return value < 0 ? fallback : value;
+  }
 
   /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
   /// when premium status was already resolved upstream. Pair with
@@ -310,12 +350,19 @@ class GatingService {
   Future<int> _readWarmupRemaining(GatedFeature feature) async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getInt(_warmupPrefsKey(feature));
-    return stored ?? warmupBudget[feature]!;
+    // `??` short-circuits: once the counter has been written locally (first
+    // use, or `hydrateFromProfile` on any sync) the config read never runs.
+    return stored ?? await warmupBudgetFor(feature);
   }
 
   Future<void> _decrementWarmup(GatedFeature feature, int current) async {
     final prefs = await SharedPreferences.getInstance();
-    final next = (current - 1).clamp(0, warmupBudget[feature]!);
+    // Clamp at zero only. The old upper clamp was the budget constant, which
+    // was harmless while the budget was fixed — but once the budget is a
+    // server dial, clamping to it would SILENTLY CONFISCATE uses: a user
+    // holding 10 remaining (the legacy server default) would drop to 3 on
+    // their next use the moment the dial reads 3. Decrement means decrement.
+    final next = current > 0 ? current - 1 : 0;
     await prefs.setInt(_warmupPrefsKey(feature), next);
 
     final userId = supabaseSyncService.currentUserId;
@@ -763,8 +810,8 @@ class GatingService {
   /// `user_data_batch_sync_service` on app launch and any subsequent re-sync.
   ///
   /// Without this, fresh installs (or re-installs / multi-device users) would
-  /// show their local default values (warmup=10/10/5, had_trial=false) even
-  /// when the server says otherwise — letting a lapsed trialer get a fresh
+  /// show their local default values (the [warmupBudgetFor] dial,
+  /// had_trial=false) even when the server says otherwise — letting a lapsed trialer get a fresh
   /// warmup budget by reinstalling the app.
   Future<void> hydrateFromProfile(Map<String, dynamic> profile) async {
     final prefs = await SharedPreferences.getInstance();
