@@ -168,6 +168,15 @@ void main() {
           '${feature.name}: warmup write uses upsertRawRow with id (NOT '
           'upsertRow which would inject user_id and silently fail on '
           'user_profiles)', () async {
+        // Seed the counter from "the server" first. Only a counter that came
+        // from the local store is pushed back — a value synthesized from the
+        // `warmup_*_size` dial is a guess and must not overwrite the server's
+        // row (see the SYNTHESIZED test in gating_service_warmup_dials_test).
+        // The asserted value is unchanged: the seed is the budget constant.
+        await gating.debugSetWarmupRemaining(
+          feature,
+          GatingService.warmupBudget[feature]!,
+        );
         await gating.markUsed(feature);
         expect(fakeSync.upsertCalls, isEmpty,
             reason: 'must NOT use upsertRow (injects user_id)');

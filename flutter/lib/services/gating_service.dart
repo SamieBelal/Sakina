@@ -256,9 +256,13 @@ class GatingService {
       return UsageOutcome.ok;
     }
 
-    final warmup = await _readWarmupRemaining(feature);
-    if (warmup > 0) {
-      await _decrementWarmup(feature, warmup);
+    final warmup = await _readWarmup(feature);
+    if (warmup.remaining > 0) {
+      await _decrementWarmup(
+        feature,
+        warmup.remaining,
+        pushToServer: warmup.fromStore,
+      );
       // The "1 → 0" transition is the one-shot moment the WarmupExhaustedSheet
       // fires on. Subsequent decrements are clamped to 0 in _decrementWarmup
       // and never re-trigger this signal because warmup will already be 0
@@ -271,7 +275,7 @@ class GatingService {
       // recording today's exhaust call against the daily cap, the next attempt
       // sees `used >= cap` and is blocked. Tomorrow rolls over via the per-day
       // key in daily_usage_service, restoring the normal 1/day allowance.
-      if (warmup == 1) {
+      if (warmup.remaining == 1) {
         await _incrementDaily(feature);
         return UsageOutcome.warmupJustExhausted;
       }
@@ -359,15 +363,48 @@ class GatingService {
     }
   }
 
-  Future<int> _readWarmupRemaining(GatedFeature feature) async {
+  /// The per-feature warmup counter, plus where it came from.
+  ///
+  /// `fromStore` is false when no local counter exists yet and the value was
+  /// SYNTHESIZED from the [warmupBudgetFor] dial. That distinction is load-
+  /// bearing: a synthesized number is a guess about a user whose server row
+  /// already holds the truth, and [_decrementWarmup] must not write a guess
+  /// back to `user_profiles` (see its `pushToServer` doc).
+  Future<({int remaining, bool fromStore})> _readWarmup(
+    GatedFeature feature,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getInt(_warmupPrefsKey(feature));
-    // `??` short-circuits: once the counter has been written locally (first
-    // use, or `hydrateFromProfile` on any sync) the config read never runs.
-    return stored ?? await warmupBudgetFor(feature);
+    // Short-circuits: once the counter has been written locally (first use, or
+    // `hydrateFromProfile` on any sync) the config read never runs.
+    if (stored != null) return (remaining: stored, fromStore: true);
+    return (remaining: await warmupBudgetFor(feature), fromStore: false);
   }
 
-  Future<void> _decrementWarmup(GatedFeature feature, int current) async {
+  Future<int> _readWarmupRemaining(GatedFeature feature) async {
+    return (await _readWarmup(feature)).remaining;
+  }
+
+  /// [pushToServer] false means [current] was synthesized from the config dial
+  /// rather than read from a local counter — so the server's own value is the
+  /// only real one and MUST NOT be overwritten.
+  ///
+  /// Why this matters: the dial (3) is the `reel_v1` number, while every
+  /// `legacy`-cohort row still carries the column default 10. A user who
+  /// reinstalls, switches accounts, or launches with a batch sync that times
+  /// out reaches the gate with no local counter, reads 3 from the dial, and
+  /// would push `2` into `user_profiles` — and
+  /// `guard_user_profiles_freemium_fields` is decrement-only, so those 8 uses
+  /// could never be given back. Skipping the write leaves the server
+  /// authoritative; the next `hydrateFromProfile` restores the real number.
+  /// The local counter still decrements, so the gate stays consistent for the
+  /// rest of the session, and the error direction is one extra free use — the
+  /// same fail-OPEN posture as the offline fallback.
+  Future<void> _decrementWarmup(
+    GatedFeature feature,
+    int current, {
+    bool pushToServer = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     // Clamp at zero only. The old upper clamp was the budget constant, which
     // was harmless while the budget was fixed — but once the budget is a
@@ -376,6 +413,8 @@ class GatingService {
     // their next use the moment the dial reads 3. Decrement means decrement.
     final next = current > 0 ? current - 1 : 0;
     await prefs.setInt(_warmupPrefsKey(feature), next);
+
+    if (!pushToServer) return;
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;

@@ -185,6 +185,48 @@ void main() {
       expect(prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')), 9);
     });
 
+    test('a counter SYNTHESIZED from the dial is never pushed to the server '
+        'as an absolute value', () async {
+      // The dial (3) is the reel_v1 number. Every account today is on the
+      // `legacy` cohort, whose server truth is the column default 10, and the
+      // local counter is absent until `hydrateFromProfile` runs — a reinstall,
+      // a second device, an account switch, or a launch whose batch sync timed
+      // out. Pushing `dial - 1 = 2` into `user_profiles` would destroy 8 uses
+      // that `guard_user_profiles_freemium_fields` (decrement-only) can never
+      // restore. The server holds the truth; the client must not overwrite it
+      // with a number it guessed.
+      await cacheDial('warmup_reflect_size', '3');
+
+      await gating.markUsed(GatedFeature.reflect);
+
+      final profileWrites = fakeSync.rawUpsertCalls
+          .where((c) => c['table'] == 'user_profiles')
+          .toList();
+      expect(profileWrites, isEmpty,
+          reason: 'a config-derived budget must not become a server write — '
+              'the freemium guard makes a too-low value irreversible');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')), 2,
+          reason: 'the local counter still decrements so the gate stays '
+              'consistent within the session; the next sync corrects it');
+    });
+
+    test('a counter that came from the server IS still pushed on decrement',
+        () async {
+      await cacheDial('warmup_reflect_size', '3');
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 10);
+
+      await gating.markUsed(GatedFeature.reflect);
+
+      final profileWrites = fakeSync.rawUpsertCalls
+          .where((c) => c['table'] == 'user_profiles')
+          .toList();
+      expect(profileWrites, hasLength(1));
+      expect((profileWrites.single['data'] as Map)['warmup_reflect_remaining'],
+          9);
+    });
+
     test('a stored counter short-circuits the config read entirely (the hot '
         'path stays a single prefs lookup)', () async {
       // No dial cached anywhere; a stored counter must be used verbatim,
