@@ -39,11 +39,27 @@ Future<String?> readLaunchGateMarker() async {
 String launchGateTodayMarker() => _today();
 
 /// Call this after the overlay has been presented so subsequent opens skip it.
+///
+/// **The date is read before the first await, not after it.** This used to
+/// resolve `_today()` on the far side of `SharedPreferences.getInstance()`, and
+/// the caller (`daily_launch_overlay.initState`) does not await it — so an app
+/// opened at 23:59:59 could stamp TOMORROW's date. That marks tomorrow as
+/// already-shown before it has begun, and the user loses a day of the loop
+/// entirely: no overlay, and — because `shouldAutoEnterDailyQuestion` leans on
+/// this same gate — no question either.
+///
+/// Vanishingly rare per user per day, and certain across a userbase over
+/// months. The window is not microseconds: on a cold launch the prefs channel
+/// has to spin up, which is exactly when someone opening the app last thing at
+/// night hits it.
 Future<void> markDailyLaunchShown() async {
   _overlayPushedThisSession = true;
+  // The instant the app ASKED is the instant that defines the day. Everything
+  // after this line may take as long as it likes.
+  final day = _today();
   final prefs = await SharedPreferences.getInstance();
   final scopedKey = supabaseSyncService.scopedKey(_launchGateKey);
-  await prefs.setString(scopedKey, _today());
+  await prefs.setString(scopedKey, day);
 }
 
 /// Call this when the user resets the daily loop from Settings.
