@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../services/analytics_event_names.dart';
+import '../../../services/analytics_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/reel_single_tap_question.dart';
 
@@ -76,6 +77,34 @@ class SourceQuestionScreen extends ConsumerWidget {
       onSkip: onNext,
       onAnswer: (key) {
         ref.read(onboardingProvider.notifier).setReelSource(key);
+        // W6 Wave A: upgrade `reel_hook` / `reel_hook_source` to the
+        // self-reported answer, at the SAME call site as the
+        // `reel_source_selected` emit below — one site, so the two can never
+        // disagree.
+        //
+        // **It upgrades `unknown`; it never downgrades a `deep_link` (D2).**
+        // A deep link is CONFIRMED — the OS handed us the reel id on arrival.
+        // This screen sits at index 13, after the payoff and every ask, and
+        // asks the user to RECALL where they came from. Overwriting the
+        // confirmed value with the recalled one throws away the better datum
+        // and relabels its provenance as the weaker one — which is the precise
+        // failure the two-property design exists to prevent: "a super property
+        // that silently mixes a confirmed deep link with a half-remembered tap
+        // looks authoritative and is not."
+        //
+        // `reel_source_selected` below still fires either way: what the user
+        // *believes* is worth knowing even when we already know better, and
+        // comparing the two is how the self-report's reliability gets measured
+        // at all.
+        final arrivedByDeepLink =
+            (ref.read(onboardingProvider).reelId ?? '').isNotEmpty;
+        if (!arrivedByDeepLink) {
+          ref.read(analyticsProvider).setSuperProperties({
+            AnalyticsEvents.propReelHook: key,
+            AnalyticsEvents.propReelHookSource:
+                AnalyticsEvents.reelHookSourceSelfReport,
+          });
+        }
         onAnalyticsEvent?.call(AnalyticsEvents.reelSourceSelected, {
           AnalyticsEvents.propSource: key,
         });

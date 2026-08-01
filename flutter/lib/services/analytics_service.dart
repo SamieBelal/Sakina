@@ -1,14 +1,124 @@
+import 'package:flutter/foundation.dart';
 import 'package:mixpanel_flutter/mixpanel_flutter.dart';
+
+/// How [AnalyticsService.initialize] ended. The whole point of this enum is
+/// that "we have no analytics" stops being indistinguishable from "nothing
+/// happened".
+enum AnalyticsInitStatus {
+  /// [AnalyticsService.initialize] has not run.
+  notAttempted,
+
+  /// Mixpanel is live. This is the only healthy value.
+  ready,
+
+  /// The compile-time token was empty. **The likeliest failure by far:**
+  /// `MIXPANEL_TOKEN` is a `--dart-define-from-file=env.json` constant, so a
+  /// build made without that flag ships a totally silent app that behaves
+  /// perfectly. See CLAUDE.md's "NEVER skip --dart-define-from-file".
+  missingToken,
+
+  /// `Mixpanel.init` threw — platform-channel failure, plugin-registration
+  /// race, or a malformed token.
+  failed,
+}
 
 class AnalyticsService {
   Mixpanel? _mixpanel;
 
+  /// Fired when [initialize] does NOT reach [AnalyticsInitStatus.ready].
+  ///
+  /// Static hook rather than a callback field for the same reason the rest of
+  /// `lib/services/` uses one: this layer has no Riverpod access, and the app
+  /// needs to be able to surface the failure (a log line, a debug banner, a
+  /// crash-reporter breadcrumb once one exists) without this file importing any
+  /// of that.
+  static void Function(Object? error, AnalyticsInitStatus status)?
+      onInitFailure;
+
+  AnalyticsInitStatus _initStatus = AnalyticsInitStatus.notAttempted;
+
+  /// How initialization ended. Never throws, never lies.
+  AnalyticsInitStatus get initStatus => _initStatus;
+
+  /// The exception from a [AnalyticsInitStatus.failed] init, retained because
+  /// "it failed" without "why" is not actionable.
+  Object? get initError => _initError;
+  Object? _initError;
+
+  /// True only when Mixpanel is actually live. **Read this before trusting any
+  /// number.** A false here means the app is emitting into the void.
+  bool get isHealthy => _initStatus == AnalyticsInitStatus.ready;
+
+  /// Whether the durable boot super properties have been registered. Guards
+  /// [shouldWarnEarlyEvent]; see the note on [track].
+  bool get bootPropertiesRegistered => _bootPropertiesRegistered;
+  bool _bootPropertiesRegistered = false;
+
+  /// Whether tracking [event] right now would ship it WITHOUT the boot super
+  /// properties — permanently, since Mixpanel stamps them at send time and
+  /// never backfills.
+  ///
+  /// Pure and public so the shipping predicate and the tested one are the same
+  /// code (the house pattern — cf. `shouldEmitAbandonment`).
+  ///
+  /// `initialized == false` never warns, deliberately: under `flutter_test`
+  /// there is no Mixpanel channel, so every service in the suite is
+  /// uninitialized. Warning there would fire on ~3000 tests and the assert
+  /// would be deleted within the week. The bug this catches is a real cold
+  /// launch on a real device, which is exactly where `initialized` is true.
+  @visibleForTesting
+  static bool shouldWarnEarlyEvent({
+    required bool initialized,
+    required bool bootPropertiesRegistered,
+  }) =>
+      initialized && !bootPropertiesRegistered;
+
   Future<void> initialize(String token) async {
-    if (token.isEmpty) return;
-    _mixpanel = await Mixpanel.init(token, trackAutomaticEvents: false);
+    if (token.isEmpty) {
+      _fail(AnalyticsInitStatus.missingToken, null);
+      return;
+    }
+    try {
+      _mixpanel = await Mixpanel.init(token, trackAutomaticEvents: false);
+      _initStatus = AnalyticsInitStatus.ready;
+      _initError = null;
+    } catch (e) {
+      // Was unguarded, and `main.dart` awaits this before `runApp` — so a
+      // platform-channel hiccup took cold launch with it, and any narrower
+      // failure left `_mixpanel` null and every later `track()` a silent no-op.
+      _mixpanel = null;
+      _fail(AnalyticsInitStatus.failed, e);
+    }
+  }
+
+  void _fail(AnalyticsInitStatus status, Object? error) {
+    _initStatus = status;
+    _initError = error;
+    try {
+      onInitFailure?.call(error, status);
+    } catch (_) {
+      // The guard must never become the thing that crashes launch.
+    }
   }
 
   void track(String event, {Map<String, dynamic>? properties}) {
+    // D3 — the ordering guard. Debug/test only; compiled out of release, so
+    // there is no production behaviour change and no risk of dropping an event
+    // in the field. It fires on the class of bug, not on one instance of it:
+    // any event added later inherits the check for free.
+    assert(
+      !shouldWarnEarlyEvent(
+        initialized: _mixpanel != null,
+        bootPropertiesRegistered: _bootPropertiesRegistered,
+      ),
+      'Analytics: "$event" was tracked before the boot super properties were '
+      'registered. Mixpanel stamps super properties at SEND time and never '
+      'backfills, so this event ships permanently without app_version, '
+      'onboarding_flow or free_tier_cohort — and an unlabelled slice of the '
+      'funnel reads as organic traffic rather than as a bug. Move the emit '
+      'after registerBootstrapAnalytics (main.dart), or register the property '
+      'earlier.',
+    );
     _mixpanel?.track(event, properties: properties);
   }
 
@@ -40,6 +150,12 @@ class AnalyticsService {
   /// capture it.
   void cacheDeviceSuperProperties(Map<String, dynamic> props) {
     _deviceSuperProperties = Map<String, dynamic>.from(props);
+    // This — not `setSuperProperties` — is what satisfies the ordering guard.
+    // The durable device/build set is what `registerBootstrapAnalytics` writes
+    // and what every event must carry; a later user-scoped registration
+    // (is_premium, tour_variant) is not boot and must not stand in for it.
+    // Survives `resetForSignOut`, which re-applies this same set by design.
+    _bootPropertiesRegistered = true;
     setSuperProperties(props);
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -72,6 +74,12 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     GatingService.onProfileHydrated = () {
       if (!mounted) return;
       ref.invalidate(iapToSubBannerStateProvider);
+      // W6 Wave A: `free_tier_cohort` cannot be registered at boot — it's a
+      // user-scoped prefs key `hydrateFromProfile` itself just wrote, so a
+      // fresh install has no value until this, the first `sync_all_user_data`.
+      // Same hook, a second statement — not a second hook. Best-effort: a
+      // throwing read must never break the banner-refresh signal above it.
+      unawaited(_registerFreeTierCohort());
     };
 
     try {
@@ -111,6 +119,23 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
     if (nextAuth != _lastAuth) {
       _lastAuth = nextAuth;
       ref.invalidate(premiumStateProvider);
+    }
+  }
+
+  /// Registers the `free_tier_cohort` super property (`reel_v1` | `legacy`)
+  /// now that [GatingService.hydrateFromProfile] has written a fresh cache.
+  /// `isNewCohort()` is the same cache-only read every gate check already
+  /// trusts, so this can never disagree with the app's own gating behaviour.
+  Future<void> _registerFreeTierCohort() async {
+    try {
+      final newCohort = await GatingService().isNewCohort();
+      if (!mounted) return;
+      ref.read(analyticsProvider).setSuperProperties({
+        AnalyticsEvents.propFreeTierCohort:
+            newCohort ? GatingService.cohortReelV1 : 'legacy',
+      });
+    } catch (_) {
+      // Analytics best-effort — must never surface to the hydration signal.
     }
   }
 

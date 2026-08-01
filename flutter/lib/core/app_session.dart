@@ -45,6 +45,22 @@ class AppSessionNotifier extends ChangeNotifier {
   /// previous user's identity (cross-user contamination).
   static void Function()? onAnalyticsReset;
 
+  /// Fired whenever the resolved onboarding flow becomes known — from the local
+  /// latch or from server hydration — so it can be registered as the
+  /// `onboarding_flow` super property (W6 Wave A).
+  ///
+  /// A hook rather than a value read at boot, because the flow is genuinely not
+  /// known at boot: `AppSessionNotifier` is constructed well after
+  /// `registerBootstrapAnalytics`, and a returning user's flow arrives with the
+  /// first `sync_all_user_data`. Reading it at boot would register null on
+  /// every launch and call it a value.
+  ///
+  /// Fires only for NON-null flows. Null from the server means "the server
+  /// didn't say", never "not the reel flow" — see [mirrorServerOnboardingFlow]
+  /// — and registering that as a super property would be a lie that persists
+  /// on-device forever.
+  static void Function(String flow)? onOnboardingFlowResolved;
+
   AppSessionNotifier({
     AuthService? authService,
     NotificationService? notificationService,
@@ -146,6 +162,16 @@ class AppSessionNotifier extends ChangeNotifier {
   void setOnboardingFlow(String? flow) {
     if (_onboardingFlow == flow) return;
     _onboardingFlow = flow;
+    // W6 Wave A. Both writers funnel through here (the local latch and
+    // `mirrorServerOnboardingFlow`), so one hook covers new and returning users
+    // without either call site needing to know about analytics.
+    // Best-effort and non-null only — a throwing reporter must never break the
+    // router redirect that reads this during a build.
+    if (flow != null && flow.isNotEmpty) {
+      try {
+        onOnboardingFlowResolved?.call(flow);
+      } catch (_) {/* analytics best-effort */}
+    }
     notifyListeners();
   }
 

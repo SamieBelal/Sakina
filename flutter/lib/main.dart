@@ -294,8 +294,30 @@ Future<void> main() async {
     notificationService.addClickListener();
   }
 
-  // Initialize Mixpanel analytics (not supported on web)
+  // Initialize Mixpanel analytics (not supported on web).
+  //
+  // W6 Wave 0. This used to be an unguarded `await` on a call that could throw,
+  // in front of `runApp` — and on any narrower failure it left `_mixpanel` null,
+  // which makes every `track()` for the rest of the process a silent no-op. No
+  // exception, no log, no partial data. `MIXPANEL_TOKEN` is a compile-time
+  // define, so a build made without `--dart-define-from-file=env.json` produces
+  // exactly that: an app that behaves perfectly and reports nothing, whose
+  // first symptom is an empty dashboard at the T0+6wk keep read.
+  //
+  // The hook cannot make analytics work; it makes the absence knowable. It is
+  // deliberately loud in debug and silent-but-recorded in release — there is no
+  // crash reporter to send it to yet (that decision is split out of W6), so
+  // `initStatus` on the service is the durable record until there is.
   final analytics = AnalyticsService();
+  AnalyticsService.onInitFailure = (error, status) {
+    debugPrint('[analytics] DISABLED — $status${error == null ? '' : ': $error'}');
+    assert(
+      status != AnalyticsInitStatus.missingToken,
+      'Mixpanel token is empty. This build reports NOTHING. You almost '
+      'certainly ran flutter without --dart-define-from-file=env.json (see '
+      'CLAUDE.md). Every funnel number from this build will be missing.',
+    );
+  };
   if (!kIsWeb) {
     await analytics.initialize(Env.mixpanelToken);
   }
@@ -360,8 +382,19 @@ Future<void> main() async {
     installId: installId,
     flagOnboardingTrim: await appConfigForAnalytics
         .getBool('onboarding_trim_enabled', fallback: true),
+    // fallback: TRUE, matching the live prod value (W6 Wave A, §2e.1). It was
+    // `false`, and the mismatch was invisible: on a FIRST install there is no
+    // cached app_config, so this read returns the fallback while the
+    // BEHAVIOURAL read later in the session — after the fire-and-forget prime
+    // above lands — sees the real `true`. The super property and the app then
+    // disagree for the whole session, on exactly the new-install cohort the
+    // One Ship is measured on, at the widest point of the funnel.
+    //
+    // The rule this restores: an analytics fallback must mirror the flag's
+    // PROD value, not its code default. Pinned by
+    // test/services/bootstrap_super_properties_test.dart.
     flagHardPaywall: await appConfigForAnalytics
-        .getBool('hard_paywall_after_tour_enabled', fallback: false),
+        .getBool('hard_paywall_after_tour_enabled', fallback: true),
     flagGuidedTour: await appConfigForAnalytics.getBool('guided_tour_enabled',
         fallback: true),
     isPremium: isPremiumAtBoot,
@@ -450,6 +483,18 @@ Future<void> main() async {
   // next. AppSessionNotifier has no Riverpod access, so it calls this static
   // hook from its signedOut branch (after final events are queued).
   AppSessionNotifier.onAnalyticsReset = analytics.resetForSignOut;
+  // onboarding_flow (W6 Wave A). DEVICE-scoped like install_id: which
+  // experience a user ran is a fact about the install, not the session, so it
+  // rides `cacheDeviceSuperProperties` and survives `resetForSignOut`.
+  //
+  // New users get this at onboarding entry (registered there one await after
+  // the kill switch resolves, BEFORE the first funnel event). This hook is the
+  // returning-user path — the flow arrives with the first sync, long after
+  // boot — and it is also the belt to that braces.
+  AppSessionNotifier.onOnboardingFlowResolved = (flow) =>
+      analytics.cacheDeviceSuperProperties(
+        {AnalyticsEvents.propOnboardingFlow: flow},
+      );
   // Onboarding reveal telemetry (One Ship W2-C1): the reveal screen is a plain
   // widget with no Riverpod access, so `reveal_deck_completed` / `_abandoned`
   // (and the card-reveal overlay's own events) bridge through this hook.

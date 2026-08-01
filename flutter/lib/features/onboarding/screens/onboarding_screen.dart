@@ -342,6 +342,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       ref
           .read(onboardingProvider.notifier)
           .setOnboardingFlow(onboardingFlowValueFor(kind));
+      // W6 Wave A — registered BEFORE _emitEntryFunnelEvents so the funnel's
+      // widest event (onboarding_started) carries them; Mixpanel never
+      // backfills a property registered after the event it should have ridden.
+      // `unknown`, not omitted, for the reel-hook pair — an absent property
+      // reads as organic traffic, `unknown` reads as "we don't know yet".
+      // Direct `setSuperProperties`, not `AppSessionNotifier.setOnboardingFlow`
+      // (that hook is the RETURNING-user path via server hydration; a new user
+      // has no session flow yet, and double-registering through it would run
+      // it through `cacheDeviceSuperProperties`, which is boot-only).
+      ref.read(analyticsProvider).setSuperProperties({
+        AnalyticsEvents.propOnboardingFlow: onboardingFlowValueFor(kind),
+        AnalyticsEvents.propReelHookSource: AnalyticsEvents.reelHookSourceUnknown,
+        AnalyticsEvents.propReelHook: AnalyticsEvents.reelHookSourceUnknown,
+      });
       _emitEntryFunnelEvents(initialPage);
       if (kind == OnboardingFlowKind.reel) unawaited(_drainReelDeepLinks());
     });
@@ -391,6 +405,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             reelId: arrival.reelId,
             nameIds: arrival.nameIds,
           );
+      // W6 Wave A (D2): upgrade `reel_hook` from `unknown` to the confirmed
+      // deep-link id, together with `reel_hook_source` — the two properties
+      // must always move as a pair, or a breakdown would read a confirmed id
+      // against an `unknown` provenance.
+      ref.read(analyticsProvider).setSuperProperties({
+        AnalyticsEvents.propReelHook: arrival.reelId,
+        AnalyticsEvents.propReelHookSource:
+            AnalyticsEvents.reelHookSourceDeepLink,
+      });
     }
     if (chip == null) return;
     setState(() => _pendingFeelChipKey = chip);
@@ -572,6 +595,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     ref.read(onboardingProvider.notifier).applyHookSelection(
           override.isEmpty ? selection : selection.withPairNameIds(override),
         );
+    // W6 Wave A: `contract` / `acquisition_problem_category`, stamped at the
+    // moment the promise resolves — this is the primary reel-of-origin
+    // dimension (D3), with near-total coverage (every reel user picks a chip
+    // or types, and typed input always resolves to HookContract.problem).
+    ref.read(analyticsProvider).setSuperProperties({
+      AnalyticsEvents.propContract: selection.contract,
+      AnalyticsEvents.propAcquisitionProblemCategory: selection.problemCategory,
+    });
     _next();
   }
 

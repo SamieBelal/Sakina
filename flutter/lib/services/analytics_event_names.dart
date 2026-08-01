@@ -1122,4 +1122,221 @@ abstract final class AnalyticsEvents {
   /// if a later wave adds a second claim trigger, the two are obviously the
   /// same vocabulary.
   static const String triggerAnswerSubmit = 'answer_submit';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // W6 Wave A — SUPER properties.
+  //
+  // These are not event properties. They are registered once and stamped onto
+  // every subsequent event AT SEND TIME, which has one consequence that governs
+  // all of them: **Mixpanel never backfills.** A property registered one line
+  // too late is absent on every event before it, permanently, and an absent
+  // property renders as a large "unknown" bucket that reads like organic
+  // traffic rather than like a bug.
+  //
+  // The whole One Ship is meant to be ONE funnel segmented by these, never
+  // separate event streams per flow. See docs/analytics/funnel-flags-and-querying.md.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Which onboarding experience this user actually ran (`reel_v1` | the legacy
+  /// kill-switch value). Registered at onboarding entry for new users and at
+  /// boot from `AppSession` for returning ones.
+  ///
+  /// **Never union this with the frozen `paywall_exp_arm`.** They are different
+  /// questions and the reverse-trial close-out froze that one as history.
+  static const String propOnboardingFlow = 'onboarding_flow';
+
+  /// Which promise the user arrived on — `problem` or `sign` (`HookContract`).
+  ///
+  /// **The primary reel-of-origin dimension (D3).** Behavioural, taken at
+  /// arrival, near-total coverage: every reel user picks a chip or types, and
+  /// typed input resolves to `problem`. Its limit is real and belongs in the
+  /// readout doc rather than in a surprise at the read: it has TWO values, so
+  /// it separates the two shipped reels but cannot separate two future reels
+  /// that make the same promise.
+  static const String propContract = 'contract';
+
+  /// The 7-chip category the user ARRIVED with.
+  ///
+  /// **Deliberately not `problem_category` (D4).** That name is already a live
+  /// EVENT property meaning *today's answer* (`check_in_completed`,
+  /// `daily_question_answered`). Registering a super property under the same
+  /// name would put two meanings behind one key — event-level properties win
+  /// where both exist, so some events would report today's answer and others
+  /// the acquisition one, under the same name, with nothing to signal the
+  /// switch. Every chart built on it would be right some of the time.
+  ///
+  /// Same vocabulary as [propProblemCategory] on purpose: "arrived with X,
+  /// answers Y today" is then exactly one breakdown.
+  static const String propAcquisitionProblemCategory =
+      'acquisition_problem_category';
+
+  /// Which reel the user came from — a `reel_id` from a `sakina://reel/<id>`
+  /// deep link, the self-reported source, or `unknown`.
+  ///
+  /// Always read alongside [propReelHookSource]. A value that silently mixes a
+  /// confirmed deep link with a half-remembered tap looks authoritative and is
+  /// not.
+  static const String propReelHook = 'reel_hook';
+
+  /// How [propReelHook] was learned: [reelHookSourceDeepLink] |
+  /// [reelHookSourceSelfReport] | [reelHookSourceUnknown].
+  ///
+  /// Two properties instead of one encoded string (`self_report:tiktok`)
+  /// because a breakdown should not require parsing, and because the two axes
+  /// answer different questions: *which reel* vs *how sure are we*.
+  static const String propReelHookSource = 'reel_hook_source';
+
+  /// Confirmed: the user arrived through a `sakina://reel/<id>` deep link.
+  static const String reelHookSourceDeepLink = 'deep_link';
+
+  /// The user told us, on the source screen at index 13 — after the payoff and
+  /// every ask, and declinable. Weaker than [reelHookSourceDeepLink].
+  static const String reelHookSourceSelfReport = 'self_report';
+
+  /// We do not know. **Registered at onboarding ENTRY, not when learned** — if
+  /// it were only set once known it would be *absent* rather than `unknown` on
+  /// every event before the source screen, which is most of the funnel. Absent
+  /// and `unknown` break down differently and only one of them is honest.
+  static const String reelHookSourceUnknown = 'unknown';
+
+  /// Which free tier governs this user (`reel_v1` | `legacy`).
+  ///
+  /// **Cannot be registered at boot.** It is a user-scoped value written only
+  /// by `GatingService.hydrateFromProfile`, so on a fresh install it does not
+  /// exist until the first `sync_all_user_data`. Registered from
+  /// `GatingService.onProfileHydrated` instead — which also means it is
+  /// expected to be absent on the earliest events of a brand-new user's first
+  /// session, by construction rather than by accident.
+  static const String propFreeTierCohort = 'free_tier_cohort';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // W6 Wave C — the gate's meter.
+  //
+  // The gate could say when it BLOCKED someone (`daily_cap_hit`) and never when
+  // it let them through, so the cap-hit rate had no denominator. And the sheets
+  // that carry the block were emitting nothing at all for the `reel_v1` cohort:
+  // `warmup_exhausted_sheet.dart` had zero analytics, and `daily_cap_sheet.dart`
+  // had exactly two events, both on the token-bypass slot that W5 REMOVES for
+  // that cohort. The single most important monetization surface in the ship was
+  // dark for the tier it was built for.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// A gated AI use was SPENT successfully — the denominator `daily_cap_hit`
+  /// has always been the numerator of. Carries [propFeature],
+  /// [propAllowance] and [propRemaining].
+  ///
+  /// Never fires for premium: `markUsed` short-circuits on the premium check
+  /// before the cohort read, so a payer spending an unlimited use is not a
+  /// "taste".
+  static const String aiTasteConsumed = 'ai_taste_consumed';
+
+  /// Which budget [aiTasteConsumed] came out of: [allowanceWarmup] |
+  /// [allowanceWeeklyPool] | [allowanceDaily].
+  static const String propAllowance = 'allowance';
+
+  /// How many uses are left in that budget AFTER this spend.
+  static const String propRemaining = 'remaining';
+
+  /// The lifetime per-feature warmup (`reel_v1`).
+  static const String allowanceWarmup = 'warmup';
+
+  /// The shared Reflect + Build-a-Duʿā weekly pool (`reel_v1`).
+  static const String allowanceWeeklyPool = 'weekly_pool';
+
+  /// The legacy per-day counter.
+  static const String allowanceDaily = 'daily';
+
+  // `daily_cap_hit` gains [propReason] (already defined above) rather than
+  // spawning a second exhaustion event (D5). Minting `ai_allowance_exhausted`
+  // for the new tier would fork the cap-hit→upgrade funnel exactly across the
+  // T0 boundary the pre/post comparison depends on. These are the `GateReason`
+  // wire values it carries.
+
+  /// Legacy per-day cap.
+  static const String gateReasonDailyCap = 'daily_cap';
+
+  /// `reel_v1` shared weekly pool spent.
+  static const String gateReasonWeeklyPool = 'weekly_pool';
+
+  /// `reel_v1` re-roll past the lifetime warmup — a second Name today is
+  /// premium. The day-open reveal is unaffected; it consults no gate.
+  static const String gateReasonRerollPremium = 'reroll_premium';
+
+  /// A lapsed trialer with no remaining budget.
+  static const String gateReasonHadTrialNoBudget = 'had_trial_no_budget';
+
+  /// A cap or warmup sheet was SHOWN. Carries [propFeature], [propReason] and
+  /// [propSheet].
+  ///
+  /// Without this there is no impression to divide the upgrade tap by, so
+  /// "did hitting the cap drive upgrades?" is unanswerable — which is the
+  /// question the whole free-tier change exists to move.
+  static const String capSheetShown = 'cap_sheet_shown';
+
+  /// A cap or warmup sheet was dismissed WITHOUT taking the upgrade. Carries
+  /// [propSheet] and [propMethod].
+  ///
+  /// **Must fire exactly once across all four dismissal routes** (button,
+  /// scrim tap, swipe-down, Android back). Copy `LapsedTrialSheet.show`'s
+  /// `fireDismissOnce` reconciliation — an undercounted dismissal against an
+  /// already-fired impression makes every rate computed from the pair wrong.
+  static const String capSheetDismissed = 'cap_sheet_dismissed';
+
+  /// Which sheet: [sheetDailyCap] | [sheetWarmupExhausted].
+  static const String propSheet = 'sheet';
+
+  static const String sheetDailyCap = 'daily_cap';
+  static const String sheetWarmupExhausted = 'warmup_exhausted';
+
+  /// How a sheet was closed: `button` | `scrim` | `swipe` | `back`.
+  static const String propMethod = 'method';
+
+  /// Restore Purchases was tapped. Previously untracked entirely, which made a
+  /// silently-failing restore indistinguishable from nobody tapping it — on a
+  /// path that is both a churn risk and a support burden.
+  static const String restoreStarted = 'restore_started';
+
+  /// Restore finished. Carries [propPremiumActive] — a restore that succeeds
+  /// and finds no entitlement is a different outcome from one that finds one,
+  /// and the user experiences them very differently.
+  static const String restoreCompleted = 'restore_completed';
+
+  /// Restore threw. Carries [propReason].
+  static const String restoreFailed = 'restore_failed';
+
+  static const String propPremiumActive = 'premium_active';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // W6 Wave D — the never-superseded v1 Phase-4 holes.
+  //
+  // Reflect was ZERO-instrumented at the v1 diagnosis and still is: it emits
+  // `reflect_beat_advanced`, `reflect_flow_skipped` and `journal_entry_created`
+  // and nothing that marks a start or a finish. Verified before minting these
+  // that no near-miss spelling already exists to collide with.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// A Reflect submission passed the gate and began. The pair's denominator.
+  static const String reflectStarted = 'reflect_started';
+
+  /// A Reflect submission returned a response. Carries [propOffTopic] so the
+  /// classifier's cost on Reflect stays comparable with the daily loop's.
+  ///
+  /// A gated submit fires NEITHER; a failed AI call fires `started` only — that
+  /// asymmetry is what makes an outage distinguishable from an abandonment.
+  static const String reflectCompleted = 'reflect_completed';
+
+  static const String propOffTopic = 'off_topic';
+
+  /// The 99 Names browse surface was opened. Deduped per session so a tab
+  /// switcher cannot inflate it.
+  static const String namesBrowseViewed = 'names_browse_viewed';
+
+  /// A duʿā was actually READ — a specific interaction (card expanded/opened),
+  /// **not** a screen mount. There is one duas screen and no detail route, so
+  /// "read" had to be defined before it could be emitted; the chosen
+  /// interaction is named here so the definition travels with the constant.
+  /// Carries [propDuaId] and a `source`.
+  static const String duaRead = 'dua_read';
+
+  static const String propDuaId = 'dua_id';
 }
