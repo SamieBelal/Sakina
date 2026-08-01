@@ -2,15 +2,47 @@
 
 Deferred work — needed before specific future milestones rather than today. Each item names its trigger so it's clear when it becomes urgent.
 
-**Shipping 1.3.0? Start with the [ship checklist](#ship-checklist--130-w5--one-ship).** Four sections below have triggers that 1.3.0 fires; the checklist collects them in the order they have to happen and links to each recipe. Delete the checklist once 1.3.0 is out — the recipe sections stay.
+**Shipping 1.3.0? Start with the [ship checklist](#ship-checklist--130-w5--one-ship).** Several sections below have triggers that 1.3.0 fires; the checklist collects them in the order they have to happen and links to each recipe. Delete the checklist once 1.3.0 is out — the recipe sections stay.
 
 ## Ship checklist — 1.3.0 (W5 / One Ship)
 
 **Trigger:** this release. Every item is a link to its own section below — the recipes
-live there, not here. The three buckets are ordered and **not interchangeable**; the
-last one is wrong if done early.
+live there, not here. The five buckets are ordered and **not interchangeable**; buckets
+4 and 5 are *wrong* if done early.
+
+> **⚠️ Hard date — 1.3.0 cannot reach users before 2026-08-04, ~17:18 UTC.**
+> The build deletes the reverse-trial client code, and 25 app-granted trials are still
+> in flight; the last expires **2026-08-04 17:17:40 UTC** (verified in prod 2026-08-01).
+> That horizon is now **frozen** — `reverse_trial_experiment_enabled` was set to `false`
+> on 2026-08-01 18:11 UTC, so nothing mints new trials. Before it was flipped the date
+> slid forward 72h with every signup. Submit whenever you like; **hold the release**
+> (1.2.0 used `releaseType: MANUAL`, so you control the moment) until the gate in bucket 3
+> reads 0.
+
+### 0 — Prep that does not wait for the build
+
+- [x] **[W6 instrumentation](./docs/superpowers/plans/2026-08-01-one-ship-06-instrumentation.md) is IN 1.3.0** — decided 2026-08-01, in
+  progress. It was unbuilt as of that morning (neither `reel_hook_source` nor
+  `acquisition_problem_category` existed in `lib/`; `onboarding_flow`, `contract` and
+  `free_tier_cohort` existed as values but were registered with Mixpanel nowhere). Wave A
+  must land first and alone — every later event depends on the super properties it
+  registers. Its post-release check is in bucket 5 and is now live, not conditional.
+- [x] **`ONE_WEEK` confirmed available on the weekly SKU** — probed against ASC
+  2026-08-01 and **accepted**, so 7 days ships on both plans as decided. The probe also
+  established that offers hand over **by date with no gap**, which removes the riskiest step
+  from launch day. See
+  [the trial section](#app-store-lengthen-the-intro-free-trial-3-days--7-days).
+- [ ] **Write the ~175-territory flip script** —
+  [pre-release prep](#app-store-lengthen-the-intro-free-trial-3-days--7-days) even though
+  the flip itself is bucket 4. This is now the only thing that consumes launch day.
 
 ### 1 — In the build (before you cut it)
+
+- [ ] **Land the branch — nothing else in this checklist can happen until it does.**
+  Verified 2026-08-01: `feat/reel-first-w2-onboarding` is **92 commits ahead of its
+  own remote** and **no PR exists** (`gh pr list --head … --state all` → empty). W2 and W5
+  are both sitting local. The remote branch ref exists but is 92 commits stale, so "it's
+  pushed" is not the same as "it's shipped".
 
 - [ ] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** — its
   trigger is literally "W5 instrumentation, before T0", and this release *is* W5, so T0 is
@@ -21,20 +53,133 @@ last one is wrong if done early.
   any external TestFlight build or **App Store release**". The risk was consciously accepted
   to ship 1.2.0; 1.3.0 is a second App Store release, so this is a **decision to re-take on
   the record, not an item to skip silently**. `OPENAI_API_KEY` is still baked into the IPA.
+- [ ] `flutter test` and `flutter analyze` green. Note the two known-flaky tests
+  (`purchase_service_premium_started`, `find_duas` eval) fail on a clean baseline — the
+  suite exits non-zero even untouched, so read failures individually rather than trusting
+  the exit code.
+- [ ] Confirm the build number. `pubspec.yaml` is at **`1.3.0+8`**; builds 2, 5 and 9 are
+  already uploaded historically, so verify `+8` is not rejected as a duplicate before you
+  spend an archive on it.
+- [ ] **Physical-device StoreKit pass** (W5 plan §5 — the simulator cannot complete a
+  purchase, so this is the only place these are provable): trial start · a
+  previously-trialed account gets the **"Subscribe"** variant and never "7 days free" ·
+  restore · dismissal → always-free card → home. Note the trial still reads **3 days** until
+  bucket 4 runs, so verify the *mechanism*, not the number.
 
 ### 2 — At submission (App Store Connect metadata)
 
+- [ ] **Create the 1.3.0 version record in App Store Connect — it does not exist yet.**
+  Verified 2026-08-01: the newest version in ASC is **1.2.0 (`READY_FOR_SALE`)**. App id
+  `6762153820`. Several items below need the version to exist in
+  `PREPARE_FOR_SUBMISSION` first.
 - [ ] **[Duʿā Times location permission](#app-store-duʿā-times-location-permission-privacy-label--review-notes)**
   — privacy nutrition label + review notes. 1.3.0 is the first build carrying
   `NSLocationWhenInUseUsageDescription`, which is exactly its trigger.
+- [ ] **Screenshots + "What's New".** *Not verified against the live assets — check before
+  assuming either way.* The onboarding and paywall were both rebuilt in W2/W5, so any
+  screenshot depicting them is stale. This is not a compliance item; it is the store page
+  for a release whose whole thesis is the new onboarding.
 - [ ] Run `./scripts/check_no_fake_strings.sh` (pre-release tripwire).
+- [ ] ~~Export-compliance declaration~~ — **already handled, recorded so nobody re-checks.**
+  `ITSAppUsesNonExemptEncryption` is `false` in `ios/Runner/Info.plist`, and every uploaded
+  build reports `usesNonExemptEncryption: false`. ASC will not prompt.
 
-### 3 — After READY_FOR_SALE (**not** at submission)
+### 3 — After approval, **before** you press Release
 
+- [ ] **[Reverse-trial gate: the query must return `0`](#server-sql--the-130--t0-runbook)**
+  (step 2a of `supabase/staged/reverse_trial_close.sql`). Re-query it — do not trust the
+  timestamp above, and do not trust a previously recorded one: the horizon already moved
+  once. This is the gate on the hard date at the top of this checklist.
+
+### 4 — After READY_FOR_SALE (**not** at submission)
+
+The two items here are independent of each other — order between them doesn't matter. Both
+are wrong before the build is live.
+
+- [ ] **[Run `t0_flip_all_to_reel_v1.sql`](#server-sql--the-130--t0-runbook)** — this is
+  what actually turns the new free tier on. Until it runs, `new_signup_cohort` is `'legacy'`
+  and the tightened tier reaches **nobody**. Running it *before* the build is live tightens
+  limits on people still using the old app, and the warmup clamp is one-way.
 - [ ] **[Lengthen the intro free trial 3 → 7 days](#app-store-lengthen-the-intro-free-trial-3-days--7-days)**
   — must wait until 1.3.0 is actually live. Doing it at submission means the store still
   serves 1.2.0, whose paywall hardcodes "3 days", for the whole review window: every new
   subscriber would get four extra free days that nothing advertises.
+
+### 5 — After release
+
+- [ ] **T0+24h: super-property coverage check.** Required by the W6 plan §6, which says
+  explicitly to put it on the T0 checklist rather than leave it in the plan. Check the share
+  of `onboarding_started` events carrying `onboarding_flow`, `contract` and
+  `reel_hook_source`; **anything below ~95% is an ordering bug, not a sampling artifact.**
+  Separately confirm `free_tier_cohort` is present on `paywall_viewed` and `daily_cap_hit`.
+  **W6 is shipping in 1.3.0, so this check is live, not conditional** — and it is the
+  mitigation for the wave's characteristic risk: an event whose absence stays invisible
+  until the keep read.
+- [ ] **Delete the retired `reverse_trial_experiment_enabled` key** — step 2b of
+  `reverse_trial_close.sql`, currently commented out. Pure hygiene, no urgency; a retired
+  key costs nothing.
+- [ ] T0+6wk: the **keep decision**, which in turn triggers the
+  [softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+---
+
+## Server SQL — the 1.3.0 / T0 runbook
+
+**Trigger:** this release. Scripts live in
+[`supabase/staged/`](./supabase/staged/) — deliberately **outside** `supabase/migrations/`
+so neither `supabase db push` nor CI can ever run them by accident. `README.md` in that
+directory is the authority; this section is the release-day ordering.
+
+**Verified against production 2026-08-01:** both W5 migrations applied, all dials seeded
+(`warmup_reflect/built_dua/discover_name_size` = 3/3/3, `weekly_pool_size` = 3,
+`post_tour_paywall_mode` = `soft`), all 10 W1/W5 columns and the freemium guard present.
+Nothing is missing from the schema. What follows is data/config operations only.
+
+| # | When | Script | Applied? |
+|---|---|---|---|
+| 1 | ~~Now~~ | `reverse_trial_close.sql` **step 1** — stop minting trials | ✅ **DONE** 2026-08-01 18:11 UTC |
+| 2 | Before you press Release | `reverse_trial_close.sql` **step 2a** — the gate, read-only | ☐ |
+| 3 | Launch day, after the build is live | `t0_flip_all_to_reel_v1.sql` | ☐ |
+| 4 | Any time after rollout | `reverse_trial_close.sql` **step 2b** — delete the key | ☐ |
+| — | **Never** (for the free tier) | `softener_1_notice.sql`, `softener_2_flip.sql` | superseded by D12 |
+
+**Why the softener scripts are dead here:** D12 replaced the 30-day-notice migration with
+"everyone tightens at T0". `softener_2_flip.sql` is gated on `softener_notice_ends_at <=
+now()`, nothing stamps that column any more, so it matches **zero rows** — and it clamps
+only two of the three warmup counters. They are kept, not deleted, because the softener
+wave still exists for the [tokens→Noor currency merge](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+**What #3 actually does, and why it can't be undone.** It is one statement: backfill
+`free_tier_cohort = 'reel_v1'` on every account, clamp the three warmup counters with
+`least(…, 3)`, zero the weekly pool, then flip `new_signup_cohort`. Two things to know
+before you run it:
+
+- **The backfill is unqualified on the cohort value, on purpose.** In prod
+  `free_tier_cohort` is **NULL on 1,262 of 1,374** accounts — the column was added after
+  most users signed up. A `where free_tier_cohort = 'legacy'` filter would touch 112 rows
+  and silently leave 92% of the base on the old tier.
+- **The clamp is lossy, and that is the decision, not a defect.** `least()` only moves
+  numbers down, so nobody who already spent their warmup is handed uses back — but the
+  surplus is gone. **~1,366 accounts drop from 10 remaining reflect uses to 3 between one
+  launch and the next, with no notice.** Rolling back `free_tier_cohort` to `'legacy'`
+  restores the legacy economy but **not** the counters. The script snapshots them into
+  `warmup_pre_t0_snapshot` first; that table is the only way back. Drop it after the keep
+  decision.
+
+**How to execute:** move the script content into a normal timestamped migration file and
+apply through the standard flow — not MCP-only SQL without a repo file, so the operation
+leaves a record. Stamp it with a fresh timestamp. All scripts assert they run as
+`postgres` / `service_role` / `supabase_admin`; the freemium guard blocks these columns for
+everyone else, and a half-applied flip under a restricted role is worse than a loud failure.
+
+**Note on migration version drift:** applied migrations carry different version stamps than
+the local filenames (e.g. local `20260731090000_warmup_discover_name_size` ↔ remote
+`20260801015832`), because they were applied via `apply_migration` rather than `db push`.
+Consequence: `supabase db push` would treat several local files as unapplied and re-run
+them. They are idempotent (`create or replace`, `on conflict`), so it would be harmless —
+but do not read a `db push` diff as evidence that something is missing.
+
+**Surfaced by:** D12 free-tier timing decision + production verification, 2026-08-01.
 
 ## Android release signing
 
@@ -170,35 +315,112 @@ the copy follows the store on its own.
 `numberOfPeriods: 1`, `startDate: 2026-04-29`, `endDate: null`, in every territory.
 `sakina_sub_weekly` matches. RevenueCat mirrors both as `trial_duration: P3D`.
 
+**Both subscription ids, so nobody has to look them up again** (group `22030855`,
+"Sakina Premium", app `6762153820`):
+
+| Name | Product id | ASC id | Period | State |
+|---|---|---|---|---|
+| Sakina Annual | `sakina_sub_annual` | `6762153970` | `ONE_YEAR` | `APPROVED` |
+| Sakina Weekly | `sakina_sub_weekly` | **`6762154204`** | `ONE_WEEK` | `APPROVED` |
+
 **Decided (founder, 2026-08-01): 7 days on BOTH SKUs**, matching the approved deck. The
 cost is understood and accepted — 7 days on a $4.99/week plan gives away that plan's
 entire first billing period; a split (7-day annual / 3-day weekly) was raised and not
 taken. Separately, the deck's **$59.99/yr anchor was deliberately declined** — annual
 stays **$49.99**, so change the trial and nothing else.
 
-**One open technical unknown:** confirm ASC actually offers `ONE_WEEK` for a P1W
-subscription. Apple constrains intro duration by subscription length, and confirming it
-means creating a real offer. If it refuses, weekly stays at 3 days — which is *safe*, not
-broken: `TrialOffer` is per-product, so the paywall would simply render a different
-duration per plan.
+**✅ The open technical unknown is CLOSED — ASC accepts `ONE_WEEK` on the P1W weekly
+subscription.** Probed empirically 2026-08-01 against `sakina_sub_weekly` (`6762154204`) in
+Nauru: `intro_offers_create` with `duration: ONE_WEEK`, `offer_mode: FREE_TRIAL`,
+`number_of_periods: 1` returned **success**. Apple does not constrain a weekly subscription
+to 3 days. **7 days is available on both SKUs**, so the founder decision ships as approved
+and no per-plan duration split is needed.
+
+**Two hard-won facts about the API, worth more than the answer itself:**
+
+1. **Offers cannot overlap in a territory, and today's offers are open-ended.** Every
+   territory carries one offer with `endDate: null`, which the API represents as
+   `+999999999-12-31` — it occupies *every* future date. A naive
+   `intro_offers_create` for a future window therefore fails with **`409 STATE_ERROR:
+   DateRange … overlaps with existing offer's DateRange`**. That 409 is an *overlap*
+   rejection and says nothing about duration validity — do not misread it as "ASC refused
+   7 days". Spot-checked: USA, RUS, CHN, TUR and NRU all carry the same open-ended offer,
+   so there is no empty territory to probe in.
+2. **`end_date` IS clearable.** `intro_offers_update` documents only `end_date` as
+   mutable and gives no explicit way to null it — but **calling it with `end_date` omitted
+   restores `endDate: null`.** This is what makes the dated-handover strategy fully
+   reversible, and it is not written down anywhere in Apple's docs. Verified by round-trip:
+   set `2029-12-31`, then cleared it, and the offer returned byte-identical to its original
+   state.
+
+**Split this item: the script is pre-release work; only the flip waits.**
+
+- ~~Probe `ONE_WEEK`~~ — **done 2026-08-01**, see above. Method, for the record: end-date
+  the existing offer in one tiny territory to `2029-12-31`, create the probe at
+  `2030-01-01`, read the response, delete the probe, clear the end date. Nothing was ever
+  served to a user (the 3-day offer ran unchanged throughout), and the territory was
+  restored exactly.
+- **Do before release — write the script.** ~175 territories × 2 SKUs is what actually
+  consumes launch day. Pure prep, zero live effect.
+- **Wait for release — the flip itself.** Unchanged, for the reason above.
+
+**Do NOT pre-date the handover**, tempting though the risk table below makes it sound. The
+API does support it (`intro_offers_create` takes `start_date`/`end_date`; `update` can set
+`end_date`), so you *could* end-date the 3-day offers and start-date the 7-day ones — but
+you do not know the release date. It is manual, and gated on both App Review timing and the
+in-flight-trial horizon. The failure is one-sided and worth understanding: because 1.3.0
+derives duration from the store, there is **no copy-mismatch risk in either direction** once
+it is live — the app renders whatever the store says, so a mis-dated offer cannot create a
+false promise. The only cost is money — a 7-day offer that starts while 1.2.0 is still being
+served gives away four free days nothing advertises. Pre-dating buys convenience and
+re-introduces precisely the risk the ordering exists to remove.
+
+**Current offer state (verified 2026-08-01, USA):** both SKUs have exactly **one** offer —
+`FREE_TRIAL` / `THREE_DAYS` / `numberOfPeriods: 1` / `startDate: 2026-04-29` /
+**`endDate: null`** (open-ended). Offer ids are opaque base64 blobs encoding
+subscription + territory, so re-list per territory rather than trying to construct them.
 
 **Recipe:**
 
 1. It is not an edit. `intro_offers_update` can only change `end_date`; changing duration
-   means **delete + recreate** (asc-mcp `intro_offers_delete` → `intro_offers_create`
-   with `duration: ONE_WEEK`, `offer_mode: FREE_TRIAL`, `number_of_periods: 1`).
-2. Offers are **per-territory**: ~175 territories × 2 SKUs ≈ 700 calls. **Script it** —
-   piecemeal work widens the window in step 3.
-3. **Mind the gap.** Between delete and create no offer exists. 1.3.0 degrades correctly
-   (`TrialOffer.fromProduct` returns `null` → "Subscribe" + non-trial copy), so there is
-   no false promise — but every signup inside the window loses its trial. Keep it short.
+   means a new offer (`intro_offers_create` with `duration: ONE_WEEK`,
+   `offer_mode: FREE_TRIAL`, `number_of_periods: 1`).
+2. **Hand over by date — do NOT delete-then-create.** This supersedes the older
+   delete+recreate reading, and it is the whole reason the probe was worth running. Per
+   territory: `intro_offers_update` the existing 3-day offer with `end_date: <day X>`, then
+   `intro_offers_create` the 7-day offer with `start_date: <day X+1>`. Adjacent dates are
+   accepted (verified — `2029-12-31` → `2030-01-01` created cleanly), so coverage is
+   **continuous and there is no gap at all**. Users on day X still get 3 days; day X+1
+   onward they get 7. If a territory goes wrong mid-run, clearing `end_date` (omit the
+   field) puts it straight back.
+3. Offers are **per-territory**: ~175 territories × 2 SKUs ≈ 700 calls. **Script it** —
+   but note that with the dated handover, a slow or partial run is no longer dangerous, only
+   untidy. Each territory is independently correct at every moment.
+4. ~~**Mind the gap.**~~ **No longer applicable** with the dated handover above, and kept
+   only so nobody reinstates delete+recreate from memory. For the record, the old hazard
+   was: between delete and create no offer exists, and while 1.3.0 degrades correctly
+   (`TrialOffer.fromProduct` returns `null` → "Subscribe" + non-trial copy, so no false
+   promise), **every signup inside that window would silently lose its trial**. The dated
+   handover removes the window entirely — take it.
 4. Verify after: RC `list-offerings` shows `trial_duration: P1W` on both products, and
    the paywall renders "7 days" with no rebuild.
 
-**Note:** only the annual subscription id is on record (`6762153970`); look up the weekly
-one before scripting.
+**⚠️ The verification in step 4 will look like it failed, and it won't have.** Verified
+2026-08-01: the `$rc_annual` package has **two** products attached, not one —
 
-**Surfaced by:** paywall copy/store reconciliation, 2026-08-01.
+| Product | `store_identifier` | RC app | `trial_duration` |
+|---|---|---|---|
+| `prod5d104714bd` | `sakina_sub_annual` | `app776fe1ae80` (App Store) | `P3D` ← **the real one** |
+| `prod076d4258c1` | `yearly` | `app75ffdc6cad` (**Test Store**) | `null` ← stale, never loads |
+
+`$rc_weekly` is clean (one product, `sakina_sub_weekly`, App Store, `P3D`). So after the
+flip, `list-offerings` will show `P1W` on `sakina_sub_annual` and still `null` on `yearly`.
+That is correct output, not a half-applied change — the Test Store product is inert on the
+`appl_` key and never reaches a device. **Read `trial_duration` per `store_identifier`, not
+per package.** Detaching the stale product is optional cleanup, unrelated to this item.
+
+**Surfaced by:** paywall copy/store reconciliation, 2026-08-01. Weekly subscription id
+resolved 2026-08-01 (see table above) — that open gap is closed.
 
 ## Extend the dua_windows seed before its horizon (2027-06-20)
 
