@@ -3,6 +3,34 @@
 **Status: APPROVED (founder, 2026-07-25) — structure + copy locked; visual polish happens at W5 build per DESIGN.md (mock is layout/copy fidelity only). Copy FREEZES at T0.**
 Architecture per §V5.3/§V6.3 (Rootd hybrid): front-loaded at onboarding's emotional peak, hard-looking, dismissible-to-limited-free, real RC **7-day trial**, **$59.99/yr** anchor. Mock: [`../mocks/2026-07-25-paywall-mock.html`](../mocks/2026-07-25-paywall-mock.html).
 
+> ## ⚠️ RECONCILED WITH THE STORE — 2026-08-01. Read before quoting any number below.
+>
+> This deck's numbers were written ahead of the store and **two of them never matched
+> it**. Both are now settled — in *opposite* directions. Nothing below is edited; read
+> it through this note.
+>
+> | | This deck says | Store (verified at ASC/RC) | Decision |
+> |---|---|---|---|
+> | Trial | 7 days | **3 days** (`FREE_TRIAL / THREE_DAYS`, live since 2026-04-29) | **Deck wins — flip the store to 7.** |
+> | Annual | $59.99/yr · $1.15/wk | **$49.99/yr · $0.96/wk** | **Store wins — $59.99 was deliberately NOT chosen (founder, 2026-08-01). The deck's anchor is dead copy.** |
+>
+> **Trial → the store moves.** The flip is queued in [`TODO.md`](../../../TODO.md) and must
+> happen **only after 1.3.0 reaches `READY_FOR_SALE`** — never at submission. Until then the
+> store serves 1.2.0, whose paywall hardcodes "3 days", so an early flip hands every new
+> subscriber four unadvertised free days. From 1.3.0 forward **no duration in this deck is
+> implemented as a literal**: every one renders from `TrialOffer` (`lib/features/paywall/
+> trial_offer.dart`) through a `{trial}` placeholder, so the copy follows the store by
+> itself with no release. Treat every "7 days" below as *the value the store will be set
+> to*, not as a string to type into Dart. **Writing a duration into Dart is what produced
+> the "Day 6 … Day 7" bug this deck already caused once.**
+>
+> **Price → the deck moves.** Shipping price is **$49.99/yr**, and the implementation
+> already follows it (`paywallAnnualPerWeek = '$0.96'`; `$59.99` and `$1.15` appear nowhere
+> in `lib/`). Strike the $59.99 anchor and the "$1.15 a week" line from lines 34, 37 and 42
+> wherever you work from them — they describe a price that was considered and declined, not
+> one that is pending. ⚠️ Unlike the trial, `$0.96` **is** a hardcoded literal derived from
+> $49.99: if the annual price ever does move, that constant goes silently wrong.
+
 ## Decision: 3 pages, stable `page_id`s: `value_depth` → `trial_timeline` → `plan_select`
 *(Pins the "e.g." ids in §V6.8.C6 — `value_depth`/`trial_timeline` replace the placeholder `value_names`/`value_journey`.)* Rationale: page 1 = personalized depth (JTBD echo, the +37% multi-page pattern); page 2 = trial-transparency timeline (the proven trial-anxiety reducer — and our reverence posture applied to billing: plain terms, stated once); page 3 = plan select. The free-forever honesty lives as one footer line on page 3 + the post-dismissal "always free" card (§V6.3.1d) — a full "free tier" page would sell the free thing.
 

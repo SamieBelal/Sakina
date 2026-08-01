@@ -1,6 +1,40 @@
 # TODO
 
-Deferred work — not blocking the current iOS submission, but needed before specific future milestones. Each item names its trigger so it's clear when it becomes urgent.
+Deferred work — needed before specific future milestones rather than today. Each item names its trigger so it's clear when it becomes urgent.
+
+**Shipping 1.3.0? Start with the [ship checklist](#ship-checklist--130-w5--one-ship).** Four sections below have triggers that 1.3.0 fires; the checklist collects them in the order they have to happen and links to each recipe. Delete the checklist once 1.3.0 is out — the recipe sections stay.
+
+## Ship checklist — 1.3.0 (W5 / One Ship)
+
+**Trigger:** this release. Every item is a link to its own section below — the recipes
+live there, not here. The three buckets are ordered and **not interchangeable**; the
+last one is wrong if done early.
+
+### 1 — In the build (before you cut it)
+
+- [ ] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** — its
+  trigger is literally "W5 instrumentation, before T0", and this release *is* W5, so T0 is
+  its release day. It's a code change: it ships in the binary or it waits a whole release.
+  Today the screen emits `reel_source_selected` where the plan specifies
+  `reel_source_captured` + a `reel_hook` super property that is registered nowhere.
+- [ ] **[OpenAI Edge Function proxy](#openai-edge-function-proxy)** — trigger reads "before
+  any external TestFlight build or **App Store release**". The risk was consciously accepted
+  to ship 1.2.0; 1.3.0 is a second App Store release, so this is a **decision to re-take on
+  the record, not an item to skip silently**. `OPENAI_API_KEY` is still baked into the IPA.
+
+### 2 — At submission (App Store Connect metadata)
+
+- [ ] **[Duʿā Times location permission](#app-store-duʿā-times-location-permission-privacy-label--review-notes)**
+  — privacy nutrition label + review notes. 1.3.0 is the first build carrying
+  `NSLocationWhenInUseUsageDescription`, which is exactly its trigger.
+- [ ] Run `./scripts/check_no_fake_strings.sh` (pre-release tripwire).
+
+### 3 — After READY_FOR_SALE (**not** at submission)
+
+- [ ] **[Lengthen the intro free trial 3 → 7 days](#app-store-lengthen-the-intro-free-trial-3-days--7-days)**
+  — must wait until 1.3.0 is actually live. Doing it at submission means the store still
+  serves 1.2.0, whose paywall hardcodes "3 days", for the whole review window: every new
+  subscriber would get four extra free days that nothing advertises.
 
 ## Android release signing
 
@@ -113,6 +147,58 @@ prayer-time math. Apple scrutinizes location, so before submitting:
    purpose string.
 
 **Surfaced by:** Duʿā Times feature (PR #51), 2026-07-16.
+
+## App Store: lengthen the intro free trial (3 days → 7 days)
+
+**Trigger:** **after** 1.3.0 reaches `READY_FOR_SALE` — not at submission, not before.
+1.3.0 is the first build whose paywall copy derives the duration from the store; until
+it is actually live, the store serves 1.2.0.
+
+**Why the ordering is the whole item.** On master (= shipped 1.2.0) the trial length is
+written into Dart — `paywallCtaTrial` ("Try Sakina Free for 3 days"),
+`paywallTrialMicrocopyTemplate`, `paywallHonestBillingAnnual` ("Day 3: {price}/year
+unless cancelled"). Flip the store early and every new subscriber gets four extra free
+days while the app advertises three, for the entire review window: you pay the full cost
+of the longer trial and capture none of the marketing upside. It is not a user-harm or
+3.1.2 problem — under-promising is safe — it is simply money spent for nothing. From
+1.3.0 forward every duration comes from `TrialOffer` (`lib/features/paywall/
+trial_offer.dart`) through a `{trial}` placeholder, so **the flip needs no app release**;
+the copy follows the store on its own.
+
+**Current state (verified 2026-08-01).** ASC subscription `6762153970`
+(`sakina_sub_annual`): `offerMode: FREE_TRIAL`, `duration: THREE_DAYS`,
+`numberOfPeriods: 1`, `startDate: 2026-04-29`, `endDate: null`, in every territory.
+`sakina_sub_weekly` matches. RevenueCat mirrors both as `trial_duration: P3D`.
+
+**Decided (founder, 2026-08-01): 7 days on BOTH SKUs**, matching the approved deck. The
+cost is understood and accepted — 7 days on a $4.99/week plan gives away that plan's
+entire first billing period; a split (7-day annual / 3-day weekly) was raised and not
+taken. Separately, the deck's **$59.99/yr anchor was deliberately declined** — annual
+stays **$49.99**, so change the trial and nothing else.
+
+**One open technical unknown:** confirm ASC actually offers `ONE_WEEK` for a P1W
+subscription. Apple constrains intro duration by subscription length, and confirming it
+means creating a real offer. If it refuses, weekly stays at 3 days — which is *safe*, not
+broken: `TrialOffer` is per-product, so the paywall would simply render a different
+duration per plan.
+
+**Recipe:**
+
+1. It is not an edit. `intro_offers_update` can only change `end_date`; changing duration
+   means **delete + recreate** (asc-mcp `intro_offers_delete` → `intro_offers_create`
+   with `duration: ONE_WEEK`, `offer_mode: FREE_TRIAL`, `number_of_periods: 1`).
+2. Offers are **per-territory**: ~175 territories × 2 SKUs ≈ 700 calls. **Script it** —
+   piecemeal work widens the window in step 3.
+3. **Mind the gap.** Between delete and create no offer exists. 1.3.0 degrades correctly
+   (`TrialOffer.fromProduct` returns `null` → "Subscribe" + non-trial copy), so there is
+   no false promise — but every signup inside the window loses its trial. Keep it short.
+4. Verify after: RC `list-offerings` shows `trial_duration: P1W` on both products, and
+   the paywall renders "7 days" with no rebuild.
+
+**Note:** only the annual subscription id is on record (`6762153970`); look up the weekly
+one before scripting.
+
+**Surfaced by:** paywall copy/store reconciliation, 2026-08-01.
 
 ## Extend the dua_windows seed before its horizon (2027-06-20)
 

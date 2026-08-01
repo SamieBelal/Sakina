@@ -167,43 +167,18 @@ abstract final class AppStrings {
   static const paywallTerms = 'Terms';
   static const paywallPrivacy = 'Privacy';
 
-  // Honest trial timeline strip (above pricing cards). Labels stay one
-  // word each so the strip reads at a glance instead of as paragraph copy.
+  // REMOVED 2026-08-01 (string-hygiene pass): the deprecated timeline-strip
+  // constants (`paywallTimeline*`, dead since the 2026-05-14 rebuild) and the
+  // `paywallHonestBilling{Annual,Weekly}` footer templates. Both blocks wrote a
+  // trial length into Dart — "Day 2 / Day 3" is only correct for a 3-day offer —
+  // and both had been dead on this branch since the W5 gate replaced the
+  // paywall. They are gone rather than left for search-hygiene because a
+  // hardcoded duration sitting in this file is what someone reaches for next.
   //
-  // DEPRECATED 2026-05-14 (paywall rebuild): the strip itself has been
-  // removed in favour of the single-line `paywallHonestBilling*` footer
-  // below. These constants are intentionally left in place to avoid
-  // breaking unrelated tests / search results during the rebuild — they
-  // will be cleaned up in a separate string-hygiene pass.
-  static const paywallTimelineTodayHeading = 'Today';
-  static const paywallTimelineTodayLabel = 'Free';
-  static const paywallTimelineDay2Heading = 'Day 2';
-  static const paywallTimelineDay2Label = 'Reminder';
-  static const paywallTimelineDay3Heading = 'Day 3';
-  static const paywallTimelineDay3Label = 'Charged';
-
-  // Honest-billing footer copy (paywall rebuild, 2026-05-14).
-  // Templates accept a {price} placeholder rendered from
-  // `package.storeProduct.priceString`. The "Day N" reminder references
-  // Apple's automatic trial-ending notification (24h before charge),
-  // NOT a Sakina-side email — we don't send those. Reviewer-compliant
-  // and factually accurate. Per Blinkist's public case study, this
-  // single-line explicit billing copy lifts conversion ~23% and reduces
-  // refund complaints ~55%.
-  // WAS "Day 6 … Day 7" until 2026-07-29 — copy written for a 7-day trial that
-  // does not exist. Verified at the source: the introductory offer on
-  // `sakina_sub_annual` (App Store Connect subscription 6762153970) is
-  // `offerMode: FREE_TRIAL`, `duration: THREE_DAYS`, 1 period, live since
-  // 2026-04-29 in every territory; RevenueCat mirrors it as
-  // `trial_duration: P3D`. Both the CTA and the microcopy already said 3 days,
-  // so this line contradicted them in the one place that describes the CHARGE.
-  // Overstating a trial is an App Review 3.1.2 problem before it is a refund
-  // problem. If the offer is ever changed, change it here too — nothing derives
-  // this string from the store.
-  static const paywallHonestBillingAnnual =
-      'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/year unless cancelled. Cancel anytime in Settings.';
-  static const paywallHonestBillingWeekly =
-      'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/week unless cancelled. Cancel anytime in Settings.';
+  // Every duration now derives from the store's introductory offer via
+  // `TrialOffer` (lib/features/paywall/trial_offer.dart) and renders through a
+  // `{trial}` placeholder — see the W5 gate block below. Nothing in paywall copy
+  // may hardcode a trial length again.
 
   // Exit offer bottom sheet — shown when the user taps ✕ with the annual plan
   // selected, offering weekly as a price alternative (Apple guideline 5.6: a
@@ -467,22 +442,13 @@ abstract final class AppStrings {
   // ───── Paywall additions (page 25) ─────
   // {name} replaced at render time with state.signUpName (or "friend").
   static const paywallPersonalizedHeaderTemplate = 'YOU\'RE 1 STEP AWAY, {name}';
-  // {price} replaced at render time with annual price string from RevenueCat.
-  static const paywallTrialMicrocopyTemplate =
-      '3 days free, then {price}/year. Cancel anytime.';
-
-  // The weekly counterpart. It did not exist until 2026-07-29: the microcopy
-  // hardcoded the ANNUAL package and the literal "/year", so selecting Weekly
-  // showed "3 days free, then $49.99/year" beside a $4.99/week card. It went
-  // unnoticed because the plan-aware honest-billing paragraph underneath was
-  // saying the right thing; once that duplicate was removed this became the
-  // only billing line on the screen, and it had to actually follow the
-  // selection.
-  static const paywallTrialMicrocopyWeeklyTemplate =
-      '3 days free, then {price}/week. Cancel anytime.';
+  // REMOVED 2026-08-01 (string-hygiene pass): `paywallTrialMicrocopyTemplate`,
+  // `paywallTrialMicrocopyWeeklyTemplate` and `paywallCtaTrial` — all three
+  // hardcoded "3 days". Dead on this branch since the W5 gate; their live
+  // equivalents are `paywallGateTermsTrialTemplate` and
+  // `paywallGateCtaTrialTemplate`, whose `{trial}` slot is filled from
+  // `TrialOffer.label` (the store's actual introductory offer).
   static const paywallNoPaymentTodayLine = 'No payment due today.';
-  // CTA copy upgrade (OV9) — brand-name in CTA lifts conversion.
-  static const paywallCtaTrial = 'Try Sakina Free for 3 days';
   static const paywallCtaSubscribeRevised = 'Start your subscription';
 
   // ───── Personalized Plan screen (page 23) ─────
