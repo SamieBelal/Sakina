@@ -400,3 +400,48 @@ premium still advertises *"A monthly gift of tokens & scrolls"* (`paywallPremium
 and two achievements (`tokens_spent_100/500`) become near-unreachable. Selling a currency
 whose main use we just removed is the one outcome to avoid; needs a founder call before the
 bypass deletion lands.
+
+**D11 — The exit-offer sheet SURVIVES v1, against the approved paywall draft. Founder
+decision 2026-07-31.** The W5 paywall rebuild deleted `_ExitOfferSheet` and its ✕
+interception, correctly: the approved draft (`../content/2026-07-25-paywall-DRAFT.md`) says
+dismissal is "✕ → home directly", and its own firewall self-check reads **"scarcity: none (no
+offers in v1)"**. A weekly downsell fired by tapping ✕ is exactly the backup offer that rules
+out. The agent read the source of truth right.
+
+**Overridden deliberately, and the reason is the interesting part: nobody knows what it
+earns.** It has been shipping for months against zero instrumentation — the events exist
+(`paywall_exit_offer_shown` / `_accepted`) but were never wired to anything that could answer
+"is this working". Deleting an unmeasured revenue mechanic is a revenue decision made blind,
+and the draft's no-offers rule was written on reverence grounds without a number to weigh
+against it. So: **keep it, instrument it, decide at the T0+2wk read with data instead of
+taste.**
+
+Consequences recorded so the two documents do not silently disagree:
+
+- **The draft's firewall self-check line "scarcity: none (no offers in v1)" is now FALSE for
+  the shipped app.** Treat it as superseded by this entry rather than as a rule the code
+  violates. Every *other* firewall clause still binds — no countdown, no guilt, no arc-count,
+  no tier-word-beside-a-Name, nothing attributing a stance to Allah or a Name.
+- **The instrumentation is the condition of the reprieve, not a nice-to-have.** `shown` and
+  `accepted` alone cannot answer the question: they give a ratio with no view of the refusal
+  path, and "accepted" means a CTA tap, not money moving. Required: a `declined` event firing
+  on **every** route out of the sheet (button, scrim, back gesture — a missed route
+  understates declines and flatters the mechanic), `{placement}` on all three, and an
+  accepted→purchase link riding the **existing** purchase-sheet chain so the funnel reads
+  shown → accepted → started → completed. A parallel purchase event is forbidden; forking a
+  live funnel is permanent.
+- **Trial duration stays store-derived.** The restored strings keep the `{trial}` templating
+  from the rebuild (`paywallExitOfferBodyTemplate` / `AcceptTemplate`), so reviving the sheet
+  cannot revive a hardcoded "3 days".
+- **Scope is unchanged from prior behaviour** — soft surfaces only. It is not added to the
+  hard wall or the onboarding ceremony.
+- **Review at T0+2wk** alongside the health read. If the accepted→completed rate does not
+  justify it, delete it then as a measured decision — and the draft's line stops being false
+  by becoming true again.
+
+Also settled the same day: **the annual savings claim was arithmetically wrong.** Approved
+copy said "Save 50% vs weekly"; verified against RevenueCat, annual is **$49.99** and weekly
+**$4.99** (= $259.48/yr), an **80.7%** saving. The mock's own rationale was that the chip is
+"checkable against the weekly row right below it" — it failed its own test, and understated
+the strongest argument for annual on the screen where the choice is made. Founder: **"Save
+80%"**.
