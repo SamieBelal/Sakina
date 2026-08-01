@@ -459,3 +459,37 @@ copy said "Save 50% vs weekly"; verified against RevenueCat, annual is **$49.99*
 "checkable against the weekly row right below it" — it failed its own test, and understated
 the strongest argument for annual on the screen where the choice is made. Founder: **"Save
 80%"**.
+
+**D12 — The tightened free tier reaches EVERY user at T0, not at the softener wave. Founder
+decision 2026-08-01, superseding §V6.10's staging.** §V6.10 already settled that nobody is
+grandfathered; what changes here is the *timing*. Existing users were to migrate after the
+T0+6wk keep decision, via one wave with 30 days' notice. They now migrate **at T0, with the
+new-cohort users, immediately and without notice.**
+
+**Mechanism: flip, do not delete.** The cohort machinery stays exactly as built. Two
+statements at T0 — backfill `user_profiles.free_tier_cohort = 'reel_v1'` for every existing
+account, and set `app_config.new_signup_cohort = 'reel_v1'` — put everyone on the new tier at
+once. Deleting `isNewCohort` and its seven call sites was the alternative and was rejected:
+it reaches the same end state via a refactor of code that had just been reviewed, and it
+throws away the rollback. **The flip is reversible in seconds** (set the column back to
+`'legacy'`); the deletion is not. Keep the branch until the keep decision, then retire it
+through the hygiene ledger like every other flag.
+
+**Two costs of the earlier timing, recorded because they were accepted rather than avoided:**
+
+- **The token bypass disappears for people who bought tokens for it.** Cohort-scoping was
+  what made "nobody loses value they paid for" true. At T0 it stops being true: anyone
+  holding purchased tokens loses the AI bypass with no notice and no refund path. The
+  population is small (31 accounts have ever spent a token, 0.8% of everything minted — see
+  the currency-merge plan) but it is not zero, and they are payers.
+- **It costs the cleanliness of the keep read.** The T0+6wk decision is a pre/post
+  comparison. Changing the existing base's free tier in the same week the new onboarding
+  launches means a D7 retention move cannot be attributed to one or the other. The guardrail
+  stopping rules still apply; the *diagnosis* if they trip is now ambiguous.
+
+**Consequence for the softener wave:** its original purpose was this migration, so with the
+tier moving to T0 the wave reduces to the **tokens→Noor currency merge** alone
+(`2026-07-31-one-currency-noor-merge.md`, tracked in `TODO.md`). Whoever runs it should not
+assume a free-tier notice still needs sending — but should note that the "one disruption,
+not two" argument for bundling them no longer holds, because the first disruption will
+already have happened at T0.
