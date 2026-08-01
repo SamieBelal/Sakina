@@ -43,6 +43,33 @@ enum GateReason {
   rerollPremium,
 }
 
+/// The `daily_cap_hit` / `cap_sheet_shown` wire value for a blocking
+/// [GateReason] (W6 Wave C, D5). Returns null for [GateReason.ok],
+/// [GateReason.warmupRemaining] and [GateReason.premiumFairUse] — none of
+/// which represent a block either event exists to explain: `ok` and
+/// `warmupRemaining` never reach [GatingService._emitCapHit], and a premium
+/// fair-use ceiling is a silent "take a breath", never a sold surface.
+///
+/// Shared between [GatingService._emitCapHit] and `DailyCapSheet.show` so the
+/// two events agree on one spelling per reason rather than each hand-rolling
+/// its own switch.
+String? gateReasonWireValue(GateReason reason) {
+  switch (reason) {
+    case GateReason.dailyCap:
+      return AnalyticsEvents.gateReasonDailyCap;
+    case GateReason.weeklyPool:
+      return AnalyticsEvents.gateReasonWeeklyPool;
+    case GateReason.rerollPremium:
+      return AnalyticsEvents.gateReasonRerollPremium;
+    case GateReason.hadTrialNoBudget:
+      return AnalyticsEvents.gateReasonHadTrialNoBudget;
+    case GateReason.ok:
+    case GateReason.warmupRemaining:
+    case GateReason.premiumFairUse:
+      return null;
+  }
+}
+
 /// Outcome of a successful [GatingService.markUsed] call. Most calls return
 /// [ok]. The transition moment when a free user's warmup counter decrements
 /// from 1 to 0 returns [warmupJustExhausted] so the UI can fire the dedicated
@@ -411,6 +438,13 @@ class GatingService {
     final remaining = (result['remaining'] as num?)?.toInt();
     if (remaining == null) return;
 
+    // Emitted here, not before the RPC: this is the point the client actually
+    // KNOWS a spend happened and what remains. A network failure or a null
+    // response above answers neither question, so it fires nothing rather
+    // than guess — consistent with this function's fail-open, write-nothing
+    // posture (see the doc comment above).
+    _emitTasteConsumed(feature, AnalyticsEvents.allowanceWeeklyPool, remaining);
+
     final prefs = await SharedPreferences.getInstance();
     final pool = await weeklyPoolSize();
     await prefs.setInt(
@@ -541,6 +575,15 @@ class GatingService {
         warmup.remaining,
         pushToServer: warmup.fromStore,
       );
+      // The denominator `daily_cap_hit` has always been missing (W6 Wave C).
+      // One emit per spend regardless of whether this is also the 1→0
+      // transition below — that's a second, distinct signal
+      // (`UsageOutcome.warmupJustExhausted`), not a reason to skip this one.
+      _emitTasteConsumed(
+        feature,
+        AnalyticsEvents.allowanceWarmup,
+        warmup.remaining - 1,
+      );
       // The "1 → 0" transition is the one-shot moment the WarmupExhaustedSheet
       // fires on. Subsequent decrements are clamped to 0 in _decrementWarmup
       // and never re-trigger this signal because warmup will already be 0
@@ -598,10 +641,35 @@ class GatingService {
     required bool newCohort,
   }) async {
     if (!newCohort || feature == GatedFeature.discoverName) {
-      await _incrementDaily(feature);
+      final used = await _incrementDaily(feature);
+      final cap = _dailyCap(feature);
+      _emitTasteConsumed(
+        feature,
+        AnalyticsEvents.allowanceDaily,
+        (cap - used).clamp(0, cap),
+      );
       return;
     }
     await _consumeWeeklyPool(feature);
+  }
+
+  /// `ai_taste_consumed` (W6 Wave C) — the SPEND analytics `daily_cap_hit`
+  /// has always been the numerator of nothing today. Fired only from
+  /// [markUsed]'s three consume paths (the warmup decrement,
+  /// [_consumePostWarmup]'s daily branch, [_consumeWeeklyPool]), all of which
+  /// sit after [markUsed]'s premium short-circuit — so a payer's unlimited
+  /// use is never counted as a "taste", and this helper needs no premium
+  /// check of its own.
+  void _emitTasteConsumed(
+    GatedFeature feature,
+    String allowance,
+    int remaining,
+  ) {
+    onAnalyticsEvent?.call(AnalyticsEvents.aiTasteConsumed, {
+      AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+      AnalyticsEvents.propAllowance: allowance,
+      AnalyticsEvents.propRemaining: remaining,
+    });
   }
 
   // ---- helpers ------------------------------------------------------------
@@ -628,7 +696,7 @@ class GatingService {
     if (!newCohort) return _applyDailyCap(feature, hadTrial: hadTrial);
 
     if (feature == GatedFeature.discoverName) {
-      _emitCapHit(feature);
+      _emitCapHit(feature, GateReason.rerollPremium);
       return const GateResult(
         allowed: false,
         reason: GateReason.rerollPremium,
@@ -638,7 +706,7 @@ class GatingService {
 
     final remaining = await weeklyPoolRemaining();
     if (remaining <= 0) {
-      _emitCapHit(feature);
+      _emitCapHit(feature, GateReason.weeklyPool);
       return const GateResult(
         allowed: false,
         reason: GateReason.weeklyPool,
@@ -660,9 +728,17 @@ class GatingService {
   ///
   /// Premium fair-use blocks NEVER reach this — they short-circuit in [canUse]
   /// with [GateReason.premiumFairUse], a silent "take a breath", not a paywall.
-  void _emitCapHit(GatedFeature feature) {
+  ///
+  /// [reason] is one of the four blocking [GateReason]s that can reach this
+  /// function; [gateReasonWireValue] always resolves one of them to a wire
+  /// value (W6 Wave C, D5) — segmentation by cohort is a super property
+  /// (`free_tier_cohort`), not a second event, so the cap-hit→upgrade funnel
+  /// stays continuous across the T0 boundary.
+  void _emitCapHit(GatedFeature feature, GateReason reason) {
+    final reasonWire = gateReasonWireValue(reason);
     onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
       AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+      if (reasonWire != null) AnalyticsEvents.propReason: reasonWire,
     });
   }
 
@@ -673,14 +749,14 @@ class GatingService {
     final used = await _getUsageToday(feature);
     final cap = _dailyCap(feature);
     if (used >= cap) {
-      // `daily_cap_hit{feature}` — the `arm` rides as the `paywall_exp_arm`
-      // Mixpanel super-property set at assignment, so the event segments by arm
-      // without this Riverpod-free service needing the experiment flag.
-      _emitCapHit(feature);
-      return GateResult(
-        allowed: false,
-        reason: hadTrial ? GateReason.hadTrialNoBudget : GateReason.dailyCap,
-      );
+      // `daily_cap_hit{feature, reason}` — the `arm` rides as the
+      // `paywall_exp_arm` Mixpanel super-property set at assignment, so the
+      // event segments by arm without this Riverpod-free service needing the
+      // experiment flag.
+      final reason =
+          hadTrial ? GateReason.hadTrialNoBudget : GateReason.dailyCap;
+      _emitCapHit(feature, reason);
+      return GateResult(allowed: false, reason: reason);
     }
     return const GateResult(allowed: true, reason: GateReason.ok);
   }

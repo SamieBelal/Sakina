@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/gating_service.dart'
     show GatedFeature, GatingService;
 import 'package:sakina/services/purchase_service.dart';
@@ -144,6 +145,37 @@ class WarmupExhaustedSheet extends StatelessWidget {
     // and the sheet cannot re-fire on the next visit to the route.
     if (premium) return;
 
+    // Impression (W6 Wave C, S2). This sheet had ZERO analytics before —
+    // gated on the premium `return` above rather than repeating the check,
+    // same posture as the guard itself: a payer never sees this sheet, so
+    // there is nothing left to gate here.
+    //
+    // No `reason` property: unlike DailyCapSheet, nothing was refused —
+    // this fires on a SUCCESSFUL use (see [isNewCohort] doc) — so there is
+    // no [GateReason] to carry and none of the existing wire values name
+    // "a warmup budget was just spent to zero". Omitted rather than forcing
+    // an ill-fitting constant onto it.
+    GatingService.onAnalyticsEvent?.call(AnalyticsEvents.capSheetShown, {
+      AnalyticsEvents.propFeature: _featureKey(feature),
+      AnalyticsEvents.propSheet: AnalyticsEvents.sheetWarmupExhausted,
+    });
+
+    // Dismissal reconciliation — same shape as `DailyCapSheet.show` (itself
+    // transplanted from `LapsedTrialSheet.show`'s `fireDismissOnce`). Only
+    // the explicit secondary-button tap is distinguishable from in here;
+    // barrier tap, swipe-down and Android back all complete the same
+    // `showModalBottomSheet` Future and collapse to one `dismissed` bucket.
+    var upgraded = false;
+    var dismissFired = false;
+    void fireDismissOnce(String method) {
+      if (upgraded || dismissFired) return;
+      dismissFired = true;
+      GatingService.onAnalyticsEvent?.call(AnalyticsEvents.capSheetDismissed, {
+        AnalyticsEvents.propSheet: AnalyticsEvents.sheetWarmupExhausted,
+        AnalyticsEvents.propMethod: method,
+      });
+    }
+
     return showModalBottomSheet<void>(
       context: context,
       // Push on the ROOT navigator with a named route so the singleton
@@ -164,13 +196,34 @@ class WarmupExhaustedSheet extends StatelessWidget {
           isNewCohort: newCohort,
           isPremium: premium,
           onUpgrade: () {
+            upgraded = true;
             Navigator.of(sheetContext).pop();
             onUpgrade();
           },
-          onDismiss: () => Navigator.of(sheetContext).pop(),
+          onDismiss: () {
+            fireDismissOnce(AnalyticsEvents.methodButton);
+            Navigator.of(sheetContext).pop();
+          },
         );
       },
-    );
+    ).then((_) {
+      fireDismissOnce(AnalyticsEvents.methodDismissed);
+    });
+  }
+
+  /// Mirrors `DailyCapSheet._featureKey` / `GatingService._bypassFeatureKey`
+  /// — the analytics-side wire value, kept duplicated rather than exported
+  /// for the same reason `DailyCapSheet` duplicates it (frozen against
+  /// accidental renames in either layer).
+  static String _featureKey(GatedFeature feature) {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'reflect';
+      case GatedFeature.builtDua:
+        return 'built_dua';
+      case GatedFeature.discoverName:
+        return 'discover_name';
+    }
   }
 
   /// Cohort-neutral: the headline reports what the user just finished, which

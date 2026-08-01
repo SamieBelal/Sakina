@@ -175,9 +175,13 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, hasLength(1));
-      expect(events.first.$1, AnalyticsEvents.aiBypassOffered);
-      expect(events.first.$2, {
+      // W6 Wave C: `cap_sheet_shown` now fires through the same hook as the
+      // impression ahead of the bypass offer — assert on the LAST event
+      // rather than the sole one so this test still pins `ai_bypass_offered`
+      // specifically without re-litigating the impression event's shape.
+      expect(events, hasLength(2));
+      expect(events.last.$1, AnalyticsEvents.aiBypassOffered);
+      expect(events.last.$2, {
         'feature': 'built_dua',
         'token_balance': 87,
         'bypasses_used_today': 0,
@@ -213,6 +217,9 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
+      // Premium is vetoed ahead of `cap_sheet_shown` too (W6 Wave C) — a
+      // subscriber is never part of the free-tier funnel this event
+      // measures, so nothing at all fires for them.
       expect(events, isEmpty,
           reason: 'Premium sheets never render the bypass slot');
     });
@@ -243,7 +250,15 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, isEmpty);
+      // `cap_sheet_shown` still fires (a sheet WAS shown) — only the
+      // bypass-specific offer event is absent, because no bypass slot
+      // rendered without the callback.
+      expect(events, hasLength(1));
+      expect(events.first.$1, AnalyticsEvents.capSheetShown);
+      expect(
+        events.where((e) => e.$1 == AnalyticsEvents.aiBypassOffered),
+        isEmpty,
+      );
     });
 
     testWidgets(
@@ -392,9 +407,11 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(events, hasLength(1));
-      expect(events.first.$1, 'first_bypass_offered');
-      expect(events.first.$2, {'feature': 'reflect'});
+      // Same shared-hook adjustment as the STATE A/B/C bypass-offered test
+      // above: `cap_sheet_shown` precedes the state-specific offer event.
+      expect(events, hasLength(2));
+      expect(events.last.$1, 'first_bypass_offered');
+      expect(events.last.$2, {'feature': 'reflect'});
     });
 
     testWidgets('onBypassRequested null → legacy 2-CTA layout (no regression)',

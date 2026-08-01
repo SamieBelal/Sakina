@@ -873,8 +873,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       _errorMessage = null;
     });
 
+    // W6 Wave C #5 — this surface had ZERO analytics. A silently-failing
+    // restore was indistinguishable from nobody tapping it, on a path that is
+    // both a churn risk and a support burden. Wrapped like every other
+    // emission on this screen — a throw here must never abort the restore.
+    try {
+      ref.read(analyticsProvider).track(AnalyticsEvents.restoreStarted);
+    } catch (_) {}
+
     try {
       final premiumActive = await PurchaseService().restorePurchases();
+      // Completed either way — a restore that finds NO entitlement is a
+      // genuinely different outcome from one that finds a subscription, and
+      // must not collapse into the same signal as a thrown error below.
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.restoreCompleted,
+          properties: {AnalyticsEvents.propPremiumActive: premiumActive},
+        );
+      } catch (_) {}
       if (!premiumActive) {
         if (mounted) {
           setState(() => _errorMessage = _missingRestoreEntitlementMessage);
@@ -884,6 +901,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       if (!mounted) return;
       await _completePurchaseFlow();
     } catch (_) {
+      try {
+        ref.read(analyticsProvider).track(
+          AnalyticsEvents.restoreFailed,
+          properties: {
+            AnalyticsEvents.propReason:
+                AnalyticsEvents.storePurchaseFailedReasonUnknown,
+          },
+        );
+      } catch (_) {}
       if (mounted) setState(() => _errorMessage = _restoreFailedMessage);
     } finally {
       if (mounted) setState(() => _restoring = false);

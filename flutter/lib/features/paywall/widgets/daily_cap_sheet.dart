@@ -256,6 +256,29 @@ class DailyCapSheet extends StatelessWidget {
         !isPremium && (reasonSettlesIt || await resolveNewCohortForSheet());
     if (!context.mounted) return;
 
+    // Mirrors `_isPremiumFairUse` on the widget: a caller can pass
+    // `isPremium: false` alongside `gateReason: premiumFairUse` (it resolved
+    // the reason but not premium separately), and that combination renders
+    // the silent no-CTA variant just as much as `isPremium: true` does. Every
+    // analytics gate below has to agree with what actually renders, not just
+    // with the raw parameter.
+    final effectivePremium =
+        isPremium || gateReason == GateReason.premiumFairUse;
+
+    // Impression (W6 Wave C, S2). Gated on `!effectivePremium`: the premium
+    // fair-use variant sells nothing and has no CTA, so there is no upgrade
+    // to divide this impression by, and counting it would pollute the
+    // free-tier funnel's denominator with subscribers.
+    if (!effectivePremium) {
+      final reasonWire =
+          gateReason == null ? null : gateReasonWireValue(gateReason);
+      onAnalyticsEvent?.call(AnalyticsEvents.capSheetShown, {
+        AnalyticsEvents.propFeature: _featureKey(feature),
+        if (reasonWire != null) AnalyticsEvents.propReason: reasonWire,
+        AnalyticsEvents.propSheet: AnalyticsEvents.sheetDailyCap,
+      });
+    }
+
     // STATE D takes precedence over the token-bypass slot — when the user
     // qualifies for the Day-1 freebie, the sheet shows ONLY the freebie CTA
     // (the paid-bypass slot is hidden so we don't ask someone to spend
@@ -279,16 +302,57 @@ class DailyCapSheet extends StatelessWidget {
         tokenBalance != null &&
         bypassesUsedToday != null;
     if (willRenderStateD) {
+      // W6 Wave C #6 — the `reel_v1` bypass assert. `willRenderStateD`
+      // already carries `!newTier` in its own definition above; this makes
+      // that invariant break LOUDLY (an assertion failure in debug/test) if
+      // a future edit ever drops the clause, instead of silently inflating a
+      // bypass-offer funnel that cannot convert for this cohort — the bypass
+      // does not exist for `reel_v1` (W5 D.4).
+      assert(
+        !newTier,
+        'first_bypass_offered must be unreachable when newTier is true — '
+        'the bypass mechanic does not exist for reel_v1 (W5 D.4)',
+      );
       onAnalyticsEvent?.call(AnalyticsEvents.firstBypassOffered, {
         'feature': _featureKey(feature),
       });
     } else if (willRenderBypassSlot) {
+      assert(
+        !newTier,
+        'ai_bypass_offered must be unreachable when newTier is true — '
+        'the bypass mechanic does not exist for reel_v1 (W5 D.4)',
+      );
       onAnalyticsEvent?.call(AnalyticsEvents.aiBypassOffered, {
         'feature': _featureKey(feature),
         'token_balance': tokenBalance,
         'bypasses_used_today': bypassesUsedToday,
       });
     }
+
+    // Dismissal reconciliation (W6 Wave C, S2) — transplanted from
+    // `LapsedTrialSheet.show`'s `fireDismissOnce`, generalized from
+    // "upgraded" to `actionTaken`: any CTA that sends the user somewhere
+    // other than walking away (the upgrade tap, the token bypass, the Day-1
+    // freebie claim) must suppress the dismissal, not just the upgrade tap.
+    // `showModalBottomSheet`'s returned Future completes identically whether
+    // the route was popped by the secondary button, a barrier tap, a
+    // swipe-down, or Android back — there is no public signal that
+    // distinguishes those three from each other, so only the explicit
+    // button path is labelled `button` below; the rest collapse to one
+    // `dismissed` bucket rather than fabricating a distinction the platform
+    // does not expose (same posture as `LapsedTrialSheet`'s own test for
+    // this, which pops the route directly to stand in for all three).
+    var actionTaken = false;
+    var dismissFired = false;
+    void fireDismissOnce(String method) {
+      if (effectivePremium || actionTaken || dismissFired) return;
+      dismissFired = true;
+      onAnalyticsEvent?.call(AnalyticsEvents.capSheetDismissed, {
+        AnalyticsEvents.propSheet: AnalyticsEvents.sheetDailyCap,
+        AnalyticsEvents.propMethod: method,
+      });
+    }
+
     return showModalBottomSheet<void>(
       context: context,
       // Push on the ROOT navigator with a named route so the singleton
@@ -307,23 +371,39 @@ class DailyCapSheet extends StatelessWidget {
         return DailyCapSheet(
           feature: feature,
           headlineOverride: headlineOverride,
-          onBypassRequested: onBypassRequested,
+          onBypassRequested: onBypassRequested == null
+              ? null
+              : (f) {
+                  actionTaken = true;
+                  onBypassRequested(f);
+                },
           tokenBalance: tokenBalance,
           bypassesUsedToday: bypassesUsedToday,
           isPremium: isPremium,
           firstBypassAvailable: firstBypassAvailable,
-          onFirstBypassRequested: onFirstBypassRequested,
+          onFirstBypassRequested: onFirstBypassRequested == null
+              ? null
+              : (f) {
+                  actionTaken = true;
+                  onFirstBypassRequested(f);
+                },
           userDisplayName: userDisplayName,
           isNewCohort: newTier,
           gateReason: gateReason,
           onUpgrade: () {
+            actionTaken = true;
             Navigator.of(sheetContext).pop();
             onUpgrade();
           },
-          onDismiss: () => Navigator.of(sheetContext).pop(),
+          onDismiss: () {
+            fireDismissOnce(AnalyticsEvents.methodButton);
+            Navigator.of(sheetContext).pop();
+          },
         );
       },
-    );
+    ).then((_) {
+      fireDismissOnce(AnalyticsEvents.methodDismissed);
+    });
   }
 
   /// Mirrors `GatingService._bypassFeatureKey` — kept duplicated rather than

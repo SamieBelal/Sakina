@@ -543,6 +543,14 @@ void main() {
         AnalyticsEvents.placementPostTourSoft);
     expect(dismissed.props[AnalyticsEvents.propArm],
         AnalyticsEvents.armUnassigned);
+
+    // W6 Wave C, D5 test table — `paywall_closed` fires from EVERY placement
+    // dismiss (see `_doClose`), including this one; `soft_gate_dismissed` is
+    // the surface-specific sibling, not a replacement.
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull);
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementPostTourSoft);
   });
 
   testWidgets(
@@ -577,6 +585,45 @@ void main() {
     expect(closed, isNotNull, reason: 'the ✕ emits paywall_closed');
     expect(closed!.props[AnalyticsEvents.propPlacement],
         AnalyticsEvents.placementSoftInApp);
+  });
+
+  testWidgets(
+      'dismiss of the onboarding ceremony placement → '
+      'paywall_closed{placement: onboarding}', (tester) async {
+    // W6 Wave C, D5 test table — the ceremony is the one placement not
+    // already covered above (post_tour_soft, soft_in_app). `hard_wall` has
+    // no ✕ at all (hardGate removes it — see PaywallScreen.hardGate doc) so
+    // it cannot reach `_doClose` through the UI and is not exercised here.
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.onboarding),
+    );
+    await tester.pumpAndSettle();
+
+    // Walk the 3-page ceremony to the final plan-select page, where the ✕
+    // lives — same walk as the CTA-tap test above.
+    for (var i = 0; i < 2; i++) {
+      await tapVisible(
+        tester,
+        find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // Select Weekly first so the annual→weekly exit-offer sheet is NOT
+    // eligible and ✕ goes straight to `_doClose` — same reasoning as the
+    // softInApp dismiss test above (the default selection is annual).
+    await tapVisible(tester, find.textContaining('Weekly —'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PaywallCloseButton));
+    await tester.pump();
+
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull, reason: 'the ceremony ✕ emits paywall_closed');
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementOnboarding);
+    expect(analytics.firstOrNull(AnalyticsEvents.softGateDismissed), isNull,
+        reason: 'the ceremony is not a post-tour soft gate');
   });
 
   testWidgets('safety valve emits paywall_safety_valve_used with placement',

@@ -413,32 +413,58 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
   }
 
   Future<void> _restorePurchases() async {
+    // W6 Wave C #5 — this surface had ZERO analytics. `_analytics` is the
+    // widget-outliving capture (see the field doc) so these emits are safe
+    // even if the user navigates away mid-restore.
+    _analytics.track(AnalyticsEvents.restoreStarted);
     bool success;
     try {
       success = await PurchaseService().restorePurchases();
     } on PlatformException catch (error) {
       final code = PurchasesErrorHelper.getErrorCode(error);
       if (code == PurchasesErrorCode.purchaseCancelledError) return;
+      _analytics.track(
+        AnalyticsEvents.restoreFailed,
+        properties: {
+          AnalyticsEvents.propReason:
+              AnalyticsEvents.storePurchaseFailedReasonPlatform,
+        },
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, 
+        const SnackBar(duration: kSnackBarDuration,
           content: Text('Restore failed. Please try again.'),
         ),
       );
       return;
     } catch (_) {
+      _analytics.track(
+        AnalyticsEvents.restoreFailed,
+        properties: {
+          AnalyticsEvents.propReason:
+              AnalyticsEvents.storePurchaseFailedReasonUnknown,
+        },
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, 
+        const SnackBar(duration: kSnackBarDuration,
           content: Text('Restore failed. Please try again.'),
         ),
       );
       return;
     }
+    // Completed either way — a restore that finds NO entitlement is a
+    // genuinely different outcome from one that finds a subscription (see
+    // `restoreCompleted` doc), so this fires before the `!success` branch
+    // returns, not only on the happy path.
+    _analytics.track(
+      AnalyticsEvents.restoreCompleted,
+      properties: {AnalyticsEvents.propPremiumActive: success},
+    );
     if (!success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, 
+        const SnackBar(duration: kSnackBarDuration,
           content: Text('No active premium subscription was found to restore.'),
         ),
       );

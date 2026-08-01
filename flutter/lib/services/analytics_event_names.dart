@@ -1277,7 +1277,9 @@ abstract final class AnalyticsEvents {
   /// [propSheet] and [propMethod].
   ///
   /// **Must fire exactly once across all four dismissal routes** (button,
-  /// scrim tap, swipe-down, Android back). Copy `LapsedTrialSheet.show`'s
+  /// scrim tap, swipe-down, Android back) — see [propMethod] for why "four
+  /// routes" nonetheless yields two reportable values. Copy
+  /// `LapsedTrialSheet.show`'s
   /// `fireDismissOnce` reconciliation — an undercounted dismissal against an
   /// already-fired impression makes every rate computed from the pair wrong.
   static const String capSheetDismissed = 'cap_sheet_dismissed';
@@ -1288,8 +1290,34 @@ abstract final class AnalyticsEvents {
   static const String sheetDailyCap = 'daily_cap';
   static const String sheetWarmupExhausted = 'warmup_exhausted';
 
-  /// How a sheet was closed: `button` | `scrim` | `swipe` | `back`.
+  /// How a sheet was closed: [methodButton] or [methodDismissed]. **Two values,
+  /// not four**, and the reason is a framework constraint rather than a
+  /// shortcut.
+  ///
+  /// A sheet can be closed four ways — the CTA, a scrim tap, a swipe-down, and
+  /// Android back — but `showModalBottomSheet` completes its route future
+  /// *identically* for the last three. Its public API exposes no way to tell
+  /// them apart, so a literal `scrim` / `swipe` / `back` split would require
+  /// intercepting gestures at the route level: real work, real regression risk,
+  /// on a wave whose job is to measure rather than to change behaviour.
+  ///
+  /// This doc originally promised four values, before the code existed. It was
+  /// wrong. Recorded here rather than quietly narrowed, so nobody "restores"
+  /// the missing three and ships strings that cannot be produced.
+  ///
+  /// The distinction that actually earns its place is kept: an explicit
+  /// decline ([methodButton]) versus getting out of the way
+  /// ([methodDismissed]). Those are different intents. Which flavour of
+  /// getting-out-of-the-way is not.
   static const String propMethod = 'method';
+
+  /// The user pressed the sheet's own dismiss/secondary control — an explicit
+  /// decline.
+  static const String methodButton = 'button';
+
+  /// Scrim tap, swipe-down, or Android back. Indistinguishable from each other
+  /// through `showModalBottomSheet`; see [propMethod].
+  static const String methodDismissed = 'dismissed';
 
   /// Restore Purchases was tapped. Previously untracked entirely, which made a
   /// silently-failing restore indistinguishable from nobody tapping it — on a

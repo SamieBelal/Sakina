@@ -25,6 +25,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:sakina/features/store/screens/store_screen.dart';
+import 'package:sakina/services/analytics_events.dart';
+import 'package:sakina/services/analytics_provider.dart';
+import 'package:sakina/services/analytics_service.dart';
 import 'package:sakina/services/premium_grants_service.dart';
 import 'package:sakina/services/public_catalog_service.dart';
 import 'package:sakina/services/purchase_service.dart';
@@ -32,6 +35,26 @@ import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/widgets/summary_metric_card.dart';
 
 import '../../support/fake_supabase_sync_service.dart';
+
+/// Records every tracked event so the restore-purchases analytics (W6 Wave C
+/// #5) can be asserted without a live Mixpanel. Mirrors
+/// `paywall_placement_analytics_test.dart`'s `RecordingAnalyticsService`.
+class _RecordingAnalyticsService extends AnalyticsService {
+  final List<({String event, Map<String, dynamic> props})> events = [];
+
+  @override
+  void track(String event, {Map<String, dynamic>? properties}) {
+    events.add((event: event, props: properties ?? const {}));
+  }
+
+  @override
+  void timeEvent(String event) {}
+
+  Iterable<({String event, Map<String, dynamic> props})> withName(
+    String name,
+  ) =>
+      events.where((e) => e.event == name);
+}
 
 // `purchases_flutter` exposes static methods (`Purchases.getCustomerInfo`)
 // that bypass our PurchaseService DI seam. After the 2026-04-28 fix the
@@ -146,6 +169,7 @@ void main() {
 
   late FakeStorePurchaseService purchaseService;
   late FakeSupabaseSyncService fakeSync;
+  late _RecordingAnalyticsService analytics;
 
   // Per-test list of consumable transactions to return from the mocked
   // `Purchases.getCustomerInfo()`. Tests append to this when the purchase
@@ -205,6 +229,7 @@ void main() {
     purchaseService = FakeStorePurchaseService();
     PurchaseService.debugSetOverride(purchaseService);
     debugSetPremiumGrantPurchaseService(purchaseService);
+    analytics = _RecordingAnalyticsService();
 
     // Default: return a CustomerInfo built from `mockedTransactions`.
     // §11-G appends the just-purchased SKU to that list before tapping
@@ -282,6 +307,7 @@ void main() {
         // instance so disposal stays scoped.
         publicCatalogRegistryProvider
             .overrideWith((ref) => PublicCatalogRegistry()),
+        analyticsProvider.overrideWithValue(analytics),
       ],
       child: MaterialApp.router(routerConfig: buildRouter()),
     );
@@ -440,6 +466,98 @@ void main() {
         findsOneWidget,
       );
       expect(purchaseService.restoreCalls, 1);
+
+      // W6 Wave C #5 — this surface had ZERO analytics before. A restore
+      // that succeeds and finds NO entitlement is a genuinely different
+      // outcome from one that finds a subscription, so it must complete,
+      // not fail — mutation: collapsing this into `restore_failed`.
+      expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+      final completed = analytics.withName(AnalyticsEvents.restoreCompleted);
+      expect(completed, hasLength(1));
+      expect(completed.single.props[AnalyticsEvents.propPremiumActive], false);
+      expect(analytics.withName(AnalyticsEvents.restoreFailed), isEmpty);
+    });
+  });
+
+  group('§11-I restore analytics — W6 Wave C #5', () {
+    testWidgets(
+        'restore returns true → restore_started then '
+        'restore_completed{premium_active: true}', (tester) async {
+      purchaseService.restoreResult = true;
+
+      await pumpStore(tester);
+      await tapVisible(tester, find.text('Restore purchase'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+
+      expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+      final completed = analytics.withName(AnalyticsEvents.restoreCompleted);
+      expect(completed, hasLength(1));
+      expect(completed.single.props[AnalyticsEvents.propPremiumActive], true);
+      expect(analytics.withName(AnalyticsEvents.restoreFailed), isEmpty);
+    });
+
+    testWidgets(
+        'a cancelled restore (PlatformException, purchaseCancelledError) '
+        'emits NEITHER restore_completed NOR restore_failed — mirrors the '
+        'silent-return UX for a user-initiated cancel', (tester) async {
+      purchaseService.restoreError = PlatformException(
+        code: PurchasesErrorCode.purchaseCancelledError.index.toString(),
+        message: 'cancelled',
+      );
+
+      await pumpStore(tester);
+      await tapVisible(tester, find.text('Restore purchase'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+      expect(analytics.withName(AnalyticsEvents.restoreCompleted), isEmpty);
+      expect(analytics.withName(AnalyticsEvents.restoreFailed), isEmpty);
+    });
+
+    testWidgets(
+        'a platform-error restore emits restore_failed{reason: platform} — '
+        'mutation: swapping in the "unknown" reason constant would break this',
+        (tester) async {
+      purchaseService.restoreError = PlatformException(
+        code: PurchasesErrorCode.storeProblemError.index.toString(),
+        message: 'boom',
+      );
+
+      await pumpStore(tester);
+      await tapVisible(tester, find.text('Restore purchase'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+      final failed = analytics.withName(AnalyticsEvents.restoreFailed);
+      expect(failed, hasLength(1));
+      expect(
+        failed.single.props[AnalyticsEvents.propReason],
+        AnalyticsEvents.storePurchaseFailedReasonPlatform,
+      );
+      expect(analytics.withName(AnalyticsEvents.restoreCompleted), isEmpty);
+    });
+
+    testWidgets(
+        'a non-platform restore error emits restore_failed{reason: unknown}',
+        (tester) async {
+      purchaseService.restoreError = StateError('boom');
+
+      await pumpStore(tester);
+      await tapVisible(tester, find.text('Restore purchase'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(analytics.withName(AnalyticsEvents.restoreStarted), hasLength(1));
+      final failed = analytics.withName(AnalyticsEvents.restoreFailed);
+      expect(failed, hasLength(1));
+      expect(
+        failed.single.props[AnalyticsEvents.propReason],
+        AnalyticsEvents.storePurchaseFailedReasonUnknown,
+      );
     });
   });
 
@@ -521,6 +639,11 @@ void main() {
 
       expect(find.text('Premium restored!'), findsOneWidget);
       expect(purchaseService.restoreCalls, 1);
+      expect(
+        analytics.withName(AnalyticsEvents.restoreCompleted).single
+            .props[AnalyticsEvents.propPremiumActive],
+        true,
+      );
     });
   });
 }
