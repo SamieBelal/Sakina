@@ -56,7 +56,6 @@ void main() {
           body: DailyLoopCtaCard(
             state: DailyLoopCtaState.notStarted,
             onStart: () {},
-            onReroll: () {},
           ),
         ),
       ));
@@ -74,7 +73,6 @@ void main() {
           body: DailyLoopCtaCard(
             state: DailyLoopCtaState.inProgress,
             onStart: () {},
-            onReroll: () {},
           ),
         ),
       ));

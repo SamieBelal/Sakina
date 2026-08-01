@@ -35,16 +35,10 @@ import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/daily_question_gate.dart';
 import 'package:sakina/services/launch_gate_service.dart';
 import 'package:sakina/services/lapsed_trial_service.dart';
-import 'package:sakina/services/daily_usage_service.dart' as daily_usage;
-import 'package:sakina/services/gating_service.dart';
-import 'package:sakina/services/purchase_service.dart';
-import 'package:sakina/services/token_service.dart';
 import 'package:sakina/features/paywall/cancellation_feedback_presenter.dart';
 import 'package:sakina/features/paywall/lapsed_soft_gate_analytics.dart';
 import 'package:sakina/features/paywall/paywall_navigation.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
-import 'package:sakina/features/paywall/upgrade_callback.dart';
-import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/cancellation_feedback_provider.dart';
@@ -119,14 +113,6 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   bool _showDiscoveryQuiz = true;
   bool _rewardCalendarExpanded = false;
   bool _launchGateReady = false;
-
-  /// Synchronous re-entry guard for the "Seek Another Name" CTA. Flipped
-  /// true at the very top of the GestureDetector onTap BEFORE any await, so
-  /// a second tap that lands while the first is still inside
-  /// `GatingService.canUse()` is rejected. Mirrors the duas/reflect D-E5
-  /// `_submitInFlight` regression fix — without it both taps pass the gate
-  /// and `markUsed` fires twice, advancing `discover_name_uses` by 2.
-  bool _discoverInFlight = false;
 
   /// True while the streak-rescue sheet is on screen — see
   /// [_maybeShowStreakRescue]. Resets when the sheet closes (NOT a permanent
@@ -410,8 +396,10 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
               //    user here with the loop still live, and this card is the only
               //    way back in. A defer into a below-the-fold CTA is a defer
               //    into a dead end.
+              // Its own trailing spacer rides inside the builder, so that when
+              // the day completes the CTA and the gap below it disappear
+              // together instead of leaving a hole (2026-08-01, founder).
               _buildMuhasabahCta(state),
-              const SizedBox(height: AppSpacing.md),
 
               // 3. Ramadan / Eid Sakina Gift card (calendar-anchored). Renders
               //    nothing outside occasion windows; gated by Env kill switch
@@ -954,81 +942,37 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         .slideY(begin: 0.03, end: 0, duration: 500.ms, delay: 100.ms);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Muhasabah Row (inside dashboard card)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  void _showDiscoverGateSheet(BuildContext context, GateReason reason) {
-    final sheetContext = context;
-    () async {
-      final balance = (await getTokens()).balance;
-      final bypassesUsed = await daily_usage.getDiscoverNameBypassesUsedToday();
-      final premium = await PurchaseService().isPremium();
-      final firstBypassEligible = await GatingService().firstBypassEligible();
-      final displayName = await GatingService().displayName();
-      if (!sheetContext.mounted) return;
-      final notifier = ref.read(dailyLoopProvider.notifier);
-      DailyCapSheet.show(
-        sheetContext,
-        feature: GatedFeature.discoverName,
-        gateReason: reason,
-        tokenBalance: balance,
-        bypassesUsedToday: bypassesUsed,
-        isPremium: premium,
-        onBypassRequested: (_) async {
-          // After a successful bypass discover, route into the muhasabah
-          // screen so the gacha animation plays. Mirrors the natural-flow
-          // sequencing in this card.
-          await notifier.discoverNameWithBypass();
-          // Tagged even though the reveal has already run and the question will
-          // not render: an untagged push reads as `day_open`, and the tag costs
-          // nothing when no event follows it.
-          if (sheetContext.mounted) {
-            sheetContext.push(
-                '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
-          }
-        },
-        firstBypassAvailable: firstBypassEligible,
-        userDisplayName: displayName,
-        onFirstBypassRequested: (_) async {
-          await notifier.discoverNameWithFirstBypass();
-          if (sheetContext.mounted) {
-            sheetContext.push(
-                '/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
-          }
-        },
-        // Premium users hitting the 30/day fair-use ceiling see the same sheet
-        // as free users hitting their 1/day cap, but the upgrade CTA must be a
-        // no-op for them — they're already paying. `buildPaywallUpgradeCallback`
-        // returns no-op for `premiumFairUse` and pushes /paywall otherwise.
-        // Mirrors the muhasabah_screen completed-state CTA.
-        onUpgrade: buildPaywallUpgradeCallback(
-          reason: reason,
-          pushPaywall: () {
-            if (mounted) {
-              pushPaywall(
-                context,
-                placement: PaywallPlacement.softInApp,
-                valueLine:
-                    softGateValueLine(GatedFeature.discoverName, reason),
-              );
-            }
-          },
-        ),
-      );
-    }();
-  }
-
   /// The home screen's primary daily CTA (W4 Wave 5).
   ///
-  /// The visual design lives in [DailyLoopCtaCard]; gating stays here, because
-  /// `_discoverInFlight` is State, the cap sheet needs this screen's context,
-  /// and the card is deliberately pure presentation.
+  /// The visual design lives in [DailyLoopCtaCard]; navigation stays here,
+  /// because the card is deliberately pure presentation.
+  ///
+  /// **No gating runs on this screen any more.** It used to host the metered
+  /// re-roll (`_rerollName` + `_showDiscoverGateSheet` + a `_discoverInFlight`
+  /// guard) behind the completed card's "Meet another Name". All of it was
+  /// deleted with that card on 2026-08-01 — the same gated action survives, and
+  /// always did, as the primary CTA of the muḥāsabah completion screen
+  /// ("Seek Another Name", muhasabah_screen.dart), which is where the user
+  /// stands the moment the loop closes. Two entry points into one gated action
+  /// became one; nothing about the gate, the cap sheet or the `rerollPremium`
+  /// wall changed. Do not rebuild a second copy here.
   Widget _buildMuhasabahCta(DailyLoopState state) {
-    final DailyLoopCtaState ctaState;
+    // Done for today — the slot closes entirely (2026-08-01, founder). This
+    // returns BEFORE the TourAnchor and the fade-in on purpose: an anchor
+    // wrapping a zero-size child still registers `beginMuhasabahCta`, and the
+    // tour would spotlight a 0x0 rect. Both tour steps that use that anchor are
+    // the FIRST step of their tour, so they only ever run against an
+    // uncompleted loop and lose nothing by its absence.
+    //
+    // The trailing spacer is returned from here rather than left as a sibling
+    // in the Column: a sibling `SizedBox` survives this branch and reopens the
+    // gap the card just closed. Same shape as `DuaTimesCard` below.
     if (state.currentStep == DailyLoopStep.completed) {
-      ctaState = DailyLoopCtaState.completed;
-    } else if (state.checkinDone ||
+      return const SizedBox.shrink();
+    }
+
+    final DailyLoopCtaState ctaState;
+    if (state.checkinDone ||
         state.currentStep != DailyLoopStep.checkin) {
       ctaState = DailyLoopCtaState.inProgress;
     } else {
@@ -1040,71 +984,33 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       ctaState = DailyLoopCtaState.notStarted;
     }
 
-    // Tour anchor: same surface and anchorId as before the restructure, still
-    // wrapping every branch so the tour anchors onto whichever face the CTA is
-    // wearing. The id is deliberately NOT renamed alongside the copy — it names
-    // the position on the screen, not the label.
-    return TourAnchor(
-      surface: TourSurface.home,
-      anchorId: 'beginMuhasabahCta',
-      child: DailyLoopCtaCard(
-        state: ctaState,
-        completedName: state.checkinName,
-        onStart: () {
-          HapticFeedback.mediumImpact();
-          // `home_cta`, and this is the tap the defer design is measured on:
-          // `daily_question_shown{entry_source:'home_cta'}` following a
-          // `daily_question_skipped` is the same-day return rate, i.e. whether
-          // "Not right now" is a deferral within the product or a polite exit
-          // from it (plan §9).
-          context.push('/muhasabah?$questionEntryQueryParam='
-              '$questionEntryHomeCta');
-        },
-        onReroll: _rerollName,
-      ),
-    ).animate().fadeIn(duration: 400.ms, delay: 150.ms);
-  }
-
-  /// The metered re-roll behind the completed state's "Meet another Name".
-  ///
-  /// The day's first reveal is free and unmetered; this is the one that is
-  /// gated, so `canUse` is asked BEFORE navigating — a capped user has to meet
-  /// the cap sheet here rather than after being asked what is on their heart.
-  Future<void> _rerollName() async {
-    // Synchronous re-entry guard. A double-tap that lands while the first call
-    // is still inside `GatingService.canUse()` previously passed the gate twice
-    // and fired `markUsed` twice — same shape as the reflect/duas D-E5 race.
-    // Set the flag BEFORE any await; the try/finally clears it on every exit
-    // including early returns.
-    if (_discoverInFlight) return;
-    _discoverInFlight = true;
-    try {
-      HapticFeedback.mediumImpact();
-      final notifier = ref.read(dailyLoopProvider.notifier);
-      final gate = await GatingService().canUse(GatedFeature.discoverName);
-      if (!gate.allowed) {
-        if (mounted) _showDiscoverGateSheet(context, gate.reason);
-        return;
-      }
-      await notifier.resetToday();
-      if (!mounted) return;
-      // `home_cta`. A re-roll re-shows the question (resetToday wipes the day
-      // blob), so this is a second, entirely legitimate `daily_question_shown`
-      // in one local day — which is why the once-per-day debug guard is scoped
-      // to `day_open` and not to the event as a whole.
-      context.push('/muhasabah?$questionEntryQueryParam=$questionEntryHomeCta');
-      // markUsed deliberately does NOT fire here (W4 Wave 1). The gate is asked
-      // at the tap, but the charge belongs to `discoverName()`, which only marks
-      // once a Name has actually been engaged. Tapping through and backing out
-      // must cost nothing.
-      //
-      // The warmup-exhaustion sheet moved with it: `discoverName` parks the
-      // outcome on `DailyLoopState.warmupJustExhausted` and muhasabah_screen's
-      // ref.listen fires the sheet. It has to be that screen — this one is
-      // already behind the pushed route by then.
-    } finally {
-      _discoverInFlight = false;
-    }
+    // Tour anchor: same surface and anchorId as before the restructure. The id
+    // is deliberately NOT renamed alongside the copy — it names the position on
+    // the screen, not the label.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TourAnchor(
+          surface: TourSurface.home,
+          anchorId: 'beginMuhasabahCta',
+          child: DailyLoopCtaCard(
+            state: ctaState,
+            onStart: () {
+              HapticFeedback.mediumImpact();
+              // `home_cta`, and this is the tap the defer design is measured
+              // on: `daily_question_shown{entry_source:'home_cta'}` following a
+              // `daily_question_skipped` is the same-day return rate, i.e.
+              // whether "Not right now" is a deferral within the product or a
+              // polite exit from it (plan §9).
+              context.push('/muhasabah?$questionEntryQueryParam='
+                  '$questionEntryHomeCta');
+            },
+          ),
+        ).animate().fadeIn(duration: 400.ms, delay: 150.ms),
+        const SizedBox(height: AppSpacing.md),
+      ],
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

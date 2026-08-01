@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
-import 'package:sakina/features/progress/widgets/daily_loop_completed_card.dart';
 
 /// The CTA's user-facing labels, in one place.
 ///
@@ -37,7 +36,15 @@ enum DailyLoopCtaState {
   /// Started but not finished (mid-reflection, app backgrounded, etc).
   inProgress,
 
-  /// Today's muḥāsabah is done — see [DailyLoopCompletedCard].
+  /// Today's muḥāsabah is done. **Renders nothing** (2026-08-01, founder): the
+  /// card used to swap to a light-green "Today's muḥāsabah is complete" panel
+  /// that held the same footprint, and the home screen now simply closes the
+  /// slot instead of reporting on finished work.
+  ///
+  /// The state is kept rather than removed because the host still has to
+  /// distinguish it — an unfinished loop and a finished one are different
+  /// things, and collapsing them would make `notStarted` the fallback for a
+  /// completed day, i.e. re-invite a user into a loop they already closed.
   completed,
 }
 
@@ -59,16 +66,14 @@ enum DailyLoopCtaState {
 /// the primary daily CTA, and every unfamiliar term earns one plain line
 /// stating the benefit).
 ///
-/// Pure presentation: gating (`canUse`), the re-entry guard and navigation all
-/// stay on the host screen, which is where the `_discoverInFlight` flag and the
-/// cap sheet live.
+/// Pure presentation: navigation stays on the host screen. Nothing here is
+/// gated any more — the one gated action this card used to host (the re-roll)
+/// left with the completed state on 2026-08-01.
 class DailyLoopCtaCard extends StatelessWidget {
   const DailyLoopCtaCard({
     super.key,
     required this.state,
     required this.onStart,
-    required this.onReroll,
-    this.completedName,
   });
 
   final DailyLoopCtaState state;
@@ -77,18 +82,21 @@ class DailyLoopCtaCard extends StatelessWidget {
   /// [DailyLoopCtaState.inProgress].
   final VoidCallback onStart;
 
-  /// Metered re-roll from the completed state. Host-side this is still gated by
-  /// `canUse` and debounced by `_discoverInFlight`.
-  final VoidCallback onReroll;
-
-  /// Transliteration of the Name met today, shown in the completed state.
-  /// Latin script only — never paired with Arabic inside one `Text`.
-  final String? completedName;
-
   @override
   Widget build(BuildContext context) {
+    // Finished for today: the slot closes. The host short-circuits before
+    // building this at all (so the tour anchor and the fade-in are skipped
+    // too) — this is the second guard, and it is what the widget test drives.
+    //
+    // What left with the old completed panel was "Meet another Name", the
+    // metered re-roll. It is NOT lost: the identical action is the primary CTA
+    // of the muḥāsabah completion screen ("Seek Another Name",
+    // muhasabah_screen.dart), which is the screen the user is standing on the
+    // moment the loop completes, carrying the same `canUse` gate, the same cap
+    // sheet and the same `rerollPremium` wall. The home copy was the second of
+    // two entry points into one gated action, not the only one.
     if (state == DailyLoopCtaState.completed) {
-      return DailyLoopCompletedCard(name: completedName, onReroll: onReroll);
+      return const SizedBox.shrink();
     }
     final resuming = state == DailyLoopCtaState.inProgress;
     return _Invitation(

@@ -57,7 +57,6 @@ void main() {
         DailyLoopCtaCard(
           state: DailyLoopCtaState.notStarted,
           onStart: () {},
-          onReroll: () {},
         ),
       ));
 
@@ -95,7 +94,6 @@ void main() {
         DailyLoopCtaCard(
           state: DailyLoopCtaState.notStarted,
           onStart: () => started++,
-          onReroll: () {},
         ),
       ));
 
@@ -113,7 +111,6 @@ void main() {
         DailyLoopCtaCard(
           state: DailyLoopCtaState.inProgress,
           onStart: () => started++,
-          onReroll: () {},
         ),
       ));
 
@@ -124,123 +121,73 @@ void main() {
     });
   });
 
-  group('the completed state is finished, not empty', () {
-    testWidgets('renders a dignified done state naming the Name met',
-        (tester) async {
+  group('the completed state renders NOTHING (2026-08-01, founder)', () {
+    // The card used to swap to a light-green "Today's muḥāsabah is complete"
+    // panel that kept the same footprint. It is gone: once the day's work is
+    // done the home screen stops reporting on it and the slot closes.
+    //
+    // What that removed, and why nothing was lost: the completed panel hosted
+    // "Meet another Name", the metered re-roll. That same action is the PRIMARY
+    // CTA of the muḥāsabah completion screen ("Seek Another Name",
+    // muhasabah_screen.dart), which is the screen the user is standing on the
+    // instant the loop completes — with the identical `canUse` gate, cap sheet
+    // and `rerollPremium` wall. The home copy was the second of two, not the
+    // only one, so deleting it costs no path and no upsell.
+
+    testWidgets('the card occupies no space at all', (tester) async {
       await tester.pumpWidget(host(
         DailyLoopCtaCard(
           state: DailyLoopCtaState.completed,
-          completedName: 'Al-Wadud',
           onStart: () {},
-          onReroll: () {},
         ),
       ));
 
-      expect(find.text('Today\'s muḥāsabah is complete'), findsOneWidget);
-      expect(find.text('You sat with Al-Wadud.'), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      // Height, not `Size.zero`: the host pins the width at 390 the way the
+      // home Column does, so a collapsed card is 390x0 rather than 0x0.
+      expect(tester.getSize(find.byType(DailyLoopCtaCard)).height, 0,
+          reason: 'a zero-height card is the whole request — anything else '
+              'leaves a gap or a panel where the CTA used to be');
     });
 
-    testWidgets('survives a missing Name without an empty sentence',
-        (tester) async {
+    testWidgets('none of the completed copy survives anywhere', (tester) async {
       await tester.pumpWidget(host(
         DailyLoopCtaCard(
           state: DailyLoopCtaState.completed,
           onStart: () {},
-          onReroll: () {},
         ),
       ));
 
-      expect(find.text('Today\'s muḥāsabah is complete'), findsOneWidget);
+      expect(find.text('Today\'s muḥāsabah is complete'), findsNothing);
       expect(find.textContaining('You sat with'), findsNothing);
+      expect(find.text('Meet another Name'), findsNothing);
+      expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     });
 
-    testWidgets('the re-roll is an explicit target, not the whole card',
+    testWidgets('and it cannot be tapped into the loop by accident',
         (tester) async {
-      var rerolled = 0;
+      // Nothing rendered means nothing to hit — but assert it rather than
+      // infer it, because a zero-size widget can still be hit-testable if
+      // someone wraps it in a behavior-opaque gesture detector later.
       var started = 0;
       await tester.pumpWidget(host(
         DailyLoopCtaCard(
           state: DailyLoopCtaState.completed,
-          completedName: 'Al-Wadud',
           onStart: () => started++,
-          onReroll: () => rerolled++,
         ),
       ));
 
-      // Tapping the headline must NOT re-roll: past the free daily reveal a
-      // re-roll meets the cap sheet and can cost 25 tokens, so it has to be
-      // deliberate.
-      await tester.tap(find.text('Today\'s muḥāsabah is complete'));
-      await tester.pump();
-      expect(rerolled, 0);
+      expect(find.byType(InkWell), findsNothing);
       expect(started, 0);
-
-      await tester.tap(find.text('Meet another Name'));
-      await tester.pump();
-      expect(rerolled, 1,
-          reason: 'the completed state still hosts the metered re-roll — the '
-              'host screen gates it with canUse + _discoverInFlight');
     });
 
-    testWidgets('the re-roll can actually show a ripple', (tester) async {
-      // Regression: the card was a decorated `Container`, so the InkWell's
-      // nearest `Material` ancestor was the Scaffold — and the splash was
-      // painted UNDERNEATH the card's opaque `primaryLight` fill. The tap
-      // worked; the feedback was invisible.
-      //
-      // Untestable by tapping: a splash that paints nowhere still fires
-      // `onTap`, so the tap test above passed throughout. What is testable is
-      // the structural precondition — a `Material` between the card and the
-      // InkWell, with the fill on an `Ink` so it lands on that Material's
-      // canvas rather than over it.
-      await tester.pumpWidget(host(
-        DailyLoopCtaCard(
-          state: DailyLoopCtaState.completed,
-          completedName: 'Al-Wadud',
-          onStart: () {},
-          onReroll: () {},
-        ),
-      ));
-
+    test('the completed card widget is deleted, not merely unused', () {
       expect(
-        find.descendant(
-          of: find.byType(DailyLoopCtaCard),
-          matching: find.byType(Material),
-        ),
-        findsAtLeastNWidgets(1),
-        reason: 'the InkWell needs a Material INSIDE the card, or its ripple '
-            'is drawn on the Scaffold beneath an opaque fill',
+        File('lib/features/progress/widgets/daily_loop_completed_card.dart')
+            .existsSync(),
+        isFalse,
+        reason: 'leaving the widget behind invites it back onto the screen; '
+            'the completion state is the muḥāsabah screen\'s job now',
       );
-      expect(
-        find.descendant(
-          of: find.byType(DailyLoopCtaCard),
-          matching: find.byType(Ink),
-        ),
-        findsOneWidget,
-        reason: 'the fill must be an Ink decoration so it shares the '
-            "Material's canvas with the splash",
-      );
-    });
-
-    testWidgets('the re-roll target clears 44pt', (tester) async {
-      await tester.pumpWidget(host(
-        DailyLoopCtaCard(
-          state: DailyLoopCtaState.completed,
-          onStart: () {},
-          onReroll: () {},
-        ),
-      ));
-
-      final box = tester.getRect(find.text('Meet another Name').hitTestable());
-      final target = tester.getRect(
-        find.ancestor(
-          of: find.text('Meet another Name'),
-          matching: find.byType(ConstrainedBox),
-        ).first,
-      );
-      expect(target.height, greaterThanOrEqualTo(44.0));
-      expect(box.height, lessThanOrEqualTo(target.height));
     });
   });
 
@@ -254,9 +201,7 @@ void main() {
           await tester.pumpWidget(host(
             DailyLoopCtaCard(
               state: state,
-              completedName: 'Ar-Rahman',
               onStart: () {},
-              onReroll: () {},
             ),
             width: 320,
             textScale: scale,
@@ -277,7 +222,6 @@ void main() {
         DailyLoopCtaCard(
           state: DailyLoopCtaState.notStarted,
           onStart: () {},
-          onReroll: () {},
         ),
       ));
 
@@ -380,6 +324,64 @@ void main() {
               'CTA: "$code". That is exactly how the CTA ended up ~800px into '
               'a ~700-760px viewport the first time — not by being moved, but '
               'by being buried. Put it below the CTA instead.');
+    });
+
+    test('the completed slot collapses its SPACER too, not just the card', () {
+      // A zero-height card still leaves a hole if the `SizedBox` that used to
+      // separate it from the gift card is a sibling in the Column. The builder
+      // therefore returns the spacer WITH the card and short-circuits both —
+      // the same pattern DuaTimesCard uses ("collapses to SizedBox.shrink()
+      // (no spacer wasted)") two entries further down the same list.
+      final callSite = source.indexOf('_buildMuhasabahCta(state)');
+      expect(callSite, greaterThan(0));
+      final after = source.substring(
+        callSite + '_buildMuhasabahCta(state)'.length,
+        source.indexOf('const RamadanGiftCard()'),
+      );
+      final code = after
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty && !l.startsWith('//'))
+          .join(' ')
+          .replaceAll(RegExp(r'[,\s]'), '');
+
+      expect(code, isEmpty,
+          reason: 'a sibling spacer after the CTA survives the completed '
+              'state and reopens the gap the founder asked to close. Move it '
+              'inside _buildMuhasabahCta so both disappear together. Found: '
+              '"$code"');
+    });
+
+    test('the completed branch renders no card, no anchor, no animation', () {
+      // Short-circuiting INSIDE DailyLoopCtaCard alone is not enough: the
+      // builder wraps it in a TourAnchor (which would register a 0x0 key for
+      // `beginMuhasabahCta`, giving the tour a spotlight over nothing) and a
+      // fadeIn. Both must be skipped, so the guard belongs at the top of the
+      // builder.
+      final start = source.indexOf('Widget _buildMuhasabahCta');
+      expect(start, greaterThan(0));
+      // The whole builder, not a fixed byte window — a window that stops short
+      // of the TourAnchor reports index -1 and the ordering assertion passes
+      // for the wrong reason.
+      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      final anchor = body.indexOf('TourAnchor(');
+      final guard = body.indexOf('DailyLoopStep.completed');
+
+      expect(anchor, greaterThan(0),
+          reason: 'the builder must still anchor the unfinished faces for the '
+              'tour — if this is -1 the ordering check below is vacuous');
+
+      expect(guard, greaterThan(0),
+          reason: 'the builder must test for the completed step');
+      expect(guard, lessThan(anchor),
+          reason: 'the completed check must run BEFORE the TourAnchor is '
+              'built, or the tour anchors onto a zero-size box');
+      expect(
+        RegExp(r'DailyLoopStep\.completed[\s\S]{0,200}?SizedBox\.shrink\(\)')
+            .hasMatch(body),
+        isTrue,
+        reason: 'the completed branch must return SizedBox.shrink()',
+      );
     });
 
     test('the 11px question subtitle is gone', () {

@@ -386,3 +386,5 @@ backfill (`user_tokens` retained read-only as the audit trail) → client swap +
 Store SKU retirement (gated on a Mixpanel `pack_purchased` check, test IDs
 excluded) → one plain sentence in the softener notice → drop the table one
 release later, inside the legacy-deletion sweep already scheduled for then.
+
+## Journal refactor to follow couples app UI
