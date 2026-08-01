@@ -1,8 +1,8 @@
 # Funnel analytics: feature-flag dimensions & how to query
 
 **Audience:** anyone (human or AI agent) querying Mixpanel for the onboarding → guided tour → paywall funnel.
-**Last updated:** 2026-07-30 — added **the daily question funnel (One Ship W4)**: six new events, `entry_source`, `attempt`, the bucket boundaries, and the `check_in_completed` extension (`path` is still `'discover'`). Two caveats to read before trusting a number: abandon is not one minus the answer rate, and in the `attempt ≥ 2` slice `answered` exceeds `shown` by design. Previous update: 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
-**Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md).
+**Last updated:** 2026-08-01 — added **One Ship W6 (instrumentation)**: the six new super properties and their provenance/coverage caveats, `acquisition_problem_category` vs `problem_category` side by side, `step_name` as onboarding's join key, the `free_tier_entered` placement caveat, two previously-undocumented super properties (`first_open_date`, `onboarding_completed`), `ai_taste_consumed`/`daily_cap_hit{reason}`, the cap/warmup sheet impression-dismissal pair, the Restore trio, `reflect_started`/`_completed`, `dua_read`, `names_browse_viewed`, the Wave F intake-block events, the honest drop-off funnel (`step_viewed` vs `step_completed`), a satisfaction readout, the RC↔Mixpanel reconciliation query, the `names_met` people property, and the ASC Campaign Links runbook. Plan: [`2026-08-01-one-ship-06-instrumentation.md`](../superpowers/plans/2026-08-01-one-ship-06-instrumentation.md). Previous update: 2026-07-30 — added **the daily question funnel (One Ship W4)**: six new events, `entry_source`, `attempt`, the bucket boundaries, and the `check_in_completed` extension (`path` is still `'discover'`). Two caveats to read before trusting a number: abandon is not one minus the answer rate, and in the `attempt ≥ 2` slice `answered` exceeds `shown` by design. Previous update: 2026-07-30 — added the `surface` property map (four screens, one beat-flow event set; `reveal_deck_*` must be filtered by it). Previous update: 2026-07-25 — `flag_tour_ab` RETIRED (A/B concluded; `tour_ab_enabled` key deleted from app_config and the super property unregistered from installs). It remains valid ONLY as a filter on historical events (pre-2026-07-25); never re-add instrumentation for it. Previous update: 2026-06-15 (Phases 1–3 shipped).
+**Plan of record:** [`docs/superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md`](../superpowers/plans/2026-06-15-analytics-funnel-instrumentation.md); W6 plan: [`docs/superpowers/plans/2026-08-01-one-ship-06-instrumentation.md`](../superpowers/plans/2026-08-01-one-ship-06-instrumentation.md).
 **Mixpanel project:** `4013350`. **RevenueCat project:** `proje6681c8c`.
 
 ---
@@ -33,9 +33,54 @@ Registered at app boot (`lib/main.dart`) + tour start, so they ride on **every**
 | `app_version` | string | `package_info_plus` (e.g. `1.1.0+2`) | release-over-release comparison |
 | `platform` | string | `defaultTargetPlatform` | iOS / Android |
 | `is_premium` | bool | `PurchaseService.isPremium()` (boot + refresh on `premiumStateProvider` change) | exclude already-converted users from funnels |
+| `install_id` | string (uuid) | `InstallIdService`, minted at first boot, registered before `app_opened` | the join key across Mixpanel and RevenueCat — see the reconciliation query below. NOT an identity alias (`$mixpanelDistinctId` changes at `identify()`; this never does). A reinstall mints a new id, so reinstalls read as fresh arrivals. |
+| `onboarding_flow` | string | `reel_v1` \| the legacy kill-switch value; registered inside the onboarding `_flowFuture` continuation, **before** `onboarding_started` (One Ship W6-A) | which onboarding experience this user actually ran. Returning users get it at boot, mirrored from the server via `hydrateUserDataFromBatchRpc`. Never union with the frozen `paywall_exp_arm`. |
+| `contract` | string | `problem` \| `sign` (`HookContract`), registered when the hook chip/typed answer resolves | **the primary reel-of-origin dimension (D3)** — behavioural, taken at arrival, near-total coverage (typed input always resolves to `problem`). Two values only: separates the two shipped reels, not any future reel making the same promise. |
+| `acquisition_problem_category` | string | the 7-chip taxonomy, registered alongside `contract` | what the user **arrived with**. See "`acquisition_problem_category` vs `problem_category`" below before building anything on it. |
+| `reel_hook` / `reel_hook_source` | string / string | `unknown` at onboarding entry → `deep_link` (from a drained `sakina://reel/<id>`) → `self_report` (source-question screen, index 13) | always read together — see the provenance section below. |
+| `free_tier_cohort` | string | `reel_v1` \| `legacy`, registered from `GatingService.onProfileHydrated` (NOT at boot) | which free-tier economy governs this user. **Cannot exist on a fresh install until the first `sync_all_user_data`** — expect it absent on the earliest events of a brand-new user's first session, by construction. |
+| `first_open_date` ⚠️ undocumented until now | string (ISO 8601) | `main.dart`, `registerBootstrapAnalytics`, `setSuperPropertiesOnce` | first-open cohort dating. Was live and unlisted here before this update. |
+| `onboarding_completed` ⚠️ undocumented until now, and NOT an event | bool | `onboarding_screen.dart`, set `true` on first completion | **a durable boolean, not an event** — it reads `true` forever after the first completion. Trivially mistaken for `onboarding_completed` the event (there isn't one under that name); the completion event is `onboarding_completed`'s sibling in the canonical table below, which is a genuinely different thing carrying total duration. Don't build a "completions over time" chart on the super property; it never resets. |
 
 ### The experience matrix
 Today's production experience = `flag_onboarding_trim=true` + `flag_hard_paywall=true` + `tour_variant=slim` (A/B off). The flags interact — most importantly **`flag_hard_paywall` moves where the paywall lives**, so paywall analysis ALSO needs the `placement` event property (below), not just the flag.
+
+---
+
+## W6 super properties — provenance and coverage (read before segmenting by any of these)
+
+Registered going forward from the point below — Mixpanel never backfills, so an
+event before a property's registration point simply lacks it. That is expected,
+not a bug, for every row here.
+
+| Property | Absent before | Present from | Why |
+|---|---|---|---|
+| `onboarding_flow` | the `_flowFuture` continuation resolves | first onboarding event on new installs; boot (mirrored from server) for returning users | registered **above** `_emitEntryFunnelEvents` specifically so `onboarding_started` — the funnel's widest event — carries it |
+| `reel_hook` / `reel_hook_source` | same as above | same as above, value `unknown`/`unknown` until upgraded | registered as `unknown`, not omitted, at entry — see below for why that distinction matters |
+| `contract` / `acquisition_problem_category` | onboarding entry through the hook screen | the moment the chip/typed answer resolves (screen 0 of the reel flow) | can't exist before the user has answered anything |
+| `free_tier_cohort` | app boot, and the whole first session before the first successful sync | after the first `sync_all_user_data` completes | **by construction** — it is a user-scoped value written only by `GatingService.hydrateFromProfile`; there is no way to know it sooner. Check coverage on `paywall_viewed` and `daily_cap_hit`, not on the earliest onboarding events. |
+
+**`reel_hook` / `reel_hook_source` are `unknown`, never absent, before the source screen.** If they were only set once learned, they would be *absent* — not `unknown` — on every event before onboarding index 13, which is most of the funnel. An absent property and an `unknown` value break down differently in Mixpanel, and only `unknown` is honest about "we don't have a data point yet" vs. "no data was possible."
+
+**T0+24h check (someone has to run this manually — it is not automatable from here):** the share of `onboarding_started` carrying `onboarding_flow`, `contract` and `reel_hook_source`. Anything below ~95% is an ordering bug, not sampling noise — a debug-only assert in `AnalyticsService.track()` guards this in dev/test builds, but production coverage still has to be eyeballed once.
+
+### `acquisition_problem_category` vs `problem_category` — same vocabulary, different question
+
+Both use the identical 7-chip taxonomy (`anxiety`/`heavy`/`guilt`/`far_from_allah`/`rizq`/`unseen`/`unspoken`, or `unmatched`) — deliberately, so cross-tabbing them is exactly one breakdown. They are **not** the same property and must never be treated as interchangeable:
+
+| | `acquisition_problem_category` | `problem_category` |
+|---|---|---|
+| Scope | **super property** | **event property**, on `check_in_completed` and `daily_question_answered` |
+| Means | what the user arrived with (the reel hook screen) | what the user answered **today** |
+| Set once? | yes, at arrival | fresh per check-in / per daily answer |
+
+They were kept as two keys specifically because a single overloaded `problem_category` super property would have made every chart built on it *right some of the time* — event-level properties win where both exist, so `daily_question_answered` would silently report today's answer under a name that reads as "acquisition." **The question worth asking is the cross-tab**: "arrived with anxiety, answers guilt today" is one query, `acquisition_problem_category` on the funnel breakdown vs `problem_category` on the event.
+
+### `step_name` — onboarding's stable join key (not `step_id`)
+
+`onboarding_step_viewed` and `onboarding_step_completed` both carry `step_name`, resolved per-flow from `AnalyticsEvents.stepNamesFor(trimmed:, reel:)`. The reel flow's 19 steps (indices 0–18) deliberately reuse the six shared screens' existing names, so a funnel keyed on `step_name` joins across the trimmed, legacy and reel flows — only `flag_onboarding_trim` / `onboarding_flow` need to do the segmenting on top. **The tour's join key was `step_id` (`tour_step_viewed{step_id}`); the tour is deleted, and onboarding never had a `step_id` — don't go looking for it.**
+
+`onboarding_answer_captured` still deliberately omits `step_name` (a pre-existing gotcha, unchanged by W6) — use `key` + `flag_onboarding_trim` there instead; see the Gotchas section.
 
 ---
 
@@ -57,7 +102,13 @@ Every event also carries the super properties above. Build funnels by chaining t
 | **StoreKit sheet** | `purchase_sheet_presented{placement, plan}` → `purchase_sheet_cancelled{placement, plan}` / `purchase_sheet_failed{placement, plan, reason}` | the previously-dark CTA→trial step |
 | Conversion (client) | `trial_started{placement, plan, hard_gate}` | surface-attributed |
 | Conversion (server) | `subscription_started` (+ renewed/cancelled/expired) | from RevenueCat webhook; `{product_id, store, period_type, is_trial}` — **no `placement`** (the webhook can't know the surface; use client `trial_started` for surface attribution) |
-| Other surfaces | `paywall_closed` · `paywall_exit_offer_shown/accepted` · `paywall_safety_valve_used{placement}` · rating_gate_* · paywall_flow_loader/plan_* | |
+| Other surfaces | `paywall_closed{placement}` · `paywall_exit_offer_shown/accepted` · `paywall_safety_valve_used{placement}` · rating_gate_* · paywall_flow_loader/plan_* | `paywall_closed` gained `placement` in W6 (D7) — see the gotcha below for the pre-W6 gap |
+| The gate's meter (W6-C) | `ai_taste_consumed{feature, allowance, remaining}` → `daily_cap_hit{feature, reason}` | see "the gate's meter" below |
+| Cap/warmup sheets (W6-C) | `cap_sheet_shown{feature, reason, sheet}` → `cap_sheet_dismissed{sheet, method}` | see "the gate's meter" below |
+| Restore Purchases (W6-C) | `restore_started` → `restore_completed{premium_active}` / `restore_failed{reason}` | previously zero instrumentation on either surface it lives on |
+| Reflect (W6-D) | `reflect_started` → `reflect_completed{off_topic}` | see "Reflect, the browse surface, and `dua_read`" below |
+| Names browse (W6-D) | `names_browse_viewed` | fires from `CollectionScreen`, not `NamesScreen` — see below |
+| Duʿā read (W6-D) | `dua_read{dua_id, source}` | see below for the exact interaction it means |
 
 ---
 
@@ -157,6 +208,272 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 
 ---
 
+## The gate's meter, the cap/warmup sheets, and Restore (One Ship W6-C)
+
+Before W6 the gate could say when it BLOCKED someone (`daily_cap_hit`) and never
+when it let them through — so a cap-hit rate had no denominator — and the sheets
+that carry the block were emitting nothing for the `reel_v1` cohort at all (both
+`daily_cap_sheet.dart` events lived on the token-bypass slot W5 removes for that
+cohort; `warmup_exhausted_sheet.dart` had zero analytics). All fixed in this
+wave.
+
+**The denominator: `ai_taste_consumed{feature, allowance, remaining}`** — fires
+on every SUCCESSFUL gated spend. `feature` ∈ `reflect` / `built_dua` /
+`discover_name`; `allowance` names which budget was spent: `warmup` (the
+lifetime per-feature warmup, `reel_v1`) / `weekly_pool` (the shared Reflect +
+Build-a-Duʿā pool, `reel_v1`) / `daily` (the legacy per-day counter). **Never
+fires for premium** — `markUsed` short-circuits on the premium check before the
+cohort read, so a payer's use is not a "taste."
+
+**The numerator: `daily_cap_hit{feature, reason}`** — `reason` is new in W6 and
+is the `GateReason` wire value: `daily_cap` (legacy) / `weekly_pool` /
+`reroll_premium` (a second Name today is premium for `reel_v1` — the day-open
+reveal itself is unaffected, it consults no gate) / `had_trial_no_budget` (a
+lapsed trialer). **The event name did not change and does not fork at T0** —
+deliberately (D5): the cap-hit→upgrade funnel needs to stay continuous exactly
+across the boundary where the meaning of a "cap" changes from daily to weekly.
+Segment by `reason`, and by the `free_tier_cohort` super property for the
+cohort split.
+
+**Sheet impression/dismissal: `cap_sheet_shown{feature, reason, sheet}` →
+`cap_sheet_dismissed{sheet, method}`.** `sheet` ∈ `daily_cap` /
+`warmup_exhausted`. **`method` has TWO values, not four**, and it is a
+framework limit, not a shortcut: a sheet can be closed four ways (the CTA tap,
+a scrim tap, a swipe-down, Android back), but `showModalBottomSheet` completes
+its route future identically for the last three — there is no public API to
+tell them apart without intercepting gestures at the route level, which this
+wave declined to do. `method` is `button` (an explicit decline via the sheet's
+own control) vs `dismissed` (any of the other three). If you see a plan or an
+old doc promising `scrim`/`swipe`/`back` as separate values, that promise
+predates the code and was never shippable as written.
+
+**Restore: `restore_started` → `restore_completed{premium_active}` /
+`restore_failed{reason}`**, on both surfaces that offer it
+(`paywall_screen.dart`, `store_screen.dart`). `premium_active` on completion
+matters because "restore succeeded, found an entitlement" and "restore
+succeeded, found nothing" are the same RC call outcome and very different user
+experiences — collapsing them would have hidden exactly the silent-failure
+churn/support risk this was built to catch.
+
+**`free_tier_entered{placement}`** — fires once-ever per user (a
+`SharedPreferences` latch), the first time they dismiss a paywall without
+converting. **The name over-promises: it fires on dismissal of ANY placement**,
+not only the onboarding gate — `_doClose` in `paywall_screen.dart` runs the
+same bookkeeping regardless of which of the four placements (`onboarding` /
+`hard_wall` / `soft_inapp` / `post_trial_soft`) the user was looking at.
+Recoverable by filtering `placement`; do not read raw volume as "entered free
+from onboarding" without that filter.
+
+**`paywall_closed` gained `placement` in W6 (D7).** Before this it was a bare
+`track()` with no properties — the only dismissal event that fires from every
+placement, so pre-W6 `paywall_closed` volume cannot be broken down by surface
+at all; post-W6 it can.
+
+---
+
+## Reflect, the browse surface, and `dua_read` (One Ship W6-D)
+
+**`reflect_started` → `reflect_completed{off_topic}`.** Reflect was
+zero-instrumented before this — it emitted `reflect_beat_advanced`,
+`reflect_flow_skipped` and `journal_entry_created` and nothing marking a start
+or a finish. The pair fires from `ReflectNotifier.submit()`. **The asymmetry is
+load-bearing**: a gated submit (the user hit a cap) fires NEITHER event; a
+submit that passes the gate but whose AI call then fails fires `started` alone,
+with no matching `completed`. That is what makes an OpenAI outage
+distinguishable from a wave of users abandoning Reflect — without it the two
+look identical in the data. `off_topic` on `completed` keeps the classifier's
+cost on Reflect comparable to the daily loop's `daily_question_off_topic`.
+
+**`names_browse_viewed` fires from `CollectionScreen`, not `NamesScreen`.** The
+original W6 plan aimed this at `NamesScreen` because an early audit found it
+had zero analytics references — true, but incomplete: `NamesScreen` is dead
+code, unreferenced by the router or any tab or push. `CollectionScreen`
+(`/collection`, the Collection tab) is the 99-Names surface users actually
+reach, and that is where the event lives. Deduped per session via a static
+latch so a bottom-nav tab-switcher doesn't inflate the count; the latch resets
+on next app launch, which is the "session" scope. **If you go looking for this
+event on `NamesScreen`, you will not find it, and that is correct.**
+
+**`dua_read{dua_id, source}` — a specific interaction, not a screen mount.**
+There is one duas screen and no detail route for an individual duʿā, so "read"
+had to be DEFINED before it could be emitted. The chosen definition: a
+collapsed→expanded tap on a Related Duʿā card on the built-dua ("Ameen")
+screen (`BuiltDuaRelatedCard`), which is why the section header above those
+cards literally reads "Tap a dua to read it in full." **`source` currently has
+exactly one live value, `built_dua_related`** — there is no second `dua_read`
+emit site today, despite the property shape implying multiple sources. The
+first related duʿā renders pre-expanded (it anchors the guided-tour heart), so
+its initial state does NOT count as a read — only a subsequent collapse→expand
+does.
+
+---
+
+## The onboarding intake block (One Ship W6-F)
+
+Seven screens — `carrying_duration`, `heaviest_time`, `told_anyone`,
+`names_known`, `help_chips`, `daily_time`, `intake_note` — were a third of the
+live reel onboarding flow and emitted nothing before this wave. All seven now
+call `trackOnboardingAnswerWithRef`, landing on the existing
+`onboarding_answer_captured{key, value, step_index}` event with `key` set to
+the screen name above. **`intake_note` is the privacy-sensitive one**: it sends
+`intakeNoteLengthBucket(text)` — a bucketed length — and never the note body.
+Enforced structurally (the bucket function takes the raw text and returns an
+`int`-backed bucket string; there is no code path that could pass the text
+itself as the value) and by a source-level test. Same rule as the daily
+question's free text: bucket on-device, never send the raw string.
+
+---
+
+## The honest drop-off funnel: `step_viewed` vs `step_completed`
+
+**`onboarding_abandoned_at_page` can only be emitted by users who did not
+abandon.** It fires exclusively on app **resume** (`didChangeAppLifecycleState`
+in `onboarding_screen.dart`) — the user has to come back to report that they
+left. Anyone who backgrounds and never reopens (uninstall, lost interest, the
+overwhelming majority of real abandonment) emits nothing, ever. Treat this
+event as a **returner** signal — "someone who left AND came back reports
+having left at page N" — not as abandonment measurement, and don't build the
+drop-off funnel on it.
+
+**The honest signal is `onboarding_step_viewed` without a matching
+`onboarding_step_completed`** for the same `step_name`, per user. It requires
+no cooperation from a departed user — a view that never resolves into a
+completion IS the drop-off, by construction. Build the funnel by chaining
+`onboarding_step_viewed` → `onboarding_step_completed` (joined on `step_name`,
+per D6 above) and reading the gap at each step as where people actually quit,
+rather than by counting `onboarding_abandoned_at_page`.
+
+**Tour events dated after 2026-07-28 mean the kill switch was pulled, not that
+the tour is back.** The tour was deleted that date; its emitters
+(`tour_step_viewed`, `tour_completed`, etc.) survive only because the
+kill-switch legacy flow still renders it, and a `reel_v1` user cannot reach any
+of them. If tour events reappear in a post-2026-07-28 funnel, that is useful
+signal — someone flipped the kill switch — not noise or a regression to
+investigate in the tour code itself.
+
+---
+
+## The satisfaction read: are users liking it?
+
+The W1–W5 build measures whether users MOVE (funnel steps) and whether they
+PAY (conversion). Nothing measured whether they were happy — which would let a
+conversion-positive, retention-negative T0+6wk read pass as an unqualified win.
+Four numbers, all computable from events that already emit, all segmented by
+**`free_tier_cohort`** and **`app_version`**:
+
+| Signal | Query | What bad looks like |
+|---|---|---|
+| Rating-gate accept rate | `rating_gate_continue_tapped` ÷ `rating_gate_prompt_triggered` | a drop of **more than 10 percentage points** vs. the trailing-90-day pre-T0 baseline for the same ratio |
+| Churn reasons | `cancellation_feedback_submitted` reason distribution, against `cancellation_feedback_shown` | not a threshold — a diagnostic read. Watch for the top reason shifting toward something the free-tier tightening (W5) plausibly caused (e.g. "too restrictive"/"couldn't use it enough") vs. unrelated reasons (price, content) |
+| D1 retention | `app_opened`/`session_started` day-0 → day-1, `reel_v1` cohort vs. trailing-90-day pre-T0 baseline | a drop of **more than 5 percentage points** — looser than D7 because D1 has more week-to-week noise at ~21 signups/day, but it is the earliest warning and worth flagging even before D7 confirms |
+| D7 retention (**the guardrail**) | `app_opened`/`session_started` day-0 → day-6..8, `reel_v1` cohort vs. trailing-90-day pre-T0 baseline | a drop of **more than 3 percentage points**. **This is the number that vetoes a conversion win** — a conversion lift that ships alongside a D7 drop past this line is not a win, full stop, regardless of what the paid-conversion number says |
+
+**These thresholds are proposed, not verified against a live baseline** — this
+wave did not query production numbers (T0 has not shipped — see the "W6 events
+have no history" gotcha below), and the plan's own methodology is a
+pre/post comparison against a trailing-90-day baseline with **no control arm**
+at ~21 signups/day, where audience dimensions are already agreed to be
+directional-only. The percentage-point deltas above are picked to be larger
+than plausible week-to-week noise at that volume while still catching a real
+regression; the founder should sanity-check them against the actual trailing
+baseline once it's queryable, and adjust before the T0+6wk read, not during it.
+
+**D30 retention is directional only** — six weeks from T0 is not enough
+runway for a D30 cohort of meaningful size. Note it in the readout; don't gate
+on it.
+
+**Two named blind spots, not silently missing:**
+- **Refunds** — RevenueCat webhook events, deliberately deferred. That path
+  touches a server-secret webhook auth surface that has caused a production
+  outage here before (`send-scheduled-notifications`, 2026-07-17); it is not
+  being smuggled in under "instrumentation."
+- **App Store review velocity/keywords** — App Store Connect is aggregate and
+  lagged and was never going to be per-user joinable. Stays the plan's manual
+  weekly scan; not automated by this wave.
+
+---
+
+## RC ↔ Mixpanel cohort reconciliation
+
+The join key is **`install_id`**, on both sides — a Mixpanel super property
+(registered before `app_opened`) and a RevenueCat subscriber attribute
+(`purchase_service.dart`, same property name). **Never join on
+`$mixpanelDistinctId`** — under Simplified ID Merge, Mixpanel's distinct id
+changes at `identify()` (anonymous → signed-in), while the install id never
+does. `install_id` is a join key, not an identity alias: it does not mean
+Mixpanel and RevenueCat have merged identities, only that both sides recorded
+the same install.
+
+**Worked query shape** (post-T0, once there are purchases on the new cohort —
+see below):
+
+1. Mixpanel: `signup_completed` events with super property `onboarding_flow =
+   'reel_v1'`, dated ≥ T0. Pull `install_id` + `distinct_id` for each. **Apply
+   the test-ID exclusion list first** —
+   [`docs/qa/mixpanel-orphaned-distinct-ids.json`](../qa/mixpanel-orphaned-distinct-ids.json).
+   **Read the file's `distinct_ids` array and count it at query time; do not
+   hardcode a count from memory or from the file's own `count`/`_count_note`
+   fields** — that count key has drifted from the array's real length before
+   (recorded in the file itself) and will again.
+2. RevenueCat: pull subscriber records where the `install_id` attribute is in
+   the set from step 1. `subscription_started` / `trial_started` per
+   subscriber gives the paid-conversion numerator.
+3. Join on `install_id`. The denominator is step 1's post-exclusion count; the
+   numerator is step 2's converted subset.
+
+**Caveats, stated plainly rather than discovered at the read:**
+- **Cannot be run before there are purchases on the new cohort.** The earliest
+  meaningful run is the T0+4wk trial→paid read, not T0+24h.
+- **A reinstall mints a new `install_id`.** A user who reinstalls between
+  signup and purchase will not join — they read as two people, an arrival and
+  a separate, unattributed conversion. This underscores the join, it does not
+  invalidate it: the alternative (an identity-based join) would be wrong in a
+  different, worse way (per `$mixpanelDistinctId` above).
+- **Client `trial_started` carries `placement`; the RevenueCat webhook's
+  `subscription_started` does not** — the webhook cannot know the surface. Use
+  the client event for surface attribution, RC for revenue truth.
+
+---
+
+## ASC Campaign Links runbook
+
+App Store Connect Campaign Links are free, first-party, and answer a different
+question than anything above: **which reel drives App Store views and
+installs**, in aggregate. Generate one Campaign Link per reel, placed behind
+the Instagram/TikTok bio link (one link per reel, not one shared link for all
+of them — the whole point is to tell reels apart). App Analytics then reports
+views/downloads per campaign on its own schedule.
+
+**Aggregate only — never joinable to a Mixpanel `distinct_id` or an
+`install_id`.** This informs which reel's creative is working, not which
+individual user came from which reel; `reel_hook`/`reel_hook_source` and
+`contract` remain the only per-user reel-of-origin signals (§ above), each
+with its own stated limits. Do not attempt to reconcile ASC's aggregate counts
+against Mixpanel's per-user funnel counts — they answer different questions at
+different grains and will not match by design (different attribution windows,
+no shared key).
+
+This was TODO.md's open step for `reel_hook`; the other three steps (register
+`reel_hook` with provenance, reconcile the event name, consider `contract` as
+a proxy) are closed by this wave — see the amendment note in that file.
+
+---
+
+## `names_met` — a people property, not a "met" definition
+
+Ships as `names_met` (a people property, `AnalyticsService.setUserProperties`)
+set from the count of rows `sync_all_user_data` returns in `card_collection` —
+i.e., Names whose card has been discovered — at
+`hydrateUserDataFromBatchRpc`, once per hydrate. **Document and query this as
+"cards discovered," not "Names met."** W3 explicitly declined to invent a
+server-side "met" definition and was right to; this is an honest,
+client-derived substitute for it, not that definition. Absent (never set)
+rather than a guessed zero when the server payload omits the
+`card_collection` section entirely (a pre-W1 backend, or a dropped section) —
+a real returning user's collection must never read as zero.
+
+---
+
 ## How to query — worked examples
 
 **Slim vs full tour, full funnel** (the A/B read):
@@ -216,3 +533,6 @@ Bucketed on the device, never computed from a raw value in Mixpanel — **the ra
 - **W4 events have no history before the W4 build ships** — same rule as the Phase 1–3 events above. `daily_question_*`, `daily_reward_claimed`, and the `problem_category`/`input_mode` props on `check_in_completed` are all new in that binary.
 - **`check_in_completed` volume is unchanged by W4** — it was extended, not forked, and `path` is still `'discover'`. If its count moves at the W4 release, that is a real behaviour change (or a bug), not an instrumentation artifact.
 - **Do NOT flip `tour_ab_enabled` mid-experiment.** Variant assignment is a stable per-user hash *while the flag is on*; toggling it off mid-run reassigns in-flight users to slim (and a force-killed user resuming the tour can switch arms). Set it once at experiment start, leave it until the read is done.
+- **W6 events have no history before the T0 build ships** — same rule as every prior wave above. `ai_taste_consumed`, `daily_cap_hit{reason}`, `cap_sheet_shown`/`_dismissed`, `restore_started`/`_completed`/`_failed`, `reflect_started`/`_completed`, `names_browse_viewed`, `dua_read`, all seven Wave F intake events, and the `onboarding_flow`/`contract`/`acquisition_problem_category`/`reel_hook`/`reel_hook_source`/`free_tier_cohort` super properties are all new in that binary. **A Mixpanel query run the day after merge returns zero rows for all of these, and that is correct** — not a wiring bug. `names_met` is the one exception: it's a people property, so once set it applies retroactively to all of that user's historical events in a profile breakdown, not just events after it was first set.
+- **Wave B (the Second-Name lifecycle: `second_name_teased`/`_unseal_available`/`_unsealed{source}`, `name_source`/`queue_position` on `check_in_completed`) was scoped OUT of W6 and does not exist yet.** It is inherited W3 feature work, tracked separately, not a W6 gap. If you go looking for it here, it is deliberately absent — the only measurement of whether the 7-day queue actually ran is not yet built.
+- **Crash reporting does not exist.** There is no way to distinguish a crash from a quit anywhere in this document's numbers. Every drop-off / abandonment figure carries an unmeasured crash component until that ships (its own, separate decision — not part of W6).

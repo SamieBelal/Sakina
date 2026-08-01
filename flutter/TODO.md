@@ -44,11 +44,12 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
   are both sitting local. The remote branch ref exists but is 92 commits stale, so "it's
   pushed" is not the same as "it's shipped".
 
-- [ ] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** — its
-  trigger is literally "W5 instrumentation, before T0", and this release *is* W5, so T0 is
-  its release day. It's a code change: it ships in the binary or it waits a whole release.
-  Today the screen emits `reel_source_selected` where the plan specifies
-  `reel_source_captured` + a `reel_hook` super property that is registered nowhere.
+- [x] **[`reel_hook` measurement gap](#reel_hook-close-the-reel-source-measurement-gap)** —
+  closed by One Ship W6. `reel_hook`/`reel_hook_source` are registered as super properties
+  (with provenance: `unknown` at entry → `deep_link` on a drained reel link → `self_report`
+  on the source screen); the event name was reconciled to the shipped `reel_source_selected`
+  rather than renamed. Only step 3 (ASC Campaign Links, an ops task) remains open — see the
+  section below.
 - [ ] **[OpenAI Edge Function proxy](#openai-edge-function-proxy)** — trigger reads "before
   any external TestFlight build or **App Store release**". The risk was consciously accepted
   to ship 1.2.0; 1.3.0 is a second App Store release, so this is a **decision to re-take on
@@ -592,33 +593,31 @@ organic Instagram:**
 **Trigger:** W5 instrumentation, before T0. The plan calls reel-source capture "the
 plan's biggest measurement hole."
 
-**Status:** the self-report screen exists (`source_question_screen.dart`, placed at the
-flow's lowest-emotion point on purpose — it used to ask right after "Ameen"). But it
-emits **`reel_source_selected`** with a `source` property, where the plan specifies
-**`reel_source_captured`** plus a **`reel_hook` super property**. No `reel_hook` super
-property is registered anywhere. Consequence: the answer tags one event instead of
-segmenting the whole funnel.
+**Status — CLOSED except step 3.** One Ship W6 (2026-08-01) landed steps 1, 2 and 4.
+`reel_hook`/`reel_hook_source` are registered as super properties at onboarding entry
+(`unknown`/`unknown`) and upgraded to `deep_link` (a drained `sakina://reel/<id>`) or
+`self_report` (the source screen, `source_question_screen.dart`) — always together, from
+one call site each, so the two can never disagree. The event name was reconciled by
+**amending the plan to the shipped `reel_source_selected`**, not by renaming the code —
+see D1 in `docs/superpowers/plans/2026-08-01-one-ship-06-instrumentation.md` for why a
+rename would have cost a permanent two-name union for zero information gained. `contract`
+was adopted as the **primary** reel-of-origin dimension (D3), registered alongside
+`acquisition_problem_category` at hook-selection time; `reel_hook` is corroboration and the
+only thing that can separate two future reels making the same promise. Full detail:
+[`docs/analytics/funnel-flags-and-querying.md`](./docs/analytics/funnel-flags-and-querying.md).
 
-**Steps when ready:**
+**Steps:**
 
-1. **Register `reel_hook` as a super property, with its provenance stated** — one of
-   `deep_link` / `self_report` / `unknown`. A super property that silently mixes a
-   confirmed deep link with a half-remembered tap looks authoritative and is not; every
-   chart built on it must be able to see how the value was learned.
-2. **Reconcile the event name** with the plan (`reel_source_captured`) or amend the plan
-   to match the code — but not neither, or the readout doc will reference an event that
-   does not exist.
-3. **App Store Connect Campaign Links, per reel (free, first-party).** Generate one per
-   reel behind the bio link; App Analytics then reports App Store views and downloads per
-   campaign. This answers "which reel drives installs" — the actual creative question.
-   Aggregate only: it cannot be joined to a Mixpanel `distinct_id`, so it informs
-   creative decisions, not per-user attribution.
-4. **Consider `contract` as the better proxy for reel-of-origin.** Reel 1 promises
-   "your problem → two Names"; Reel 2 is 2:286 / "can't put it into words". Those map
-   onto the `contract` (problem vs sign) already captured on the hook screen — a
-   *behavioural* signal taken at arrival, rather than a recalled one taken pages later.
-   It may simply be more reliable than the self-report for the question the plan wants
-   answered.
+1. ~~Register `reel_hook` as a super property, with its provenance stated~~ — **done**, W6.
+2. ~~Reconcile the event name with the plan~~ — **done**, W6 (plan amended, code kept).
+3. **App Store Connect Campaign Links, per reel (free, first-party). Still open.**
+   Generate one per reel behind the bio link; App Analytics then reports App Store views and
+   downloads per campaign. This answers "which reel drives installs" — the actual creative
+   question. Aggregate only: it cannot be joined to a Mixpanel `distinct_id`, so it informs
+   creative decisions, not per-user attribution. Runbook:
+   [`docs/analytics/funnel-flags-and-querying.md`](./docs/analytics/funnel-flags-and-querying.md#asc-campaign-links-runbook).
+4. ~~Consider `contract` as the better proxy for reel-of-origin~~ — **done**, W6 (D3);
+   `contract` is now the primary dimension, `reel_hook` corroborates it.
 
 **Not needed:** the install-id join. `InstallIdService` already mints a stable id at
 first boot and registers it as BOTH a Mixpanel super property and a RevenueCat

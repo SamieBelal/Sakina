@@ -193,8 +193,30 @@
 - Reverse-trial close-out: readout addendum written; in-flight `trial_premium_until` honored; flag flip only after both; retire `reverse_trial_onboarding.dart` + `trial_expiry_service.dart` after last in-flight trial + winback grace; delete the `reverse_trial_experiment_enabled` config key + `assignPaywallArm` + the `paywall_experiment_assigned` dedup key; freeze `paywall_exp_arm`.
 
 **W6. Instrumentation (rides the same release):**
-- Constants in `analytics_event_names.dart`; emit via `onAnalyticsEvent` hook. Super properties at boot/capture: `onboarding_flow`, `reel_hook`, `contract`, `problem_category`, `free_tier_cohort`; people property `names_met`.
-- Events: `reel_source_captured`, deck events on the beat spine (`beat_kind` gains `recognition`/`comfort_verse`), `reveal_deck_completed/abandoned`, `second_name_teased/unseal_available/unsealed{source}`, `paywall_page_viewed{page_id}`, `paywall_viewed{placement:'onboarding'}`, `paywall_closed`, `ai_taste_consumed{feature, allowance, remaining}`, `ai_allowance_exhausted`, `free_tier_entered`, stable `step_id` on onboarding steps, install→signup (ASC), RC↔Mixpanel cohort-reconciliation query (post-T0 `signup_completed` × `onboarding_flow`) documented in the readout doc.
+
+> **⚠️ AMENDED 2026-08-01 by the W6 instrumentation plan
+> (`docs/superpowers/plans/2026-08-01-one-ship-06-instrumentation.md`) — four
+> names below were shipped differently than specified here, on purpose. Trust
+> the amendments, not the two bullets that follow them:**
+> - `reel_source_selected` (not `reel_source_captured`, D1) — the code shipped
+>   this name in W2, before this bullet was ever built against; renaming it now
+>   would create a permanent two-name union for zero information gained.
+> - `daily_cap_hit{reason}` (not a separate `ai_allowance_exhausted`, D5) — a
+>   second exhaustion event would fork the cap-hit→upgrade funnel exactly
+>   across the T0 boundary the pre/post read depends on.
+> - `step_name` (not `step_id`, D6) — the tour's join key was `step_id`; the
+>   tour is deleted. Onboarding's stable id was already shipping as `step_name`
+>   on `onboarding_step_viewed`/`_completed`.
+> - `acquisition_problem_category` (not `problem_category`, D4) —
+>   `problem_category` was already a live EVENT property (today's daily-loop
+>   answer) by the time this bullet was written; a super property of the same
+>   name would have collided two meanings under one key.
+>
+> Full provenance/coverage detail for all of these is in
+> [`docs/analytics/funnel-flags-and-querying.md`](../../analytics/funnel-flags-and-querying.md).
+
+- Constants in `analytics_event_names.dart`; emit via `onAnalyticsEvent` hook. Super properties at boot/capture: `onboarding_flow`, `reel_hook`, `contract`, ~~`problem_category`~~ `acquisition_problem_category`, `free_tier_cohort`; people property `names_met`.
+- Events: ~~`reel_source_captured`~~ `reel_source_selected`, deck events on the beat spine (`beat_kind` gains `recognition`/`comfort_verse`), `reveal_deck_completed/abandoned`, `second_name_teased/unseal_available/unsealed{source}` (split out of W6 — inherited W3 feature work, tracked separately, see TODO.md), `paywall_page_viewed{page_id}`, `paywall_viewed{placement:'onboarding'}`, `paywall_closed{placement}`, `ai_taste_consumed{feature, allowance, remaining}`, ~~`ai_allowance_exhausted`~~ `daily_cap_hit{reason}`, `free_tier_entered`, stable ~~`step_id`~~ `step_name` on onboarding steps, install→signup (ASC), RC↔Mixpanel cohort-reconciliation query (post-T0 `signup_completed` × `onboarding_flow`) documented in the readout doc.
 - Debug-assert: `ai_bypass_offered` never fires for a new-cohort user.
 - Verify-or-add the never-superseded v1 Phase-4 holes: `reflect_started/completed`, `names_browse_viewed`, `dua_read` (Reflect was zero-instrumented at diagnosis; confirm what shipped work already covers before minting).
 

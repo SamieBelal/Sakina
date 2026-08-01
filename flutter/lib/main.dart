@@ -526,6 +526,9 @@ Future<void> main() async {
   // flow alone.
   UserProfileSyncHooks.onOnboardingProfileHydrated =
       (snapshot) => appSession.mirrorServerOnboardingFlow(snapshot.onboardingFlow);
+  // `names_met` people property (One Ship W6-E, D8) — same top-level-function
+  // bridge as the hook above.
+  UserProfileSyncHooks.onSetUserProperties = analytics.setUserProperties;
 
   runApp(
     ProviderScope(
