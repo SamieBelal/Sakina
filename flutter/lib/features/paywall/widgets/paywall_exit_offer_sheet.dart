@@ -116,6 +116,18 @@ class PaywallExitOfferSheet extends StatelessWidget {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius:
+                        // `buttonRadius` (12), matching every other CTA on
+                        // every purchase surface: the gate's own footer, the
+                        // ceremony's Continue, and both cap sheets.
+                        //
+                        // Pre-W5 this was a full pill (100) and was briefly
+                        // restored to it on the grounds that D11 kept the
+                        // sheet "as it was". That was the wrong call: the pill
+                        // was not a deliberate style, it was the last survivor
+                        // of an older button treatment, and keeping it would
+                        // have left one odd control in a set of five that now
+                        // agree. Consistency wins over faithfulness to a
+                        // shape nothing else uses.
                         BorderRadius.circular(AppSpacing.buttonRadius),
                   ),
                 ),

@@ -218,7 +218,8 @@ void main() {
         onBypassRequested: (_) => bypassed++,
       );
 
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
       expect(bypassed, 0);
     });
@@ -236,7 +237,8 @@ void main() {
         bypassesUsedToday: 0,
         onBypassRequested: (_) {},
       );
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Need 25'), findsNothing);
     });
 
@@ -275,7 +277,8 @@ void main() {
       );
       expect(find.byType(ElevatedButton), findsOneWidget);
       expect(find.text('Unlock unlimited'), findsOneWidget);
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.byType(TextButton), findsOneWidget);
       expect(find.text('Maybe later'), findsOneWidget);
     });
@@ -296,7 +299,8 @@ void main() {
         bypassesUsedToday: 0,
         onBypassRequested: (_) {},
       );
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
       expect(find.text('One more on us'), findsNothing);
     });
@@ -438,7 +442,8 @@ void main() {
         bypassesUsedToday: 0,
         onBypassRequested: (_) {},
       );
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
     });
 
@@ -621,7 +626,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Your duʿās for this week are used'), findsOneWidget);
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
     });
 
     testWidgets('a cohort read that THROWS still presents the sheet, on the '

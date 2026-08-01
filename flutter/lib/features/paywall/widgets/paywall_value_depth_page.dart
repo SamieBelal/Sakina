@@ -98,11 +98,25 @@ class PaywallValueDepthPage extends StatelessWidget {
                 top: AppSpacing.lg,
                 bottom: AppSpacing.xs,
               ),
-              // Clamped small so the page still fits a 375×667 frame with the
-              // three gains below it — the card is the proof, not the subject.
+              // Sized to the screen class, because the constraint is vertical
+              // and this page's footer is just a Continue button — there is
+              // far more room here than on the final page.
+              //
+              // A flat 148 was set when the page was assumed to carry the
+              // purchase footer. It does not (`isLastPage` gates that), which
+              // left ~127pt of dead space between the last gain and Continue
+              // on a 390×844 frame. The card is the page's visual argument;
+              // it should occupy that space rather than float above it.
+              //
+              // Measured off SCREEN height, not incoming constraints: this
+              // page renders inside the gate's SingleChildScrollView, so a
+              // LayoutBuilder here is handed unbounded height and would pick
+              // the largest size on every device — the one case a clamp
+              // exists to prevent. The SE class keeps the old 148 because its
+              // slack is what the original comment was protecting.
               child: Center(
                 child: SizedBox(
-                  width: 148,
+                  width: _cardWidthFor(MediaQuery.sizeOf(context).height),
                   child: revealCardTile(card!, cardTier),
                 ),
               ),
@@ -123,6 +137,16 @@ class PaywallValueDepthPage extends StatelessWidget {
         const Spacer(),
       ],
     );
+  }
+
+  /// How wide the awarded card may be, given the whole screen's height.
+  ///
+  /// Screen classes, not guesses: 667 is the SE, 844/852 the standard iPhone
+  /// (where the dead space was measured), 932 the Pro Max.
+  static double _cardWidthFor(double screenHeight) {
+    if (screenHeight < 700) return 148; // SE class — unchanged, no slack here
+    if (screenHeight < 880) return 200; // 14/15/16 and Pro
+    return 216; // Pro Max
   }
 
   /// Decorative only — every row's meaning is carried by its text, and the
@@ -147,25 +171,29 @@ class _GainRow extends StatelessWidget {
       children: [
         ExcludeSemantics(
           child: Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
             ),
-            child: Icon(icon, size: 16, color: AppColors.primary),
+            child: Icon(icon, size: 18, color: AppColors.primary),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(top: 5),
+            padding: const EdgeInsets.only(top: 6),
             child: Text(
               label,
+              // 18, up from 16. These three lines ARE the premium argument —
+              // they were set smaller than the subline that introduces them,
+              // which read as fine print on the one page that has none. The
+              // icon grows with the text so the row stays optically balanced.
               style: AppTypography.bodyLarge.copyWith(
                 color: AppColors.textPrimaryLight,
-                fontSize: 16,
-                height: 1.42,
+                fontSize: 18,
+                height: 1.4,
               ),
             ),
           ),

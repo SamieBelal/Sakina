@@ -48,25 +48,16 @@ class PaywallPlanSelectPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        paywallEntry(
-          context,
-          1,
-          Text(
-            AppStrings.paywallPlanSelectBenefitsHeader,
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.72,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        paywallEntry(context, 2, const PaywallBenefitChecklist()),
+        // The "Everything in Premium" eyebrow was deleted 2026-08-01
+        // (founder). The headline already frames the page and the five ticks
+        // are self-evidently a feature list — the label restated the obvious
+        // in the smallest type on the screen, which is where a reader's
+        // attention is scarcest.
+        paywallEntry(context, 1, const PaywallBenefitChecklist()),
         const SizedBox(height: AppSpacing.lg),
         paywallEntry(
           context,
-          3,
+          2,
           PaywallPlanOptions(
             offer: offer,
             selected: selectedPlan,
@@ -79,28 +70,42 @@ class PaywallPlanSelectPage extends StatelessWidget {
   }
 }
 
-/// The tick rows, in the shipped geometry (22px circle, `primaryLight` fill,
-/// 14px check, 10px gap) so this surface and every other benefit list in the
-/// app cannot drift apart.
+/// The tick rows, in the shipped geometry (26px circle, `primaryLight` fill,
+/// 16px check, 12px gap, 17px label) so this surface and every other benefit
+/// list in the app cannot drift apart.
 class PaywallBenefitChecklist extends StatelessWidget {
-  const PaywallBenefitChecklist({super.key});
+  const PaywallBenefitChecklist({this.maxItems, super.key});
+
+  /// Show only the first N benefits. `null` shows all five.
+  ///
+  /// The condensed surface uses this to FIT WITHOUT SCROLLING on short
+  /// frames. Truncating is the right lever because the list is already
+  /// ordered by relevance to someone who just hit a cap — "unlimited
+  /// reflections, duʿās & Name discoveries" answers their situation, and
+  /// "3 streak freezes" does not. Shrinking the type instead would make the
+  /// only statement of what premium contains the smallest thing on a screen
+  /// asking for money.
+  final int? maxItems;
 
   @override
   Widget build(BuildContext context) {
+    final shown = maxItems == null
+        ? paywallPremiumBenefits
+        : paywallPremiumBenefits.take(maxItems!).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final benefit in paywallPremiumBenefits)
+        for (final benefit in shown)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 13),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const ExcludeSemantics(
                   child: SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: 26,
+                    height: 26,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -108,19 +113,24 @@ class PaywallBenefitChecklist extends StatelessWidget {
                       ),
                       child: Icon(
                         Icons.check_rounded,
-                        size: 14,
+                        size: 16,
                         color: AppColors.primary,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     benefit,
+                    // 17, up from 15, with the tick and gutter grown to match
+                    // (founder, 2026-08-01). These five lines are the only
+                    // statement of what premium actually contains, and they
+                    // were set two steps below the page headline. The space
+                    // came free when the always-free footer left this surface.
                     style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.textPrimaryLight,
-                      fontSize: 15,
+                      fontSize: 17,
                       height: 1.35,
                     ),
                   ),

@@ -130,8 +130,16 @@ class LapsedTrialSheet extends StatelessWidget {
   /// The headline names what stays free. On `reel_v1` that is the daily Name
   /// discovery — "one a day" is still true, but of the Name, not of the
   /// reflection the legacy headline means.
-  String get _headline =>
-      isNewCohort ? 'Welcome back to your daily Name' : 'Welcome back to one a day';
+  ///
+  /// Reworded 2026-08-01: the first attempt, "Welcome back to your daily
+  /// Name", scanned as returning *to* a Name and made "your daily" carry
+  /// possessive and adjective duty at once. This phrasing reuses the exact
+  /// vocabulary already approved on the cap sheet ("One Name a day stays
+  /// free, always"), so the two surfaces describe the free tier in the same
+  /// words instead of two near-synonyms.
+  String get _headline => isNewCohort
+      ? 'One Name a day is still yours'
+      : 'Welcome back to one a day';
 
   String get _body {
     // Fallback: zero moments means we couldn't resolve trial activity (or

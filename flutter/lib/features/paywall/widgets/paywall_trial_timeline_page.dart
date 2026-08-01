@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -13,16 +14,37 @@ import 'paywall_gate_page.dart';
 /// the gate is allowed, and true whatever the user's notification permission
 /// says, because it is a system receipt rather than something Sakina schedules.
 ///
-/// The beats SPAN the page rather than stacking at the top: seven days (or
-/// three) is a stretch of time, and a long thread says so without a word of
-/// copy. Filling the middle with more selling is precisely what this page's
-/// job forbids.
+/// The threads between beats are DELIBERATELY long — seven days (or three) is
+/// a stretch of time, and a long thread says so without a word of copy.
+/// Filling the middle with more selling is precisely what this page's job
+/// forbids.
+///
+/// But long is not the same as unbounded (2026-08-01). The first two beats
+/// used to be `Expanded`, which poured *every* pixel of leftover screen into
+/// the two threads: ~127pt a gap on a 390×844 frame. Past roughly 60pt the
+/// body text stops reading as attached to its heading and the thread stops
+/// reading as duration — it just looks like the page broke. The threads are
+/// now a fixed [_Beat.bottomSpace], and the slack collects once at the bottom
+/// where it is ordinary page whitespace rather than a hole inside a connected
+/// diagram.
 class PaywallTrialTimelinePage extends StatelessWidget {
   const PaywallTrialTimelinePage({
     required this.trialLabel,
     required this.trialDays,
+    this.today,
     super.key,
   });
+
+  /// The user's LOCAL today, injectable for tests.
+  ///
+  /// Local, never UTC — and the arithmetic below builds each date from
+  /// calendar fields rather than adding `Duration(days: n)`. Both matter:
+  /// a UTC read puts anyone east of the line on tomorrow's date for part of
+  /// their evening, and duration-adding drifts an hour across a DST boundary,
+  /// which is enough to print the wrong day. This is the same day-boundary
+  /// class of bug W4 fixed twice; a paywall that names the wrong charge date
+  /// is worse than one that names none.
+  final DateTime? today;
 
   /// `"7 days"` — from the store, never a constant.
   final String trialLabel;
@@ -31,6 +53,15 @@ class PaywallTrialTimelinePage extends StatelessWidget {
   /// ≥ 2 for the three-beat shape to make sense; `PaywallScreen` does not
   /// build this page otherwise.
   final int trialDays;
+
+  /// `"Fri 1 Aug"` for the calendar day [offset] days after [today].
+  ///
+  /// Day 1 is today, so the beat labelled "Day N" is `N - 1` days out.
+  String _dateFor(int offset) {
+    final base = today ?? DateTime.now();
+    final day = DateTime(base.year, base.month, base.day + offset);
+    return DateFormat('EEE d MMM').format(day);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,31 +81,27 @@ class PaywallTrialTimelinePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        // The first two beats take the slack, so the threads between them grow
-        // with the screen instead of leaving a dead middle.
-        Expanded(
-          child: paywallEntry(
-            context,
-            1,
-            const _Beat(
-              heading: AppStrings.paywallTrialTimelineTodayHeading,
-              body: AppStrings.paywallTrialTimelineTodayBody,
-              node: _NodeStyle.now,
-              thread: _ThreadStyle.nowToReminder,
-            ),
+        paywallEntry(
+          context,
+          1,
+          _Beat(
+            heading: AppStrings.paywallTrialTimelineTodayHeading,
+            date: _dateFor(0),
+            body: AppStrings.paywallTrialTimelineTodayBody,
+            node: _NodeStyle.now,
+            thread: _ThreadStyle.nowToReminder,
           ),
         ),
-        Expanded(
-          child: paywallEntry(
-            context,
-            2,
-            _Beat(
-              heading: AppStrings.paywallTrialTimelineDayHeadingTemplate
-                  .replaceAll('{day}', '$reminderDay'),
-              body: AppStrings.paywallTrialTimelineReminderBody,
-              node: _NodeStyle.reminder,
-              thread: _ThreadStyle.reminderToCharge,
-            ),
+        paywallEntry(
+          context,
+          2,
+          _Beat(
+            heading: AppStrings.paywallTrialTimelineDayHeadingTemplate
+                .replaceAll('{day}', '$reminderDay'),
+            date: _dateFor(reminderDay - 1),
+            body: AppStrings.paywallTrialTimelineReminderBody,
+            node: _NodeStyle.reminder,
+            thread: _ThreadStyle.reminderToCharge,
           ),
         ),
         paywallEntry(
@@ -83,10 +110,15 @@ class PaywallTrialTimelinePage extends StatelessWidget {
           _Beat(
             heading: AppStrings.paywallTrialTimelineDayHeadingTemplate
                 .replaceAll('{day}', '$trialDays'),
+            date: _dateFor(trialDays - 1),
             body: AppStrings.paywallTrialTimelineChargeBody,
             node: _NodeStyle.charge,
+            // The last beat ends the diagram; a thread-length gap under it
+            // would imply a fourth moment that never comes.
+            bottomSpace: AppSpacing.sm,
           ),
         ),
+        const Spacer(),
       ],
     );
   }
@@ -111,13 +143,29 @@ class _Beat extends StatelessWidget {
     required this.heading,
     required this.body,
     required this.node,
+    this.date,
     this.thread,
+    this.bottomSpace = AppSpacing.xxl,
   });
 
   final String heading;
+
+  /// `"Fri 1 Aug"`. Sits beside the heading rather than under it — a second
+  /// line per beat would push the diagram past the fold on an SE, and the
+  /// date is an attribute of the moment, not a statement of its own.
+  final String? date;
   final String body;
   final _NodeStyle node;
   final _ThreadStyle? thread;
+
+  /// Space under the body, which IS the visible thread length — the rail is a
+  /// `Positioned` fill, so it takes whatever height this padding produces.
+  ///
+  /// 48 reads as a span of days while keeping each body attached to its own
+  /// heading. It is a considered figure, not a spacing-scale default: below
+  /// ~32 the beats crowd into one block and the diagram stops being a
+  /// timeline; past ~60 the thread reads as a gap rather than a connection.
+  final double bottomSpace;
 
   static const double _railWidth = 18;
   static const double _gutter = _railWidth + AppSpacing.md;
@@ -127,28 +175,58 @@ class _Beat extends StatelessWidget {
     return Stack(
       children: [
         Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
             left: _gutter,
             top: 2,
-            bottom: AppSpacing.lg,
+            bottom: bottomSpace,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                heading,
-                style: AppTypography.headlineMedium.copyWith(
-                  color: AppColors.textPrimaryLight,
-                  letterSpacing: -0.2,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Flexible(
+                    child: Text(
+                      heading,
+                      style: AppTypography.headlineLarge.copyWith(
+                        color: AppColors.textPrimaryLight,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  if (date != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    // The dot separator is decorative; the date carries its
+                    // own meaning, so only the glyph is hidden.
+                    const ExcludeSemantics(
+                      child: Text(
+                        '·',
+                        style: TextStyle(color: AppColors.textTertiaryLight),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      date!,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.textTertiaryLight,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 6),
               Text(
                 body,
+                // 18, up from 16 — this page is three short paragraphs on an
+                // otherwise empty screen, and 16 left it reading as a caption
+                // under a heading rather than as the page's content.
                 style: AppTypography.bodyLarge.copyWith(
                   color: AppColors.textSecondaryLight,
-                  fontSize: 16,
+                  fontSize: 18,
                 ),
               ),
             ],

@@ -5,10 +5,14 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_typography.dart';
 
-/// The pinned purchase block: CTA, plain terms, the free-forever honesty line,
-/// and Restore / Terms / Privacy.
+/// The pinned purchase block: CTA, plain terms, and Restore / Terms / Privacy.
 ///
-/// All four are in the FOOTER rather than the scroll body on purpose. Restore
+/// The "99 Names … stay free — always" line was removed from here 2026-08-01
+/// (founder) after leaving both surfaces that rendered it. The promise is not
+/// lost: `PaywallAlwaysFreeCard` carries it on dismissal, which is the moment
+/// it answers a question the user is actually asking.
+///
+/// All three are in the FOOTER rather than the scroll body on purpose. Restore
 /// is an App Store requirement and a Restore button below the fold is a review
 /// risk; the terms line is what guideline 3.1.2 wants visible before purchase.
 /// Neither may depend on the user scrolling.
@@ -23,7 +27,6 @@ class PaywallPurchaseFooter extends StatelessWidget {
     this.busy = false,
     this.restoring = false,
     this.errorMessage,
-    this.showFreeForeverLine = true,
     this.extra,
     super.key,
   });
@@ -37,11 +40,6 @@ class PaywallPurchaseFooter extends StatelessWidget {
   final bool busy;
   final bool restoring;
   final String? errorMessage;
-
-  /// The honesty line belongs to the decision moment (page 3 / the condensed
-  /// screen), not to every page — repeating it on the ceremony pages would
-  /// turn the free tier into the pitch.
-  final bool showFreeForeverLine;
 
   /// Slot for surface-specific chrome under the legal row (the hard gate's
   /// offerings-failure safety valve).
@@ -106,17 +104,6 @@ class PaywallPurchaseFooter extends StatelessWidget {
             color: AppColors.textSecondaryLight,
           ),
         ),
-        if (showFreeForeverLine) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            AppStrings.paywallFreeForeverFooter,
-            textAlign: TextAlign.center,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontWeight: FontWeight.w300,
-            ),
-          ),
-        ],
         const SizedBox(height: 4),
         // WRAPPED, not scaled. "Restore Purchase · Terms · Privacy" is wider
         // than a 390pt frame's gutters, and the previous fix for that was a

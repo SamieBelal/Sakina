@@ -116,7 +116,8 @@ void main() {
           onDismiss: () {},
         )),
       );
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
       expect(find.text('One more on us'), findsNothing);
     });

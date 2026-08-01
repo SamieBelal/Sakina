@@ -132,7 +132,8 @@ void main() {
       );
 
       // Premium users should not see the outlined bypass button at all.
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.textContaining('Use 25 tokens'), findsNothing);
 
       // Nor an upgrade CTA. Founder decision 2026-07-31: a subscriber is
@@ -408,7 +409,8 @@ void main() {
         ),
       );
       // No outlined button; only primary + tertiary.
-      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.textContaining('tokens for one more'), findsNothing,
+          reason: 'the bypass slot must be absent — asserted on its LABEL, not on OutlinedButton, which the sole-action secondary also uses');
       expect(find.text('Unlock unlimited'), findsOneWidget);
       expect(find.text('Maybe later'), findsOneWidget);
     });

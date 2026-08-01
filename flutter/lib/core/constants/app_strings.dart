@@ -121,7 +121,7 @@ abstract final class AppStrings {
       'Unlimited reflections, duʿās & Name discoveries';
   static const paywallPremiumBenefit2 = '5× daily rewards, every single day';
   static const paywallPremiumBenefit3 =
-      'Exclusive Emerald cards for every Name';
+      'Exclusive Emerald cards for every Name of Allah';
   static const paywallPremiumBenefit4 = 'A monthly gift of tokens & scrolls';
   // Kept tight to match the sibling benefits' length (they wrap poorly on the
   // paywall). Keeps both value hooks: the concrete premium differentiator (3,
@@ -252,16 +252,45 @@ abstract final class AppStrings {
   // not fit the slot — and the approved mock resolves the slot to this one
   // constant. Rendering the mock's literal is the only reading that invents no
   // copy; a per-chip phrase map would be six new marketing strings.
+  // Rewritten 2026-08-01 (founder). The three gains carried the entire
+  // premium argument and, checked against the live free tier, two of them did
+  // not differentiate anything:
+  //
+  //  * Bullet 2 named no frequency at all, and Build-a-Duʿā is a FREE feature
+  //    — so it described the product rather than the upgrade.
+  //  * Bullet 3 promised the journal. `lib/features/journal/` contains no
+  //    GatingService reference, no premium check, and no row cap: the journal
+  //    is unlimited for everyone. Listing it under "Premium goes deeper"
+  //    implied a gain that does not exist.
+  //
+  // What is actually behind the paywall is a FREQUENCY ceiling, so each line
+  // now names one. Bullet 3 moves to the second daily Name, which is a real
+  // gate (`discoverName` is 1/day free) and ties back to the card above it.
+  //
+  // **Stated as what PREMIUM gives, never as what free withholds** (founder,
+  // 2026-08-01). An interim draft read "Unlimited reflections — free gives
+  // you three a week". It differentiated well but was wrong for THIS surface:
+  // the ceremony is a user's first exposure, before they have hit any cap, so
+  // naming the free allowance advertises the free tier at the moment the
+  // screen asks for money and teaches a limit they had not yet met. The
+  // contrast still gets delivered — by `DailyCapSheet` ("Your reflections for
+  // this week are used — Premium is unlimited"), at the moment it is actually
+  // felt.
+  //
+  // It also removes a real trap: a number here would have been
+  // `app_config.weekly_pool_size`, a runtime dial, so tuning it would have
+  // turned a shipped purchase surface into a false claim with no code change.
+  // Do not reintroduce a free-tier quantity on this page — pinned by
+  // `test/features/paywall/paywall_copy_matches_dials_test.dart`.
   static const paywallValueDepthBullet1 =
-      'A personal reflection on the weight you named, every day';
-  static const paywallValueDepthBullet1Sign =
-      'A personal reflection to sit with, every day';
+      'Unlimited reflections, day or night';
+  static const paywallValueDepthBullet1Sign = paywallValueDepthBullet1;
   static const paywallValueDepthBullet2 =
-      'Your own duʿā, built for what you carry';
+      'Your own duʿā, whenever you need one';
   static const paywallValueDepthBullet2Sign =
-      'Your own duʿā — even when you can\'t find the words';
+      'Your own duʿā, even when the words won\'t come';
   static const paywallValueDepthBullet3 =
-      'Every reflection and duʿā, kept in your journal';
+      'A new Name of Allah whenever you want one';
   static const paywallGateContinue = 'Continue';
 
   // Page 2 — `trial_timeline`. The middle beat rides Apple's SYSTEM
@@ -285,8 +314,6 @@ abstract final class AppStrings {
   // Page 3 — `plan_select`. The benefit checklist reuses the five shipped
   // `paywallPremiumBenefit1-5` strings verbatim.
   static const paywallPlanSelectHeadline = 'Choose how you continue.';
-  static const paywallPlanSelectBenefitsHeader = 'Everything in Premium';
-  static const paywallPlanAnnualTrialFlagTemplate = '{trial} free first';
   // Checkable against the weekly row directly below it, which is the whole
   // point of stating it this way: \$49.99/year against \$4.99/week × 52
   // (\$259.48) is an 80.7% saving. The shipped `paywallAnnualBadge` said 50%,
@@ -294,8 +321,6 @@ abstract final class AppStrings {
   // actually sell beside it — founder corrected this to 80% on 2026-07-31.
   static const paywallPlanAnnualSavings = 'Save 80% vs weekly';
   static const paywallPlanAnnualPriceTemplate = '{price}/year · {perWeek} a week';
-  static const paywallPlanWeeklyRowTrialTemplate =
-      'Weekly — {price}/week · {trial} free first';
   static const paywallPlanWeeklyRowTemplate = 'Weekly — {price}/week';
   static const paywallGateCtaTrialTemplate = 'Start my {trial} free';
   // Plain terms under the CTA. `textSecondaryLight` minimum, never tertiary —
@@ -304,8 +329,6 @@ abstract final class AppStrings {
       'Free for {trial}, then {price}. Cancel anytime in Settings.';
   static const paywallGateTermsNoTrialTemplate =
       '{price}. Cancel anytime in Settings.';
-  static const paywallFreeForeverFooter =
-      'The 99 Names, your daily Name and its story, and your streak stay free — always.';
 
   // The one-time reverent card shown after ✕ on any page, before home.
   static const paywallAlwaysFreeCardBody =
@@ -318,7 +341,8 @@ abstract final class AppStrings {
   // period claim; `PaywallScreen.softValueLine` is the seam for Wave D to pass
   // the trigger-specific line once the pool is authoritative.
   static const paywallSoftGateDefaultLine =
-      'Premium is unlimited — every reflection, every duʿā, every Name.';
+      'Premium is unlimited — every reflection, every duʿā, '
+      'every Name of Allah.';
 
   // ── Legal URLs ──
   // Hosted on GitHub Pages via the public `ibrahim7860/sakina-legal` repo.

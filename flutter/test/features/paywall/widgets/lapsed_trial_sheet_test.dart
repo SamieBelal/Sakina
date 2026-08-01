@@ -59,7 +59,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Welcome back to your daily Name'), findsOneWidget);
+      expect(find.text('One Name a day is still yours'), findsOneWidget);
       expect(find.text('Welcome back to one a day'), findsNothing);
     });
 

@@ -35,18 +35,45 @@ class PaywallCondensedPage extends StatelessWidget {
   /// under both the daily cap and the weekly pool.
   final String? valueLine;
 
+  /// How many benefits fit above the plans on a frame this tall.
+  ///
+  /// Thresholds are screen classes measured against the real type ramp, not
+  /// round numbers: 932 = Pro Max, 844/852 = the standard iPhone, 667 = SE.
+  /// Three of the five benefit lines wrap to two rows at 17px on a 390pt
+  /// frame, so the list costs ~255pt at full length — more than the ~216pt a
+  /// standard iPhone has left after the headline, value line, both plan tiles
+  /// and the pinned footer.
+  static int _benefitCountFor(double screenHeight) {
+    if (screenHeight >= 900) return 5; // Pro Max
+    if (screenHeight >= 820) return 4; // 14/15/16, and Pro
+    if (screenHeight >= 750) return 3;
+    return 2; // SE class
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // The SE cannot afford a 34pt headline AND a usable benefit list. The
+    // headline is the cheaper thing to shrink: it is the same six words on
+    // every surface, while the benefits are the only content here.
+    final headlineStyle = screenHeight < 780
+        ? AppTypography.displayMedium
+        : AppTypography.displayLarge;
+    final gap = screenHeight < 780 ? AppSpacing.md : AppSpacing.lg;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: AppSpacing.sm),
+        // No leading gap. The ceremony pages start their headline immediately
+        // under the 44pt chrome bar; this page had an extra 8pt, which set the
+        // same six words 8pt lower than on the three screens it sits beside.
+        // It also cost 8pt on the surface that has the least room to spare.
         paywallEntry(
           context,
           0,
           Text(
             AppStrings.paywallPlanSelectHeadline,
-            style: AppTypography.displayLarge.copyWith(
+            style: headlineStyle.copyWith(
               color: AppColors.textPrimaryLight,
             ),
           ),
@@ -62,9 +89,15 @@ class PaywallCondensedPage extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        paywallEntry(context, 2, const PaywallBenefitChecklist()),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: gap),
+        paywallEntry(
+          context,
+          2,
+          PaywallBenefitChecklist(
+            maxItems: _benefitCountFor(screenHeight),
+          ),
+        ),
+        SizedBox(height: gap),
         paywallEntry(
           context,
           3,

@@ -384,6 +384,17 @@ class _PaywallSheetScaffold extends StatelessWidget {
                             BorderRadius.circular(AppSpacing.buttonRadius),
                       ),
                     ),
+                    // ⚠️ White, by founder decision (2026-08-01), including on
+                    // the STATE D gold fill where it measures **2.59:1** —
+                    // below the 4.5:1 WCAG AA floor for 16px semibold and
+                    // below the 3:1 large-text floor too. A dark-ink variant
+                    // (6.6:1) was built and rejected on looks.
+                    //
+                    // Recorded, not hidden: if this ever needs to pass, the
+                    // cheapest fix is darkening the FILL rather than the
+                    // label — white on `goldInk` (#9A6F37) is 4.47:1, which
+                    // clears the large-text floor and very nearly AA, while
+                    // still reading as gold.
                     child: Text(
                       primaryLabel!,
                       style: GoogleFonts.outfit(
@@ -444,23 +455,64 @@ class _PaywallSheetScaffold extends StatelessWidget {
                   ),
                 ],
               ],
-              const SizedBox(height: AppSpacing.sm),
-              // Secondary text-only CTA
-              TextButton(
-                onPressed: onSecondary,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textSecondaryLight,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: Text(
-                  secondaryLabel,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondaryLight,
+              // The gap exists to separate the secondary from a button above
+              // it. With no primary and no middle there is nothing to
+              // separate from.
+              if (primaryLabel != null || middleLabel != null)
+                const SizedBox(height: AppSpacing.sm),
+              // The secondary is text-only ONLY when something above it is
+              // carrying the visual weight. When it is the sheet's sole
+              // action — the premium variant, which sells nothing and so has
+              // no primary — a bare label reads as a caption rather than a
+              // control, floating unanchored under the body.
+              //
+              // It becomes an OUTLINED button, not a filled emerald one: the
+              // outline is this scaffold's existing language for "a real
+              // action that is not the monetized one" (the bypass slot uses
+              // it), and filling it green would sell premium to someone who
+              // has already paid.
+              if (primaryLabel == null && middleLabel == null)
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: onSecondary,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
+                    ),
+                    child: Text(
+                      secondaryLabel,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                TextButton(
+                  onPressed: onSecondary,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondaryLight,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    secondaryLabel,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondaryLight,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

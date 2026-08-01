@@ -15,7 +15,6 @@ class PaywallOfferView {
     required this.termsLine,
     required this.ctaLabel,
     this.trialLabel,
-    this.trialFlag,
     this.trialDays,
   });
 
@@ -36,10 +35,6 @@ class PaywallOfferView {
   /// `"7 days"` — `null` when this user is not eligible for the intro offer.
   /// Its nullness is what removes every trial promise from the gate at once.
   final String? trialLabel;
-
-  /// `"7 days free first"` — the badge on the annual card. `null` with
-  /// [trialLabel].
-  final String? trialFlag;
 
   /// The trial in whole days, when it converts. Drives the timeline page's
   /// "Day N-1 / Day N" beats; `null` suppresses the page entirely rather than

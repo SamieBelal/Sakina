@@ -255,7 +255,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         _priceString(_annualPackage, AppStrings.paywallAnnualPrice);
     final weeklyPrice =
         _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice);
-    final weeklyTrial = _trialFor(PaywallPlanType.weekly);
     final selectedTrial = _trialFor(_selectedPlan);
 
     // The terms line follows the SELECTION — it is the only billing statement
@@ -268,12 +267,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       annualPriceLine: AppStrings.paywallPlanAnnualPriceTemplate
           .replaceAll('{price}', annualPrice)
           .replaceAll('{perWeek}', _annualPerWeekString),
-      weeklyRowLabel: weeklyTrial == null
-          ? AppStrings.paywallPlanWeeklyRowTemplate
-              .replaceAll('{price}', weeklyPrice)
-          : AppStrings.paywallPlanWeeklyRowTrialTemplate
-              .replaceAll('{price}', weeklyPrice)
-              .replaceAll('{trial}', weeklyTrial.label),
+      // The weekly tile names its price and nothing else. It used to append
+      // "· {trial} free first", which repeated the CTA directly beneath it and
+      // the terms line beneath that — the same promise three times inside one
+      // viewport (founder, 2026-08-01).
+      weeklyRowLabel: AppStrings.paywallPlanWeeklyRowTemplate
+          .replaceAll('{price}', weeklyPrice),
       termsLine: selectedTrial == null
           ? AppStrings.paywallGateTermsNoTrialTemplate
               .replaceAll('{price}', selectedPriceWithPeriod)
@@ -285,12 +284,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           : AppStrings.paywallGateCtaTrialTemplate
               .replaceAll('{trial}', selectedTrial.label),
       trialLabel: selectedTrial?.label,
-      trialFlag: _trialFor(PaywallPlanType.annual) == null
-          ? null
-          : AppStrings.paywallPlanAnnualTrialFlagTemplate.replaceAll(
-              '{trial}',
-              _trialFor(PaywallPlanType.annual)!.label,
-            ),
       trialDays: selectedTrial?.days,
     );
   }
