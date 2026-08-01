@@ -244,7 +244,15 @@ void main() {
                 isPremium: premium,
               );
 
-              if (premium) {
+              // The premium variant is a THIRD copy mode, not a flavour of
+              // either tier: it is selected by entitlement OR by the
+              // premiumFairUse reason, and it legitimately says "tomorrow"
+              // because the fair-use ceiling really is daily. So it is scored
+              // against its own rules and exempted from the pooled rule below.
+              final premiumVariant =
+                  premium || reason == GateReason.premiumFairUse;
+
+              if (premiumVariant) {
                 // `free_tier_cohort` is never cleared on subscribe, so a payer
                 // reports reel_v1 forever. Their only reachable limit is the
                 // DAILY fair-use ceiling.
@@ -252,14 +260,22 @@ void main() {
                   expect(rendered.contains(word), isFalse,
                       reason: 'premium was told "$word" — $cell :: $rendered');
                 }
+                // Founder decision 2026-07-31, and the property this file
+                // exists to make exhaustive: a subscriber is never sold what
+                // they already own. No upgrade CTA on ANY premium cell.
+                expect(find.byType(ElevatedButton), findsNothing,
+                    reason: 'premium cell rendered a CTA — $cell');
+                expect(rendered.contains('Unlock unlimited'), isFalse,
+                    reason: 'premium was offered an upgrade — $cell');
               }
-              if (!newTier) {
+              if (!newTier && !premiumVariant) {
                 for (final word in weeklyOnly) {
                   expect(rendered.contains(word), isFalse,
                       reason: 'legacy copy said "$word" — $cell :: $rendered');
                 }
               }
-              if (newTier && feature != GatedFeature.discoverName) {
+              if (newTier && !premiumVariant &&
+                  feature != GatedFeature.discoverName) {
                 // discoverName is exempt: it is never pooled and its reveal
                 // really is once a day, so daily words are true for it.
                 for (final word in dailyOnly) {
@@ -332,9 +348,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Monday'), findsNothing);
-    expect(
-      find.text("Tomorrow's reflection is on us. Or unlock unlimited now."),
-      findsOneWidget,
-    );
+    // The entitlement now selects the no-CTA premium variant rather than the
+    // legacy daily copy — and the veto it proves is the same one.
+    expect(find.text("You've done a lot today"), findsOneWidget);
+    expect(find.text('Reflections open again tomorrow.'), findsOneWidget);
+    expect(find.text('Unlock unlimited'), findsNothing);
+    expect(find.byType(ElevatedButton), findsNothing);
   });
 }

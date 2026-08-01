@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:sakina/services/gating_service.dart'
     show GatedFeature, GatingService;
+import 'package:sakina/services/purchase_service.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -33,6 +34,19 @@ export 'package:sakina/services/gating_service.dart' show GatedFeature;
 /// happen: the plugin is always registered, and by the time a cap sheet is
 /// reached the gate that produced the `GateResult` has already awaited this
 /// same cached read, so the value is warm.
+/// Resolves premium for a sheet about to be presented, failing to `false`.
+///
+/// `false` shows the sheet, which is the pre-existing behaviour — so a read
+/// that cannot complete degrades to exactly what shipped before this veto
+/// existed rather than silently suppressing a free user's sheet.
+Future<bool> _resolvePremiumForSheet() async {
+  try {
+    return await PurchaseService().isPremium();
+  } catch (_) {
+    return false;
+  }
+}
+
 Future<bool> resolveNewCohortForSheet() async {
   try {
     return await GatingService().isNewCohort();
@@ -83,7 +97,24 @@ class WarmupExhaustedSheet extends StatelessWidget {
     required this.onUpgrade,
     required this.onDismiss,
     this.isNewCohort = false,
+    this.isPremium = false,
   });
+
+  /// Defence-in-depth premium veto. A payer has no warm-up budget and no free
+  /// tier, so **no** copy on this sheet is true for them.
+  ///
+  /// Today this is unreachable through the happy path — `markUsed`
+  /// short-circuits premium and returns `ok`, so `warmupJustExhausted` never
+  /// gets set for a payer. But that is safety by *reachability*, not by
+  /// construction, and there is a live race that defeats it:
+  /// `muhasabah_screen.dart` reads the flag at MOUNT off a non-autoDispose
+  /// provider, so a user who subscribes while a `markUsed` is in flight and
+  /// then returns to `/muhasabah` reads a flag set moments before their
+  /// entitlement landed. Two reviewers found that from opposite directions.
+  ///
+  /// So the veto lives here rather than in the callers: correctness becomes a
+  /// property of this widget instead of a property of who happens to call it.
+  final bool isPremium;
 
   static Future<void> show(
     BuildContext context, {
@@ -96,7 +127,23 @@ class WarmupExhaustedSheet extends StatelessWidget {
     // and replacing it a frame later is worse than the wait, and the read is
     // a SharedPreferences hit with no network in it.
     final newCohort = await resolveNewCohortForSheet();
+    final premium = await _resolvePremiumForSheet();
     if (!context.mounted) return;
+
+    // A payer gets NO sheet. Unlike DailyCapSheet — which is shown because the
+    // user was blocked and therefore needs an explanation — this one fires on
+    // a SUCCESSFUL use, so a premium user reaching it is neither blocked nor
+    // out of anything. Every line available here ("your free reflections",
+    // "from tomorrow you'll get one a day", the weekly-pool line) is false for
+    // them, and there is no true replacement to write: the event this sheet
+    // announces simply does not apply to a subscriber. Presenting nothing is
+    // the only honest option.
+    //
+    // The returned future still completes, so the caller's
+    // `.whenComplete(dismissWarmupExhausted)` still clears the pending flag
+    // and the sheet cannot re-fire on the next visit to the route.
+    if (premium) return;
+
     return showModalBottomSheet<void>(
       context: context,
       // Push on the ROOT navigator with a named route so the singleton
@@ -115,6 +162,7 @@ class WarmupExhaustedSheet extends StatelessWidget {
         return WarmupExhaustedSheet(
           feature: feature,
           isNewCohort: newCohort,
+          isPremium: premium,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
             onUpgrade();
@@ -139,7 +187,13 @@ class WarmupExhaustedSheet extends StatelessWidget {
     }
   }
 
-  String get _body => isNewCohort ? _newCohortBody : _legacyBody;
+  /// `!isPremium` leads for the same reason it does in
+  /// `DailyCapSheet.describesNewTier`: `free_tier_cohort` is stamped at signup
+  /// and never cleared when the account subscribes, so a payer created after
+  /// the flip reports `isNewCohort == true` forever. Without this veto the
+  /// mount race described on [isPremium] renders them the weekly-pool line.
+  String get _body =>
+      !isPremium && isNewCohort ? _newCohortBody : _legacyBody;
 
   /// LEGACY tier — a genuine 1/day cap, so this stays exactly as shipped.
   /// Identical across features per spec.
@@ -212,9 +266,12 @@ class _PaywallSheetScaffold extends StatelessWidget {
   final IconData icon;
   final String headline;
   final String body;
-  final String primaryLabel;
+
+  /// Null renders NO primary button — not a disabled one, not a no-op one.
+  /// The premium fair-use variant has nothing to sell, so it has no CTA.
+  final String? primaryLabel;
   final String secondaryLabel;
-  final VoidCallback onPrimary;
+  final VoidCallback? onPrimary;
   final VoidCallback onSecondary;
   final String? middleLabel;
   final VoidCallback? onMiddle;
@@ -226,10 +283,10 @@ class _PaywallSheetScaffold extends StatelessWidget {
     required this.icon,
     required this.headline,
     required this.body,
-    required this.primaryLabel,
     required this.secondaryLabel,
-    required this.onPrimary,
     required this.onSecondary,
+    this.primaryLabel,
+    this.onPrimary,
     this.middleLabel,
     this.onMiddle,
     this.middleEnabled = true,
@@ -312,30 +369,31 @@ class _PaywallSheetScaffold extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              // Primary CTA
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: onPrimary,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor ?? AppColors.primary,
-                    foregroundColor: AppColors.textOnPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.buttonRadius),
+              // Primary CTA — absent entirely when [primaryLabel] is null.
+              if (primaryLabel != null)
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: onPrimary,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor ?? AppColors.primary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.buttonRadius),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    primaryLabel,
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textOnPrimary,
+                    child: Text(
+                      primaryLabel!,
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textOnPrimary,
+                      ),
                     ),
                   ),
                 ),
-              ),
               if (middleLabel != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 // Middle outlined CTA (AI-bypass slot). 48dp height vs.
@@ -424,9 +482,11 @@ class PaywallSheetScaffold extends StatelessWidget {
   final IconData icon;
   final String headline;
   final String body;
-  final String primaryLabel;
+
+  /// Null renders NO primary button. See [_PaywallSheetScaffold.primaryLabel].
+  final String? primaryLabel;
   final String secondaryLabel;
-  final VoidCallback onPrimary;
+  final VoidCallback? onPrimary;
   final VoidCallback onSecondary;
 
   /// Optional outlined middle CTA. Used by DailyCapSheet to render the
@@ -449,10 +509,10 @@ class PaywallSheetScaffold extends StatelessWidget {
     required this.icon,
     required this.headline,
     required this.body,
-    required this.primaryLabel,
     required this.secondaryLabel,
-    required this.onPrimary,
     required this.onSecondary,
+    this.primaryLabel,
+    this.onPrimary,
     this.middleLabel,
     this.onMiddle,
     this.middleEnabled = true,

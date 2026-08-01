@@ -448,10 +448,12 @@ void main() {
       // this sheet `dailyCap` for a reel_v1 account, mapping that back to
       // "legacy" would promise a daily reset the pool will not honour. The
       // cohort must still win in that direction.
+      // premiumFairUse is deliberately absent: it no longer selects EITHER
+      // tier's copy, it selects the no-CTA premium variant. That path is
+      // covered by the premium tests above.
       for (final reason in [
         GateReason.dailyCap,
         GateReason.hadTrialNoBudget,
-        GateReason.premiumFairUse,
       ]) {
         await _pump(
           tester,
@@ -481,10 +483,14 @@ void main() {
         gateReason: GateReason.premiumFairUse,
         isPremium: true,
       );
-      expect(find.text("Tomorrow's reflection is on us. "
-          'Or unlock unlimited now.'), findsOneWidget);
+      // Since the founder's 2026-07-31 decision this renders the no-CTA
+      // premium variant rather than the legacy daily copy — the weekly claim
+      // is still the thing being guarded against.
+      expect(find.text("You've done a lot today"), findsOneWidget);
+      expect(find.text('Reflections open again tomorrow.'), findsOneWidget);
       expect(find.textContaining('Monday'), findsNothing);
       expect(find.text('Your reflections for this week are used'), findsNothing);
+      expect(find.text('Unlock unlimited'), findsNothing);
     });
 
     testWidgets('the premium veto outranks even a weekly-pool reason',
@@ -500,8 +506,8 @@ void main() {
         isPremium: true,
       );
       expect(find.textContaining('Monday'), findsNothing);
-      expect(find.text("Tomorrow's duʿā is on us. Or unlock unlimited now."),
-          findsOneWidget);
+      expect(find.text('Duʿās open again tomorrow.'), findsOneWidget);
+      expect(find.text('Unlock unlimited'), findsNothing);
     });
 
     testWidgets('a null reason changes nothing — today\'s four call sites',

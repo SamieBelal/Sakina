@@ -135,9 +135,12 @@ void main() {
       expect(find.byType(OutlinedButton), findsNothing);
       expect(find.textContaining('Use 25 tokens'), findsNothing);
 
-      // Primary + tertiary CTAs still render normally.
-      expect(find.text('Unlock unlimited'), findsOneWidget);
-      expect(find.text('Maybe later'), findsOneWidget);
+      // Nor an upgrade CTA. Founder decision 2026-07-31: a subscriber is
+      // never sold the thing they already own, so the premium sheet has NO
+      // primary button — not a disabled one, not a no-op one.
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text('Unlock unlimited'), findsNothing);
+      expect(find.text('Close'), findsOneWidget);
     });
 
     testWidgets(
@@ -347,8 +350,10 @@ void main() {
       // even if shown with firstBypassAvailable=true + isPremium=true,
       // STATE D must NOT render (no freebie for premium).
       expect(find.text('One more on us, Aisha'), findsNothing);
-      expect(find.text("You've reflected today"), findsOneWidget);
-      expect(find.text('Unlock unlimited'), findsOneWidget);
+      // The premium variant wins over STATE D too — it is ordered first in
+      // build() precisely so no later branch can hand a subscriber a CTA.
+      expect(find.text("You've done a lot today"), findsOneWidget);
+      expect(find.text('Unlock unlimited'), findsNothing);
     });
 
     testWidgets(

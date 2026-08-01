@@ -535,8 +535,52 @@ class DailyCapSheet extends StatelessWidget {
     return null;
   }
 
+  /// True when this sheet is being shown to someone who already pays.
+  ///
+  /// Either signal is enough. `isPremium` is what the four call sites resolve
+  /// from `PurchaseService`; `premiumFairUse` is what `canUse` returns from
+  /// its premium branch. Requiring both would make the veto depend on a
+  /// caller remembering to pass the reason.
+  bool get _isPremiumFairUse =>
+      isPremium || gateReason == GateReason.premiumFairUse;
+
+  /// **Premium fair-use headline.** `gating_service.dart` has specified since
+  /// May that this case must be "silent — UI must surface a 'take a breath'
+  /// message, NOT route to a paywall (the user is already paying)". The rule
+  /// was written; the sheet never followed it, and `buildPaywallUpgradeCallback`
+  /// quietly no-opping the CTA is what let a live "Unlock unlimited" button
+  /// sit in front of subscribers without anything looking broken.
+  String get _premiumHeadline => "You've done a lot today";
+
+  /// Says plainly that the limit is daily and lifts tomorrow. Sells nothing,
+  /// blames nothing, apologises for nothing, and does not explain that a
+  /// fair-use ceiling exists — none of that is the user's problem.
+  String get _premiumBody {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'Reflections open again tomorrow.';
+      case GatedFeature.builtDua:
+        return 'Duʿās open again tomorrow.';
+      case GatedFeature.discoverName:
+        return 'Name discoveries open again tomorrow.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Ordered FIRST, ahead of STATE D and the standard layout, so no later
+    // branch can reintroduce a CTA for a subscriber.
+    if (_isPremiumFairUse) {
+      return PaywallSheetScaffold(
+        icon: Icons.wb_sunny_outlined,
+        headline: headlineOverride ?? _premiumHeadline,
+        body: _premiumBody,
+        // No primaryLabel and no onPrimary: the upgrade CTA is ABSENT, not
+        // disabled and not a no-op. A dismiss is the whole sheet.
+        secondaryLabel: 'Close',
+        onSecondary: onDismiss,
+      );
+    }
     if (_isStateD) {
       return PaywallSheetScaffold(
         icon: Icons.workspace_premium,
