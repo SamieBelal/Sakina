@@ -28,7 +28,8 @@ surplus. The script snapshots the three columns into
 
 **Two steps, run days apart. Step 1 is urgent; step 2 is gated.**
 
-**Step 1 — flip `reverse_trial_experiment_enabled` to false. Trigger: now.**
+**Step 1 — flip `reverse_trial_experiment_enabled` to false. ✅ APPLIED
+2026-08-01 18:11:05 UTC.**
 The live App Store build still reads this key at onboarding-complete and calls
 `activate_trial(3)` for the treatment half of every new signup, so each signup
 pushes the close-out date out another 72h — the "last in-flight trial" already

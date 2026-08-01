@@ -22,8 +22,26 @@
 --   faith audience punishes them, and the ADR forbids it.
 
 -- ===========================================================================
--- STEP 1 — stop minting new trials.  RUN NOW.
+-- STEP 1 — stop minting new trials.  ✅ APPLIED 2026-08-01 18:11:05 UTC.
 -- ===========================================================================
+-- Idempotent; re-running is harmless. State read immediately before the flip:
+--   active trials           25   (24 on 07-31 — it went UP)
+--   last expiry        2026-08-04 17:17:40 UTC
+--   ever granted a trial   465   (457 on 07-31)
+--   had_trial latched      481
+--   flag                  true
+--
+-- Note the last expiry: the W5 plan blocked Wave A on "2026-08-04" against a
+-- recorded last expiry of 2026-08-03 20:45, which had already slid to 22:55,
+-- and by the time of the flip had slid PAST the plan's own date — a trial was
+-- activated ~55 minutes before it. That is the sliding horizon this step ends,
+-- and the reason no recorded expiry timestamp should ever be trusted.
+--
+-- After the flip the ceiling is fixed: new installs fetch config at boot and
+-- see false immediately, so activation effectively stops now; the only tail is
+-- a device holding a <=6h stale cached `true` that finishes onboarding before
+-- it revalidates. Worst case last expiry ~2026-08-05 00:10 UTC. Re-run step 2a
+-- to pin the real number — it will be final this time.
 -- Effect on a new signup, on the CURRENTLY LIVE build:
 --   `resolveAndApplyPaywallExperiment` returns at its first line. No arm is
 --   assigned, no `experiment_assigned`, no `activate_trial`, and

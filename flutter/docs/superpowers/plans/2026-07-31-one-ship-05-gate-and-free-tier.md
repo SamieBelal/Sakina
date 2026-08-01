@@ -14,6 +14,14 @@
 > | `consume_weekly_allowance` has **zero** client references | Called by `GatingService._consumeWeeklyPool`; the weekly pool is live. |
 > | the `warmup_discover_name_size` dial "does not exist" / is inert (§6b, §7) | Shipped in `20260731090000`, seeded **3** in prod, and read through `warmupBudgetFor`. §7 is closed. |
 >
+> **⛔ §3's ordering constraint #1 — "Wave A cannot start before 2026-08-04" —
+> was written against a last-expiry that kept moving. Read at 2026-08-01 18:10
+> UTC: 25 active trials, last expiry `2026-08-04 17:17:40 UTC` — already PAST
+> the plan's date, because the live build kept minting. The
+> `reverse_trial_experiment_enabled` flag was flipped false at 18:11:05 UTC to
+> stop the slide; the ship gate is now ~2026-08-05 00:10 UTC worst case and
+> must be re-queried, never read off this page.**
+>
 > **Wave A update (2026-08-01):** the CLIENT half is built and committed — the
 > three source files, `_defaultPaywallArm`/`_defaultTrialExpired`, the orphaned
 > `tourBucket`/`assignTourVariant`, and `refreshTrialPremiumCache` are gone;
