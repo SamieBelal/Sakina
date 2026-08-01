@@ -373,7 +373,10 @@ const _monthlyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 3,
-    title: 'Unlock 3 Silver Names',
+    // Tier words attach to the CARD, never the Name (CLAUDE.md). "a Silver
+    // Name" reads as though the Names of Allah come in grades; the tier is a
+    // property of the collectible artwork.
+    title: 'Unlock 3 Silver cards',
     description: 'Tier up 3 Names to Silver in your Collection.',
     icon: Icons.military_tech_rounded,
     xpReward: 120,
@@ -413,7 +416,8 @@ const _monthlyPool = <QuestTemplate>[
   ),
   QuestTemplate(
     poolIndex: 7,
-    title: 'Unlock 1 Gold Name',
+    // See the Silver quest above — tier belongs to the card, not the Name.
+    title: 'Unlock 1 Gold card',
     description: 'Tier up a Name all the way to Gold this month.',
     icon: Icons.workspace_premium_rounded,
     xpReward: 200,
@@ -1256,7 +1260,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<void> updateMonthlyBuiltDuas(int count) =>
       _updateProgress(QuestCadence.monthly, 2, count);
 
-  /// Monthly pool 3: Unlock 3 Silver Names this month
+  /// Monthly pool 3: Unlock 3 Silver cards this month
   Future<void> updateMonthlySilverNames(int count) =>
       _updateProgress(QuestCadence.monthly, 3, count);
 
@@ -1272,7 +1276,7 @@ class QuestsNotifier extends StateNotifier<QuestsState> {
   Future<void> updateMonthlySavedRelatedDuas(int count) =>
       _updateProgress(QuestCadence.monthly, 6, count);
 
-  /// Monthly pool 7: Unlock 1 Gold Name this month
+  /// Monthly pool 7: Unlock 1 Gold card this month
   Future<void> updateMonthlyGoldNames(int count) =>
       _updateProgress(QuestCadence.monthly, 7, count);
 
