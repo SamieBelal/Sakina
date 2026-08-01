@@ -1,20 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sakina/core/constants/app_colors.dart';
 import 'package:sakina/core/constants/app_spacing.dart';
 import 'package:sakina/core/theme/app_typography.dart';
+import 'package:sakina/features/duas/providers/duas_provider.dart'
+    show SavedRelatedDua;
 import 'package:sakina/services/ai_service.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/widgets/dua_text_block.dart';
 
 /// A single Related Dua row on the Ameen screen, rendered as an **expandable
 /// card**: the title + source are always visible; tapping the header expands
 /// the full Arabic + transliteration + translation stack (via [DuaTextBlock]).
+/// The section header above this card literally reads "Tap a dua to read it
+/// in full" — which is why a **user-initiated expand** (collapsed → expanded)
+/// is [AnalyticsEvents.duaRead]'s definition (W6 Wave D): there is no detail
+/// route for a dua, so a screen mount can't mean "read", but this can.
 ///
 /// The FIRST related dua is rendered [initiallyExpanded] by default — this is
 /// load-bearing: the full onboarding tour anchors `firstRelatedHeart` on the
 /// heart of the first card, which must stay visible at rest. The [heart] is
 /// supplied by the caller (already anchor-wrapped for index 0) and pinned in
 /// the always-visible header so the anchor never hides behind the collapse.
-class BuiltDuaRelatedCard extends StatefulWidget {
+/// Because that first card starts expanded WITHOUT a tap, its initial state
+/// must not itself count as a read — only a subsequent collapse→expand does.
+class BuiltDuaRelatedCard extends ConsumerStatefulWidget {
   const BuiltDuaRelatedCard({
     super.key,
     required this.dua,
@@ -27,11 +38,24 @@ class BuiltDuaRelatedCard extends StatefulWidget {
   final bool initiallyExpanded;
 
   @override
-  State<BuiltDuaRelatedCard> createState() => _BuiltDuaRelatedCardState();
+  ConsumerState<BuiltDuaRelatedCard> createState() =>
+      _BuiltDuaRelatedCardState();
 }
 
-class _BuiltDuaRelatedCardState extends State<BuiltDuaRelatedCard> {
+class _BuiltDuaRelatedCardState extends ConsumerState<BuiltDuaRelatedCard> {
   late bool _expanded = widget.initiallyExpanded;
+
+  void _toggleExpanded() {
+    final expanding = !_expanded;
+    setState(() => _expanded = expanding);
+    if (expanding) {
+      final d = widget.dua;
+      ref.read(analyticsProvider).track(AnalyticsEvents.duaRead, properties: {
+        AnalyticsEvents.propDuaId: SavedRelatedDua.idFor(d.title, d.source),
+        AnalyticsEvents.propSource: 'built_dua_related',
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +83,7 @@ class _BuiltDuaRelatedCardState extends State<BuiltDuaRelatedCard> {
                 Expanded(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => setState(() => _expanded = !_expanded),
+                    onTap: _toggleExpanded,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -85,7 +109,7 @@ class _BuiltDuaRelatedCardState extends State<BuiltDuaRelatedCard> {
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(() => _expanded = !_expanded),
+                  onPressed: _toggleExpanded,
                   icon: Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     color: AppColors.textSecondaryLight,

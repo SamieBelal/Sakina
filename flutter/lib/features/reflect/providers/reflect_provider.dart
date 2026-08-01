@@ -495,6 +495,17 @@ class ReflectNotifier extends StateNotifier<ReflectState>
   /// hop). Cleared in the same paths that clear `_consumeFreeUsageOnSuccess`.
   bool? _premiumAtSubmit;
 
+  /// W6 Wave D: set true only by [submit] (the free/gated path), right after
+  /// the gate passes — mirrors `_consumeFreeUsageOnSuccess`'s pattern
+  /// exactly, and for the same reason: [submitWithBypass] /
+  /// [submitWithFirstBypass] explicitly set it false so a bypassed call can
+  /// never emit [AnalyticsEvents.reflectCompleted] without a preceding
+  /// [AnalyticsEvents.reflectStarted]. Consumed (reset to false) the moment
+  /// `_reflect` gets a response, so the pair is strictly 1:1 per gated
+  /// submit — a gated submit fires neither event, and a failed AI call
+  /// leaves it armed-but-unconsumed (fires `started` only).
+  bool _reflectFunnelArmed = false;
+
   void setUserText(String text) {
     state = state.copyWith(userText: text);
   }
@@ -541,6 +552,10 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       }
       _premiumAtSubmit = premium;
       _consumeFreeUsageOnSuccess = true;
+      _reflectFunnelArmed = true;
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.reflectStarted, {});
+      } catch (_) {}
       await _doSubmit();
     } finally {
       clearBypassInFlight();
@@ -580,6 +595,10 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       // post-warmup mechanic). Skip both markers.
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = false;
+      // W6 Wave D: bypass reservations are a different gate than `submit`'s
+      // GatingService.canUse — reflect_started/_completed track only the
+      // free/gated path, so this must stay unarmed (see field docstring).
+      _reflectFunnelArmed = false;
       await _doSubmit();
     } finally {
       clearBypassInFlight();
@@ -614,6 +633,9 @@ class ReflectNotifier extends StateNotifier<ReflectState>
       }
       _consumeFreeUsageOnSuccess = false;
       _premiumAtSubmit = false;
+      // W6 Wave D: same reasoning as submitWithBypass — the Day-1 freebie
+      // claim is not `submit`'s gate, so this must stay unarmed.
+      _reflectFunnelArmed = false;
       await _doSubmit();
     } finally {
       clearBypassInFlight();
@@ -751,6 +773,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
   void reset() {
     _consumeFreeUsageOnSuccess = false;
     _premiumAtSubmit = null;
+    _reflectFunnelArmed = false;
     // If a reset lands while a bypass is mid-flight, fire-and-forget the
     // cancel so the user's tokens don't sit reserved until the orphan cron
     // rescues. We intentionally don't await — reset() is sync-shaped for
@@ -770,6 +793,21 @@ class ReflectNotifier extends StateNotifier<ReflectState>
 
       // TODO: Build ReflectContext from journal/anchors when those are implemented
       final response = await _dependencies.reflect(text);
+
+      // W6 Wave D: fires once per gated submit, off-topic or not — carrying
+      // `off_topic` keeps the classifier's cost on Reflect comparable with
+      // the daily loop's. An exception from `_dependencies.reflect` above
+      // skips this entirely (caught below), which is what makes a failed AI
+      // call distinguishable from an abandonment: `started` fired, `completed`
+      // did not. Consumed here (armed reset) so a retry needs a fresh submit.
+      if (_reflectFunnelArmed) {
+        _reflectFunnelArmed = false;
+        try {
+          onAnalyticsEvent?.call(AnalyticsEvents.reflectCompleted, {
+            AnalyticsEvents.propOffTopic: response.offTopic,
+          });
+        } catch (_) {}
+      }
 
       if (response.offTopic) {
         _consumeFreeUsageOnSuccess = false;
