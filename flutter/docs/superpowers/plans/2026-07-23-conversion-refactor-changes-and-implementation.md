@@ -433,8 +433,22 @@ Consequences recorded so the two documents do not silently disagree:
 - **Trial duration stays store-derived.** The restored strings keep the `{trial}` templating
   from the rebuild (`paywallExitOfferBodyTemplate` / `AcceptTemplate`), so reviving the sheet
   cannot revive a hardcoded "3 days".
-- **Scope is unchanged from prior behaviour** — soft surfaces only. It is not added to the
-  hard wall or the onboarding ceremony.
+- **Scope is unchanged from prior behaviour — which INCLUDES the onboarding ceremony.**
+  *(Corrected 2026-08-01. This line first read "soft surfaces only … not added to the hard
+  wall or the onboarding ceremony". The second half was wrong: the pre-W5 gate had **no
+  placement condition at all** — `_handleClose` gated only on plan/package state — so the
+  hard wall was excluded solely because it has no ✕, while onboarding had one and the sheet
+  fired there. "Soft surfaces only" and "match prior behaviour" cannot both hold, and prior
+  behaviour is the one that governs.)* It fires from `plan_select` and the condensed screen;
+  **not** from `value_depth` or `trial_timeline`, because pre-W5 the ✕ only ever existed on a
+  screen already showing the plan cards — so the downsell always answered a price the user
+  had just seen. Firing it on a page with no prices would be expansion dressed as
+  restoration. The hard wall still has no ✕ and never fires. All directions pinned by tests.
+- **Cutting it from onboarding would corrupt the read it exists for.** Onboarding is the
+  highest-volume paywall surface; removing the sheet there shrinks the measured population
+  of the mechanic under measurement and biases the T0+2wk number **downward** — risking
+  deleting something that works, which is the blind decision this reprieve was granted to
+  avoid. Removing it *after* the read is free; removing it *before* is not.
 - **Review at T0+2wk** alongside the health read. If the accepted→completed rate does not
   justify it, delete it then as a measured decision — and the draft's line stops being false
   by becoming true again.
