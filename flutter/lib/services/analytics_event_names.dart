@@ -170,6 +170,23 @@ abstract final class AnalyticsEvents {
   static const paywallCtaTapped = 'paywall_cta_tapped';
   static const paywallClosed = 'paywall_closed';
 
+  // W5 Wave C — the 3-page gate. `paywall_viewed` fires once per mount; this
+  // fires once per PAGE so the ceremony's internal drop-off is measurable.
+  // Segment by [propPageId], never by page index: the ineligible-user variant
+  // has no `trial_timeline` page, so index 1 means different things to
+  // different users while the id never does.
+  static const String paywallPageViewed = 'paywall_page_viewed';
+  static const String propPageId = 'page_id';
+  static const String paywallPageValueDepth = 'value_depth';
+  static const String paywallPageTrialTimeline = 'trial_timeline';
+  static const String paywallPagePlanSelect = 'plan_select';
+  static const String paywallPageCondensed = 'condensed';
+
+  /// The user dismissed the gate and was shown the one-time "always free"
+  /// card — the free tier's entry moment, and the denominator for every later
+  /// free→paid conversion read.
+  static const String freeTierEntered = 'free_tier_entered';
+
   // Paywall funnel instrumentation (2026-06-15 audit, Phase 2). The native
   // StoreKit sheet was a dark step between paywall_cta_tapped and trial_started;
   // these make the CTA→trial drop measurable. `placement` distinguishes the
@@ -301,8 +318,46 @@ abstract final class AnalyticsEvents {
   /// safety valve is shown (so we can monitor how often the brick-prevention
   /// path triggers in production).
   static const paywallOfferingsLoadFailed = 'paywall_offerings_load_failed';
+  // ---- Exit offer (the ✕-interception weekly downsell) ---------------------
+  // The mechanic has shipped for months with `shown` and `accepted` wired but
+  // nothing to answer "does it earn anything". These three plus [propOrigin]
+  // close that: shown → accepted → purchase started → purchase completed.
+  //
+  // All three carry [propPlacement], so a soft-gate exit offer is
+  // distinguishable from an in-app one.
   static const paywallExitOfferShown = 'paywall_exit_offer_shown';
   static const paywallExitOfferAccepted = 'paywall_exit_offer_accepted';
+
+  /// Fired on EVERY route out of the sheet that is not an accept: the "No
+  /// thanks" button, a scrim tap, and the back gesture.
+  ///
+  /// Without it, `shown` and `accepted` give a ratio with no visibility into
+  /// the decline path — you cannot tell "nobody saw it" from "everybody saw it
+  /// and refused". A decline route that missed one exit would quietly
+  /// understate declines and flatter the mechanic.
+  ///
+  /// Props: `{placement, route}` — see [propDismissRoute].
+  static const String paywallExitOfferDeclined = 'paywall_exit_offer_declined';
+
+  /// How the user left a dismissible sheet: [dismissRouteButton] (an explicit
+  /// decline tap) or [dismissRouteDismissed] (scrim tap / back gesture, which
+  /// the framework reports identically).
+  static const String propDismissRoute = 'route';
+  static const String dismissRouteButton = 'button';
+  static const String dismissRouteDismissed = 'dismissed';
+
+  /// What started the purchase attempt this event belongs to —
+  /// [originPaywall] (the CTA on the gate itself) or [originExitOffer].
+  ///
+  /// A PROPERTY on the existing `paywall_cta_tapped` / `purchase_sheet_*` /
+  /// `trial_started` chain, deliberately NOT a parallel set of events: forking
+  /// a live funnel is what the plan forbids, and "accepted" only means the CTA
+  /// was tapped — if the StoreKit sheet is then abandoned, an exit offer that
+  /// earns nothing would still look like it works. Segmenting the existing
+  /// chain on this property is what makes the money visible.
+  static const String propOrigin = 'origin';
+  static const String originPaywall = 'paywall';
+  static const String originExitOffer = 'exit_offer';
   static const paywallFlowLoaderShown = 'paywall_flow_loader_shown';
   static const paywallFlowLoaderAdvanced = 'paywall_flow_loader_advanced';
   static const paywallFlowPlanShown = 'paywall_flow_plan_shown';

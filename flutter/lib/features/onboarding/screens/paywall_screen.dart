@@ -3,38 +3,60 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../core/constants/app_strings.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../core/app_session.dart';
-import '../../../features/daily/providers/daily_rewards_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../paywall/paywall_placement.dart';
-import '../../../services/analytics_provider.dart';
+import '../../../core/app_session.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_durations.dart';
+import '../../../core/constants/app_strings.dart';
+import '../../../features/daily/providers/daily_rewards_provider.dart';
 import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../../../services/card_collection_service.dart';
 import '../../../services/onboarding_gate_service.dart';
 import '../../../services/purchase_service.dart';
 import '../../../services/supabase_sync_service.dart';
+import '../../paywall/paywall_offer_view.dart';
+import '../../paywall/paywall_placement.dart';
+import '../../paywall/trial_offer.dart';
+import '../../paywall/widgets/paywall_always_free_card.dart';
+import '../../paywall/widgets/paywall_condensed_page.dart';
+import '../../paywall/widgets/paywall_exit_offer_sheet.dart';
+import '../../paywall/widgets/paywall_gate_page.dart';
+import '../../paywall/widgets/paywall_plan_select_page.dart';
+import '../../paywall/widgets/paywall_purchase_footer.dart';
+import '../../paywall/widgets/paywall_trial_timeline_page.dart';
+import '../../paywall/widgets/paywall_value_depth_page.dart';
+import '../content/problem_chips.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/premium_celebration_overlay.dart';
-import 'package:sakina/core/constants/app_durations.dart';
 
+/// The gate. One widget, parameterized by [PaywallScreen.placement]:
+///
+///   * [PaywallPlacement.onboarding] — the approved three-page ceremony,
+///     `value_depth` → `trial_timeline` → `plan_select`, front-loaded at the
+///     emotional peak right after the reveal.
+///   * everything else — a condensed single screen (value line, plans, plain
+///     terms). A user interrupted mid-task is not arriving, and making them tap
+///     through a ceremony to get back to work is how you teach people to
+///     dismiss a gate on sight.
+///
+/// [PaywallScreen.hardGate] is orthogonal to layout: it removes the ✕ and
+/// blocks back, and adds the offerings-failure safety valve.
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     required this.onComplete,
     required this.placement,
     this.inOnboardingFlow = true,
     this.hardGate = false,
+    this.softValueLine,
     super.key,
-  }) : assert(!(hardGate && inOnboardingFlow),
+  }) : assert(
+            !(hardGate && inOnboardingFlow),
             'hardGate is post-onboarding; it must not also run the '
             'completeOnboarding side-effect chain (set inOnboardingFlow: false)');
 
@@ -47,7 +69,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
   ///
   /// REQUIRED with no default (W5 Wave C.1): a new entry point that forgets to
   /// name its surface must fail to compile, not silently report itself as an
-  /// in-app upsell. Wave C.2 branches the layout on this. Navigate to the
+  /// in-app upsell. Wave C.2 branches the LAYOUT on it too. Navigate to the
   /// `/paywall` route with `pushPaywall(context, placement: ...)`.
   final PaywallPlacement placement;
 
@@ -56,7 +78,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
   /// `onboarding_paywall_cleared` latch so the router lets the user through.
   /// When offerings fail to load, a "Continue" safety valve grants a
   /// session-only bypass (no latch) so a StoreKit outage can't brick a new
-  /// user. Soft modes (onboarding pages 22-26, journal upsell) keep the X.
+  /// user.
   final bool hardGate;
 
   /// When `true` (the default, onboarding use case), completing a purchase or
@@ -64,29 +86,58 @@ class PaywallScreen extends ConsumerStatefulWidget {
   /// resets the daily-launch gate, and marks onboarding as finished.
   ///
   /// When `false`, this side-effect chain is skipped — use this when the
-  /// paywall is surfaced to an already-onboarded user (e.g. via the
-  /// journal-save upgrade sheet). Only `onComplete` fires in that case.
+  /// paywall is surfaced to an already-onboarded user. Only `onComplete` fires.
   final bool inOnboardingFlow;
+
+  /// Base SharedPreferences key for the dismiss counter. User-scoped via
+  /// [SupabaseSyncService.scopedKey] so a shared device doesn't bleed dismiss
+  /// state across accounts.
+  ///
+  /// **Nothing reads this today** (founder, 2026-07-29). It is kept because it
+  /// is the exact input a winback surface needs and is already accumulating.
+  static const String paywallDismissCountPrefsBaseKey = 'paywall_dismiss_count';
+
+  /// Base key for the once-ever "always free" card. Scoped the same way.
+  static const String alwaysFreeCardShownPrefsBaseKey =
+      'paywall_always_free_card_shown';
+
+  /// The condensed surface's trigger-specific value line ("Your reflections for
+  /// this week are used — Premium is unlimited.").
+  ///
+  /// Left `null` by every caller today, which renders a line that makes no
+  /// claim about the reset period. This is the seam for W5 Wave D: the cap and
+  /// warm-up sheets know which feature ran out and under which cohort's reset,
+  /// and only they can state it truthfully.
+  final String? softValueLine;
 
   @override
   ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
 }
 
-enum _PlanType { annual, weekly }
+/// The pages the gate can show. The id is the analytics `page_id` — segment by
+/// it, never by index: an ineligible user has no `trial_timeline`, so index 1
+/// means different pages to different users while the id never does.
+enum _GatePage {
+  valueDepth(AnalyticsEvents.paywallPageValueDepth),
+  trialTimeline(AnalyticsEvents.paywallPageTrialTimeline),
+  planSelect(AnalyticsEvents.paywallPagePlanSelect),
+  condensed(AnalyticsEvents.paywallPageCondensed);
 
-/// Test-only seam: when `true`, both `_maybeBreathe` and `_maybeShimmerBadge`
-/// short-circuit to a no-op wrapper. Paywall animations are otherwise always on.
-/// Tests use `tester.pumpAndSettle()` which never settles against the
-/// repeating breathing / shimmer animations introduced by the 2026-05-14
-/// paywall rebuild — flipping this in `setUp` keeps existing widget tests
-/// (and any new ones) green without each one having to switch to manual
-/// `tester.pump(Duration)` calls.
+  const _GatePage(this.pageId);
+
+  final String pageId;
+}
+
+/// Test-only seam: disables the gate's entry motion so `pumpAndSettle`
+/// returns. Production never sets this.
 ///
-/// Production code never sets this — the compile-time `Env` flag is the
-/// real rollback path. See docs/superpowers/plans/2026-05-14-paywall-rebuild.md
-/// (Rollback / Kill Switch).
-@visibleForTesting
-bool debugDisablePaywallAnimations = false;
+/// A proxy onto [debugDisablePaywallGateMotion], which is what the page
+/// widgets read. Kept under the old name because every existing paywall test
+/// flips it in `setUp`.
+bool get debugDisablePaywallAnimations => debugDisablePaywallGateMotion;
+
+set debugDisablePaywallAnimations(bool value) =>
+    debugDisablePaywallGateMotion = value;
 
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   static const _offeringsErrorMessage =
@@ -100,46 +151,39 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   static const _missingRestoreEntitlementMessage =
       'No active premium subscription was found to restore.';
 
-  _PlanType _selectedPlan = _PlanType.annual;
+  PaywallPlanType _selectedPlan = PaywallPlanType.annual;
   bool _purchasing = false;
   bool _restoring = false;
   String? _errorMessage;
   List<Package>? _offerings;
 
+  /// Per-user intro-offer eligibility keyed by product id. `null` until the
+  /// store answers — and `null` renders NON-trial copy, so the window between
+  /// mount and answer can never flash a promise we might have to retract.
+  Map<String, IntroEligibilityStatus>? _introEligibility;
+
   /// True once the offerings fetch has failed (empty or threw). Drives the
   /// hard-gate "Continue" safety valve so a load failure can't brick the user.
   bool _offeringsLoadFailed = false;
 
-  // Delayed close-button enable. The X fades in (and becomes tappable) after
-  // 3s so the user takes a real look at the offer before dismissing — a
-  // well-established paywall best practice that lifts conversion without
-  // hiding the dismiss path entirely (App Review requires a clear close).
-  bool _canClose = false;
-  Timer? _closeButtonTimer;
-  static const _closeButtonRevealDelay = Duration(seconds: 3);
+  int _pageIndex = 0;
+  String? _lastTrackedPageId;
 
-  // Exit offer shown at most once per session. If the user declines weekly
-  // and taps X again, we close immediately — no second nag.
+  /// The exit offer is shown at most once per session. If the user declines
+  /// weekly and taps ✕ again, the gate closes — no second nag.
   bool _exitOfferShown = false;
 
-  String get _planName => _selectedPlan == _PlanType.annual ? 'annual' : 'weekly';
+  /// What started the in-flight purchase attempt. Tags the EXISTING
+  /// `paywall_cta_tapped` / `purchase_sheet_*` / `trial_started` chain so an
+  /// exit-offer conversion is separable from a CTA one without forking the
+  /// funnel into parallel events.
+  String _purchaseOrigin = AnalyticsEvents.originPaywall;
 
-  // Concrete premium unlocks (2026-07-20). Replaces the older 3 emotional
-  // benefits (benefit1/3/4) which never named what premium actually grants —
-  // the "what do I get?" gap is the single most common paywall objection.
-  // Ordered strongest-first: the AI cap-lift is the core value, then the
-  // collection + economy perks. Copy rationale lives in app_strings.dart.
-  static const _benefits = [
-    AppStrings.paywallPremiumBenefit1,
-    AppStrings.paywallPremiumBenefit2,
-    AppStrings.paywallPremiumBenefit3,
-    AppStrings.paywallPremiumBenefit4,
-    AppStrings.paywallPremiumBenefit5,
-  ];
+  /// The one-time "always free" card is on screen; the gate underneath is gone.
+  bool _showAlwaysFreeCard = false;
 
-  PackageType get _selectedPackageType => _selectedPlan == _PlanType.annual
-      ? PackageType.annual
-      : PackageType.weekly;
+  String get _planName =>
+      _selectedPlan == PaywallPlanType.annual ? 'annual' : 'weekly';
 
   Package? get _annualPackage => _offerings?.cast<Package?>().firstWhere(
         (p) => p!.packageType == PackageType.annual,
@@ -151,138 +195,140 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         orElse: () => null,
       );
 
-  /// Locale-aware "was X" anchor price for the annual card. Computed as
-  /// 2x the actual annual price in the user's storefront currency, rounded
-  /// to a clean .99 ending (or whole units for 0-decimal currencies like
-  /// JPY/KRW). Returns null when offerings haven't loaded — the card hides
-  /// the strikethrough rather than showing a USD anchor next to a non-USD
-  /// price, which would look broken.
-  ///
-  /// Examples (post-format):
-  ///   US  $49.99/yr → "$99.99"
-  ///   UK  £39.99/yr → "£79.99"
-  ///   JP  ¥7,800/yr → "¥15,600"
-  ///   IN  ₹3,499/yr → "₹6,999"
-  ///
-  /// This is the canonical pattern: doubling the live price keeps the
-  /// 50% off framing identical across every storefront, so the SAVE 50%
-  /// badge stays mathematically consistent with the strikethrough no
-  /// matter where the user is.
-  String? get _annualAnchorPrice {
+  Package? get _selectedPackage =>
+      _selectedPlan == PaywallPlanType.annual ? _annualPackage : _weeklyPackage;
+
+  bool get _isCeremony => widget.placement == PaywallPlacement.onboarding;
+
+  // ───────────────────────── offer resolution ─────────────────────────
+
+  /// The trial [plan] will ACTUALLY be granted — product offer ∧ this user's
+  /// eligibility. `null` means the gate makes no trial promise for that plan.
+  TrialOffer? _trialFor(PaywallPlanType plan) {
+    final pkg =
+        plan == PaywallPlanType.annual ? _annualPackage : _weeklyPackage;
+    final product = pkg?.storeProduct;
+    if (product == null) return null;
+    final offer = TrialOffer.fromProduct(product);
+    final eligibility = resolveTrialEligibility(
+      productId: product.identifier,
+      productHasFreeTrial: offer != null,
+      statuses: _introEligibility,
+    );
+    return eligibility == TrialEligibility.eligible ? offer : null;
+  }
+
+  /// Live storefront price for [pkg], falling back to the shipped USD constant
+  /// only when offerings have not loaded (test stubs, cold-cache misses).
+  String _priceString(Package? pkg, String fallback) =>
+      pkg?.storeProduct.priceString ?? fallback;
+
+  /// The annual plan's per-week equivalent in the user's own currency —
+  /// `price / 52`, formatted locally. Falls back to the shipped `$0.96`.
+  String get _annualPerWeekString {
     final pkg = _annualPackage;
-    if (pkg == null) return null;
-    final price = pkg.storeProduct.price;
-    final code = pkg.storeProduct.currencyCode;
-    if (price <= 0 || code.isEmpty) return null;
+    final price = pkg?.storeProduct.price;
+    final code = pkg?.storeProduct.currencyCode;
+    if (price == null || price <= 0 || code == null || code.isEmpty) {
+      return AppStrings.paywallAnnualPerWeek;
+    }
     try {
       final locale = PlatformDispatcher.instance.locale.toLanguageTag();
       final fmt = NumberFormat.simpleCurrency(locale: locale, name: code);
-      final decimals = fmt.decimalDigits ?? 2;
-      // For 2-decimal currencies, force a .99 psychological ending. For
-      // 0-decimal currencies (JPY, KRW, IDR…) the doubled value is already
-      // an integer.
-      final anchor = decimals > 0
-          ? (price * 2).floorToDouble() + 0.99
-          : (price * 2).roundToDouble();
-      return fmt.format(anchor);
+      return fmt.format(price / 52);
     } catch (_) {
-      // Unknown currency code or formatter init failure — hide the
-      // strikethrough rather than risk showing a wrong-currency string.
-      return null;
+      return AppStrings.paywallAnnualPerWeek;
     }
   }
 
-  /// Locale-aware "Save $X" amount paired with [_annualAnchorPrice].
-  /// Always equals `anchor - price` so the math is internally consistent
-  /// across every storefront. Rounded to whole units for clean reading
-  /// ("Save $50", "Save £40", "Save ¥7,800"). Returns null when offerings
-  /// haven't loaded — UI hides the savings tag rather than guessing.
-  String? get _annualSavingsAmount {
-    final pkg = _annualPackage;
-    if (pkg == null) return null;
-    final price = pkg.storeProduct.price;
-    final code = pkg.storeProduct.currencyCode;
-    if (price <= 0 || code.isEmpty) return null;
-    try {
-      final locale = PlatformDispatcher.instance.locale.toLanguageTag();
-      final fmt = NumberFormat.simpleCurrency(locale: locale, name: code);
-      final decimals = fmt.decimalDigits ?? 2;
-      final anchor = decimals > 0
-          ? (price * 2).floorToDouble() + 0.99
-          : (price * 2).roundToDouble();
-      // Round to clean whole units — "Save $50.00" reads worse than
-      // "Save $50". Use a 0-decimal formatter for the savings string.
-      final savings = (anchor - price).roundToDouble();
-      final wholeFmt = NumberFormat.simpleCurrency(
-        locale: locale,
-        name: code,
-        decimalDigits: 0,
-      );
-      return wholeFmt.format(savings);
-    } catch (_) {
-      return null;
-    }
+  PaywallOfferView _buildOffer() {
+    final annualPrice =
+        _priceString(_annualPackage, AppStrings.paywallAnnualPrice);
+    final weeklyPrice =
+        _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice);
+    final weeklyTrial = _trialFor(PaywallPlanType.weekly);
+    final selectedTrial = _trialFor(_selectedPlan);
+
+    // The terms line follows the SELECTION — it is the only billing statement
+    // on the screen, so it may never assume annual.
+    final selectedPriceWithPeriod = _selectedPlan == PaywallPlanType.annual
+        ? '$annualPrice${AppStrings.paywallAnnualPeriod}'
+        : '$weeklyPrice${AppStrings.paywallWeeklyPeriod}';
+
+    return PaywallOfferView(
+      annualPriceLine: AppStrings.paywallPlanAnnualPriceTemplate
+          .replaceAll('{price}', annualPrice)
+          .replaceAll('{perWeek}', _annualPerWeekString),
+      weeklyRowLabel: weeklyTrial == null
+          ? AppStrings.paywallPlanWeeklyRowTemplate
+              .replaceAll('{price}', weeklyPrice)
+          : AppStrings.paywallPlanWeeklyRowTrialTemplate
+              .replaceAll('{price}', weeklyPrice)
+              .replaceAll('{trial}', weeklyTrial.label),
+      termsLine: selectedTrial == null
+          ? AppStrings.paywallGateTermsNoTrialTemplate
+              .replaceAll('{price}', selectedPriceWithPeriod)
+          : AppStrings.paywallGateTermsTrialTemplate
+              .replaceAll('{trial}', selectedTrial.label)
+              .replaceAll('{price}', selectedPriceWithPeriod),
+      ctaLabel: selectedTrial == null
+          ? AppStrings.paywallCtaSubscribe
+          : AppStrings.paywallGateCtaTrialTemplate
+              .replaceAll('{trial}', selectedTrial.label),
+      trialLabel: selectedTrial?.label,
+      trialFlag: _trialFor(PaywallPlanType.annual) == null
+          ? null
+          : AppStrings.paywallPlanAnnualTrialFlagTemplate.replaceAll(
+              '{trial}',
+              _trialFor(PaywallPlanType.annual)!.label,
+            ),
+      trialDays: selectedTrial?.days,
+    );
   }
 
-  /// True when the StoreKit/RevenueCat product for [plan] has a free
-  /// introductory offer (price == 0). When false, StoreKit will charge
-  /// immediately on tap, so we hide the trial timeline and switch the CTA
-  /// from "Start Free Trial" to "Subscribe" — the paywall must not promise
-  /// a trial the OS won't grant. Configure introductory offers in App Store
-  /// Connect (Subscriptions → product → Introductory Offers) and Google
-  /// Play Console for this to flip true in production.
-  bool _planHasTrial(_PlanType plan) {
-    final pkg = plan == _PlanType.annual ? _annualPackage : _weeklyPackage;
-    final intro = pkg?.storeProduct.introductoryPrice;
-    return intro != null && intro.price == 0;
+  /// The ceremony drops `trial_timeline` entirely when there is no trial to be
+  /// transparent about — an ineligible user must not be walked through a
+  /// timeline for something they will not get.
+  List<_GatePage> _pagesFor(PaywallOfferView offer) {
+    if (!_isCeremony) return const [_GatePage.condensed];
+    final days = offer.trialDays;
+    return [
+      _GatePage.valueDepth,
+      if (offer.hasTrial && days != null && days >= 2) _GatePage.trialTimeline,
+      _GatePage.planSelect,
+    ];
   }
 
-  /// Locale-aware priceString for the currently selected plan. Used by the
-  /// honest-billing footer to surface the literal post-trial charge.
-  /// Falls back to the static USD constant when offerings haven't loaded —
-  /// the footer is gated on `_planHasTrial`, which requires the package to
-  /// be loaded, so in practice the fallback only fires in test stubs that
-  /// skip offerings loading.
-  String _activePackagePriceString() {
-    if (_selectedPlan == _PlanType.annual) {
-      return _annualPackage?.storeProduct.priceString ??
-          AppStrings.paywallAnnualPrice;
-    }
-    return _weeklyPackage?.storeProduct.priceString ??
-        AppStrings.paywallWeeklyPrice;
-  }
+  // ───────────────────────── page-1 content ─────────────────────────
 
-  /// Wraps the CTA's inner `Text` (NOT the button container) with a subtle
-  /// breathing scale animation (always on; the test seam disables it).
-  /// Wrapping the inner Text means the animation simply doesn't exist
-  /// while the `_purchasing` spinner takes over the child slot — no
-  /// jitter, no conflict.
+  /// The Name the reveal actually awarded, resolved from the catalog so page 1
+  /// can render the SAME card widget the user watched land.
   ///
-  /// 2.5% scale, 1.4s cycle — breathing-soft to match the Sakina /
-  /// tranquility brand. Per Adapty's 2026 report, animated paywall
-  /// elements lift conversion 12-18% vs. static; anything bigger reads
-  /// as gimmicky on a premium spiritual app.
-  Widget _maybeBreathe(Widget child) {
-    if (debugDisablePaywallAnimations) {
-      return child;
+  /// `revealedPairNameIds` is the source of truth (the reveal falls back to the
+  /// comfort pair whenever a deck is missing, and the paywall must echo what
+  /// was shown, not what was resolved). `pairNameIds` and `starterNameId` are
+  /// the older signals, kept as fallbacks. No match → no card, no Name clause.
+  CollectibleName? get _revealedCard {
+    final s = ref.read(onboardingProvider);
+    final id = s.revealedPairNameIds.isNotEmpty
+        ? s.revealedPairNameIds.first
+        : (s.pairNameIds.isNotEmpty ? s.pairNameIds.first : s.starterNameId);
+    if (id == null) return null;
+    for (final card in allCollectibleNames) {
+      if (card.id == id) return card;
     }
-    return child
-        .animate(onPlay: (c) => c.repeat(reverse: true))
-        .scaleXY(
-          begin: 1.0,
-          end: 1.025,
-          duration: 1400.ms,
-          curve: Curves.easeInOut,
-        );
+    return null;
   }
+
+  bool get _isSignContract =>
+      ref.read(onboardingProvider).contract == HookContract.sign;
+
+  // ───────────────────────── lifecycle ─────────────────────────
 
   @override
   void initState() {
     super.initState();
-    // Single source of truth for paywall_viewed across ALL three surfaces
-    // (onboarding, post-tour hard wall, soft in-app). Previously the hard wall
-    // and most soft entries fired no view event at all; the onboarding page
-    // emitted its own duplicate, which has now been removed.
+    // Single source of truth for paywall_viewed across ALL surfaces.
     try {
       ref.read(analyticsProvider).track(
         AnalyticsEvents.paywallViewed,
@@ -292,11 +338,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         },
       );
     } catch (_) {}
-    // Reverse-trial review fix #2: the TREATMENT arm's Day-3 soft gate
-    // (placement `post_trial_soft`) additionally fires `trial_paywall_surfaced`
-    // so the post-trial view is distinguishable from the control's immediate
-    // soft view. The `arm` comes from the session (no experiment access in the
-    // Riverpod-free services). Control keeps the generic `paywall_viewed` above.
     if (widget.placement == PaywallPlacement.postTrialSoft) {
       try {
         ref.read(analyticsProvider).track(
@@ -309,34 +350,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         );
       } catch (_) {}
     }
-    _closeButtonTimer = Timer(_closeButtonRevealDelay, () {
-      if (mounted) setState(() => _canClose = true);
-    });
     _loadOfferings();
   }
 
-  @override
-  void dispose() {
-    _closeButtonTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> _loadOfferings() async {
+    List<Package> offerings;
     try {
-      final offerings = await PurchaseService().getOfferings();
-      if (mounted) {
-        setState(() {
-          _offerings = offerings;
-          // An empty list means the current offering is misconfigured or the
-          // cold cache returned nothing. Surface the error up front so the
-          // user doesn't tap a CTA that looks priced (via the static fallback
-          // strings) only to see an error afterwards.
-          if (offerings.isEmpty) {
-            _errorMessage = _offeringsErrorMessage;
-            _markOfferingsFailed();
-          }
-        });
-      }
+      offerings = await PurchaseService().getOfferings();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -344,13 +364,38 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           _markOfferingsFailed();
         });
       }
+      return;
     }
+    if (!mounted) return;
+    setState(() {
+      _offerings = offerings;
+      // An empty list means the current offering is misconfigured or the cold
+      // cache returned nothing. Surface the error up front so the user doesn't
+      // tap a CTA that looks priced only to see an error afterwards.
+      if (offerings.isEmpty) {
+        _errorMessage = _offeringsErrorMessage;
+        _markOfferingsFailed();
+      }
+    });
+
+    // Per-USER eligibility, second: it needs the product ids, and it is the
+    // difference between "this product has a trial" and "you get one".
+    final productIds = offerings
+        .map((p) => p.storeProduct.identifier)
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    if (productIds.isEmpty) {
+      if (mounted) setState(() => _introEligibility = const {});
+      return;
+    }
+    final statuses = await PurchaseService().getIntroEligibility(productIds);
+    if (!mounted) return;
+    setState(() => _introEligibility = statuses);
   }
 
   /// Records that the offerings fetch failed so the hard-gate safety valve can
-  /// render. Fires [AnalyticsEvents.paywallOfferingsLoadFailed] exactly once so
-  /// we can monitor brick-prevention frequency in production. Call inside a
-  /// `setState`.
+  /// render. Fires [AnalyticsEvents.paywallOfferingsLoadFailed] exactly once.
+  /// Call inside a `setState`.
   void _markOfferingsFailed() {
     if (_offeringsLoadFailed) return;
     _offeringsLoadFailed = true;
@@ -361,10 +406,22 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
   }
 
+  void _trackPageViewed(_GatePage page) {
+    if (_lastTrackedPageId == page.pageId) return;
+    _lastTrackedPageId = page.pageId;
+    try {
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.paywallPageViewed,
+        properties: {
+          AnalyticsEvents.propPageId: page.pageId,
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
+        },
+      );
+    } catch (_) {}
+  }
+
   /// Hard-gate offerings-fail safety valve: grant a SESSION-ONLY bypass (no
-  /// durable latch) and let the user into the app so a StoreKit/Apple outage
-  /// can't brick a brand-new user at a no-X wall. Next cold launch re-walls
-  /// them once offerings can load (decision E3).
+  /// durable latch) so a StoreKit/Apple outage can't brick a brand-new user.
   void _continueViaValve() {
     try {
       ref.read(analyticsProvider).track(
@@ -386,8 +443,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       } catch (_) {}
     }
     if (widget.hardGate) {
-      // Set the durable entry latch + flip the in-memory flag so the router's
-      // next redirect resolves the stage to `app` and lets the user in.
       try {
         await OnboardingGateService().setPaywallCleared(true);
       } catch (_) {}
@@ -398,44 +453,122 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     widget.onComplete();
   }
 
-  Future<void> _handleClose() async {
-    // Eligible for the exit offer: never shown this session, currently
-    // looking at annual, weekly SKU is loaded, and we're not mid-flight.
-    final eligibleForExitOffer = !_exitOfferShown &&
-        _selectedPlan == _PlanType.annual &&
-        _weeklyPackage != null &&
-        !_purchasing &&
-        !_restoring;
-    if (eligibleForExitOffer) {
-      await _showExitOffer();
-      return;
-    }
-    unawaited(_doClose());
-  }
-
-  /// Base SharedPreferences key for the dismiss counter. User-scoped via
-  /// [SupabaseSyncService.scopedKey] so a shared device doesn't bleed dismiss
-  /// state across accounts.
-  ///
-  /// **Nothing reads this today** (founder, 2026-07-29). It used to route the
-  /// first dismiss to `ReferUnlockScreen`; that screen is gone and every dismiss
-  /// now completes the flow. The counter is kept deliberately rather than
-  /// deleted: it is the exact input a winback surface needs, it is already
-  /// user-scoped and already accumulating, and throwing it away would mean
-  /// starting that history from zero later.
-  static const String paywallDismissCountPrefsBaseKey = 'paywall_dismiss_count';
+  // ───────────────────────── dismissal ─────────────────────────
 
   /// Whether this paywall instance is the post-tour soft gate (either arm's
   /// surface). Drives the `soft_gate_dismissed` emission on X / dismiss.
   bool get _isPostTourSoftGate => widget.placement.isPostTourSoftGate;
 
+  /// Whether tapping ✕ right now should offer weekly first.
+  ///
+  /// Reproduces the pre-W5 gate exactly: never shown twice in a session,
+  /// annual currently selected, the weekly SKU loaded, nothing in flight.
+  ///
+  /// The one addition is [_plansAreVisible], and it is a faithfulness
+  /// condition rather than a new restriction. Before W5 the ✕ only ever
+  /// existed on a screen that was showing the plan cards, so a weekly
+  /// downsell always answered a price the user had just seen. The ceremony's
+  /// first two pages show no prices at all — firing it there would put the
+  /// offer somewhere it has never been, which is expanding its reach, not
+  /// preserving it.
+  bool get _eligibleForExitOffer =>
+      !_exitOfferShown &&
+      _plansAreVisible &&
+      _selectedPlan == PaywallPlanType.annual &&
+      _weeklyPackage != null &&
+      !_purchasing &&
+      !_restoring;
+
+  /// True when the page on screen is showing the plan chooser — `plan_select`
+  /// on the ceremony, or the condensed single screen.
+  bool _plansAreVisible = false;
+
+  /// ✕ → the exit offer (once per session, on the plan page) → the one-time
+  /// "always free" card → home.
+  ///
+  /// KNOWN DIVERGENCE from the approved draft, taken deliberately by the
+  /// founder on 2026-07-31: the draft says "✕ → home directly" and its
+  /// firewall self-check says "scarcity: none (no offers in v1)". The sheet is
+  /// kept anyway because it has been shipping unmeasured, and deleting an
+  /// unmeasured conversion mechanic is a revenue decision made blind. It is now
+  /// instrumented end to end (shown / accepted / declined, plus
+  /// [AnalyticsEvents.propOrigin] through the purchase chain) so the next call
+  /// on it is made with data.
+  Future<void> _handleClose() async {
+    if (_eligibleForExitOffer) {
+      await _showExitOffer();
+      return;
+    }
+    await _doClose();
+  }
+
+  Future<void> _showExitOffer() async {
+    setState(() => _exitOfferShown = true);
+    _trackExitOffer(AnalyticsEvents.paywallExitOfferShown);
+
+    final outcome = await showModalBottomSheet<PaywallExitOfferOutcome>(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => PaywallExitOfferSheet(
+        weeklyPrice: _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice),
+        trialLabel: _trialFor(PaywallPlanType.weekly)?.label,
+      ),
+      // A scrim tap and a back gesture both pop with no value. Mapping that to
+      // `dismissed` here — rather than letting it fall through as null — is what
+      // guarantees every route out of the sheet emits a decline. A decline path
+      // that misses an exit understates declines and flatters the mechanic.
+    ) ??
+        PaywallExitOfferOutcome.dismissed;
+
+    if (!mounted) return;
+
+    switch (outcome) {
+      case PaywallExitOfferOutcome.accepted:
+        _trackExitOffer(AnalyticsEvents.paywallExitOfferAccepted);
+        setState(() {
+          _selectedPlan = PaywallPlanType.weekly;
+          // Accepting only means the CTA was tapped. Tagging the origin here
+          // means the EXISTING purchase chain carries it all the way to
+          // `trial_started`, so an exit offer that is accepted and then
+          // abandoned at the StoreKit sheet cannot look like it earned money.
+          _purchaseOrigin = AnalyticsEvents.originExitOffer;
+        });
+        await _handlePurchase();
+      case PaywallExitOfferOutcome.declinedByButton:
+        _trackExitOffer(
+          AnalyticsEvents.paywallExitOfferDeclined,
+          route: AnalyticsEvents.dismissRouteButton,
+        );
+        await _doClose();
+      case PaywallExitOfferOutcome.dismissed:
+        // Still a decline for measurement, but the user goes back to the
+        // paywall rather than out of it — unchanged pre-W5 behaviour.
+        _trackExitOffer(
+          AnalyticsEvents.paywallExitOfferDeclined,
+          route: AnalyticsEvents.dismissRouteDismissed,
+        );
+    }
+  }
+
+  void _trackExitOffer(String event, {String? route}) {
+    try {
+      ref.read(analyticsProvider).track(
+        event,
+        properties: {
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
+          if (route != null) AnalyticsEvents.propDismissRoute: route,
+        },
+      );
+    } catch (_) {}
+  }
+
   Future<void> _doClose() async {
     ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
 
-    // Reverse-trial review fix #2: dismissing the post-tour soft gate (either
-    // arm) emits `soft_gate_dismissed{placement, arm}` so the loss path
-    // segments by arm. `paywall_closed` (above) stays placement-agnostic for
-    // back-compat; this is the arm-segmentable companion.
     if (_isPostTourSoftGate) {
       try {
         ref.read(analyticsProvider).track(
@@ -448,99 +581,64 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       } catch (_) {}
     }
 
-    // Read + increment the user-scoped dismiss counter. If the user is
-    // somehow not authenticated at this point (shouldn't happen — paywall
-    // is post-signup — but defensively), fall back to the bare key.
-    final prefs = await SharedPreferences.getInstance();
-    final scopedKey =
-        supabaseSyncService.scopedKey(paywallDismissCountPrefsBaseKey);
-    final count = (prefs.getInt(scopedKey) ?? 0) + 1;
-    await prefs.setInt(scopedKey, count);
+    // BOOKKEEPING MUST NEVER TRAP THE USER. Everything below is a counter and
+    // a once-ever flag; none of it is the reason the ✕ exists. `scopedKey`
+    // reads `Supabase.instance`, which throws if the client is not up yet, and
+    // a throw here would abort the dismiss silently — the user taps ✕ and
+    // nothing happens, on the one screen where being stuck is unforgivable.
+    // So a failure degrades to "show the card" rather than to "do nothing".
+    var alreadyShown = false;
+    SharedPreferences? prefs;
+    try {
+      prefs = await SharedPreferences.getInstance();
+      final countKey = supabaseSyncService
+          .scopedKey(PaywallScreen.paywallDismissCountPrefsBaseKey);
+      await prefs.setInt(countKey, (prefs.getInt(countKey) ?? 0) + 1);
+      alreadyShown = prefs.getBool(
+            supabaseSyncService
+                .scopedKey(PaywallScreen.alwaysFreeCardShownPrefsBaseKey),
+          ) ??
+          false;
+    } catch (_) {}
 
-    // Every dismiss finishes the flow — the user lands in the app.
-    //
-    // Until 2026-07-29 the first dismiss pushed `ReferUnlockScreen` ("Two paths
-    // forward") between here and home. It was removed, not moved, for three
-    // reasons: it advertised a **7-day** free trial when App Store Connect has
-    // the annual intro offer at THREE_DAYS; its "Start free trial" button did
-    // not start a trial, it popped back to this very paywall; and by the time it
-    // appeared the user had declined twice, so asking them to recommend Sakina
-    // to three friends asked for advocacy they had no experience to give.
-    //
-    // The share ask now lives only in `ReferralNudgeCard`, gated on a 7-day
-    // streak. Do not re-add an interstitial here: the whole reel-first thesis is
-    // that the pre-value gates are where the funnel leaks.
-    widget.onComplete();
-  }
-
-  Future<void> _showExitOffer() async {
-    setState(() => _exitOfferShown = true);
-    ref.read(analyticsProvider).track(AnalyticsEvents.paywallExitOfferShown);
-    final accepted = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: false,
-      backgroundColor: AppColors.surfaceLight,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => _ExitOfferSheet(
-        weeklyPrice: _weeklyPackage?.storeProduct.priceString ??
-            AppStrings.paywallWeeklyPrice,
-        weeklyHasTrial: _planHasTrial(_PlanType.weekly),
-      ),
-    );
-    if (!mounted) return;
-    if (accepted == true) {
-      ref
-          .read(analyticsProvider)
-          .track(AnalyticsEvents.paywallExitOfferAccepted);
-      setState(() => _selectedPlan = _PlanType.weekly);
-      await _handlePurchase();
-    } else if (accepted == false) {
-      _doClose();
+    if (alreadyShown) {
+      widget.onComplete();
+      return;
     }
-  }
-
-  String _personalizedHeadline() {
-    final s = ref.read(onboardingProvider);
-    // Trimmed-flow refactor (2026-05-25, Option α): `aspirations` was removed
-    // from OnboardingState. We now always render the shorter fallback. The
-    // Phase B copy refresh will rewrite this headline against the trimmed
-    // signals we still capture (intention / familiarity / dua_topics).
-    const aspiration = 'your best self';
-    final mins = s.dailyCommitmentMinutes ?? 3;
-    final minLabel = mins == 1 ? '1 minute' : '$mins minutes';
-    // Reframe so the time is the commitment, not the deadline. The old
-    // shape ("Become X in 3 min a day") read as if the user becomes X
-    // *within* 3 minutes — wrong scope. New shape leads with the daily
-    // promise: "$mins minutes a day to become X."
-    return 'Just $minLabel a day to become $aspiration.';
-  }
-
-  Package? _findSelectedPackage(List<Package> offerings) {
-    for (final package in offerings) {
-      if (package.packageType == _selectedPackageType) {
-        return package;
-      }
+    try {
+      await prefs?.setBool(
+        supabaseSyncService
+            .scopedKey(PaywallScreen.alwaysFreeCardShownPrefsBaseKey),
+        true,
+      );
+    } catch (_) {}
+    try {
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.freeTierEntered,
+        properties: {
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
+        },
+      );
+    } catch (_) {}
+    if (!mounted) {
+      widget.onComplete();
+      return;
     }
-    return null;
+    setState(() => _showAlwaysFreeCard = true);
   }
+
+  // ───────────────────────── purchase ─────────────────────────
 
   Future<void> _completePurchaseFlow() async {
     ref.invalidate(premiumStateProvider);
 
-    // Premium retro-bump: the user just became premium (purchase OR restore both
-    // funnel through here), so promote any Gold cards to Emerald in this same
-    // session. Fire-and-forget — must never block or fail the purchase flow.
-    // Self-gates on premium and is idempotent once nothing Gold remains.
+    // Premium retro-bump: promote any Gold cards to Emerald in this session.
+    // Fire-and-forget — must never block or fail the purchase flow.
     unawaited(reconcilePremiumEmeralds().catchError((_) => 0));
 
     // HARD GATE: persist the durable entry latch NOW, BEFORE the (blocking,
-    // dismissable) celebration overlay. Premium is already confirmed by the
-    // time this runs. If the widget unmounts during the overlay (app
-    // backgrounded / killed), `_handleComplete` below never runs — setting the
-    // latch only there would leave a just-paid user re-walled on next launch.
-    // Idempotent with the `_handleComplete` latch-set.
+    // dismissable) celebration overlay, so an unmount mid-overlay can't leave
+    // a just-paid user re-walled. Idempotent with the `_handleComplete` set.
     if (widget.hardGate) {
       try {
         await OnboardingGateService().setPaywallCleared(true);
@@ -552,10 +650,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
     if (!mounted) return;
 
-    // Show the "Welcome to Premium" reveal (blocks until tapped).
-    // If the user kills the app mid-overlay, premiumStateProvider already
-    // returns true on next launch from RevenueCat's cache, so premium UI
-    // renders correctly without the reveal.
     await Navigator.of(context, rootNavigator: true).push<void>(
       PageRouteBuilder<void>(
         opaque: false,
@@ -575,11 +669,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _handlePurchase() async {
     if (_purchasing) return;
-    ref.read(analyticsProvider).track(AnalyticsEvents.paywallCtaTapped,
-        properties: {
-          'plan': _planName,
-          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
-        });
+    ref
+        .read(analyticsProvider)
+        .track(AnalyticsEvents.paywallCtaTapped, properties: {
+      'plan': _planName,
+      AnalyticsEvents.propOrigin: _purchaseOrigin,
+      AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
+    });
     HapticFeedback.mediumImpact();
     setState(() {
       _purchasing = true;
@@ -589,33 +685,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     try {
       final offerings = _offerings;
       if (offerings == null || offerings.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = _offeringsErrorMessage;
-          });
-        }
+        if (mounted) setState(() => _errorMessage = _offeringsErrorMessage);
         return;
       }
 
-      final selectedPackage = _findSelectedPackage(offerings);
+      final selectedPackage = _selectedPackage;
       if (selectedPackage == null) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = _offeringsErrorMessage;
-          });
-        }
+        if (mounted) setState(() => _errorMessage = _offeringsErrorMessage);
         return;
       }
 
-      // Native StoreKit/RevenueCat purchase sheet is about to be presented.
-      // This was the dark gap between CTA tap and trial start — instrumenting
-      // it here closes the CTA→trial funnel hole.
       try {
         ref.read(analyticsProvider).track(
           AnalyticsEvents.purchaseSheetPresented,
           properties: {
             AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             'plan': _planName,
+            AnalyticsEvents.propOrigin: _purchaseOrigin,
           },
         );
       } catch (_) {}
@@ -624,33 +710,27 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           await PurchaseService().purchaseSubscription(selectedPackage);
       if (!premiumActive) {
         // Sheet completed but entitlement is not active — treat as a failure so
-        // the CTA→trial funnel reconciles (presented == cancelled + failed +
-        // trial_started).
+        // the CTA→trial funnel reconciles.
         try {
           ref.read(analyticsProvider).track(
             AnalyticsEvents.purchaseSheetFailed,
             properties: {
               AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
+              AnalyticsEvents.propOrigin: _purchaseOrigin,
               'reason': 'entitlement_inactive',
             },
           );
         } catch (_) {}
-        if (mounted) {
-          setState(() {
-            _errorMessage = _missingPremiumMessage;
-          });
-        }
+        if (mounted) setState(() => _errorMessage = _missingPremiumMessage);
         return;
       }
 
-      // First true conversion signal — fires only on entitlement-active, not on
-      // CTA tap. `hard_gate` distinguishes the post-tour entry wall from the
-      // soft upsell surfaces.
       ref.read(analyticsProvider).track(
         AnalyticsEvents.trialStarted,
         properties: {
           'plan': _planName,
+          AnalyticsEvents.propOrigin: _purchaseOrigin,
           'hard_gate': widget.hardGate,
           AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
         },
@@ -661,13 +741,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     } on PlatformException catch (error) {
       final errorCode = PurchasesErrorHelper.getErrorCode(error);
       if (errorCode == PurchasesErrorCode.purchaseCancelledError) {
-        // User dismissed the StoreKit sheet without buying.
         try {
           ref.read(analyticsProvider).track(
             AnalyticsEvents.purchaseSheetCancelled,
             properties: {
               AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
+              AnalyticsEvents.propOrigin: _purchaseOrigin,
             },
           );
         } catch (_) {}
@@ -678,15 +758,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             properties: {
               AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
               'plan': _planName,
+              AnalyticsEvents.propOrigin: _purchaseOrigin,
               'reason': errorCode.toString(),
             },
           );
         } catch (_) {}
-        if (mounted) {
-          setState(() {
-            _errorMessage = _purchaseFailedMessage;
-          });
-        }
+        if (mounted) setState(() => _errorMessage = _purchaseFailedMessage);
       }
     } catch (e) {
       try {
@@ -695,32 +772,14 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           properties: {
             AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
             'plan': _planName,
+            AnalyticsEvents.propOrigin: _purchaseOrigin,
             'reason': e.runtimeType.toString(),
           },
         );
       } catch (_) {}
-      if (mounted) {
-        setState(() {
-          _errorMessage = _purchaseFailedMessage;
-        });
-      }
+      if (mounted) setState(() => _errorMessage = _purchaseFailedMessage);
     } finally {
-      if (mounted) {
-        setState(() {
-          _purchasing = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _openLegalUrl(String url) async {
-    final uri = Uri.parse(url);
-    final launched =
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(duration: kSnackBarDuration, content: Text('Could not open the page. Try again.')),
-      );
+      if (mounted) setState(() => _purchasing = false);
     }
   }
 
@@ -735,1011 +794,185 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       final premiumActive = await PurchaseService().restorePurchases();
       if (!premiumActive) {
         if (mounted) {
-          setState(() {
-            _errorMessage = _missingRestoreEntitlementMessage;
-          });
+          setState(() => _errorMessage = _missingRestoreEntitlementMessage);
         }
         return;
       }
-
       if (!mounted) return;
       await _completePurchaseFlow();
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = _restoreFailedMessage;
-        });
-      }
+      if (mounted) setState(() => _errorMessage = _restoreFailedMessage);
     } finally {
-      if (mounted) {
-        setState(() {
-          _restoring = false;
-        });
-      }
+      if (mounted) setState(() => _restoring = false);
     }
   }
 
+  Future<void> _openLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: kSnackBarDuration,
+          content: Text('Could not open the page. Try again.'),
+        ),
+      );
+    }
+  }
+
+  // ───────────────────────── build ─────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final hasTrial = _planHasTrial(_selectedPlan);
-    final mediaQueryPadding = MediaQuery.of(context).padding;
+    final offer = _buildOffer();
+    final pages = _pagesFor(offer);
+    // Eligibility resolving late can shorten the list under the user's feet.
+    final index = _pageIndex.clamp(0, pages.length - 1);
+    final page = pages[index];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_showAlwaysFreeCard) _trackPageViewed(page);
+    });
+
+    final busy = _purchasing || _restoring;
+    final isLastPage = index == pages.length - 1;
+    // The plan chooser and the purchase footer live on the same (last) page,
+    // so this is also "the user can see a price right now" — the condition the
+    // exit offer has always implicitly had. Assigned during build rather than
+    // derived in the handler so it cannot drift from what is actually drawn.
+    _plansAreVisible = isLastPage;
+
     return PopScope(
       // HARD GATE: block the system back gesture / Android back button so the
       // user can't escape the entry wall without converting or using the valve.
       canPop: !widget.hardGate,
       child: Scaffold(
-      // Match the image's warm-cream top so any 1px banding between the
-      // status-bar area and the hero is invisible. The page background
-      // is the same cream — both blend.
-      backgroundColor: AppColors.backgroundLight,
-      // No SafeArea wrapper at the top — the hero image bleeds into the
-      // status-bar region for that "edge-to-edge" treatment Cal AI / Hallow
-      // use. Top safe-area padding is re-added below where it matters
-      // (close X position) instead of as a global child constraint.
-      body: Stack(
-          children: [
-            // Main scrollable content. The hero block bleeds full-width past
-            // the page padding for visual impact; everything else respects
-            // the standard horizontal page padding via inner wrappers.
-            //
-            // LayoutBuilder + ConstrainedBox(minHeight) + IntrinsicHeight
-            // gives the inner Column bounded vertical space equal to at
-            // least the viewport height, which lets the Spacer below the
-            // pricing cards push the CTA + legal block down so it sits
-            // vertically centered in the remaining cream space.
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
+        backgroundColor: AppColors.backgroundLight,
+        body: _showAlwaysFreeCard
+            ? PaywallAlwaysFreeCard(onContinue: widget.onComplete)
+            : PaywallGatePage(
+                stepCount: pages.length > 1 ? pages.length : 0,
+                stepIndex: index,
+                onClose: widget.hardGate || busy ? null : _handleClose,
+                body: switch (page) {
+                  _GatePage.valueDepth => PaywallValueDepthPage(
+                      nameTransliteration: _revealedCard?.transliteration,
+                      isSignContract: _isSignContract,
+                      card: _revealedCard,
                     ),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                  const _PaywallHero(),
-
-                  // Breathing room between the hero's faded tail and the
-                  // headline. Without this the body content reads as
-                  // jammed against the image instead of as a separate
-                  // section that flows naturally below it.
-                  const SizedBox(height: AppSpacing.sm),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.pagePadding,
+                  _GatePage.trialTimeline => PaywallTrialTimelinePage(
+                      trialLabel: offer.trialLabel!,
+                      trialDays: offer.trialDays!,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // The gold "YOU'RE 1 STEP AWAY, {name}" eyebrow was
-                        // removed 2026-07-29 (founder). It cost a line plus its
-                        // 6pt gap at the top of a screen whose Restore / Terms /
-                        // Privacy row sat below the fold and out of easy thumb
-                        // reach. Those links are a store requirement, so the
-                        // eyebrow — which repeated what the CTA already says —
-                        // is the right thing to spend.
-                        //
-                        // It was also the last consumer of
-                        // `paywallPersonalizedHeaderTemplate`; the string stays
-                        // in `app_strings.dart` for the W4 rebuild.
-                        //
-                        // Personalized headline — DM Serif Display.
-                        Text(
-                          _personalizedHeadline(),
-                          style: AppTypography.displaySmall.copyWith(
-                            color: AppColors.textPrimaryLight,
-                            height: 1.12,
-                            fontSize: 26,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        // md, not lg: this gap now carries the whole transition
-                        // from hero to list, since the "Everything premium
-                        // unlocks" section label that used to sit between them
-                        // was removed 2026-07-29 (founder). Five emerald
-                        // checkmarks under a purchase headline are already
-                        // legible as a list of what you get — the label was
-                        // announcing what the rows say for themselves, and it
-                        // cost a line plus two gaps on a screen fighting for a
-                        // single viewport.
-                        //
-                        // `paywallPremiumBenefitsHeader` stays in
-                        // `app_strings.dart`: the W4 three-page rebuild puts a
-                        // benefits checklist on its own `plan_select` page,
-                        // where a section label has a real job.
-                        const SizedBox(height: AppSpacing.md),
-
-                        // Benefit rows — staggered fade/slide on first
-                        // paint so the eye lands here after the hero.
-                        ...List.generate(_benefits.length, (i) {
-                          return Padding(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 5),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 22,
-                                  height: 22,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.primaryLight,
-                                  ),
-                                  child: const Icon(
-                                    Icons.check_rounded,
-                                    color: AppColors.primary,
-                                    size: 14,
+                  _GatePage.planSelect => PaywallPlanSelectPage(
+                      offer: offer,
+                      selectedPlan: _selectedPlan,
+                      onSelectPlan: _selectPlan,
+                    ),
+                  _GatePage.condensed => PaywallCondensedPage(
+                      offer: offer,
+                      selectedPlan: _selectedPlan,
+                      onSelectPlan: _selectPlan,
+                      valueLine: widget.softValueLine,
+                    ),
+                },
+                footer: isLastPage
+                    ? PaywallPurchaseFooter(
+                        ctaLabel: offer.ctaLabel,
+                        termsLine: offer.termsLine,
+                        onPurchase: _handlePurchase,
+                        onRestore: busy ? null : _handleRestore,
+                        onOpenTerms: () =>
+                            _openLegalUrl(AppStrings.termsOfServiceUrl),
+                        onOpenPrivacy: () =>
+                            _openLegalUrl(AppStrings.privacyPolicyUrl),
+                        busy: busy,
+                        restoring: _restoring,
+                        errorMessage: _errorMessage,
+                        extra: widget.hardGate && _offeringsLoadFailed
+                            ? TextButton(
+                                onPressed: busy ? null : _continueViaValve,
+                                child: const Text(
+                                  AppStrings.paywallGateContinue,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondaryLight,
+                                    decoration: TextDecoration.underline,
                                   ),
                                 ),
-                                const SizedBox(width: AppSpacing.sm + 2),
-                                Expanded(
-                                  child: Text(
-                                    _benefits[i],
-                                    style:
-                                        AppTypography.bodyMedium.copyWith(
-                                      color: AppColors.textPrimaryLight,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                              .animate()
-                              .fadeIn(
-                                delay: Duration(milliseconds: 90 * i + 120),
-                                duration: 380.ms,
                               )
-                              .slideX(
-                                begin: -0.04,
-                                end: 0,
-                                delay: Duration(milliseconds: 90 * i + 120),
-                                duration: 380.ms,
-                              );
-                        }),
-                        const SizedBox(height: AppSpacing.md),
-
-                        // Side-by-side pricing — Cal AI pattern. Annual on
-                        // the left (default-selected, "best value"), weekly
-                        // on the right.
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _PricingCard(
-                                  label: AppStrings.paywallAnnualLabel,
-                                  mainPrice: _annualPackage
-                                          ?.storeProduct.priceString ??
-                                      AppStrings.paywallAnnualPrice,
-                                  mainPriceLabel: 'per year',
-                                  // Locale-aware marketing anchor: 2x the
-                                  // live storefront price, formatted in the
-                                  // user's currency (e.g. $99.99, £79.99,
-                                  // ¥15,600). Pairs 1:1 with SAVE 50% badge
-                                  // in every storefront. Null until the
-                                  // package loads — strikethrough hides
-                                  // rather than showing a wrong-currency
-                                  // fallback.
-                                  strikethroughPrice: _annualAnchorPrice,
-                                  // Inline "Save $X" callout next to the
-                                  // strike. Computed alongside the anchor
-                                  // so the math always agrees. Hidden when
-                                  // the package isn't loaded.
-                                  savingsAmount: _annualSavingsAmount,
-                                  // Per-week breakdown — Cal AI's value
-                                  // framing. Makes annual feel cheap
-                                  // relative to weekly.
-                                  footerLine:
-                                      'Only ${AppStrings.paywallAnnualPerWeek} / week',
-                                  footerHighlight: true,
-                                  badge: AppStrings.paywallAnnualBadge,
-                                  selected:
-                                      _selectedPlan == _PlanType.annual,
-                                  onTap: () {
-                                    setState(() => _selectedPlan =
-                                        _PlanType.annual);
-                                    ref.read(analyticsProvider).track(
-                                        AnalyticsEvents
-                                            .paywallPlanSelected,
-                                        properties: {'plan': _planName});
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm + 4),
-                              Expanded(
-                                child: _PricingCard(
-                                  label: AppStrings.paywallWeeklyLabel,
-                                  mainPrice: _weeklyPackage
-                                          ?.storeProduct.priceString ??
-                                      AppStrings.paywallWeeklyPrice,
-                                  mainPriceLabel: 'per week',
-                                  footerLine: 'Cancel anytime',
-                                  footerHighlight: false,
-                                  selected:
-                                      _selectedPlan == _PlanType.weekly,
-                                  onTap: () {
-                                    setState(() => _selectedPlan =
-                                        _PlanType.weekly);
-                                    ref.read(analyticsProvider).track(
-                                        AnalyticsEvents
-                                            .paywallPlanSelected,
-                                        properties: {'plan': _planName});
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.sm + 2),
-                        Text(
-                          // Follows the SELECTED plan. This is now the only
-                          // billing line on the screen, so it may not assume
-                          // annual — see the note on the weekly template.
-                          hasTrial
-                              ? (_selectedPlan == _PlanType.annual
-                                      ? AppStrings.paywallTrialMicrocopyTemplate
-                                      : AppStrings
-                                          .paywallTrialMicrocopyWeeklyTemplate)
-                                  .replaceAll(
-                                  '{price}',
-                                  _activePackagePriceString(),
-                                )
-                              : AppStrings.paywallNoTrialNote,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textTertiaryLight,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            _errorMessage!,
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                        // HARD-GATE SAFETY VALVE: offerings failed to load and
-                        // there is no X — give the user a way into the app so a
-                        // StoreKit/Apple outage can't strand a brand-new user.
-                        // Session-only (no latch) → re-walled next launch.
-                        if (widget.hardGate && _offeringsLoadFailed) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          TextButton(
-                            onPressed: (_purchasing || _restoring)
-                                ? null
-                                : _continueViaValve,
-                            child: Text(
-                              'Continue',
-                              style: AppTypography.bodyMedium.copyWith(
-                                color: AppColors.textSecondaryLight,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  // Flexible gap above the CTA group. Pairs 1:1 with the
-                  // matching Spacer below the legal links so the CTA +
-                  // legal block sits at the true vertical center of the
-                  // cream space between the pricing cards and the screen
-                  // bottom. The home indicator floats over the same cream,
-                  // so no fixed bottom inset is needed for visual balance.
-                  const Spacer(),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.pagePadding,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // CTA — full-width pill, dynamic copy.
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: (_purchasing || _restoring)
-                                ? null
-                                : _handlePurchase,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.textOnPrimary,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                            ),
-                            child: _purchasing
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.textOnPrimary,
-                                    ),
-                                  )
-                                : _maybeBreathe(
-                                    Text(
-                                      hasTrial
-                                          ? AppStrings.paywallCtaTrial
-                                          : AppStrings
-                                              .paywallCtaSubscribeRevised,
-                                      style: AppTypography.labelLarge.copyWith(
-                                        color: AppColors.textOnPrimary,
-                                        fontSize: 16,
-                                        letterSpacing: 0.2,
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        // Below the CTA there used to be TWO more blocks — "No
-                        // payment due today." and the three-clause honest-
-                        // billing paragraph — on top of the trial microcopy
-                        // that already sits ABOVE the button. Three statements
-                        // of one fact is what pushed this screen past a single
-                        // viewport (founder, 2026-07-29).
-                        //
-                        // The surviving line is `paywallTrialMicrocopyTemplate`
-                        // above the CTA: "3 days free, then {price}/year.
-                        // Cancel anytime." That still carries everything
-                        // guideline 3.1.2 asks to be visible before purchase —
-                        // trial length, price, period, how to cancel — and the
-                        // plan cards restate the price and period beside it.
-                        //
-                        // Deleting the paragraph gives up the Blinkist result
-                        // the old comment cited (~23% conversion, ~55% fewer
-                        // refund complaints). That study compared explicit
-                        // billing copy against NO billing copy, which is not
-                        // this trade: the explicit line is still on screen, it
-                        // is just stated once instead of three times.
-                        // `paywallHonestBillingAnnual` / `...Weekly` are kept
-                        // in `app_strings.dart` for the manage-subscription
-                        // surfaces and in case this is revisited.
-                        const SizedBox(height: AppSpacing.sm + 4),
-
-                        // Legal links
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _LegalLink(
-                              label: _restoring
-                                  ? 'Restoring...'
-                                  : AppStrings.paywallRestore,
-                              onPressed: (_purchasing || _restoring)
-                                  ? null
-                                  : _handleRestore,
-                            ),
-                            _dot(),
-                            _LegalLink(
-                              label: AppStrings.paywallTerms,
-                              onPressed: () => _openLegalUrl(
-                                  AppStrings.termsOfServiceUrl),
-                            ),
-                            _dot(),
-                            _LegalLink(
-                              label: AppStrings.paywallPrivacy,
-                              onPressed: () => _openLegalUrl(
-                                  AppStrings.privacyPolicyUrl),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Mirrors the top Spacer (1:1) for true vertical
-                  // centering of the CTA + legal block in the cream
-                  // space below the pricing cards.
-                  const Spacer(),
-                        ],
+                            : null,
+                      )
+                    : _CeremonyFooter(
+                        footnote: page == _GatePage.trialTimeline
+                            ? AppStrings.paywallTrialTimelineFootnote
+                            : null,
+                        onContinue: () =>
+                            setState(() => _pageIndex = index + 1),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // Close X — positioned over the hero. Fades in after 3s so the
-            // user is forced to take a real look at the offer before they
-            // can dismiss. App Review still sees a visible (greyed) X
-            // immediately, satisfying Apple's "clear close path" rule.
-            // `top` sits the icon flush at the safe-area edge so it reads
-            // as floating on the hero, not as a chip pushed inward. No
-            // surface background — the icon blends directly into the
-            // illustration via its dark stroke.
-            //
-            // HARD GATE: omitted entirely — the post-tour entry wall has no
-            // dismiss path (decision C4). The only ways out are starting the
-            // trial or the offerings-fail "Continue" valve below.
-            if (!widget.hardGate)
-              Positioned(
-              top: mediaQueryPadding.top,
-              right: AppSpacing.sm,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 400),
-                opacity: _canClose ? 1.0 : 0.35,
-                child: IgnorePointer(
-                  ignoring: !_canClose,
-                  child: IconButton(
-                    onPressed:
-                        (_purchasing || _restoring) ? null : _handleClose,
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: AppColors.textPrimaryLight,
-                      size: 26,
-                    ),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shape: const CircleBorder(),
-                    ),
-                  ),
-                ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _dot() {
-    return Text(
-      ' \u00B7 ',
-      style: AppTypography.bodySmall.copyWith(
-        color: AppColors.textTertiaryLight,
-      ),
+  void _selectPlan(PaywallPlanType plan) {
+    setState(() => _selectedPlan = plan);
+    ref.read(analyticsProvider).track(
+      AnalyticsEvents.paywallPlanSelected,
+      properties: {'plan': _planName},
     );
   }
 }
 
-class _LegalLink extends StatelessWidget {
-  const _LegalLink({
-    required this.label,
-    this.onPressed,
-  });
+/// The footer on the ceremony's non-final pages: an optional reassurance line
+/// (which belongs beside the action, not floating in the page's dead middle)
+/// and Continue.
+class _CeremonyFooter extends StatelessWidget {
+  const _CeremonyFooter({required this.onContinue, this.footnote});
 
-  final String label;
-  final VoidCallback? onPressed;
+  final VoidCallback onContinue;
+  final String? footnote;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      onPressed: onPressed,
-      child: Text(
-        label,
-        style: AppTypography.bodySmall.copyWith(
-          color: AppColors.textTertiaryLight,
-        ),
-      ),
-    );
-  }
-}
-
-/// Side-by-side compact pricing card. Vertical layout — label up top,
-/// price stack in the middle, value line at the bottom — so the whole
-/// card feels filled instead of having dead cream space below the price.
-/// Selected state uses an emerald border + tinted background; unselected
-/// is white with a soft warm border. Cal AI / Hallow / Calm all pair the
-/// price with a per-period value line ("Only $X/week", "Cancel anytime")
-/// to give the card more reason to exist.
-class _PricingCard extends StatelessWidget {
-  const _PricingCard({
-    required this.label,
-    required this.mainPrice,
-    required this.mainPriceLabel,
-    required this.footerLine,
-    required this.footerHighlight,
-    required this.selected,
-    required this.onTap,
-    this.badge,
-    this.strikethroughPrice,
-    this.savingsAmount,
-  });
-
-  final String label;
-  final String mainPrice;
-  final String mainPriceLabel;
-
-  /// Optional anchor price displayed above [mainPrice] with a line-through.
-  /// Used on the annual card to visualize the savings vs. paying weekly for
-  /// 52 weeks. Must be a real, justifiable comparison price — never a
-  /// fabricated "list price" (deceptive under Apple guideline 3.1.1).
-  final String? strikethroughPrice;
-
-  /// Optional inline "Save $X" callout rendered next to [strikethroughPrice].
-  /// Pre-formatted in the user's locale ("$50", "£40", "¥7,800"). Must always
-  /// equal [strikethroughPrice] minus [mainPrice] — caller is responsible
-  /// for keeping the math consistent.
-  final String? savingsAmount;
-
-  /// Bottom line that fills empty space and adds value framing.
-  /// Yearly: "Only $0.96 / week" (highlight=true → primary color).
-  /// Weekly: "Cancel anytime" (highlight=false → secondary color).
-  final String footerLine;
-  final bool footerHighlight;
-
-  final String? badge;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // Outer Stack sits OUTSIDE the AnimatedContainer so floating elements
-    // (selected check, SAVE badge) can escape the card's padded interior.
-    // Putting them inside the container's child Stack — even with
-    // clipBehavior: Clip.none — places them in coordinate space relative to
-    // the padded inner area, so a small negative offset still falls inside
-    // the visible card.
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primaryLight
-                  : AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-              border: Border.all(
-                color: selected ? AppColors.primary : AppColors.borderLight,
-                width: selected ? 2 : 1.2,
-              ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.10),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Label
-                Text(
-                  label,
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Anchor price (struck-through) + inline savings callout.
-                // Aggressive variant — Cal AI / Speechify / Lensa pattern:
-                //   • Strike text stays full-strength dark so it's
-                //     readable; the line-through is RED so the eye
-                //     immediately reads "discount" not "secondary info".
-                //   • Inline "Save $X" tag in red bold next to the strike
-                //     gives a concrete dollar amount the % badge can't.
-                //   • Both pieces are computed dynamically from the live
-                //     storefront price, so they're correct in every
-                //     country (£40, ¥7,800, ₹3,500, etc.).
-                if (strikethroughPrice != null) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          strikethroughPrice!,
-                          style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textPrimaryLight,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: AppColors.error,
-                            decorationThickness: 2.8,
-                            height: 1.0,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (savingsAmount != null) ...[
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Save $savingsAmount',
-                            style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.error,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              height: 1.0,
-                              letterSpacing: 0.1,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                ],
-
-                // Big price
-                Text(
-                  mainPrice,
-                  style: AppTypography.displaySmall.copyWith(
-                    color: AppColors.textPrimaryLight,
-                    fontSize: 30,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  mainPriceLabel,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.textSecondaryLight,
-                    fontSize: 12,
-                  ),
-                ),
-
-                // Spacer absorbs leftover height when IntrinsicHeight makes
-                // both cards match the taller one. Keeps the footer line
-                // pinned to the card bottom regardless of which card is
-                // taller, so the two cards visually rhyme.
-                const SizedBox(height: 14),
-
-                // Thin divider above the footer.
-                Container(
-                  height: 1,
-                  color: selected
-                      ? AppColors.primary.withValues(alpha: 0.18)
-                      : AppColors.dividerLight,
-                ),
-                const SizedBox(height: 8),
-
-                // Footer line — fills the dead space and adds value
-                // framing. Highlighted (primary color) for Yearly's
-                // per-week breakdown, muted for Weekly's "Cancel anytime".
-                Text(
-                  footerLine,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: footerHighlight
-                        ? AppColors.primary
-                        : AppColors.textSecondaryLight,
-                    fontWeight: footerHighlight
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // SAVE 50% badge — floats above the card's top-left edge. Gold
-          // against either white or emerald-tinted card; harmonizes with
-          // the warm cream page background.
-          //
-          // Gold shimmer pass (always on; the test seam disables it).
-          // Slow, ~2.4s shimmer with a 1.2s delay between passes — subtle
-          // enough to read as polish, not as a Vegas slot-machine effect.
-          // Per Adapty's 2026 report, animated paywall elements lift
-          // conversion 12-18%; we keep the SAVE % math unchanged (still
-          // the existing 2x anchor) — fabricating a bigger headline number
-          // is deceptive under Apple guideline 3.1.1.
-          if (badge != null)
-            Positioned(
-              top: -11,
-              left: 12,
-              child: IgnorePointer(
-                child: _maybeShimmerBadge(
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      badge!,
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textOnPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 10,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // No floating selected indicator. The 2px emerald border + the
-          // primaryLight bg tint + the soft drop shadow are unambiguous;
-          // a corner check disc only added visual noise and read as
-          // floating-in-the-gap because it sat at the card's right edge.
-        ],
-      ),
-    );
-  }
-}
-
-/// Wraps the SAVE badge with a slow gold shimmer pass. When the test seam
-/// `debugDisablePaywallAnimations` is on, returns the unwrapped widget —
-/// no animation wrapper, no perf cost. Top-level
-/// helper so the stateless `_PricingCard` can use it without a state
-/// object. White shimmer overlay at 55% alpha gives a clean "polished gold"
-/// pass against the emerald badge surface.
-Widget _maybeShimmerBadge(Widget child) {
-  if (debugDisablePaywallAnimations) {
-    return child;
-  }
-  return child
-      .animate(onPlay: (c) => c.repeat())
-      .shimmer(
-        duration: 2400.ms,
-        delay: 1200.ms,
-        color: Colors.white.withValues(alpha: 0.55),
-      );
-}
-
-/// Hero block — the visual centerpiece at the top of the paywall. Renders
-/// a glowing gold medallion with a featured Name of Allah ("Ar-Rahman") at
-/// its core, surrounded by a soft 8-point Islamic geometric pattern and a
-/// radial cream → warm-gold gradient. The bottom edge fades into the page
-/// background so content below feels continuous.
-///
-/// Composition is fully Flutter-native (no asset dependency) so it works
-/// today; a generated illustration can be swapped into the Stack as a new
-/// layer later without restructuring.
-class _PaywallHero extends StatelessWidget {
-  const _PaywallHero();
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    // Shrunk from 0.32 → 0.28 (post 2026-05-05 paywall flow redesign) to free
-    // vertical space for the new pre-pricing personalized header line + the
-    // existing aspiration headline. The image's `Alignment(0, -0.45)` anchor
-    // pushes the medallion below the Dynamic Island so the calligraphy is
-    // fully visible despite the smaller hero box.
-    final heroHeight = (size.height * 0.28).clamp(220.0, 280.0);
-
-    return ClipRRect(
-      // Rounded bottom corners give the hero a "card" shape, framing the
-      // image without a hard horizontal edge. Top corners stay square so
-      // the image sits flush against the screen edge above the status bar.
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(28),
-        bottomRight: Radius.circular(28),
-      ),
-      child: SizedBox(
-        height: heroHeight,
-        width: double.infinity,
-        child: Stack(
-          children: [
-          // Soft warm-gold radial backdrop. Visible behind the image's
-          // transparent edges and, more importantly, sits beneath the
-          // ShaderMask so the faded-out bottom of the image dissolves into
-          // it cleanly instead of into stark page cream.
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0, -0.1),
-                  radius: 0.95,
-                  colors: [
-                    Color(0xFFF5EBD9),
-                    AppColors.backgroundLight,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Hero illustration. ShaderMask fades the bottom ~35% of the
-          // image to transparent so the medallion dissolves smoothly into
-          // the cream page — no visible hard horizontal edge where the
-          // PNG ends. BlendMode.dstIn means: keep the image where the
-          // shader is opaque, hide it where the shader is transparent.
-          Positioned.fill(
-            child: ShaderMask(
-              blendMode: BlendMode.dstIn,
-              shaderCallback: (rect) => const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black,
-                  Colors.black,
-                  Colors.transparent,
-                ],
-                stops: [0.0, 0.55, 1.0],
-              ).createShader(rect),
-              child: Image.asset(
-                'assets/illustrations/paywall_hero.png',
-                fit: BoxFit.cover,
-                // Bias the visible window upward in the source image, which
-                // visually shifts the medallion DOWN inside the hero box.
-                // Result: the calligraphy sits below the Dynamic Island /
-                // status bar instead of being clipped by it.
-                alignment: const Alignment(0, -0.45),
-                filterQuality: FilterQuality.high,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            )
-                .animate()
-                .fadeIn(duration: 600.ms, curve: Curves.easeOut)
-                .scaleXY(
-                  begin: 0.96,
-                  end: 1.0,
-                  duration: 700.ms,
-                  curve: Curves.easeOutBack,
-                ),
-          ),
-
-          // Final blend — a thin gradient layer that nudges any remaining
-          // edge into pure background cream. ShaderMask handles the heavy
-          // lifting; this is a polish pass.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: heroHeight * 0.35,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.backgroundLight.withValues(alpha: 0.0),
-                      AppColors.backgroundLight,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-        ),
-      ),
-    );
-  }
-}
-
-
-/// Bottom sheet shown when the user taps X with annual selected. Offers the
-/// weekly plan (a price alternative, NOT a different product) so we stay
-/// inside Apple guideline 5.6 — no second full paywall, no bait-and-switch.
-class _ExitOfferSheet extends StatelessWidget {
-  const _ExitOfferSheet({
-    required this.weeklyPrice,
-    required this.weeklyHasTrial,
-  });
-
-  final String weeklyPrice;
-  final bool weeklyHasTrial;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.pagePadding,
-          AppSpacing.lg,
-          AppSpacing.pagePadding,
-          AppSpacing.md,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              AppStrings.paywallExitOfferTitle,
-              style: AppTypography.displaySmall.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontSize: 22,
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (footnote != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              footnote!,
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              weeklyHasTrial
-                  ? AppStrings.paywallExitOfferBody
-                  : 'Not ready for a year? Try the weekly plan — '
-                      '$weeklyPrice/week, cancel anytime.',
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (weeklyHasTrial) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                '$weeklyPrice / week after trial',
-                style: AppTypography.bodySmall.copyWith(
-                  color: AppColors.textTertiaryLight,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textOnPrimary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                ),
-                child: Text(
-                  weeklyHasTrial
-                      ? AppStrings.paywallExitOfferAccept
-                      : 'Try weekly',
-                  style: AppTypography.labelLarge.copyWith(
-                    color: AppColors.textOnPrimary,
-                    fontSize: 16,
-                  ),
-                ),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(
-                AppStrings.paywallExitOfferDecline,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.textSecondaryLight,
-                ),
+          ),
+        SizedBox(
+          height: 54,
+          child: ElevatedButton(
+            onPressed: onContinue,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textOnPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ],
+            child: const Text(
+              AppStrings.paywallGateContinue,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.17,
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

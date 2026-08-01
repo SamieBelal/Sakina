@@ -9,6 +9,7 @@ import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/providers/onboarding_provider.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
+import 'package:sakina/features/paywall/widgets/paywall_gate_page.dart';
 import 'package:sakina/features/paywall/paywall_experiment.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/analytics_provider.dart';
@@ -288,7 +289,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    // The onboarding placement is the 3-page ceremony; the CTA lives on the
+    // last page. Walk there first.
+    for (var i = 0; i < 2; i++) {
+      await tapVisible(
+        tester,
+        find.widgetWithText(ElevatedButton, AppStrings.paywallGateContinue),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pump();
     await tester.pump();
     // Drive + dismiss the premium-reveal overlay so no animation Timer is left
@@ -332,7 +343,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pumpAndSettle();
 
     final cancelled =
@@ -356,7 +367,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text('Start my 3 days free'));
     await tester.pumpAndSettle();
 
     final failed = analytics.firstOrNull(AnalyticsEvents.purchaseSheetFailed);
@@ -459,12 +470,15 @@ void main() {
     await tester.pumpWidget(buildSoftSubject(session));
     await tester.pumpAndSettle();
     // Select Weekly so the annual→weekly exit-offer sheet is NOT eligible and
-    // the X goes straight to _doClose (the dismiss path under test).
-    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
-    // The close X fades in (and becomes tappable) after 3s.
-    await tester.pump(const Duration(seconds: 4));
+    // the ✕ goes straight to _doClose (the dismiss path under test). The
+    // weekly plan is a de-emphasized text row now, not a peer card.
+    //
+    // The ✕ itself is tappable from frame zero — the 3-second reveal delay was
+    // deleted with W5 Wave C, so there is no timer to pump past.
+    await tapVisible(tester, find.textContaining('Weekly \u2014'));
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.tap(find.byType(PaywallCloseButton));
     await tester.pump();
 
     final dismissed = analytics.firstOrNull(AnalyticsEvents.softGateDismissed);

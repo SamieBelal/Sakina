@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/router.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
+import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/features/paywall/paywall_experiment.dart';
 import 'package:sakina/features/paywall/reverse_trial_onboarding.dart';
@@ -293,16 +294,24 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 4)); // reveal the close X
+    // No timer to wait out: the ✕ is present and tappable from frame zero
+    // (the 3-second reveal delay was deleted with W5 Wave C).
+    await tester.pump();
 
     expect(find.byType(PaywallScreen), findsOneWidget,
         reason: 'the expired-trial user is stood up on the soft paywall');
     expect(find.byIcon(Icons.close_rounded), findsOneWidget,
         reason: 'soft paywall must be dismissible (has the X)');
 
-    // Dismiss → onComplete marks cleared + routes home. Bounded pumps (the home
-    // shell never settles — repeating loaders).
+    // Dismiss → the one-time "always free" card → its Continue marks cleared
+    // and routes home. Bounded pumps (the home shell never settles —
+    // repeating loaders).
     await tester.tap(find.byIcon(Icons.close_rounded));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(
+        find.widgetWithText(OutlinedButton, AppStrings.paywallGateContinue));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

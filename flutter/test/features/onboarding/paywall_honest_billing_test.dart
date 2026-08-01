@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
-import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_provider.dart';
@@ -170,11 +169,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('3 days free, then \$59.99/year'),
+      find.textContaining('Free for 7 days, then \$59.99/year'),
       findsOneWidget,
       reason:
           'Annual default-selected: the billing line must surface the live '
-          'priceString — \$59.99 — and the right period.',
+          'priceString — \$59.99 — and the right period. "7 days" is DERIVED '
+          'from this fixture package (P7D / periodNumberOfUnits 7), never from '
+          'a Dart constant — change the fixture and the copy follows.',
     );
     // The screen states the terms ONCE now. Two more copies used to sit under
     // the CTA and are what pushed it past a single viewport.
@@ -221,9 +222,11 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    // Tap weekly card to switch selection.
-    await tester.ensureVisible(find.text(AppStrings.paywallWeeklyLabel));
-    await tester.tap(find.text(AppStrings.paywallWeeklyLabel));
+    // Tap the weekly row to switch selection. It is a de-emphasized text row
+    // now, not a peer card, so it is matched by its price line.
+    final weeklyRow = find.textContaining('Weekly \u2014');
+    await tester.ensureVisible(weeklyRow);
+    await tester.tap(weeklyRow);
     await tester.pumpAndSettle();
 
     // THE regression this file exists to catch. Until 2026-07-29 the microcopy
@@ -233,16 +236,19 @@ void main() {
     // duplicate made this line the only billing statement on the screen, so it
     // now has to follow the selection itself.
     expect(
-      find.textContaining('3 days free, then \$9.99/week'),
+      find.textContaining('Free for 7 days, then \$9.99/week'),
       findsOneWidget,
       reason: 'Weekly selected: the billing line must flip to the weekly price '
           'AND the weekly period.',
     );
+    // Scoped to the BILLING line. The annual plan card still legitimately
+    // prints "\$59.99/year" as its own price — the bug this pins is the TERMS
+    // line claiming the annual period while weekly is selected.
     expect(
-      find.textContaining('/year'),
+      find.textContaining('then \$59.99/year'),
       findsNothing,
       reason: 'with weekly selected, no annual period may still be claimed '
-          'anywhere in the billing copy',
+          'in the billing terms',
     );
   });
 

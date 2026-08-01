@@ -188,6 +188,16 @@ void main() {
     );
   }
 
+  // The CTA's duration is DERIVED from the fixture package's introductory
+  // offer (P3D above), so the label follows the store rather than a constant.
+  // Change `buildStoreProduct`'s IntroductoryPrice and this string must change
+  // with it — that is the property Wave B.4 exists to guarantee.
+  const ctaTrial = 'Start my 3 days free';
+
+  // The weekly plan is a de-emphasized text row now, not a peer card, so it is
+  // matched by its price line rather than by a bare "Weekly" label.
+  final weeklyRow = find.textContaining('Weekly \u2014');
+
   Future<void> tapVisible(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
     await tester.tap(finder);
@@ -254,7 +264,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -271,9 +281,9 @@ void main() {
     // Weekly card sits below the fold on the 800x600 test viewport once the
     // honest-trial timeline and richer social-proof block are in place. Real
     // users scroll; mirror that here.
-    await tapVisible(tester, find.text(AppStrings.paywallWeeklyLabel));
+    await tapVisible(tester, weeklyRow);
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
     await dismissPremiumReveal(tester);
@@ -292,14 +302,14 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pumpAndSettle();
 
     expect(completed, isFalse);
     // Headline is dynamic (personalized from quiz answers), so assert the
     // still-on-paywall signal via the CTA and a static benefit row — both
     // remain visible only while the PaywallScreen is mounted.
-    expect(find.text(AppStrings.paywallCtaTrial), findsOneWidget);
+    expect(find.text(ctaTrial), findsOneWidget);
     expect(find.text(AppStrings.paywallPremiumBenefit1), findsOneWidget);
   });
 
@@ -321,7 +331,7 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.text(AppStrings.paywallCtaTrial));
+    await tapVisible(tester, find.text(ctaTrial));
     await tester.pump();
     await tester.pump();
 
@@ -365,10 +375,10 @@ void main() {
     await tester.pumpWidget(buildSubject());
     await tester.pumpAndSettle();
 
-    // CTA text varies (Start Free Trial vs Subscribe) based on whether the
-    // selected plan has an introductory offer. Offerings failed to load in
-    // this test, so `_planHasTrial` is false and the CTA reads "Subscribe".
-    // Tap by widget type to stay decoupled from copy.
+    // CTA text varies (trial vs Subscribe) based on whether this USER gets an
+    // introductory offer. Offerings failed to load here, so there is no trial
+    // and the CTA reads "Subscribe". Tap by widget type to stay decoupled from
+    // copy.
     await tapVisible(tester, find.byType(ElevatedButton));
     await tester.pumpAndSettle();
 

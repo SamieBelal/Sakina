@@ -444,6 +444,34 @@ class PurchaseService {
     }).toList();
   }
 
+  /// Per-USER introductory-offer eligibility, keyed by product identifier.
+  ///
+  /// [getOfferings] can only say whether a PRODUCT carries an intro offer.
+  /// Apple grants one introductory offer per Apple ID per subscription group
+  /// **ever**, so a product with a live free trial is still a straight charge
+  /// for anyone who already used theirs — and a paywall that reads only the
+  /// product tells them "free" and bills them on tap (W5 Wave B.3).
+  ///
+  /// Returns an empty map when the SDK is not initialized or the lookup throws;
+  /// callers must treat a missing/unknown entry as NOT eligible (RevenueCat's
+  /// own guidance) so the failure mode is a lost trial start, never a false
+  /// promise. Android always answers
+  /// [IntroEligibilityStatus.introEligibilityStatusUnknown] — Play evaluates
+  /// eligibility itself at purchase time — so the paywall's resolver keeps a
+  /// platform fallback rather than hiding trial copy from every Android user.
+  Future<Map<String, IntroEligibilityStatus>> getIntroEligibility(
+    List<String> productIds,
+  ) async {
+    if (!_initialized || productIds.isEmpty) return const {};
+    try {
+      final result =
+          await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+      return result.map((id, eligibility) => MapEntry(id, eligibility.status));
+    } catch (_) {
+      return const {};
+    }
+  }
+
   /// Returns packages from the `consumables` offering — the token and scroll
   /// SKUs the Store screen sells. Lives in a non-current offering on purpose:
   /// the paywall reads `offerings.current` (subscriptions only), and mixing

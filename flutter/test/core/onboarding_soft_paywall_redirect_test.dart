@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/core/router.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
+import 'package:sakina/core/constants/app_strings.dart';
 import 'package:sakina/features/onboarding/screens/paywall_screen.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
@@ -109,7 +110,9 @@ void main() {
     );
     // The gate redirect lands the user on the soft paywall route.
     await tester.pump();
-    await tester.pump(const Duration(seconds: 4)); // reveal the close X
+    // No timer to wait out: the ✕ is present and tappable from frame zero
+    // (the 3-second reveal delay was deleted with W5 Wave C).
+    await tester.pump();
 
     expect(find.byType(PaywallScreen), findsOneWidget,
         reason: 'soft paywall route must render the paywall');
@@ -117,10 +120,18 @@ void main() {
     expect(find.byIcon(Icons.close_rounded), findsOneWidget,
         reason: 'soft paywall must be dismissible (has the X)');
 
-    // Tapping X dismisses → onComplete marks cleared + routes home. Use bounded
-    // pumps (not pumpAndSettle): the home shell has repeating loaders/animations
-    // that never settle.
+    // Tapping X shows the one-time "always free" card; its Continue is what
+    // calls onComplete (marks cleared + routes home). Use bounded pumps (not
+    // pumpAndSettle): the home shell has repeating loaders/animations that
+    // never settle.
     await tester.tap(find.byIcon(Icons.close_rounded));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text(AppStrings.paywallAlwaysFreeCardBody), findsOneWidget,
+        reason: 'a dismiss is met with what the user still has, not silence');
+    await tester.tap(
+        find.widgetWithText(OutlinedButton, AppStrings.paywallGateContinue));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

@@ -131,6 +131,13 @@ abstract final class AppStrings {
   static const paywallAnnualPrice = '\$49.99';
   static const paywallAnnualPeriod = '/year';
   static const paywallAnnualLabel = 'Yearly';
+  // UNUSED since the W5 gate rebuild (2026-07-31). It was the floating badge on
+  // the old side-by-side pricing cards, which the 3-page gate replaced. Left in
+  // place rather than deleted because its claim now lives on as
+  // `paywallPlanAnnualSavings` — but note the two disagreed: this said 50%,
+  // computed against a fabricated 2x anchor, while the real saving against the
+  // weekly SKU is ~80%. If anything ever renders this again, fix the number
+  // first.
   static const paywallAnnualBadge = 'SAVE 50%';
   static const paywallAnnualPerWeek = '\$0.96';
   static const paywallAnnualPerWeekLabel = 'Per Week';
@@ -198,12 +205,120 @@ abstract final class AppStrings {
   static const paywallHonestBillingWeekly =
       'Today: full access. Day 2: Apple sends a trial-ending reminder. Day 3: {price}/week unless cancelled. Cancel anytime in Settings.';
 
-  // Exit offer bottom sheet (shown when user taps X on annual selection).
+  // Exit offer bottom sheet — shown when the user taps ✕ with the annual plan
+  // selected, offering weekly as a price alternative (Apple guideline 5.6: a
+  // different price, never a different product, and never a second full
+  // paywall).
+  //
+  // KNOWN DIVERGENCE FROM THE APPROVED DRAFT, taken deliberately by the founder
+  // on 2026-07-31. The draft's Dismissal section reads "✕ → home directly" and
+  // its firewall self-check reads "scarcity: none (no offers in v1)" — by the
+  // letter of both, this sheet should not exist. It is kept because it has been
+  // shipping and nobody knows what it earns: deleting an unmeasured conversion
+  // mechanic is a revenue decision made blind. It is now fully instrumented
+  // (shown / accepted / declined, plus origin tagging through the purchase
+  // chain) so the next call on it is made with data. Recorded in the W5 plan
+  // doc so the two artefacts do not silently disagree.
+  //
+  // The hardcoded "3-day" is a `{trial}` placeholder (W5 Wave B.4) so this can
+  // never again promise a duration the store will not grant.
   static const paywallExitOfferTitle = 'Wait — try weekly first?';
-  static const paywallExitOfferBody =
-      'Not ready for a year? Start with the weekly plan and your 3-day free trial. Cancel anytime.';
-  static const paywallExitOfferAccept = 'Start 3-day free trial';
+  static const paywallExitOfferBodyTemplate =
+      'Not ready for a year? Start with the weekly plan and your {trial} free trial. Cancel anytime.';
+  static const paywallExitOfferAcceptTemplate = 'Start {trial} free trial';
   static const paywallExitOfferDecline = 'No thanks';
+
+  // ───── W5 gate — the approved 3-page paywall ─────
+  // Copy is the founder-approved draft
+  // (docs/superpowers/content/2026-07-25-paywall-DRAFT.md) as rendered by the
+  // approved visual mock (docs/superpowers/mocks/2026-07-31-paywall-visual-mock.html).
+  // It is LOCKED. Every duration is a `{trial}` placeholder filled from the
+  // store's introductory offer (`TrialOffer.label`) — never a literal, so copy
+  // can no longer disagree with what StoreKit will actually grant.
+
+  // Page 1 — `value_depth`. Two variants keyed by the hook contract the user
+  // chose: `problem` (they named something) and `sign` (they could not put it
+  // into words). {name} is the transliteration of the Name the reveal awarded.
+  static const paywallValueDepthHeadlineTemplate = 'You\'ve met {name}.';
+  static const paywallValueDepthHeadlineSignTemplate =
+      'You\'ve met {name} — the first Name of your journey.';
+  static const paywallValueDepthSubline =
+      'Premium goes deeper into what you named:';
+  static const paywallValueDepthSublineSign = 'Premium goes deeper, every day:';
+  // The draft writes bullet 1 as "A personal reflection on {chip phrase}" and
+  // defines {chip phrase} as "canonical chip phrasing only, never raw free
+  // text". No canonical noun-phrase form of a chip exists in the taxonomy —
+  // the labels are first-person clauses ("My mind won't stop racing") that do
+  // not fit the slot — and the approved mock resolves the slot to this one
+  // constant. Rendering the mock's literal is the only reading that invents no
+  // copy; a per-chip phrase map would be six new marketing strings.
+  static const paywallValueDepthBullet1 =
+      'A personal reflection on the weight you named, every day';
+  static const paywallValueDepthBullet1Sign =
+      'A personal reflection to sit with, every day';
+  static const paywallValueDepthBullet2 =
+      'Your own duʿā, built for what you carry';
+  static const paywallValueDepthBullet2Sign =
+      'Your own duʿā — even when you can\'t find the words';
+  static const paywallValueDepthBullet3 =
+      'Every reflection and duʿā, kept in your journal';
+  static const paywallGateContinue = 'Continue';
+
+  // Page 2 — `trial_timeline`. The middle beat rides Apple's SYSTEM
+  // trial-ending notice (24h before charge), which is the plan's "one allowed
+  // clock": no app-scheduled second reminder, and true regardless of the
+  // user's notification permission. {day} values are derived from the trial's
+  // day count, so a 3-day trial reads "Day 2 / Day 3" and a 7-day one reads
+  // "Day 6 / Day 7" with no copy change.
+  static const paywallTrialTimelineHeadlineTemplate =
+      'Try everything free for {trial}.';
+  static const paywallTrialTimelineTodayHeading = 'Today';
+  static const paywallTrialTimelineTodayBody =
+      'Everything unlocks: daily reflections and your own duʿās, saved to your journal.';
+  static const paywallTrialTimelineDayHeadingTemplate = 'Day {day}';
+  static const paywallTrialTimelineReminderBody =
+      'Apple reminds you before your trial ends.';
+  static const paywallTrialTimelineChargeBody =
+      'Your plan begins. Cancel anytime before — no charge.';
+  static const paywallTrialTimelineFootnote = 'No charge today.';
+
+  // Page 3 — `plan_select`. The benefit checklist reuses the five shipped
+  // `paywallPremiumBenefit1-5` strings verbatim.
+  static const paywallPlanSelectHeadline = 'Choose how you continue.';
+  static const paywallPlanSelectBenefitsHeader = 'Everything in Premium';
+  static const paywallPlanAnnualTrialFlagTemplate = '{trial} free first';
+  // Checkable against the weekly row directly below it, which is the whole
+  // point of stating it this way: \$49.99/year against \$4.99/week × 52
+  // (\$259.48) is an 80.7% saving. The shipped `paywallAnnualBadge` said 50%,
+  // computed against a fabricated 2x anchor rather than against the plan we
+  // actually sell beside it — founder corrected this to 80% on 2026-07-31.
+  static const paywallPlanAnnualSavings = 'Save 80% vs weekly';
+  static const paywallPlanAnnualPriceTemplate = '{price}/year · {perWeek} a week';
+  static const paywallPlanWeeklyRowTrialTemplate =
+      'Weekly — {price}/week · {trial} free first';
+  static const paywallPlanWeeklyRowTemplate = 'Weekly — {price}/week';
+  static const paywallGateCtaTrialTemplate = 'Start my {trial} free';
+  // Plain terms under the CTA. `textSecondaryLight` minimum, never tertiary —
+  // billing terms must stay legible (draft build rule S4-S6).
+  static const paywallGateTermsTrialTemplate =
+      'Free for {trial}, then {price}. Cancel anytime in Settings.';
+  static const paywallGateTermsNoTrialTemplate =
+      '{price}. Cancel anytime in Settings.';
+  static const paywallFreeForeverFooter =
+      'The 99 Names, your daily Name and its story, and your streak stay free — always.';
+
+  // The one-time reverent card shown after ✕ on any page, before home.
+  static const paywallAlwaysFreeCardBody =
+      'The 99 Names, your daily Name and its story, and your streak are yours — always free.';
+
+  // Condensed `soft_inapp` surface. The draft's example value line names a
+  // weekly pool ("Your reflections for this week are used"), which is only
+  // true once W5 Wave D lands the weekly allowance — under today's daily cap
+  // it would ship false. So the default states what premium GIVES and makes no
+  // period claim; `PaywallScreen.softValueLine` is the seam for Wave D to pass
+  // the trigger-specific line once the pool is authoritative.
+  static const paywallSoftGateDefaultLine =
+      'Premium is unlimited — every reflection, every duʿā, every Name.';
 
   // ── Legal URLs ──
   // Hosted on GitHub Pages via the public `ibrahim7860/sakina-legal` repo.

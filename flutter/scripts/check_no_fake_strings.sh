@@ -215,13 +215,45 @@ _firewall "a stance attributed to Allah or a Name on a purchase surface" \
   "Payment never buys the divine, and Allah is never staged as waiting on a
 purchase. Rewrite so the sentence is about the user, never about Him."
 
-# DEFERRED — code-level countdown detection (rule 2, second half).
-# `grep -nE 'Timer\(|Timer\.periodic|countdown' ` over the purchase surfaces
-# currently returns ONE hit: paywall_screen.dart's `_closeButtonTimer =
-# Timer(_closeButtonRevealDelay, ...)`, the 3-second hidden close button. That
-# is a genuine dark pattern and W5 Wave C deletes it (D6: the 3s-hidden close
-# button does not carry over). Enabling the check now would ship a permanently
-# red gate, so it lands with Wave C instead — add it once that Timer is gone.
+# Rule 2, second half — CODE-LEVEL countdown detection.
+#
+# ENABLED 2026-07-31 (W5 Wave C). This block was deferred because it returned
+# exactly one hit: paywall_screen.dart's `_closeButtonTimer =
+# Timer(_closeButtonRevealDelay, ...)`, the 3-second hidden close button.
+# Enabling it then would have shipped a permanently red gate. Wave C deleted
+# that Timer (D6 — the 3s-hidden close does not carry over), so the check is
+# now green and worth keeping green.
+#
+# Copy-level detection (rule 2 above) cannot see a countdown that is built
+# rather than written: a `Timer.periodic` ticking a "2:59… 2:58…" label, or a
+# delay that withholds the dismiss control, contains no banned WORDS. This is
+# the half of the rule that catches the mechanism.
+#
+# Scanned over the purchase surfaces only, and over CODE, so the doc comments
+# that explain the rule are stripped the same way `_purchase_copy` does it.
+_TIMER_RE='Timer\(|Timer\.periodic|countdown'
+_timer_hits() {
+  local existing=()
+  local p
+  for p in "${_PURCHASE_SURFACES[@]}"; do
+    [ -e "${p}" ] && existing+=("${p}")
+  done
+  [ ${#existing[@]} -eq 0 ] && return 0
+  grep -rnE "${_TIMER_RE}" "${existing[@]}" \
+    | grep -vE '^[^:]*:[0-9]+:[[:space:]]*(///?|\*)' || true
+}
+_TIMER_HITS="$(_timer_hits || true)"
+if [ -n "${_TIMER_HITS}" ]; then
+  printf '%s\n' "${_TIMER_HITS}"
+  echo ""
+  echo "ERROR: gate copy firewall — a timer/countdown on a purchase surface."
+  echo "The only permitted clock is RevenueCat's system trial-end reminder. A"
+  echo "timer here is either a countdown the copy rules cannot see, or a delay"
+  echo "that withholds a control from the user (the 3s-hidden close button that"
+  echo "W5 deleted). Neither ships."
+  echo "See docs/superpowers/content/2026-07-25-paywall-DRAFT.md 'Firewall self-check'."
+  exit 1
+fi
 
 echo "OK: no FAKE_DO_NOT_SHIP_ placeholders or fabricated monetary claims in lib/."
 echo "OK: gate copy firewall clean on the purchase surfaces."
