@@ -259,7 +259,7 @@ void main() {
     await tester.tap(find.byType(PaywallCloseButton));
     await tester.pumpAndSettle();
     expect(find.byType(PaywallExitOfferSheet), findsOneWidget);
-    await tester.tap(find.text('Start 7 days free trial'));
+    await tester.tap(find.text('Start 7-day free trial'));
     await settlePurchase(tester);
     expect(analytics.count(AnalyticsEvents.paywallCtaTapped), 1);
 

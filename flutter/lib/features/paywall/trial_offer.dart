@@ -142,6 +142,32 @@ class TrialOffer {
     }
   }
 
+  /// The same duration as an **adjective**: `"3-day"`, `"7-day"`, `"1-month"`.
+  ///
+  /// Use this wherever the duration modifies a noun — "a {x} free trial" —
+  /// and [label] wherever it stands alone — "Free for {x}, then…".
+  ///
+  /// Both exist because the two read as errors in each other's slot. Every
+  /// string in the approved draft has a noun-shaped slot, so [label] is right
+  /// there; the two exit-offer strings (which pre-date the draft) have an
+  /// adjective slot, and interpolating [label] into them produced "Start 3
+  /// days free trial". Hyphenated and never pluralised — "3-days free trial"
+  /// is the same mistake wearing a hyphen.
+  String get labelAdjective {
+    final d = days;
+    if (d != null) return '$d-day';
+    switch (unit) {
+      case PeriodUnit.month:
+        return '$units-month';
+      case PeriodUnit.year:
+        return '$units-year';
+      case PeriodUnit.day:
+      case PeriodUnit.week:
+      case PeriodUnit.unknown:
+        return '$units-day';
+    }
+  }
+
   static String _plural(int n, String noun) => '$n $noun${n == 1 ? '' : 's'}';
 
   /// `P3D` / `P1W` / `P2M` / `P1Y` → (3, day) / (1, week) / …

@@ -524,7 +524,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       ),
       builder: (_) => PaywallExitOfferSheet(
         weeklyPrice: _priceString(_weeklyPackage, AppStrings.paywallWeeklyPrice),
-        trialLabel: _trialFor(PaywallPlanType.weekly)?.label,
+        // `labelAdjective`, not `label` — this sheet's two strings pre-date the
+        // approved draft and have ADJECTIVE slots ("Start {trial} free trial"),
+        // where the noun form renders "Start 3 days free trial". Every approved
+        // string has a noun slot and correctly uses `label`.
+        trialLabel: _trialFor(PaywallPlanType.weekly)?.labelAdjective,
       ),
       // A scrim tap and a back gesture both pop with no value. Mapping that to
       // `dismissed` here — rather than letting it fall through as null — is what

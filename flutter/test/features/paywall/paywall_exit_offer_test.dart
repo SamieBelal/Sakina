@@ -254,10 +254,10 @@ void main() {
       // The fixture package carries P7D, so the sheet must say 7 — the old
       // hardcoded "3-day free trial" copy is now a {trial} template.
       expect(
-        find.textContaining('weekly plan and your 7 days free trial'),
+        find.textContaining('weekly plan and your 7-day free trial'),
         findsOneWidget,
       );
-      expect(find.text('Start 7 days free trial'), findsOneWidget);
+      expect(find.text('Start 7-day free trial'), findsOneWidget);
       expect(find.textContaining('3-day'), findsNothing);
       expect(find.textContaining('3 days'), findsNothing);
     });
@@ -411,7 +411,7 @@ void main() {
     testWidgets('accept emits accepted and buys WEEKLY', (tester) async {
       await pumpGate(tester);
       await tapClose(tester);
-      await tester.tap(find.text('Start 7 days free trial'));
+      await tester.tap(find.text('Start 7-day free trial'));
       await settlePurchase(tester);
 
       final accepted =
@@ -426,7 +426,7 @@ void main() {
         'events', (tester) async {
       await pumpGate(tester);
       await tapClose(tester);
-      await tester.tap(find.text('Start 7 days free trial'));
+      await tester.tap(find.text('Start 7-day free trial'));
       await settlePurchase(tester);
 
       // shown → accepted → purchase started → purchase completed. No parallel
@@ -455,7 +455,7 @@ void main() {
       purchaseService.purchaseSucceeds = false;
       await pumpGate(tester);
       await tapClose(tester);
-      await tester.tap(find.text('Start 7 days free trial'));
+      await tester.tap(find.text('Start 7-day free trial'));
       await settlePurchase(tester);
 
       expect(analytics.first(AnalyticsEvents.paywallExitOfferAccepted),
