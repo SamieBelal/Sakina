@@ -168,6 +168,15 @@ abstract final class AnalyticsEvents {
   static const paywallViewed = 'paywall_viewed';
   static const paywallPlanSelected = 'paywall_plan_selected';
   static const paywallCtaTapped = 'paywall_cta_tapped';
+  /// Fired on ✕ / dismiss of ANY paywall placement. Props: `{placement}` —
+  /// `arm` arrives free via the `paywall_exp_arm` super property.
+  ///
+  /// The only cross-placement dismissal event: [softGateDismissed] fires for
+  /// the post-tour soft gate alone, so this is the sole signal for onboarding,
+  /// hard-wall, soft-inapp and post-trial-soft closes. `placement` was added
+  /// 2026-08-01; events before that release carry none, so segment with an
+  /// explicit "is set" filter rather than reading the empty bucket as a
+  /// placement.
   static const paywallClosed = 'paywall_closed';
 
   // W5 Wave C — the 3-page gate. `paywall_viewed` fires once per mount; this

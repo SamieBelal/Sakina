@@ -134,7 +134,7 @@ abstract final class AppStrings {
   // UNUSED since the W5 gate rebuild (2026-07-31). It was the floating badge on
   // the old side-by-side pricing cards, which the 3-page gate replaced. Left in
   // place rather than deleted because its claim now lives on as
-  // `paywallPlanAnnualSavings` — but note the two disagreed: this said 50%,
+  // `paywallPlanAnnualSavingsTemplate` — but note the two disagreed: this said 50%,
   // computed against a fabricated 2x anchor, while the real saving against the
   // weekly SKU is ~80%. If anything ever renders this again, fix the number
   // first.
@@ -294,7 +294,16 @@ abstract final class AppStrings {
   // (\$259.48) is an 80.7% saving. The shipped `paywallAnnualBadge` said 50%,
   // computed against a fabricated 2x anchor rather than against the plan we
   // actually sell beside it — founder corrected this to 80% on 2026-07-31.
-  static const paywallPlanAnnualSavings = 'Save 80% vs weekly';
+  //
+  // `{percent}` IS COMPUTED AT RUNTIME (`_annualSavingsLabel`) from the two
+  // live packages, for the same reason the annual strikethrough anchor is
+  // (see `paywallAnnualPerWeek` above). Apple's price tiers are not
+  // proportional across territories, so a frozen "80%" can be arithmetically
+  // false in a storefront where both numbers beside it are localised — on the
+  // one screen whose layout invites the user to check the subtraction. There
+  // is deliberately NO static fallback: when the packages will not load the
+  // sticker is not rendered, because a wrong saving is worse than none.
+  static const paywallPlanAnnualSavingsTemplate = 'Save {percent}% vs weekly';
   static const paywallPlanAnnualPriceTemplate = '{price}/year · {perWeek} a week';
   static const paywallPlanWeeklyRowTemplate = 'Weekly — {price}/week';
   static const paywallGateCtaTrialTemplate = 'Start my {trial} free';

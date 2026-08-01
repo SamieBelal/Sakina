@@ -14,12 +14,23 @@ class PaywallOfferView {
     required this.weeklyRowLabel,
     required this.termsLine,
     required this.ctaLabel,
+    this.annualSavingsLabel,
     this.trialLabel,
     this.trialDays,
   });
 
   /// `"$49.99/year · $0.96 a week"`.
   final String annualPriceLine;
+
+  /// `"Save 80% vs weekly"` — the sticker on the annual card, computed from
+  /// the two live prices rather than frozen, because it sits beside them and
+  /// is meant to be checkable.
+  ///
+  /// `null` whenever the claim cannot be proved from the store (packages
+  /// missing, mismatched currencies, annual not actually cheaper). Its
+  /// nullness removes the sticker entirely — the gate never states a saving
+  /// it did not just compute.
+  final String? annualSavingsLabel;
 
   /// `"Weekly — $4.99/week · 7 days free first"`, or without the trial clause
   /// when this user gets no trial.

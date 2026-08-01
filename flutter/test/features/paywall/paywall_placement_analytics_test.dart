@@ -545,6 +545,40 @@ void main() {
         AnalyticsEvents.armUnassigned);
   });
 
+  testWidgets(
+      'dismiss of a NON-soft-gate placement → paywall_closed{placement}',
+      (tester) async {
+    // `softInApp` is deliberately the subject: `soft_gate_dismissed` is gated
+    // on `_isPostTourSoftGate`, so on this surface `paywall_closed` is the ONLY
+    // record that anyone bailed. It shipped without `placement`, which collapsed
+    // onboarding / hard_wall / soft_inapp / post_trial_soft closes into one
+    // unattributable bucket — and Mixpanel cannot backfill a property, so the
+    // gap was permanent for every event already sent. This pins it shut.
+    await tester.pumpWidget(
+      buildSubject(
+        placement: PaywallPlacement.softInApp,
+        inOnboardingFlow: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Weekly, so the annual→weekly exit offer is ineligible and ✕ goes straight
+    // to `_doClose` — same reasoning as the soft-gate dismiss test above.
+    await tapVisible(tester, find.textContaining('Weekly —'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PaywallCloseButton));
+    await tester.pump();
+
+    expect(analytics.firstOrNull(AnalyticsEvents.softGateDismissed), isNull,
+        reason: 'soft_gate_dismissed must NOT fire off the post-tour gates — '
+            'that is exactly why paywall_closed has to carry placement itself');
+    final closed = analytics.firstOrNull(AnalyticsEvents.paywallClosed);
+    expect(closed, isNotNull, reason: 'the ✕ emits paywall_closed');
+    expect(closed!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementSoftInApp);
+  });
+
   testWidgets('safety valve emits paywall_safety_valve_used with placement',
       (tester) async {
     purchaseService.offeringsError = StateError('boom');

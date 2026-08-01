@@ -119,38 +119,43 @@ class PaywallPlanOptions extends StatelessWidget {
                 // meaning (DESIGN.md §2.3). The rotation is slight on purpose
                 // — enough to read as an applied sticker, not enough to look
                 // like a rendering error.
-                Positioned(
-                  top: -12,
-                  right: 12,
-                  child: IgnorePointer(
-                    child: Transform.rotate(
-                      angle: -0.045,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondaryLight,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(
-                            color: AppColors.secondary,
-                            width: 1.5,
+                // Absent whenever the saving could not be computed from the
+                // live packages. The card's `width: double.infinity` above
+                // stays load-bearing either way — do not "simplify" it on the
+                // grounds that the Stack sometimes has one child.
+                if (offer.annualSavingsLabel != null)
+                  Positioned(
+                    top: -12,
+                    right: 12,
+                    child: IgnorePointer(
+                      child: Transform.rotate(
+                        angle: -0.045,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
                           ),
-                        ),
-                        child: Text(
-                          AppStrings.paywallPlanAnnualSavings,
-                          style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.goldInk,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.1,
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryLight,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(
+                              color: AppColors.secondary,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            offer.annualSavingsLabel!,
+                            style: AppTypography.labelLarge.copyWith(
+                              color: AppColors.goldInk,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.1,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

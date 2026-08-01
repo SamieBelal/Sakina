@@ -250,6 +250,49 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
   }
 
+  /// The annual saving against 52× the weekly SKU, or `null` when it cannot be
+  /// proved from the live packages.
+  ///
+  /// Deliberately mirrors [_annualPerWeekString]'s shape but NOT its fallback:
+  /// a per-week figure that is stale is merely imprecise, whereas a saving that
+  /// is stale is a false claim printed directly above the two numbers it is
+  /// derived from. So every failure path returns null and the sticker vanishes.
+  ///
+  /// Floors rather than rounds. 80.7% renders as "80%", which both preserves
+  /// the shipped US string exactly and guarantees the error only ever runs in
+  /// the user's favour — we never overstate a discount.
+  String? get _annualSavingsLabel {
+    final annual = _annualPackage?.storeProduct;
+    final weekly = _weeklyPackage?.storeProduct;
+    if (annual == null || weekly == null) return null;
+
+    // Comparing across storefront currencies would be arithmetic on unlike
+    // units. In practice both packages come from one storefront, so this only
+    // ever fires if that assumption breaks — which is exactly when a savings
+    // claim must not be made.
+    if (annual.currencyCode != weekly.currencyCode) return null;
+
+    final annualPrice = annual.price;
+    final weeklyPrice = weekly.price;
+    if (annualPrice <= 0 || weeklyPrice <= 0) return null;
+
+    // `toInt`/`floor` THROW on a non-finite double, and this getter runs inside
+    // `build()` — an exception here white-screens the gate rather than dropping
+    // a sticker. A denormal weekly price whose ×52 underflows to zero is the
+    // only way to get there, but the guard costs one line and the failure it
+    // prevents is total.
+    final ratio = annualPrice / (weeklyPrice * 52);
+    if (!ratio.isFinite) return null;
+
+    final percent = ((1 - ratio) * 100).floor();
+    // Annual not actually cheaper (a price change, a misconfigured SKU): say
+    // nothing rather than "Save 0%" or a negative saving.
+    if (percent < 1) return null;
+
+    return AppStrings.paywallPlanAnnualSavingsTemplate
+        .replaceAll('{percent}', '$percent');
+  }
+
   PaywallOfferView _buildOffer() {
     final annualPrice =
         _priceString(_annualPackage, AppStrings.paywallAnnualPrice);
@@ -267,6 +310,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       annualPriceLine: AppStrings.paywallPlanAnnualPriceTemplate
           .replaceAll('{price}', annualPrice)
           .replaceAll('{perWeek}', _annualPerWeekString),
+      annualSavingsLabel: _annualSavingsLabel,
       // The weekly tile names its price and nothing else. It used to append
       // "· {trial} free first", which repeated the CTA directly beneath it and
       // the terms line beneath that — the same promise three times inside one
@@ -578,7 +622,19 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     // dismissal silently — the same shape as the `scopedKey` bug below, and
     // the reason no bookkeeping on the escape hatch may be left bare.
     try {
-      ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+      // `placement` is NOT optional here. This is the only dismissal event that
+      // fires from every placement — `soft_gate_dismissed` below is gated on
+      // `_isPostTourSoftGate`, so onboarding / hard_wall / soft_inapp /
+      // post_trial_soft closes are visible ONLY through this event. Without the
+      // property every one of them collapses into a single unattributable
+      // bucket, and it cannot be backfilled: Mixpanel only populates a property
+      // from the release that started sending it.
+      ref.read(analyticsProvider).track(
+        AnalyticsEvents.paywallClosed,
+        properties: {
+          AnalyticsEvents.propPlacement: widget.placement.analyticsValue,
+        },
+      );
     } catch (_) {}
 
     if (_isPostTourSoftGate) {

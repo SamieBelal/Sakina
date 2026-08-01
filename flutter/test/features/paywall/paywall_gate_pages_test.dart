@@ -55,6 +55,7 @@ Package _package({
   required String productId,
   required String priceString,
   required double price,
+  String currencyCode = 'USD',
   int? trialDays,
 }) {
   return Package(
@@ -66,7 +67,7 @@ Package _package({
       'Test title',
       price,
       priceString,
-      'USD',
+      currencyCode,
       introductoryPrice: trialDays == null
           ? null
           : IntroductoryPrice(
@@ -433,5 +434,86 @@ void main() {
     expect(find.text(AppStrings.paywallValueDepthSublineSign), findsOneWidget);
     expect(find.text(AppStrings.paywallValueDepthBullet1Sign), findsOneWidget);
     expect(find.text(AppStrings.paywallValueDepthSubline), findsNothing);
+  });
+
+  // The saving is printed directly above the two prices it is derived from, on
+  // a layout built to invite the subtraction. A frozen percentage is therefore
+  // a claim that can be arithmetically false in any storefront whose price
+  // tiers are not proportional to the US pair — which is most of them.
+  group('the annual savings sticker is computed from the live packages', () {
+    Future<void> pumpWithPrices(
+      WidgetTester tester, {
+      required double annual,
+      required double weekly,
+      String annualCurrency = 'USD',
+      String weeklyCurrency = 'USD',
+    }) async {
+      purchaseService.offerings = [
+        _package(
+          type: PackageType.annual,
+          productId: _annualId,
+          priceString: '$annual',
+          price: annual,
+          currencyCode: annualCurrency,
+          trialDays: 7,
+        ),
+        _package(
+          type: PackageType.weekly,
+          productId: _weeklyId,
+          priceString: '$weekly',
+          price: weekly,
+          currencyCode: weeklyCurrency,
+          trialDays: 7,
+        ),
+      ];
+      await pumpGate(tester);
+      await advanceToPlanSelect(tester);
+    }
+
+    testWidgets('the shipped US pair still reads exactly "Save 80%"',
+        (tester) async {
+      // 49.99 vs 4.99×52 (259.48) = 80.7%, floored. Pins the number the founder
+      // signed off on 2026-07-31 — the refactor must not move it.
+      await pumpWithPrices(tester, annual: 49.99, weekly: 4.99);
+      expect(find.text('Save 80% vs weekly'), findsOneWidget);
+    });
+
+    testWidgets('a storefront with a different ratio gets a different number',
+        (tester) async {
+      // 99.99 vs 259.48 = 61.4%. A frozen string would have claimed 80% here.
+      await pumpWithPrices(tester, annual: 99.99, weekly: 4.99);
+      expect(find.text('Save 61% vs weekly'), findsOneWidget);
+      expect(find.text('Save 80% vs weekly'), findsNothing);
+    });
+
+    testWidgets('floors rather than rounds, so we never overstate',
+        (tester) async {
+      // 100.00 vs 259.48 = 61.46% — rounding would print 61 too, so use a case
+      // where they differ: 90.00 vs 259.48 = 65.31% → 65, and .5+ cases like
+      // 80.00 vs 259.48 = 69.17% stay 69.
+      await pumpWithPrices(tester, annual: 80.00, weekly: 4.99);
+      expect(find.text('Save 69% vs weekly'), findsOneWidget);
+    });
+
+    testWidgets('mismatched currencies suppress the sticker entirely',
+        (tester) async {
+      // Arithmetic on unlike units. Say nothing rather than something wrong.
+      await pumpWithPrices(
+        tester,
+        annual: 49.99,
+        weekly: 4.99,
+        annualCurrency: 'GBP',
+        weeklyCurrency: 'USD',
+      );
+      expect(find.textContaining('vs weekly'), findsNothing);
+    });
+
+    testWidgets('an annual that is not cheaper suppresses the sticker',
+        (tester) async {
+      // A price change or a misconfigured SKU must not render "Save 0%" or a
+      // negative saving.
+      await pumpWithPrices(tester, annual: 299.99, weekly: 4.99);
+      expect(find.textContaining('vs weekly'), findsNothing);
+    });
   });
 }
