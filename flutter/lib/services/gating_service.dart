@@ -665,11 +665,33 @@ class GatingService {
     String allowance,
     int remaining,
   ) {
-    onAnalyticsEvent?.call(AnalyticsEvents.aiTasteConsumed, {
-      AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
-      AnalyticsEvents.propAllowance: allowance,
-      AnalyticsEvents.propRemaining: remaining,
-    });
+    // GUARDED, and this is a correctness concern rather than a telemetry one.
+    //
+    // Every live caller reaches `markUsed` AFTER the AI response has arrived
+    // and been shown: `duas_provider.dart` calls it once `buildDua` has
+    // succeeded, and `reflect_provider.dart` calls it with `screenState`
+    // already set to `result`. A throw escaping here lands in those providers'
+    // outer `catch (e)` — which shows "Something went wrong. Please try again."
+    // and calls `cancelActiveBypassIfAny()`. So a telemetry hiccup would
+    // DISCARD a real generation the user was happy with and refund a bypass
+    // they had already spent well.
+    //
+    // This file says as much twenty lines up, about the RPC path: "a throw
+    // escaping here would propagate out of `markUsed` and, for the discover
+    // path, flip a reveal that HAPPENED into `state.error`." The same reasoning
+    // applies to the emit; it simply arrived later.
+    //
+    // The guard lives HERE rather than at the three call sites so a fourth one
+    // added later inherits it instead of depending on someone remembering. It
+    // swallows the telemetry only — the consume itself has already happened and
+    // must stand, or a Mixpanel outage would hand out free uses.
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.aiTasteConsumed, {
+        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+        AnalyticsEvents.propAllowance: allowance,
+        AnalyticsEvents.propRemaining: remaining,
+      });
+    } catch (_) {/* best-effort: never let telemetry undo real work */}
   }
 
   // ---- helpers ------------------------------------------------------------
@@ -736,10 +758,15 @@ class GatingService {
   /// stays continuous across the T0 boundary.
   void _emitCapHit(GatedFeature feature, GateReason reason) {
     final reasonWire = gateReasonWireValue(reason);
-    onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
-      AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
-      if (reasonWire != null) AnalyticsEvents.propReason: reasonWire,
-    });
+    // Guarded for the same reason as [_emitTasteConsumed]: this fires from
+    // inside `canUse`, whose result decides whether a feature runs at all. An
+    // escaping throw would turn a routine cap into an app-level failure.
+    try {
+      onAnalyticsEvent?.call(AnalyticsEvents.dailyCapHit, {
+        AnalyticsEvents.propFeature: _bypassFeatureKey(feature),
+        if (reasonWire != null) AnalyticsEvents.propReason: reasonWire,
+      });
+    } catch (_) {/* best-effort: never let telemetry undo real work */}
   }
 
   Future<GateResult> _applyDailyCap(

@@ -16,6 +16,8 @@ import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/daily/providers/daily_loop_provider.dart';
 import 'package:sakina/features/quests/providers/quests_provider.dart';
 import 'package:sakina/services/achievement_checker.dart';
+import 'package:sakina/services/analytics_event_names.dart';
+import 'package:sakina/services/analytics_provider.dart';
 import 'package:sakina/services/card_collection_service.dart';
 import 'package:sakina/services/purchase_service.dart';
 import 'package:sakina/features/collection/widgets/bronze_ornate_card.dart';
@@ -28,6 +30,23 @@ import 'package:go_router/go_router.dart';
 import 'package:sakina/core/constants/app_durations.dart';
 
 class CollectionScreen extends ConsumerStatefulWidget {
+  /// Resets the `names_browse_viewed` session latch. The production latch has
+  /// no other reset by design — it is meant to survive remounts for the life of
+  /// the app process — so tests that need a clean session boundary call this.
+  @visibleForTesting
+  static void debugResetBrowseSession() =>
+      _CollectionScreenState._browseViewedThisSession = false;
+
+  /// Reads the session latch, so a test can assert the per-session (not
+  /// per-mount) semantics without tearing down a ProviderScope.
+  @visibleForTesting
+  static bool get debugBrowseViewedThisSession =>
+      _CollectionScreenState._browseViewedThisSession;
+
+  @visibleForTesting
+  static void debugMarkBrowseViewedForTest() =>
+      _CollectionScreenState._browseViewedThisSession = true;
+
   const CollectionScreen({super.key});
 
   @override
@@ -66,9 +85,37 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen> {
   NavigatorState? _sheetNavigator;
   AppSessionNotifier? _session;
 
+  /// W6 Wave D: `names_browse_viewed`.
+  ///
+  /// It lives HERE, not on `NamesScreen`, because `NamesScreen` is dead code —
+  /// zero references anywhere in `lib/`, not the router, not a tab, not a push.
+  /// The event was originally wired there because the plan audited the FILE
+  /// ("zero analytics references, and is a StatelessWidget") without asking
+  /// whether anything reaches it, and an event that cannot fire is
+  /// indistinguishable in a dashboard from a surface nobody visits — the exact
+  /// failure class this wave exists to eliminate.
+  ///
+  /// `CollectionScreen` at `/collection` is the 99-Names surface users actually
+  /// reach: the Collection tab.
+  ///
+  /// Static rather than per-instance so the latch survives unmount/remount —
+  /// a bottom-nav switcher not backed by an IndexedStack would otherwise
+  /// re-fire `initState` on every tab visit and inflate the count. It resets on
+  /// the next app launch, which is the "per session" the event is scoped to.
+  static bool _browseViewedThisSession = false;
+
   @override
   void initState() {
     super.initState();
+    if (!_browseViewedThisSession) {
+      _browseViewedThisSession = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          ref.read(analyticsProvider).track(AnalyticsEvents.namesBrowseViewed);
+        } catch (_) {/* best-effort */}
+      });
+    }
     // Resolve premium status so the "All" view can decide whether to show the
     // locked Emerald · Premium teaser tiles (free users only).
     PurchaseService().isPremium().then((v) {

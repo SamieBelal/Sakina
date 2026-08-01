@@ -170,4 +170,73 @@ void main() {
     expect(tasteEvents(), isEmpty,
         reason: 'a payer spending an unlimited use is not a "taste"');
   });
+
+  group('a throwing analytics hook cannot escape markUsed (Wave C review, P1)',
+      () {
+    // CORRECTNESS, not telemetry. Every live caller reaches `markUsed` AFTER
+    // the AI response has arrived and been shown:
+    //
+    //   * duas_provider.dart:619 — after `buildDua` succeeded. A throw lands in
+    //     the outer `catch (e)`, which shows "Something went wrong. Please try
+    //     again." AND calls `cancelActiveBypassIfAny()` — discarding a real
+    //     duʿā and refunding tokens the user spent on a result they liked.
+    //   * reflect_provider.dart:830 — `screenState` is already `result` with
+    //     the real response; a throw reverts it to `input` with a generic
+    //     error.
+    //
+    // gating_service.dart:433 already says this about the RPC path ("flip a
+    // reveal that HAPPENED into state.error"). The emit simply arrived later,
+    // and the wave's own `reflect_completed` two lines away was already
+    // wrapped — these were the odd ones out.
+    //
+    // MUTATION: remove the try/catch from `_emitTasteConsumed` → all of these
+    // fail with the StateError escaping markUsed.
+    for (final feature in GatedFeature.values) {
+      test('${feature.name}: markUsed completes despite a throwing hook',
+          () async {
+        GatingService.onAnalyticsEvent =
+            (_, __) => throw StateError('analytics exploded');
+
+        await expectLater(gating.markUsed(feature), completes,
+            reason: 'a telemetry failure must never reach the caller — the '
+                'generation has already happened by this point');
+      });
+    }
+
+    test('the spend still lands even though the emit threw', () async {
+      // The guard swallows the telemetry, NOT the bookkeeping. Losing the
+      // decrement would hand out a free use every time Mixpanel hiccuped.
+      GatingService.onAnalyticsEvent =
+          (_, __) => throw StateError('analytics exploded');
+
+      final before = (await gating.canUse(GatedFeature.reflect)).remaining ?? 0;
+      await gating.markUsed(GatedFeature.reflect);
+      final after = (await gating.canUse(GatedFeature.reflect)).remaining ?? 0;
+
+      expect(after, lessThan(before));
+    });
+
+    test('a cap-hit emit cannot escape canUse either', () async {
+      // _emitCapHit fires from inside canUse, whose result decides whether a
+      // feature runs at all — an escaping throw would turn a routine cap into
+      // an app-level failure.
+      for (var i = 0; i < 12; i++) {
+        await gating.markUsed(GatedFeature.reflect);
+      }
+      GatingService.onAnalyticsEvent =
+          (_, __) => throw StateError('analytics exploded');
+
+      await expectLater(gating.canUse(GatedFeature.reflect), completes);
+    });
+
+    test('a well-behaved hook still receives the event', () async {
+      // Guards against the lazy fix: a try/catch that also swallowed the emit
+      // would make every case above pass while emitting nothing at all.
+      await gating.markUsed(GatedFeature.reflect);
+
+      expect(emitted.map((e) => e.event),
+          contains(AnalyticsEvents.aiTasteConsumed));
+    });
+  });
+
 }

@@ -457,10 +457,17 @@ class _StoreScreenState extends ConsumerState<StoreScreen>
     // genuinely different outcome from one that finds a subscription (see
     // `restoreCompleted` doc), so this fires before the `!success` branch
     // returns, not only on the happy path.
-    _analytics.track(
-      AnalyticsEvents.restoreCompleted,
-      properties: {AnalyticsEvents.propPremiumActive: success},
-    );
+    // Guarded: everything below this line is real work on a SUCCESSFUL restore
+    // — the premium-state invalidate and the Gold→Emerald retro-bump. A throw
+    // here would skip both and leave a paying subscriber looking unsubscribed
+    // until their next launch. `paywall_screen.dart`'s equivalent emit in the
+    // same wave is wrapped for the same reason.
+    try {
+      _analytics.track(
+        AnalyticsEvents.restoreCompleted,
+        properties: {AnalyticsEvents.propPremiumActive: success},
+      );
+    } catch (_) {/* best-effort: never let telemetry undo a restore */}
     if (!success) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
