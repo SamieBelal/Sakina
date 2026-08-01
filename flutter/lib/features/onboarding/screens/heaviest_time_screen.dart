@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../content/intake_questions.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/reel_single_tap_question.dart';
@@ -61,7 +63,12 @@ class HeaviestTimeScreen extends ConsumerWidget {
       commitBeat: commitBeat,
       onAnswer: (key) =>
           ref.read(onboardingProvider.notifier).setHeaviestTime(key),
-      onCommitted: (_) => onNext(),
+      onCommitted: (key) {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswerWithRef(ref, 'heaviest_time', key);
+        onNext();
+      },
     );
   }
 }

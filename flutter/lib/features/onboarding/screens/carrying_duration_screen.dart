@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../content/carrying_durations.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/reel_single_tap_question.dart';
@@ -55,7 +57,12 @@ class CarryingDurationScreen extends ConsumerWidget {
       commitBeat: commitBeat,
       onAnswer: (key) =>
           ref.read(onboardingProvider.notifier).setCarryingDuration(key),
-      onCommitted: (_) => onNext(),
+      onCommitted: (key) {
+        ref
+            .read(analyticsProvider)
+            .trackOnboardingAnswerWithRef(ref, 'carrying_duration', key);
+        onNext();
+      },
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_strings.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../content/help_chips.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/intake_chip_cloud.dart';
@@ -53,7 +55,16 @@ class HelpChipsScreen extends ConsumerWidget {
       continueLabel: AppStrings.continueButton,
       // Gated at one selection, disabled rather than hidden: a button that
       // appears on the first tap moves the thing the user is about to press.
-      onContinue: selected.isEmpty ? null : onNext,
+      onContinue: selected.isEmpty
+          ? null
+          : () {
+              // The ordered chip keys — already the categorical values persisted
+              // to `OnboardingState.helpWith`, so nothing further to bucket.
+              ref
+                  .read(analyticsProvider)
+                  .trackOnboardingAnswerWithRef(ref, 'help_chips', selected);
+              onNext();
+            },
       onBack: onBack,
       progressSegment: progressSegment,
       totalSegments: totalSegments,

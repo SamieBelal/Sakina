@@ -4,9 +4,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../services/analytics_events.dart';
+import '../../../services/analytics_provider.dart';
 import '../content/intake_questions.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/reel_continue_question.dart';
+
+/// H7's analytics value — grapheme-count buckets on the typed note, never the
+/// note text itself (this is the app's one free-text intake screen; see the
+/// class doc). Thresholds, in user-perceived characters
+/// (`String.characters`, matching `OnboardingNotifier.setIntakeNote`'s own
+/// grapheme cap so emoji/Arabic ligatures are never split mid-code-unit):
+///   * `none`   — 0 (skipped, or cleared back to empty)
+///   * `short`  — 1-50    (a sentence or two)
+///   * `medium` — 51-200  (a short paragraph)
+///   * `long`   — 201+    (multiple paragraphs, up to the 1000-grapheme cap)
+String intakeNoteLengthBucket(String text) {
+  final length = text.trim().characters.length;
+  if (length == 0) return 'none';
+  if (length <= 50) return 'short';
+  if (length <= 200) return 'medium';
+  return 'long';
+}
 
 /// H7 — "Anything you want to add?" (One Ship W2-H).
 ///
@@ -66,6 +85,13 @@ class _IntakeNoteScreenState extends ConsumerState<IntakeNoteScreen> {
   /// screen, deleting what you wrote and skipping are the same intent.
   void _commit() {
     ref.read(onboardingProvider.notifier).setIntakeNote(_controller.text);
+    // Bucketed length only — never the text itself. See
+    // [intakeNoteLengthBucket]'s doc for the thresholds.
+    ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
+          ref,
+          'intake_note',
+          intakeNoteLengthBucket(_controller.text),
+        );
     widget.onNext();
   }
 
