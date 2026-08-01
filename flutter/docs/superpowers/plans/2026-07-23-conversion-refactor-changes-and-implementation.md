@@ -184,7 +184,7 @@
 - **⚠️ CORRECTION 2026-07-30 — the free-tier baseline is NOT 1/day, and W5 must decide this deliberately.** Every document, including this line, said `discoverName` is 1/day. It never was: the day-open CTA (`progress_screen.dart:1046-1050`) pushed `/muhasabah` with **no gate at all**, so a post-warmup free user has always had an **effective 2 reveals/day** — one unmetered day-open plus one metered re-roll — and the 5-use warmup was spent on re-rolls only. `dailyFreeDiscoverNames = 1` is correct for what it governs; it simply never governed the day-open path.
 - **W4 preserved that deliberately** (Wave 1, `8241923`): the day's first reveal is free and unmetered via a `_capDay()`-keyed marker, only re-rolls are metered. Moving `markUsed` into `discoverName()` unqualified would have charged the day-open reveal for the first time ever and halved the free tier for every existing user, unannounced, in the same wave that restructured the reward claim specifically to avoid an unannounced takeaway.
 - **So a genuine 1/day is a real tightening and it is W5's call to make openly** — not something to inherit from a line that was wrong. If W5 does tighten it: **the day-open path must remain ungated**. It is where the app asks what is on the user's heart, and that surface must never be able to answer a disclosure with a cap sheet. That is a safety property, not an economic one, and it currently holds *structurally* because the day-open reveal consults no gate whatsoever.
-- **⚠️ Correction 2026-07-31 — the W5 build line above (`discoverName` exempt, "1/day permanent, *all users*") is superseded by D10②.** D10 makes the genuine 1/day + 3-re-roll warmup **`reel_v1`-only**; legacy accounts keep today's effective 2/day until the softener wave, per §V6.10's one-disruption rule. Read "all users" there as pre-dating that decision — anyone implementing from that bullet would ship the tightening to the existing base unannounced, which is the exact outcome §V6.10 and the W4 note above exist to prevent.
+- **⚠️ Correction 2026-07-31 — the W5 build line above (`discoverName` exempt, "1/day permanent, *all users*") is superseded by D10②.** D10 makes the genuine 1/day + 3-re-roll warmup **`reel_v1`-only**; legacy accounts keep today's effective 2/day until the softener wave, per §V6.10's one-disruption rule. Read "all users" there as pre-dating that decision — anyone implementing from that bullet would ship the tightening to the existing base unannounced, which is the exact outcome §V6.10 and the W4 note above exist to prevent. **⚠️ Further superseded by D12 (2026-08-01): "until the softener wave" is now "at T0" — the founder chose to tighten the existing base immediately. The `reel_v1`-only *scoping* below is still exactly how it is built; what changed is that every account becomes `reel_v1` at T0.**
 - `LapsedTrialSheet`: "3-day" copy → 7-day; wire to RC trial-lapse for the new flow's store trial.
 - Reverse-trial close-out: readout addendum written; in-flight `trial_premium_until` honored; flag flip only after both; retire `reverse_trial_onboarding.dart` + `trial_expiry_service.dart` after last in-flight trial + winback grace; delete the `reverse_trial_experiment_enabled` config key + `assignPaywallArm` + the `paywall_experiment_assigned` dedup key; freeze `paywall_exp_arm`.
 
@@ -469,7 +469,41 @@ new-cohort users, immediately and without notice.**
 **Mechanism: flip, do not delete.** The cohort machinery stays exactly as built. Two
 statements at T0 — backfill `user_profiles.free_tier_cohort = 'reel_v1'` for every existing
 account, and set `app_config.new_signup_cohort = 'reel_v1'` — put everyone on the new tier at
-once. Deleting `isNewCohort` and its seven call sites was the alternative and was rejected:
+once.
+
+> **⚠️ Correction 2026-08-01 — two statements are NOT enough, and an unqualified
+> `WHERE` will miss 92% of the base. Verified against production.**
+>
+> **(a) The backfill must not filter on `'legacy'`.** `free_tier_cohort` is **NULL** on
+> **1,262 of 1,365** accounts — the column was added after they signed up and only
+> post-migration rows were ever stamped. `where free_tier_cohort = 'legacy'` touches 103
+> rows and silently leaves everyone else behind. The statement must be unqualified.
+>
+> **(b) A third statement is required, or the tier does not actually tighten.** The warmup
+> counters are **server-authoritative** — the client hydrates them from `user_profiles` and
+> `_readWarmup` deliberately never overwrites the server's number with a locally-guessed
+> one. Existing rows carry the *legacy column defaults*: **10 reflect / 10 built-duʿā / 5
+> discover**, and 810 accounts still sit at the full 10/10/5. Flipping only the cohort makes
+> them `reel_v1` while leaving 25 free AI uses in hand, so they would not touch the weekly
+> pool for weeks. That is the opposite of the decision recorded above. Clamp them:
+>
+> ```sql
+> update public.user_profiles set
+>   warmup_reflect_remaining      = least(warmup_reflect_remaining,      3),
+>   warmup_built_dua_remaining    = least(warmup_built_dua_remaining,    3),
+>   warmup_discover_name_remaining = least(warmup_discover_name_remaining, 3);
+> ```
+>
+> `least()`, never a bare assignment: it clamps downward only, so nobody who has already
+> spent their warmup is handed uses back, and the decrement-only ratchet in
+> `guard_user_profiles_freemium_fields` is respected in spirit even though the guard exempts
+> `service_role` / `postgres` / `supabase_admin` (verified — so all three statements *will*
+> run from the SQL editor or MCP). Read the `3`s from `warmup_*_size` in `app_config` if they
+> have been retuned by then rather than trusting this literal.
+>
+> **This is a genuine tightening with no notice** — it is what the decision above chose, and
+> the clamp is the part that makes it real. It is also the part with the sharpest edge: a
+> user mid-warmup drops from 10 remaining to 3 between one launch and the next. Deleting `isNewCohort` and its seven call sites was the alternative and was rejected:
 it reaches the same end state via a refactor of code that had just been reviewed, and it
 throws away the rollback. **The flip is reversible in seconds** (set the column back to
 `'legacy'`); the deletion is not. Keep the branch until the keep decision, then retire it

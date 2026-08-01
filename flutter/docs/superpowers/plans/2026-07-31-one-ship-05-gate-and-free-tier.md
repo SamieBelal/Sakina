@@ -200,6 +200,32 @@ suite is green.
    StoreKit will grant. Then update the string sites in §2 to render from it.
 5. `LapsedTrialSheet`: 3-day → 7-day (`:5`, `:107`), wired to RC trial-lapse.
 
+> **Closed 2026-08-01 — B.5 was the one wave item that did not land, and it had grown a
+> second defect.** Found by auditing the wave rather than by a test; nothing pinned it.
+>
+> - **It does not swap 3 → 7. It stops naming a duration at all.** "In your trial, you showed
+>   up N times…" is true at 3 days, at 7, and at whatever ASC sets next. Swapping the numeral
+>   would have re-created the exact coupling `TrialOffer` was built in B.4 to remove, on a
+>   string that renders *after* the store has already decided. The new
+>   `no cohort names a trial LENGTH` test greps the rendered copy for `3-day`/`7-day`/`3
+>   day`/`7 day` across both cohorts and all three body shapes.
+> - **D12 broke it a second way, in a place D12 never looked.** The sheet promised *"One
+>   reflection a day is yours forever"* and headlined *"Welcome back to one a day"* — the
+>   **legacy** tier. Both cap sheets were made cohort-aware in Wave D; this one was missed
+>   because it is not a cap sheet and fires from `progress_screen`, not from a gate. Once
+>   every account is `reel_v1` at T0, it promised a daily reflection to a population that
+>   gets three a week. It now takes `isNewCohort` (resolved through the same
+>   `resolveNewCohortForSheet` helper the cap sheets use) and names the Monday reset.
+> - **It survives Wave A.** It fires off RevenueCat `hadTrial()`, not the app-granted
+>   `trial_premium_until`, so deleting the reverse-trial machinery leaves it standing — and
+>   the 7-day flip makes it *more* trafficked, not less.
+> - **Known and NOT fixed here:** `_resolveActivity` counts **today only**, so
+>   `daysActiveDuringTrial` is only ever 0 or 1 — someone who showed up every day of a 7-day
+>   trial still reads "across 1 day". The service comment claimed a 3-day window it never
+>   implemented; that comment is now corrected in place. Widening it to the real window is a
+>   Supabase read of `user_daily_usage`, i.e. a data change, and it *understates* engagement
+>   rather than overstating it, so it is safe to defer — but it is deferred, not solved.
+
 **Done when:** a device StoreKit run grants 7 days, and a previously-trialed sandbox account
 sees the non-trial variant.
 

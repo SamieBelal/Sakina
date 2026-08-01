@@ -8,10 +8,15 @@ import 'package:sakina/services/supabase_sync_service.dart';
 // Lapsed Trial Service
 //
 // Decides whether the LapsedTrialSheet should fire on a given app launch
-// and computes the activity stats it shows ("In your 3-day trial, you
-// showed up X times across Y days..."). The "moments" tally is an
-// activity-agnostic sum of reflects + built-duas + discovered-names —
-// any spiritual action the user took during their trial counts.
+// and computes the activity stats it shows ("In your trial, you showed up
+// X times across Y days..."). The "moments" tally is an activity-agnostic
+// sum of reflects + built-duas + discovered-names — any spiritual action
+// the user took during their trial counts.
+//
+// The trial's LENGTH is deliberately absent from both the copy and this
+// computation. It is a store-side value that App Store Connect can change
+// without a release, so anything that hardcodes it is a promise waiting to
+// go stale (W5 Wave B.4).
 //
 // Trigger conditions (all must be true):
 //   1. RevenueCat history shows the user had a trial (`hadTrial() == true`)
@@ -61,10 +66,11 @@ Future<LapsedTrialDecision?> resolveLapsedTrialDecision() async {
   final alreadyShown = prefs.getBool(shownKey) ?? false;
   if (alreadyShown) return null;
 
-  // Stats: count usage across the last 3 calendar days. Approximates the
-  // 3-day trial window. If we can't resolve any usage, the sheet renders
-  // its fallback copy ("You've explored what Premium feels like..."), so
-  // returning zeros is safe.
+  // Stats: TODAY's usage only — see `_resolveActivity`, which reads the
+  // local daily counters and nothing else. This comment previously claimed a
+  // 3-day window that the code has never implemented. If we can't resolve any
+  // usage, the sheet renders its fallback copy ("You've explored what Premium
+  // feels like..."), so returning zeros is safe.
   final activity = await _resolveActivity();
 
   return LapsedTrialDecision(
@@ -81,6 +87,13 @@ Future<LapsedTrialActivity> _resolveActivity() async {
   // daily_usage_service. For trial-window stats we'd need to pull recent
   // user_daily_usage rows from Supabase. Today's row alone is a reasonable
   // floor — it captures any usage from the just-lapsed-trial day.
+  //
+  // Consequence, stated plainly because the copy renders it: `daysActive` is
+  // therefore only ever 0 or 1, so a user who showed up every day of a 7-day
+  // trial still reads "across 1 day". That UNDERSTATES their own engagement
+  // on a conversion surface. Widening it to the real window means a Supabase
+  // read of `user_daily_usage`; tracked rather than done here because it is a
+  // data change, not a copy one.
   final reflects = await getReflectUsageToday();
   final builtDuas = await getBuiltDuaUsageToday();
   final discoverNames = await getDiscoverNameUsageToday();
