@@ -343,6 +343,42 @@ completion IS the drop-off, by construction. Build the funnel by chaining
 per D6 above) and reading the gap at each step as where people actually quit,
 rather than by counting `onboarding_abandoned_at_page`.
 
+**One caveat, and it decides your funnel window.** `step_completed` fires only
+on FORWARD navigation (`onboarding_screen.dart:474` — back navigation is
+treated as abandonment, not completion, which is right). So a user who views
+page N, retreats to N−1, and later re-advances past N emits `step_completed(N)`
+**late**, not never — `_emitStepCompletedOnce` guards it, so it is a delayed
+fire rather than a lost one. A short funnel-conversion window will therefore
+read that user as having abandoned page N when they in fact completed it.
+
+Use a conversion window generous enough to absorb a there-and-back
+(the whole reel flow is ~19 short screens), and treat an unusually high
+drop reading on a step users commonly reverse into as suspect before treating
+it as real. A user who retreats and never returns still reads as abandoned at
+roughly the right place — just not at the exact page they quit from.
+
+**A skip is not a drop — but the two decline paths report differently, and
+the difference is not cosmetic.** Several screens have an explicit decline
+(`intake_note`'s "Nothing to add", the source screen's "Rather not say"). All
+of them advance the flow, so `step_completed` DOES fire and a considered
+decline is never counted as abandonment.
+
+What they do NOT share is the answer event, and you cannot assume one rule:
+
+* **`intake_note` skip → `onboarding_answer_captured` STILL FIRES**, with a
+  length bucket (`none` if nothing was typed). Its skip and its Continue run the
+  same commit path (`intake_note_screen.dart:107,109`), which is deliberate —
+  the screen's own doc treats deleting your text and skipping as one intent.
+  Consequence: **you cannot tell a quiet decline from an answered-then-emptied
+  note on this step.** If that distinction matters to a question you are asking,
+  this event cannot answer it.
+* **Source screen "Rather not say" → emits NOTHING.** No answer event, no
+  `reel_source_selected`, and no `reel_hook` upgrade.
+
+So `onboarding_answer_captured` present-vs-absent separates answer from skip on
+the source screen and NOT on `intake_note`. Read each step's decline path before
+building a skip-rate metric across the block.
+
 **Tour events dated after 2026-07-28 mean the kill switch was pulled, not that
 the tour is back.** The tour was deleted that date; its emitters
 (`tour_step_viewed`, `tour_completed`, etc.) survive only because the
