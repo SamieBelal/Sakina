@@ -166,7 +166,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   /// hard-gate "Continue" safety valve so a load failure can't brick the user.
   bool _offeringsLoadFailed = false;
 
-  int _pageIndex = 0;
+  /// The page on screen, tracked by IDENTITY rather than by index.
+  ///
+  /// The page LIST is derived per build from trial eligibility, which resolves
+  /// after mount — so it can both shrink and GROW under the user's feet. An
+  /// index survives neither: a `trial_timeline` that appears late would slide
+  /// in underneath a user already reading `plan_select` and pull them backwards
+  /// onto it (and double-count the `plan_select` page view on the way back).
+  /// A page that is no longer in the list falls forward to the last one, never
+  /// backwards past the decision.
+  _GatePage _currentPage = _GatePage.valueDepth;
   String? _lastTrackedPageId;
 
   /// The exit offer is shown at most once per session. If the user declines
@@ -567,7 +576,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _doClose() async {
-    ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+    // Wrapped like every other emission on this path. `_doClose` is reached
+    // from an UNAWAITED tap handler, so a throw anywhere in it aborts the
+    // dismissal silently — the same shape as the `scopedKey` bug below, and
+    // the reason no bookkeeping on the escape hatch may be left bare.
+    try {
+      ref.read(analyticsProvider).track(AnalyticsEvents.paywallClosed);
+    } catch (_) {}
 
     if (_isPostTourSoftGate) {
       try {
@@ -779,6 +794,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       } catch (_) {}
       if (mounted) setState(() => _errorMessage = _purchaseFailedMessage);
     } finally {
+      // The origin belongs to ONE attempt. Leaving it latched would credit the
+      // exit offer with the next purchase the user starts from the gate's own
+      // CTA — inflating precisely the number D11 kept the sheet in order to
+      // measure. Whoever starts an attempt sets it; every attempt resets it.
+      _purchaseOrigin = AnalyticsEvents.originPaywall;
       if (mounted) setState(() => _purchasing = false);
     }
   }
@@ -826,8 +846,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget build(BuildContext context) {
     final offer = _buildOffer();
     final pages = _pagesFor(offer);
-    // Eligibility resolving late can shorten the list under the user's feet.
-    final index = _pageIndex.clamp(0, pages.length - 1);
+    // Eligibility resolving late can lengthen OR shorten the list under the
+    // user's feet; resolve by identity so neither moves them.
+    final found = pages.indexOf(_currentPage);
+    final index = found >= 0 ? found : pages.length - 1;
     final page = pages[index];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_showAlwaysFreeCard) _trackPageViewed(page);
@@ -906,7 +928,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             ? AppStrings.paywallTrialTimelineFootnote
                             : null,
                         onContinue: () =>
-                            setState(() => _pageIndex = index + 1),
+                            setState(() => _currentPage = pages[index + 1]),
                       ),
               ),
       ),
