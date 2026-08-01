@@ -177,6 +177,9 @@ GoRouter buildRouter({required AppSessionNotifier appSession}) {
         builder: (context, state) => PaywallScreen(
           inOnboardingFlow: false,
           placement: placementFromRouteExtra(state.extra),
+          // Null for every entry point that pushes a bare placement, which
+          // leaves the condensed page on its period-agnostic default line.
+          softValueLine: valueLineFromRouteExtra(state.extra),
           onComplete: () => GoRouter.of(context).pop(),
         ),
       ),

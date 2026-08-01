@@ -786,6 +786,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       DailyCapSheet.show(
         context,
         feature: GatedFeature.discoverName,
+        gateReason: reason,
         tokenBalance: balance,
         bypassesUsedToday: bypassesUsed,
         isPremium: premium,
@@ -797,7 +798,12 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
           reason: reason,
           pushPaywall: () {
             if (mounted) {
-              pushPaywall(context, placement: PaywallPlacement.softInApp);
+              pushPaywall(
+                context,
+                placement: PaywallPlacement.softInApp,
+                valueLine:
+                    softGateValueLine(GatedFeature.discoverName, reason),
+              );
             }
           },
         ),

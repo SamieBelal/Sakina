@@ -120,6 +120,7 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
           DailyCapSheet.show(
             sheetContext,
             feature: GatedFeature.reflect,
+            gateReason: next.gateResult!.reason,
             tokenBalance: balance,
             bypassesUsedToday: bypassesUsed,
             isPremium: premium,
@@ -131,7 +132,14 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
               reason: next.gateResult!.reason,
               pushPaywall: () {
                 if (mounted) {
-                  pushPaywall(context, placement: PaywallPlacement.softInApp);
+                  pushPaywall(
+                    context,
+                    placement: PaywallPlacement.softInApp,
+                    valueLine: softGateValueLine(
+                      GatedFeature.reflect,
+                      next.gateResult!.reason,
+                    ),
+                  );
                 }
               },
             ),

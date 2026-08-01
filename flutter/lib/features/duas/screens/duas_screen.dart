@@ -167,6 +167,7 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
           DailyCapSheet.show(
             sheetContext,
             feature: GatedFeature.builtDua,
+            gateReason: next.buildGateResult!.reason,
             tokenBalance: balance,
             bypassesUsedToday: bypassesUsed,
             isPremium: premium,
@@ -179,7 +180,14 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               reason: next.buildGateResult!.reason,
               pushPaywall: () {
                 if (mounted) {
-                  pushPaywall(context, placement: PaywallPlacement.softInApp);
+                  pushPaywall(
+                    context,
+                    placement: PaywallPlacement.softInApp,
+                    valueLine: softGateValueLine(
+                      GatedFeature.builtDua,
+                      next.buildGateResult!.reason,
+                    ),
+                  );
                 }
               },
             ),

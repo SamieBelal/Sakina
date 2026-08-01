@@ -4,12 +4,19 @@ import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart'
     show GatedFeature;
 import 'package:sakina/services/analytics_events.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
 }
 
 void main() {
+  // See daily_cap_sheet_test.dart: `show` awaits a SharedPreferences-backed
+  // cohort read that never completes under flutter_test without a mock store.
+  // An empty store also means "no cached cohort", which resolves to the legacy
+  // tier — exactly the cohort every assertion in this file is written for.
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
   group('DailyCapSheet — bypass CTA states (plan 2026-05-23)', () {
     testWidgets('STATE A: balance >= 25 + bypasses < 2 → enabled "Use 25 tokens"',
         (tester) async {
@@ -299,7 +306,7 @@ void main() {
       expect(find.text('One more on us'), findsOneWidget,
           reason: 'No awkward greeting when name == default placeholder');
       expect(find.text('One more on us, Friend'), findsNothing);
-      expect(find.text('Build one more dua, free'), findsOneWidget);
+      expect(find.text('Build one more duʿā, free'), findsOneWidget);
     });
 
     testWidgets(

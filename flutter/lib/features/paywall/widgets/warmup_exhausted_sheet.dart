@@ -1,35 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:sakina/services/gating_service.dart' show GatedFeature;
+import 'package:sakina/services/gating_service.dart'
+    show GatedFeature, GatingService;
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 
 export 'package:sakina/services/gating_service.dart' show GatedFeature;
 
-/// Bottom sheet shown the first time a free user exhausts a feature's
-/// lifetime warm-up budget (10 reflects / 10 duas / 5 discoveries).
+/// Resolves the free-tier cohort for a sheet that is about to be presented.
 ///
-/// Copy is parameterized per [GatedFeature]. Primary CTA opens the paywall;
-/// secondary dismisses and lets the user fall through to the 1/day cap.
+/// Shared by both cap sheets. Wraps [GatingService.isNewCohort] in a
+/// try/catch that answers `false`, for two reasons:
+///
+///  1. **Never turn a gate into a dead end.** These sheets are the ONLY thing
+///     standing between a capped user and a blank screen. If the cohort read
+///     throws — a corrupted store, an unscoped key before sign-in — an
+///     uncaught error would abandon `showModalBottomSheet` and the user would
+///     tap their CTA and get nothing at all.
+///  2. **`false` is the generous answer.** It selects the legacy copy AND
+///     leaves the token bypass in place, matching `isNewCohort`'s own
+///     documented fail-to-false posture: never hand someone the tighter tier
+///     on a guess.
+///
+/// **Testing note.** [GatingService.isNewCohort] reads SharedPreferences, and
+/// `SharedPreferences.getInstance()` never completes under `flutter_test`
+/// unless a mock store is installed — it hangs rather than throwing, so the
+/// try/catch above cannot rescue it and `show` would silently present
+/// nothing. Any widget test that drives either sheet's `show` must call
+/// `SharedPreferences.setMockInitialValues({})` first. On device this cannot
+/// happen: the plugin is always registered, and by the time a cap sheet is
+/// reached the gate that produced the `GateResult` has already awaited this
+/// same cached read, so the value is warm.
+Future<bool> resolveNewCohortForSheet() async {
+  try {
+    return await GatingService().isNewCohort();
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Bottom sheet shown the first time a free user exhausts a feature's
+/// lifetime warm-up budget.
+///
+/// Copy is parameterized per [GatedFeature] **and per free-tier cohort**.
+/// Primary CTA opens the paywall; secondary dismisses and lets the user fall
+/// through to whatever their cohort's steady-state allowance is — and that
+/// allowance is exactly what the body copy has to name, because the two
+/// cohorts fall through to different things:
+///
+///  * **legacy** (`isNewCohort == false`) — a 1/day cap, so "from tomorrow
+///    you'll get one a day" is true and stays shipped verbatim.
+///  * **`reel_v1`** (`isNewCohort == true`) — Reflect and Build-a-Duʿā fall
+///    through to a *combined weekly pool* that resets on the local Monday
+///    (`consume_weekly_allowance`), and `discoverName` falls through to the
+///    permanently-free once-a-day reveal. Neither is "one a day" for the
+///    feature in hand, so the legacy line becomes false the moment the pool
+///    ships (plan D10③).
 class WarmupExhaustedSheet extends StatelessWidget {
   final GatedFeature feature;
   final VoidCallback onUpgrade;
   final VoidCallback onDismiss;
+
+  /// Which free-tier the copy must describe. Defaults to `false` (legacy) so
+  /// a caller that has not been taught about cohorts renders the generous,
+  /// still-true copy rather than promising a Monday reset to someone whose
+  /// allowance actually resets tomorrow. [show] resolves the real value.
+  ///
+  /// **Why this sheet uses the cohort where `DailyCapSheet` prefers the gate
+  /// reason.** There is no `GateReason` to prefer: this sheet fires on a
+  /// *successful* use — the one that decremented warmup from 1 to 0, signalled
+  /// by `UsageOutcome.warmupJustExhausted` — not on a gate rejection. Nothing
+  /// was refused, so `canUse` produced no reason to explain. The cohort is not
+  /// a second-best proxy here, it is the only thing that distinguishes what
+  /// the user is about to fall through to.
+  final bool isNewCohort;
 
   const WarmupExhaustedSheet({
     super.key,
     required this.feature,
     required this.onUpgrade,
     required this.onDismiss,
+    this.isNewCohort = false,
   });
 
   static Future<void> show(
     BuildContext context, {
     required GatedFeature feature,
     required VoidCallback onUpgrade,
-  }) {
+  }) async {
+    // Resolved here rather than inside the widget so the sheet renders its
+    // final copy on frame zero. A FutureBuilder would flash the legacy line
+    // and then swap it — on a purchase surface, showing the user one promise
+    // and replacing it a frame later is worse than the wait, and the read is
+    // a SharedPreferences hit with no network in it.
+    final newCohort = await resolveNewCohortForSheet();
+    if (!context.mounted) return;
     return showModalBottomSheet<void>(
       context: context,
       // Push on the ROOT navigator with a named route so the singleton
@@ -47,6 +114,7 @@ class WarmupExhaustedSheet extends StatelessWidget {
       builder: (sheetContext) {
         return WarmupExhaustedSheet(
           feature: feature,
+          isNewCohort: newCohort,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
             onUpgrade();
@@ -57,20 +125,64 @@ class WarmupExhaustedSheet extends StatelessWidget {
     );
   }
 
+  /// Cohort-neutral: the headline reports what the user just finished, which
+  /// is true either way. Only the body makes a claim about what happens next,
+  /// so only the body branches.
   String get _headline {
     switch (feature) {
       case GatedFeature.reflect:
         return "You've completed your free reflections";
       case GatedFeature.builtDua:
-        return "You've built your free duas";
+        return "You've built your free duʿās";
       case GatedFeature.discoverName:
         return "You've discovered your free Names";
     }
   }
 
-  String get _body {
-    // Body copy is identical across features per spec.
-    return "From tomorrow you'll get one a day. Or unlock unlimited now.";
+  String get _body => isNewCohort ? _newCohortBody : _legacyBody;
+
+  /// LEGACY tier — a genuine 1/day cap, so this stays exactly as shipped.
+  /// Identical across features per spec.
+  String get _legacyBody =>
+      "From tomorrow you'll get one a day. Or unlock unlimited now.";
+
+  /// `reel_v1` tier. Unlike legacy, this one has to branch by feature,
+  /// because the two fall-throughs are different mechanics:
+  ///
+  ///  * Reflect / Build-a-Duʿā drop into the **combined** weekly pool. Both
+  ///    features are named, and "together" states that they share one pool —
+  ///    a user told only "your reflections come back Monday" who then finds
+  ///    Build-a-Duʿā also closed has been misled by omission, which is the
+  ///    same broken promise D10③ exists to prevent. Both the naming and the
+  ///    word "together" are pinned by test; neither survives a reword by
+  ///    accident.
+  ///  * `discoverName` is never pooled. Its once-a-day reveal consults no
+  ///    gate at all and is free permanently; only a *second* Name in a day
+  ///    is premium.
+  ///
+  /// **Stays forward-looking, unlike `DailyCapSheet`'s line.** This sheet
+  /// fires the instant warmup ends, when the weekly pool is still completely
+  /// UNSPENT — the user is not blocked and nothing needs to come back yet.
+  /// The cap sheet's "your free reflections and duʿās return on Monday" is
+  /// exactly right there and would be a fresh false claim here, so this one
+  /// says "from here … return each Monday": the same words in the founder's
+  /// register (2026-07-31, "allowance" dropped), describing the new steady
+  /// state rather than asserting the pool is already gone.
+  ///
+  /// Deliberately number-free. The pool size is the `weekly_pool_size` server
+  /// dial, and quoting a dial the client never reads is exactly the trap
+  /// documented at `GatingService.bypassTokenCost` — tune the dial and the
+  /// copy starts lying again. "Return each Monday" is true at any size.
+  String get _newCohortBody {
+    switch (feature) {
+      case GatedFeature.reflect:
+      case GatedFeature.builtDua:
+        return 'From here, your free reflections and duʿās return together '
+            'each Monday. Or unlock unlimited now.';
+      case GatedFeature.discoverName:
+        return 'Your Name for each day stays free, always. '
+            'Or unlock unlimited now.';
+    }
   }
 
   @override

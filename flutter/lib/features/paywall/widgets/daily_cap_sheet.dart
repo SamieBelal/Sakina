@@ -5,17 +5,86 @@ import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/auth_service.dart';
 import 'package:sakina/services/gating_service.dart';
 
-import 'warmup_exhausted_sheet.dart' show GatedFeature, PaywallSheetScaffold;
+import 'warmup_exhausted_sheet.dart'
+    show GatedFeature, PaywallSheetScaffold, resolveNewCohortForSheet;
 
-/// Bottom sheet shown to a free user who has already used their 1/day Reflect
-/// / Built Dua / Discover Name allotment, OR for narrative high-point
-/// triggers (post-streak-milestone, post-card-collected) — in which case the
-/// caller passes [headlineOverride] for context-specific copy.
+/// The trigger-specific line the condensed `soft_inapp` paywall shows in place
+/// of its default, for a user arriving from a cap sheet's "Unlock unlimited".
+/// Null means "keep the default", which is true for every cohort.
 ///
-/// Adds a middle "AI bypass" CTA when [onBypassRequested] is supplied (PR 2
-/// of the AI bypass plan, 2026-05-23). The bypass slot renders in one of
-/// three states depending on [tokenBalance], [bypassesUsedToday], and
-/// [isPremium]:
+/// **Derived from the [GateReason], never from the cohort**, which makes it
+/// exact rather than merely usually-right: `weeklyPool` and `rerollPremium`
+/// are produced *only* on the `reel_v1` path, and `dailyCap` /
+/// `hadTrialNoBudget` *only* on the legacy one, so the reason already encodes
+/// the tier. It also means this needs no async cohort read on the navigation
+/// path, and the line can never contradict the limit the user just hit — a
+/// "this week" line in front of a legacy daily-cap user would be D.5's bug in
+/// a new place.
+///
+/// Returns null for [GateReason.premiumFairUse]: that user is premium, there
+/// is nothing to sell them, and `buildPaywallUpgradeCallback` already makes
+/// their CTA a no-op so this paywall never opens. Also null for the
+/// allowed-through reasons, which never reach a cap sheet at all.
+///
+/// **Spells it `duʿā` / `duʿās`, unlike the cap-sheet bodies above, which say
+/// "dua".** Not an inconsistency to tidy up — these lines render on a
+/// different surface. `PaywallCondensedPage` puts this line directly above
+/// `PaywallBenefitChecklist`, whose first item is "Unlimited reflections,
+/// duʿās & Name discoveries" (`AppStrings.paywallPremiumBenefit1`), so a
+/// "duas" here would put two spellings inches apart on the screen where we
+/// ask for money. The cap sheets have no such neighbour. Match the surface
+/// you render on, not the other function in this file.
+String? softGateValueLine(GatedFeature feature, GateReason reason) {
+  switch (reason) {
+    case GateReason.weeklyPool:
+      switch (feature) {
+        case GatedFeature.reflect:
+          return 'Your reflections for this week are used — '
+              'Premium is unlimited.';
+        case GatedFeature.builtDua:
+          return 'Your duʿās for this week are used — Premium is unlimited.';
+        case GatedFeature.discoverName:
+          // discover_name is rejected outright by consume_weekly_allowance,
+          // so this pairing cannot occur. Fall back to the default line
+          // rather than invent copy for an impossible state.
+          return null;
+      }
+    case GateReason.rerollPremium:
+      return 'One Name a day is free — Premium opens as many as you like.';
+    case GateReason.dailyCap:
+    case GateReason.hadTrialNoBudget:
+      switch (feature) {
+        case GatedFeature.reflect:
+          return "Today's reflection is used — Premium is unlimited.";
+        case GatedFeature.builtDua:
+          return "Today's duʿā is used — Premium is unlimited.";
+        case GatedFeature.discoverName:
+          return "Today's discovery is used — Premium is unlimited.";
+      }
+    case GateReason.premiumFairUse:
+    case GateReason.ok:
+    case GateReason.warmupRemaining:
+      return null;
+  }
+}
+
+/// Bottom sheet shown to a free user who has exhausted their allowance for
+/// Reflect / Built Dua / Discover Name, OR for narrative high-point triggers
+/// (post-streak-milestone, post-card-collected) — in which case the caller
+/// passes [headlineOverride] for context-specific copy.
+///
+/// **Two tiers, two sheets** — selected by [gateReason] when the caller knows
+/// the gate outcome, else by [isNewCohort]:
+///
+///  * **legacy** — a 1/day cap and the token bypass, exactly as shipped.
+///  * **`reel_v1`** — Reflect and Build-a-Duʿā draw on a *combined weekly
+///    pool* that resets on the local Monday, `discoverName` keeps a
+///    permanently-free once-a-day reveal, and the bypass is gone (plan
+///    D.4/D10④). The sheet collapses to headline + "Unlock unlimited" +
+///    "Maybe later".
+///
+/// The bypass slot — LEGACY ONLY — renders in one of three states depending
+/// on [tokenBalance], [bypassesUsedToday], and [isPremium]:
 ///
 ///   STATE A — enough tokens + bypasses_today < cap: enabled "Use 25 tokens
 ///             for one more (you have N)"
@@ -25,6 +94,8 @@ import 'warmup_exhausted_sheet.dart' show GatedFeature, PaywallSheetScaffold;
 ///             "Bypass cap reached. Resets tomorrow."
 ///   isPremium == true:                              bypass slot hidden
 ///             entirely (premium uses fair-use ceiling, not this sheet).
+///   new tier (either input):                        bypass slot hidden
+///             entirely, STATE D included.
 ///
 /// When [onBypassRequested] is null, the sheet renders the legacy two-CTA
 /// layout (primary + tertiary) so existing callers without the bypass props
@@ -51,6 +122,39 @@ class DailyCapSheet extends StatelessWidget {
   final ValueChanged<GatedFeature>? onFirstBypassRequested;
   final String? userDisplayName;
 
+  /// True when this account is on the tightened `reel_v1` free tier: the copy
+  /// describes a weekly allowance instead of a daily one, and the bypass slot
+  /// (STATE A-D) does not render at all.
+  ///
+  /// Defaults to `false` — the legacy tier — so a caller that has not been
+  /// taught about cohorts keeps today's still-true copy AND keeps its bypass,
+  /// rather than silently tightening someone's allowance on a default.
+  /// [show] resolves the real value.
+  final bool isNewCohort;
+
+  /// The gate outcome that caused this sheet, when the caller knows it.
+  ///
+  /// **Preferred over [isNewCohort] as the copy input**, because it is the
+  /// more honest one: this sheet's job is to explain *the limit the user just
+  /// hit*, and a cohort flag is only a proxy for that. Passing the reason
+  /// makes it impossible for the copy to contradict the gate that produced
+  /// it — a user who hits `GateReason.weeklyPool` sees weekly-pool copy even
+  /// if the cohort cache were somehow stale or wrong.
+  ///
+  /// Combined **monotonically** with [isNewCohort] in [_describesNewTier]:
+  /// the two tightened reasons force the new-tier copy, and every other
+  /// reason (including `null`) defers to the cohort. Deliberately not a
+  /// two-way switch — mapping `dailyCap` back to "legacy" would hand legacy
+  /// copy to a `reel_v1` user the moment the gate returned a reason this
+  /// sheet did not anticipate. Additive can only ever be right; a two-way
+  /// map can be wrong in a new way.
+  ///
+  /// `null` today at all four call sites, so behaviour is unchanged until
+  /// they pass `gateReason: reason` — they already hold it, they hand it to
+  /// `buildPaywallUpgradeCallback`. `GatingService.canUse` already returns
+  /// both reasons, so this needs no further gating-side work.
+  final GateReason? gateReason;
+
   const DailyCapSheet({
     super.key,
     required this.feature,
@@ -64,7 +168,42 @@ class DailyCapSheet extends StatelessWidget {
     this.firstBypassAvailable = false,
     this.onFirstBypassRequested,
     this.userDisplayName,
+    this.isNewCohort = false,
+    this.gateReason,
   });
+
+  /// Whether the copy must describe the tightened `reel_v1` tier.
+  ///
+  /// See [gateReason] for why the reason/cohort part is a one-way OR rather
+  /// than a switch.
+  ///
+  /// **[isPremium] vetoes both inputs, and that is a bug fix, not a nicety.**
+  /// `free_tier_cohort` is stamped by `handle_new_user` at signup regardless of
+  /// whether the account later subscribes, so a *paying* account created after
+  /// the cohort flip reports `isNewCohort == true` forever. The only limit such
+  /// a user can hit is the premium fair-use ceiling
+  /// (`GatingService.premiumDailyFairUseCap`, 30 per feature per **day**,
+  /// counted by `_getUsageToday`) — `canUse` returns `premiumFairUse` from its
+  /// premium branch and never reaches the weekly pool at all. Without this
+  /// veto they were shown "Your reflections for this week are used / Your free
+  /// reflections and duʿās return together on Monday", every clause of which is
+  /// false for them: no weekly allowance, nothing returns Monday, and they
+  /// already have unlimited. The fair-use ceiling is daily, so the legacy line
+  /// is the accurate one.
+  ///
+  /// Keyed off [isPremium] rather than mapping `premiumFairUse` to `false`,
+  /// so it holds even if a caller omits the reason — the same posture as the
+  /// bypass slot's premium suppression.
+  static bool describesNewTier({
+    required GateReason? gateReason,
+    required bool isNewCohort,
+    required bool isPremium,
+  }) {
+    if (isPremium) return false;
+    return gateReason == GateReason.weeklyPool ||
+        gateReason == GateReason.rerollPremium ||
+        isNewCohort;
+  }
 
   /// Telemetry hook for `ai_bypass_offered` (PR 3 of plan 2026-05-23).
   /// Set once at app startup in `main.dart` to bridge to `AnalyticsService`.
@@ -87,16 +226,44 @@ class DailyCapSheet extends StatelessWidget {
     bool firstBypassAvailable = false,
     ValueChanged<GatedFeature>? onFirstBypassRequested,
     String? userDisplayName,
-  }) {
+    GateReason? gateReason,
+  }) async {
+    // Resolved before the sheet is built so the copy is final on frame zero —
+    // a FutureBuilder would flash the daily promise and then swap it for the
+    // weekly one, which on a purchase surface is worse than the wait.
+    //
+    // Skipped only when [gateReason] already settles it: a weekly-pool or
+    // reroll-premium gate IS the new tier, so there is nothing a cohort read
+    // could add and skipping it drops an await from the path. Any OTHER
+    // reason — `dailyCap`, `hadTrialNoBudget`, null — still needs the cohort,
+    // because those reasons occur in both tiers and say nothing about which.
+    // `!isPremium` leads so a premium account short-circuits before the await
+    // as well as before the copy branch — see [describesNewTier].
+    final reasonSettlesIt = gateReason == GateReason.weeklyPool ||
+        gateReason == GateReason.rerollPremium;
+    final newTier =
+        !isPremium && (reasonSettlesIt || await resolveNewCohortForSheet());
+    if (!context.mounted) return;
+
     // STATE D takes precedence over the token-bypass slot — when the user
     // qualifies for the Day-1 freebie, the sheet shows ONLY the freebie CTA
     // (the paid-bypass slot is hidden so we don't ask someone to spend
     // tokens 1ms before offering them the same thing for free).
+    //
+    // Both predicates carry `!newTier` for the same reason they carry
+    // `!isPremium`: they gate ANALYTICS as well as layout, and the two must
+    // agree. The new tier renders no bypass slot, so firing
+    // `ai_bypass_offered` / `first_bypass_offered` for it would inflate the
+    // top of a funnel whose remaining steps can never fire — the
+    // offer→purchase rate would sink and read as a conversion regression
+    // rather than a bypass that no longer exists.
     final willRenderStateD = firstBypassAvailable &&
         !isPremium &&
+        !newTier &&
         onFirstBypassRequested != null;
     final willRenderBypassSlot = !willRenderStateD &&
         !isPremium &&
+        !newTier &&
         onBypassRequested != null &&
         tokenBalance != null &&
         bypassesUsedToday != null;
@@ -136,6 +303,8 @@ class DailyCapSheet extends StatelessWidget {
           firstBypassAvailable: firstBypassAvailable,
           onFirstBypassRequested: onFirstBypassRequested,
           userDisplayName: userDisplayName,
+          isNewCohort: newTier,
+          gateReason: gateReason,
           onUpgrade: () {
             Navigator.of(sheetContext).pop();
             onUpgrade();
@@ -162,30 +331,108 @@ class DailyCapSheet extends StatelessWidget {
     }
   }
 
-  String get _defaultHeadline {
+  /// See [gateReason]: the gate outcome wins when the caller supplies one,
+  /// otherwise the cohort decides.
+  bool get _describesNewTier => describesNewTier(
+        gateReason: gateReason,
+        isNewCohort: isNewCohort,
+        isPremium: isPremium,
+      );
+
+  String get _defaultHeadline =>
+      _describesNewTier ? _newCohortHeadline : _legacyHeadline;
+
+  /// LEGACY tier — a genuine 1/day cap, so "today" is accurate.
+  String get _legacyHeadline {
     switch (feature) {
       case GatedFeature.reflect:
         return "You've reflected today";
       case GatedFeature.builtDua:
-        return "You've built today's dua";
+        return "You've built today's duʿā";
       case GatedFeature.discoverName:
         return "You've discovered today's Name";
     }
   }
 
-  String get _body {
+  /// `reel_v1` tier. The pooled features change their headline because the
+  /// unit changed: under a Monday-reset weekly pool the user has not
+  /// necessarily done anything *today* — they may have spent the allowance on
+  /// Monday and met this sheet on Thursday, which makes "You've reflected
+  /// today" plainly false. Phrasing mirrors the founder-approved `soft_inapp`
+  /// line in the paywall draft ("Your reflections for this week are used").
+  ///
+  /// `discoverName` is unchanged and shares the legacy headline: it is NOT
+  /// pooled, its reveal really is once a day, so "today" stays exactly true.
+  String get _newCohortHeadline {
+    switch (feature) {
+      case GatedFeature.reflect:
+        return 'Your reflections for this week are used';
+      case GatedFeature.builtDua:
+        return 'Your duʿās for this week are used';
+      case GatedFeature.discoverName:
+        return _legacyHeadline;
+    }
+  }
+
+  String get _body => _describesNewTier ? _newCohortBody : _legacyBody;
+
+  /// LEGACY tier — a 1/day cap really does mean tomorrow is on us.
+  String get _legacyBody {
     switch (feature) {
       case GatedFeature.reflect:
         return "Tomorrow's reflection is on us. Or unlock unlimited now.";
       case GatedFeature.builtDua:
-        return "Tomorrow's dua is on us. Or unlock unlimited now.";
+        return "Tomorrow's duʿā is on us. Or unlock unlimited now.";
       case GatedFeature.discoverName:
         return "Tomorrow's discovery is on us. Or unlock unlimited now.";
     }
   }
 
+  /// `reel_v1` tier — states the real reset.
+  ///
+  /// The pooled line names BOTH features on purpose. The pool is combined
+  /// (`consume_weekly_allowance` charges one counter for `reflect` and
+  /// `built_dua` alike), so a user told only that their reflections return
+  /// Monday, who then finds Build-a-Duʿā closed too, has been misled by
+  /// omission — the same broken promise on the same surface that D10③ exists
+  /// to prevent. Naming both is the load-bearing part; keep it through any
+  /// future rewording.
+  ///
+  /// "share a free allowance" was dropped at the founder's direction
+  /// (2026-07-31) as too bureaucratic; **"together" carries that meaning now**
+  /// and is load-bearing, not a flourish. Without it the sheet has no signal
+  /// at all that the two features draw on one pool, and a user who spent the
+  /// week on reflections would read "Your duʿās for this week are used" —
+  /// having built zero duas — as two separate buckets, one of which
+  /// inexplicably emptied. Pinned by test; do not drop it in a reword.
+  ///
+  /// No number appears, deliberately: the pool size is the server dial
+  /// `weekly_pool_size`, which nothing client-side reads. Quoting it here
+  /// would rebuild the trap documented at `GatingService.bypassTokenCost` —
+  /// ops tunes the dial, the sheet keeps quoting the old figure, and the copy
+  /// is false again. "Return on Monday" holds at any pool size.
+  String get _newCohortBody {
+    switch (feature) {
+      case GatedFeature.reflect:
+      case GatedFeature.builtDua:
+        return 'Your free reflections and duʿās return together on Monday. '
+            'Or unlock unlimited now.';
+      case GatedFeature.discoverName:
+        // Never pooled. The once-a-day reveal consults no gate and is free
+        // permanently (D10②) — only a SECOND Name in a day is premium, which
+        // is the only thing "unlock unlimited" is selling here.
+        return 'One Name a day stays free, always. '
+            'Or unlock unlimited to meet another today.';
+    }
+  }
+
+  /// STATE D is a bypass state, so it dies with the bypass on `reel_v1`
+  /// (D.4 — "`claimFirstBypass` included"). Legacy keeps it.
   bool get _isStateD =>
-      firstBypassAvailable && !isPremium && onFirstBypassRequested != null;
+      firstBypassAvailable &&
+      !isPremium &&
+      !_describesNewTier &&
+      onFirstBypassRequested != null;
 
   /// STATE D headline. Uses the user's display_name when set and not the
   /// default "Friend" placeholder — greeting someone by a generic
@@ -200,16 +447,21 @@ class DailyCapSheet extends StatelessWidget {
     return 'One more on us, $name';
   }
 
+  /// LEGACY ONLY — reachable exclusively through [_isStateD], which is now
+  /// false for `reel_v1`. That is why "Tomorrow you'll get one a day" is left
+  /// standing here while the same claim was removed from [_body]: on the only
+  /// cohort that can still see this text, it remains true. It dies with the
+  /// bypass subsystem after the softener wave.
   String get _stateDBody {
     switch (feature) {
       case GatedFeature.reflect:
-        return "We saved you an extra reflection for today. "
+        return 'We saved you an extra reflection for today. '
             "Tomorrow you'll get one a day.";
       case GatedFeature.builtDua:
-        return "We saved you an extra dua for today. "
+        return 'We saved you an extra duʿā for today. '
             "Tomorrow you'll get one a day.";
       case GatedFeature.discoverName:
-        return "We saved you an extra Name discovery for today. "
+        return 'We saved you an extra Name discovery for today. '
             "Tomorrow you'll get one a day.";
     }
   }
@@ -219,18 +471,27 @@ class DailyCapSheet extends StatelessWidget {
       case GatedFeature.reflect:
         return 'Reflect one more time, free';
       case GatedFeature.builtDua:
-        return 'Build one more dua, free';
+        return 'Build one more duʿā, free';
       case GatedFeature.discoverName:
         return 'Discover one more Name, free';
     }
   }
 
   /// True when the sheet should render the AI-bypass middle CTA at all.
-  /// Hidden for premium users (defense-in-depth — premium should never
-  /// reach this sheet, but if they do, never offer the bypass CTA) and
-  /// when the caller didn't wire the callback.
+  ///
+  /// Hidden for premium users (defense-in-depth — premium should never reach
+  /// this sheet, but if they do, never offer the bypass CTA), when the caller
+  /// didn't wire the callback, and for the `reel_v1` cohort, whose sheet is
+  /// headline + "Unlock unlimited" + "Maybe later" and nothing else.
+  ///
+  /// Removing it for `reel_v1` also removes a dead end rather than only a
+  /// button: under 25 tokens the slot rendered disabled with a hint and there
+  /// was no route from this sheet to buying tokens (D10④). Legacy keeps both
+  /// the button and the dead end until the softener wave retires the whole
+  /// bypass subsystem.
   bool get _shouldRenderBypassSlot {
     return !isPremium &&
+        !_describesNewTier &&
         onBypassRequested != null &&
         tokenBalance != null &&
         bypassesUsedToday != null;

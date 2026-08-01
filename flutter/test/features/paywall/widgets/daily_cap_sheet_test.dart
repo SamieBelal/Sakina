@@ -4,12 +4,20 @@ import 'package:sakina/features/paywall/widgets/daily_cap_sheet.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart'
     show GatedFeature;
 import 'package:sakina/features/tour/providers/tour_route_observer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(home: Scaffold(body: child));
 }
 
 void main() {
+  // `show` resolves the free-tier cohort through GatingService.isNewCohort,
+  // which reads SharedPreferences. Without a mock store `getInstance()` never
+  // completes under flutter_test — it hangs rather than throwing — so the
+  // sheet would silently never be presented and every `show` assertion below
+  // would fail for a reason that has nothing to do with the sheet.
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
   group('DailyCapSheet', () {
     testWidgets('renders without throwing', (tester) async {
       await tester.pumpWidget(
@@ -26,7 +34,7 @@ void main() {
 
     final headlineCases = <GatedFeature, String>{
       GatedFeature.reflect: "You've reflected today",
-      GatedFeature.builtDua: "You've built today's dua",
+      GatedFeature.builtDua: "You've built today's duʿā",
       GatedFeature.discoverName: "You've discovered today's Name",
     };
 
@@ -34,7 +42,7 @@ void main() {
       GatedFeature.reflect:
           "Tomorrow's reflection is on us. Or unlock unlimited now.",
       GatedFeature.builtDua:
-          "Tomorrow's dua is on us. Or unlock unlimited now.",
+          "Tomorrow's duʿā is on us. Or unlock unlimited now.",
       GatedFeature.discoverName:
           "Tomorrow's discovery is on us. Or unlock unlimited now.",
     };

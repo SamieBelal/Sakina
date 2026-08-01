@@ -971,6 +971,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
       DailyCapSheet.show(
         sheetContext,
         feature: GatedFeature.discoverName,
+        gateReason: reason,
         tokenBalance: balance,
         bypassesUsedToday: bypassesUsed,
         isPremium: premium,
@@ -1005,7 +1006,12 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
           reason: reason,
           pushPaywall: () {
             if (mounted) {
-              pushPaywall(context, placement: PaywallPlacement.softInApp);
+              pushPaywall(
+                context,
+                placement: PaywallPlacement.softInApp,
+                valueLine:
+                    softGateValueLine(GatedFeature.discoverName, reason),
+              );
             }
           },
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sakina/features/paywall/widgets/warmup_exhausted_sheet.dart';
 import 'package:sakina/features/tour/providers/tour_route_observer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -10,6 +11,10 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
+  // See daily_cap_sheet_test.dart: `show` awaits a SharedPreferences-backed
+  // cohort read that never completes under flutter_test without a mock store.
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
   group('WarmupExhaustedSheet', () {
     testWidgets('renders without throwing', (tester) async {
       await tester.pumpWidget(
@@ -26,7 +31,7 @@ void main() {
 
     final cases = <GatedFeature, String>{
       GatedFeature.reflect: "You've completed your free reflections",
-      GatedFeature.builtDua: "You've built your free duas",
+      GatedFeature.builtDua: "You've built your free duʿās",
       GatedFeature.discoverName: "You've discovered your free Names",
     };
 

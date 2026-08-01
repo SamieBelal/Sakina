@@ -86,6 +86,118 @@ void main() {
     });
   });
 
+  group('the compound extra (placement + trigger value line)', () {
+    const line = 'Your reflections for this week are used — '
+        'Premium is unlimited.';
+
+    test('round-trips BOTH the placement and the line', () {
+      const extra = PaywallRouteExtra(
+        placement: PaywallPlacement.softInApp,
+        valueLine: line,
+      );
+      final encoded = paywallPlacementExtraCodec.encode(extra);
+      expect(encoded, isA<String>(),
+          reason: 'every encoded extra stays a single primitive, so nothing '
+              'depends on how a map survives the platform hop');
+
+      final decoded = paywallPlacementExtraCodec.decode(encoded);
+      expect(decoded, isA<PaywallRouteExtra>());
+      expect(placementFromRouteExtra(decoded), PaywallPlacement.softInApp);
+      expect(valueLineFromRouteExtra(decoded), line);
+    });
+
+    test('a line-less compound collapses to the bare encoding', () {
+      // One encoding per logical value — otherwise two different strings mean
+      // the same thing and any future comparison on the wire form is wrong.
+      const extra = PaywallRouteExtra(placement: PaywallPlacement.softInApp);
+      expect(
+        paywallPlacementExtraCodec.encode(extra),
+        paywallPlacementExtraCodec.encode(PaywallPlacement.softInApp),
+      );
+    });
+
+    test('a bare placement still decodes to a bare placement', () {
+      // The 13 entry points that carry no line must be untouched by this.
+      final encoded =
+          paywallPlacementExtraCodec.encode(PaywallPlacement.postTrialSoft);
+      expect(paywallPlacementExtraCodec.decode(encoded),
+          PaywallPlacement.postTrialSoft);
+      expect(valueLineFromRouteExtra(paywallPlacementExtraCodec.decode(encoded)),
+          isNull);
+    });
+
+    test('malformed compound JSON decodes to null, never throws', () {
+      // A throw here would escape from inside GoRouter's re-parse and take
+      // down the whole route rather than one attribution.
+      expect(() => paywallPlacementExtraCodec.decode('{not json'),
+          returnsNormally);
+      expect(paywallPlacementExtraCodec.decode('{not json'), isNull);
+      expect(paywallPlacementExtraCodec.decode('{"placement":"nope"}'), isNull);
+    });
+
+    test('a line containing JSON metacharacters survives intact', () {
+      // Copy is authored by humans; an em-dash, a quote or a brace must not
+      // corrupt the envelope.
+      const nasty = 'Your "duas" {this week} are used — Premium is unlimited.';
+      const extra = PaywallRouteExtra(
+        placement: PaywallPlacement.softInApp,
+        valueLine: nasty,
+      );
+      final decoded = paywallPlacementExtraCodec.decode(
+        paywallPlacementExtraCodec.encode(extra),
+      );
+      expect(valueLineFromRouteExtra(decoded), nasty);
+    });
+  });
+
+  testWidgets('a bare re-parse keeps the placement AND the value line',
+      (tester) async {
+    // The point of the whole exercise: a design that keeps the placement but
+    // drops the line is the same bug wearing a different hat.
+    const line = 'Your duʿās for this week are used — Premium is unlimited.';
+    final refresh = ChangeNotifier();
+    addTearDown(refresh.dispose);
+    final placements = <PaywallPlacement>[];
+    final lines = <String?>[];
+
+    final router = GoRouter(
+      initialLocation: '/',
+      refreshListenable: refresh,
+      extraCodec: paywallPlacementExtraCodec,
+      routes: [
+        GoRoute(path: '/', builder: (c, s) => const Text('home')),
+        GoRoute(
+          path: paywallRoutePath,
+          builder: (c, s) {
+            placements.add(placementFromRouteExtra(s.extra));
+            lines.add(valueLineFromRouteExtra(s.extra));
+            return const Text('paywall');
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    pushPaywallOn(router,
+        placement: PaywallPlacement.softInApp, valueLine: line);
+    await tester.pumpAndSettle();
+    expect(placements, [PaywallPlacement.softInApp]);
+    expect(lines, [line]);
+
+    refresh.notifyListeners();
+    await tester.pumpAndSettle();
+
+    expect(placements.length, greaterThan(1),
+        reason: 'the notification must have re-parsed and rebuilt the route');
+    expect(placements.last, PaywallPlacement.softInApp);
+    expect(lines.last, line,
+        reason: 'the value line must survive the re-parse, not just the '
+            'placement');
+  });
+
   testWidgets('a bare GoRouter re-parse keeps the pushed placement',
       (tester) async {
     final refresh = ChangeNotifier();
@@ -169,6 +281,82 @@ void main() {
     expect(rendered(), PaywallPlacement.postTrialSoft,
         reason: 'a session notification re-parses the route information; the '
             'placement must not decay to softInApp');
+  });
+
+  testWidgets('the REAL router keeps the value line across a session notify',
+      (tester) async {
+    // The end-to-end version: pushed through buildRouter, read off the live
+    // PaywallScreen, and survives an AppSessionNotifier notification — the same
+    // event (Supabase token refresh, hydration, sign-out, gate latches) that
+    // used to drop the placement entirely.
+    const line = 'Your reflections for this week are used — '
+        'Premium is unlimited.';
+    final session = await clearedSession();
+    addTearDown(session.dispose);
+    final router = buildRouter(appSession: session);
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: ProviderContainer(
+          overrides: [appSessionProvider.overrideWithValue(session)],
+        ),
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+
+    pushPaywallOn(router,
+        placement: PaywallPlacement.softInApp, valueLine: line);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+
+    PaywallScreen rendered() =>
+        tester.widget<PaywallScreen>(find.byType(PaywallScreen));
+
+    expect(find.byType(PaywallScreen), findsOneWidget);
+    expect(rendered().placement, PaywallPlacement.softInApp);
+    expect(rendered().softValueLine, line);
+
+    session.bypassGateForSession();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(PaywallScreen), findsOneWidget);
+    expect(rendered().placement, PaywallPlacement.softInApp,
+        reason: 'placement must survive, as before');
+    expect(rendered().softValueLine, line,
+        reason: 'and so must the line — keeping one but dropping the other is '
+            'the same bug wearing a different hat');
+  });
+
+  testWidgets('a bare push leaves the paywall on its default line',
+      (tester) async {
+    // The 13 entry points that carry no trigger must be unaffected: null here
+    // means PaywallCondensedPage keeps its period-agnostic default.
+    final session = await clearedSession();
+    addTearDown(session.dispose);
+    final router = buildRouter(appSession: session);
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: ProviderContainer(
+          overrides: [appSessionProvider.overrideWithValue(session)],
+        ),
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pump();
+
+    pushPaywallOn(router, placement: PaywallPlacement.softInApp);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+
+    expect(
+      tester.widget<PaywallScreen>(find.byType(PaywallScreen)).softValueLine,
+      isNull,
+    );
   });
 }
 
