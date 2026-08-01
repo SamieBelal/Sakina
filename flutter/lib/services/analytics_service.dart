@@ -149,7 +149,28 @@ class AnalyticsService {
   /// is_premium / tour_variant). Goes through [setSuperProperties] so test spies
   /// capture it.
   void cacheDeviceSuperProperties(Map<String, dynamic> props) {
-    _deviceSuperProperties = Map<String, dynamic>.from(props);
+    // MERGES. It replaced, and that was a latent P0 the moment a second caller
+    // appeared.
+    //
+    // This was written for exactly one caller — `registerBootstrapAnalytics` at
+    // boot, with the full device set. W6 Wave A added a second with a ONE-KEY
+    // map (the `onboarding_flow` hook, which fires the moment reel onboarding
+    // completes — the majority path — or on a returning user's first sync).
+    // Replacing meant that call evicted `platform`, `app_version`, `install_id`
+    // and all three `flag_*` from the durable set.
+    //
+    // Nothing broke in the live session, which is what made it dangerous:
+    // Mixpanel's own `registerSuperProperties` merges, so events kept their
+    // properties. The loss only surfaced at the next `resetForSignOut` on that
+    // device, after which every event for the NEXT user shipped with no
+    // version or flag segmentation until a cold start — invisible, permanent
+    // for those events, and hit immediately by a shared QA device cycling test
+    // accounts.
+    //
+    // Merging also makes the method honest about its own name: this is the
+    // durable device set, and more than one source legitimately contributes to
+    // it at different times in a launch.
+    _deviceSuperProperties = {..._deviceSuperProperties, ...props};
     // This — not `setSuperProperties` — is what satisfies the ordering guard.
     // The durable device/build set is what `registerBootstrapAnalytics` writes
     // and what every event must carry; a later user-scoped registration

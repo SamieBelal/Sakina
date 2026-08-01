@@ -101,4 +101,68 @@ void main() {
       expect(service.bootPropertiesRegistered, isTrue);
     });
   });
+
+  group('the durable device set MERGES across callers (Wave 0/A review, P0)',
+      () {
+    // `cacheDeviceSuperProperties` was written assuming ONE caller — boot. Wave
+    // A added a second, with a ONE-KEY map: the `onboarding_flow` hook, which
+    // fires from `setOnboardingFlow` the moment reel onboarding completes (the
+    // majority path) or on a returning user's first sync.
+    //
+    // Replacing rather than merging meant that second call wiped `platform`,
+    // `app_version`, `install_id` and all three `flag_*` from the durable set
+    // that `resetForSignOut` re-applies. Nothing breaks in the current session
+    // — Mixpanel's own registerSuperProperties merges — so it is invisible
+    // until the next sign-out on that device, after which EVERY event for the
+    // next user ships with no version or flag segmentation until a cold start.
+    //
+    // A shared QA device cycling test accounts hits this immediately, and it is
+    // precisely the corruption this wave exists to prevent.
+    //
+    // MUTATION: change the merge back to `_deviceSuperProperties = Map.from(props)`
+    // → the re-apply case below loses everything except onboarding_flow.
+    test('a later one-key call does not evict the boot set', () {
+      final service = _RecordingAnalytics();
+      service.cacheDeviceSuperProperties({
+        'platform': 'ios',
+        'app_version': '1.3.0+1',
+        'flag_hard_paywall': true,
+        'install_id': 'install-abc',
+      });
+      service.cacheDeviceSuperProperties({'onboarding_flow': 'reel_v1'});
+
+      service.registered.clear();
+      service.resetForSignOut();
+
+      final reapplied = service.registered.single;
+      expect(reapplied['platform'], 'ios');
+      expect(reapplied['app_version'], '1.3.0+1');
+      expect(reapplied['flag_hard_paywall'], true);
+      expect(reapplied['install_id'], 'install-abc');
+      expect(reapplied['onboarding_flow'], 'reel_v1',
+          reason: 'the late arrival must join the durable set, not replace it');
+    });
+
+    test('a later call OVERWRITES its own key rather than duplicating', () {
+      final service = _RecordingAnalytics();
+      service.cacheDeviceSuperProperties({'app_version': '1.3.0+1'});
+      service.cacheDeviceSuperProperties({'app_version': '1.3.0+2'});
+
+      service.registered.clear();
+      service.resetForSignOut();
+
+      expect(service.registered.single['app_version'], '1.3.0+2');
+    });
+  });
+
+}
+
+/// Captures what actually reaches Mixpanel's `registerSuperProperties`, which
+/// is the only thing that matters after a sign-out reset.
+class _RecordingAnalytics extends AnalyticsService {
+  final registered = <Map<String, dynamic>>[];
+
+  @override
+  void setSuperProperties(Map<String, dynamic> props) =>
+      registered.add(Map<String, dynamic>.from(props));
 }
