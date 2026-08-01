@@ -1,6 +1,23 @@
 # One Ship W5 — the gate and the free tier
 
-**Status: PLAN — ready to build. One founder decision open (§7). One wave is date-gated (§4.A).**
+**Status: BUILT — Waves B (code half), C and D are shipped and green. Wave A is date-gated to 2026-08-04. §7's open decision is CLOSED.**
+
+> **⚠️ Read this before using the document below as a checklist (2026-08-01).**
+> The body is preserved as the plan *as written on 2026-07-31* — it is the
+> record of what was decided and why, not a description of the tree. Three of
+> its statements are now false, and a reader taking them at face value would
+> re-do or mis-order shipped work:
+>
+> | The plan says | Actually |
+> |---|---|
+> | "PLAN — ready to build" | Built. 17 commits; full suite green. |
+> | `consume_weekly_allowance` has **zero** client references | Called by `GatingService._consumeWeeklyPool`; the weekly pool is live. |
+> | the `warmup_discover_name_size` dial "does not exist" / is inert (§6b, §7) | Shipped in `20260731090000`, seeded **3** in prod, and read through `warmupBudgetFor`. §7 is closed. |
+>
+> **Still outstanding, and genuinely so:** Wave A (reverse-trial close-out,
+> unblocks 2026-08-04), the ASC 3→7-day trial change (Wave B.1-B.2 — store
+> config, not code), and the T0 flip
+> (`supabase/staged/t0_flip_all_to_reel_v1.sql`).
 **Date:** 2026-07-31
 **Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first`
 **Parents:** `2026-07-23-conversion-refactor-changes-and-implementation.md` §W5 + **D10** · `2026-07-26-one-ship-01-data-layer.md` (built the server side this consumes)
@@ -36,7 +53,10 @@ are not.
   `weekly_pool_size = 3`, `new_signup_cohort = 'legacy'` (flips at T0),
   `reel_first_onboarding_enabled = true`.
 
-**The gap: the client uses none of it.**
+**The gap: the client uses none of it.** — ✅ **CLOSED 2026-08-01. Every bullet
+below was true on 2026-07-31 and is false now:** `_consumeWeeklyPool` calls the
+RPC, `warmupBudgetFor` reads all three dials, and the discover key exists and is
+seeded 3. This is the *starting* survey, not the current state.
 
 - **Zero** references to `consume_weekly_allowance` anywhere in `lib/` or `test/`.
 - `gating_service.dart:133` still hardcodes `warmupBudget = {reflect: 10, builtDua: 10,
@@ -317,6 +337,13 @@ sees the non-trial variant.
 
 ## 6b. ⚠️ The `warmup_discover_name_size` dial is INERT on its own (found 2026-07-31, review)
 
+> **RESOLVED 2026-08-01.** The dial shipped WITH its consumer, exactly as this
+> section demanded: `20260731090000` applied, `20260731100000` teaches
+> `handle_new_user` to stamp it, prod seeds it at **3**, and `warmupBudgetFor`
+> reads it. It is no longer inert. Kept because the *rule* it states — never
+> apply a dial ahead of the code that reads it, because inert-but-applied
+> invites the belief that the decision shipped — is the durable part.
+
 **Applying the migration achieves nothing by itself.** Verified against production:
 
 - `handle_new_user` reads `warmup_reflect_size` but **not** `warmup_discover_name_size`, and
@@ -348,7 +375,11 @@ Two lesser findings from the same review, recorded so they are not rediscovered:
   test work ("decrements exactly once under double-tap"). Fixing it needs a mutex on the hot
   path.
 
-## 7. Open decision
+## 7. Open decision — ✅ CLOSED 2026-07-31
+
+> **Founder chose the `app_config` dial.** Seeded **3** in production and read
+> through `warmupBudgetFor`, like its two siblings. Nothing here is open; the
+> text below is the question as it was asked.
 
 **The `warmup_discover_name_size` dial does not exist.** D10② chose option (a) — 3 re-roll
 warmups — but `app_config` carries only `warmup_reflect_size` and `warmup_built_dua_size`, and

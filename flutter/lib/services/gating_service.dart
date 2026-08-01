@@ -724,6 +724,25 @@ class GatingService {
     );
   }
 
+  /// Marks the local warmup counter for [feature] as **provisional** — derived
+  /// from the config dial rather than from the user's own server row.
+  ///
+  /// Provenance has to be PERSISTED, not re-derived. `_readWarmup` used to
+  /// infer it from "does the local key exist", but `_decrementWarmup` writes
+  /// that key on the no-push path too, so a synthesized guess laundered itself
+  /// into server-authored state on the very next call: use 1 stored `2`
+  /// without pushing, use 2 read `2` as authoritative and pushed `1` over a
+  /// server row holding `10`. The decrement-only freemium guard then made
+  /// those eight uses unrecoverable.
+  ///
+  /// Cleared only by [hydrateFromProfile] — the one place a real server number
+  /// arrives. Never cleared by a local write, or the laundering returns.
+  String _warmupProvisionalKey(GatedFeature feature) {
+    return supabaseSyncService.scopedKey(
+      'warmup_${feature.name}_provisional',
+    );
+  }
+
   String _warmupColumn(GatedFeature feature) {
     switch (feature) {
       case GatedFeature.reflect:
@@ -749,7 +768,14 @@ class GatingService {
     final stored = prefs.getInt(_warmupPrefsKey(feature));
     // Short-circuits: once the counter has been written locally (first use, or
     // `hydrateFromProfile` on any sync) the config read never runs.
-    if (stored != null) return (remaining: stored, fromStore: true);
+    //
+    // `fromStore` is NOT "a local key exists" — see [_warmupProvisionalKey].
+    // A counter descended from the dial stays provisional across every local
+    // write until a real server value hydrates over it.
+    if (stored != null) {
+      final provisional = prefs.getBool(_warmupProvisionalKey(feature)) ?? false;
+      return (remaining: stored, fromStore: !provisional);
+    }
     return (remaining: await warmupBudgetFor(feature), fromStore: false);
   }
 
@@ -786,7 +812,13 @@ class GatingService {
     final next = current > 0 ? current - 1 : 0;
     await prefs.setInt(_warmupPrefsKey(feature), next);
 
-    if (!pushToServer) return;
+    if (!pushToServer) {
+      // Carry the taint forward with the value. Without this the counter we
+      // just wrote would read back as server-authored on the next call and be
+      // pushed — the exact laundering [_warmupProvisionalKey] documents.
+      await prefs.setBool(_warmupProvisionalKey(feature), true);
+      return;
+    }
 
     final userId = supabaseSyncService.currentUserId;
     if (userId == null) return;
@@ -1275,6 +1307,11 @@ class GatingService {
       final raw = profile[entry.value];
       if (raw is num) {
         await prefs.setInt(_warmupPrefsKey(entry.key), raw.toInt());
+        // This is the ONLY place a real server number arrives, so it is the
+        // only place allowed to clear the provisional mark. Writes resume from
+        // here; without this the taint would be permanent and the server row
+        // would drift stale forever.
+        await prefs.remove(_warmupProvisionalKey(entry.key));
       }
     }
 
@@ -1472,9 +1509,13 @@ class GatingService {
 
   /// Force a specific warmup remaining count for tests.
   @visibleForTesting
+  /// Stands in for a hydrated server value, so it clears the provisional mark
+  /// exactly as [hydrateFromProfile] does. A test that seeded a counter and
+  /// then found it treated as a guess would be testing the wrong thing.
   Future<void> debugSetWarmupRemaining(GatedFeature feature, int value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_warmupPrefsKey(feature), value);
+    await prefs.remove(_warmupProvisionalKey(feature));
   }
 
   /// Force the had_trial latch on (test-only).

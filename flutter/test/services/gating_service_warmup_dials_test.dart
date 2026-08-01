@@ -212,6 +212,57 @@ void main() {
               'consistent within the session; the next sync corrects it');
     });
 
+    test('a SECOND use still does not push, because the first use wrote the '
+        'guess to prefs and provenance must not be re-derived from that',
+        () async {
+      // The bug the single-use test above could not see. `fromStore` was
+      // computed as "does a local key exist", and `_decrementWarmup` WRITES
+      // that key even on the no-push path. So the guess launders itself into
+      // server-authored state on the very next call:
+      //
+      //   use 1 -> read (3, synthesized) -> prefs=2, no push        server=10
+      //   use 2 -> read (2, "fromStore") -> prefs=1, PUSH 1         server=1
+      //
+      // A legacy user with 10 server warmups is cut to 1 after two uses, and
+      // the decrement-only guard makes it permanent. The doc comment claimed
+      // "the next hydrateFromProfile restores the real number" — but the whole
+      // premise of this path is that the sync did NOT land.
+      await cacheDial('warmup_reflect_size', '3');
+
+      await gating.markUsed(GatedFeature.reflect);
+      await gating.markUsed(GatedFeature.reflect);
+
+      final profileWrites = fakeSync.rawUpsertCalls
+          .where((c) => c['table'] == 'user_profiles')
+          .toList();
+      expect(profileWrites, isEmpty,
+          reason: 'provenance must survive being written to prefs — until a '
+              'real server value is hydrated, EVERY decrement is still a '
+              'guess and must stay local');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')), 1,
+          reason: 'the local counter still tracks the session honestly');
+    });
+
+    test('hydration clears the provisional mark, so later decrements DO push',
+        () async {
+      // The taint must not be permanent either: once a real server number
+      // lands, writes have to resume or the server drifts stale forever.
+      await cacheDial('warmup_reflect_size', '3');
+      await gating.markUsed(GatedFeature.reflect); // synthesized, no push
+
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 10);
+      await gating.markUsed(GatedFeature.reflect);
+
+      final profileWrites = fakeSync.rawUpsertCalls
+          .where((c) => c['table'] == 'user_profiles')
+          .toList();
+      expect(profileWrites, hasLength(1));
+      expect((profileWrites.single['data'] as Map)['warmup_reflect_remaining'],
+          9);
+    });
+
     test('a counter that came from the server IS still pushed on decrement',
         () async {
       await cacheDial('warmup_reflect_size', '3');

@@ -312,7 +312,29 @@ abstract final class AnalyticsEvents {
   /// signal in Mixpanel — nothing downstream of `paywall_cta_tapped` was
   /// measurable before. `plan` property = 'annual' | 'weekly'; `hard_gate` =
   /// whether it was the post-tour entry wall.
+  ///
+  /// **Emitted ONLY when a free trial was actually granted** (2026-08-01).
+  /// Before that it fired on every successful activation, including users
+  /// Apple had already spent their one-per-subscription-group intro offer on
+  /// — they see "Subscribe", are charged immediately, and were nonetheless
+  /// counted as trial starts. Pair with [subscriptionStartedNoTrial]; the
+  /// union of the two is "every client-observed subscription activation".
   static const trialStarted = 'trial_started';
+
+  /// A subscription that activated with **no trial** — the user was
+  /// ineligible for the introductory offer (Apple grants one per Apple ID per
+  /// subscription group, ever) and paid from the first moment.
+  ///
+  /// Split out from [trialStarted] rather than folded into it as a property,
+  /// because the event NAME is what asserts a trial began: a `trial: false`
+  /// property still leaves every existing `trial_started` funnel counting
+  /// people who never had one. Carries the same `plan` / `origin` /
+  /// `hard_gate` / `placement` properties so the two can be unioned wherever
+  /// "all conversions" is the question.
+  ///
+  /// **New event — populates only from the release that ships it.** Do not
+  /// compare its volume against pre-release windows.
+  static const subscriptionStartedNoTrial = 'subscription_started_no_trial';
 
   /// Fired when the offerings fetch fails at the hard entry wall and the
   /// safety valve is shown (so we can monitor how often the brick-prevention

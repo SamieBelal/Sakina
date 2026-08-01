@@ -118,28 +118,33 @@ class PaywallPurchaseFooter extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 4),
-        // Scaled down rather than wrapped: "Restore Purchase · Terms · Privacy"
-        // is 69px too wide for a 390pt frame's gutters, and these three must
-        // stay on one reachable line.
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _PaywallLegalLink(
-                label: restoring ? 'Restoring…' : AppStrings.paywallRestore,
-                onPressed: onRestore,
-              ),
-              _PaywallLegalLink(
-                label: AppStrings.paywallTerms,
-                onPressed: onOpenTerms,
-              ),
-              _PaywallLegalLink(
-                label: AppStrings.paywallPrivacy,
-                onPressed: onOpenPrivacy,
-              ),
-            ],
-          ),
+        // WRAPPED, not scaled. "Restore Purchase · Terms · Privacy" is wider
+        // than a 390pt frame's gutters, and the previous fix for that was a
+        // `FittedBox(scaleDown)` around the whole row. That solved overflow by
+        // shrinking the three controls Apple review, the law, and anyone
+        // trying to undo a charge all depend on — down to ~29pt, under the
+        // 44pt minimum — and it scaled ACCESSIBILITY text down too, inverting
+        // the one setting a user with low vision had turned up.
+        //
+        // Wrapping costs a second line on narrow phones and keeps every
+        // target at full size. That is the right trade for these three.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _PaywallLegalLink(
+              label: restoring ? 'Restoring…' : AppStrings.paywallRestore,
+              onPressed: onRestore,
+            ),
+            _PaywallLegalLink(
+              label: AppStrings.paywallTerms,
+              onPressed: onOpenTerms,
+            ),
+            _PaywallLegalLink(
+              label: AppStrings.paywallPrivacy,
+              onPressed: onOpenPrivacy,
+            ),
+          ],
         ),
         if (extra != null) extra!,
       ],
@@ -159,8 +164,10 @@ class _PaywallLegalLink extends StatelessWidget {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // 44pt is the iOS HIG floor. It was `Size.zero` + `shrinkWrap`, which
+        // strips Material's own 48dp default and left these at ~29pt. The
+        // label stays visually small — only the hit area grows.
+        minimumSize: const Size(44, 44),
       ),
       child: Text(
         label,

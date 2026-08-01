@@ -115,7 +115,7 @@ alter table public.user_profiles
 
 Extend `handle_new_user` (CREATE OR REPLACE — **pre-flight prod diff of THIS function too**): read `app_config.new_signup_cohort` (seeded `'legacy'` now); stamp `free_tier_cohort` with it and, when it resolves `'reel_v1'`, set `warmup_reflect_remaining = 3, warmup_built_dua_remaining = 3` at insert (unconditional, not contingent on any client write — replaces the draft's fragile NULL→'reel_v1' clamp).
 
-**Cohort activation (runbook, T0 release day):** flip `new_signup_cohort` → `'reel_v1'`. This is why it's a separate key from the kill switch seed: stamping reel_v1 warmups (3 vs 10) on signups **before** T0 would silently change live old-app users — a one-change-at-a-time violation the draft missed. If the kill switch is ever flipped post-T0, flip `new_signup_cohort` back to `'legacy'` in the same action (paired runbook item).
+**Cohort activation (runbook, T0 release day):** flip `new_signup_cohort` → `'reel_v1'`. **⚠️ Correction 2026-08-01 (D12): this alone is no longer the T0 operation — it only affects NEW signups, and D12 requires every EXISTING account to move at T0 too. Run `supabase/staged/t0_flip_all_to_reel_v1.sql`, which does the cohort backfill, the three-column warmup clamp, the pool reset, and this flag flip as one runbook item.** This is why it's a separate key from the kill switch seed: stamping reel_v1 warmups (3 vs 10) on signups **before** T0 would silently change live old-app users — a one-change-at-a-time violation the draft missed. If the kill switch is ever flipped post-T0, flip `new_signup_cohort` back to `'legacy'` in the same action (paired runbook item).
 
 ### Guard-trigger extension
 

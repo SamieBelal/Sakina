@@ -745,8 +745,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         return;
       }
 
+      // Which event this is depends on whether a trial was actually granted.
+      // `_trialFor` is the same resolution the CTA renders from, so the event
+      // and the button the user pressed can never disagree: someone who saw
+      // "Subscribe" and was charged immediately is not a trial start. Firing
+      // `trial_started` for them inflated trial-start rate, deflated
+      // trial-to-paid conversion, and mis-attributed the exit offer — the
+      // three numbers the W5 keep decision reads.
+      final grantedTrial = _trialFor(_selectedPlan) != null;
       ref.read(analyticsProvider).track(
-        AnalyticsEvents.trialStarted,
+        grantedTrial
+            ? AnalyticsEvents.trialStarted
+            : AnalyticsEvents.subscriptionStartedNoTrial,
         properties: {
           'plan': _planName,
           AnalyticsEvents.propOrigin: _purchaseOrigin,

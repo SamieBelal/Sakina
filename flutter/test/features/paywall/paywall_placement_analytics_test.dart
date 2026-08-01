@@ -83,6 +83,18 @@ class FakePurchaseService extends PurchaseService {
   Future<bool> isPremium() async {
     return purchaseResult?.entitlements.active.containsKey('premium') ?? false;
   }
+
+  /// Per-product intro-offer eligibility. `null` leaves the real code path's
+  /// own fallback in place (an empty map, which on the test platform resolves
+  /// to eligible); set it to drive the previously-trialed user.
+  Map<String, IntroEligibilityStatus>? introEligibility;
+
+  @override
+  Future<Map<String, IntroEligibilityStatus>> getIntroEligibility(
+    List<String> productIds,
+  ) async {
+    return introEligibility ?? const {};
+  }
 }
 
 class FakeOnboardingNotifier extends OnboardingNotifier {
@@ -329,6 +341,74 @@ void main() {
     expect(trial!.props[AnalyticsEvents.propPlacement],
         AnalyticsEvents.placementOnboarding);
     expect(trial.props['hard_gate'], false);
+  });
+
+  testWidgets(
+      'a trial-INELIGIBLE user who pays immediately is NOT recorded as a '
+      'trial start', (tester) async {
+    // Apple grants one intro offer per Apple ID per subscription group, ever.
+    // A previously-trialed user is correctly shown "Subscribe" and is charged
+    // the moment they tap — no trial exists. Emitting `trial_started` anyway
+    // inflates trial-start rate, deflates trial-to-paid conversion, and
+    // mis-attributes the exit offer: precisely the measurements the W5 keep
+    // decision runs on.
+    purchaseService.introEligibility = {
+      'sakina_sub_annual':
+          IntroEligibilityStatus.introEligibilityStatusIneligible,
+      'sakina_sub_weekly':
+          IntroEligibilityStatus.introEligibilityStatusIneligible,
+    };
+
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.softInApp, inOnboardingFlow: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text(AppStrings.paywallCtaSubscribe));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 2));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNull,
+        reason: 'no trial was granted, so no trial started');
+
+    // The conversion itself must still be counted — the fix is to record it
+    // truthfully, not to drop it.
+    final paid =
+        analytics.firstOrNull(AnalyticsEvents.subscriptionStartedNoTrial);
+    expect(paid, isNotNull);
+    expect(paid!.props[AnalyticsEvents.propPlacement],
+        AnalyticsEvents.placementSoftInApp);
+  });
+
+  testWidgets('an ELIGIBLE user still emits trial_started, not the paid event',
+      (tester) async {
+    purchaseService.introEligibility = {
+      'sakina_sub_annual':
+          IntroEligibilityStatus.introEligibilityStatusEligible,
+      'sakina_sub_weekly':
+          IntroEligibilityStatus.introEligibilityStatusEligible,
+    };
+
+    await tester.pumpWidget(
+      buildSubject(placement: PaywallPlacement.softInApp, inOnboardingFlow: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text('Start my 3 days free'));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(seconds: 2));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(analytics.firstOrNull(AnalyticsEvents.trialStarted), isNotNull);
+    expect(analytics.firstOrNull(AnalyticsEvents.subscriptionStartedNoTrial),
+        isNull);
   });
 
   testWidgets('user cancel emits purchase_sheet_cancelled with placement',
