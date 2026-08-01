@@ -364,8 +364,6 @@ Future<void> main() async {
         .getBool('hard_paywall_after_tour_enabled', fallback: false),
     flagGuidedTour: await appConfigForAnalytics.getBool('guided_tour_enabled',
         fallback: true),
-    flagReverseTrialExp: await appConfigForAnalytics
-        .getBool('reverse_trial_experiment_enabled', fallback: false),
     isPremium: isPremiumAtBoot,
   );
   analytics.track(AnalyticsEvents.appOpened, properties: {

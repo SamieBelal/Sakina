@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/onboarding/providers/onboarding_provider.dart';
-import '../features/paywall/paywall_experiment.dart';
 import 'analytics_service.dart';
 import 'analytics_event_names.dart';
 import 'install_id_service.dart' show installIdPropertyName;
@@ -39,7 +38,6 @@ Future<void> registerBootstrapAnalytics({
   required bool flagHardPaywall,
   required bool flagGuidedTour,
   required bool isPremium,
-  bool flagReverseTrialExp = false,
   String? installId,
 }) async {
   // Device/build/experiment super properties — durable across a sign-out reset
@@ -56,7 +54,9 @@ Future<void> registerBootstrapAnalytics({
     // omission alone is not retirement — the explicit unregister below scrubs
     // upgraded installs. Historical events keep the property.
     'flag_guided_tour': flagGuidedTour,
-    AnalyticsEvents.flagReverseTrialExp: flagReverseTrialExp,
+    // flag_reverse_trial_exp retired 2026-08-01 with the reverse-trial
+    // close-out — same posture as flag_tour_ab: omitted here, explicitly
+    // unregistered below, historical events keep it.
     // Install id (W2-E3): DEVICE-scoped, so it rides `cacheDeviceSuperProperties`
     // and survives the sign-out reset. It is the join key between pre-signup
     // reel events and the RevenueCat subscriber (same value, set as a custom RC
@@ -66,9 +66,19 @@ Future<void> registerBootstrapAnalytics({
     if (installId != null && installId.isNotEmpty)
       installIdPropertyName: installId,
   });
-  // One-shot scrub of the retired flag_tour_ab from upgraded installs'
+  // One-shot scrub of retired super properties from upgraded installs'
   // persisted store — cheap and idempotent, so it runs every bootstrap.
+  // Omission alone is NOT retirement: Mixpanel super properties persist
+  // on-device and merge into every subsequent event, so an install that once
+  // registered these would keep stamping a stale value forever.
   analytics.removeSuperProperty('flag_tour_ab');
+  // Reverse-trial close-out (W5 Wave A, 2026-08-01). `paywall_exp_arm` is
+  // FROZEN as history — historical events only, never re-added, never recycled.
+  // The next paywall experiment ships a NEW property (`gate_exp_arm`), and
+  // `onboarding_flow` is a different property that must never be unioned with
+  // it.
+  analytics.removeSuperProperty(AnalyticsEvents.flagReverseTrialExp);
+  analytics.removeSuperProperty(AnalyticsEvents.paywallExpArm);
   analytics.setSuperProperties({AnalyticsEvents.isPremium: isPremium});
   // app_install: fire EXACTLY ONCE in the app's lifetime, guarded by its own
   // SharedPreferences flag. Set the flag immediately after firing so a crash
@@ -81,17 +91,6 @@ Future<void> registerBootstrapAnalytics({
 }
 
 extension AnalyticsHelpers on AnalyticsService {
-  /// Records the reverse-trial experiment [arm] as BOTH a super property (so
-  /// EVERY subsequent event — retention, paywall, conversion — segments by the
-  /// arm) AND a people property (for user-level analysis). Mirrors the
-  /// `_recordVariant` super+people pattern used for `tour_variant`. Call once at
-  /// arm assignment (onboarding complete, experiment on).
-  void recordPaywallArm(PaywallArm arm) {
-    final value = arm.analyticsValue;
-    setSuperProperties({AnalyticsEvents.paywallExpArm: value});
-    setUserProperties({AnalyticsEvents.paywallExpArm: value});
-  }
-
   void trackStepViewed(int index, {required bool trimmed, bool reel = false}) {
     final name =
         AnalyticsEvents.stepNamesFor(trimmed: trimmed, reel: reel)[index] ??

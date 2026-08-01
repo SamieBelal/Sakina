@@ -113,18 +113,29 @@ void main() {
     });
   });
 
-  test('refreshTrialPremiumCache is a no-op without an auth user (best-effort)',
+  test('a pre-close-out trial cache is still honored, and still self-expires',
       () async {
-    final service = PurchaseService.test();
-    // No Supabase auth user in unit tests → method returns without throwing
-    // and writes nothing.
-    await service.refreshTrialPremiumCache();
-    final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getString(
-        fakeSync.scopedKey(PurchaseService.trialPremiumUntilPrefsBaseKey),
-      ),
-      isNull,
-    );
+    // `refreshTrialPremiumCache()` was deleted with the reverse-trial close-out
+    // (W5 Wave A) — nothing writes this key any more. What must keep working is
+    // the READ: a device that activated a trial under a pre-close-out build
+    // holds the cached timestamp, and isPremium() has to honor it to its
+    // natural expiry rather than revoking the grant.
+    SharedPreferences.setMockInitialValues({
+      fakeSync.scopedKey(PurchaseService.trialPremiumUntilPrefsBaseKey):
+          DateTime.now().toUtc().add(const Duration(days: 1)).toIso8601String(),
+    });
+    expect(await PurchaseService.test().isPremium(), isTrue,
+        reason: 'in-flight trials are honored, never clawed back');
+
+    // ...and once it lapses it stays lapsed: with no writer, an expired cache
+    // can never be refreshed back into the future.
+    SharedPreferences.setMockInitialValues({
+      fakeSync.scopedKey(PurchaseService.trialPremiumUntilPrefsBaseKey):
+          DateTime.now()
+              .toUtc()
+              .subtract(const Duration(days: 1))
+              .toIso8601String(),
+    });
+    expect(await PurchaseService.test().isPremium(), isFalse);
   });
 }

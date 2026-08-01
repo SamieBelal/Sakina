@@ -14,9 +14,21 @@
 > | `consume_weekly_allowance` has **zero** client references | Called by `GatingService._consumeWeeklyPool`; the weekly pool is live. |
 > | the `warmup_discover_name_size` dial "does not exist" / is inert (§6b, §7) | Shipped in `20260731090000`, seeded **3** in prod, and read through `warmupBudgetFor`. §7 is closed. |
 >
-> **Still outstanding, and genuinely so:** Wave A (reverse-trial close-out,
-> unblocks 2026-08-04), the ASC 3→7-day trial change (Wave B.1-B.2 — store
-> config, not code), and the T0 flip
+> **Wave A update (2026-08-01):** the CLIENT half is built and committed — the
+> three source files, `_defaultPaywallArm`/`_defaultTrialExpired`, the orphaned
+> `tourBucket`/`assignTourVariant`, and `refreshTrialPremiumCache` are gone;
+> `softPaywallPlacement` and `paywallArm` are frozen constants and
+> `paywall_exp_arm` / `flag_reverse_trial_exp` are explicitly unregistered at
+> bootstrap. `TourVariant` itself did NOT die with them, contrary to §4 A.4 —
+> `OnboardingTourState.variant` still selects a step list. **The date gate is
+> unchanged and still binds SHIPPING, not editing:** step A.2's
+> `count(*) where trial_premium_until > now()` must return 0 before any build
+> carrying this goes out. The `app_config` flip that stops the date from sliding
+> is staged at `supabase/staged/reverse_trial_close.sql` and is safe to run now.
+>
+> **Still outstanding, and genuinely so:** Wave A's server half (the staged flip
+> + the post-expiry key deletion), the ASC 3→7-day trial change (Wave B.1-B.2 —
+> store config, not code), and the T0 flip
 > (`supabase/staged/t0_flip_all_to_reel_v1.sql`).
 **Date:** 2026-07-31
 **Branch/worktree:** `feat/reel-first-w2-onboarding` at `/Users/appleuser/CS Work/Repos/sakina-reel-first`

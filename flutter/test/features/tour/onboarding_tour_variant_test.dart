@@ -59,34 +59,11 @@ void main() {
     });
   });
 
-  group('tourBucket + assignTourVariant', () {
-    test('bucket is deterministic and in 0..99', () {
-      expect(tourBucket('user-abc'), tourBucket('user-abc'));
-      for (final id in ['', 'a', 'user-1', 'a-much-longer-uuid-1234-5678']) {
-        final b = tourBucket(id);
-        expect(b, inInclusiveRange(0, 99), reason: 'bucket for "$id" out of range');
-      }
-    });
-
-    test('assignment is stable per user across calls', () {
-      const id = '6f1d2c3a-aaaa-bbbb-cccc-1234567890ab';
-      expect(assignTourVariant(id), assignTourVariant(id));
-    });
-
-    test('splits a population of ids roughly 50/50 (both arms represented)', () {
-      var slim = 0;
-      var full = 0;
-      for (var i = 0; i < 2000; i++) {
-        final v = assignTourVariant('user-uuid-seed-$i');
-        v == TourVariant.slim ? slim++ : full++;
-      }
-      // Both arms must be non-trivially represented; allow a wide band so the
-      // test is about "the split works", not exact balance.
-      expect(slim, greaterThan(700));
-      expect(full, greaterThan(700));
-      expect(slim + full, 2000);
-    });
-  });
+  // The `tourBucket + assignTourVariant` group lived here. Both functions were
+  // deleted with the reverse-trial close-out (W5 Wave A, 2026-08-01): the tour
+  // A/B concluded 2026-07-25 and the salted bucket survived only because it
+  // backed `assignPaywallArm`. Nothing assigns a variant any more — everyone
+  // gets slim, which `tourStepsForVariant` above still pins.
 
   group('OnboardingTourState honors the variant', () {
     test('slim state indexes the slim list', () {

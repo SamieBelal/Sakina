@@ -7,7 +7,6 @@ import '../features/tour/providers/onboarding_tour_controller.dart';
 import '../services/analytics_events.dart';
 import '../services/analytics_provider.dart';
 import '../services/gating_service.dart';
-import '../services/trial_expiry_service.dart';
 import '../widgets/iap_to_sub_upsell_banner.dart';
 import 'app_session.dart';
 
@@ -181,27 +180,13 @@ class _AppLifecycleObserverState extends ConsumerState<AppLifecycleObserver>
       // Invalidate the premium state so the card + banner re-read on
       // next watch.
       ref.invalidate(premiumStateProvider);
-      // Reverse-trial resume re-check (eng-review #1): refresh the trial cache
-      // and, if the 3-day trial just crossed into the past while backgrounded,
-      // emit `trial_expired` exactly once. Routing then falls to the soft gate
-      // on the next premium read (already invalidated above). Best-effort and
-      // fire-and-forget so the lifecycle path never blocks on it.
-      if (mounted) {
-        _checkTrialExpiry();
-      }
-    }
-  }
-
-  /// Resolves the reverse-trial expiry transition and emits `trial_expired`
-  /// once when the trial just lapsed. Separated out so the async work doesn't
-  /// hold up the synchronous lifecycle callback. Best-effort throughout.
-  Future<void> _checkTrialExpiry() async {
-    try {
-      final decision = await resolveTrialExpiry();
-      if (!mounted || !decision.justExpired) return;
-      ref.read(analyticsProvider).track(AnalyticsEvents.trialExpired);
-    } catch (_) {
-      // Analytics / prefs best-effort — must never break the resume path.
+      // The reverse-trial resume re-check used to hang off this branch: it
+      // refreshed the app-granted `trial_premium_until` cache and emitted
+      // `trial_expired` once on the Day-3 crossing. Deleted with the rest of
+      // the experiment (W5 Wave A) — nothing grants that trial any more, so
+      // there is no expiry transition left to observe. The RC store-trial
+      // lapse is a separate surface (`LapsedTrialSheet`, off `hadTrial()`) and
+      // is unaffected.
     }
   }
 

@@ -89,16 +89,16 @@ class PurchaseService {
       'referral_premium_until';
 
   /// Base SharedPreferences key for the cached `trial_premium_until` ISO
-  /// string (the reverse-trial source). Scoped to the user via
-  /// [SupabaseSyncService.scopedKey] before read/write so a shared device
-  /// doesn't bleed trial premium across accounts. Sibling to
-  /// [referralPremiumUntilPrefsBaseKey] / [giftPremiumUntilPrefsBaseKey];
-  /// populated by [refreshTrialPremiumCache] and OR'd into [isPremium].
+  /// string — the app-granted reverse trial. Scoped to the user via
+  /// [SupabaseSyncService.scopedKey] so a shared device doesn't bleed trial
+  /// premium across accounts. Sibling to [referralPremiumUntilPrefsBaseKey] /
+  /// [giftPremiumUntilPrefsBaseKey].
   ///
-  /// NOT `@visibleForTesting` (unlike the referral key): the reverse-trial
-  /// resume re-check in `trial_expiry_service.dart` reads this scoped key from
-  /// production code, mirroring [giftPremiumUntilPrefsBaseKey]'s cross-service
-  /// visibility.
+  /// READ-ONLY since the reverse-trial close-out (W5 Wave A, 2026-08-01): the
+  /// writer was deleted with the experiment, so nothing populates this key any
+  /// more. It survives so a device that activated a trial BEFORE the close-out
+  /// still has it honored by [isPremium] until the cached timestamp lapses on
+  /// its own. Do not add a new writer — `activate_trial` has no caller left.
   static const String trialPremiumUntilPrefsBaseKey = 'trial_premium_until';
 
   /// True iff any premium source is active: Sakina Gift window, RevenueCat
@@ -110,9 +110,11 @@ class PurchaseService {
   ///    so a kill-switched / not-yet-initialized RC build still honors an
   ///    active gift.
   /// 2. RC entitlement next — authoritative billing source when initialized.
-  /// 3. Referral cache, then trial cache last — SharedPrefs only, populated at
-  ///    deterministic refresh moments (auth foreground, post-signup, post-RPC,
-  ///    app-resume) via [refreshReferralPremiumCache] / [refreshTrialPremiumCache].
+  /// 3. Referral cache, then trial cache last — SharedPrefs only. Referral is
+  ///    populated at deterministic refresh moments (auth foreground,
+  ///    post-signup, post-RPC) via [refreshReferralPremiumCache]. The trial
+  ///    cache has no writer left (reverse-trial close-out); this read only
+  ///    honors trials activated by a pre-close-out build, until they lapse.
   ///
   /// Hot-path constraint: called from 8+ providers / services on every render
   /// pass. None of the gift / referral / trial paths hit Supabase from the hot
@@ -197,16 +199,18 @@ class PurchaseService {
         'referral_premium_until',
       );
 
-  /// Fetches `trial_premium_until` from Supabase and updates the local cache
-  /// (the reverse-trial source). Call at: app foreground (authenticated),
-  /// app-resume + home-load (so a just-expired Day-3 trial is detected
-  /// promptly — see the reverse-trial ADR resume re-check), and immediately
-  /// after `activate_trial` returns. Best-effort — sibling to
-  /// [refreshReferralPremiumCache].
-  Future<void> refreshTrialPremiumCache() => refreshTimedPremiumCache(
-        trialPremiumUntilPrefsBaseKey,
-        'trial_premium_until',
-      );
+  // `refreshTrialPremiumCache()` lived here — the writer for the app-granted
+  // reverse trial. Deleted with the experiment (W5 Wave A, 2026-08-01): its
+  // only two callers were `reverse_trial_onboarding.dart` (post-`activate_trial`)
+  // and `trial_expiry_service.dart` (app-resume), both retired, and nothing
+  // grants that trial any more.
+  //
+  // The READ side deliberately survives — see [isPremium]'s last clause. A
+  // device that activated a trial before the close-out already holds the cached
+  // timestamp, so honoring it to natural expiry needs no writer; the value
+  // self-expires. Since the build carrying this deletion ships after the last
+  // in-flight trial lapses, there is no window where a user needs the column
+  // re-read. Both the key and the read can go in a later hygiene pass.
 
   String? _safeCurrentUserId() {
     try {

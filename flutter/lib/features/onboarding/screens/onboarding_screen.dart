@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/app_session.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/sakina_loader.dart';
@@ -12,7 +11,6 @@ import '../../../services/analytics_events.dart';
 import '../../../services/app_config_service.dart';
 import '../../../services/reel_deep_link_service.dart';
 import '../../paywall/paywall_placement.dart';
-import '../../paywall/reverse_trial_onboarding.dart';
 import '../content/problem_chips.dart';
 import '../providers/onboarding_provider.dart';
 import 'age_range_screen.dart';
@@ -551,30 +549,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           .completeOnboarding(ref.read(appSessionProvider));
     } catch (_) {}
 
-    // Reverse-trial 2-arm experiment hook (Lane C): flag-gated + idempotent.
-    // When `reverse_trial_experiment_enabled` is on, bucket the user, record
-    // the arm, and — for treatment — activate the 3-day trial. Pre-flag users
-    // stay `unassigned`. Best-effort; never blocks the route to home.
-    try {
-      final uid = Supabase.instance.client.auth.currentUser?.id;
-      if (uid != null && uid.isNotEmpty) {
-        final experimentEnabled = await ref
-            .read(appConfigServiceProvider)
-            .getBool('reverse_trial_experiment_enabled', fallback: false);
-        await resolveAndApplyPaywallExperiment(
-          experimentEnabled: experimentEnabled,
-          userId: uid,
-          analytics: ref.read(analyticsProvider),
-          // Re-hydrate the onboarding gate AFTER the arm is assigned and (for
-          // treatment) the trial is activated, so the router's synchronous
-          // redirect — which runs as soon as we context.go('/') below — reads
-          // the fresh premium/arm state. Without this a treatment trial-holder
-          // is routed onto the post-tour soft paywall on a stale snapshot.
-          onArmApplied: () =>
-              ref.read(appSessionProvider).hydrateOnboardingGate(),
-        );
-      }
-    } catch (_) {/* experiment hook is best-effort */}
+    // The reverse-trial 2-arm experiment hook used to run here: it read
+    // `reverse_trial_experiment_enabled`, bucketed the user, and — for the
+    // treatment arm — called `activate_trial(3)` before re-hydrating the gate.
+    // Retired 2026-08-01 (W5 Wave A); every user now takes what was the control
+    // path, straight to the soft gate and the free tier.
 
     if (mounted) context.go('/');
   }

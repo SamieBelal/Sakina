@@ -7,10 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/onboarding/onboarding_stage.dart';
-import '../features/paywall/paywall_experiment.dart';
 import '../features/paywall/paywall_placement.dart';
-import '../features/paywall/reverse_trial_onboarding.dart'
-    show paywallExperimentAssignedBaseKey;
 import '../services/analytics_event_names.dart';
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
@@ -60,8 +57,6 @@ class AppSessionNotifier extends ChangeNotifier {
     Future<bool> Function()? isPremiumReader,
     Future<bool> Function()? hardPaywallFlowReader,
     Future<PostTourPaywallMode> Function()? postTourPaywallModeReader,
-    Future<bool> Function()? trialExpiredReader,
-    Future<PaywallArm?> Function()? paywallArmReader,
     Duration? hydrationTimeout,
   })  : _hasOnboarded = initialOnboarded,
         _notificationService = notificationService ?? NotificationService(),
@@ -75,8 +70,6 @@ class AppSessionNotifier extends ChangeNotifier {
         _isPremiumReader = isPremiumReader ?? _defaultIsPremium,
         _hardPaywallFlowReader =
             hardPaywallFlowReader ?? _defaultHardPaywallFlow,
-        _trialExpiredReader = trialExpiredReader ?? _defaultTrialExpired,
-        _paywallArmReader = paywallArmReader ?? _defaultPaywallArm,
         _hydrationTimeout = hydrationTimeout ?? const Duration(seconds: 30) {
     // The mode reader defaults to a derivation over THIS session's hard-flow
     // reader, so legacy `hardPaywallFlowReader`-only callers (incl. tests) keep
@@ -98,8 +91,6 @@ class AppSessionNotifier extends ChangeNotifier {
   final Future<bool> Function() _isPremiumReader;
   final Future<bool> Function() _hardPaywallFlowReader;
   late final Future<PostTourPaywallMode> Function() _postTourPaywallModeReader;
-  final Future<bool> Function() _trialExpiredReader;
-  final Future<PaywallArm?> Function() _paywallArmReader;
   final Duration _hydrationTimeout;
   bool _hasOnboarded;
 
@@ -178,39 +169,33 @@ class AppSessionNotifier extends ChangeNotifier {
   PostTourPaywallMode get postTourPaywallMode => _postTourPaywallMode;
 
   // ---------------------------------------------------------------------------
-  // Arm-aware soft-paywall placement (reverse-trial review fix #2).
+  // Soft-paywall placement + arm — both FROZEN by the reverse-trial close-out
+  // (W5 Wave A, 2026-08-01).
   //
-  // The post-tour soft `PaywallScreen` is shared by both experiment arms. To
-  // segment them, the router/PaywallScreen ask THIS session — which already
-  // holds the persisted arm + trial state — to resolve the `placement` and the
-  // `arm` event prop. Keeping the resolution here preserves the one-funnel /
-  // super-property model: the Riverpod-free services never gain experiment
-  // access; only the session (which has a user id + prefs) does.
+  // These two once resolved per-user: the session held the persisted experiment
+  // arm and the cached trial window, and tagged a lapsed treatment user's Day-3
+  // gate as `post_trial_soft` / `treatment_reverse_trial`. The experiment is
+  // retired and the app-granted trial is gone, so there is exactly one answer
+  // for every user and no state left to read. Kept as constants (rather than
+  // deleted outright) because the router and `PaywallScreen` still need a
+  // placement and the events still carry an `arm` prop whose Mixpanel history
+  // must not drift — same posture as [tourCompleted] above.
   //
-  // Both default to the control-shaped values (`post_tour_soft` / `unassigned`)
-  // so a returning user is never mis-tagged before [hydrateOnboardingGate]
-  // resolves the real state.
+  // `paywall_exp_arm` is FROZEN as history: historical events only, never
+  // re-added, never recycled for a future paywall experiment. The next
+  // experiment ships a NEW super property (`gate_exp_arm`). Precedent:
+  // `flag_tour_ab`, retired the same way 2026-07-25.
   // ---------------------------------------------------------------------------
-  bool _trialExpired = false;
-  PaywallArm? _paywallArm;
 
-  /// The `placement` for the post-tour soft paywall. `post_trial_soft` for a
-  /// treatment-arm user whose 3-day reverse trial has lapsed (the Day-3 soft
-  /// gate), else `post_tour_soft` (control / generic). Read by the router to
-  /// build the soft `PaywallScreen` and by the screen for its view/dismiss
-  /// events.
-  PaywallPlacement get softPaywallPlacement => _trialExpired
-      ? PaywallPlacement.postTrialSoft
-      : PaywallPlacement.postTourSoft;
+  /// The `placement` for the post-onboarding soft paywall. Always
+  /// `post_tour_soft` — `post_trial_soft` was the Day-3 gate for a lapsed
+  /// app-granted reverse trial, and nothing grants one any more. The enum case
+  /// survives for Mixpanel history and for the RC store-trial lapse surface.
+  PaywallPlacement get softPaywallPlacement => PaywallPlacement.postTourSoft;
 
-  /// The experiment arm wire value for the soft-paywall events (`arm` prop).
-  /// Resolves to the persisted assignment (`control_no_trial` /
-  /// `treatment_reverse_trial`) for in-experiment users, or `unassigned` for
-  /// pre-experiment users (mirroring the `paywall_exp_arm` super-property
-  /// contract). The super-property still carries the arm on every event; this
-  /// is the explicit per-event copy the ADR specifies on the soft-gate events.
-  String get paywallArm =>
-      _paywallArm?.analyticsValue ?? AnalyticsEvents.armUnassigned;
+  /// The `arm` wire value on the soft-gate events. Always `unassigned` — see
+  /// the freeze note above.
+  String get paywallArm => AnalyticsEvents.armUnassigned;
 
   /// Session-only escape used by the offerings-load-failure safety valve. When
   /// the hard wall can't load plans (StoreKit/Apple outage) and the user taps
@@ -257,24 +242,7 @@ class AppSessionNotifier extends ChangeNotifier {
     try {
       _isPremiumCached = await _isPremiumReader();
     } catch (_) {/* keep default */}
-    // Resolve the arm-aware soft-paywall placement inputs (review fix #2). Both
-    // are independently guarded so a failure keeps the control-shaped default.
-    try {
-      _trialExpired = await _trialExpiredReader();
-    } catch (_) {/* keep default (false → post_tour_soft) */}
-    try {
-      _paywallArm = await _paywallArmReader();
-    } catch (_) {/* keep default (null → unassigned) */}
     notifyListeners();
-  }
-
-  /// Resets the arm-aware soft-paywall placement state to its control-shaped
-  /// defaults. Called on sign-out so the next user on a shared device isn't
-  /// tagged with the previous user's arm / trial-expiry.
-  @visibleForTesting
-  void resetSoftPaywallPlacementForSignOut() {
-    _trialExpired = false;
-    _paywallArm = null;
   }
 
   /// Back-compat derivation of the post-tour paywall MODE:
@@ -425,7 +393,6 @@ class AppSessionNotifier extends ChangeNotifier {
         _isPremiumCached = false;
         _onboardingFlow = null;
         _postTourPaywallMode = PostTourPaywallMode.off;
-        resetSoftPaywallPlacementForSignOut();
         _gateValveBypass = false;
         notifyListeners();
         break;
@@ -670,43 +637,3 @@ Future<bool> _defaultHardPaywallFlow() async {
   }
 }
 
-/// Default "treatment trial just expired" reader for the arm-aware soft
-/// placement. True iff the user is NOT premium AND the cached
-/// `trial_premium_until` timestamp exists and is in the past — i.e. a reverse
-/// trial was activated (only the treatment arm activates one) and has lapsed.
-/// Reads only the user-scoped SharedPrefs cache (same hot-path posture as
-/// `PurchaseService._isTimedPremium`); never round-trips Supabase here.
-Future<bool> _defaultTrialExpired() async {
-  try {
-    if (await PurchaseService().isPremium()) return false;
-    final prefs = await SharedPreferences.getInstance();
-    final iso = prefs.getString(supabaseSyncService
-        .scopedKey(PurchaseService.trialPremiumUntilPrefsBaseKey));
-    if (iso == null || iso.isEmpty) return false;
-    final until = DateTime.tryParse(iso);
-    if (until == null) return false;
-    return until.isBefore(DateTime.now().toUtc());
-  } catch (_) {
-    return false;
-  }
-}
-
-/// Default experiment-arm reader for the soft-paywall `arm` event prop. Resolves
-/// to the deterministic [assignPaywallArm] bucket ONLY for users who were
-/// actually assigned (the one-shot [paywallExperimentAssignedBaseKey] flag is
-/// set at onboarding-complete when the experiment was on). Pre-experiment users
-/// return null → `unassigned`, matching the `paywall_exp_arm` super-property.
-Future<PaywallArm?> _defaultPaywallArm() async {
-  try {
-    final uid = _defaultCurrentUserId();
-    if (uid == null || uid.isEmpty) return null;
-    final prefs = await SharedPreferences.getInstance();
-    final assigned = prefs.getBool(
-            supabaseSyncService.scopedKey(paywallExperimentAssignedBaseKey)) ??
-        false;
-    if (!assigned) return null;
-    return assignPaywallArm(uid);
-  } catch (_) {
-    return null;
-  }
-}

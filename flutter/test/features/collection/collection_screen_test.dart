@@ -71,8 +71,6 @@ AppSessionNotifier _fakeSession() => AppSessionNotifier(
       hasCompletedOnboarding: () async => true,
       isPremiumReader: () async => false,
       hardPaywallFlowReader: () async => false,
-      trialExpiredReader: () async => false,
-      paywallArmReader: () async => null,
     );
 
 /// Pumps [CollectionScreen] inside a real GoRouter exposing `/` (the screen)

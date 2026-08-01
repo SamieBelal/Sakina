@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
 import 'package:sakina/features/onboarding/onboarding_stage.dart';
-import 'package:sakina/features/paywall/paywall_experiment.dart';
 import 'package:sakina/features/paywall/paywall_placement.dart';
 import 'package:sakina/services/analytics_events.dart';
 import 'package:sakina/services/notification_service.dart';
@@ -10,16 +9,20 @@ import 'package:sakina/services/supabase_sync_service.dart';
 
 import '../support/fake_supabase_sync_service.dart';
 
-/// Pins the arm-aware soft-paywall placement seam (Lane C, review fix #2): the
-/// session resolves `post_trial_soft` for a treatment-arm user whose 3-day
-/// reverse trial has expired, and `post_tour_soft` for everyone else (incl. the
-/// control arm). The router/PaywallScreen read these getters to pick the
-/// placement + arm props WITHOUT giving the Riverpod-free services experiment
-/// access.
+/// Pins the soft-paywall placement seam AFTER the reverse-trial close-out
+/// (W5 Wave A, 2026-08-01).
+///
+/// This file used to pin the arm-aware resolution: `post_trial_soft` +
+/// `treatment_reverse_trial` for a treatment user whose 3-day app-granted trial
+/// had lapsed, `post_tour_soft` + `control_no_trial` for the control arm. The
+/// experiment is retired and nothing grants that trial any more, so both
+/// getters are frozen constants — and THAT is what needs pinning, because a
+/// future reader who re-introduces per-user resolution here would silently
+/// revive `paywall_exp_arm`, which is frozen as Mixpanel history and must never
+/// be re-added or recycled.
 AppSessionNotifier buildSession({
   String? uid = 'u1',
-  bool trialExpired = false,
-  PaywallArm? arm,
+  bool isPremium = false,
 }) {
   return AppSessionNotifier(
     initialOnboarded: true,
@@ -28,10 +31,8 @@ AppSessionNotifier buildSession({
     currentUserIdProvider: () => uid,
     hydrateEconomyCache: () async {},
     hasCompletedOnboarding: () async => true,
-    isPremiumReader: () async => false,
+    isPremiumReader: () async => isPremium,
     postTourPaywallModeReader: () async => PostTourPaywallMode.soft,
-    trialExpiredReader: () async => trialExpired,
-    paywallArmReader: () async => arm,
     notificationService: _FakeNotif(),
   );
 }
@@ -45,49 +46,26 @@ void main() {
   });
   tearDown(SupabaseSyncService.debugReset);
 
-  test('defaults to post_tour_soft + unassigned before hydration', () {
+  test('post_tour_soft + unassigned before hydration', () {
     final s = buildSession();
     expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft);
     expect(s.paywallArm, AnalyticsEvents.armUnassigned);
     s.dispose();
   });
 
-  test('treatment user whose trial expired → post_trial_soft', () async {
-    final s = buildSession(
-      trialExpired: true,
-      arm: PaywallArm.treatmentReverseTrial,
-    );
-    await s.hydrateOnboardingGate();
-    expect(s.softPaywallPlacement, PaywallPlacement.postTrialSoft,
-        reason: 'expired reverse trial = treatment Day-3 soft gate');
-    expect(s.paywallArm, 'treatment_reverse_trial');
-    s.dispose();
-  });
-
-  test('control user (no trial) → post_tour_soft', () async {
-    final s = buildSession(
-      trialExpired: false,
-      arm: PaywallArm.controlNoTrial,
-    );
+  test('hydration cannot move either off its frozen value', () async {
+    final s = buildSession();
     await s.hydrateOnboardingGate();
     expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft,
-        reason: 'control arm keeps the generic post-tour soft placement');
-    expect(s.paywallArm, 'control_no_trial');
+        reason: 'post_trial_soft was the lapsed-reverse-trial gate; retired');
+    expect(s.paywallArm, AnalyticsEvents.armUnassigned,
+        reason: 'paywall_exp_arm is frozen as history — never re-assigned');
     s.dispose();
   });
 
-  test('sign-out resets the placement back to the post_tour_soft default',
-      () async {
-    final s = buildSession(
-      trialExpired: true,
-      arm: PaywallArm.treatmentReverseTrial,
-    );
+  test('a signed-out session reports the same frozen pair', () async {
+    final s = buildSession(uid: null);
     await s.hydrateOnboardingGate();
-    expect(s.softPaywallPlacement, PaywallPlacement.postTrialSoft);
-
-    // Mirror the signedOut reset path used by the other gate flags so the next
-    // user on a shared device isn't tagged with the previous user's arm/expiry.
-    s.resetSoftPaywallPlacementForSignOut();
     expect(s.softPaywallPlacement, PaywallPlacement.postTourSoft);
     expect(s.paywallArm, AnalyticsEvents.armUnassigned);
     s.dispose();
