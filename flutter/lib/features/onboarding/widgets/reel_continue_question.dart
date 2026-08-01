@@ -21,7 +21,7 @@ import 'reel_skip_link.dart';
 /// accessibility text scales the content is reachable instead of being squeezed
 /// into whatever the fixed chrome left over — the same call
 /// `QueuePlanScreen` made.
-class ReelContinueQuestion extends StatelessWidget {
+class ReelContinueQuestion extends StatefulWidget {
   const ReelContinueQuestion({
     required this.headline,
     required this.subline,
@@ -69,22 +69,68 @@ class ReelContinueQuestion extends StatelessWidget {
   final bool resizeToAvoidBottomInset;
 
   @override
+  State<ReelContinueQuestion> createState() => _ReelContinueQuestionState();
+}
+
+class _ReelContinueQuestionState extends State<ReelContinueQuestion> {
+  /// Held from the first commit until a rebuild after it has been handed off.
+  /// While set, Continue AND the skip link do nothing.
+  ///
+  /// W6 Wave F review, P1. Wave F put an analytics emit inside these callbacks,
+  /// and this widget had no re-entry guard while its sibling
+  /// `ReelSingleTapQuestion` has had one since it was written. The window is
+  /// invisible to the user and not to Mixpanel: the first tap emits and starts
+  /// a 300ms page transition, during which the outgoing page's button is still
+  /// live; a second tap re-enters the same closure and emits a duplicate
+  /// answer. `_goToPage`'s own `_navigating` flag stops the NAVIGATION, so
+  /// nothing looks wrong — but it sits downstream of the emit and never
+  /// protected it.
+  ///
+  /// The guard covers the skip link too: a Continue-then-Skip double tap would
+  /// otherwise record the answer AND the decline for one visit, which are two
+  /// mutually exclusive facts about the same user.
+  bool _committing = false;
+
+  /// The commit has run, so the next rebuild may release the guard.
+  bool _committed = false;
+
+  @override
+  void didUpdateWidget(covariant ReelContinueQuestion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Release point, mirroring ReelSingleTapQuestion. It must be a rebuild
+    // AFTER the commit rather than the commit itself: this screen stays mounted
+    // inside the PageView, so a guard that never lifted would silently swallow
+    // the answer of anyone who navigated back to change it.
+    if (_committed) {
+      _committing = false;
+      _committed = false;
+    }
+  }
+
+  void _runOnce(VoidCallback? action) {
+    if (action == null || _committing) return;
+    _committing = true;
+    _committed = true;
+    action();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final segment = progressSegment;
+    final segment = widget.progressSegment;
     if (segment != null) {
       return OnboardingPageWrapper(
         progressSegment: segment,
-        totalSegments: totalSegments,
-        showBack: onBack != null,
-        onBack: onBack ?? () {},
-        resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+        totalSegments: widget.totalSegments,
+        showBack: widget.onBack != null,
+        onBack: widget.onBack ?? () {},
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
         contentTopPadding: AppSpacing.xl,
         child: _column(withBack: false),
       );
     }
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -110,21 +156,21 @@ class ReelContinueQuestion extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ReelQuestionHeader(
-                  headline: headline,
-                  subline: subline,
-                  onBack: withBack ? onBack : null,
+                  headline: widget.headline,
+                  subline: widget.subline,
+                  onBack: withBack ? widget.onBack : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                body,
+                widget.body,
               ],
             ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         OnboardingContinueButton(
-          label: continueLabel,
-          onPressed: onContinue,
-          enabled: onContinue != null,
+          label: widget.continueLabel,
+          onPressed: () => _runOnce(widget.onContinue),
+          enabled: widget.onContinue != null,
         ),
         if (skip != null) skip,
       ],
@@ -132,9 +178,11 @@ class ReelContinueQuestion extends StatelessWidget {
   }
 
   Widget? _skipLink() {
-    final label = skipLabel;
-    final skip = onSkip;
+    final label = widget.skipLabel;
+    final skip = widget.onSkip;
     if (label == null || skip == null) return null;
-    return ReelSkipLink(label: label, onTap: skip);
+    // Through the guard too: a Continue-then-Skip double tap would otherwise
+    // record the answer AND the decline for a single visit.
+    return ReelSkipLink(label: label, onTap: () => _runOnce(skip));
   }
 }

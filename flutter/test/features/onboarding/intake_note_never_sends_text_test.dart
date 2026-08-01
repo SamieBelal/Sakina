@@ -115,7 +115,29 @@ void main() {
             match.start,
             end == -1 ? source.length : end + 1,
           );
-          if (!call.contains('.text')) continue;
+          // Every controller-derived value, not just a literal `.text` in the
+          // call. The original guard only fired when `.text` appeared INSIDE
+          // the call expression, so one level of indirection walked straight
+          // past it:
+          //
+          //     final note = _controller.text;
+          //     trackOnboardingAnswerWithRef(ref, 'intake_note', note);
+          //
+          // — no `.text` in the call, no assert, no leak caught. That is the
+          // more likely shape the moment someone refactors for readability,
+          // and it is exactly the case the behavioural test cannot cover on a
+          // screen nobody wrote a widget test for.
+          //
+          // So: resolve local aliases of any `TextEditingController` first, and
+          // treat a call carrying one as carrying `.text`.
+          final aliases = RegExp(r'final\s+(\w+)\s*=\s*[\w.]*\.text\b')
+              .allMatches(source)
+              .map((m) => m.group(1)!)
+              .toSet();
+          final carriesText = call.contains('.text') ||
+              aliases.any((a) => RegExp(r'(?<![\w.])' + a + r'(?![\w])')
+                  .hasMatch(call));
+          if (!carriesText) continue;
           // MUTATION: change the emit call to pass `_controller.text` directly
           // instead of `intakeNoteLengthBucket(_controller.text)` → this must
           // fail, because `.text` would then appear outside the bucket call.
