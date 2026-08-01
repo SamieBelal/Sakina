@@ -393,7 +393,7 @@ void main() {
           reason: 'premium stays on the fair-use counter it has always used');
     });
 
-    test('the warmup 1 → 0 transition spends a pool use and signals once',
+    test('the warmup 1 → 0 transition signals once and leaves the pool whole',
         () async {
       await setCohort('reel_v1');
       await gating.debugSetWarmupRemaining(GatedFeature.reflect, 1);
@@ -401,10 +401,74 @@ void main() {
 
       final outcome = await gating.markUsed(GatedFeature.reflect);
       expect(outcome, UsageOutcome.warmupJustExhausted);
-      expect(rpcCallsTo('consume_weekly_allowance'), hasLength(1),
-          reason: 'without charging the exhausting call the user would get '
-              'N+1 free uses — the same reasoning the daily counter had');
-      expect(await gating.weeklyPoolRemaining(), 2);
+      expect(rpcCallsTo('consume_weekly_allowance'), isEmpty,
+          reason: 'the N+1 rule this transition carries is a SAME-DAY, '
+              'per-feature one — it exists because the daily counter would '
+              'otherwise hand out a second use before midnight. The pool has '
+              'no such granularity: past warmup it IS the week\'s whole '
+              'allowance, so there is no double-grant to buy back, only a use '
+              'to confiscate');
+      expect(await gating.weeklyPoolRemaining(), 3);
+
+      // And the allowance that follows is the full advertised three, not two.
+      for (var i = 0; i < 3; i++) {
+        expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue);
+        await gating.markUsed(GatedFeature.reflect);
+      }
+      expect((await gating.canUse(GatedFeature.reflect)).reason,
+          GateReason.weeklyPool);
+    });
+
+    test('legacy KEEPS the same-day charge on the warmup 1 → 0 transition',
+        () async {
+      await setCohort('legacy');
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 1);
+
+      expect(await gating.markUsed(GatedFeature.reflect),
+          UsageOutcome.warmupJustExhausted);
+      expect(await daily.getReflectUsageToday(), 1,
+          reason: 'unchanged, byte for byte: without it the legacy user gets '
+              'a second reflection today on top of the exhausting one');
+      expect((await gating.canUse(GatedFeature.reflect)).reason,
+          GateReason.dailyCap);
+    });
+
+    test('reel_v1 discoverName KEEPS the same-day charge — it is pool-exempt '
+        'and stays on the daily counter', () async {
+      await setCohort('reel_v1');
+      await gating.debugSetWarmupRemaining(GatedFeature.discoverName, 1);
+
+      expect(await gating.markUsed(GatedFeature.discoverName),
+          UsageOutcome.warmupJustExhausted);
+      expect(await daily.getDiscoverNameUsageToday(), 1,
+          reason: 'user_daily_usage.discover_name_uses is what analytics and '
+              'multi-device reconciliation read');
+      expect(rpcCallsTo('consume_weekly_allowance'), isEmpty);
+    });
+
+    test(
+        'exhausting one feature\'s warmup does not spend the SHARED pool the '
+        'other feature also draws on', () async {
+      await setCohort('reel_v1');
+      await gating.debugSetWarmupRemaining(GatedFeature.reflect, 1);
+      await gating.debugSetWarmupRemaining(GatedFeature.builtDua, 1);
+      installPoolRpc();
+
+      expect(await gating.markUsed(GatedFeature.reflect),
+          UsageOutcome.warmupJustExhausted);
+      expect(await gating.markUsed(GatedFeature.builtDua),
+          UsageOutcome.warmupJustExhausted);
+
+      expect(rpcCallsTo('consume_weekly_allowance'), isEmpty,
+          reason: 'the warmup already paid for both of those calls. The daily '
+              'counter this rule was written for is PER FEATURE and resets '
+              'tomorrow; the pool is SHARED and resets on Monday, so charging '
+              'it here takes builtDua\'s allowance to pay for reflect\'s '
+              'warmup and cannot be undone until Monday');
+      expect(await gating.weeklyPoolRemaining(), 3,
+          reason: 'a user who has just finished both warmups has made zero '
+              'post-warmup calls, so all three of the week\'s uses must '
+              'still be there');
     });
 
     test('warmup still runs BEFORE the pool for reel_v1', () async {
@@ -474,6 +538,168 @@ void main() {
       expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue,
           reason: 'stamping THIS week over a stale count of 3 would present '
               'last week\'s spend as this week\'s');
+    });
+  });
+
+  // ===========================================================================
+  // The client's week boundary has to be the SAME boundary
+  // `consume_weekly_allowance` computes with
+  // `date_trunc('week', now() at time zone safe_user_tz(uid))`. If it drifts,
+  // the stale-week rule either denies a user their Monday or hands out a week
+  // they have not earned — so the edges are pinned here as literals rather
+  // than left to the arithmetic.
+  // ===========================================================================
+
+  group('the local week boundary', () {
+    /// 3 = "the cached week is stale, take the probe"; 0 = "that IS this week".
+    Future<int> remainingAgainst(String weekStart) async {
+      await gating.debugSetWeeklyPool(used: 3, weekStart: weekStart);
+      return gating.weeklyPoolRemaining();
+    }
+
+    void pin(String zone, DateTime utcInstant) {
+      debugResetUserLocalDay();
+      debugUserTimeZoneOverride = zone;
+      debugUserLocalDayClock = () => utcInstant;
+    }
+
+    test('Sunday belongs to the week that STARTED on Monday, as ISO says',
+        () async {
+      // Sun 2026-11-01 13:00 in New York. date_trunc('week') → 2026-10-26.
+      pin('America/New_York', DateTime.utc(2026, 11, 1, 18));
+      expect(await remainingAgainst('2026-10-26'), 0);
+      expect(await remainingAgainst('2026-10-19'), 3);
+    });
+
+    test('a DST transition does not move the week', () async {
+      // US DST ends 02:00 local on Sun 2026-11-01. Either side of it, the week
+      // is still the one that began Mon 2026-10-26 — the date-only arithmetic
+      // has no wall-clock hour to lose.
+      pin('America/New_York', DateTime.utc(2026, 11, 1, 4)); // 00:00 EDT
+      expect(await remainingAgainst('2026-10-26'), 0);
+      pin('America/New_York', DateTime.utc(2026, 11, 1, 7)); // 02:00 EST
+      expect(await remainingAgainst('2026-10-26'), 0);
+      // …and the following Monday does roll it over.
+      pin('America/New_York', DateTime.utc(2026, 11, 2, 12));
+      expect(await remainingAgainst('2026-10-26'), 3);
+    });
+
+    test('a zone east of UTC crosses into Monday before UTC does — the skew '
+        'the probe bounds', () async {
+      // Sun 2026-11-01 12:00 UTC is already Mon 2026-11-02 01:00 in Auckland.
+      // A server whose `safe_user_tz` has degraded to 'UTC' (the state
+      // `handle_new_user` leaves every account in until the device syncs its
+      // zone) is still in the week of 2026-10-26 for another 13 hours.
+      pin('Pacific/Auckland', DateTime.utc(2026, 11, 1, 12));
+      expect(await remainingAgainst('2026-10-26'), 3,
+          reason: 'the client is in a new week the server has not reached — '
+              'this is the honest, non-adversarial source of the disagreement '
+              'the group below exists to bound');
+      pin('UTC', DateTime.utc(2026, 11, 1, 12));
+      expect(await remainingAgainst('2026-10-26'), 0,
+          reason: 'and the same instant read in UTC is still last week');
+    });
+  });
+
+  // ===========================================================================
+  // The stale-week optimism is a PROBE, not a standing permission.
+  //
+  // `weeklyPoolRemaining` reports a full pool whenever the cached `week_start`
+  // predates the client's local Monday, so the call can reach the server and
+  // let the server perform the reset only it can perform. The hazard is that
+  // the marker the server writes back is the SERVER's week — so if the two
+  // disagree about which week it is, the optimism never expires and the client
+  // waves through call after call that the server declines every time.
+  //
+  // That disagreement is ordinary, not adversarial: `handle_new_user` inserts
+  // `user_notification_preferences` with no timezone, and `safe_user_tz`
+  // answers 'UTC' for a blank one. Until the device syncs its zone the server
+  // computes the week in UTC while the client computes it in the device zone —
+  // so for the first hours of a user east of UTC's local Monday, the client is
+  // in the new week and the server is not. A wrong device clock produces the
+  // same shape and does not expire at all.
+  // ===========================================================================
+
+  group('stale-week optimism is bounded', () {
+    /// A server stuck in LAST week: it never resets and never allows.
+    /// `week_start` comes back as the server's own week, which is what makes
+    /// the client's marker permanently "stale" from its own point of view.
+    void installBehindServer() {
+      fakeSync.rpcHandlers['consume_weekly_allowance'] = (_) async =>
+          {'allowed': false, 'remaining': 0, 'week_start': lastMonday};
+    }
+
+    test('a server whose week is BEHIND the client\'s cannot be milked', () async {
+      await setCohort('reel_v1');
+      await exhaustWarmup(GatedFeature.reflect);
+      await gating.debugSetWeeklyPool(used: 3, weekStart: lastMonday);
+      installBehindServer();
+
+      var allowed = 0;
+      for (var i = 0; i < 6; i++) {
+        if ((await gating.canUse(GatedFeature.reflect)).allowed) {
+          allowed += 1;
+          await gating.markUsed(GatedFeature.reflect);
+        }
+      }
+
+      expect(allowed, 1,
+          reason: 'exactly one probe: the first call has to reach the server '
+              'so a pending reset can happen, but once the server has ANSWERED '
+              'for a week it has not rolled over, repeating the question just '
+              'buys free AI calls the server already refused to pay for');
+    });
+
+    test('the probe is retried on the next local day, so a pending reset is '
+        'never locked out', () async {
+      await setCohort('reel_v1');
+      await exhaustWarmup(GatedFeature.reflect);
+      await gating.debugSetWeeklyPool(used: 3, weekStart: lastMonday);
+      installBehindServer();
+
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue);
+      await gating.markUsed(GatedFeature.reflect);
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isFalse);
+
+      // Next local day, same ISO week (Thu 2026-07-30 → Monday 2026-07-27).
+      debugUserLocalDayClock = () => DateTime.utc(2026, 7, 30, 12);
+      daily.debugDailyUsageClock = () => DateTime.utc(2026, 7, 30, 12);
+
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue,
+          reason: 'the client cannot learn that the server has rolled over '
+              'without asking, so the question must come back — bounded, not '
+              'abandoned. Refusing forever is the permanent lockout the '
+              'stale-week rule exists to prevent');
+    });
+
+    test('a count with no week alongside it also spends the probe', () async {
+      await setCohort('reel_v1');
+      await exhaustWarmup(GatedFeature.reflect);
+      await gating.debugSetWeeklyPool(used: 3, weekStart: lastMonday);
+      // Usable `remaining`, no `week_start`: the cached marker keeps its stale
+      // value, so silence about the week cannot count as agreement that it
+      // rolled over — that would reopen the loop through the malformed path.
+      fakeSync.rpcHandlers['consume_weekly_allowance'] =
+          (_) async => {'allowed': false, 'remaining': 0};
+
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue);
+      await gating.markUsed(GatedFeature.reflect);
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isFalse);
+    });
+
+    test('a server that DOES roll over clears the probe immediately', () async {
+      await setCohort('reel_v1');
+      await exhaustWarmup(GatedFeature.reflect);
+      await gating.debugSetWeeklyPool(used: 3, weekStart: lastMonday);
+      installPoolRpc(); // resets, and answers with thisMonday
+
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue);
+      await gating.markUsed(GatedFeature.reflect);
+
+      expect(await gating.weeklyPoolRemaining(), 2,
+          reason: 'the honest Monday path is untouched: the server reset, and '
+              'the user has the rest of their week');
+      expect((await gating.canUse(GatedFeature.reflect)).allowed, isTrue);
     });
   });
 

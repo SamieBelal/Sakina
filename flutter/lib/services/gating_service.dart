@@ -316,10 +316,47 @@ class GatingService {
       supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
     );
     if (storedWeek == null) return pool;
-    if (storedWeek.compareTo(await _localWeekStart()) < 0) return pool;
+    if (storedWeek.compareTo(await _localWeekStart()) < 0 &&
+        !await _staleWeekProbeSpentToday()) {
+      return pool;
+    }
     final used =
         prefs.getInt(supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey)) ?? 0;
     return (pool - used).clamp(0, pool);
+  }
+
+  /// True when the stale-week optimism above has already been cashed in today
+  /// and the server answered for a week it had NOT rolled over.
+  ///
+  /// **The optimism has to be a probe, not a standing permission.** The marker
+  /// [weeklyPoolRemaining] compares against is the SERVER's week, so when the
+  /// two sides disagree about which week it is, "stale" never clears on its
+  /// own: the client waves a call through, the server declines, the client
+  /// writes the decline into a cache the stale branch then ignores, and the
+  /// loop runs forever — an unlimited pool of real AI calls, each one already
+  /// refused by the server.
+  ///
+  /// That disagreement is ordinary rather than adversarial. `handle_new_user`
+  /// creates `user_notification_preferences` with no timezone and
+  /// `safe_user_tz` answers `'UTC'` for a blank one, so until the device syncs
+  /// its zone the server computes the week in UTC while
+  /// [userLocalDay] computes it in the device zone — for the opening hours of
+  /// a user east of UTC's local Monday the client is in the new week and the
+  /// server is not. A device clock set forward has the same shape and never
+  /// expires at all.
+  ///
+  /// Bounded to ONE probe per local day rather than refused outright, because
+  /// the client cannot learn that the server has rolled over without asking:
+  /// a permanent refusal here would restore exactly the lockout the stale-week
+  /// rule exists to prevent. The residual cost is one extra AI call per day of
+  /// skew, against the unbounded one it replaces.
+  Future<bool> _staleWeekProbeSpentToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final probed = prefs.getString(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
+    );
+    if (probed == null) return false;
+    return probed == await userLocalDayString();
   }
 
   /// The current local ISO week's Monday as `YYYY-MM-DD` — the same shape and
@@ -384,17 +421,46 @@ class GatingService {
     // Stamped LAST and only alongside a usable `remaining`: the week marker is
     // what makes the cached `used` readable at all, so a marker without a
     // count would make a fresh week look spent.
-    final weekStart = result['week_start'];
-    if (weekStart is String && weekStart.isNotEmpty) {
+    final weekStartRaw = result['week_start'];
+    final serverWeek =
+        weekStartRaw is String && weekStartRaw.isNotEmpty ? weekStartRaw : null;
+    if (serverWeek != null) {
       await prefs.setString(
         supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
-        weekStart,
+        serverWeek,
       );
+    }
+    await _recordStaleWeekProbe(serverWeek);
+  }
+
+  /// Records whether the server, having just been asked, agreed that the week
+  /// has rolled over — the expiry for [_staleWeekProbeSpentToday].
+  ///
+  /// The server's `week_start` is the only evidence available: if it comes
+  /// back still behind the client's local Monday, the server did NOT reset,
+  /// and asking again today buys nothing but a free AI call. If it has caught
+  /// up, the disagreement is over and the marker is dropped so the next
+  /// genuine week boundary gets its probe immediately.
+  ///
+  /// A null [serverWeekStart] — a usable `remaining` with no week alongside it
+  /// — counts as "did not roll over", and must. That response leaves the
+  /// cached marker at whatever stale value it already held, so treating the
+  /// silence as agreement would reopen the same unbounded loop through the
+  /// malformed path.
+  Future<void> _recordStaleWeekProbe(String? serverWeekStart) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey);
+    if (serverWeekStart == null ||
+        serverWeekStart.compareTo(await _localWeekStart()) < 0) {
+      await prefs.setString(key, await userLocalDayString());
+    } else {
+      await prefs.remove(key);
     }
   }
 
   static const String _weeklyPoolUsedBaseKey = 'weekly_pool_used';
   static const String _weeklyPoolWeekStartBaseKey = 'weekly_pool_week_start';
+  static const String _weeklyPoolProbeDayBaseKey = 'weekly_pool_probe_day';
 
   /// [isPremiumHint] lets the caller skip a duplicate RevenueCat round-trip
   /// when premium status was already resolved upstream. Pair with
@@ -480,15 +546,33 @@ class GatingService {
       // and never re-trigger this signal because warmup will already be 0
       // before this branch runs.
       //
-      // Critically, we ALSO charge the post-warmup allowance on this
-      // transition. Without it, canUse() falls through to the cap on the very
-      // next attempt and — since the counter is still 0 — allows ONE MORE use.
-      // The user would get N+1 free uses instead of N. By recording today's
-      // exhaust call, the next attempt is blocked. The allowance then rolls
-      // over normally: the per-day key in daily_usage_service for `legacy`,
-      // the Monday pool reset for `reel_v1`.
+      // Critically, we ALSO charge the DAILY counter on this transition.
+      // Without it, canUse() falls through to the cap on the very next attempt
+      // and — since the counter is still 0 — allows ONE MORE use TODAY. The
+      // user would get N+1 free uses instead of N. By recording today's
+      // exhaust call, the next attempt is blocked, and tomorrow rolls over via
+      // the per-day key in daily_usage_service.
+      //
+      // The weekly pool is deliberately NOT charged here, and the daily
+      // reasoning above is exactly why it must not be. That rule buys back a
+      // use inside the SAME DAY on a PER-FEATURE counter. The pool is neither:
+      // it is one shared Reflect + Build-a-Duʿā budget that only refills on
+      // Monday, and the warmup is a separate lifetime grant that has already
+      // paid for this call. Charging it would take a use for a call the user
+      // has already earned — and, because the pool is shared, exhausting
+      // `reflect`'s warmup would quietly spend `builtDua`'s allowance. A
+      // reel_v1 user finishing both 3-use warmups in one week would arrive at
+      // the post-warmup tier with 1 of 3 uses left having made no post-warmup
+      // call at all, while WarmupExhaustedSheet promised them three.
+      //
+      // Nothing is bought back by skipping it: past warmup, canUse() reads the
+      // pool, and the pool is the whole post-warmup allowance for the week —
+      // there is no same-day double-grant to prevent. `discoverName` stays on
+      // the daily counter (it is exempt from the pool), so it keeps the rule.
       if (warmup.remaining == 1) {
-        await _consumePostWarmup(feature, newCohort: newCohort);
+        if (!newCohort || feature == GatedFeature.discoverName) {
+          await _incrementDaily(feature);
+        }
         return UsageOutcome.warmupJustExhausted;
       }
       return UsageOutcome.ok;
@@ -1343,10 +1427,15 @@ class GatingService {
     await prefs.remove(
       supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey),
     );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
+    );
   }
 
   /// Force the cached weekly-pool state for tests. `weekStart` is `YYYY-MM-DD`;
-  /// null clears the marker (the never-consumed case).
+  /// null clears the marker (the never-consumed case). Also clears the
+  /// stale-week probe marker, so a test that pins a week starts from "the
+  /// server has not been asked yet".
   @visibleForTesting
   Future<void> debugSetWeeklyPool({
     required int used,
@@ -1356,6 +1445,9 @@ class GatingService {
     await prefs.setInt(
       supabaseSyncService.scopedKey(_weeklyPoolUsedBaseKey),
       used,
+    );
+    await prefs.remove(
+      supabaseSyncService.scopedKey(_weeklyPoolProbeDayBaseKey),
     );
     final key = supabaseSyncService.scopedKey(_weeklyPoolWeekStartBaseKey);
     if (weekStart == null) {
