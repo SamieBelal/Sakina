@@ -26,14 +26,25 @@ import 'warmup_exhausted_sheet.dart'
 /// their CTA a no-op so this paywall never opens. Also null for the
 /// allowed-through reasons, which never reach a cap sheet at all.
 ///
-/// **Spells it `duʿā` / `duʿās`, unlike the cap-sheet bodies above, which say
-/// "dua".** Not an inconsistency to tidy up — these lines render on a
-/// different surface. `PaywallCondensedPage` puts this line directly above
-/// `PaywallBenefitChecklist`, whose first item is "Unlimited reflections,
-/// duʿās & Name discoveries" (`AppStrings.paywallPremiumBenefit1`), so a
-/// "duas" here would put two spellings inches apart on the screen where we
-/// ask for money. The cap sheets have no such neighbour. Match the surface
-/// you render on, not the other function in this file.
+/// **Spells it `duʿā` / `duʿās`.** So does every other string on a purchase
+/// surface, including the cap-sheet bodies below — founder decision
+/// 2026-07-31, after a count found 33 files in `lib/` using the ʿayn form
+/// against a handful (mostly `journal_screen.dart`) that do not.
+///
+/// This comment previously said the divergence was deliberate and told you to
+/// "match the surface, not the other function in this file". That was written
+/// when the bodies still said "duas" and it is now wrong in the dangerous
+/// direction — following it would reintroduce the split. Two reasons the ʿayn
+/// is right everywhere here: `PaywallCondensedPage` renders this line directly
+/// above `PaywallBenefitChecklist`, whose first item is "Unlimited
+/// reflections, duʿās & Name discoveries" (`AppStrings.paywallPremiumBenefit1`)
+/// — two spellings inches apart on the screen where we ask for money; and a
+/// user reads a cap-sheet body, taps "Unlock unlimited", and reads this line
+/// two taps later in the same flow.
+///
+/// `'built_dua'` in `_featureKey` is NOT this word — it is a wire value pinned
+/// by `GatingService._bypassFeatureKey` and the Mixpanel schema. An ʿayn there
+/// silently breaks event attribution. Leave it.
 String? softGateValueLine(GatedFeature feature, GateReason reason) {
   switch (reason) {
     case GateReason.weeklyPool:
