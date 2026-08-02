@@ -101,6 +101,12 @@ dev_dependencies:
 
   flutter_lints: ^5.0.0
 
+  # Direct dep for test/features/onboarding/second_name_teased_test.dart's
+  # throwing SharedPreferences fake (transitively pulled in by
+  # shared_preferences already; declared directly to satisfy
+  # depend_on_referenced_packages).
+  shared_preferences_platform_interface: ^2.4.1
+
   # Code Generation
   build_runner: ^2.4.14
   freezed: ^2.5.7

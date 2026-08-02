@@ -113,6 +113,23 @@ class AppSessionNotifier extends ChangeNotifier {
   /// on-device forever.
   static void Function(String flow)? onOnboardingFlowResolved;
 
+  /// Static hook to clear the widget/push reveal-entry-source stamp
+  /// (`lib/services/reveal_entry_source.dart`) on sign-out. This notifier has
+  /// no Riverpod access, so main.dart wires this to `clearRevealEntrySource`
+  /// the same way the other service-layer telemetry hooks are bridged. Left
+  /// null in tests (best-effort — a null hook is a no-op).
+  ///
+  /// The stamp is process-global with a ~10-minute TTL and nothing previously
+  /// cleared it on sign-out, so on this project's shared QA device a
+  /// DIFFERENT user signing in within the TTL inherited the outgoing user's
+  /// stamp and had their `second_name_unsealed` misattributed to a push/
+  /// widget tap they never made. `signedOut` is the ONE place that runs for
+  /// EVERY sign-out, including an *implicit* one (an expired/revoked refresh
+  /// token emits a bare `signedOut` with no `signOut()` call, so caller-side
+  /// cleanup never runs) — the same reason [onAnalyticsReset] lives here
+  /// rather than in `AuthService.signOut()`.
+  static void Function()? onRevealEntrySourceReset;
+
   AppSessionNotifier({
     AuthService? authService,
     NotificationService? notificationService,
@@ -479,6 +496,13 @@ class AppSessionNotifier extends ChangeNotifier {
         try {
           onAnalyticsReset?.call();
         } catch (_) {/* analytics best-effort; never block sign-out */}
+        // Clear the widget/push reveal-entry-source stamp so it can't
+        // misattribute the NEXT user's reveal on a shared device. Best-effort
+        // — a throwing hook (or a null one, in tests) must never block
+        // sign-out.
+        try {
+          onRevealEntrySourceReset?.call();
+        } catch (_) {/* best-effort; never block sign-out */}
         _hasOnboarded = false;
         _economyHydrated = false;
         _hydrationFailed = false;

@@ -63,6 +63,25 @@ String consumeRevealEntrySource() {
 
 DateTime _now() => (debugRevealEntrySourceClock ?? DateTime.now)().toUtc();
 
+/// Production sign-out clear. Nothing previously cleared this process-global
+/// stamp on sign-out, so a widget/push tap stamped by one user survived — on
+/// this project's shared QA device — into a DIFFERENT user's session that
+/// signed in within the TTL, misattributing their `second_name_unsealed`.
+///
+/// Wired via `AppSessionNotifier.onRevealEntrySourceReset` (this file stays
+/// Riverpod-free, per the rest of `lib/services/`) from the `signedOut`
+/// branch of `_onAuthChange` — the ONE place that runs for every sign-out,
+/// including an *implicit* one (an expired/revoked refresh token emits a bare
+/// `signedOut` with no `signOut()` call, so caller-side cleanup never runs).
+///
+/// Deliberately narrower than [debugResetRevealEntrySource]: this leaves
+/// [debugRevealEntrySourceClock] untouched, since production must never
+/// reset the injectable-clock test seam.
+void clearRevealEntrySource() {
+  _source = null;
+  _stampedAtUtc = null;
+}
+
 /// Test-only reset, mirroring `debugResetUserLocalDay`.
 @visibleForTesting
 void debugResetRevealEntrySource() {

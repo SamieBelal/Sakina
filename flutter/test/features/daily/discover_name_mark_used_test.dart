@@ -66,6 +66,13 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     fakeSync = FakeSupabaseSyncService(userId: 'user-1');
+    // Warmup decrements now go through the `consume_warmup_allowance` RPC
+    // (live in prod since 2026-08-02), so the fake needs a handler for it.
+    // WITHOUT this the RPC returns null, the client correctly fails OPEN and
+    // writes nothing, and warmup silently never decrements — these tests would
+    // then be asserting against an unreachable server, which is not what any of
+    // them mean to exercise.
+    installFakeWarmupAllowanceRpc(fakeSync);
     SupabaseSyncService.debugSetInstance(fakeSync);
     fakePurchase = _FakePurchaseService();
     PurchaseService.debugSetOverride(fakePurchase);

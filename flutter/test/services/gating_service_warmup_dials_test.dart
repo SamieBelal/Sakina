@@ -40,6 +40,12 @@ void main() {
     fakePurchase = _FakePurchaseService();
     PurchaseService.debugSetOverride(fakePurchase);
     gating = GatingService.test();
+    // Several tests below seed a server-authored counter via
+    // debugSetWarmupRemaining and then decrement it repeatedly; that now
+    // spends through consume_warmup_allowance rather than a client-computed
+    // absolute. See gating_service_warmup_allowance_rpc_test.dart for the
+    // RPC's own contract tests (unreachable / refused / malformed).
+    installFakeWarmupAllowanceRpc(fakeSync);
   });
 
   tearDown(() {
@@ -245,37 +251,43 @@ void main() {
           reason: 'the local counter still tracks the session honestly');
     });
 
-    test('hydration clears the provisional mark, so later decrements DO push',
-        () async {
+    test('hydration clears the provisional mark, so later decrements DO '
+        'spend via the RPC', () async {
       // The taint must not be permanent either: once a real server number
-      // lands, writes have to resume or the server drifts stale forever.
+      // lands, spends have to resume or the server drifts stale forever.
       await cacheDial('warmup_reflect_size', '3');
-      await gating.markUsed(GatedFeature.reflect); // synthesized, no push
+      await gating.markUsed(GatedFeature.reflect); // synthesized, no RPC call
 
       await gating.debugSetWarmupRemaining(GatedFeature.reflect, 10);
       await gating.markUsed(GatedFeature.reflect);
 
-      final profileWrites = fakeSync.rawUpsertCalls
-          .where((c) => c['table'] == 'user_profiles')
+      final rpcCalls = fakeSync.rpcCalls
+          .where((c) => c['fn'] == 'consume_warmup_allowance')
           .toList();
-      expect(profileWrites, hasLength(1));
-      expect((profileWrites.single['data'] as Map)['warmup_reflect_remaining'],
-          9);
+      expect(rpcCalls, hasLength(1));
+      expect(rpcCalls.single['params'], {'p_feature': 'reflect'});
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')), 9);
     });
 
-    test('a counter that came from the server IS still pushed on decrement',
-        () async {
+    test(
+        'a counter that came from the server IS still spent via the RPC on '
+        'decrement', () async {
       await cacheDial('warmup_reflect_size', '3');
       await gating.debugSetWarmupRemaining(GatedFeature.reflect, 10);
 
       await gating.markUsed(GatedFeature.reflect);
 
-      final profileWrites = fakeSync.rawUpsertCalls
-          .where((c) => c['table'] == 'user_profiles')
+      final rpcCalls = fakeSync.rpcCalls
+          .where((c) => c['fn'] == 'consume_warmup_allowance')
           .toList();
-      expect(profileWrites, hasLength(1));
-      expect((profileWrites.single['data'] as Map)['warmup_reflect_remaining'],
-          9);
+      expect(rpcCalls, hasLength(1));
+      expect(rpcCalls.single['params'], {'p_feature': 'reflect'});
+      expect(fakeSync.rawUpsertCalls, isEmpty,
+          reason: 'the server row is spent atomically via the RPC, never a '
+              'raw upsert of a client-computed absolute');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(fakeSync.scopedKey('warmup_reflect_remaining')), 9);
     });
 
     test('a stored counter short-circuits the config read entirely (the hot '

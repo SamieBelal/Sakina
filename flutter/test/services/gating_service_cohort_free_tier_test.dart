@@ -70,6 +70,11 @@ void main() {
     debugUserLocalDayClock = () => DateTime.utc(2026, 7, 29, 12);
     daily.debugDailyUsageClock = () => DateTime.utc(2026, 7, 29, 12);
     await hydrateTokenCache(balance: 500, totalSpent: 0);
+    // A handful of tests below seed a server-authored warmup counter via
+    // debugSetWarmupRemaining and drive it to the 1 → 0 transition, which
+    // now spends through consume_warmup_allowance rather than a client-
+    // computed absolute.
+    installFakeWarmupAllowanceRpc(fakeSync);
   });
 
   tearDown(() {

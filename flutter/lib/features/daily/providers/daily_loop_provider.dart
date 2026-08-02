@@ -576,6 +576,12 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
 
   Future<void> _initialize() async {
     try {
+      // P1 fix: retry a `claim_daily_reward` a previous run left pending
+      // (see `_retryPendingRewardClaimIfAny`). Fire-and-forget — not
+      // awaited — so a Supabase round trip for a possibly stale reward day
+      // never delays hydrating the rest of the daily loop.
+      pendingRewardClaimRetryFuture = _retryPendingRewardClaimIfAny();
+
       // Load streak, XP, and tokens
       final streakState = await getStreak();
       final xpState = await getXp();
@@ -965,66 +971,194 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     return chip?.problemCategory ?? problemCategoryUnmatched;
   }
 
+  /// SharedPreferences key marking a `claim_daily_reward` call that has
+  /// started but has not yet been confirmed to have landed on the server.
+  ///
+  /// Mirrors `pendingQueueSeedPrefBaseKey` (`name_queue_repair.dart`) — this
+  /// codebase's established pattern for "a write started, we don't know
+  /// whether it reached the server, so remember it and retry at next
+  /// launch" — reused here rather than inventing a second convention for the
+  /// same shape of problem (P1: the daily-reward claim races the reveal and
+  /// is never awaited, so a process kill between the write and the RPC's
+  /// response used to leave nothing behind).
+  static const String _pendingRewardClaimPrefBaseKey =
+      'pending_daily_reward_claim';
+
+  String? _pendingRewardClaimKey() {
+    final userId = supabaseSyncService.currentUserId;
+    if (userId == null || userId.isEmpty) return null;
+    return '$_pendingRewardClaimPrefBaseKey:$userId';
+  }
+
+  /// Marks a claim as started but not yet confirmed landed.
+  ///
+  /// Set BEFORE the RPC call — not from a catch block — because the failure
+  /// this defends against is a process kill DURING the await, between this
+  /// write and `claim_daily_reward`'s response. A catch block never runs in
+  /// that case, so a marker written only on failure would miss the exact
+  /// scenario it exists for.
+  Future<void> _markRewardClaimPending() async {
+    try {
+      final key = _pendingRewardClaimKey();
+      if (key == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      // Re-check after the await, mirroring `recordPendingQueueSeed`: a
+      // sign-out mid-write must not file this account's marker under the
+      // next one's key.
+      if (_pendingRewardClaimKey() != key) return;
+      await prefs.setBool(key, true);
+    } catch (_) {
+      // Best-effort: if prefs itself is unreachable there is no recovery
+      // path to set up, but the claim call this wraps still runs — only the
+      // RECOVERY from a kill is degraded, not the claim itself.
+    }
+  }
+
+  Future<void> _clearRewardClaimPending() async {
+    try {
+      final key = _pendingRewardClaimKey();
+      if (key == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+    } catch (_) {}
+  }
+
+  Future<bool> _hasRewardClaimPending() async {
+    try {
+      final key = _pendingRewardClaimKey();
+      if (key == null) return false;
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(key) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Test seam — inspects the marker `_markRewardClaimPending` writes. The
+  /// key is scoped by user id (fake-sync-service internal in tests), so this
+  /// is the only way the recovery suite can observe it.
+  @visibleForTesting
+  Future<bool> debugHasPendingRewardClaim() => _hasRewardClaimPending();
+
+  /// The in-flight app-open retry of a claim a previous run left pending, so
+  /// tests can await a call `_initialize` deliberately does not. Production
+  /// never reads it.
+  @visibleForTesting
+  Future<void>? pendingRewardClaimRetryFuture;
+
+  /// Applies a landed `claim_daily_reward` result to state + analytics.
+  /// Shared by the submit-time claim and its app-open retry so the two paths
+  /// cannot drift on what "a claim landed" means.
+  ///
+  /// [trigger] is always [AnalyticsEvents.triggerAnswerSubmit]: a retry
+  /// confirms the SAME submit-time claim, just late — it is not a second kind
+  /// of claim event, and forking the taxonomy here would make "did the
+  /// re-timing preserve the ladder" (the whole reason `propTrigger` exists)
+  /// harder to read, not easier.
+  void _applyRewardClaimResult(DailyRewardClaimResult claimResult) {
+    // W4 Wave 7. The whole reason this event exists is that the claim MOVED
+    // in this wave — from opening the app to answering the question — and
+    // "the reward is now granted at submit" should be readable in the data
+    // rather than inferred from the absence of something else.
+    //
+    // Gated on `!alreadyClaimed` so it counts grants, not calls: the claim is
+    // idempotent and server-authoritative, and an idempotent replay (a second
+    // submit, a cross-device race, or this method's own retry landing after
+    // the original call actually succeeded) hands back the same ladder state
+    // without granting anything. Counting those would inflate the claim rate
+    // exactly where we are trying to see whether the re-timing preserved it.
+    //
+    // Emitted BEFORE the `mounted` check on purpose: the grant happened on
+    // the server whether or not the user is still on this route, and dropping
+    // it for a user who navigated away would bias the metric toward the
+    // people who stayed.
+    if (!claimResult.alreadyClaimed) {
+      try {
+        onAnalyticsEvent?.call(AnalyticsEvents.dailyRewardClaimed, {
+          AnalyticsEvents.propTrigger: AnalyticsEvents.triggerAnswerSubmit,
+          // The ladder position this claim landed on (1-7). The whole reason
+          // the claim moved to answer-submit was to PROTECT this ladder —
+          // `claim_daily_reward` resets to day 0 on a single missed claim, so
+          // tying the grant to "Ameen" would have cost a day-6 user theirs.
+          // Without the field we would be trusting that decision with the
+          // data sitting right there unrecorded: a healthy re-timing shows
+          // users climbing to 6 and 7, a broken one shows everyone stuck at
+          // 1. Not sensitive — a position in a 7-day cycle, nothing about
+          // what the user said.
+          AnalyticsEvents.propLadderDay: claimResult.day,
+        });
+      } catch (_) {}
+    }
+    // The claim outlives no state it owns, but it does outlive the notifier
+    // if the user leaves the route mid-flight — and a write to a disposed
+    // StateNotifier throws.
+    if (!mounted) return;
+    // No `error:` passthrough any more. This write is deliberately racing
+    // `discoverName` and can land after its catch block, so clearing the
+    // error here would wipe the failure view out from under the user and —
+    // the case that actually costs money — tell `discoverNameWithBypass` to
+    // commit a bypass for a reveal that never happened. It used to need an
+    // explicit `error: state.error` to avoid that, because `copyWith`
+    // ASSIGNED the field. `copyWith` now merges it like every other field, so
+    // preserving it is the default and the guard is structural rather than
+    // something each racing caller has to remember.
+    state = state.copyWith(
+      rewardClaimResult: claimResult,
+      tokenBalance: claimResult.newTokenBalance ?? state.tokenBalance,
+    );
+  }
+
   /// Best-effort, and idempotent on the server. A claim failure must not touch
   /// `state.error`: that field is what `discoverNameWithBypass` reads to decide
   /// commit-versus-refund, so a reward hiccup could otherwise refund a bypass
   /// whose reveal genuinely happened. Same rule as the analytics emit and the
   /// `markUsed` block inside [discoverName].
+  ///
+  /// **P1 fix:** the marker set/clear around the RPC call is what makes this
+  /// recoverable from a process kill. Set BEFORE the call so a kill mid-await
+  /// still leaves it behind; cleared unconditionally on success — the claim
+  /// landed server-side regardless of whether the notifier is still mounted,
+  /// so leaving the marker set here would just make the next app open replay
+  /// an already-confirmed (idempotent, harmless, but pointless) claim.
   Future<void> _claimDailyRewardAtSubmit() async {
+    await _markRewardClaimPending();
     try {
       final claimResult = await claimDailyReward();
-      // W4 Wave 7. The whole reason this event exists is that the claim MOVED
-      // in this wave — from opening the app to answering the question — and
-      // "the reward is now granted at submit" should be readable in the data
-      // rather than inferred from the absence of something else.
-      //
-      // Gated on `!alreadyClaimed` so it counts grants, not calls: the claim is
-      // idempotent and server-authoritative, and an idempotent replay (a second
-      // submit, a cross-device race) hands back the same ladder state without
-      // granting anything. Counting those would inflate the claim rate exactly
-      // where we are trying to see whether the re-timing preserved it.
-      //
-      // Emitted BEFORE the `mounted` check on purpose: the grant happened on
-      // the server whether or not the user is still on this route, and dropping
-      // it for a user who navigated away would bias the metric toward the
-      // people who stayed.
-      if (!claimResult.alreadyClaimed) {
-        try {
-          onAnalyticsEvent?.call(AnalyticsEvents.dailyRewardClaimed, {
-            AnalyticsEvents.propTrigger: AnalyticsEvents.triggerAnswerSubmit,
-            // The ladder position this claim landed on (1-7). The whole reason
-            // the claim moved to answer-submit was to PROTECT this ladder —
-            // `claim_daily_reward` resets to day 0 on a single missed claim, so
-            // tying the grant to "Ameen" would have cost a day-6 user theirs.
-            // Without the field we would be trusting that decision with the
-            // data sitting right there unrecorded: a healthy re-timing shows
-            // users climbing to 6 and 7, a broken one shows everyone stuck at
-            // 1. Not sensitive — a position in a 7-day cycle, nothing about
-            // what the user said.
-            AnalyticsEvents.propLadderDay: claimResult.day,
-          });
-        } catch (_) {}
-      }
-      // The claim outlives no state it owns, but it does outlive the notifier
-      // if the user leaves the route mid-flight — and a write to a disposed
-      // StateNotifier throws.
-      if (!mounted) return;
-      // No `error:` passthrough any more. This write is deliberately racing
-      // `discoverName` and can land after its catch block, so clearing the
-      // error here would wipe the failure view out from under the user and —
-      // the case that actually costs money — tell `discoverNameWithBypass` to
-      // commit a bypass for a reveal that never happened. It used to need an
-      // explicit `error: state.error` to avoid that, because `copyWith`
-      // ASSIGNED the field. `copyWith` now merges it like every other field, so
-      // preserving it is the default and the guard is structural rather than
-      // something each racing caller has to remember.
-      state = state.copyWith(
-        rewardClaimResult: claimResult,
-        tokenBalance: claimResult.newTokenBalance ?? state.tokenBalance,
-      );
+      await _clearRewardClaimPending();
+      _applyRewardClaimResult(claimResult);
     } catch (_) {
       // Nothing the user can act on, and nothing is lost: the ladder is
-      // server-side and the next claim re-reads it.
+      // server-side and the next claim re-reads it. The marker set above is
+      // deliberately left in place — see `_retryPendingRewardClaimIfAny`,
+      // which is what turns this into "retried once at the next app open"
+      // instead of "silently dropped forever".
+    }
+  }
+
+  /// Retries a `claim_daily_reward` that started on a previous run but never
+  /// confirmed landing — the OS killed the app, or the network dropped,
+  /// between `_markRewardClaimPending()` and the RPC's response.
+  ///
+  /// Fire-and-forget from `_initialize` (surfaced via
+  /// [pendingRewardClaimRetryFuture] for tests), for the same reason the
+  /// submit-time claim is: it is a Supabase round trip, and nothing about
+  /// hydrating the rest of the daily loop should wait on it.
+  ///
+  /// Retries **at most once per app open**: a single `_hasRewardClaimPending`
+  /// check at the top, no loop around it. `claim_daily_reward` is idempotent
+  /// and server-authoritative, so the cost of trying again next launch is one
+  /// RPC call — looping here instead would turn "the server is down" into a
+  /// retry storm against it. A failure leaves the marker in place for the
+  /// NEXT `DailyLoopNotifier` to try again.
+  Future<void> _retryPendingRewardClaimIfAny() async {
+    if (!await _hasRewardClaimPending()) return;
+    try {
+      final claimResult = await claimDailyReward();
+      await _clearRewardClaimPending();
+      _applyRewardClaimResult(claimResult);
+    } catch (_) {
+      // Still broken (or still offline) — the marker stays and the next app
+      // open tries again.
     }
   }
 
@@ -1496,8 +1630,21 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
   }) async {
     final seedAt = _rowAtPosition(preCallQueueRows, 1)?.unsealedAt;
     final nowUtc = debugDailyLoopClock();
-    int? daysSinceTease(DateTime? at) =>
-        (seedAt == null || at == null) ? null : at.difference(seedAt).inDays;
+    int? daysSinceTease(DateTime? at) {
+      if (seedAt == null || at == null) return null;
+      final diff = at.difference(seedAt).inDays;
+      // `at` is the DEVICE wall clock (`debugDailyLoopClock`); `seedAt` is the
+      // SERVER's `now()` from `seed_name_queue`. A device clock behind the
+      // server's — a misconfigured phone, or a QA tester winding it back (see
+      // `GiftService.debugGiftClock`) — makes `at` read earlier than `seedAt`,
+      // which this property has no business reporting as a negative day
+      // count: a tease cannot have happened in the future relative to the
+      // instant measuring it, so a negative reading is always a clock
+      // problem, never a real one. Floor it at 0 rather than let it corrupt
+      // "did the queue keep its promise on schedule", the exact question this
+      // property answers.
+      return diff < 0 ? 0 : diff;
+    }
 
     // second_name_unseal_available — position 2 just became unsealable.
     //

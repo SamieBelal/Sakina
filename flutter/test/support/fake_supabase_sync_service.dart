@@ -1,6 +1,43 @@
 import 'dart:async';
 
 import 'package:sakina/services/supabase_sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Maps `consume_warmup_allowance`'s `p_feature` wire values to the
+/// `GatingService._warmupPrefsKey` suffix (the enum's `.name`, which is
+/// camelCase — `builtDua` / `discoverName` — NOT the snake_case DB column).
+const _warmupRpcFeatureToPrefsSuffix = {
+  'reflect': 'reflect',
+  'built_dua': 'builtDua',
+  'discover_name': 'discoverName',
+};
+
+/// Registers a `consume_warmup_allowance` handler on [fakeSync] that behaves
+/// like the real RPC (`supabase/migrations/20260802020000_consume_warmup_allowance.sql`):
+/// it decrements whatever local warmup counter this fake service is backing
+/// — seeded via `GatingService.debugSetWarmupRemaining`, standing in for the
+/// user's real `user_profiles` row — rather than a value the caller computed,
+/// and makes no write on the rejected path (counter already at 0).
+///
+/// Suites that seed a warmup counter via `debugSetWarmupRemaining` (making it
+/// server-authored, i.e. NOT the dial-synthesized/provisional case) and then
+/// drive `markUsed` need this so the counter actually decrements across
+/// calls — without a handler, `callRpc` returns null and
+/// `GatingService._decrementWarmup` fails open and writes nothing, exactly as
+/// production must against an unreachable server.
+void installFakeWarmupAllowanceRpc(FakeSupabaseSyncService fakeSync) {
+  fakeSync.rpcHandlers['consume_warmup_allowance'] = (params) async {
+    final suffix = _warmupRpcFeatureToPrefsSuffix[params?['p_feature']];
+    if (suffix == null) {
+      throw ArgumentError('unknown feature: ${params?['p_feature']}');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final key = fakeSync.scopedKey('warmup_${suffix}_remaining');
+    final current = prefs.getInt(key) ?? 0;
+    if (current <= 0) return {'allowed': false, 'remaining': 0};
+    return {'allowed': true, 'remaining': current - 1};
+  };
+}
 
 class FakeSupabaseSyncService extends SupabaseSyncService {
   FakeSupabaseSyncService({this.userId});

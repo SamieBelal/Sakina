@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sakina/core/app_session.dart';
+import 'package:sakina/services/analytics_event_names.dart';
 import 'package:sakina/services/notification_service.dart';
 import 'package:sakina/services/purchase_service.dart';
+import 'package:sakina/services/reveal_entry_source.dart';
 import 'package:sakina/services/supabase_sync_service.dart';
 import 'package:sakina/services/tier_up_scroll_service.dart';
 import 'package:sakina/services/xp_service.dart';
@@ -325,6 +327,104 @@ void main() {
     controller.add(const AuthState(AuthChangeEvent.signedOut, null));
     await Future<void>.delayed(Duration.zero);
     // No throw, and normal sign-out side effects still apply.
+    expect(session.hasOnboarded, isFalse);
+
+    await controller.close();
+    session.dispose();
+  });
+
+  // Cross-user leak (P2, review): the widget/push reveal-source stamp is
+  // process-global with a ~10-minute TTL and nothing cleared it on sign-out —
+  // so on this project's shared QA device, a DIFFERENT user signing in within
+  // the TTL inherited the outgoing user's stamp and had their
+  // `second_name_unsealed` misattributed to a push/widget they never touched.
+  // signedOut is the ONE place that runs for every sign-out, including an
+  // *implicit* one (an expired/revoked refresh token emits a bare `signedOut`
+  // with no `signOut()` call, so caller-side cleanup never runs).
+  test(
+      'signedOut fires the reveal-entry-source-reset hook and the stamp is '
+      'gone', () async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final controller = StreamController<AuthState>.broadcast();
+    const isAuthenticated = true;
+    stampRevealEntrySource(AnalyticsEvents.revealSourceWidget);
+    AppSessionNotifier.onRevealEntrySourceReset = clearRevealEntrySource;
+    addTearDown(() {
+      AppSessionNotifier.onRevealEntrySourceReset = null;
+      debugResetRevealEntrySource();
+    });
+
+    final session = AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      consumeRevealEntrySource(),
+      AnalyticsEvents.revealSourceOrganic,
+      reason: 'a stamp left by the outgoing user must not survive to '
+          'attribute the NEXT user\'s reveal to a push/widget they never '
+          'touched',
+    );
+
+    await controller.close();
+    session.dispose();
+  });
+
+  test('a THROWING reveal-entry-source-reset hook cannot break sign-out',
+      () async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final controller = StreamController<AuthState>.broadcast();
+    const isAuthenticated = true;
+    AppSessionNotifier.onRevealEntrySourceReset =
+        () => throw StateError('reveal entry source reset boom');
+    addTearDown(() => AppSessionNotifier.onRevealEntrySourceReset = null);
+
+    final session = AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+
+    // Normal sign-out side effects still ran despite the throwing hook.
+    expect(session.hasOnboarded, isFalse);
+
+    await controller.close();
+    session.dispose();
+  });
+
+  test('a null reveal-entry-source-reset hook is a safe no-op on signedOut',
+      () async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final controller = StreamController<AuthState>.broadcast();
+    const isAuthenticated = true;
+    AppSessionNotifier.onRevealEntrySourceReset = null;
+
+    final session = AppSessionNotifier(
+      initialOnboarded: true,
+      authStateChanges: controller.stream,
+      isAuthenticatedProvider: () => isAuthenticated,
+      hydrateEconomyCache: () async {},
+      hasCompletedOnboarding: () async => true,
+      notificationService: _FakeNotificationService(),
+    );
+
+    controller.add(const AuthState(AuthChangeEvent.signedOut, null));
+    await Future<void>.delayed(Duration.zero);
+
     expect(session.hasOnboarded, isFalse);
 
     await controller.close();

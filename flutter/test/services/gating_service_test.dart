@@ -38,6 +38,14 @@ void main() {
     fakePurchase = _FakePurchaseService();
     PurchaseService.debugSetOverride(fakePurchase);
     gating = GatingService.test();
+    // The bulk of this file drives markUsed repeatedly against a counter
+    // seeded via debugSetWarmupRemaining (server-authored), which now spends
+    // through the consume_warmup_allowance RPC rather than a client-computed
+    // absolute — see gating_service_warmup_allowance_rpc_test.dart for the
+    // RPC's own wiring contract. Without this default, the fake `callRpc`
+    // returns null for every call and every decrement in this file would
+    // fail open (no-op), same as an unreachable server.
+    installFakeWarmupAllowanceRpc(fakeSync);
   });
 
   tearDown(() {
@@ -153,26 +161,28 @@ void main() {
       });
     }
 
-    // Regression for the 2026-05-10 sim-test bug where warmup writes used
-    // upsertRow (auto-injects user_id), which silently failed because
-    // user_profiles primary key is `id`, not `user_id`. Loops over every
+    // Regression for the 2026-08-02 fix: a server-authored warmup counter
+    // spends via the atomic `consume_warmup_allowance` RPC, not a raw
+    // upsert of a client-computed absolute (that was the original bug —
+    // two devices could each push the same computed value and one real use
+    // would go unrecorded; see
+    // gating_service_warmup_allowance_rpc_test.dart). Loops over every
     // GatedFeature so a future refactor that fixes one branch but regresses
     // another is caught.
-    final expectedColumns = <GatedFeature, String>{
-      GatedFeature.reflect: 'warmup_reflect_remaining',
-      GatedFeature.builtDua: 'warmup_built_dua_remaining',
-      GatedFeature.discoverName: 'warmup_discover_name_remaining',
+    final featureKeys = <GatedFeature, String>{
+      GatedFeature.reflect: 'reflect',
+      GatedFeature.builtDua: 'built_dua',
+      GatedFeature.discoverName: 'discover_name',
     };
     for (final feature in GatedFeature.values) {
       test(
-          '${feature.name}: warmup write uses upsertRawRow with id (NOT '
-          'upsertRow which would inject user_id and silently fail on '
-          'user_profiles)', () async {
+          '${feature.name}: warmup write spends via consume_warmup_allowance '
+          '(NOT a raw upsertRawRow of a client-computed absolute)', () async {
         // Seed the counter from "the server" first. Only a counter that came
-        // from the local store is pushed back — a value synthesized from the
-        // `warmup_*_size` dial is a guess and must not overwrite the server's
-        // row (see the SYNTHESIZED test in gating_service_warmup_dials_test).
-        // The asserted value is unchanged: the seed is the budget constant.
+        // from the local store is spent via the RPC — a value synthesized
+        // from the `warmup_*_size` dial is a guess and must not touch the
+        // server's row at all (see the SYNTHESIZED test in
+        // gating_service_warmup_dials_test).
         await gating.debugSetWarmupRemaining(
           feature,
           GatingService.warmupBudget[feature]!,
@@ -180,16 +190,21 @@ void main() {
         await gating.markUsed(feature);
         expect(fakeSync.upsertCalls, isEmpty,
             reason: 'must NOT use upsertRow (injects user_id)');
-        final profileWrites = fakeSync.rawUpsertCalls
-            .where((c) => c['table'] == 'user_profiles')
+        expect(fakeSync.rawUpsertCalls, isEmpty,
+            reason: 'must NOT push a client-computed absolute via a raw '
+                'upsert — that is the exact bug this RPC replaces');
+        final rpcCalls = fakeSync.rpcCalls
+            .where((c) => c['fn'] == 'consume_warmup_allowance')
             .toList();
-        expect(profileWrites, hasLength(1));
-        final data = profileWrites.single['data'] as Map;
-        final expectedColumn = expectedColumns[feature]!;
-        expect(data[expectedColumn], GatingService.warmupBudget[feature]! - 1,
-            reason: 'must write to the correct snake_case column for $feature');
-        expect(data['id'], isNotNull,
-            reason: 'must include id so upsert matches the existing row');
+        expect(rpcCalls, hasLength(1));
+        expect(rpcCalls.single['params'], {'p_feature': featureKeys[feature]});
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getInt(fakeSync.scopedKey('warmup_${feature.name}_remaining')),
+          GatingService.warmupBudget[feature]! - 1,
+          reason: 'the cache mirrors the fake RPC\'s own returned `remaining`',
+        );
       });
     }
   });

@@ -846,17 +846,6 @@ class GatingService {
     );
   }
 
-  String _warmupColumn(GatedFeature feature) {
-    switch (feature) {
-      case GatedFeature.reflect:
-        return 'warmup_reflect_remaining';
-      case GatedFeature.builtDua:
-        return 'warmup_built_dua_remaining';
-      case GatedFeature.discoverName:
-        return 'warmup_discover_name_remaining';
-    }
-  }
-
   /// The per-feature warmup counter, plus where it came from.
   ///
   /// `fromStore` is false when no local counter exists yet and the value was
@@ -888,34 +877,52 @@ class GatingService {
 
   /// [pushToServer] false means [current] was synthesized from the config dial
   /// rather than read from a local counter — so the server's own value is the
-  /// only real one and MUST NOT be overwritten.
+  /// only real one and MUST NOT be spent against.
   ///
   /// Why this matters: the dial (3) is the `reel_v1` number, while every
   /// `legacy`-cohort row still carries the column default 10. A user who
   /// reinstalls, switches accounts, or launches with a batch sync that times
-  /// out reaches the gate with no local counter, reads 3 from the dial, and
-  /// would push `2` into `user_profiles` — and
-  /// `guard_user_profiles_freemium_fields` is decrement-only, so those 8 uses
-  /// could never be given back. Skipping the write leaves the server
-  /// authoritative; the next `hydrateFromProfile` restores the real number.
-  /// The local counter still decrements, so the gate stays consistent for the
-  /// rest of the session, and the error direction is one extra free use — the
-  /// same fail-OPEN posture as the offline fallback.
+  /// out reaches the gate with no local counter and reads 3 from the dial —
+  /// spending that guess against the RPC would decrement the SERVER's real
+  /// row (10) down from a number the server never reported. Skipping the RPC
+  /// leaves the server authoritative; the next `hydrateFromProfile` restores
+  /// the real number. The local counter still decrements, so the gate stays
+  /// consistent for the rest of the session, and the error direction is one
+  /// extra free use — the same fail-OPEN posture as the offline fallback.
+  ///
+  /// [pushToServer] true means [current] came from the user's own local
+  /// counter (itself either hydrated from the server or already
+  /// server-confirmed by a prior call). This is the branch that used to read
+  /// the counter, compute `current - 1` on the device, and push that literal
+  /// absolute via `upsertRawRow` — the bug `consume_warmup_allowance`
+  /// (`supabase/migrations/20260802020000_consume_warmup_allowance.sql`)
+  /// exists to close: two devices holding the same stale counter would both
+  /// compute and push the same value, leaking one real AI use per race, and
+  /// the write sailed through because the decrement-only freemium guard only
+  /// blocks an INCREASE. The RPC is `SELECT … FOR UPDATE`, so it serialises
+  /// exactly that race; this function mirrors ONLY the server's own returned
+  /// `remaining` into the cache, never a number computed here.
+  ///
+  /// Fails OPEN and writes NOTHING when the RPC is unreachable, refused
+  /// (`allowed:false` — the server itself makes no write on that path, so
+  /// neither does the client), or malformed — same posture as
+  /// [_consumeWeeklyPool], for the same reason: a network hiccup must never
+  /// block or double-charge a use the AI call has already delivered.
   Future<void> _decrementWarmup(
     GatedFeature feature,
     int current, {
     bool pushToServer = true,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    // Clamp at zero only. The old upper clamp was the budget constant, which
-    // was harmless while the budget was fixed — but once the budget is a
-    // server dial, clamping to it would SILENTLY CONFISCATE uses: a user
-    // holding 10 remaining (the legacy server default) would drop to 3 on
-    // their next use the moment the dial reads 3. Decrement means decrement.
-    final next = current > 0 ? current - 1 : 0;
-    await prefs.setInt(_warmupPrefsKey(feature), next);
 
     if (!pushToServer) {
+      // Clamp at zero only. The old upper clamp was the budget constant, which
+      // was harmless while the budget was fixed — but once the budget is a
+      // server dial, clamping to it would SILENTLY CONFISCATE uses: a user
+      // holding 10 remaining (the legacy server default) would drop to 3 on
+      // their next use the moment the dial reads 3. Decrement means decrement.
+      final next = current > 0 ? current - 1 : 0;
+      await prefs.setInt(_warmupPrefsKey(feature), next);
       // Carry the taint forward with the value. Without this the counter we
       // just wrote would read back as server-authored on the next call and be
       // pushed — the exact laundering [_warmupProvisionalKey] documents.
@@ -923,16 +930,36 @@ class GatingService {
       return;
     }
 
-    final userId = supabaseSyncService.currentUserId;
-    if (userId == null) return;
-    // user_profiles uses `id` (matching auth.uid()) as its primary key,
-    // NOT `user_id`. Use upsertRawRow so `user_id` isn't auto-injected,
-    // and pass `id` in the payload so the upsert matches the existing row.
-    await supabaseSyncService.upsertRawRow(
-      'user_profiles',
-      {'id': userId, _warmupColumn(feature): next},
-      onConflict: 'id',
-    );
+    Map<String, dynamic>? result;
+    try {
+      result = await supabaseSyncService.callRpc<Map<String, dynamic>>(
+        'consume_warmup_allowance',
+        {'p_feature': _bypassFeatureKey(feature)},
+      );
+    } catch (_) {
+      // Belt and braces, mirroring [_consumeWeeklyPool]: production's
+      // `callRpc` already swallows into null, but "fails open" is a property
+      // of this function, not of its callee — a throw escaping here would
+      // propagate out of `markUsed` and, for the discover path, flip a reveal
+      // that HAPPENED into `state.error`.
+      return;
+    }
+    if (result == null) return; // Unreachable server — write nothing.
+
+    if (result['allowed'] != true) {
+      // Refused server-side (a lost race, or the local cache was already
+      // stale). The RPC makes NO WRITE on this path — see its own doc
+      // comment — so mirroring it here must not either: stamping the
+      // server's reported `0` would be indistinguishable from this function
+      // computing its own decrement, which is exactly what must never happen
+      // again.
+      return;
+    }
+
+    final remaining = (result['remaining'] as num?)?.toInt();
+    if (remaining == null) return; // Malformed response — write nothing.
+
+    await prefs.setInt(_warmupPrefsKey(feature), remaining);
   }
 
   // ---- AI bypass (reserve / commit / cancel) ------------------------------

@@ -63,4 +63,31 @@ void main() {
 
     expect(consumeRevealEntrySource(), AnalyticsEvents.revealSourcePush);
   });
+
+  // Cross-user leak (P2, review): nothing cleared this stamp on sign-out, so
+  // a widget/push tap stamped by one user survived — on this project's shared
+  // QA device — into a DIFFERENT user's session that signed in within the
+  // TTL, misattributing their `second_name_unsealed`. `clearRevealEntrySource`
+  // is the production sign-out clear, wired from `AppSessionNotifier`'s
+  // `signedOut` branch (see test/core/app_session_test.dart for the
+  // integration coverage); this pins the primitive on its own.
+  test('clearRevealEntrySource wipes an unconsumed stamp (sign-out clear)',
+      () {
+    debugRevealEntrySourceClock = () => DateTime.utc(2026, 8, 4, 12, 0);
+    stampRevealEntrySource(AnalyticsEvents.revealSourceWidget);
+
+    clearRevealEntrySource();
+
+    expect(consumeRevealEntrySource(), AnalyticsEvents.revealSourceOrganic);
+  });
+
+  test('clearRevealEntrySource does not touch the injectable clock seam', () {
+    // Unlike debugResetRevealEntrySource, the production clear must never
+    // null out debugRevealEntrySourceClock — that seam belongs to tests only.
+    debugRevealEntrySourceClock = () => DateTime.utc(2026, 8, 4, 12, 0);
+
+    clearRevealEntrySource();
+
+    expect(debugRevealEntrySourceClock, isNotNull);
+  });
 }

@@ -39,6 +39,7 @@ import 'services/daily_question_analytics.dart';
 import 'services/gating_service.dart';
 import 'services/install_id_service.dart';
 import 'services/reel_deep_link_service.dart';
+import 'services/reveal_entry_source.dart';
 import 'services/streak_service.dart';
 import 'features/paywall/widgets/daily_cap_sheet.dart';
 import 'services/notification_service.dart';
@@ -489,6 +490,14 @@ Future<void> main() async {
   // next. AppSessionNotifier has no Riverpod access, so it calls this static
   // hook from its signedOut branch (after final events are queued).
   AppSessionNotifier.onAnalyticsReset = analytics.resetForSignOut;
+  // Cross-user leak fix (review): the widget/push reveal-entry-source stamp
+  // (reveal_entry_source.dart) is process-global with a ~10-minute TTL, and
+  // nothing cleared it on sign-out — so on this project's shared QA device a
+  // DIFFERENT user signing in within the TTL inherited the outgoing user's
+  // stamp and had their `second_name_unsealed` misattributed to a push/widget
+  // tap they never made. Wired the same way as the analytics-reset hook
+  // above, from the ONE branch that runs for every sign-out.
+  AppSessionNotifier.onRevealEntrySourceReset = clearRevealEntrySource;
   // onboarding_flow (W6 Wave A). DEVICE-scoped like install_id: which
   // experience a user ran is a fact about the install, not the session, so it
   // rides `cacheDeviceSuperProperties` and survives `resetForSignOut`.

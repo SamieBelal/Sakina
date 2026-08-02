@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../models/name_story_deck.dart';
 import '../../../services/analytics_event_names.dart';
 import '../../../services/card_collection_service.dart';
 import '../../../services/name_stories_service.dart';
+import '../../../services/supabase_sync_service.dart';
 import '../../../widgets/beat_reveal/beat_reveal_flow.dart';
 import '../../../widgets/beat_reveal/beat_reveal_models.dart';
 import '../../streaks/providers/cosmetics_ui_providers.dart';
 import '../widgets/lantern_kindle_beat.dart';
 import '../widgets/onboarding_card_reveal.dart';
 import '../widgets/sealed_name_tease.dart';
+
+/// Unscoped base key for the once-ever `second_name_teased` flag. Scoped per
+/// user via `supabaseSyncService.scopedKey` at read/write time — see
+/// [_OnboardingRevealScreenState._scheduleSecondNameTeased].
+const String onboardingRevealSecondNameTeasedBaseKey =
+    'onboarding_reveal_second_name_teased';
 
 /// The reel flow's reveal sequence (One Ship W2-C1) — what the hook screen's
 /// tap actually buys:
@@ -124,10 +132,19 @@ class OnboardingRevealLatch {
   /// beat, and the lamp is only ever lit once per onboarding run.
   bool kindledFired = false;
 
-  /// `second_name_teased` (W6 Wave B / W3 §9) has been reported. Mirrors
-  /// [kindledFired]'s reasoning exactly: lives here, not in [State], so a
-  /// re-mount (back-nav, a PageView rebuild) cannot re-fire it — one tease per
-  /// user, ever.
+  /// `second_name_teased` (W6 Wave B / W3 §9) has been reported THIS PROCESS.
+  /// Mirrors [kindledFired]'s reasoning: lives here, not in [State], so a
+  /// re-mount within one process (back-nav, a PageView rebuild) cannot re-fire
+  /// it.
+  ///
+  /// This alone is NOT "one tease per user, ever": onboarding page position is
+  /// durably persisted (SharedPreferences), so a process kill anywhere on the
+  /// reveal page — including AFTER the tease already fired — restores a
+  /// brand-new [State] and a brand-new, unset latch on relaunch, which would
+  /// replay the tease. The durable half of the guard lives in the
+  /// SharedPreferences flag [_OnboardingRevealScreenState._scheduleSecondNameTeased]
+  /// checks; this field only guards the same-process rebuild case that a
+  /// persisted-only check would still let through within one session.
   bool secondNameTeasedFired = false;
 
   /// [OnboardingRevealScreen.onDone] has been handed back. Guards the deckless-
@@ -260,16 +277,35 @@ class _OnboardingRevealScreenState extends State<OnboardingRevealScreen> {
   /// mirrors it. The post-frame hop (not a direct call) keeps a side effect
   /// out of `build()` itself, matching the deckless-tease `_finish` scheduling
   /// three lines below.
+  ///
+  /// [_latch] alone only survives one process — see the comment on
+  /// [OnboardingRevealLatch.secondNameTeasedFired]. The post-frame callback
+  /// additionally consults a SharedPreferences flag, scoped to the current
+  /// user via [supabaseSyncService], which DOES survive a kill: it is what
+  /// makes "one tease per user, ever" true rather than "once per process".
   void _scheduleSecondNameTeased(NameStoryDeck two) {
     if (_latch.secondNameTeasedFired) return;
     // Set BEFORE scheduling, not inside the callback: several builds can land
     // before the first post-frame callback runs, and each would otherwise
     // schedule its own.
     _latch.secondNameTeasedFired = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Guarded: a throwing hook must not surface as an uncaught exception
-      // from a scheduler callback, which Flutter treats as a crash report.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Guarded: a throwing hook (or a failing prefs read) must not surface
+      // as an uncaught exception from a scheduler callback, which Flutter
+      // treats as a crash report. A read failure means we cannot tell whether
+      // this user was already teased, so — same posture as
+      // `FirstVisitHintService` on a prefs failure — we stay silent rather
+      // than risk a double-count.
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final key =
+            supabaseSyncService.scopedKey(onboardingRevealSecondNameTeasedBaseKey);
+        // Set by a PRIOR process for this same user — a kill anywhere on the
+        // reveal page (including after this exact tease already fired) lands
+        // back here with a fresh, unset in-memory latch. Without this check
+        // that replay would re-fire the event.
+        if (prefs.getBool(key) ?? false) return;
+        await prefs.setBool(key, true);
         OnboardingRevealScreen.onAnalyticsEvent?.call(
           AnalyticsEvents.secondNameTeased,
           {
