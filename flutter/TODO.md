@@ -75,6 +75,24 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 - [ ] Confirm the build number. `pubspec.yaml` is at **`1.3.0+8`**; builds 2, 5 and 9 are
   already uploaded historically, so verify `+8` is not rejected as a duplicate before you
   spend an archive on it.
+- [ ] **Four things only a device or a human can settle** (surfaced by the
+  comprehensive PR review, 2026-08-02 — all traced in logic, none exercised):
+  - **The Sunday 23:59 → Monday 00:01 week rollover**, in a user's own
+    timezone. The weekly pool resets on the local ISO Monday; the reviewer read
+    the logic and did NOT hand-test the boundary.
+  - **A live timezone change mid-week** — fly, or move the device zone. Reveal
+    and gating resolve "today" through a memoised/cached zone while
+    `streak_service`'s `_todayLocalString()` uses the live device clock, so the
+    two can disagree for a window after travel. Verify a streak day is neither
+    gained nor lost.
+  - **The value-depth and trial-timeline paywall pages against the copy
+    firewall.** `check_no_fake_strings.sh` scans purchase surfaces only, by
+    design (W7 owns the full sweep), and nobody has read those two pages
+    against the rules.
+  - **A second account on the same device.** Four cross-user leaks of one shape
+    were fixed on this branch; sign out, sign in as someone else, and confirm no
+    Name, streak, cohort, onboarding state, or widget content carries over.
+
 - [ ] **Physical-device StoreKit pass** (W5 plan §5 — the simulator cannot complete a
   purchase, so this is the only place these are provable): trial start · a
   previously-trialed account gets the **"Subscribe"** variant and never "7 days free" ·
@@ -160,6 +178,49 @@ are wrong before the build is live.
 
 - [ ] T0+6wk: the **keep decision**, which in turn triggers the
   [softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+---
+
+## Three intake answers that go nowhere — a product call
+
+**Trigger:** none. It is a decision, and it has been open since 2026-07-31.
+
+`toldAnyone` (H3), `dailyTime` (H6) and the free-text `intakeNote` (H7) are
+collected, stored in the local onboarding blob, and deleted when onboarding
+completes. The functions written to surface them —
+`toldAnyonePlanLine`, `toldAnyoneFirstNotificationBody` (`intake_questions.dart`)
+— exist and are called from nowhere. Already documented in place at
+`queue_plan_screen.dart:44-59`.
+
+**What changed 2026-08-02:** W6 Wave F now emits all three to analytics, so the
+answers are no longer *lost* — you can read the distribution. They still produce
+no visible consequence for the user, which is what Wave H's own binding rule
+("every intake question must produce a visible consequence, asserted by test")
+forbids. Asking someone to write a personal note that visibly does nothing has
+its own cost.
+
+Two honest options: **surface them** (wire the two consequence functions), or
+**stop asking** (drop the screens and shorten the flow). Either is defensible;
+leaving it as-is is the one that isn't.
+
+---
+
+## Known limitation: the warmup race is only half-closed
+
+**Not a bug to fix — a property to remember when reading the numbers.**
+
+`consume_warmup_allowance` (applied to prod 2026-08-02) makes the warmup
+decrement atomic, replacing a client-computed absolute that two devices could
+each push identically, leaking one real AI use per race.
+
+**But every already-shipped binary keeps the old absolute-push path forever.**
+So the race is closed new-client-to-new-client only: an old device racing a new
+one still loses a decrement until that user updates. Strictly better, never
+worse — and not a retirement of the bug on the day 1.3.0 ships.
+
+Practical consequence: warmup consumption counts will read slightly LOW during
+the 1.2.0→1.3.0 adoption tail, and the effect disappears on its own as users
+update. Do not chase it as a data bug.
 
 ---
 
