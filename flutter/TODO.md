@@ -87,6 +87,18 @@ live there, not here. The five buckets are ordered and **not interchangeable**; 
 
 ### 3 — After approval, **before** you press Release
 
+- [ ] **⚠️ SNAPSHOT THE PRE-T0 BASELINE. This one cannot be recovered later.**
+  Master plan Phase 2 step 1. Pull the trailing-90-day new-signup cohort numbers —
+  signup→paid, D1/D7, paywall-encounter rate, review velocity, refund rate — and write
+  them into
+  [the readout doc](./docs/analytics/funnel-flags-and-querying.md), then declare T0.
+  **Every read in bucket 5 compares against this, and after T0 there is no pre-T0
+  population left to measure.** Miss it and the keep decision has nothing to be a
+  decision against: the methodology is explicitly pre/post with no control arm, so the
+  "pre" has to be captured while it still exists. Apply the test-ID exclusion list at
+  `docs/qa/mixpanel-orphaned-distinct-ids.json` (read the file — its own count key has
+  drifted before).
+
 - [ ] **[Reverse-trial gate: the query must return `0`](#server-sql--the-130--t0-runbook)**
   (step 2a of `supabase/staged/reverse_trial_close.sql`). Re-query it — do not trust the
   timestamp above, and do not trust a previously recorded one: the horizon already moved
@@ -116,11 +128,60 @@ are wrong before the build is live.
   **W6 is shipping in 1.3.0, so this check is live, not conditional** — and it is the
   mitigation for the wave's characteristic risk: an event whose absence stays invisible
   until the keep read.
+- [ ] **[Decide on crash reporting](#crash-reporting-decide-dont-default)** — adopt it or
+  record that the blind spot was accepted. Not a blocker; a decision that otherwise never
+  gets taken. Until it exists, a crash and a quit are indistinguishable in every drop-off
+  number this release is judged on.
 - [ ] **Delete the retired `reverse_trial_experiment_enabled` key** — step 2b of
   `reverse_trial_close.sql`, currently commented out. Pure hygiene, no urgency; a retired
   key costs nothing.
+- [ ] **Sanity-check the satisfaction thresholds against the real baseline —
+  before the T0+6wk read, not during it.** W6 Wave E shipped four "what bad looks like"
+  numbers (rating-gate accept rate, churn reasons, D1, and D7 as *the guardrail that
+  vetoes a conversion win*), and they are labelled **proposed, not verified**: T0 had not
+  shipped, so no baseline was queryable when they were written. They were picked to exceed
+  plausible week-to-week noise at ~21 signups/day, not derived from data. Adjust them once
+  the bucket-3 snapshot exists. See the satisfaction section of
+  [the readout doc](./docs/analytics/funnel-flags-and-querying.md).
+
 - [ ] T0+6wk: the **keep decision**, which in turn triggers the
   [softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor).
+
+---
+
+## Crash reporting: decide, don't default
+
+**Trigger:** not a ship blocker for 1.3.0 — a decision to take on the record, because
+defaulting to "no" silently is how it stays "no" forever.
+
+**Status:** there is **none**. Verified 2026-08-01:
+`grep -rniE "sentry|crashlytics|runZonedGuarded|FlutterError.onError" lib/ pubspec.yaml`
+returns zero matches. No crash reporter, no zone guard, no `FlutterError.onError` handler.
+
+**Why it matters for THIS release specifically.** 1.3.0's whole thesis is a rebuilt
+onboarding, and the keep decision is read off drop-off numbers. With no crash reporting,
+**a crash and a deliberate quit are indistinguishable by construction** — every drop-off
+figure in the W6 readout carries an unmeasured crash component, and `app_opened` /
+`session_started` counts silently include crash-truncated sessions with no denominator
+correction. A genuinely bad build would read as a genuinely bad flow, and the response to
+those two is not the same.
+
+W6 documented the caveat wherever a drop-off number is quoted. A caveat is not a fix.
+
+**The decision, either way, deserves a dated line here:**
+- **Adopt** — a new third-party dependency (SDK, dSYM/symbol upload, a privacy-manifest
+  entry, and a review of what gets sent). Real work, and it should not ride into a release
+  under the heading "instrumentation", which is why W6 split it out rather than absorbing
+  it.
+- **Accept the blind spot** — legitimate at this stage and this volume. Write down that it
+  was chosen, so the next person reading a drop-off chart knows the gap is known rather
+  than overlooked.
+
+**Related, already resolved — recorded so it is not re-investigated:** the "two RevenueCat
+apps" concern from the W5 audit is a non-issue. The second app is RevenueCat's built-in
+**Test Store** sandbox (`app75ffdc6cad`), not a second storefront; its SKUs legitimately
+carry no trial. The real app is `Sakina (App Store)` (`app776fe1ae80`, bundle
+`com.sakina.app.sakina`), with the ASC API key and subscription key both configured.
 
 ---
 
