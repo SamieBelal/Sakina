@@ -62,6 +62,13 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
   /// exercise the failure path in sync-service callers.
   bool nextUpsertShouldFail = false;
 
+  /// When set, the next [insertRow] returns `false` without touching storage,
+  /// then resets to `false`. Mirrors the REAL [SupabaseSyncService.insertRow],
+  /// which catches its own exceptions and returns `false` — the failure mode a
+  /// caller must detect from the return value (a rejected CHECK, RLS, the
+  /// muḥāsabah unique index, a transient 5xx), never from a try/catch.
+  bool nextInsertShouldFail = false;
+
   /// When set, the next delete will throw a [StateError] without touching
   /// storage, then reset to `false`. Use to exercise rollback paths in
   /// callers that wrap deletes in try/catch.
@@ -163,6 +170,10 @@ class FakeSupabaseSyncService extends SupabaseSyncService {
       'table': table,
       'data': normalized,
     });
+    if (nextInsertShouldFail) {
+      nextInsertShouldFail = false;
+      return false;
+    }
     final list = rowLists.putIfAbsent(table, () => []);
     list.add(normalized);
     return true;

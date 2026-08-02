@@ -50,6 +50,26 @@ const int _beatSourceMaxChars = 200;
 const int _beatTakeawayMaxChars = 200;
 const int _storyBeatsMaxCount = 3;
 
+// Journal-entry caps (Wave B). Mirror the server CHECK + trigger in
+// `supabase/migrations/20260802030000_user_reflections_journal_entries.sql`
+// EXACTLY, for the same reason the beat clamps do: a value the server rejects
+// drops the WHOLE save, and the night's artifact is the thing we are trying to
+// stop losing.
+const int _azmMaxChars = 500;
+const int _threadMaxCount = 20;
+const int _threadTextMaxChars = 2048;
+const int _threadAtMaxChars = 64;
+
+/// `user_reflections.source` values — a closed set of two, matching the server
+/// CHECK. Wire strings rather than an enum because they are both a column value
+/// and a persisted prefs format: a value written by another build has to
+/// degrade rather than fail a parse.
+const String reflectionSourceReflect = 'reflect';
+
+/// The nightly muḥāsabah. Exactly one row per user per local day, enforced by
+/// the `uniq_muhasabah_per_local_day` partial unique index.
+const String reflectionSourceMuhasabah = 'muhasabah';
+
 /// Clamp a string to at most [maxChars] codepoints (Dart `String.length`).
 /// Matches the server's Postgres `length()` CHECK which also counts codepoints.
 /// Returns '' for null so the row always has explicit values (the schema
@@ -103,6 +123,70 @@ enum ReflectStep { name, reflection, story, dua }
 // Saved reflection model
 // ---------------------------------------------------------------------------
 
+/// One "add to tonight" append on a journal entry's [SavedReflection.thread].
+///
+/// Serialised identically into the prefs blob and the `thread` jsonb column —
+/// one shape, so the two cannot drift. The server rejects any key outside
+/// `{at, text}`, so [toJson] must never grow one silently.
+@immutable
+class ReflectionThreadEntry {
+  const ReflectionThreadEntry({required this.at, required this.text});
+
+  /// ISO-8601 instant the append was made, or `''` when unknown (the server
+  /// treats `at` as optional).
+  final String at;
+
+  /// What the user added. Capped exactly like `user_text` — an append is the
+  /// same kind of writing as the answer.
+  final String text;
+
+  /// Clamps at construction, so local state, the prefs blob and the row all
+  /// see the same truncated value (the P2-5 REVIEW Finding 1 doctrine).
+  factory ReflectionThreadEntry.clamped({
+    required String at,
+    required String text,
+  }) =>
+      ReflectionThreadEntry(
+        at: _clampText(at, _threadAtMaxChars),
+        text: _clampText(text, _threadTextMaxChars),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (at.isNotEmpty) 'at': _clampText(at, _threadAtMaxChars),
+        'text': _clampText(text, _threadTextMaxChars),
+      };
+
+  /// Defensive: one malformed element (a raw string, a null `text`, a number)
+  /// from a corrupted cache or a hand-crafted row must not throw and wipe the
+  /// whole journal cache. Returns null for anything unusable.
+  static ReflectionThreadEntry? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    final text = raw['text'];
+    if (text is! String || text.isEmpty) return null;
+    final at = raw['at'];
+    return ReflectionThreadEntry(
+      at: at is String ? at : '',
+      text: text,
+    );
+  }
+
+  static List<ReflectionThreadEntry> parseList(Object? raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map(ReflectionThreadEntry.tryParse)
+        .whereType<ReflectionThreadEntry>()
+        .take(_threadMaxCount)
+        .toList();
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReflectionThreadEntry && other.at == at && other.text == text;
+
+  @override
+  int get hashCode => Object.hash(at, text);
+}
+
 class SavedReflection {
   final String id;
   final String date;
@@ -131,6 +215,30 @@ class SavedReflection {
   final String storySource;
   final String takeaway;
 
+  // ── Journal entry (Wave B) ──
+  // What kind of entry this is, which local day it belongs to, and the two
+  // places the night can still grow after the reveal (Wave C).
+
+  /// [reflectionSourceReflect] or [reflectionSourceMuhasabah]. Rows written
+  /// before this shipped read back as `reflect` via the column default, so
+  /// there is no backfill.
+  final String source;
+
+  /// The user's LOCAL calendar day (`YYYY-MM-DD`), or null for a Reflect entry.
+  ///
+  /// **Not derived from [date].** The streak, the launch gate and the reward
+  /// ladder all key on a day boundary, and a timestamp disagrees with them near
+  /// midnight — the bug class documented at `launch_gate_state.dart:14-22`. It
+  /// comes from `resolveUserLocalDay()` and nothing else.
+  final String? entryLocalDay;
+
+  /// "Add to tonight" appends. Empty until Wave C writes the first one.
+  final List<ReflectionThreadEntry> thread;
+
+  /// One line of forward resolve captured at the end of the night. Empty when
+  /// absent — stored as SQL NULL rather than `''`.
+  final String azm;
+
   const SavedReflection({
     required this.id,
     required this.date,
@@ -152,7 +260,14 @@ class SavedReflection {
     this.storyBeats = const [],
     this.storySource = '',
     this.takeaway = '',
+    this.source = reflectionSourceReflect,
+    this.entryLocalDay,
+    this.thread = const [],
+    this.azm = '',
   });
+
+  /// True when this entry is the nightly muḥāsabah rather than a Reflect save.
+  bool get isMuhasabah => source == reflectionSourceMuhasabah;
 
   /// True when this reflection carries structured beat data. When false,
   /// renderers fall back to `splitIntoBeats` over [reframe] / [story].
@@ -231,6 +346,13 @@ class SavedReflection {
         storyBeats: storyBeats,
         storySource: storySource,
         takeaway: takeaway,
+        // Carried, not defaulted. This constructor rebuilds the whole object,
+        // so omitting a field here silently drops it on EVERY row that has
+        // beat_data — which is every muḥāsabah row.
+        source: source,
+        entryLocalDay: entryLocalDay,
+        thread: thread,
+        azm: azm,
       );
 
   Map<String, dynamic> toJson() => {
@@ -249,7 +371,18 @@ class SavedReflection {
         'duaSource': duaSource,
         'relatedNames': relatedNames,
         'beatData': _beatData(),
+        // Journal entry (Wave B). Kept in lockstep with `toSupabaseRow` and
+        // both parsers below — a field present in one and missing from another
+        // is a silent data-loss bug, not a cosmetic inconsistency.
+        'source': source,
+        'entryLocalDay': entryLocalDay,
+        'thread': _threadJson(),
+        'azm': azm,
       };
+
+  /// The `thread` payload, count- and length-capped to what the server accepts.
+  List<Map<String, dynamic>> _threadJson() =>
+      thread.take(_threadMaxCount).map((e) => e.toJson()).toList();
 
   factory SavedReflection.fromJson(Map<String, dynamic> json) {
     final base = SavedReflection(
@@ -273,6 +406,12 @@ class SavedReflection {
               ?.map((e) => Map<String, String>.from(e as Map))
               .toList() ??
           [],
+      // A cache blob written before Wave B has none of these keys — it reads
+      // back as an ordinary Reflect entry, which is exactly what it is.
+      source: json['source'] as String? ?? reflectionSourceReflect,
+      entryLocalDay: json['entryLocalDay'] as String?,
+      thread: ReflectionThreadEntry.parseList(json['thread']),
+      azm: json['azm'] as String? ?? '',
     );
     return _withBeatData(base, json['beatData']);
   }
@@ -310,6 +449,13 @@ class SavedReflection {
         'related_names':
             relatedNames.take(_relatedNamesMaxCount).toList(),
         'beat_data': _beatData(),
+        // Journal entry (Wave B). `entry_local_day` is a `date` column, so the
+        // wire value is `YYYY-MM-DD` and never a timestamp. `azm` goes as SQL
+        // NULL when absent rather than '' — an empty resolve is no resolve.
+        'source': source,
+        'entry_local_day': entryLocalDay,
+        'thread': _threadJson(),
+        'azm': azm.isEmpty ? null : _clampText(azm, _azmMaxChars),
       };
 
   /// Create from a Supabase row.
@@ -335,10 +481,190 @@ class SavedReflection {
               ?.map((e) => Map<String, String>.from(e as Map))
               .toList() ??
           [],
+      // Rows that predate the migration come back with `source` populated by
+      // the column default, so this coalesce only covers a payload from a
+      // server that has not run it yet.
+      source: row['source'] as String? ?? reflectionSourceReflect,
+      entryLocalDay: _dateOnly(row['entry_local_day']),
+      thread: ReflectionThreadEntry.parseList(row['thread']),
+      azm: row['azm'] as String? ?? '',
     );
     return _withBeatData(base, row['beat_data']);
   }
+
+  /// `YYYY-MM-DD` from whatever PostgREST hands back for a `date` column —
+  /// normally the bare date string, but a timestamp-shaped value is truncated
+  /// rather than stored whole, so a round-trip can never widen a day into an
+  /// instant.
+  static String? _dateOnly(Object? raw) {
+    if (raw is! String || raw.isEmpty) return null;
+    return raw.length > 10 ? raw.substring(0, 10) : raw;
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Building + persisting a row — the ONE path that owns `user_reflections`
+// ---------------------------------------------------------------------------
+
+/// Builds a clamped [SavedReflection] from an AI [response].
+///
+/// The single place a row's shape is derived from a model response. Both
+/// writers come through here — the Reflect save below and the nightly muḥāsabah
+/// in `daily_loop_provider.completeDeeper()` — so the clamps (and therefore
+/// what the server will accept) cannot drift apart between them.
+///
+/// [response] is nullable because the deck path has no AI response at all: the
+/// pre-authored beats ARE the content, and the night still deserves an entry
+/// carrying the user's words, the Name and the duʿā.
+SavedReflection buildSavedReflection({
+  required String userText,
+  required ai.ReflectResponse? response,
+  String? id,
+  String? date,
+  String? name,
+  String? nameArabic,
+  String source = reflectionSourceReflect,
+  String? entryLocalDay,
+  List<ReflectionThreadEntry> thread = const [],
+  String azm = '',
+  DateTime Function()? now,
+}) {
+  final reframe = response?.reframe ?? '';
+  final preview =
+      reframe.length > 150 ? '${reframe.substring(0, 150)}...' : reframe;
+
+  // P2-5 (REVIEW Finding 1): clamp at CONSTRUCTION time so local state, the
+  // prefs blob and the share-card renderer all see the same truncated values as
+  // the server row. Clamping only at `toSupabaseRow` left the share-card
+  // surface attackable on the owner's own device.
+  return SavedReflection(
+    id: id ?? _uuid.v4(),
+    date: (date ?? (now ?? DateTime.now)().toIso8601String()),
+    userText: _clampText(userText, _userTextMaxChars),
+    name: _clampText(name ?? response?.name, _nameMaxChars),
+    nameArabic: _clampText(nameArabic ?? response?.nameArabic, _nameArabicMaxChars),
+    reframePreview: _clampText(preview, _reframePreviewMaxChars),
+    reframe: _clampText(reframe, _reframeMaxChars),
+    story: _clampText(response?.story, _storyMaxChars),
+    verses: (response?.verses ?? const <ReflectVerse>[])
+        .take(_versesMaxCount)
+        .map((v) => ReflectVerse(
+              arabic: _clampText(v.arabic, _verseArabicMaxChars),
+              translation: _clampText(v.translation, _verseTranslationMaxChars),
+              reference: _clampText(v.reference, _verseReferenceMaxChars),
+            ))
+        .toList(),
+    duaArabic: _clampText(response?.duaArabic, _duaArabicMaxChars),
+    duaTransliteration:
+        _clampText(response?.duaTransliteration, _duaTransliterationMaxChars),
+    duaTranslation:
+        _clampText(response?.duaTranslation, _duaTranslationMaxChars),
+    duaSource: _clampText(response?.duaSource, _duaSourceMaxChars),
+    relatedNames: (response?.relatedNames ?? const <ai.RelatedName>[])
+        .take(_relatedNamesMaxCount)
+        .map((r) => {
+              'name': _clampText(r.name, _nameMaxChars),
+              'nameArabic': _clampText(r.nameArabic, _nameArabicMaxChars),
+            })
+        .toList(),
+    reframeKey: _clampText(response?.reframeKey, _beatKeyMaxChars),
+    reframeBody: _clampText(response?.reframeBody, _beatBodyMaxChars),
+    storyTitle: _clampText(response?.storyTitle, _beatTitleMaxChars),
+    storyBeats: (response?.storyBeats ?? const <String>[])
+        .take(_storyBeatsMaxCount)
+        .map((b) => _clampText(b, _beatLineMaxChars))
+        .toList(),
+    storySource: _clampText(response?.storySource, _beatSourceMaxChars),
+    takeaway: _clampText(response?.takeaway, _beatTakeawayMaxChars),
+    source: source,
+    entryLocalDay: entryLocalDay,
+    thread: thread.take(_threadMaxCount).toList(),
+    azm: _clampText(azm, _azmMaxChars),
+  );
+}
+
+/// Persists the night's muḥāsabah as a journal entry: one server row, one cache
+/// entry, one per local day.
+///
+/// Returns true when a row was written. Returns false — without throwing — when
+/// the entry already exists for [SavedReflection.entryLocalDay] or when the
+/// server refuses the write. **Callers must treat false as survivable.** By the
+/// time this runs the streak, the quests and the Noor award are already
+/// committed; a lost row is recoverable, a lost streak is not.
+///
+/// Idempotency has two layers, and both are load-bearing:
+///   * the local cache check below, which also covers a signed-out user (whose
+///     write never reaches a server that could refuse it);
+///   * `uniq_muhasabah_per_local_day`, which is the real guarantee — a plain
+///     INSERT (never an upsert) means a replay is refused rather than allowed
+///     to overwrite what the user already wrote tonight.
+Future<bool> saveMuhasabahReflection(SavedReflection reflection) async {
+  final cached = await _readCachedReflections();
+  final localDay = reflection.entryLocalDay;
+  final alreadyWritten = cached.any((r) =>
+      r.id == reflection.id ||
+      (r.isMuhasabah && localDay != null && r.entryLocalDay == localDay));
+  if (alreadyWritten) {
+    debugPrint('[reflect] muhasabah entry for $localDay already exists — '
+        'skipping (this is a no-op, not an overwrite)');
+    return false;
+  }
+
+  // Supabase FIRST, exactly like `_saveReflection`: only commit locally on a
+  // CONFIRMED server write, so a row rejected by a CHECK, RLS or the unique
+  // index never shows up locally and then vanishes on the next sync.
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    final ok = await supabaseSyncService.insertRow(
+      'user_reflections',
+      reflection.toSupabaseRow(userId),
+    );
+    if (!ok) {
+      debugPrint('[reflect] muhasabah entry rejected by the server — '
+          'completion stands, the row is not cached');
+      return false;
+    }
+  }
+
+  await _prependToReflectionCache(reflection);
+  for (final notifier in _liveReflectNotifiers.toList()) {
+    notifier.adoptExternalReflection(reflection);
+  }
+  return true;
+}
+
+Future<List<SavedReflection>> _readCachedReflections() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(supabaseSyncService.scopedKey(_reflectionsKey));
+    if (json == null) return const [];
+    return (jsonDecode(json) as List)
+        .map((e) => SavedReflection.fromJson(e as Map<String, dynamic>))
+        .toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+Future<void> _prependToReflectionCache(SavedReflection reflection) async {
+  // Read-modify-write rather than a write from some in-memory list: this runs
+  // from the daily loop, which has no view of the reflect notifier's state.
+  final current = await _readCachedReflections();
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_reflectionsKey),
+    jsonEncode([reflection, ...current].map((r) => r.toJson()).toList()),
+  );
+}
+
+/// Live [ReflectNotifier] instances, so a row written OUT OF BAND (the nightly
+/// muḥāsabah, from `daily_loop_provider`) lands in the in-memory list too.
+///
+/// Without this the notifier's next `_persistReflections` — triggered by any
+/// ordinary Reflect save or delete later in the same session — writes its own
+/// stale list over the cache and drops tonight's entry from the journal until
+/// the next full sync rehydrates it.
+final Set<ReflectNotifier> _liveReflectNotifiers = <ReflectNotifier>{};
 
 // ---------------------------------------------------------------------------
 // Supabase sync
@@ -464,6 +790,7 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     @visibleForTesting bool loadOnInit = true,
   })  : _dependencies = dependencies ?? _defaultReflectDependencies,
         super(const ReflectState()) {
+    _liveReflectNotifiers.add(this);
     if (loadOnInit) {
       _loadSavedReflections();
     }
@@ -758,7 +1085,20 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     // server-side orphan cron. Mixin handles both the post-assignment
     // (P0-4) and pre-assignment (P1-B) cases.
     disposeBypassFlow();
+    _liveReflectNotifiers.remove(this);
     super.dispose();
+  }
+
+  /// Adopts a row written OUT OF BAND (the nightly muḥāsabah — see
+  /// [saveMuhasabahReflection]). Cache-only writers call this so this
+  /// notifier's in-memory list does not go stale and clobber the cache on its
+  /// next persist. Deliberately does NOT re-persist: the caller already wrote
+  /// the cache, and this must not become a second writer of the same blob.
+  void adoptExternalReflection(SavedReflection reflection) {
+    if (state.savedReflections.any((r) => r.id == reflection.id)) return;
+    state = state.copyWith(
+      savedReflections: [reflection, ...state.savedReflections],
+    );
   }
 
   /// Reset to input state (preserves saved reflections).
@@ -876,59 +1216,16 @@ class ReflectNotifier extends StateNotifier<ReflectState>
   /// pool is now the single gate on this behaviour; keeping what it produces
   /// is unlimited. See design §9A (2026-08-02).
   Future<void> _saveReflection(ai.ReflectResponse response) async {
-    final preview = response.reframe.length > 150
-        ? '${response.reframe.substring(0, 150)}...'
-        : response.reframe;
-
-    // P2-5 (REVIEW Finding 1): clamp at construction time so local state,
-    // SharedPrefs persistence, and the share-card image renderer all see
-    // the same truncated values as the server row. Clamping only at
-    // `toSupabaseRow` left the share-card surface attackable on the
-    // owner's own device (the original P2-5 threat model included
-    // screenshot-and-post-to-social as an attack vector).
-    final clampedVerses = response.verses
-        .take(_versesMaxCount)
-        .map((v) => ReflectVerse(
-              arabic: _clampText(v.arabic, _verseArabicMaxChars),
-              translation: _clampText(v.translation, _verseTranslationMaxChars),
-              reference: _clampText(v.reference, _verseReferenceMaxChars),
-            ))
-        .toList();
-    final clampedRelatedNames = response.relatedNames
-        .take(_relatedNamesMaxCount)
-        .map((r) => {
-              'name': _clampText(r.name, _nameMaxChars),
-              'nameArabic': _clampText(r.nameArabic, _nameArabicMaxChars),
-            })
-        .toList();
-
-    final reflectionId = _dependencies.createId();
-    final reflection = SavedReflection(
-      id: reflectionId,
+    // Shape + clamps live in [buildSavedReflection], shared with the nightly
+    // muḥāsabah write, so the two writers of this table cannot drift apart.
+    // `source` stays [reflectionSourceReflect] and `entryLocalDay` stays null:
+    // a Reflect save is not a night, is unlimited per day, and must never be
+    // caught by the muḥāsabah unique index.
+    final reflection = buildSavedReflection(
+      id: _dependencies.createId(),
       date: _dependencies.now().toIso8601String(),
-      userText: _clampText(state.userText, _userTextMaxChars),
-      name: _clampText(response.name, _nameMaxChars),
-      nameArabic: _clampText(response.nameArabic, _nameArabicMaxChars),
-      reframePreview: _clampText(preview, _reframePreviewMaxChars),
-      reframe: _clampText(response.reframe, _reframeMaxChars),
-      story: _clampText(response.story, _storyMaxChars),
-      verses: clampedVerses,
-      duaArabic: _clampText(response.duaArabic, _duaArabicMaxChars),
-      duaTransliteration:
-          _clampText(response.duaTransliteration, _duaTransliterationMaxChars),
-      duaTranslation:
-          _clampText(response.duaTranslation, _duaTranslationMaxChars),
-      duaSource: _clampText(response.duaSource, _duaSourceMaxChars),
-      relatedNames: clampedRelatedNames,
-      reframeKey: _clampText(response.reframeKey, _beatKeyMaxChars),
-      reframeBody: _clampText(response.reframeBody, _beatBodyMaxChars),
-      storyTitle: _clampText(response.storyTitle, _beatTitleMaxChars),
-      storyBeats: response.storyBeats
-          .take(_storyBeatsMaxCount)
-          .map((b) => _clampText(b, _beatLineMaxChars))
-          .toList(),
-      storySource: _clampText(response.storySource, _beatSourceMaxChars),
-      takeaway: _clampText(response.takeaway, _beatTakeawayMaxChars),
+      userText: state.userText,
+      response: response,
     );
 
     // P2-5 (ENG-REVIEW Finding 2): write to Supabase FIRST. With the new

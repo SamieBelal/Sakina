@@ -287,6 +287,25 @@ Run five end-to-end and have the founder sign them before committing to 85. If t
 - **Grading is a required column.** Ṣaḥīḥ/ḥasan only for anything presented as prophetic narration.
 - `./scripts/check_no_fake_strings.sh` before any release carrying new decks.
 
+### G0 results — what the pilot proved (2026-08-02)
+
+**The pipeline works, and the adversarial step is the load-bearing part.** Five decks drafted; blind adversarial verification returned: 1 reject, 3 fix-then-sign, 1 sign.
+
+**The good news is the thing we most feared did not happen.** Scripture authenticity was clean across all five — every āyah and ḥadīth real, correctly numbered, correctly attributed to collection *and* narrator, correctly graded, quoted verbatim. No fabrication. Even the two grade claims most likely to be an LLM over-claim (Ibn Mājah 3850 "ṣaḥīḥ (Darussalam)", Tirmidhī 3540 "ḥasan (Darussalam)") checked out against the archived pages. **Fetch-first-write-second holds.**
+
+**The bad news, and the reason the adversarial step is mandatory rather than optional: the drafter's own ✅ marks contained two demonstrably false claims.**
+- It flagged catalog id 51's duʿā to the founder as "one word away from a narrated supplication", claiming no provenance and asking for a migration decision. **Abū Dāwūd 1516 (ṣaḥīḥ) is that exact wording** — id 11 carries the Tirmidhī 3434 route, id 51 carries the Abū Dāwūd route. Both are narrated. The correct action was the opposite of what was proposed.
+- It recorded a ✅ for "letter-for-letter identical to quran.com `text_imlaei`" on 18:10 when the strings differ (`مِن لَّدُنكَ` vs `مِنْ لَدُنْكَ`; immaterial religiously, but the check did not pass).
+
+Neither error is dangerous on its own. The pattern is: **a founder signing against a ✅ table is signing against claims that are sometimes wrong.** Hence — an independent verifier who does not read the drafter's packet is a hard requirement, not a nicety.
+
+**Three process rules earned by the pilot:**
+1. **Start each batch from a story inventory of every already-shipped deck.** The expensive step is not drafting, it is collision-checking. The pilot's own collision check caught `ar-rahman@1` and missed `ash-shafi@1`, which already tells the same Ayyūb story from the same two āyāt with the same takeaway — and already contains "You are the Most Merciful of the merciful", i.e. Ar-Raḥīm's own hook.
+2. **Quoted translations are part of the theological surface.** `al-kareem@1` pasted a published English of Bukhārī 1145 verbatim and correctly — but that English interpolates "to us" (absent from `إِلَى السَّمَاءِ الدُّنْيَا`) and renders `تَعَالَى` as "the Superior" rather than "the Exalted", flattening the one word that negates spatiality. A deck can adjudicate a contested attribute *by choice of translation* while believing it has adjudicated nothing. **Re-render contested passages from the Arabic; do not paste a published translation unchecked.**
+3. **`renderedDuaSources` does not forbid unpinned sources.** A deck citing a duʿā source not in that map will not fail CI, so the citation can be silently dropped later — the exact regression the map exists to prevent. Add every citing deck to it at transcription time, and consider making the gate reject unpinned citations.
+
+**Known limits of the verification, recorded because the founder signs against it:** ḥadīth checking is not independent of sunnah.com *as a corpus* — sunnah.com 403s automated fetching, so both the drafter and the verifier used Wayback archives of the exact URLs (and a mirror), all deriving from the same digitisation. No printed edition or Arabic-primary database (Shamela, Dorar) was consulted, and **no isnād was audited** — published grade lines were accepted.
+
 ### G3 — Batches
 Five at a time, adversarially reviewed, founder-signed. ~85 decks remain (14 of 99 exist). Then the pack question bank under the same discipline.
 
