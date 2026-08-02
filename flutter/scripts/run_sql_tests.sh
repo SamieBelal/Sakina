@@ -48,10 +48,13 @@ set -euo pipefail
 #
 # PRE-EXISTING / UNTRACKED SUITES
 # -------------------------------
-# Some files in supabase/tests/ are UNTRACKED working-copy files that never
-# reach CI (as of 2026-07-26: backend_rls_audit.sql,
-# freemium_gating_lockdown_test.sql, sync_all_user_data_returns_verses_test.sql).
-# They are still executed here — an untested file is worse than a noisy one —
+# Every suite in supabase/tests/ is executed, tracked or not — an untested file
+# is worse than a noisy one. This used to matter a great deal: until 2026-08-02
+# three of these files were UNTRACKED working-copy files that ran here and never
+# reached CI. All three are now resolved — freemium_gating_lockdown_test.sql and
+# sync_all_user_data_returns_verses_test.sql are committed and gate CI, and
+# backend_rls_audit.sql moved to supabase/checks/ because it was never a pgTAP
+# suite at all (it audits a POPULATED database; see the README there).
 # but any file listed in $SQL_TESTS_KNOWN_FAILING (space-separated basenames)
 # is reported under "PRE-EXISTING FAILURES" and does not, on its own, fail the
 # run. Everything else is strict.

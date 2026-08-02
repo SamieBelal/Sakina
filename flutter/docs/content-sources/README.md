@@ -6,25 +6,34 @@ that is not evidence they are unused.
 
 ## What depends on them
 
-`lib/core/constants/knowledge_base.dart` — 3,126 lines — says so in its own
-header: *"Knowledge base **distilled from** Sheikh Omar Suleiman's 'The Dua I
-Need' series … **drawn directly from the series transcripts**."* Its episode
-list maps one-to-one onto the filenames here:
-
-| knowledge_base.dart | file |
-|---|---|
-| Ep 2 — Al-Wahid, Al-Ahad, Al-Witr | `ep02_al_wahid_al_ahad.txt` |
-| Ep 3 — Al-Hadi, An-Nur, Al-Mubin | `ep03_al_hadi_an_nur.txt` |
-| Ep 5 — Ar-Rabb, Al-Mawla, An-Nasir | `ep05_ar_rabb.txt` |
-| Ep 9 — Al-Ghafir … At-Tawwab | `ep09_al_ghaffar_tawwab.txt` |
-| … | … |
-
-`episode_01.txt` … `episode_20.txt` are the earlier, un-renamed batch covering
-Al-Wadud, Al-'Afuw, Al-Wakil, Al-Jami', Al-Karim/Al-Wahhab, Al-Hayy/Al-Qayyum,
-As-Samad, Al-Wali, Al-Majid/Al-'Azim, As-Salam/Al-Quddus, Al-Qawi/Al-Matin.
+`lib/core/constants/knowledge_base.dart` says so in its own header: *"Knowledge
+base **distilled from** Sheikh Omar Suleiman's 'The Dua I Need' series …
+**drawn directly from the series transcripts**."*
 
 The relationship is one-directional: the transcript is the **input**, the Dart
 file is the **output**. You cannot regenerate a transcript from the distillate.
+
+### Coverage — read this before relying on the citation guarantee
+
+Two naming conventions, one series:
+
+- `ep02_…`–`ep29_…` (13 files) — the numbered episodes, named for their Names.
+- `episode_01.txt`–`episode_20.txt` (20 files) — an earlier batch, numbered
+  only. Ep 7 (Ar-Rahman, Ar-Rahim) lives here as `episode_07.txt`, **not** as an
+  `ep07_*` file; it is easy to look for it under the first convention, not find
+  it, and wrongly conclude there is a gap.
+
+Between them, every Omar Suleiman episode `knowledge_base.dart` lists has a
+transcript.
+
+**The gap that is real:** `knowledge_base.dart` also covers a *second* series —
+**"The Name I Need" by Sheikh Mikaeel Smith, Classes 1–22** — and **none of it
+is here.** `grep -ril 'mikaeel' .` returns nothing. Roughly half that file's
+entries therefore have **no citable source in this repo**. If a teaching
+attributed to Al-Shakur, Al-Qabid/Al-Basit, Al-Mu'izz/Al-Mudhil,
+Al-Muqaddim/Al-Mu'akhkhir, Ar-Razzaq or the other Mikaeel Smith classes is
+questioned, this corpus cannot answer it. Sourcing those transcripts is
+outstanding work, not a solved problem.
 
 ## Why they matter beyond convenience
 

@@ -204,18 +204,26 @@ confidently wrong answer (see the `guided_tour_enabled` row).
 A flag is safe to delete when **no shipped binary still reads it**. That is a
 higher bar than "master no longer reads it", and it is the bar this table uses.
 
+**"Read by" means READ, not written.** Every site below was re-verified 2026-08-02.
+A key read in two places lists both — missing the second is exactly how you
+conclude a live flag is dead.
+
 | Key | Read by | Status | Safe to delete when |
 |---|---|---|---|
 | `guided_tour_enabled` | `main.dart:399` → `flag_guided_tour` super property | **LIVE for users.** See the note below. | The 1.3.0 tour deletion is live AND 1.2.0 adoption has tailed off |
-| `reel_first_onboarding_enabled` | `onboarding_screen.dart:182` | **LIVE kill switch** — the revert path for 1.3.0's entire thesis | T0+6wk keep decision |
-| `onboarding_trim_enabled` | `onboarding_screen.dart:185` | **LIVE** — picks which flow the kill switch reverts *to* | With the row above; deleting it alone leaves the switch with no target |
+| `reel_first_onboarding_enabled` | `onboarding_screen.dart:181` | **LIVE kill switch** — the revert path for 1.3.0's entire thesis | T0+6wk keep decision |
+| `onboarding_trim_enabled` | `onboarding_screen.dart:184` **and** `main.dart:385` | **LIVE** — picks which flow the kill switch reverts *to*; also a super property | With the row above; deleting it alone leaves the switch with no target |
 | `post_tour_paywall_mode` | `app_session.dart:356` | **LIVE**, prod = `soft` | Never — a dial, not a flag |
-| `hard_paywall_after_tour_enabled` | `app_session.dart:792` | Legacy bool; the fallback when the mode key is unset | Once `post_tour_paywall_mode` has held in prod across a release |
-| `warmup_reflect_size`, `warmup_built_dua_size`, `warmup_discover_name_size` | `gating_service.dart:201` | **LIVE dials**, prod = 3/3/3 | Never — meant to be tuned |
-| `weekly_pool_size` | `gating_service.dart:298` | **LIVE dial**, prod = 3 | Never |
+| `hard_paywall_after_tour_enabled` | `app_session.dart:792` **and** `main.dart:398` | Legacy bool; the fallback when the mode key is unset, plus a super property | Once `post_tour_paywall_mode` has held in prod across a release |
+| `warmup_reflect_size`, `warmup_built_dua_size`, `warmup_discover_name_size` | `gating_service.dart:222` (keys declared `:201`) | **LIVE dials**, prod = 3/3/3 | Never — meant to be tuned |
+| `weekly_pool_size` | `gating_service.dart:310` (key declared `:298`) | **LIVE dial**, prod = 3 | Never |
 | `bypass_token_cost`, `max_bypasses_per_day` | Server-side RPC only | Live until the bypass subsystem dies | [Softener wave](#one-currency-merge-tokens--tier-up-scrolls-into-noor) |
-| `new_signup_cohort` | `t0_flip_all_to_reel_v1.sql` | **Not yet flipped** — still `'legacy'` | After T0, once every account is backfilled |
+| `new_signup_cohort` | **`20260731100000_handle_new_user_stamps_discover_warmup.sql:67`** — the signup trigger | **Not yet flipped** — still `'legacy'` | After T0, once every account is backfilled. **Deleting the row breaks `handle_new_user`**, which reads it on every signup |
 | `reverse_trial_experiment_enabled` | Retired 2026-08-01 18:11 UTC | Row still present, read by nothing | Now — bucket 5 above |
+
+`t0_flip_all_to_reel_v1.sql` **writes** `new_signup_cohort`; it does not read it.
+An earlier draft of this table cited it as the reader, which would have sent
+someone deleting the key to the wrong file and past the trigger that depends on it.
 
 ### The `guided_tour_enabled` trap, written down so it is not re-derived
 

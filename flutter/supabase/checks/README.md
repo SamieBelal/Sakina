@@ -35,9 +35,13 @@ a regression. Running it under `run_sql_tests.sh` was the bug.
 **It had never actually run in CI** — it was untracked until 2026-08-02, so CI
 had never seen it. Committing it into `tests/` would have turned the build red
 for the first time, during release week, on a script that was never a member of
-that suite. `run_sql_tests_clean.sh` hides this locally by listing it in
-`SQL_TESTS_KNOWN_FAILING`; the CI workflow sets that variable to `''` and
-tolerates nothing.
+that suite.
+
+Until that day `run_sql_tests_clean.sh` masked the failure by naming this file
+in its default `SQL_TESTS_KNOWN_FAILING`, while the CI workflow sets that
+variable to `''` and tolerates nothing — so local runs were green and CI would
+not have been. That default is now empty in both places, which is why moving
+this file out of the glob was the fix rather than extending the allowlist.
 
 ## Running it
 

@@ -26,9 +26,8 @@ node_modules/
 .gstack/
 
 # Agent/tool config — machine-local, never commit.
-# .mcp.json carries live service credentials (OneSignal app id + REST API key).
-# It reached a commit once already, on the unpushed backup-feat-hard-paywall
-# branch (2dd0258, 2026-06-03); this line is what stops the next `git add .`.
+# .mcp.json carries live service credentials. It has reached a commit before on
+# a local branch; this line is what stops the next `git add .`.
 .mcp.json
 .claude/settings.local.json
 .claude/worktrees/
