@@ -54,19 +54,35 @@ class DuaTextBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Vertical centering of the Arabic is deliberate and load-bearing.
+        // Two things used to push it high with a dead gap underneath:
+        //   1. `Divider()` defaults to a 16px-tall BOX with its 1px line
+        //      centered — so it silently reserved 8px above itself, on top of
+        //      the 16px gap already there. Against the caller's ~8px above the
+        //      block that made the spacing 8-above / 24-below. `height: 1`
+        //      removes the phantom box.
+        //   2. Amiri's line box is much taller than its ink; `even` leading
+        //      splits that slack equally instead of proportionally.
+        // Keep both, and keep the padding here symmetric — re-check the
+        // related-dua card, beat reveal, and journal views before retuning.
         if (arabic.isNotEmpty)
-          SizedBox(
-            width: double.infinity,
-            child: Text(
-              arabic,
-              style: AppTypography.quranArabic.copyWith(color: arabicColor),
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.center,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: SizedBox(
+              width: double.infinity,
+              child: Text(
+                arabic,
+                style: AppTypography.quranArabic.copyWith(
+                  color: arabicColor,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         if (arabic.isNotEmpty && transliteration.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.md),
-          Divider(color: dividerColor),
+          Divider(height: 1, color: dividerColor),
           const SizedBox(height: AppSpacing.md),
         ],
         if (transliteration.isNotEmpty)
