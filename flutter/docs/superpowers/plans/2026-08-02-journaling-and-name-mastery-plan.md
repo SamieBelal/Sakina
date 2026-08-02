@@ -306,6 +306,38 @@ Neither error is dangerous on its own. The pattern is: **a founder signing again
 
 **Known limits of the verification, recorded because the founder signs against it:** ḥadīth checking is not independent of sunnah.com *as a corpus* — sunnah.com 403s automated fetching, so both the drafter and the verifier used Wayback archives of the exact URLs (and a mirror), all deriving from the same digitisation. No printed edition or Arabic-primary database (Shamela, Dorar) was consulted, and **no isnād was audited** — published grade lines were accepted.
 
+### G2b — The two checks the pilot invented. Apply both to every remaining deck.
+
+These are the pilot's real output — worth more than the five decks themselves, because they are what the remaining ~85 reuse.
+
+#### The five bars (generalised from Al-Ḥalīm's three attempts)
+
+Al-Ḥalīm failed twice and each failure produced a rule that caught the next one. Stated generally, a story may only teach a Name if:
+
+1. **The thing the Name does is demonstrated in the cited text, in Allah's words** — not asserted by the deck's own prose, and not carried by a trailing epithet.
+2. **The distinguishing quality is shown, not stated.** Rev 1 died here: its climax verses used `ʿ-f-w`, so it demonstrated *pardon* while claiming to teach *forbearance*.
+3. **It does not collapse into a sibling Name.** Check the Arabic roots of every quotation against the Names already shipped and the Names in the same batch. `ʿ-f-w`, `gh-f-r`, `r-ḥ-m` are dense and overlap constantly.
+4. **The Name's own root ideally appears in the source text** — but not at the cost of bar 3. Al-Ḥalīm gave this up deliberately: no āyah exists that carries `ḥalīm` in-text, demonstrates forbearance in its own passage, *and* avoids both sibling roots. Recording the sweep that proves it is what makes the trade legitimate.
+5. **The arc must not terminate in punishment just outside the excerpt** — see the successor sweep below. This is what killed rev 2, and it killed it via a rule the deck had itself written down and then not applied to its own selection.
+
+#### The successor sweep (mandatory per quotation)
+
+For **every** Qur'anic quotation, fetch the neighbouring āyāt and answer three questions in order:
+
+1. Does the successor (n+1) **contradict** what the beat asserts?
+2. Does it **complete a thought** the excerpt leaves misleadingly open?
+3. Does the excerpt **stop short of the passage's own ending** in a way that changes its meaning?
+
+Also fetch **n−1** wherever the quotation opens mid-sentence. A reliable tell: if Abdel Haleem renders the opening word lower-case, the āyah grammatically continues the previous one.
+
+Mechanics worth keeping: **a 404 from `verses/by_key/{s}:{n+1}` is the sūrah-final signal** — that is how 35:45 was proven to have no successor at all, which is the strongest possible form of bar 5. And scan the neighbours for sibling-root adjacency: a Name one āyah away from your verse beat is one tap from the citation even when it never reaches a screen.
+
+**The sweep is not optional and not merit-based.** Its first run found that `al-afuw@1` — the deck the pipeline called its cleanest — has 42:26 ending on *"the disbelievers will have a severe punishment"*, structurally the same shape that disqualified Al-Ḥalīm rev 2. It is not blocking there, because it contradicts no beat. But a batch cannot enforce a rule against one deck and leave it unexamined on another.
+
+#### One schema fact that bar 3 depends on
+
+`story` and `verse` beats carry `arabic: ""` in **all 14 shipped decks** — only `name_intro` and `dua` beats render Arabic. So a sibling root inside a story quotation's *Arabic* never reaches a screen, while one in a `name_intro` or duʿā always does. Bar 3 should be judged against what renders, and the check must be run over the Arabic strings that actually ship.
+
 ### G3 — Batches
 Five at a time, adversarially reviewed, founder-signed. ~85 decks remain (14 of 99 exist). Then the pack question bank under the same discipline.
 
