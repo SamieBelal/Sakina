@@ -11,6 +11,11 @@ import 'package:sakina/core/constants/duas.dart';
 // comparable with `acquisition_promise.problem_category` instead of forking a
 // second vocabulary (plan §9 guardrails).
 import 'package:sakina/features/onboarding/content/problem_chips.dart';
+// The reflect provider owns `user_reflections` — its row shape, its clamps and
+// its local cache. The nightly muḥāsabah is written through that same path
+// (`buildSavedReflection` + `saveMuhasabahReflection`) rather than a second
+// writer, so one code path owns the table.
+import 'package:sakina/features/reflect/providers/reflect_provider.dart';
 import 'package:sakina/models/name_story_deck.dart';
 import 'package:sakina/services/ai_service.dart';
 import 'package:sakina/services/analytics_events.dart';
@@ -2276,6 +2281,18 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
         // gacha card reveal already showed the Name.
         reflectStep: 1,
         clearError: true,
+        // A deck night has no AI reflection, and `completeDeeper` now PERSISTS
+        // whatever is on state. `reflectResult` survives a cycle — only
+        // `resetToday()` and the off-topic re-ask null it — and the bypass CTAs
+        // (`discoverNameWithBypass` / `discoverNameWithFirstBypass`) start a new
+        // cycle WITHOUT `resetToday()`. Leave it and a decked night writes the
+        // PREVIOUS night's reframe/story/beat_data/duʿa against tonight's Name,
+        // user_text and date — plausible enough that nobody would spot it.
+        //
+        // The comment above ("no `reflectResult` is ever needed") was true right
+        // up until the journal entry started reading it; the assumption expired
+        // silently. Clearing it here keeps the deck path's promise literal.
+        clearReflectResult: true,
       );
       return;
     }
@@ -2355,6 +2372,77 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
     await _persistTodayState();
     await _awardDailyNoor();
     await _markDayOpenSatisfied();
+    // LAST, deliberately. Everything above is already committed by the time it
+    // runs, so a refused or unreachable journal write costs a row and nothing
+    // else. See [_persistMuhasabahEntry].
+    await _persistMuhasabahEntry();
+  }
+
+  /// Writes tonight's muḥāsabah as a durable journal entry (Wave B).
+  ///
+  /// Until this existed a completed muḥāsabah left NO artifact: the check-in
+  /// row carries no answer text (the discover path writes `q1='discover'` with
+  /// q2-q4 empty) and the AI reflection was never persisted at all — the user's
+  /// own words survived only in the device-local per-day blob written by
+  /// [_persistTodayState], which is keyed by the day and never read again once
+  /// the day rolls over.
+  ///
+  /// **`entry_local_day` comes from [resolveUserLocalDay], never from
+  /// `saved_at`.** The streak, the launch gate and the reward ladder all key on
+  /// a day boundary; a timestamp disagrees with them near midnight, and this
+  /// column is what the Wave C time machine joins on (`- 30 / -90 / -365`).
+  ///
+  /// **Best-effort, exactly like [_awardDailyNoor].** By the time it runs the
+  /// streak, the quests and the Noor award are already committed: a lost row is
+  /// recoverable (the server-side unique index makes tomorrow's replay safe,
+  /// and nothing downstream depends on it existing), a lost streak is not.
+  /// [saveMuhasabahReflection] already returns false rather than throwing on a
+  /// refused write; this catch covers the local-day resolution and the prefs
+  /// hop as well.
+  Future<void> _persistMuhasabahEntry() async {
+    try {
+      final name = state.checkinName?.trim() ?? '';
+      final nameArabic = state.checkinNameArabic?.trim() ?? '';
+      final userText = _muhasabahUserText(state);
+      // Nothing was revealed and nothing was written — a bare lifecycle flip
+      // (a legacy `skipAll`, a test harness driving the notifier directly).
+      // An empty row is not an artifact; it is noise that would occupy the
+      // day's one muḥāsabah slot.
+      if (name.isEmpty && userText.isEmpty) return;
+
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      await saveMuhasabahReflection(
+        buildSavedReflection(
+          userText: userText,
+          // Null on the deck path, which has no AI response at all — the
+          // pre-authored beats ARE the content. The night still deserves its
+          // entry: the user's words, the Name and the day.
+          response: state.reflectResult,
+          date: debugDailyLoopClock().toIso8601String(),
+          name: name.isEmpty ? null : name,
+          nameArabic: nameArabic.isEmpty ? null : nameArabic,
+          source: reflectionSourceMuhasabah,
+          entryLocalDay: localDay.dateString,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[daily_loop] muhasabah journal entry not written: $e');
+    }
+  }
+
+  /// The user's own words for tonight's entry.
+  ///
+  /// [DailyLoopState.checkinAnswers] is single-element on the live path
+  /// (`submitDailyAnswer` REPLACES rather than appends); the join covers the
+  /// dormant 4-question `answerCheckin` shape, and `checkinAnswer` covers a
+  /// legacy day blob that only ever carried the combined summary.
+  static String _muhasabahUserText(DailyLoopState source) {
+    final answers = source.checkinAnswers
+        .map((a) => a.trim())
+        .where((a) => a.isNotEmpty)
+        .toList();
+    if (answers.isNotEmpty) return answers.join('\n\n');
+    return source.checkinAnswer?.trim() ?? '';
   }
 
   /// Stamps both day-open markers on completion, by **any** entry path (W4
