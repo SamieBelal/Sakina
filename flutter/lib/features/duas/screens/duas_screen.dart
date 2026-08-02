@@ -27,7 +27,6 @@ import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/beat_reveal/sacred_canvas_threshold.dart';
 import 'package:sakina/widgets/coachmark/tour_anchor.dart';
 import 'package:sakina/widgets/dua_loading.dart';
-import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 // RelatedDuaHeart + showRelatedDuaSnack moved to the extracted widget file
 // (decision 19A). Re-exported here so existing importers of duas_screen.dart
@@ -205,14 +204,9 @@ class _DuasScreenState extends ConsumerState<DuasScreen>
               pushPaywall(context, placement: PaywallPlacement.softInApp),
         ).whenComplete(notifier.dismissBuildWarmupExhausted);
       }
-      // Show upgrade sheet when the free saved-dua limit is hit
-      if (next.needsUpgrade && !(prev?.needsUpgrade ?? false)) {
-        UpgradeRequiredSheet.show(
-          context,
-          currentCount: next.savedBuiltDuas.length,
-          featureLabel: 'dua',
-        ).then((_) => notifier.dismissUpgradePrompt());
-      }
+      // The saved-duʿā limit upsell that used to live here was removed on
+      // 2026-08-02 with the 5-entry save cap itself (design §9A). Saving is
+      // unlimited; the weekly allowance pool is the only gate.
     });
 
     if (state.buildLoading) {

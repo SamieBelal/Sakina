@@ -401,11 +401,6 @@ class ReflectState {
   /// [ReflectNotifier.dismissWarmupExhausted] to clear.
   final GatedFeature? warmupJustExhausted;
 
-  /// True when a save was blocked by the free-tier journal limit. UI should
-  /// surface the upgrade sheet and call [ReflectNotifier.dismissUpgradePrompt]
-  /// when the user acknowledges. Previously this case was a silent no-op.
-  final bool needsUpgrade;
-
   const ReflectState({
     this.screenState = ReflectScreenState.input,
     this.userText = '',
@@ -419,7 +414,6 @@ class ReflectState {
     this.savedReflections = const [],
     this.gateResult,
     this.warmupJustExhausted,
-    this.needsUpgrade = false,
   });
 
   ReflectState copyWith({
@@ -435,7 +429,6 @@ class ReflectState {
     List<SavedReflection>? savedReflections,
     GateResult? gateResult,
     GatedFeature? warmupJustExhausted,
-    bool? needsUpgrade,
     bool clearResult = false,
     bool clearError = false,
     bool clearGateResult = false,
@@ -456,7 +449,6 @@ class ReflectState {
       warmupJustExhausted: clearWarmupJustExhausted
           ? null
           : (warmupJustExhausted ?? this.warmupJustExhausted),
-      needsUpgrade: needsUpgrade ?? this.needsUpgrade,
     );
   }
 }
@@ -874,21 +866,16 @@ class ReflectNotifier extends StateNotifier<ReflectState>
     return buffer.toString();
   }
 
-  static const int freeJournalLimit = 5;
-
-  /// Called by the UI after the upgrade sheet is dismissed or acknowledged.
-  void dismissUpgradePrompt() {
-    state = state.copyWith(needsUpgrade: false);
-  }
-
+  /// Saves the reflection. There is deliberately no free-tier row cap here.
+  ///
+  /// A 5-entry lifetime save cap lived at the top of this method from May 2026
+  /// until 2026-08-02. It was written against the old generation model and was
+  /// never revisited when W5 replaced that model with a weekly allowance pool.
+  /// Because `markUsed` spends the weekly use *before* this method runs, the
+  /// cap only ever destroyed output the user had already paid for. The weekly
+  /// pool is now the single gate on this behaviour; keeping what it produces
+  /// is unlimited. See design §9A (2026-08-02).
   Future<void> _saveReflection(ai.ReflectResponse response) async {
-    // Check journal limit for free users
-    final premium = await PurchaseService().isPremium();
-    if (!premium && state.savedReflections.length >= freeJournalLimit) {
-      state = state.copyWith(needsUpgrade: true);
-      return;
-    }
-
     final preview = response.reframe.length > 150
         ? '${response.reframe.substring(0, 150)}...'
         : response.reframe;

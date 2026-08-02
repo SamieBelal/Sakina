@@ -28,7 +28,6 @@ import 'package:sakina/services/token_service.dart';
 import 'package:sakina/widgets/first_visit_hint/first_visit_hint_banner.dart';
 import 'package:sakina/widgets/reflect_loading.dart';
 import 'package:sakina/widgets/share_card.dart';
-import 'package:sakina/widgets/upgrade_required_sheet.dart';
 
 class ReflectScreen extends ConsumerStatefulWidget {
   const ReflectScreen({super.key});
@@ -158,19 +157,10 @@ class _ReflectScreenState extends ConsumerState<ReflectScreen>
               pushPaywall(context, placement: PaywallPlacement.softInApp),
         ).whenComplete(notifier.dismissWarmupExhausted);
       }
-      // Journal-limit upsell (decision 18A): NEVER surface it over the beat
-      // canvas mid-ritual. `needsUpgrade` flips at response time (screenState =
-      // result), so we defer the sheet until the user lands back on the input
-      // screen after the flow — the natural pause.
-      if (next.needsUpgrade &&
-          next.screenState == ReflectScreenState.input &&
-          prev?.screenState != ReflectScreenState.input) {
-        UpgradeRequiredSheet.show(
-          context,
-          currentCount: next.savedReflections.length,
-          featureLabel: 'reflection',
-        ).then((_) => notifier.dismissUpgradePrompt());
-      }
+      // The journal-limit upsell that used to live here was removed on
+      // 2026-08-02 with the 5-entry save cap itself (design §9A). Saving is
+      // unlimited; the weekly allowance pool is the only gate, and it already
+      // has its own sheets above.
     });
 
     // Check achievements when reflection result appears

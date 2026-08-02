@@ -7,7 +7,7 @@ import 'package:sakina/features/daily/widgets/card_reveal_overlay.dart';
 ///
 /// When a "blocking" route is on top (CardRevealOverlay, LevelUpOverlay,
 /// LapsedTrialSheet, FirstStepsOverlay, DailyLaunchOverlay, DailyCapSheet,
-/// WarmupExhaustedSheet, UpgradeRequiredSheet), the host
+/// WarmupExhaustedSheet), the host
 /// renders `SizedBox.shrink()` so the tour doesn't punch through and
 /// highlight widgets behind that modal. When the blocking route pops, the
 /// host's listener rebuilds and the overlay re-appears for the current
@@ -29,7 +29,9 @@ class TourRouteObserver extends NavigatorObserver {
     'DailyLaunchOverlay',
     'DailyCapSheet',
     'WarmupExhaustedSheet',
-    'UpgradeRequiredSheet',
+    // 'UpgradeRequiredSheet' was removed 2026-08-02 along with the journal
+    // save cap that raised it (design §9A). No route by that name is pushed
+    // any more.
   };
 
   /// Notifies listeners with the current top route's name (or null if no
