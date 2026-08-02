@@ -758,6 +758,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       }
 
       final selectedPackage = _selectedPackage;
+      // CAPTURED alongside the package, for the same reason. `_selectedPackage`
+      // was already captured so the CHARGE is correct — but the analytics below
+      // read the live `_selectedPlan`, and the plan tiles carry no busy-gate
+      // (unlike the footer CTA, `paywall_purchase_footer.dart:68`). A user who
+      // taps Subscribe on Annual-with-trial and flicks to Weekly before
+      // RevenueCat resolves would be billed Annual and REPORTED as Weekly, with
+      // `trial_started` flipped to `subscription_started_no_trial`.
+      //
+      // Nobody is mischarged. What breaks is the trial-vs-paid split and the
+      // plan attribution — which the comment forty lines down already names as
+      // "the three numbers the W5 keep decision reads".
+      final purchasedPlan = _selectedPlan;
+      final purchasedPlanName =
+          purchasedPlan == PaywallPlanType.annual ? 'annual' : 'weekly';
+      final purchasedGrantedTrial = _trialFor(purchasedPlan) != null;
       if (selectedPackage == null) {
         if (mounted) setState(() => _errorMessage = _offeringsErrorMessage);
         return;
@@ -801,13 +816,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       // `trial_started` for them inflated trial-start rate, deflated
       // trial-to-paid conversion, and mis-attributed the exit offer — the
       // three numbers the W5 keep decision reads.
-      final grantedTrial = _trialFor(_selectedPlan) != null;
       ref.read(analyticsProvider).track(
-        grantedTrial
+        purchasedGrantedTrial
             ? AnalyticsEvents.trialStarted
             : AnalyticsEvents.subscriptionStartedNoTrial,
         properties: {
-          'plan': _planName,
+          'plan': purchasedPlanName,
           AnalyticsEvents.propOrigin: _purchaseOrigin,
           'hard_gate': widget.hardGate,
           AnalyticsEvents.propPlacement: widget.placement.analyticsValue,

@@ -1,6 +1,13 @@
 -- T0 — put EVERY account on the reel_v1 free tier, immediately (D12).
 -- STAGED: run once, on release day, after the T0 build is live. See README.md.
 --
+-- ⚠️ RUN THE WHOLE FILE IN ONE TRANSACTION. `psql -1 -f <this file>`, or paste
+-- it with an explicit BEGIN/COMMIT around it. Without that, an error partway
+-- through leaves the snapshot taken and the flip half-applied — and in a client
+-- that does not set ON_ERROR_STOP, execution simply continues past the failure.
+-- The individual UPDATE is atomic on its own; the FILE is not (review,
+-- 2026-08-02).
+--
 -- Supersedes the softener wave's two-step notice→flip for the free tier.
 -- D12 (founder, 2026-08-01) replaced "migrate existing users after a 30-day
 -- notice" with "everyone tightens at T0, without notice". `softener_1_notice`
@@ -37,14 +44,26 @@ begin
   end if;
 end $$;
 
--- Optional but recommended: a restore point for the counters, since the clamp
--- is lossy. Drop it once the keep decision is made.
+-- NOT optional. This is the ONLY copy of the pre-clamp values — `least()` below
+-- discards the surplus at the moment it runs, and no other record of it exists.
+-- Drop it only once the keep decision is made, and understand that dropping it
+-- makes the rollback below permanently impossible.
+--
+-- The weekly-pool columns are captured too (review, 2026-08-02). They are all
+-- zero/NULL today because no account is on `reel_v1` yet — but the moment this
+-- script runs, users start accruing pool state, and without these columns a
+-- rollback would silently hand everyone a fresh week's allowance. Capturing a
+-- column that is currently empty costs nothing; discovering it was needed after
+-- a rollback costs a week of allowance per user.
 create table if not exists public.warmup_pre_t0_snapshot as
 select id,
        free_tier_cohort,
        warmup_reflect_remaining,
        warmup_built_dua_remaining,
        warmup_discover_name_remaining,
+       weekly_pool_used,
+       weekly_pool_week_start,
+       weekly_pool_reset_at,
        now() as captured_at
 from public.user_profiles;
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -647,4 +649,49 @@ void main() {
     expect(valve!.props[AnalyticsEvents.propPlacement],
         AnalyticsEvents.placementHardWall);
   });
+
+  group('the purchase outcome reports the plan that was BILLED', () {
+    // The plan tiles carry no busy-gate (unlike the footer CTA), so a user can
+    // flick from Annual to Weekly after tapping Subscribe and before
+    // RevenueCat resolves. `_selectedPackage` was already captured before the
+    // await, so the CHARGE is correct — but the analytics read the live
+    // `_selectedPlan`, meaning the user is billed Annual and reported as
+    // Weekly, with `trial_started` flipped to `subscription_started_no_trial`.
+    //
+    // Nobody is mischarged. What breaks is the trial-vs-paid split and the plan
+    // attribution — which that emit's own comment calls "the three numbers the
+    // W5 keep decision reads".
+    //
+    // A source pin, not a behavioural one, and deliberately so: driving a
+    // mid-flight selection change through the real purchase harness costs more
+    // than it proves, and the defect is entirely visible in which identifier
+    // the emit reads. Stated plainly rather than dressed up as coverage it
+    // does not have.
+    //
+    // MUTATION: change either captured local back to its live getter
+    // (`_trialFor(_selectedPlan)` / `_planName`) → this fails.
+    test('the outcome emit reads captured locals, not live state', () {
+      final source =
+          File('lib/features/onboarding/screens/paywall_screen.dart')
+              .readAsStringSync();
+
+      final emitStart = source.indexOf('AnalyticsEvents.trialStarted');
+      expect(emitStart, greaterThan(0),
+          reason: 'the outcome emit moved — re-point this pin, do not delete it');
+      final emit = source.substring(emitStart - 400, emitStart + 400);
+
+      expect(emit.contains('purchasedGrantedTrial'), isTrue,
+          reason: 'the trial/no-trial split must come from the plan captured '
+              'BEFORE the RevenueCat await');
+      expect(emit.contains('purchasedPlanName'), isTrue,
+          reason: 'the plan property must come from the captured plan');
+      expect(
+        RegExp(r"'plan':\s*_planName").hasMatch(emit),
+        isFalse,
+        reason: '`_planName` is a getter over the LIVE `_selectedPlan`, which '
+            'the user can change while the purchase is in flight',
+      );
+    });
+  });
+
 }

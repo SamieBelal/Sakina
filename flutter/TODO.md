@@ -10,14 +10,28 @@ Deferred work — needed before specific future milestones rather than today. Ea
 live there, not here. The five buckets are ordered and **not interchangeable**; buckets
 4 and 5 are *wrong* if done early.
 
-> **⚠️ Hard date — 1.3.0 cannot reach users before 2026-08-04, ~17:18 UTC.**
-> The build deletes the reverse-trial client code, and 25 app-granted trials are still
-> in flight; the last expires **2026-08-04 17:17:40 UTC** (verified in prod 2026-08-01).
-> That horizon is now **frozen** — `reverse_trial_experiment_enabled` was set to `false`
-> on 2026-08-01 18:11 UTC, so nothing mints new trials. Before it was flipped the date
-> slid forward 72h with every signup. Submit whenever you like; **hold the release**
-> (1.2.0 used `releaseType: MANUAL`, so you control the moment) until the gate in bucket 3
-> reads 0.
+> **⚠️ Hard date — 1.3.0 cannot reach users before 2026-08-04, ~19:44 UTC.**
+> The build deletes the reverse-trial client code, and **20 app-granted trials are still
+> in flight**; the last expires **2026-08-04 19:43:30 UTC** (re-verified in prod
+> 2026-08-02 01:52 UTC).
+>
+> **⚠️ CORRECTION — an earlier version of this line said the horizon was "frozen" at
+> 17:18 UTC the moment `reverse_trial_experiment_enabled` flipped to `false`. That was
+> wrong, and prod proved it.** The flag flipped at 2026-08-01 18:11 UTC and a trial was
+> still minted at **19:43:30 UTC — 92 minutes later**, pushing the horizon out by 2h26m.
+>
+> The cause: `AppConfigService` caches config **for 6 hours**
+> (`app_config_service.dart:60`). A client holding a stale `true` keeps minting until its
+> own cache expires, so a flag flip propagates over a 6-hour tail, not instantly. All
+> caches from that flip were stale by ~00:11 UTC on 2026-08-02, and the horizon has held
+> since — but the general lesson stands:
+>
+> **Treat any recorded expiry as a FLOOR, never a fact. Re-query the gate immediately
+> before you press Release.** That is what bucket 3 is for, and it is why it says "do not
+> trust a previously recorded one" — advice this very line failed to follow.
+>
+> Submit whenever you like; **hold the release** (1.2.0 used `releaseType: MANUAL`, so you
+> control the moment) until the gate in bucket 3 reads 0.
 
 ### 0 — Prep that does not wait for the build
 
