@@ -60,6 +60,27 @@ const int _threadMaxCount = 20;
 const int _threadTextMaxChars = 2048;
 const int _threadAtMaxChars = 64;
 
+/// Byte budget for the WHOLE `thread` payload — the one server cap on this
+/// column that counts bytes rather than codepoints.
+///
+/// The trigger's backstop is `pg_column_size(new.thread) > 49152`. Every other
+/// cap (`<= 20` elements, `<= 2048` chars of `text`, `<= 64` chars of `at`)
+/// counts codepoints, and the clamps above mirror those exactly. This one did
+/// not have a client-side mirror at all, and the gap is not academic: Arabic is
+/// two UTF-8 bytes per codepoint, so twenty appends at the client's OWN
+/// per-element cap is ~80 KB of text — every per-element clamp reports the row
+/// as valid and the server rejects the whole write. (Wave B review, finding 7;
+/// inert then because `thread` was always `[]`, live now that Wave C fills it.)
+///
+/// 40960 rather than 49152 because what is measured here is the JSON **text**
+/// encoding while the server measures the jsonb **binary** datum. The two are
+/// close but not identical (jsonb adds a 4-byte JEntry per element and per key,
+/// and drops the quotes), so the 8 KB gap is the margin that keeps an append the
+/// client accepted from being an append the server refuses. It is also exactly
+/// the migration's own stated legitimate worst case — *"20 appends x 2048 chars
+/// is ~40KB"*.
+const int _threadMaxBytes = 40960;
+
 /// `user_reflections.source` values — a closed set of two, matching the server
 /// CHECK. Wire strings rather than an enum because they are both a column value
 /// and a persisted prefs format: a value written by another build has to
@@ -317,6 +338,71 @@ class SavedReflection {
     );
   }
 
+  /// The one place this object is rebuilt.
+  ///
+  /// Every named argument merges with `?? this.x`, so a field this method does
+  /// not mention survives by construction. That property is the point: the
+  /// previous shape ([copyWithBeats]) enumerated all twenty-odd fields
+  /// positionally, and forgetting one there silently dropped it on every row
+  /// carrying `beat_data` — i.e. on every muḥāsabah row. Wave B caught that by
+  /// hand; this makes the class of bug unreachable.
+  ///
+  /// [entryLocalDay] cannot be set back to null through here. Nothing needs to:
+  /// a Reflect entry is created without one and a muḥāsabah entry never loses
+  /// the night it belongs to.
+  SavedReflection copyWith({
+    String? id,
+    String? date,
+    String? userText,
+    String? name,
+    String? nameArabic,
+    String? reframePreview,
+    String? reframe,
+    String? story,
+    List<SavedVerse>? verses,
+    String? duaArabic,
+    String? duaTransliteration,
+    String? duaTranslation,
+    String? duaSource,
+    List<Map<String, String>>? relatedNames,
+    String? reframeKey,
+    String? reframeBody,
+    String? storyTitle,
+    List<String>? storyBeats,
+    String? storySource,
+    String? takeaway,
+    String? source,
+    String? entryLocalDay,
+    List<ReflectionThreadEntry>? thread,
+    String? azm,
+  }) =>
+      SavedReflection(
+        id: id ?? this.id,
+        date: date ?? this.date,
+        userText: userText ?? this.userText,
+        name: name ?? this.name,
+        nameArabic: nameArabic ?? this.nameArabic,
+        reframePreview: reframePreview ?? this.reframePreview,
+        reframe: reframe ?? this.reframe,
+        story: story ?? this.story,
+        verses: verses ?? this.verses,
+        duaArabic: duaArabic ?? this.duaArabic,
+        duaTransliteration: duaTransliteration ?? this.duaTransliteration,
+        duaTranslation: duaTranslation ?? this.duaTranslation,
+        duaSource: duaSource ?? this.duaSource,
+        relatedNames: relatedNames ?? this.relatedNames,
+        reframeKey: reframeKey ?? this.reframeKey,
+        reframeBody: reframeBody ?? this.reframeBody,
+        storyTitle: storyTitle ?? this.storyTitle,
+        storyBeats: storyBeats ?? this.storyBeats,
+        storySource: storySource ?? this.storySource,
+        takeaway: takeaway ?? this.takeaway,
+        source: source ?? this.source,
+        entryLocalDay: entryLocalDay ?? this.entryLocalDay,
+        thread: thread ?? this.thread,
+        azm: azm ?? this.azm,
+      );
+
   SavedReflection copyWithBeats({
     required String reframeKey,
     required String reframeBody,
@@ -325,34 +411,13 @@ class SavedReflection {
     required String storySource,
     required String takeaway,
   }) =>
-      SavedReflection(
-        id: id,
-        date: date,
-        userText: userText,
-        name: name,
-        nameArabic: nameArabic,
-        reframePreview: reframePreview,
-        reframe: reframe,
-        story: story,
-        verses: verses,
-        duaArabic: duaArabic,
-        duaTransliteration: duaTransliteration,
-        duaTranslation: duaTranslation,
-        duaSource: duaSource,
-        relatedNames: relatedNames,
+      copyWith(
         reframeKey: reframeKey,
         reframeBody: reframeBody,
         storyTitle: storyTitle,
         storyBeats: storyBeats,
         storySource: storySource,
         takeaway: takeaway,
-        // Carried, not defaulted. This constructor rebuilds the whole object,
-        // so omitting a field here silently drops it on EVERY row that has
-        // beat_data — which is every muḥāsabah row.
-        source: source,
-        entryLocalDay: entryLocalDay,
-        thread: thread,
-        azm: azm,
       );
 
   Map<String, dynamic> toJson() => {
@@ -654,6 +719,257 @@ Future<void> _prependToReflectionCache(SavedReflection reflection) async {
   await prefs.setString(
     supabaseSyncService.scopedKey(_reflectionsKey),
     jsonEncode([reflection, ...current].map((r) => r.toJson()).toList()),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wave C — the night stays open until the local day rolls over
+// ---------------------------------------------------------------------------
+//
+// Everything below is a PURE TEXT WRITE against a row that already exists. No
+// path here reveals a Name, marks a streak, claims the reward ladder, unseals
+// the queue, engages a card or consumes an allowance — those fire exactly once
+// per night, at first submit, and the `!state.checkinDone` gate in
+// `muhasabah_screen._showsQuestion` is what keeps them there. Nothing in this
+// section may ever grow a reason to touch the economy; if it does, it belongs
+// on the submit path instead.
+
+/// The muḥāsabah entry for [entryLocalDay], or null.
+///
+/// Reads the local cache rather than the server: it is authoritative for
+/// everything written on this device, it is what `sync_all_user_data()`
+/// rehydrates into on a fresh install, and it works with no connection — which
+/// matters, because "add to tonight" is the one journaling affordance a user is
+/// most likely to reach for in bed with the radio off.
+Future<SavedReflection?> readMuhasabahEntryForDay(String entryLocalDay) async {
+  for (final r in await _readCachedReflections()) {
+    if (r.isMuhasabah && r.entryLocalDay == entryLocalDay) return r;
+  }
+  return null;
+}
+
+/// Appends one line to [entryLocalDay]'s entry (C1).
+///
+/// Returns the updated entry, or null when there is nothing to append to (no
+/// entry for that day — including the case where the local day has rolled over
+/// and tonight has not started yet), when [text] is blank, when the day's
+/// twenty appends are used up, or when the server refuses the write.
+///
+/// **The day is the caller's, resolved at call time.** An append made after
+/// midnight belongs to the new day's row, and if that day has no row yet the
+/// append is refused rather than being filed against yesterday.
+Future<SavedReflection?> appendToMuhasabahThread({
+  required String entryLocalDay,
+  required String text,
+  DateTime Function()? now,
+}) async {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+
+  final entry = await readMuhasabahEntryForDay(entryLocalDay);
+  if (entry == null) return null;
+
+  final fitted = fitThreadAppend(
+    entry.thread,
+    ReflectionThreadEntry.clamped(
+      at: (now ?? DateTime.now)().toUtc().toIso8601String(),
+      text: trimmed,
+    ),
+  );
+  if (fitted == null) return null;
+
+  return _persistUpdatedReflection(
+    entry.copyWith(thread: [...entry.thread, fitted]),
+  );
+}
+
+/// Sets the night's one line of forward resolve (C4).
+///
+/// Returns the updated entry, the unchanged entry when the text is already what
+/// is stored, or null when there is no entry for that day or the server refuses.
+Future<SavedReflection?> setMuhasabahAzm({
+  required String entryLocalDay,
+  required String azm,
+}) async {
+  final entry = await readMuhasabahEntryForDay(entryLocalDay);
+  if (entry == null) return null;
+  final next = _clampText(azm.trim(), _azmMaxChars);
+  if (next == entry.azm) return entry;
+  return _persistUpdatedReflection(entry.copyWith(azm: next));
+}
+
+/// The append that will actually fit, or null when the entry has no room left.
+///
+/// Enforces BOTH caps the server does on a whole `thread`: the element count,
+/// and the total byte size. The text is truncated rather than the append
+/// refused, because the clamp-at-construction doctrine (P2-5 REVIEW Finding 1)
+/// is that the user sees on screen exactly what was stored — a silently dropped
+/// append is the one outcome a journaling feature cannot have.
+@visibleForTesting
+ReflectionThreadEntry? fitThreadAppend(
+  List<ReflectionThreadEntry> existing,
+  ReflectionThreadEntry candidate,
+) {
+  if (existing.length >= _threadMaxCount) return null;
+  var text = candidate.text;
+  while (text.isNotEmpty) {
+    final trial = ReflectionThreadEntry(at: candidate.at, text: text);
+    final size = threadJsonBytes([...existing, trial]);
+    if (size <= _threadMaxBytes) return trial;
+    // Every codepoint is at least one UTF-8 byte, so dropping `over` characters
+    // always removes at least `over` bytes. That makes the loop monotone and
+    // guarantees it terminates.
+    final over = size - _threadMaxBytes;
+    var cut = text.length - over.clamp(1, text.length);
+    // Back off one more code unit when the cut lands between a surrogate pair.
+    // `substring` counts UTF-16 code units, so an emoji or any astral character
+    // straddling the boundary is severed into a lone surrogate — and `utf8.encode`
+    // does NOT throw on that, it silently emits U+FFFD. The user would get their
+    // last character replaced by a replacement glyph, saved, with no error
+    // anywhere. Splitting a grapheme cluster is merely ugly; splitting a
+    // surrogate pair corrupts, so only the second case is corrected here.
+    if (cut > 0 && cut < text.length) {
+      final lead = text.codeUnitAt(cut - 1);
+      final trail = text.codeUnitAt(cut);
+      final splitsPair = lead >= 0xD800 &&
+          lead <= 0xDBFF &&
+          trail >= 0xDC00 &&
+          trail <= 0xDFFF;
+      if (splitsPair) cut -= 1;
+    }
+    text = text.substring(0, cut);
+  }
+  return null;
+}
+
+/// The UTF-8 size of the `thread` payload as it goes on the wire.
+@visibleForTesting
+int threadJsonBytes(List<ReflectionThreadEntry> thread) =>
+    utf8.encode(jsonEncode(thread.map((e) => e.toJson()).toList())).length;
+
+/// The user's own entry from 30 / 90 / 365 nights before [entryLocalDay] —
+/// nearest available, at most one (C3).
+///
+/// Exact anchor days, not a window: the pattern's whole force is *this is what
+/// you wrote on this same date*, and a fuzzy match turns it into "here is an old
+/// entry". Returns null when no anchor exists, which is the correct experience
+/// for a new user — it arrives as a surprise on day 31.
+Future<SavedReflection?> findMuhasabahTimeMachineAnchor(
+  String entryLocalDay, {
+  List<int> offsets = muhasabahTimeMachineOffsets,
+}) async {
+  final today = parseLocalDayString(entryLocalDay);
+  if (today == null) return null;
+  final cached = await _readCachedReflections();
+  for (final offset in offsets) {
+    final target = formatLocalDay(today.subtract(Duration(days: offset)));
+    for (final r in cached) {
+      if (r.isMuhasabah &&
+          r.entryLocalDay == target &&
+          r.userText.trim().isNotEmpty) {
+        return r;
+      }
+    }
+  }
+  return null;
+}
+
+/// Nearest first. 30 before 90 before 365, so a daily journaler meets the
+/// month before the year.
+const List<int> muhasabahTimeMachineOffsets = [30, 90, 365];
+
+/// The most recent ʿazm written on a night STRICTLY BEFORE [entryLocalDay] and
+/// within [withinDays] (C4's resurfacing half).
+///
+/// Bounded deliberately. A resolve is a promise about the next day or two; a
+/// five-week-old one handed back as tonight's opening line is not a reminder,
+/// it is an accusation. Seven days is the widest window in which "last time"
+/// still reads as continuity.
+Future<String?> readRecentAzmBefore(
+  String entryLocalDay, {
+  int withinDays = 7,
+}) async {
+  final today = parseLocalDayString(entryLocalDay);
+  if (today == null) return null;
+  String? bestDay;
+  String? bestAzm;
+  for (final r in await _readCachedReflections()) {
+    final day = r.entryLocalDay;
+    if (!r.isMuhasabah || r.azm.trim().isEmpty || day == null) continue;
+    final parsed = parseLocalDayString(day);
+    if (parsed == null || !parsed.isBefore(today)) continue;
+    if (today.difference(parsed).inDays > withinDays) continue;
+    if (bestDay == null || day.compareTo(bestDay) > 0) {
+      bestDay = day;
+      bestAzm = r.azm.trim();
+    }
+  }
+  return bestAzm;
+}
+
+/// `YYYY-MM-DD` → a UTC-midnight [DateTime], or null.
+///
+/// UTC and hand-parsed rather than `DateTime.parse`, which yields a LOCAL
+/// midnight: subtracting 30 days from a local midnight across a DST boundary
+/// lands at 23:00 the day before and silently shifts every anchor by one.
+DateTime? parseLocalDayString(String value) {
+  final parts = value.split('-');
+  if (parts.length != 3) return null;
+  final year = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final day = int.tryParse(parts[2]);
+  if (year == null || month == null || day == null) return null;
+  return DateTime.utc(year, month, day);
+}
+
+/// The inverse of [parseLocalDayString].
+String formatLocalDay(DateTime day) =>
+    '${day.year.toString().padLeft(4, '0')}-'
+    '${day.month.toString().padLeft(2, '0')}-'
+    '${day.day.toString().padLeft(2, '0')}';
+
+/// Server first, then cache — the same order [saveMuhasabahReflection] uses and
+/// for the same reason: a value the server refuses must never be shown locally
+/// and then vanish on the next sync.
+///
+/// An UPSERT on the row's own primary key, not the blind INSERT the first write
+/// uses. The distinction matters: the first write must be refused on a replay
+/// (that is what protects tonight's words from being overwritten), while an
+/// append is by definition an edit of a row this device already owns.
+Future<SavedReflection?> _persistUpdatedReflection(
+    SavedReflection updated) async {
+  final userId = supabaseSyncService.currentUserId;
+  if (userId != null) {
+    final ok = await supabaseSyncService.upsertRawRow(
+      'user_reflections',
+      updated.toSupabaseRow(userId),
+      onConflict: 'id',
+    );
+    if (!ok) {
+      debugPrint('[reflect] journal entry update rejected by the server — '
+          'nothing cached, the entry stands as it was');
+      return null;
+    }
+  }
+  await _replaceInReflectionCache(updated);
+  for (final notifier in _liveReflectNotifiers.toList()) {
+    notifier.adoptExternalReflection(updated);
+  }
+  return updated;
+}
+
+Future<void> _replaceInReflectionCache(SavedReflection updated) async {
+  // Read-modify-write, like [_prependToReflectionCache]: this runs from the
+  // daily loop, which has no view of the reflect notifier's in-memory list.
+  final current = await _readCachedReflections();
+  final next = [
+    for (final r in current)
+      if (r.id == updated.id) updated else r,
+  ];
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    supabaseSyncService.scopedKey(_reflectionsKey),
+    jsonEncode(next.map((r) => r.toJson()).toList()),
   );
 }
 
@@ -1094,8 +1410,21 @@ class ReflectNotifier extends StateNotifier<ReflectState>
   /// notifier's in-memory list does not go stale and clobber the cache on its
   /// next persist. Deliberately does NOT re-persist: the caller already wrote
   /// the cache, and this must not become a second writer of the same blob.
+  ///
+  /// An id already in the list is REPLACED in place rather than ignored, which
+  /// is what makes Wave C's appends and ʿazm visible in an already-open Journal:
+  /// those writes edit a row this notifier may already be holding, and the early
+  /// return that used to sit here would have left the pre-append copy on screen
+  /// until the next full sync.
   void adoptExternalReflection(SavedReflection reflection) {
-    if (state.savedReflections.any((r) => r.id == reflection.id)) return;
+    final index =
+        state.savedReflections.indexWhere((r) => r.id == reflection.id);
+    if (index >= 0) {
+      final next = List<SavedReflection>.from(state.savedReflections);
+      next[index] = reflection;
+      state = state.copyWith(savedReflections: next);
+      return;
+    }
     state = state.copyWith(
       savedReflections: [reflection, ...state.savedReflections],
     );

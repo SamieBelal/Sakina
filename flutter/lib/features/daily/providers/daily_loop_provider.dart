@@ -210,6 +210,39 @@ class DailyLoopState {
   /// problem for build-a-dua.
   final GatedFeature? warmupJustExhausted;
 
+  // ------------------------------------------------------------------
+  // The journal entry the night leaves behind (Wave C).
+  //
+  // ⚠️ ALL THREE CARRY THE USER'S OWN WORDS. They may be rendered, stored on
+  // the user's own RLS row and cached locally; they may NEVER become an
+  // analytics property, a People attribute or a log line. The names
+  // `tonightEntry`, `timeMachineEntry`, `lastNightAzm` and `azm` are listed in
+  // `freeTextFields` in `test/services/no_free_text_reaches_analytics_test.dart`
+  // precisely because that guard is otherwise blind to free text once it lands
+  // on state. Add any new one there in the same change that introduces it.
+  // ------------------------------------------------------------------
+
+  /// Tonight's persisted muḥāsabah entry — the words, the Name, the duʿā, the
+  /// thread and the ʿazm.
+  ///
+  /// Null until [DailyLoopNotifier.completeDeeper] writes the row (or a cold
+  /// restart rehydrates it), and null on a night whose write the server refused.
+  /// Its presence is what "add to tonight" appends to: no entry, nothing to add
+  /// to, and the affordance does not render.
+  final SavedReflection? tonightEntry;
+
+  /// The user's own entry from 30 / 90 / 365 nights ago — nearest available,
+  /// at most one (C3).
+  ///
+  /// **Populated only once the night is complete.** That is the enforcement of
+  /// "cannot be peeked at before completing": rather than gate a widget, the
+  /// state simply never carries the anchor before [DailyLoopStep.completed].
+  final SavedReflection? timeMachineEntry;
+
+  /// The ʿazm from the most recent night before tonight, resurfaced as tonight's
+  /// opening line (C4). Null when the user has not written one lately.
+  final String? lastNightAzm;
+
   // Error
   final String? error;
 
@@ -257,6 +290,9 @@ class DailyLoopState {
     this.streakLapseRestorable = false,
     this.lapsePreLapseStreak = 0,
     this.warmupJustExhausted,
+    this.tonightEntry,
+    this.timeMachineEntry,
+    this.lastNightAzm,
     this.error,
   });
 
@@ -329,6 +365,9 @@ class DailyLoopState {
     /// merge cannot express "back to null", and a sticky flag would re-fire the
     /// sheet on the next rising edge the screen observes.
     bool clearWarmupJustExhausted = false,
+    SavedReflection? tonightEntry,
+    SavedReflection? timeMachineEntry,
+    String? lastNightAzm,
     String? error,
 
     /// Explicit clear for [DailyLoopState.error], matching
@@ -416,6 +455,9 @@ class DailyLoopState {
       warmupJustExhausted: clearWarmupJustExhausted
           ? null
           : (warmupJustExhausted ?? this.warmupJustExhausted),
+      tonightEntry: tonightEntry ?? this.tonightEntry,
+      timeMachineEntry: timeMachineEntry ?? this.timeMachineEntry,
+      lastNightAzm: lastNightAzm ?? this.lastNightAzm,
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -628,6 +670,11 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
 
       // Restore persisted state for today
       await _loadTodayState();
+
+      // …and the journal context that hangs off it (Wave C). AFTER
+      // `_loadTodayState`, because whether the time-machine anchor may be
+      // restored at all depends on the step it just restored.
+      await _hydrateJournalContext();
 
       // Re-read economy values in case hydration completed while we were
       // loading. This covers the sign-out → re-login path where _initialize
@@ -2425,8 +2472,139 @@ class DailyLoopNotifier extends StateNotifier<DailyLoopState>
           entryLocalDay: localDay.dateString,
         ),
       );
+
+      // Whether the write landed or the day already had its row, what the
+      // completion screen shows back — and what "add to tonight" appends to —
+      // is the entry that IS on the day. Read it rather than assume the one we
+      // just built is it.
+      //
+      // The time-machine anchor is resolved HERE and nowhere earlier: C3's
+      // design is that it cannot be peeked at before completing, and the
+      // cheapest guarantee of that is for the state never to carry it until the
+      // night is done.
+      final day = localDay.dateString;
+      // ⚠️ Both reads resolve BEFORE the assignment, and the `state` the
+      // `copyWith` is applied to is read AFTER them. Dart evaluates a method's
+      // receiver before its arguments, so `state = state.copyWith(x: await …)`
+      // captures the PRE-await snapshot and writes it back — silently undoing
+      // every state change that landed while the awaits were in flight. That is
+      // not theoretical: it broke four daily-loop suites the first time this was
+      // written this way.
+      final tonight = await readMuhasabahEntryForDay(day);
+      final anchor = await findMuhasabahTimeMachineAnchor(day);
+      state = state.copyWith(
+        tonightEntry: tonight,
+        timeMachineEntry: anchor,
+      );
     } catch (e) {
       debugPrint('[daily_loop] muhasabah journal entry not written: $e');
+    }
+  }
+
+  /// **"Add to tonight" (Wave C, C1) — a pure text write, and nothing else.**
+  ///
+  /// This is the appended half of the night. It does **not** call
+  /// [discoverName], mark the streak, claim the reward ladder, unseal the queue,
+  /// engage a card or consume an allowance. Every one of those fires exactly
+  /// once per night, at first submit, and the `!state.checkinDone` gate in
+  /// `muhasabah_screen._showsQuestion` is the thing that keeps them there — the
+  /// defence against the "phantom second gacha" bug class documented at the top
+  /// of this file. **Widening that gate is how this feature would break the
+  /// economy; this method is the deliberate alternative, a separate path that
+  /// bypasses it entirely.** Pinned by
+  /// `test/features/daily/muhasabah_thread_append_test.dart`.
+  ///
+  /// The day is resolved fresh on every call, so an append made after local
+  /// midnight belongs to the NEW day's row. If that day has no row yet the
+  /// append is refused — it is never filed against yesterday.
+  ///
+  /// Returns false, without throwing, when there is nothing to append to, when
+  /// the text is blank, when tonight's twenty appends are used up, or when the
+  /// server refuses the write.
+  Future<bool> appendToTonight(String text) async {
+    if (text.trim().isEmpty) return false;
+    try {
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      final updated = await appendToMuhasabahThread(
+        entryLocalDay: localDay.dateString,
+        text: text,
+        now: debugDailyLoopClock,
+      );
+      if (updated == null) return false;
+      state = state.copyWith(tonightEntry: updated);
+      return true;
+    } catch (e) {
+      debugPrint('[daily_loop] append to tonight not written: $e');
+      return false;
+    }
+  }
+
+  /// The night's one line of forward resolve (Wave C, C4).
+  ///
+  /// Same contract as [appendToTonight] in every respect that matters: a pure
+  /// text write against a row that already exists, no economy, resolved against
+  /// the local day at call time. Written once and editable until the day rolls
+  /// over — an ʿazm is a resolve, not a submission.
+  Future<bool> setTonightAzm(String azm) async {
+    try {
+      final localDay = await resolveUserLocalDay(clock: debugDailyLoopClock);
+      final updated = await setMuhasabahAzm(
+        entryLocalDay: localDay.dateString,
+        azm: azm,
+      );
+      if (updated == null) return false;
+      state = state.copyWith(tonightEntry: updated);
+      return true;
+    } catch (e) {
+      debugPrint('[daily_loop] azm not written: $e');
+      return false;
+    }
+  }
+
+  /// Test seam for [_hydrateJournalContext].
+  ///
+  /// Cold restarts are exactly what this method exists for, and a test cannot
+  /// reach it through the constructor: `skipInitForTests` — which every
+  /// daily-loop suite uses to stay off Supabase, gating and the AI seam — skips
+  /// `_initialize` and therefore skips this too. The alternative is standing up
+  /// the whole notifier for real, which is a much larger fixture than the
+  /// property under test.
+  @visibleForTesting
+  Future<void> debugHydrateJournalContextForTest() => _hydrateJournalContext();
+
+  /// Rehydrates the Wave C journal context on boot: tonight's entry if the night
+  /// is already written, and the ʿazm from the most recent night before tonight
+  /// so the question surface can open on it.
+  ///
+  /// The time-machine anchor is restored **only** for a day already restored to
+  /// [DailyLoopStep.completed] — a cold restart after "Ameen" must show the same
+  /// screen it was showing, but a day still in progress must not be able to see
+  /// the anchor early.
+  ///
+  /// Best-effort, like every other hydration step: a cache miss or an
+  /// unresolvable timezone costs the opener, never the loop.
+  Future<void> _hydrateJournalContext() async {
+    try {
+      final day =
+          (await resolveUserLocalDay(clock: debugDailyLoopClock)).dateString;
+      // Every read resolves BEFORE the assignment — see the note in
+      // [_persistMuhasabahEntry]. This method runs inside `_initialize`, which
+      // is fire-and-forget from the constructor and therefore routinely
+      // interleaves with a `discoverName()` the caller started immediately
+      // after; an inline `await` here writes the pre-reveal state back over the
+      // reveal.
+      final tonight = await readMuhasabahEntryForDay(day);
+      final azm = await readRecentAzmBefore(day);
+      final anchor = state.currentStep == DailyLoopStep.completed
+          ? await findMuhasabahTimeMachineAnchor(day)
+          : null;
+      state = state.copyWith(
+        tonightEntry: tonight,
+        lastNightAzm: azm,
+        timeMachineEntry: anchor,
+      );
+    } catch (e) {
+      debugPrint('[daily_loop] journal context not hydrated: $e');
     }
   }
 
