@@ -61,3 +61,21 @@ docs/superpowers/specs/skin-previews/*_view.*
 
 # Flutter golden-test failure artifacts (regenerated on every failing run)
 test/widgets/goldens/failures/
+
+# MCP browser scratch — console logs and simulator debug captures.
+# NOTE: finished App Store screenshot exports were landing here too. Do not
+# leave exports here; App Store Connect is the system of record, and
+# docs/marketing/app-store/README.md has the recipe to pull them back.
+.playwright-mcp/
+
+# Kotlin build scratch (Kotlin 2.x). Was covered by the root .gitignore until
+# the Expo rules were removed; the Flutter Android build still creates it.
+.kotlin/
+
+# Supabase CLI local state — restored by `supabase link`
+supabase/.branches/
+supabase/.temp/
+
+# Personal permission allowlist. settings.json and skills/ ARE tracked, so a
+# clone gets the text-to-lottie skill; only this file is per-machine.
+.claude/settings.local.json

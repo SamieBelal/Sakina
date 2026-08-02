@@ -4,7 +4,7 @@
 --
 -- Covers the 5 AI-bypass RPCs and their critical regression-pins.
 --
--- Pattern matches freemium_gating_lockdown_test.sql / backend_rls_test.sql:
+-- Pattern matches freemium_gating_lockdown_test.sql / backend_rls_audit.sql:
 -- one transaction, assertions inside a DO block, rollback at end.
 --
 --   psql ... -f supabase/tests/ai_bypass_rpc_test.sql

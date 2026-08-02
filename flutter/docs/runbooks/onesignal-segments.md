@@ -18,6 +18,26 @@ Mixpanel people property `tour_home_skipped_at` to OneSignal.
 
 ### Template: `win_back_tour_replay`
 
+> ⚠️ **TURN THIS AUTOMATION OFF. Its deep link is a no-op.**
+>
+> The guided tour was deleted from the app on 2026-07-28 (One Ship W2, plan
+> §F1a) after it was measured costing ~48% of signups. `sakina://settings?action=replay_tour`
+> now lands on a Settings row with no overlay to render, so anyone who taps this
+> push gets nothing. Turning the automation off beats shipping users into a dead
+> end.
+>
+> Note the ordering: **retire the automation first, then delete its copy.** The
+> strings below were the automation's only in-repo source of truth. They lived
+> in `lib/services/tour_service.dart`, whose header carried this same warning
+> until that file was deleted in the 2026-08-02 cleanup — the copy was
+> unreferenced by any Dart code precisely *because* its consumer is external,
+> and an "is it imported?" check could not see that. Copy preserved here so the
+> warning outlives the file.
+>
+> Also still open: `TODO.md` lists `win_back_tour_replay` as pending i18n. If
+> the automation is retired, drop that item rather than translating copy for a
+> push that goes nowhere.
+
 - **Title:** Want me to show you around?
 - **Body:** Tap to retake the Sakina tour — 30 seconds.
 - **Additional data:** `type=tour_replay`

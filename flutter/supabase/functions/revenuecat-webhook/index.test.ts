@@ -279,7 +279,7 @@ Deno.test("Non-premium entitlement returns 200 skipped (no DB write)", async () 
 //
 // History: pre-fix this combination wiped canceled_at on expiry, losing
 // cancellation analytics. Live E2E + SQL-level regression in
-// flutter/supabase/tests/backend_rls_test.sql now prove the round trip preserves
+// flutter/supabase/checks/backend_rls_audit.sql now prove the round trip preserves
 // canceled_at. See docs/qa/findings/2026-04-26-backend-rls-pass.md.
 Deno.test("EXPIRATION omits canceled_at + billing_issue_detected_at so SQL preserves stored values", () => {
   const payload = buildUserSubscriptionUpsert(baseEvent({

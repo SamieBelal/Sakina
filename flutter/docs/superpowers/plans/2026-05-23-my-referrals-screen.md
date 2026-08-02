@@ -152,7 +152,7 @@ PopScope is unnecessary — the back button is the SubpageHeader's; system back 
 Plus one service test:
 - [ ] `referral_service_my_referrals_state_test.dart` — pure unit test of `MyReferralsState.progressTowardNext` math across (0 grants, 0–4 confirmed), (1 grant, 3–7 confirmed), (2 grants, 6–10 confirmed). Pins the formula so a future "fancier" rewrite can't drift.
 
-No SQL test needed — read-only queries on existing tables, RLS already pinned by `supabase/tests/backend_rls_test.sql`.
+No SQL test needed — read-only queries on existing tables, RLS already pinned by `supabase/checks/backend_rls_audit.sql`.
 
 ---
 

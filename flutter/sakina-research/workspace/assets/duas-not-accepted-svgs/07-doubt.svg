@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#F5EDDE"/>
+
+  <!-- Faint Arabic seen watermark, bottom -->
+  <text x="540" y="1820" text-anchor="middle" font-family="'Aref Ruqaa','Scheherazade New','Geeza Pro',serif" font-size="900" fill="#1B6B4A" opacity="0.06">س</text>
+
+  <!-- Top bar -->
+  <text x="80" y="160" font-family="'Aref Ruqaa','Scheherazade New','Geeza Pro',serif" font-size="64" fill="#1B6B4A">سكينة</text>
+  <text x="1000" y="155" text-anchor="end" font-family="'DM Sans','Helvetica Neue',sans-serif" font-size="22" font-weight="600" fill="#B8924E" letter-spacing="5">07 / 08</text>
+
+  <!-- Eyebrow -->
+  <text x="80" y="900" font-family="Lora,Georgia,serif" font-size="30" font-style="italic" fill="#B8924E">What blocks your du'a, no. 6 —</text>
+
+  <!-- Display heading -->
+  <text x="80" y="1020" font-family="'DM Serif Display',Lora,Georgia,serif" font-size="80" font-weight="700" fill="#1B6B4A" letter-spacing="-1.5">Doubting</text>
+  <text x="80" y="1110" font-family="'DM Serif Display',Lora,Georgia,serif" font-size="80" font-weight="700" font-style="italic" fill="#B8924E" letter-spacing="-1.5">He hears.</text>
+
+  <line x1="80" y1="1160" x2="160" y2="1160" stroke="#B8924E" stroke-width="3"/>
+
+  <!-- Body -->
+  <text x="80" y="1260" font-family="Lora,Georgia,serif" font-size="32" fill="#3A3325" font-style="italic">Asking, but expecting silence.</text>
+  <text x="80" y="1305" font-family="Lora,Georgia,serif" font-size="32" fill="#3A3325" font-style="italic">Raising your hands, but quietly</text>
+  <text x="80" y="1350" font-family="Lora,Georgia,serif" font-size="32" fill="#3A3325" font-style="italic">sure they will fall empty.</text>
+
+  <!-- Pull-quote -->
+  <line x1="80" y1="1460" x2="80" y2="1600" stroke="#B8924E" stroke-width="4"/>
+  <text x="110" y="1495" font-family="Lora,Georgia,serif" font-size="28" font-weight="700" fill="#1B6B4A">Allah said: I am near. I respond</text>
+  <text x="110" y="1535" font-family="Lora,Georgia,serif" font-size="28" font-weight="700" fill="#1B6B4A">to the call of the one who calls.</text>
+  <text x="110" y="1585" font-family="Lora,Georgia,serif" font-size="28" font-style="italic" fill="#3A3325" opacity="0.85">So call — without doubt.</text>
+
+  <!-- Source citation -->
+  <text x="80" y="1720" font-family="'DM Sans','Helvetica Neue',sans-serif" font-size="20" font-weight="700" fill="#B8924E" letter-spacing="5">QURAN · 2:186</text>
+
+  <!-- Footer -->
+  <text x="80" y="1810" font-family="Lora,Georgia,serif" font-size="22" font-style="italic" fill="#B8924E">@sakina.app1</text>
+  <text x="1000" y="1810" text-anchor="end" font-family="'DM Sans','Helvetica Neue',sans-serif" font-size="32" fill="#B8924E">→</text>
+</svg>

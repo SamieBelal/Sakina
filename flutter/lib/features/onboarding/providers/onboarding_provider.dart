@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/app_session.dart';
-import '../content/aspirations.dart';
 import '../content/help_chips.dart';
 import '../content/intake_questions.dart';
 import '../content/problem_chips.dart';

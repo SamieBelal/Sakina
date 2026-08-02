@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../services/analytics_events.dart';
 import '../../../services/analytics_provider.dart';
-import '../../../services/gating_service.dart';
 import '../models/onboarding_tour_step.dart';
 
 /// Tour state machine status.

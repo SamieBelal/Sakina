@@ -120,7 +120,7 @@ discoverNameWithFirstBypass()
 - Create: `.github/workflows/test.yml`
 - Create: `flutter/scripts/run_sql_tests.sh`
 - Create: `flutter/supabase/tests/_seed_test_user.sql` (shared helper)
-- Modify (self-seed audit): every `flutter/supabase/tests/*.sql` that currently does `SELECT id INTO ... FROM auth.users ORDER BY created_at LIMIT 1`. Confirmed candidates: `freemium_guards_bypass_fields_test.sql`, `dismiss_iap_upsell_banner_test.sql`, `freemium_gating_lockdown_test.sql`, `rpc_eligibility_test.sql`, `rpc_eligibility_reminder_time_test.sql`, `sync_all_user_data_returns_verses_test.sql`, `backend_rls_test.sql`. Audit each at Step 1.2.
+- Modify (self-seed audit): every `flutter/supabase/tests/*.sql` that currently does `SELECT id INTO ... FROM auth.users ORDER BY created_at LIMIT 1`. Confirmed candidates: `freemium_guards_bypass_fields_test.sql`, `dismiss_iap_upsell_banner_test.sql`, `freemium_gating_lockdown_test.sql`, `rpc_eligibility_test.sql`, `rpc_eligibility_reminder_time_test.sql`, `sync_all_user_data_returns_verses_test.sql`, `backend_rls_audit.sql`. Audit each at Step 1.2.
 
 - [ ] **Step 1.1: Create SQL runner script**
 

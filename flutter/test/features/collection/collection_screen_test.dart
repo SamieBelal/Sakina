@@ -318,8 +318,9 @@ void main() {
 
   // W6 Wave D / review — `names_browse_viewed` lives on the screen users reach.
   //
-  // It was originally wired to `NamesScreen`, which has ZERO references
-  // anywhere in lib/ — not the router, not a tab, not a push. The event could
+  // It was originally wired to `NamesScreen`, which had ZERO references
+  // anywhere in lib/ — not the router, not a tab, not a push — and which has
+  // since been deleted outright (workspace cleanup, 2026-08-02). The event could
   // never fire, and an event that cannot fire is indistinguishable in a
   // dashboard from a surface nobody visits: the exact failure class this wave
   // exists to eliminate. The plan caused it by auditing the FILE ("zero
