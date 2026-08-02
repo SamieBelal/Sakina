@@ -36,6 +36,40 @@ const String kPostTourPaywallModeFlag = 'post_tour_paywall_mode';
 
 /// Single source of truth for auth + onboarding state.
 /// Used as GoRouter's refreshListenable — redirect reads from this.
+/// SharedPreferences key recording WHICH user the `onboarding_completed` flag
+/// belongs to. Unscoped like the flag itself, on purpose: it is the thing that
+/// makes the unscoped flag safe.
+const String onboardingCompletedUidPrefsKey = 'onboarding_completed_uid';
+
+/// Whether a persisted `onboarding_completed` can be trusted for the user who
+/// just authenticated.
+///
+/// The flag is unscoped and read at cold launch as `initialOnboarded`. Nothing
+/// recorded whose completion it described — so on a shared device, user A's
+/// completion silently vouched for user B, and because
+/// `_checkOnboardingStatus` only ever sets the flag TRUE, the mistake was never
+/// corrected. User B reached the app never onboarded: no Name, no queue, no
+/// starter card.
+///
+/// This is NOT solved by clearing the flag on sign-out. supabase_flutter emits
+/// a bare `signedOut` whenever a refresh token expires or is revoked, and the
+/// person who signs back in is usually the SAME one — clearing would make a
+/// routine token refresh cost them their onboarding, which is a far more
+/// frequent bug than the one being fixed. The flag has to know whose it is.
+///
+/// Pure and top-level so the shipping predicate and the tested one are the same
+/// code, matching [shouldEmitAbandonment] and friends.
+@visibleForTesting
+bool shouldRecheckOnboarding({
+  required String? currentUid,
+  required String? flagUid,
+  required bool hasOnboarded,
+}) {
+  if (currentUid == null || currentUid.isEmpty) return false;
+  if (!hasOnboarded) return false; // the ordinary path already checks
+  return flagUid != currentUid; // includes an unowned (pre-upgrade) flag
+}
+
 class AppSessionNotifier extends ChangeNotifier {
   /// Static hook to reset analytics identity on sign-out. This notifier has no
   /// Riverpod access, so main.dart wires this to `AnalyticsService.reset` the
@@ -426,6 +460,13 @@ class AppSessionNotifier extends ChangeNotifier {
         }
         if (isAuthenticated && !_hasOnboarded) {
           unawaited(_checkOnboardingStatus());
+        } else if (isAuthenticated) {
+          // A persisted `onboarding_completed` that belongs to a DIFFERENT user
+          // must not vouch for this one. Reached after an implicit sign-out (an
+          // expired or revoked refresh token emits a bare `signedOut`, so the
+          // caller-side cleanup never runs) followed by a cold launch and a
+          // second account signing in. Server truth wins.
+          unawaited(_recheckOnboardingOwnership());
         }
         notifyListeners();
         break;
@@ -578,12 +619,51 @@ class AppSessionNotifier extends ChangeNotifier {
     await _hydrateAndNotify();
   }
 
+  /// Clears a stale `_hasOnboarded` when the persisted flag belongs to another
+  /// user, then re-derives it from the server. Best-effort: on a failed read we
+  /// leave the session as-is rather than locking a legitimate user out of their
+  /// own app.
+  Future<void> _recheckOnboardingOwnership() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!shouldRecheckOnboarding(
+        currentUid: _currentUserIdProvider(),
+        flagUid: prefs.getString(onboardingCompletedUidPrefsKey),
+        hasOnboarded: _hasOnboarded,
+      )) {
+        return;
+      }
+      final onboarded = await _hasCompletedOnboarding();
+      if (onboarded) {
+        // Genuinely onboarded — adopt the flag for this user so the check does
+        // not repeat every launch.
+        final uid = _currentUserIdProvider();
+        if (uid != null && uid.isNotEmpty) {
+          await prefs.setString(onboardingCompletedUidPrefsKey, uid);
+        }
+        return;
+      }
+      _hasOnboarded = false;
+      await prefs.setBool('onboarding_completed', false);
+      await prefs.remove(onboardingCompletedUidPrefsKey);
+      notifyListeners();
+    } catch (_) {
+      // Never block a session on this.
+    }
+  }
+
   Future<void> _checkOnboardingStatus() async {
     final onboarded = await _hasCompletedOnboarding();
     if (onboarded && !_hasOnboarded) {
       _hasOnboarded = true;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
+      // Record WHOSE completion this is. Without it the flag vouches for
+      // whoever signs in next on this device — see [shouldRecheckOnboarding].
+      final uid = _currentUserIdProvider();
+      if (uid != null && uid.isNotEmpty) {
+        await prefs.setString(onboardingCompletedUidPrefsKey, uid);
+      }
       notifyListeners();
       // Reinstall recovery: a returning user starts the session with
       // `initialOnboarded = false` (fresh prefs after a fresh install), so
