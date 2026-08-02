@@ -451,7 +451,13 @@ Future<void> main() async {
   // `lantern_kindled` were all emitted through a hook nothing ever set, so
   // none of them reached Mixpanel. The screen is a plain StatefulWidget by
   // design (Wave E owns the provider writes), which is why it needs the same
-  // static-hook treatment as the services above rather than a `ref`.
+  // static-hook treatment as the services above rather than a `ref`. The
+  // card-reveal overlay's own events bridge through here too.
+  //
+  // This was assigned TWICE — here and again ~55 lines below, to an identical
+  // closure. Harmless at runtime (the second was a no-op) and a trap in review:
+  // someone fixing one copy would not know the other overwrote it. One
+  // assignment, 2026-08-02.
   OnboardingRevealScreen.onAnalyticsEvent =
       (event, props) => analytics.track(event, properties: props);
   // First-visit hints (Wave F3). Fires at claim time, so the event count and
@@ -489,18 +495,22 @@ Future<void> main() async {
   //
   // New users get this at onboarding entry (registered there one await after
   // the kill switch resolves, BEFORE the first funnel event). This hook is the
+  // The flow is USER-scoped (review, P2): it belongs to that account, not the
+  // install. Registering it through `cacheDeviceSuperProperties` put it in the
+  // durable set `resetForSignOut` re-applies, so on a shared device the NEXT
+  // user inherited the previous one's cohort — permanently, if their own
+  // profile had no flow to overwrite it. `reset()` clears user-scoped props;
+  // a plain registration is therefore correctly wiped on sign-out.
+  //
   // returning-user path — the flow arrives with the first sync, long after
   // boot — and it is also the belt to that braces.
   AppSessionNotifier.onOnboardingFlowResolved = (flow) =>
-      analytics.cacheDeviceSuperProperties(
+      analytics.setSuperProperties(
         {AnalyticsEvents.propOnboardingFlow: flow},
       );
-  // Onboarding reveal telemetry (One Ship W2-C1): the reveal screen is a plain
-  // widget with no Riverpod access, so `reveal_deck_completed` / `_abandoned`
-  // (and the card-reveal overlay's own events) bridge through this hook.
-  OnboardingRevealScreen.onAnalyticsEvent =
-      (event, props) => analytics.track(event, properties: props);
-  // …and the completion chain's degrade-don't-abort failures (W2-C2): a
+  // Identity for EVERY authenticated session, not just the signup screens.
+  AppSessionNotifier.onIdentifyUser = analytics.identify;
+  // The completion chain's degrade-don't-abort failures (W2-C2): a
   // `name_queue_seed_failed` is otherwise invisible, since completion carries
   // on without the queue the reel flow promised.
   OnboardingNotifier.onAnalyticsEvent =

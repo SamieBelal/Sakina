@@ -45,6 +45,24 @@ class AppSessionNotifier extends ChangeNotifier {
   /// previous user's identity (cross-user contamination).
   static void Function()? onAnalyticsReset;
 
+  /// Establishes the Mixpanel identity for an authenticated session.
+  ///
+  /// **A hook here rather than a fourth call site on a screen.** `identify()`
+  /// was called from exactly three places, all onboarding/signup screens — so a
+  /// RETURNING user signing into an existing account never called it, and
+  /// neither did `initialSession` (relaunching with a live token), which is by
+  /// far the most common authenticated event there is.
+  ///
+  /// The consequence was not merely a missing identity: `names_met` is a PEOPLE
+  /// property written during authenticated hydration, so it attached to
+  /// whatever profile was current — after a sign-out `reset()`, the ANONYMOUS
+  /// one. The property was least reliable for exactly the users it describes
+  /// best, and polluted anonymous profiles on the way.
+  ///
+  /// Fires BEFORE hydration, so every People write that follows lands on the
+  /// right profile.
+  static void Function(String userId)? onIdentifyUser;
+
   /// Fired whenever the resolved onboarding flow becomes known — from the local
   /// latch or from server hydration — so it can be registered as the
   /// `onboarding_flow` super property (W6 Wave A).
@@ -394,6 +412,16 @@ class AppSessionNotifier extends ChangeNotifier {
       case AuthChangeEvent.initialSession:
       case AuthChangeEvent.tokenRefreshed:
         if (isAuthenticated) {
+          // BEFORE `_handleAuthenticatedChange`, which is what triggers
+          // hydration and therefore the `names_met` People write. Identity has
+          // to exist first or that write lands on the anonymous profile.
+          // Best-effort — a throwing reporter must never break auth handling.
+          final userId = _currentUserIdProvider();
+          if (userId != null && userId.isNotEmpty) {
+            try {
+              onIdentifyUser?.call(userId);
+            } catch (_) {/* analytics best-effort */}
+          }
           unawaited(_handleAuthenticatedChange(data));
         }
         if (isAuthenticated && !_hasOnboarded) {

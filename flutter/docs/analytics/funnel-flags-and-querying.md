@@ -235,9 +235,20 @@ across the boundary where the meaning of a "cap" changes from daily to weekly.
 Segment by `reason`, and by the `free_tier_cohort` super property for the
 cohort split.
 
-**Sheet impression/dismissal: `cap_sheet_shown{feature, reason, sheet}` →
+**Sheet impression/dismissal: `cap_sheet_shown{feature, sheet, reason?}` →
 `cap_sheet_dismissed{sheet, method}`.** `sheet` ∈ `daily_cap` /
-`warmup_exhausted`. **`method` has TWO values, not four**, and it is a
+`warmup_exhausted`.
+
+⚠️ **`reason` is present on `daily_cap` impressions and ABSENT on
+`warmup_exhausted` ones — do not filter on it unless you mean to exclude the
+warmup sheet.** This is deliberate, not an omission: the warmup sheet fires on a
+SUCCESSFUL use that happened to spend the last warmup budget, so nothing was
+refused and there is no `GateReason` to carry. An ill-fitting constant was
+declined rather than forced on. A query that filters `cap_sheet_shown` by
+`reason` therefore silently drops every warmup impression — and the warmup sheet
+is the one a `reel_v1` user meets FIRST, so the exclusion lands hardest on the
+newest cohort. Filter on `sheet` when you want one surface, and treat `reason`
+as a `daily_cap`-only refinement. **`method` has TWO values, not four**, and it is a
 framework limit, not a shortcut: a sheet can be closed four ways (the CTA tap,
 a scrim tap, a swipe-down, Android back), but `showModalBottomSheet` completes
 its route future identically for the last three — there is no public API to
