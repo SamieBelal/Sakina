@@ -156,3 +156,9 @@ These remain out of scope — don't get distracted:
 - Chat or AI conversation mode
 - Multi-day courses or guided plans
 - Dhikr / tasbeeh counter (resist it — it's tempting and off-mission)
+
+**One clarification to the "no multi-day courses" line (founder, 2026-08-02).** The Name-mastery packs in [`docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md`](./docs/superpowers/plans/2026-08-02-journaling-and-name-mastery-plan.md) sit next to this ban and are deliberately on the permitted side of it. The distinction, so it is not re-litigated:
+
+> A **course** is scheduled instruction you enrol in and can fall behind on. A **pack** is an always-available review surface over Names you have already collected — no enrolment, no schedule, no deadline, and no completion state you can fail.
+
+What would turn a pack into a course, and is therefore also banned: a daily obligation, a streak of its own, a "you're behind" notification, or any ordering that must be completed in sequence. The review queue is *available*, never *scheduled*. If a future change gives packs a cadence the user can fall behind on, it has crossed the line this paragraph exists to hold.

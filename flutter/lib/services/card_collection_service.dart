@@ -1527,7 +1527,7 @@ const List<CollectibleName> allCollectibleNames = [
     duaTransliteration:
         'Ya Barr, thabbitni \'ala birrik waj\'al imani rasikhan hina tartajiful-qulub',
     duaTranslation:
-        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when hearts tremble.',
+        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when the hearts tremble.',
   ),
   CollectibleName(
     id: 86,

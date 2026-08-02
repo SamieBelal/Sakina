@@ -20,7 +20,7 @@
 --   2. Transliteration typos: thabbintni → thabbitni, rasikhana → rasikhan.
 --      Article assimilation follows house style (cf. tuhibbul-'afwa, id 86).
 --   3. English disagreed in number with the Arabic ("my heart trembles" for a
---      plural subject). → "when hearts tremble".
+--      plural subject). → "when the hearts tremble".
 --
 -- Must stay byte-identical to assets/content/collectible_names.json, which the
 -- deck ship gate (test/content/name_stories_ship_gate_test.dart) asserts
@@ -37,7 +37,7 @@ begin
   set
     dua_arabic = 'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ الْقُلُوبُ',
     dua_transliteration = 'Ya Barr, thabbitni ''ala birrik waj''al imani rasikhan hina tartajiful-qulub',
-    dua_translation = 'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when hearts tremble.'
+    dua_translation = 'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when the hearts tremble.'
   where id = 85
     and dua_arabic = 'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ قُلُوبُ';
 
