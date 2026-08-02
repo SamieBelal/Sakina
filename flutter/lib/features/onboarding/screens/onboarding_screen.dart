@@ -118,6 +118,52 @@ const Duration reelFlagFreshReadTimeout = Duration(seconds: 2);
 ///
 /// Top-level so the timeout behaviour is unit-testable without a PageView.
 @visibleForTesting
+/// Which page a resumed session should open on, given the page it saved and the
+/// flow it saved it under.
+///
+/// **A page index only means something inside the flow that recorded it.** The
+/// flows are hand-ordered and of similar length, so a saved index is almost
+/// always *in bounds* for the other flow and *semantically wrong* — the
+/// existing out-of-bounds clamp cannot see that. A user paused on reel page 12
+/// (WidgetOfferScreen, mid-intake, pre-signup) who resumes after a kill-switch
+/// flip would land on trimmed page 12 (SocialProofScreen, one page before
+/// sign-up), skipping twelve required questions and arriving at signup with all
+/// of them empty, while their reel answers sit stranded and unread.
+///
+/// Nothing invalid gets persisted and nothing crashes, which is exactly why it
+/// would go unnoticed — and the kill switch is the ROLLBACK path, so this fires
+/// at the one moment a second failure is least affordable.
+///
+/// Restarting costs the user their answers so far. That is chosen deliberately
+/// over the two alternatives: reinterpreting the index skips required questions
+/// silently, and maintaining an index-mapping table between two hand-ordered
+/// flows is a thing nobody will keep correct. During a rollback,
+/// coherent-and-annoying beats broken-and-quiet.
+///
+/// An UNKNOWN saved flow (a pre-W2 install, or a corrupted blob) resumes
+/// normally: absence of evidence is not evidence of a mismatch, and restarting
+/// those users would punish everyone who installed before the field existed to
+/// guard against a flip that may never happen.
+///
+/// Pure and top-level so the shipping predicate and the tested one are the same
+/// code — the same shape as [shouldEmitAbandonment] below.
+@visibleForTesting
+int resolveResumePage({
+  required int savedPage,
+  required String? savedFlow,
+  required OnboardingFlowKind resolved,
+}) {
+  if (savedPage <= 0) return 0;
+  if (savedFlow == null || savedFlow.isEmpty) return savedPage;
+  // trimmed and legacy share one persisted value: a trim-flag change reorders
+  // nothing, so it is not a flow change.
+  final resolvedValue = onboardingFlowValueFor(resolved);
+  if (savedFlow != onboardingFlowReel && savedFlow != onboardingFlowLegacy) {
+    return savedPage; // unrecognised — treat as unknown, not as a mismatch
+  }
+  return savedFlow == resolvedValue ? savedPage : 0;
+}
+
 Future<OnboardingFlowKind> resolveOnboardingFlow(
   AppConfigService config, {
   Duration freshReadTimeout = reelFlagFreshReadTimeout,
@@ -335,6 +381,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     _flowFuture.then((kind) {
       if (!mounted) return;
       if (kind != _flow) setState(() => _flow = kind);
+      // A saved page only means something inside the flow that recorded it. If
+      // the kill switch flipped between launches, the index is in bounds for
+      // the new flow and points at a completely different screen — see
+      // [resolveResumePage]. Done BEFORE `setOnboardingFlow` below, which
+      // overwrites the recorded flow with the resolved one and would erase the
+      // evidence of the mismatch.
+      final state = ref.read(onboardingProvider);
+      final safePage = resolveResumePage(
+        savedPage: state.currentPage,
+        savedFlow: state.onboardingFlow,
+        resolved: kind,
+      );
+      if (safePage != state.currentPage) {
+        ref.read(onboardingProvider.notifier).setPage(safePage);
+        if (_pageController.hasClients) _pageController.jumpToPage(safePage);
+      }
       // Record which EXPERIENCE this user ran, at entry rather than at
       // completion: it rides every `saveOnboardingData` persist (including the
       // final one that the freeze trigger locks), and `completeOnboarding`
@@ -552,8 +614,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     if (state.duaTopics.isNotEmpty) {
       profileProps['dua_topics'] = state.duaTopics.toList();
     }
+    // `dua_topics_other` is NOT a profile property. It is free text, and a
+    // People property is durable and queryable forever — one bad write outlives
+    // every session that produced it. The boolean equivalent is emitted as an
+    // event from dua_topics_screen.dart.
     if (state.duaTopicsOther != null) {
-      profileProps['dua_topics_other'] = state.duaTopicsOther;
+      profileProps['dua_topics_other_provided'] =
+          state.duaTopicsOther!.trim().isNotEmpty;
     }
     if (state.dailyCommitmentMinutes != null) {
       profileProps['daily_commitment_minutes'] = state.dailyCommitmentMinutes;

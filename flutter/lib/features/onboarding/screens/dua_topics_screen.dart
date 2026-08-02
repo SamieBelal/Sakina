@@ -117,8 +117,14 @@ class _DuaTopicsScreenState extends ConsumerState<DuaTopicsScreen> {
         ref
             .read(analyticsProvider)
             .trackOnboardingAnswerWithRef(ref, 'dua_topics', after.duaTopics);
+        // Whether they wrote one, never WHAT they wrote. A user can put
+        // anything in this box — "my father is dying" — and CLAUDE.md's rule
+        // is unconditional. The boolean answers the only question the chip
+        // taxonomy cannot: did the seven options miss them?
         ref.read(analyticsProvider).trackOnboardingAnswerWithRef(
-            ref, 'dua_topics_other', after.duaTopicsOther);
+            ref,
+            'dua_topics_other_provided',
+            (after.duaTopicsOther ?? '').trim().isNotEmpty);
         widget.onNext();
       },
       body: Column(

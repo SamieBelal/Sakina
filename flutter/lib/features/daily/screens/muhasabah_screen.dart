@@ -336,6 +336,13 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                   ? state.checkinAnswers.firstOrNull
                   : null,
               isReAsk: state.awaitingReAnswer,
+              // Without this the question surface is a dead end on any
+              // transient failure: `discoverName()` catches into `state.error`
+              // and returns normally, so this widget rebuilds with its commit
+              // latch still set — field disabled, send inert, and the defer
+              // escape hatch no-opping. The user had just typed how they feel
+              // and the screen simply stopped responding, with no message.
+              errorText: state.error,
               onSubmit: _onQuestionSubmit,
               onDefer: _onQuestionDefer,
             )

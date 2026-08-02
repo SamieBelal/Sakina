@@ -1,3 +1,4 @@
+import 'package:characters/characters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -17,6 +18,17 @@ import '../widgets/onboarding_page_wrapper.dart';
 import '../../daily/reveal/reveal_spec.dart';
 import '../../daily/widgets/card_reveal_overlay.dart';
 import '../../../services/card_collection_service.dart';
+
+/// Buckets the first check-in's free text for analytics. Never the text — see
+/// the emit site. Thresholds mirror `intakeNoteLengthBucket` so the two
+/// free-text surfaces stay comparable.
+String _emotionLengthBucket(String text) {
+  final length = text.trim().characters.length;
+  if (length == 0) return 'none';
+  if (length <= 50) return 'short';
+  if (length <= 200) return 'medium';
+  return 'long';
+}
 
 class FirstCheckinScreen extends ConsumerStatefulWidget {
   const FirstCheckinScreen({
@@ -215,7 +227,13 @@ class _FirstCheckinScreenState extends ConsumerState<FirstCheckinScreen> {
                   .read(analyticsProvider)
                   .track(AnalyticsEvents.firstCheckinSubmitted, properties: {
                 'input_method': _controller.text.isEmpty ? 'chip' : 'typed',
-                'emotion_text': _controller.text,
+                // NO `emotion_text`. It sent the user's verbatim description
+                // of their emotional state to Mixpanel — the exact thing
+                // CLAUDE.md forbids without qualification ("the answer text
+                // NEVER leaves the device"). A length bucket answers every
+                // question the raw string could: whether people type at all,
+                // and whether they write a word or a paragraph.
+                'text_length_bucket': _emotionLengthBucket(_controller.text),
               });
               // Persist the resolved starter Name BEFORE kicking off the
               // result transition. Mutating provider state inside _buildResult

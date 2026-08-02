@@ -45,8 +45,21 @@ class DailyQuestionPrompt extends StatefulWidget {
     this.initialText,
     this.isReAsk = false,
     this.commitBeat = AppMotion.feedback,
+    this.errorText,
     super.key,
   });
+
+  /// The host's `state.error`, or null.
+  ///
+  /// **This is the widget's only way out of a failed submit.** `_committing`
+  /// latches on send and is never cleared on the happy path — correctly, since
+  /// the reveal replaces this widget. But `discoverName()` catches its own
+  /// failures into `state.error` and returns NORMALLY, so on a network blip the
+  /// question rebuilds with the same State still latched: field disabled, send
+  /// inert, and the "Not right now" escape hatch no-opping too. The user had
+  /// just typed how they feel, and the screen stopped responding with no
+  /// message. Arriving non-null here is what unlatches it.
+  final String? errorText;
 
   /// The answer, plus the chip that produced it when the user tapped rather
   /// than typed. Wave 3 turns this into `checkinAnswers` + `discoverName()`.
@@ -89,10 +102,10 @@ class DailyQuestionPrompt extends StatefulWidget {
   final Duration commitBeat;
 
   @override
-  State<DailyQuestionPrompt> createState() => _DailyQuestionPromptState();
+  State<DailyQuestionPrompt> createState() => DailyQuestionPromptState();
 }
 
-class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
+class DailyQuestionPromptState extends State<DailyQuestionPrompt>
     with WidgetsBindingObserver {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialText ?? '',
@@ -206,6 +219,26 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
     if (widget.isReAsk) return;
     DailyQuestionAnalytics.abandoned(_dwell.elapsed);
   }
+
+  @override
+  void didUpdateWidget(covariant DailyQuestionPrompt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // An error means the submit did NOT land — release the latch so the user
+    // can retry or defer. Deliberately only on the null→non-null edge: a
+    // blanket unlatch would re-enable the field on the happy path too, where
+    // this widget is about to be replaced by the reveal and a double-tap would
+    // fire a second `discoverName`.
+    if (widget.errorText != null && oldWidget.errorText == null) {
+      setState(() => _committing = false);
+    }
+  }
+
+  /// Drives the commit latch directly so a test can reach the post-submit
+  /// state without depending on the field's internal `_hasText` wiring. The
+  /// bug this exists for is about what happens AFTER the latch is set.
+  @visibleForTesting
+  void debugSetCommittingForTest(bool value) =>
+      setState(() => _committing = value);
 
   void _submitTyped() {
     final text = _controller.text;
@@ -441,6 +474,23 @@ class _DailyQuestionPromptState extends State<DailyQuestionPrompt>
         // The minimum gap; the `spaceBetween` above adds whatever the viewport
         // has spare on top of it. On a short screen that is nothing and the
         // exit sits directly under the last option.
+        if (widget.errorText != null)
+          Padding(
+            padding: EdgeInsets.only(
+              top: compact ? AppSpacing.md : AppSpacing.lg,
+            ),
+            // Shown, not just recovered from. Silently re-enabling the field
+            // tells the user nothing about why their answer vanished — they
+            // would reasonably assume it had been received.
+            child: Text(
+              widget.errorText!,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         Padding(
           padding: EdgeInsets.only(
             top: compact ? AppSpacing.md : AppSpacing.lg,
