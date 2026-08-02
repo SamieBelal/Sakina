@@ -54,6 +54,28 @@ The client half of Wave A is already committed (the three source files, the
 orphaned tour bucketing, and the frozen `paywall_exp_arm`); this script is only
 the `app_config` key.
 
+## Catalog duʿā repair — `fix_catalog_duas_51_85.sql`
+
+**Trigger condition:** founder sign-off on the id-85 wording, then the next
+content push. Not gated on any wave.
+
+Repairs **id 85 (Al-Barr)** only, in `public.collectible_names`. The asset
+`assets/content/collectible_names.json` carries the same edit; the served
+catalog overrides the asset at runtime, so an asset-only fix leaves production
+broken, and the two must stay byte-identical or the deck ship gate
+(`test/content/name_stories_ship_gate_test.dart`) breaks.
+
+Id 85's duʿā is an **authored** catalog invocation with no narrated source; the
+change is orthographic/grammatical only (`قُلُوبُ` → `الْقُلُوبُ`, two
+transliteration typos, English number agreement). **Id 51 (Al-Ghafur) is NOT
+touched** — it was audited and found to be Sunan Abi Dawud 1516 verbatim
+(Ṣaḥīḥ, al-Albani); id 11 carries the Tirmidhi route of the same ḥadīth. They
+are separate routes, not near-misses. Do not reconcile them.
+
+Idempotent — matches on the exact broken string, so a re-run is a no-op, and it
+raises loudly if the served row matches neither the known-broken nor the
+repaired text.
+
 ## Softener wave (§V6.10 — no grandfathering)
 
 > **⚠️ SUPERSEDED for the free-tier migration (D12, 2026-08-01).** Both scripts

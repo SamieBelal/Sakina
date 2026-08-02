@@ -948,8 +948,8 @@ const List<NameGuidance> nameGuidance = [
     arabic: 'الْبَرُّ',
     episode: 79,
     callFor: ['gratitude for goodness', 'source of all good', 'steadfastness in birr', 'faith in trials'],
-    invocationStyle: "Ya Barr, thabbintni 'ala birrik",
-    samplePhrase: "Ya Barr, thabbintni 'ala birrik waj'al imani rasikhana hina tartajifu qulub",
+    invocationStyle: "Ya Barr, thabbitni 'ala birrik",
+    samplePhrase: "Ya Barr, thabbitni 'ala birrik waj'al imani rasikhan hina tartajiful-qulub",
   ),
 ];
 

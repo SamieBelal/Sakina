@@ -1523,11 +1523,11 @@ const List<CollectibleName> allCollectibleNames = [
     hadith:
         'The Prophet ﷺ said upon completing Hajj: "Our Lord is Al-Barr, Al-Ghafur." Al-Barr is the source of all kindness whose goodness is the origin of every blessing you have received. (Muslim 1342)',
     duaArabic:
-        'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ قُلُوبُ',
+        'يَا بَرُّ ثَبِّتْنِي عَلَى بِرِّكَ وَاجْعَلْ إِيمَانِي رَاسِخًا حِينَ تَرْتَجِفُ الْقُلُوبُ',
     duaTransliteration:
-        'Ya Barr, thabbintni \'ala birrik waj\'al imani rasikhana hina tartajifu qulub',
+        'Ya Barr, thabbitni \'ala birrik waj\'al imani rasikhan hina tartajiful-qulub',
     duaTranslation:
-        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when my heart trembles.',
+        'O Source of Goodness, keep me firm on the grounds of Your goodness. Make my faith steady when hearts tremble.',
   ),
   CollectibleName(
     id: 86,
